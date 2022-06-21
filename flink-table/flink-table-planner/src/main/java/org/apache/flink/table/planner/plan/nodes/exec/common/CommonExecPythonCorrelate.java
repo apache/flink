@@ -92,7 +92,11 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
         final Configuration pythonConfig =
                 CommonPythonUtil.extractPythonConfiguration(planner.getExecEnv(), config);
         OneInputTransformation<RowData, RowData> transform =
-                createPythonOneInputTransformation(inputTransform, config, pythonConfig);
+                createPythonOneInputTransformation(
+                        inputTransform,
+                        config,
+                        planner.getFlinkContext().getClassLoader(),
+                        pythonConfig);
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
@@ -102,6 +106,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
     private OneInputTransformation<RowData, RowData> createPythonOneInputTransformation(
             Transformation<RowData> inputTransform,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             Configuration pythonConfig) {
         Tuple2<int[], PythonFunctionInfo> extractResult = extractPythonTableFunctionInfo();
         int[] pythonUdtfInputOffsets = extractResult.f0;
@@ -113,6 +118,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonTableFunctionOperator(
                         config,
+                        classLoader,
                         pythonConfig,
                         pythonOperatorInputRowType,
                         pythonOperatorOutputRowType,
@@ -143,6 +149,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonTableFunctionOperator(
             ExecNodeConfig config,
+            ClassLoader classLoader,
             Configuration pythonConfig,
             InternalTypeInfo<RowData> inputRowType,
             InternalTypeInfo<RowData> outputRowType,
@@ -177,7 +184,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                             udfOutputType,
                             joinType,
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(config),
+                                    new CodeGeneratorContext(config, classLoader),
                                     "UdtfInputProjection",
                                     inputType,
                                     udfInputType,

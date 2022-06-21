@@ -106,6 +106,7 @@ public class CassandraConnectorITCase
 
     private static final int MAX_CONNECTION_RETRY = 3;
     private static final long CONNECTION_RETRY_DELAY = 500L;
+
     private static final Logger LOG = LoggerFactory.getLogger(CassandraConnectorITCase.class);
     private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
 
@@ -263,7 +264,7 @@ public class CassandraConnectorITCase
     // ------------------------------------------------------------------------
 
     public static CassandraContainer createCassandraContainer() {
-        CassandraContainer cassandra = new CassandraContainer(DockerImageVersions.CASSANDRA_3);
+        CassandraContainer cassandra = new CassandraContainer(DockerImageVersions.CASSANDRA_4_0);
         cassandra.withJmxReporting(false);
         cassandra.withLogConsumer(LOG_CONSUMER);
         return cassandra;

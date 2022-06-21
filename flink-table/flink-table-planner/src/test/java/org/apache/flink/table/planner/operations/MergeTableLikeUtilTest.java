@@ -64,7 +64,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for {@link MergeTableLikeUtil}. */
 public class MergeTableLikeUtilTest {
 
-    private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
+    private final FlinkTypeFactory typeFactory =
+            new FlinkTypeFactory(
+                    Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
     private final SqlValidator sqlValidator =
             PlannerMocks.create().getPlanner().getOrCreateSqlValidator();
     private final MergeTableLikeUtil util = new MergeTableLikeUtil(sqlValidator, SqlNode::toString);

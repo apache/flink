@@ -136,6 +136,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     protected Transformation<Object> createSinkTransformation(
             StreamExecutionEnvironment streamExecEnv,
             ReadableConfig config,
+            ClassLoader classLoader,
             Transformation<RowData> inputTransform,
             DynamicTableSink tableSink,
             int rowtimeFieldIndex,
@@ -175,6 +176,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             sinkTransform =
                     applyKeyBy(
                             config,
+                            classLoader,
                             sinkTransform,
                             primaryKeys,
                             sinkParallelism,
@@ -185,7 +187,12 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         if (needMaterialization) {
             sinkTransform =
                     applyUpsertMaterialize(
-                            sinkTransform, primaryKeys, sinkParallelism, config, physicalRowType);
+                            sinkTransform,
+                            primaryKeys,
+                            sinkParallelism,
+                            config,
+                            classLoader,
+                            physicalRowType);
         }
 
         return (Transformation<Object>)
@@ -349,6 +356,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
      */
     private Transformation<RowData> applyKeyBy(
             ReadableConfig config,
+            ClassLoader classLoader,
             Transformation<RowData> inputTransform,
             int[] primaryKeys,
             int sinkParallelism,
@@ -375,7 +383,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         }
 
         final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(primaryKeys, getInputTypeInfo());
+                KeySelectorUtil.getRowDataSelector(classLoader, primaryKeys, getInputTypeInfo());
         final KeyGroupStreamPartitioner<RowData, RowData> partitioner =
                 new KeyGroupStreamPartitioner<>(
                         selector, KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
@@ -392,9 +400,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             int[] primaryKeys,
             int sinkParallelism,
             ReadableConfig config,
+            ClassLoader classLoader,
             RowType physicalRowType) {
         GeneratedRecordEqualiser equaliser =
-                new EqualiserCodeGenerator(physicalRowType)
+                new EqualiserCodeGenerator(physicalRowType, classLoader)
                         .generateRecordEqualiser("SinkMaterializeEqualiser");
         SinkUpsertMaterializer operator =
                 new SinkUpsertMaterializer(
@@ -423,7 +432,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         sinkParallelism);
         RowDataKeySelector keySelector =
                 KeySelectorUtil.getRowDataSelector(
-                        primaryKeys, InternalTypeInfo.of(physicalRowType));
+                        classLoader, primaryKeys, InternalTypeInfo.of(physicalRowType));
         materializeTransform.setStateKeySelector(keySelector);
         materializeTransform.setStateKeyType(keySelector.getProducedType());
         return materializeTransform;

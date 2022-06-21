@@ -63,7 +63,8 @@ from pyflink.common.serializer import TypeSerializer
 from pyflink.common.typeinfo import Types, TypeInformation
 from pyflink.common.types import Row, RowKind
 from pyflink.common.time import Duration, Instant, Time
-from pyflink.common.watermark_strategy import WatermarkStrategy
+from pyflink.common.watermark_strategy import WatermarkStrategy, \
+    AssignerWithPeriodicWatermarksWrapper
 
 __all__ = [
     'Configuration',
@@ -97,5 +98,7 @@ __all__ = [
     "WatermarkStrategy",
     "Duration",
     "Instant",
-    "Time"
+    "Time",
+    "AssignerWithPeriodicWatermarksWrapper"
+    ""
 ]

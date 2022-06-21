@@ -60,7 +60,9 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -74,6 +76,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1421,6 +1424,45 @@ public class DeclarativeSlotManagerTest extends TestLogger {
             // clear requirements, which should trigger slots being reclaimed
             slotManager.clearResourceRequirements(jobId);
             assertThat(freeInactiveSlotsJobIdFuture.get(), is(jobId));
+        }
+    }
+
+    @Test
+    public void testProcessResourceRequirementsWithDelay() throws Exception {
+        final ResourceTracker resourceTracker = new DefaultResourceTracker();
+        final AtomicInteger allocatedResourceCounter = new AtomicInteger(0);
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final Duration delay = Duration.ofMillis(500);
+        try (final DeclarativeSlotManager slotManager =
+                createDeclarativeSlotManagerBuilder(scheduledExecutor)
+                        .setResourceTracker(resourceTracker)
+                        .setRequirementCheckDelay(delay)
+                        .buildAndStartWithDirectExec(
+                                ResourceManagerId.generate(),
+                                new TestingResourceActionsBuilder()
+                                        .setAllocateResourceConsumer(
+                                                workerResourceSpec ->
+                                                        allocatedResourceCounter.getAndIncrement())
+                                        .build())) {
+
+            final JobID jobId = new JobID();
+
+            slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
+            Assertions.assertEquals(0, allocatedResourceCounter.get());
+            Assertions.assertEquals(
+                    1, scheduledExecutor.getActiveNonPeriodicScheduledTask().size());
+            final ScheduledFuture<?> future =
+                    scheduledExecutor.getActiveNonPeriodicScheduledTask().iterator().next();
+            Assertions.assertEquals(delay.toMillis(), future.getDelay(TimeUnit.MILLISECONDS));
+
+            // the second request is skipped
+            slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
+            Assertions.assertEquals(
+                    1, scheduledExecutor.getActiveNonPeriodicScheduledTask().size());
+
+            scheduledExecutor.triggerNonPeriodicScheduledTask();
+            Assertions.assertEquals(1, allocatedResourceCounter.get());
         }
     }
 

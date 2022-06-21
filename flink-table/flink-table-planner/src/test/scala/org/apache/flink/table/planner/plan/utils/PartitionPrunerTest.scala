@@ -69,6 +69,7 @@ class PartitionPrunerTest extends RexNodeTestBase {
     val tableConfig = TableConfig.getDefault
     val prunedPartitions = PartitionPruner.prunePartitions(
       tableConfig,
+      Thread.currentThread().getContextClassLoader,
       partitionFieldNames,
       partitionFieldTypes,
       allPartitions,
@@ -105,6 +106,7 @@ class PartitionPrunerTest extends RexNodeTestBase {
     val tableConfig = TableConfig.getDefault
     val prunedPartitions = PartitionPruner.prunePartitions(
       tableConfig,
+      Thread.currentThread().getContextClassLoader,
       partitionFieldNames,
       partitionFieldTypes,
       allPartitions,
@@ -179,6 +181,7 @@ class PartitionPrunerTest extends RexNodeTestBase {
     tableConfig.setLocalTimeZone(ZoneOffset.ofHours(0))
     val prunedPartitions = PartitionPruner.prunePartitions(
       tableConfig,
+      Thread.currentThread().getContextClassLoader,
       partitionFieldNames,
       partitionFieldTypes,
       allPartitions,

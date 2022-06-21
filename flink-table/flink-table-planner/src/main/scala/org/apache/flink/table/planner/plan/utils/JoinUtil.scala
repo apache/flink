@@ -120,11 +120,13 @@ object JoinUtil {
 
   def generateConditionFunction(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       joinSpec: JoinSpec,
       leftType: LogicalType,
       rightType: LogicalType): GeneratedJoinCondition = {
     generateConditionFunction(
       tableConfig,
+      classLoader,
       joinSpec.getNonEquiCondition.orElse(null),
       leftType,
       rightType)
@@ -132,10 +134,11 @@ object JoinUtil {
 
   def generateConditionFunction(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       nonEquiCondition: RexNode,
       leftType: LogicalType,
       rightType: LogicalType): GeneratedJoinCondition = {
-    val ctx = CodeGeneratorContext(tableConfig)
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
     // should consider null fields
     val exprGenerator = new ExprCodeGenerator(ctx, false)
       .bindInput(leftType)
@@ -156,6 +159,7 @@ object JoinUtil {
   }
 
   def analyzeJoinInput(
+      classLoader: ClassLoader,
       inputTypeInfo: InternalTypeInfo[RowData],
       joinKeys: Array[Int],
       uniqueKeys: util.List[Array[Int]]): JoinInputSideSpec = {
@@ -170,13 +174,15 @@ object JoinUtil {
 
       if (uniqueKeysContainedByJoinKey.isEmpty) {
         val smallestUniqueKey = getSmallestKey(uniqueKeys)
-        val uniqueKeySelector = KeySelectorUtil.getRowDataSelector(smallestUniqueKey, inputTypeInfo)
+        val uniqueKeySelector =
+          KeySelectorUtil.getRowDataSelector(classLoader, smallestUniqueKey, inputTypeInfo)
         val uniqueKeyTypeInfo = uniqueKeySelector.getProducedType
         JoinInputSideSpec.withUniqueKey(uniqueKeyTypeInfo, uniqueKeySelector)
       } else {
         // join key contains unique key
         val smallestUniqueKey = getSmallestKey(uniqueKeysContainedByJoinKey)
-        val uniqueKeySelector = KeySelectorUtil.getRowDataSelector(smallestUniqueKey, inputTypeInfo)
+        val uniqueKeySelector =
+          KeySelectorUtil.getRowDataSelector(classLoader, smallestUniqueKey, inputTypeInfo)
         val uniqueKeyTypeInfo = uniqueKeySelector.getProducedType
         JoinInputSideSpec.withUniqueKeyContainedByJoinKey(uniqueKeyTypeInfo, uniqueKeySelector)
       }

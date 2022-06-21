@@ -105,7 +105,11 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         final Configuration pythonConfig =
                 CommonPythonUtil.extractPythonConfiguration(planner.getExecEnv(), config);
         OneInputTransformation<RowData, RowData> ret =
-                createPythonOneInputTransformation(inputTransform, config, pythonConfig);
+                createPythonOneInputTransformation(
+                        inputTransform,
+                        config,
+                        planner.getFlinkContext().getClassLoader(),
+                        pythonConfig);
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
             ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
@@ -115,6 +119,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
     private OneInputTransformation<RowData, RowData> createPythonOneInputTransformation(
             Transformation<RowData> inputTransform,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             Configuration pythonConfig) {
         List<RexCall> pythonRexCalls =
                 projection.stream()
@@ -153,6 +158,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonScalarFunctionOperator(
                         config,
+                        classLoader,
                         pythonConfig,
                         pythonOperatorInputTypeInfo,
                         pythonOperatorResultTyeInfo,
@@ -202,6 +208,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonScalarFunctionOperator(
             ExecNodeConfig config,
+            ClassLoader classLoader,
             Configuration pythonConfig,
             InternalTypeInfo<RowData> inputRowTypeInfo,
             InternalTypeInfo<RowData> outputRowTypeInfo,
@@ -250,13 +257,13 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                                 udfInputType,
                                 udfOutputType,
                                 ProjectionCodeGenerator.generateProjection(
-                                        CodeGeneratorContext.apply(config),
+                                        new CodeGeneratorContext(config, classLoader),
                                         "UdfInputProjection",
                                         inputType,
                                         udfInputType,
                                         udfInputOffsets),
                                 ProjectionCodeGenerator.generateProjection(
-                                        CodeGeneratorContext.apply(config),
+                                        new CodeGeneratorContext(config, classLoader),
                                         "ForwardedFieldProjection",
                                         inputType,
                                         forwardedFieldType,
@@ -281,7 +288,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                                     udfOutputType,
                                     udfInputOffsets,
                                     ProjectionCodeGenerator.generateProjection(
-                                            CodeGeneratorContext.apply(config),
+                                            new CodeGeneratorContext(config, classLoader),
                                             "ForwardedFieldProjection",
                                             inputType,
                                             forwardedFieldType,

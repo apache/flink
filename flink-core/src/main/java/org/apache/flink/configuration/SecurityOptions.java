@@ -132,6 +132,22 @@ public class SecurityOptions {
                     .withDescription(
                             "The time period when keytab login happens automatically in order to always have a valid TGT.");
 
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<Duration> KERBEROS_TOKENS_RENEWAL_RETRY_BACKOFF =
+            key("security.kerberos.tokens.renewal.retry.backoff")
+                    .durationType()
+                    .defaultValue(Duration.ofHours(1))
+                    .withDescription(
+                            "The time period how long to wait before retrying to obtain new delegation tokens after a failure.");
+
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<Double> KERBEROS_TOKENS_RENEWAL_TIME_RATIO =
+            key("security.kerberos.tokens.renewal.time-ratio")
+                    .doubleType()
+                    .defaultValue(0.75)
+                    .withDescription(
+                            "Ratio of the tokens's expiration time when new credentials should be re-obtained.");
+
     // ------------------------------------------------------------------------
     //  ZooKeeper Security Options
     // ------------------------------------------------------------------------

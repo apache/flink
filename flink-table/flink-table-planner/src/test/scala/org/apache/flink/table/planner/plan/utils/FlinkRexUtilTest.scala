@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.codegen.ExpressionReducer
 
 import org.apache.calcite.rex.{RexBuilder, RexLiteral, RexNode, RexUtil}
@@ -32,7 +32,8 @@ import java.math.BigDecimal
 import java.util.Collections
 
 class FlinkRexUtilTest {
-  private val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE)
+  private val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(
+    Thread.currentThread().getContextClassLoader)
   private val rexBuilder = new FlinkRexBuilder(typeFactory)
   private val varcharType = typeFactory.createSqlType(VARCHAR)
   private val intType = typeFactory.createSqlType(INTEGER)
@@ -518,7 +519,10 @@ class FlinkRexUtilTest {
   def intLiteral(x: Int): RexLiteral = rexBuilder.makeExactLiteral(BigDecimal.valueOf(x))
 
   def simplify(rexBuilder: RexBuilder, expr: RexNode): RexNode = {
-    val expressionReducer = new ExpressionReducer(TableConfig.getDefault, false)
+    val expressionReducer = new ExpressionReducer(
+      TableConfig.getDefault,
+      Thread.currentThread().getContextClassLoader,
+      false)
     FlinkRexUtil.simplify(rexBuilder, expr, expressionReducer)
   }
 

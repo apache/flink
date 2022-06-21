@@ -87,7 +87,8 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData>
 
         final CodeGenOperatorFactory<RowData> operatorFactory =
                 ExpandCodeGenerator.generateExpandOperator(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(
+                                config, planner.getFlinkContext().getClassLoader()),
                         (RowType) inputEdge.getOutputType(),
                         (RowType) getOutputType(),
                         projects,

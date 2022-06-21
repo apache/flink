@@ -144,6 +144,8 @@ public class StreamingJobGraphGenerator {
     private final StreamGraphHasher defaultStreamGraphHasher;
     private final List<StreamGraphHasher> legacyStreamGraphHashers;
 
+    private boolean hasHybridResultPartition = false;
+
     private StreamingJobGraphGenerator(StreamGraph streamGraph, @Nullable JobID jobID) {
         this.streamGraph = streamGraph;
         this.defaultStreamGraphHasher = new StreamGraphHasherV2();
@@ -976,12 +978,19 @@ public class StreamingJobGraphGenerator {
             case BATCH:
                 resultPartitionType = ResultPartitionType.BLOCKING;
                 break;
+            case HYBRID:
+                resultPartitionType = ResultPartitionType.HYBRID;
+                break;
             case UNDEFINED:
                 resultPartitionType = determineResultPartitionType(partitioner);
                 break;
             default:
                 throw new UnsupportedOperationException(
                         "Data exchange mode " + edge.getExchangeMode() + " is not supported yet.");
+        }
+
+        if (resultPartitionType == ResultPartitionType.HYBRID) {
+            hasHybridResultPartition = true;
         }
 
         checkBufferTimeout(resultPartitionType, edge);
@@ -1014,14 +1023,14 @@ public class StreamingJobGraphGenerator {
 
     private void checkBufferTimeout(ResultPartitionType type, StreamEdge edge) {
         long bufferTimeout = edge.getBufferTimeout();
-        if (type.isBlocking()
+        if (!type.canBePipelinedConsumed()
                 && bufferTimeout != ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT) {
             throw new UnsupportedOperationException(
-                    "Blocking partition does not support buffer timeout "
+                    "only canBePipelinedConsumed partition support buffer timeout "
                             + bufferTimeout
                             + " for src operator in edge "
                             + edge
-                            + ". \nPlease either disable buffer timeout (via -1) or use the non-blocking partition.");
+                            + ". \nPlease either disable buffer timeout (via -1) or use the canBePipelinedConsumed partition.");
         }
     }
 
@@ -1045,6 +1054,8 @@ public class StreamingJobGraphGenerator {
                 return ResultPartitionType.PIPELINED_BOUNDED;
             case ALL_EDGES_PIPELINED_APPROXIMATE:
                 return ResultPartitionType.PIPELINED_APPROXIMATE;
+            case ALL_EDGES_HYBRID:
+                return ResultPartitionType.HYBRID;
             default:
                 throw new RuntimeException(
                         "Unrecognized global data exchange mode "
@@ -1150,7 +1161,7 @@ public class StreamingJobGraphGenerator {
                 break;
             default:
                 throw new RuntimeException(
-                        "Unknown chaining strategy: " + upStreamOperator.getChainingStrategy());
+                        "Unknown chaining strategy: " + downStreamOperator.getChainingStrategy());
         }
 
         return isChainable;
@@ -1191,6 +1202,10 @@ public class StreamingJobGraphGenerator {
                 effectiveSlotSharingGroup =
                         checkNotNull(vertexRegionSlotSharingGroups.get(vertex.getID()));
             } else {
+                checkState(
+                        !hasHybridResultPartition,
+                        "hybrid shuffle mode currently does not support setting non-default slot sharing group.");
+
                 effectiveSlotSharingGroup =
                         specifiedSlotSharingGroups.computeIfAbsent(
                                 slotSharingGroupKey,

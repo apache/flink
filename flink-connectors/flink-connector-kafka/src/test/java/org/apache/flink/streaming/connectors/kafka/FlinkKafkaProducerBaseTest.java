@@ -40,7 +40,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -49,7 +48,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
@@ -82,14 +82,13 @@ public class FlinkKafkaProducerBaseTest {
         new DummyFlinkKafkaProducer<>(
                 props, new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
 
-        assertTrue(props.containsKey(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG));
-        assertTrue(props.containsKey(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG));
-        assertTrue(
-                props.getProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)
-                        .equals(ByteArraySerializer.class.getName()));
-        assertTrue(
-                props.getProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)
-                        .equals(ByteArraySerializer.class.getName()));
+        assertThat(props)
+                .containsKey(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG)
+                .containsKey(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG);
+        assertThat(props.getProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG))
+                .isEqualTo(ByteArraySerializer.class.getName());
+        assertThat(props.getProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG))
+                .isEqualTo(ByteArraySerializer.class.getName());
     }
 
     /** Tests that partitions list is determinate and correctly provided to custom partitioner. */
@@ -165,13 +164,13 @@ public class FlinkKafkaProducerBaseTest {
             testHarness.processElement(new StreamRecord<>("msg-2"));
         } catch (Exception e) {
             // the next invoke should rethrow the async exception
-            Assert.assertTrue(e.getCause().getMessage().contains("artificial async exception"));
+            assertThat(e.getCause().getMessage()).contains("artificial async exception");
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        fail("unknown failure");
     }
 
     /**
@@ -202,13 +201,13 @@ public class FlinkKafkaProducerBaseTest {
             testHarness.snapshot(123L, 123L);
         } catch (Exception e) {
             // the next invoke should rethrow the async exception
-            Assert.assertTrue(e.getCause().getMessage().contains("artificial async exception"));
+            assertThat(e.getCause().getMessage()).contains("artificial async exception");
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        fail("unknown failure");
     }
 
     /**
@@ -266,14 +265,14 @@ public class FlinkKafkaProducerBaseTest {
             snapshotThread.sync();
         } catch (Exception e) {
             // the snapshot should have failed with the async exception
-            Assert.assertTrue(
-                    e.getCause().getMessage().contains("artificial async failure for 2nd message"));
+            assertThat(e.getCause().getMessage())
+                    .contains("artificial async failure for 2nd message");
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        fail("unknown failure");
     }
 
     /**
@@ -302,7 +301,7 @@ public class FlinkKafkaProducerBaseTest {
         testHarness.processElement(new StreamRecord<>("msg-3"));
 
         verify(mockProducer, times(3)).send(any(ProducerRecord.class), any(Callback.class));
-        Assert.assertEquals(3, producer.getPendingSize());
+        assertThat(producer.getPendingSize()).isEqualTo(3);
 
         // start a thread to perform checkpointing
         CheckedThread snapshotThread =
@@ -321,22 +320,25 @@ public class FlinkKafkaProducerBaseTest {
         // blocked;
         // this would block forever if the snapshot didn't perform a flush
         producer.waitUntilFlushStarted();
-        Assert.assertTrue(
-                "Snapshot returned before all records were flushed", snapshotThread.isAlive());
+        assertThat(snapshotThread.isAlive())
+                .as("Snapshot returned before all records were flushed")
+                .isTrue();
 
         // now, complete the callbacks
         producer.getPendingCallbacks().get(0).onCompletion(null, null);
-        Assert.assertTrue(
-                "Snapshot returned before all records were flushed", snapshotThread.isAlive());
-        Assert.assertEquals(2, producer.getPendingSize());
+        assertThat(snapshotThread.isAlive())
+                .as("Snapshot returned before all records were flushed")
+                .isTrue();
+        assertThat(producer.getPendingSize()).isEqualTo(2);
 
         producer.getPendingCallbacks().get(1).onCompletion(null, null);
-        Assert.assertTrue(
-                "Snapshot returned before all records were flushed", snapshotThread.isAlive());
-        Assert.assertEquals(1, producer.getPendingSize());
+        assertThat(snapshotThread.isAlive())
+                .as("Snapshot returned before all records were flushed")
+                .isTrue();
+        assertThat(producer.getPendingSize()).isEqualTo(1);
 
         producer.getPendingCallbacks().get(2).onCompletion(null, null);
-        Assert.assertEquals(0, producer.getPendingSize());
+        assertThat(producer.getPendingSize()).isEqualTo(0);
 
         // this would fail with an exception if flushing wasn't completed before the snapshot method
         // returned

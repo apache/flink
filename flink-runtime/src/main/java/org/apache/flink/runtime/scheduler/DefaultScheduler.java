@@ -36,6 +36,9 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHa
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
+import org.apache.flink.runtime.io.network.partition.PartitionException;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -62,6 +65,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -293,13 +297,37 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private void handleTaskFailure(
             final ExecutionVertexID executionVertexId, @Nullable final Throwable error) {
+        Throwable revisedError =
+                maybeTranslateToCachedIntermediateDataSetException(error, executionVertexId);
         final long timestamp = System.currentTimeMillis();
-        setGlobalFailureCause(error, timestamp);
-        notifyCoordinatorsAboutTaskFailure(executionVertexId, error);
+        setGlobalFailureCause(revisedError, timestamp);
+        notifyCoordinatorsAboutTaskFailure(executionVertexId, revisedError);
         final FailureHandlingResult failureHandlingResult =
                 executionFailureHandler.getFailureHandlingResult(
-                        executionVertexId, error, timestamp);
+                        executionVertexId, revisedError, timestamp);
         maybeRestartTasks(failureHandlingResult);
+    }
+
+    private Throwable maybeTranslateToCachedIntermediateDataSetException(
+            @Nullable Throwable cause, ExecutionVertexID failedVertex) {
+        if (!(cause instanceof PartitionException)) {
+            return cause;
+        }
+
+        final List<IntermediateDataSetID> intermediateDataSetIdsToConsume =
+                getExecutionJobVertex(failedVertex.getJobVertexId())
+                        .getJobVertex()
+                        .getIntermediateDataSetIdsToConsume();
+        final IntermediateResultPartitionID failedPartitionId =
+                ((PartitionException) cause).getPartitionId().getPartitionId();
+
+        if (!intermediateDataSetIdsToConsume.contains(
+                failedPartitionId.getIntermediateDataSetID())) {
+            return cause;
+        }
+
+        return new CachedIntermediateDataSetCorruptedException(
+                cause, Collections.singletonList(failedPartitionId.getIntermediateDataSetID()));
     }
 
     private void notifyCoordinatorsAboutTaskFailure(

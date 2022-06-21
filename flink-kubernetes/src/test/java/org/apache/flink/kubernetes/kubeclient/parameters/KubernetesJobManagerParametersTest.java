@@ -28,8 +28,8 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.kubernetes.KubernetesTestBase;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
-import org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.Test;
@@ -250,9 +250,7 @@ class KubernetesJobManagerParametersTest extends KubernetesTestBase {
 
     @Test
     void testGetReplicas() {
-        flinkConfig.set(
-                HighAvailabilityOptions.HA_MODE,
-                KubernetesHaServicesFactory.class.getCanonicalName());
+        flinkConfig.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.KUBERNETES.name());
         flinkConfig.set(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_REPLICAS, 2);
         assertThat(kubernetesJobManagerParameters.getReplicas()).isEqualTo(2);
     }

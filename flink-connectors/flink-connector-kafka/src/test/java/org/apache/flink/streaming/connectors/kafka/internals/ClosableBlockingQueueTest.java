@@ -26,14 +26,8 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Arrays.asList;
-import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link ClosableBlockingQueue}. */
 public class ClosableBlockingQueueTest {
@@ -48,22 +42,22 @@ public class ClosableBlockingQueueTest {
             ClosableBlockingQueue<String> queue1 = new ClosableBlockingQueue<>();
             ClosableBlockingQueue<String> queue2 = new ClosableBlockingQueue<>(22);
 
-            assertTrue(queue1.isOpen());
-            assertTrue(queue2.isOpen());
-            assertTrue(queue1.isEmpty());
-            assertTrue(queue2.isEmpty());
-            assertEquals(0, queue1.size());
-            assertEquals(0, queue2.size());
+            assertThat(queue1.isOpen()).isTrue();
+            assertThat(queue2.isOpen()).isTrue();
+            assertThat(queue1.isEmpty()).isTrue();
+            assertThat(queue2.isEmpty()).isTrue();
+            assertThat(queue1.size()).isEqualTo(0);
+            assertThat(queue2.size()).isEqualTo(0);
 
-            assertTrue(queue1.hashCode() == queue2.hashCode());
+            assertThat(queue1.hashCode()).isEqualTo(queue2.hashCode());
             //noinspection EqualsWithItself
-            assertTrue(queue1.equals(queue1));
+            assertThat(queue1.equals(queue1)).isTrue();
             //noinspection EqualsWithItself
-            assertTrue(queue2.equals(queue2));
-            assertTrue(queue1.equals(queue2));
+            assertThat(queue2.equals(queue2)).isTrue();
+            assertThat(queue1.equals(queue2)).isTrue();
 
-            assertNotNull(queue1.toString());
-            assertNotNull(queue2.toString());
+            assertThat(queue1.toString()).isNotNull();
+            assertThat(queue2.toString()).isNotNull();
 
             List<String> elements = new ArrayList<>();
             elements.add("a");
@@ -74,22 +68,22 @@ public class ClosableBlockingQueueTest {
             ClosableBlockingQueue<String> queue4 =
                     new ClosableBlockingQueue<>(asList("a", "b", "c"));
 
-            assertTrue(queue3.isOpen());
-            assertTrue(queue4.isOpen());
-            assertFalse(queue3.isEmpty());
-            assertFalse(queue4.isEmpty());
-            assertEquals(3, queue3.size());
-            assertEquals(3, queue4.size());
+            assertThat(queue3.isOpen()).isTrue();
+            assertThat(queue4.isOpen()).isTrue();
+            assertThat(queue3.isEmpty()).isFalse();
+            assertThat(queue4.isEmpty()).isFalse();
+            assertThat(queue3.size()).isEqualTo(3);
+            assertThat(queue4.size()).isEqualTo(3);
 
-            assertTrue(queue3.hashCode() == queue4.hashCode());
+            assertThat(queue3.hashCode()).isEqualTo(queue4.hashCode());
             //noinspection EqualsWithItself
-            assertTrue(queue3.equals(queue3));
+            assertThat(queue3.equals(queue3)).isTrue();
             //noinspection EqualsWithItself
-            assertTrue(queue4.equals(queue4));
-            assertTrue(queue3.equals(queue4));
+            assertThat(queue4.equals(queue4)).isTrue();
+            assertThat(queue3.equals(queue4)).isTrue();
 
-            assertNotNull(queue3.toString());
-            assertNotNull(queue4.toString());
+            assertThat(queue3.toString()).isNotNull();
+            assertThat(queue4.toString()).isNotNull();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -100,12 +94,12 @@ public class ClosableBlockingQueueTest {
     public void testCloseEmptyQueue() {
         try {
             ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>();
-            assertTrue(queue.isOpen());
-            assertTrue(queue.close());
-            assertFalse(queue.isOpen());
+            assertThat(queue.isOpen()).isTrue();
+            assertThat(queue.close()).isTrue();
+            assertThat(queue.isOpen()).isFalse();
 
-            assertFalse(queue.addIfOpen("element"));
-            assertTrue(queue.isEmpty());
+            assertThat(queue.addIfOpen("element")).isFalse();
+            assertThat(queue.isEmpty()).isTrue();
 
             try {
                 queue.add("some element");
@@ -123,23 +117,23 @@ public class ClosableBlockingQueueTest {
     public void testCloseNonEmptyQueue() {
         try {
             ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(asList(1, 2, 3));
-            assertTrue(queue.isOpen());
+            assertThat(queue.isOpen()).isTrue();
 
-            assertFalse(queue.close());
-            assertFalse(queue.close());
+            assertThat(queue.close()).isFalse();
+            assertThat(queue.close()).isFalse();
 
             queue.poll();
 
-            assertFalse(queue.close());
-            assertFalse(queue.close());
+            assertThat(queue.close()).isFalse();
+            assertThat(queue.close()).isFalse();
 
             queue.pollBatch();
 
-            assertTrue(queue.close());
-            assertFalse(queue.isOpen());
+            assertThat(queue.close()).isTrue();
+            assertThat(queue.isOpen()).isFalse();
 
-            assertFalse(queue.addIfOpen(42));
-            assertTrue(queue.isEmpty());
+            assertThat(queue.addIfOpen(42)).isFalse();
+            assertThat(queue.isEmpty()).isTrue();
 
             try {
                 queue.add(99);
@@ -158,41 +152,41 @@ public class ClosableBlockingQueueTest {
         try {
             ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>();
 
-            assertNull(queue.peek());
-            assertNull(queue.peek());
-            assertNull(queue.poll());
-            assertNull(queue.poll());
+            assertThat(queue.peek()).isNull();
+            assertThat(queue.peek()).isNull();
+            assertThat(queue.poll()).isNull();
+            assertThat(queue.poll()).isNull();
 
-            assertEquals(0, queue.size());
+            assertThat(queue.size()).isEqualTo(0);
 
             queue.add("a");
             queue.add("b");
             queue.add("c");
 
-            assertEquals(3, queue.size());
+            assertThat(queue.size()).isEqualTo(3);
 
-            assertEquals("a", queue.peek());
-            assertEquals("a", queue.peek());
-            assertEquals("a", queue.peek());
+            assertThat(queue.peek()).isEqualTo("a");
+            assertThat(queue.peek()).isEqualTo("a");
+            assertThat(queue.peek()).isEqualTo("a");
 
-            assertEquals(3, queue.size());
+            assertThat(queue.size()).isEqualTo(3);
 
-            assertEquals("a", queue.poll());
-            assertEquals("b", queue.poll());
+            assertThat(queue.poll()).isEqualTo("a");
+            assertThat(queue.poll()).isEqualTo("b");
 
-            assertEquals(1, queue.size());
+            assertThat(queue.size()).isEqualTo(1);
 
-            assertEquals("c", queue.peek());
-            assertEquals("c", queue.peek());
+            assertThat(queue.peek()).isEqualTo("c");
+            assertThat(queue.peek()).isEqualTo("c");
 
-            assertEquals("c", queue.poll());
+            assertThat(queue.poll()).isEqualTo("c");
 
-            assertEquals(0, queue.size());
-            assertNull(queue.poll());
-            assertNull(queue.peek());
-            assertNull(queue.peek());
+            assertThat(queue.size()).isEqualTo(0);
+            assertThat(queue.poll()).isNull();
+            assertThat(queue.peek()).isNull();
+            assertThat(queue.peek()).isNull();
 
-            assertTrue(queue.close());
+            assertThat(queue.close()).isTrue();
 
             try {
                 queue.peek();
@@ -218,20 +212,20 @@ public class ClosableBlockingQueueTest {
         try {
             ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>();
 
-            assertNull(queue.pollBatch());
+            assertThat(queue.pollBatch()).isNull();
 
             queue.add("a");
             queue.add("b");
 
-            assertEquals(asList("a", "b"), queue.pollBatch());
-            assertNull(queue.pollBatch());
+            assertThat(queue.pollBatch()).isEqualTo(asList("a", "b"));
+            assertThat(queue.pollBatch()).isNull();
 
             queue.add("c");
 
-            assertEquals(singletonList("c"), queue.pollBatch());
-            assertNull(queue.pollBatch());
+            assertThat(queue.pollBatch()).containsExactly("c");
+            assertThat(queue.pollBatch()).isNull();
 
-            assertTrue(queue.close());
+            assertThat(queue.close()).isTrue();
 
             try {
                 queue.pollBatch();
@@ -250,11 +244,11 @@ public class ClosableBlockingQueueTest {
         try {
             ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>();
 
-            assertNull(queue.getElementBlocking(1));
-            assertNull(queue.getElementBlocking(3));
-            assertNull(queue.getElementBlocking(2));
+            assertThat(queue.getElementBlocking(1)).isNull();
+            assertThat(queue.getElementBlocking(3)).isNull();
+            assertThat(queue.getElementBlocking(2)).isNull();
 
-            assertEquals(0, queue.size());
+            assertThat(queue.size()).isEqualTo(0);
 
             queue.add("a");
             queue.add("b");
@@ -263,25 +257,25 @@ public class ClosableBlockingQueueTest {
             queue.add("e");
             queue.add("f");
 
-            assertEquals(6, queue.size());
+            assertThat(queue.size()).isEqualTo(6);
 
-            assertEquals("a", queue.getElementBlocking(99));
-            assertEquals("b", queue.getElementBlocking());
+            assertThat(queue.getElementBlocking(99)).isEqualTo("a");
+            assertThat(queue.getElementBlocking()).isEqualTo("b");
 
-            assertEquals(4, queue.size());
+            assertThat(queue.size()).isEqualTo(4);
 
-            assertEquals("c", queue.getElementBlocking(0));
-            assertEquals("d", queue.getElementBlocking(1000000));
-            assertEquals("e", queue.getElementBlocking());
-            assertEquals("f", queue.getElementBlocking(1786598));
+            assertThat(queue.getElementBlocking(0)).isEqualTo("c");
+            assertThat(queue.getElementBlocking(1000000)).isEqualTo("d");
+            assertThat(queue.getElementBlocking()).isEqualTo("e");
+            assertThat(queue.getElementBlocking(1786598)).isEqualTo("f");
 
-            assertEquals(0, queue.size());
+            assertThat(queue.size()).isEqualTo(0);
 
-            assertNull(queue.getElementBlocking(1));
-            assertNull(queue.getElementBlocking(3));
-            assertNull(queue.getElementBlocking(2));
+            assertThat(queue.getElementBlocking(1)).isNull();
+            assertThat(queue.getElementBlocking(3)).isNull();
+            assertThat(queue.getElementBlocking(2)).isNull();
 
-            assertTrue(queue.close());
+            assertThat(queue.close()).isTrue();
 
             try {
                 queue.getElementBlocking();
@@ -307,37 +301,37 @@ public class ClosableBlockingQueueTest {
         try {
             ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>();
 
-            assertEquals(emptyList(), queue.getBatchBlocking(1));
-            assertEquals(emptyList(), queue.getBatchBlocking(3));
-            assertEquals(emptyList(), queue.getBatchBlocking(2));
+            assertThat(queue.getBatchBlocking(1)).isEmpty();
+            assertThat(queue.getBatchBlocking(3)).isEmpty();
+            assertThat(queue.getBatchBlocking(2)).isEmpty();
 
             queue.add("a");
             queue.add("b");
 
-            assertEquals(asList("a", "b"), queue.getBatchBlocking(900000009));
+            assertThat(queue.getBatchBlocking(900000009)).isEqualTo(asList("a", "b"));
 
             queue.add("c");
             queue.add("d");
 
-            assertEquals(asList("c", "d"), queue.getBatchBlocking());
+            assertThat(queue.getBatchBlocking()).isEqualTo(asList("c", "d"));
 
-            assertEquals(emptyList(), queue.getBatchBlocking(2));
+            assertThat(queue.getBatchBlocking(2)).isEmpty();
 
             queue.add("e");
 
-            assertEquals(singletonList("e"), queue.getBatchBlocking(0));
+            assertThat(queue.getBatchBlocking(0)).containsExactly("e");
 
             queue.add("f");
 
-            assertEquals(singletonList("f"), queue.getBatchBlocking(1000000000));
+            assertThat(queue.getBatchBlocking(1000000000)).containsExactly("f");
 
-            assertEquals(0, queue.size());
+            assertThat(queue.size()).isEqualTo(0);
 
-            assertEquals(emptyList(), queue.getBatchBlocking(1));
-            assertEquals(emptyList(), queue.getBatchBlocking(3));
-            assertEquals(emptyList(), queue.getBatchBlocking(2));
+            assertThat(queue.getBatchBlocking(1)).isEmpty();
+            assertThat(queue.getBatchBlocking(3)).isEmpty();
+            assertThat(queue.getBatchBlocking(2)).isEmpty();
 
-            assertTrue(queue.close());
+            assertThat(queue.close()).isTrue();
 
             try {
                 queue.getBatchBlocking();
@@ -477,7 +471,8 @@ public class ClosableBlockingQueueTest {
                                                 {
                                                     Integer next = queue.getElementBlocking(1);
                                                     if (next != null) {
-                                                        assertEquals(nextExpected, next.intValue());
+                                                        assertThat(next.intValue())
+                                                                .isEqualTo(nextExpected);
                                                         nextExpected++;
                                                         count++;
                                                     }
@@ -488,8 +483,9 @@ public class ClosableBlockingQueueTest {
                                                     List<Integer> nextList =
                                                             queue.getBatchBlocking();
                                                     for (Integer next : nextList) {
-                                                        assertNotNull(next);
-                                                        assertEquals(nextExpected, next.intValue());
+                                                        assertThat(next).isNotNull();
+                                                        assertThat(next.intValue())
+                                                                .isEqualTo(nextExpected);
                                                         nextExpected++;
                                                         count++;
                                                     }
@@ -501,9 +497,9 @@ public class ClosableBlockingQueueTest {
                                                             queue.getBatchBlocking(1);
                                                     if (nextList != null) {
                                                         for (Integer next : nextList) {
-                                                            assertNotNull(next);
-                                                            assertEquals(
-                                                                    nextExpected, next.intValue());
+                                                            assertThat(next).isNotNull();
+                                                            assertThat(next.intValue())
+                                                                    .isEqualTo(nextExpected);
                                                             nextExpected++;
                                                             count++;
                                                         }
@@ -514,7 +510,8 @@ public class ClosableBlockingQueueTest {
                                                 {
                                                     Integer next = queue.poll();
                                                     if (next != null) {
-                                                        assertEquals(nextExpected, next.intValue());
+                                                        assertThat(next.intValue())
+                                                                .isEqualTo(nextExpected);
                                                         nextExpected++;
                                                         count++;
                                                     }
@@ -525,9 +522,9 @@ public class ClosableBlockingQueueTest {
                                                     List<Integer> nextList = queue.pollBatch();
                                                     if (nextList != null) {
                                                         for (Integer next : nextList) {
-                                                            assertNotNull(next);
-                                                            assertEquals(
-                                                                    nextExpected, next.intValue());
+                                                            assertThat(next).isNotNull();
+                                                            assertThat(next.intValue())
+                                                                    .isEqualTo(nextExpected);
                                                             nextExpected++;
                                                             count++;
                                                         }
@@ -537,8 +534,9 @@ public class ClosableBlockingQueueTest {
                                             default:
                                                 {
                                                     Integer next = queue.getElementBlocking();
-                                                    assertNotNull(next);
-                                                    assertEquals(nextExpected, next.intValue());
+                                                    assertThat(next).isNotNull();
+                                                    assertThat(next.intValue())
+                                                            .isEqualTo(nextExpected);
                                                     nextExpected++;
                                                     count++;
                                                 }
@@ -552,7 +550,7 @@ public class ClosableBlockingQueueTest {
                                     }
                                 } catch (IllegalStateException e) {
                                     // we get this once the queue is closed
-                                    assertEquals(numElements, count);
+                                    assertThat(count).isEqualTo(numElements);
                                 }
                             } catch (Throwable t) {
                                 pollErrorRef.set(t);
@@ -609,7 +607,7 @@ public class ClosableBlockingQueueTest {
 
         @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
         Throwable cause = errorRef.get();
-        assertTrue(cause instanceof IllegalStateException);
+        assertThat(cause).isInstanceOf(IllegalStateException.class);
     }
 
     private interface QueueCall {

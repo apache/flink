@@ -473,7 +473,7 @@ public class ExecutionVertex
         List<IntermediateResultPartition> finishedBlockingPartitions = null;
 
         for (IntermediateResultPartition partition : resultPartitions.values()) {
-            if (partition.getResultType().isBlocking()) {
+            if (!partition.getResultType().canBePipelinedConsumed()) {
 
                 partition.markFinished();
 

@@ -213,7 +213,7 @@ data:
   flink-conf.yaml: |+
   ...
     kubernetes.cluster-id: <cluster-id>
-    high-availability: org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory
+    high-availability: kubernetes
     high-availability.storageDir: hdfs:///flink/recovery
     restart-strategy: fixed-delay
     restart-strategy.fixed-delay.attempts: 10

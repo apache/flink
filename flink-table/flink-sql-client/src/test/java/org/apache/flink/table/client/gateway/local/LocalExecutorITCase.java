@@ -41,12 +41,12 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.utils.TestUserClassLoaderJar;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -101,7 +101,7 @@ public class LocalExecutorITCase extends TestLogger {
     public static void setup() throws IOException {
         clusterClient = MINI_CLUSTER_RESOURCE.getClusterClient();
         File udfJar =
-                TestUserClassLoaderJar.createJarFile(
+                UserClassLoaderJarTestUtils.createJarFile(
                         tempFolder.newFolder("test-jar"),
                         "test-classloader-udf.jar",
                         UserDefinedFunctions.GENERATED_UDF_CLASS,

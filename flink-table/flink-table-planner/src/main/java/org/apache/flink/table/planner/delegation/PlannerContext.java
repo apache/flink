@@ -99,9 +99,10 @@ public class PlannerContext {
             FunctionCatalog functionCatalog,
             CatalogManager catalogManager,
             CalciteSchema rootSchema,
-            List<RelTraitDef> traitDefs) {
+            List<RelTraitDef> traitDefs,
+            ClassLoader classLoader) {
         this.typeSystem = FlinkTypeSystem.INSTANCE;
-        this.typeFactory = new FlinkTypeFactory(typeSystem);
+        this.typeFactory = new FlinkTypeFactory(classLoader, typeSystem);
         this.context =
                 new FlinkContextImpl(
                         isBatchMode,
@@ -113,7 +114,8 @@ public class PlannerContext {
                                 typeFactory,
                                 this::createFlinkPlanner,
                                 this::getCalciteSqlDialect,
-                                this::createRelBuilder));
+                                this::createRelBuilder),
+                        classLoader);
         this.rootSchema = rootSchema;
         this.traitDefs = traitDefs;
         // Make a framework config to initialize the RelOptCluster instance,
@@ -144,7 +146,9 @@ public class PlannerContext {
                 .sqlToRelConverterConfig(getSqlToRelConverterConfig())
                 .operatorTable(getSqlOperatorTable(getCalciteConfig()))
                 // set the executor to evaluate constant expressions
-                .executor(new ExpressionReducer(context.getTableConfig(), false))
+                .executor(
+                        new ExpressionReducer(
+                                context.getTableConfig(), context.getClassLoader(), false))
                 .context(context)
                 .traitDefs(traitDefs)
                 .build();

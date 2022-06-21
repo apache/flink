@@ -176,12 +176,16 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                         sliceAssigner,
                         aggInfoList,
                         config,
+                        planner.getFlinkContext().getClassLoader(),
                         planner.createRelBuilder(),
                         inputRowType.getChildren(),
                         shiftTimeZone);
 
         final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(),
+                        grouping,
+                        InternalTypeInfo.of(inputRowType));
         final LogicalType[] accTypes = convertToLogicalTypes(aggInfoList.getAccTypes());
 
         final OneInputStreamOperator<RowData, RowData> windowOperator =
@@ -215,12 +219,13 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
             SliceAssigner sliceAssigner,
             AggregateInfoList aggInfoList,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             RelBuilder relBuilder,
             List<LogicalType> fieldTypes,
             ZoneId shiftTimeZone) {
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(config),
+                                new CodeGeneratorContext(config, classLoader),
                                 relBuilder,
                                 JavaScalaConversionUtil.toScala(fieldTypes),
                                 false) // copyInputField

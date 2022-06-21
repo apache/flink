@@ -100,7 +100,7 @@ public class NFACompilerTest extends TestLogger {
         // adjust the rule
         expectedException.expect(MalformedPatternException.class);
         expectedException.expectMessage(
-                "NotFollowedBy is not supported as a last part of a Pattern!");
+                "NotFollowedBy is not supported without windowTime as a last part of a Pattern!");
 
         Pattern<Event, ?> invalidPattern =
                 Pattern.<Event>begin("start")
@@ -175,6 +175,59 @@ public class NFACompilerTest extends TestLogger {
                 Sets.newHashSet(
                         Tuple2.of(NFACompiler.ENDING_STATE_NAME, StateTransitionAction.TAKE)),
                 endTransitions);
+
+        assertTrue(stateMap.containsKey(NFACompiler.ENDING_STATE_NAME));
+        State<Event> endingState = stateMap.get(NFACompiler.ENDING_STATE_NAME);
+        assertTrue(endingState.isFinal());
+        assertEquals(0, endingState.getStateTransitions().size());
+    }
+
+    @Test
+    public void testNFACompilerPatternNotFollowedByWithIn() {
+        Pattern<Event, Event> pattern =
+                Pattern.<Event>begin("start")
+                        .where(startFilter)
+                        .notFollowedBy("middle")
+                        .where(endFilter)
+                        .within(Time.milliseconds(1));
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        Collection<State<Event>> states = nfa.getStates();
+        assertEquals(4, states.size());
+
+        Map<String, State<Event>> stateMap = new HashMap<>();
+        for (State<Event> state : states) {
+            stateMap.put(state.getName(), state);
+        }
+
+        assertTrue(stateMap.containsKey("start"));
+        State<Event> startState = stateMap.get("start");
+        assertTrue(startState.isStart());
+        final Set<Tuple2<String, StateTransitionAction>> startTransitions =
+                unfoldTransitions(startState);
+        assertEquals(
+                Sets.newHashSet(Tuple2.of("middle", StateTransitionAction.TAKE)), startTransitions);
+
+        assertTrue(stateMap.containsKey("middle"));
+        State<Event> middleState = stateMap.get("middle");
+        assertTrue(middleState.isPending());
+        final Set<Tuple2<String, StateTransitionAction>> middleTransitions =
+                unfoldTransitions(middleState);
+        assertEquals(
+                Sets.newHashSet(
+                        Tuple2.of("middle", StateTransitionAction.IGNORE),
+                        Tuple2.of("middle:0", StateTransitionAction.PROCEED)),
+                middleTransitions);
+
+        assertTrue(stateMap.containsKey("middle:0"));
+        State<Event> middle0State = stateMap.get("middle:0");
+        assertTrue(middle0State.isStop());
+        final Set<Tuple2<String, StateTransitionAction>> middle0Transitions =
+                unfoldTransitions(middle0State);
+        assertEquals(
+                Sets.newHashSet(Tuple2.of("middle:0", StateTransitionAction.TAKE)),
+                middle0Transitions);
 
         assertTrue(stateMap.containsKey(NFACompiler.ENDING_STATE_NAME));
         State<Event> endingState = stateMap.get(NFACompiler.ENDING_STATE_NAME);

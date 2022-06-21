@@ -18,6 +18,7 @@
 import warnings
 
 from pyflink.java_gateway import get_gateway
+from pyflink.util.java_utils import create_url_class_loader
 
 from pyflink.common import Configuration
 
@@ -129,6 +130,10 @@ class EnvironmentSettings(object):
 
             :return: an immutable instance of EnvironmentSettings.
             """
+            gateway = get_gateway()
+            context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
+            new_classloader = create_url_class_loader([], context_classloader)
+            gateway.jvm.Thread.currentThread().setContextClassLoader(new_classloader)
             return EnvironmentSettings(self._j_builder.build())
 
     def __init__(self, j_environment_settings):
@@ -201,6 +206,10 @@ class EnvironmentSettings(object):
                 :func:`EnvironmentSettings.Builder.with_configuration` instead.
         """
         warnings.warn("Deprecated in 1.15.", DeprecationWarning)
+        gateway = get_gateway()
+        context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
+        new_classloader = create_url_class_loader([], context_classloader)
+        gateway.jvm.Thread.currentThread().setContextClassLoader(new_classloader)
         return EnvironmentSettings(
             get_gateway().jvm.EnvironmentSettings.fromConfiguration(config._j_configuration))
 
@@ -217,8 +226,7 @@ class EnvironmentSettings(object):
 
         :return: EnvironmentSettings.
         """
-        return EnvironmentSettings(
-            get_gateway().jvm.EnvironmentSettings.inStreamingMode())
+        return EnvironmentSettings.new_instance().in_streaming_mode().build()
 
     @staticmethod
     def in_batch_mode() -> 'EnvironmentSettings':
@@ -234,5 +242,4 @@ class EnvironmentSettings(object):
 
         :return: EnvironmentSettings.
         """
-        return EnvironmentSettings(
-            get_gateway().jvm.EnvironmentSettings.inBatchMode())
+        return EnvironmentSettings.new_instance().in_batch_mode().build()

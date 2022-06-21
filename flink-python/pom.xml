@@ -34,7 +34,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<arrow.version>0.16.0</arrow.version>
+		<arrow.version>5.0.0</arrow.version>
 	</properties>
 
 	<dependencies>
@@ -88,6 +88,10 @@ under the License.
 					<groupId>org.apache.beam</groupId>
 					<artifactId>beam-vendor-bytebuddy-1_10_8</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>com.google.errorprone</groupId>
+					<artifactId>error_prone_annotations</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -100,7 +104,7 @@ under the License.
 		<dependency>
 			<groupId>com.alibaba</groupId>
 			<artifactId>pemja</artifactId>
-			<version>0.1.4</version>
+			<version>0.1.5</version>
 		</dependency>
 
 		<!-- Protobuf dependencies -->
@@ -140,6 +144,11 @@ under the License.
 					<artifactId>commons-codec</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.arrow</groupId>
+			<artifactId>arrow-memory-netty</artifactId>
+			<version>${arrow.version}</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -368,11 +377,11 @@ under the License.
 									</excludes>
 								</filter>
 								<filter>
-									<artifact>org.apache.beam:beam-vendor-grpc-1_26_0</artifact>
+									<artifact>org.apache.beam:beam-vendor-grpc-1_43_2</artifact>
 									<excludes>
-										<exclude>org/apache/beam/vendor/grpc/v1p26p0/org/jboss/**</exclude>
+										<exclude>org/apache/beam/vendor/grpc/v1p43p2/org/jboss/**</exclude>
 										<exclude>schema/**</exclude>
-										<exclude>org/apache/beam/vendor/grpc/v1p26p0/org/eclipse/jetty/**</exclude>
+										<exclude>org/apache/beam/vendor/grpc/v1p43p2/org/eclipse/jetty/**</exclude>
 									</excludes>
 								</filter>
 								<filter>

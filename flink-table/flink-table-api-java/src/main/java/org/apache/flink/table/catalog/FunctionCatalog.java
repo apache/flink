@@ -40,10 +40,13 @@ import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -64,6 +67,7 @@ public final class FunctionCatalog {
     private final ReadableConfig config;
     private final CatalogManager catalogManager;
     private final ModuleManager moduleManager;
+    private ClassLoader classLoader;
 
     private final Map<String, CatalogFunction> tempSystemFunctions = new LinkedHashMap<>();
     private final Map<ObjectIdentifier, CatalogFunction> tempCatalogFunctions =
@@ -76,10 +80,19 @@ public final class FunctionCatalog {
     private PlannerTypeInferenceUtil plannerTypeInferenceUtil;
 
     public FunctionCatalog(
-            ReadableConfig config, CatalogManager catalogManager, ModuleManager moduleManager) {
+            ReadableConfig config,
+            CatalogManager catalogManager,
+            ModuleManager moduleManager,
+            ClassLoader classLoader) {
         this.config = checkNotNull(config);
         this.catalogManager = checkNotNull(catalogManager);
         this.moduleManager = checkNotNull(moduleManager);
+        this.classLoader = classLoader;
+    }
+
+    /** Updates the classloader, this is a temporary solution until FLINK-14055 is fixed. */
+    public void updateClassLoader(ClassLoader classLoader) {
+        this.classLoader = classLoader;
     }
 
     public void setPlannerTypeInferenceUtil(PlannerTypeInferenceUtil plannerTypeInferenceUtil) {
@@ -636,10 +649,9 @@ public final class FunctionCatalog {
             }
             // Skip validation if it's not a UserDefinedFunction.
         } else if (function.getFunctionLanguage() == FunctionLanguage.JAVA) {
-            ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
             UserDefinedFunctionHelper.validateClass(
                     (Class<? extends UserDefinedFunction>)
-                            contextClassLoader.loadClass(function.getClassName()));
+                            classLoader.loadClass(function.getClassName()));
         }
     }
 
@@ -651,8 +663,7 @@ public final class FunctionCatalog {
             return ((InlineCatalogFunction) function).getDefinition();
         }
         return UserDefinedFunctionHelper.instantiateFunction(
-                Thread.currentThread()
-                        .getContextClassLoader(), // TODO use classloader of catalog manager in the
+                classLoader,
                 // future
                 config,
                 name,
@@ -703,6 +714,11 @@ public final class FunctionCatalog {
         @Override
         public FunctionLanguage getFunctionLanguage() {
             return FunctionLanguage.JAVA;
+        }
+
+        @Override
+        public List<ResourceUri> getFunctionResources() {
+            return Collections.emptyList();
         }
 
         public FunctionDefinition getDefinition() {

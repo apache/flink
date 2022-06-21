@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.{Function, RuntimeContext}
+import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.data.GenericRowData
@@ -45,7 +45,7 @@ import scala.collection.mutable
  * The context for code generator, maintaining various reusable statements that could be insert into
  * different code sections in the final generated class.
  */
-class CodeGeneratorContext(val tableConfig: ReadableConfig) {
+class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: ClassLoader) {
 
   // holding a list of objects that could be used passed into generated class
   val references: mutable.ArrayBuffer[AnyRef] = new mutable.ArrayBuffer[AnyRef]()
@@ -145,6 +145,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
   /**
    * Add a line comment to [[reusableHeaderComments]] list which will be concatenated into a single
    * class header comment.
+   *
    * @param comment
    *   The comment to add for class header
    */
@@ -158,6 +159,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
 
   /**
    * Starts a new local variable statements for a generated class with the given method name.
+   *
    * @param methodName
    *   the method name which the fields will be placed into if code is not split.
    */
@@ -704,7 +706,7 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
     // make a deep copy of the object
     val byteArray = InstantiationUtil.serializeObject(obj)
     val objCopy: AnyRef =
-      InstantiationUtil.deserializeObject(byteArray, Thread.currentThread().getContextClassLoader)
+      InstantiationUtil.deserializeObject(byteArray, classLoader)
     references += objCopy
 
     reusableMemberStatements.add(s"private transient $fieldTypeTerm $fieldTerm;")
@@ -958,11 +960,5 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
     reusableInitStatements.add(nullableInit)
 
     fieldTerm
-  }
-}
-
-object CodeGeneratorContext {
-  def apply(tableConfig: ReadableConfig): CodeGeneratorContext = {
-    new CodeGeneratorContext(tableConfig)
   }
 }

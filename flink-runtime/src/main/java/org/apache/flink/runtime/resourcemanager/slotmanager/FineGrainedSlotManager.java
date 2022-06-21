@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -80,7 +81,7 @@ public class FineGrainedSlotManager implements SlotManager {
     private final Time taskManagerTimeout;
 
     /** Delay of the requirement change check in the slot manager. */
-    private final Time requirementsCheckDelay;
+    private final Duration requirementsCheckDelay;
 
     private final SlotManagerMetricGroup slotManagerMetricGroup;
 
@@ -121,8 +122,7 @@ public class FineGrainedSlotManager implements SlotManager {
             ResourceTracker resourceTracker,
             TaskManagerTracker taskManagerTracker,
             SlotStatusSyncer slotStatusSyncer,
-            ResourceAllocationStrategy resourceAllocationStrategy,
-            Time requirementCheckDelay) {
+            ResourceAllocationStrategy resourceAllocationStrategy) {
 
         this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
 
@@ -130,7 +130,8 @@ public class FineGrainedSlotManager implements SlotManager {
         this.taskManagerTimeout = slotManagerConfiguration.getTaskManagerTimeout();
         this.waitResultConsumedBeforeRelease =
                 slotManagerConfiguration.isWaitResultConsumedBeforeRelease();
-        this.requirementsCheckDelay = Preconditions.checkNotNull(requirementCheckDelay);
+        this.requirementsCheckDelay =
+                Preconditions.checkNotNull(slotManagerConfiguration.getRequirementCheckDelay());
 
         this.slotManagerMetricGroup = Preconditions.checkNotNull(slotManagerMetricGroup);
 
@@ -490,18 +491,22 @@ public class FineGrainedSlotManager implements SlotManager {
      * are performed with a slight delay.
      */
     private void checkResourceRequirementsWithDelay() {
-        if (requirementsCheckFuture == null || requirementsCheckFuture.isDone()) {
-            requirementsCheckFuture = new CompletableFuture<>();
-            scheduledExecutor.schedule(
-                    () ->
-                            mainThreadExecutor.execute(
-                                    () -> {
-                                        checkResourceRequirements();
-                                        Preconditions.checkNotNull(requirementsCheckFuture)
-                                                .complete(null);
-                                    }),
-                    requirementsCheckDelay.toMilliseconds(),
-                    TimeUnit.MILLISECONDS);
+        if (requirementsCheckDelay.toMillis() <= 0) {
+            checkResourceRequirements();
+        } else {
+            if (requirementsCheckFuture == null || requirementsCheckFuture.isDone()) {
+                requirementsCheckFuture = new CompletableFuture<>();
+                scheduledExecutor.schedule(
+                        () ->
+                                mainThreadExecutor.execute(
+                                        () -> {
+                                            checkResourceRequirements();
+                                            Preconditions.checkNotNull(requirementsCheckFuture)
+                                                    .complete(null);
+                                        }),
+                        requirementsCheckDelay.toMillis(),
+                        TimeUnit.MILLISECONDS);
+            }
         }
     }
 

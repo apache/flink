@@ -25,7 +25,6 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.types.Row;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -44,6 +43,7 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_BOOKS_S
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_EMPTY;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link JdbcInputFormat}. */
 public class JdbcInputFormatTest extends JdbcDataTestBase {
@@ -176,7 +176,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
                         .createStatement()
                         .getFetchSize();
 
-        Assert.assertEquals(defaultFetchSize, jdbcInputFormat.getStatement().getFetchSize());
+        assertThat(jdbcInputFormat.getStatement().getFetchSize()).isEqualTo(defaultFetchSize);
     }
 
     @Test
@@ -191,7 +191,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
                         .setFetchSize(desiredFetchSize)
                         .finish();
         jdbcInputFormat.openInputFormat();
-        Assert.assertEquals(desiredFetchSize, jdbcInputFormat.getStatement().getFetchSize());
+        assertThat(jdbcInputFormat.getStatement().getFetchSize()).isEqualTo(desiredFetchSize);
     }
 
     @Test
@@ -211,7 +211,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
         final boolean defaultAutoCommit =
                 DriverManager.getConnection(DERBY_EBOOKSHOP_DB.getUrl()).getAutoCommit();
 
-        Assert.assertEquals(defaultAutoCommit, jdbcInputFormat.getDbConn().getAutoCommit());
+        assertThat(jdbcInputFormat.getDbConn().getAutoCommit()).isEqualTo(defaultAutoCommit);
     }
 
     @Test
@@ -228,7 +228,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
                         .finish();
 
         jdbcInputFormat.openInputFormat();
-        Assert.assertEquals(desiredAutoCommit, jdbcInputFormat.getDbConn().getAutoCommit());
+        assertThat(jdbcInputFormat.getDbConn().getAutoCommit()).isEqualTo(desiredAutoCommit);
     }
 
     @Test
@@ -242,7 +242,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
                         .setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
                         .finish();
         // this query does not exploit parallelism
-        Assert.assertEquals(1, jdbcInputFormat.createInputSplits(1).length);
+        assertThat(jdbcInputFormat.createInputSplits(1)).hasSize(1);
         jdbcInputFormat.openInputFormat();
         jdbcInputFormat.open(null);
         Row row = new Row(5);
@@ -256,7 +256,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
         }
         jdbcInputFormat.close();
         jdbcInputFormat.closeInputFormat();
-        Assert.assertEquals(TEST_DATA.length, recordCount);
+        assertThat(recordCount).isEqualTo(TEST_DATA.length);
     }
 
     @Test
@@ -279,7 +279,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
         jdbcInputFormat.openInputFormat();
         InputSplit[] splits = jdbcInputFormat.createInputSplits(1);
         // this query exploit parallelism (1 split for every id)
-        Assert.assertEquals(TEST_DATA.length, splits.length);
+        assertThat(splits).hasSameSizeAs(TEST_DATA);
         int recordCount = 0;
         Row row = new Row(5);
         for (InputSplit split : splits) {
@@ -294,7 +294,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
             jdbcInputFormat.close();
         }
         jdbcInputFormat.closeInputFormat();
-        Assert.assertEquals(TEST_DATA.length, recordCount);
+        assertThat(recordCount).isEqualTo(TEST_DATA.length);
     }
 
     @Test
@@ -318,7 +318,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
         jdbcInputFormat.openInputFormat();
         InputSplit[] splits = jdbcInputFormat.createInputSplits(1);
         // assert that a single split was generated
-        Assert.assertEquals(1, splits.length);
+        assertThat(splits).hasSize(1);
         int recordCount = 0;
         Row row = new Row(5);
         for (InputSplit split : splits) {
@@ -333,7 +333,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
             jdbcInputFormat.close();
         }
         jdbcInputFormat.closeInputFormat();
-        Assert.assertEquals(TEST_DATA.length, recordCount);
+        assertThat(recordCount).isEqualTo(TEST_DATA.length);
     }
 
     @Test
@@ -356,7 +356,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
         jdbcInputFormat.openInputFormat();
         InputSplit[] splits = jdbcInputFormat.createInputSplits(1);
         // this query exploit parallelism (1 split for every queryParameters row)
-        Assert.assertEquals(queryParameters.length, splits.length);
+        assertThat(splits).hasSameSizeAs(queryParameters);
 
         verifySplit(splits[0], TEST_DATA[3].id);
         verifySplit(splits[1], TEST_DATA[0].id + TEST_DATA[1].id);
@@ -379,7 +379,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
             sum += id;
         }
 
-        Assert.assertEquals(expectedIDSum, sum);
+        assertThat(sum).isEqualTo(expectedIDSum);
     }
 
     @Test
@@ -395,7 +395,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
         try {
             jdbcInputFormat.openInputFormat();
             jdbcInputFormat.open(null);
-            Assert.assertTrue(jdbcInputFormat.reachedEnd());
+            assertThat(jdbcInputFormat.reachedEnd()).isTrue();
         } finally {
             jdbcInputFormat.close();
             jdbcInputFormat.closeInputFormat();
@@ -403,10 +403,10 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
     }
 
     private static void assertEquals(TestEntry expected, Row actual) {
-        Assert.assertEquals(expected.id, actual.getField(0));
-        Assert.assertEquals(expected.title, actual.getField(1));
-        Assert.assertEquals(expected.author, actual.getField(2));
-        Assert.assertEquals(expected.price, actual.getField(3));
-        Assert.assertEquals(expected.qty, actual.getField(4));
+        assertThat(actual.getField(0)).isEqualTo(expected.id);
+        assertThat(actual.getField(1)).isEqualTo(expected.title);
+        assertThat(actual.getField(2)).isEqualTo(expected.author);
+        assertThat(actual.getField(3)).isEqualTo(expected.price);
+        assertThat(actual.getField(4)).isEqualTo(expected.qty);
     }
 }

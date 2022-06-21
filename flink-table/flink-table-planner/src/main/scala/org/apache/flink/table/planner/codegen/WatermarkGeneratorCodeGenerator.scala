@@ -35,6 +35,7 @@ object WatermarkGeneratorCodeGenerator {
 
   def generateWatermarkGenerator(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       inputType: RowType,
       watermarkExpr: RexNode,
       contextTerm: Option[String] = None): GeneratedWatermarkGenerator = {
@@ -50,9 +51,9 @@ object WatermarkGeneratorCodeGenerator {
     }
     val funcName = newName("WatermarkGenerator")
     val ctx = if (contextTerm.isDefined) {
-      new WatermarkGeneratorFunctionContext(tableConfig, contextTerm.get)
+      new WatermarkGeneratorFunctionContext(tableConfig, classLoader, contextTerm.get)
     } else {
-      CodeGeneratorContext(tableConfig)
+      new CodeGeneratorContext(tableConfig, classLoader)
     }
     val generator = new ExprCodeGenerator(ctx, false)
       .bindInput(inputType, inputTerm = "row")
@@ -115,8 +116,11 @@ object WatermarkGeneratorCodeGenerator {
   }
 }
 
-class WatermarkGeneratorFunctionContext(tableConfig: ReadableConfig, contextTerm: String)
-  extends CodeGeneratorContext(tableConfig) {
+class WatermarkGeneratorFunctionContext(
+    tableConfig: ReadableConfig,
+    classLoader: ClassLoader,
+    contextTerm: String)
+  extends CodeGeneratorContext(tableConfig, classLoader) {
 
   override def addReusableFunction(
       function: UserDefinedFunction,

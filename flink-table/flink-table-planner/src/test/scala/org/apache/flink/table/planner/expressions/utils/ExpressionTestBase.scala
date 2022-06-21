@@ -350,7 +350,7 @@ abstract class ExpressionTestBase {
 
   private def getCodeGenFunction(
       rexNodes: List[RexNode]): GeneratedFunction[MapFunction[RowData, BinaryRowData]] = {
-    val ctx = CodeGeneratorContext(tableConfig)
+    val ctx = new CodeGeneratorContext(tableConfig, Thread.currentThread().getContextClassLoader)
     val inputType = if (containsLegacyTypes) {
       fromTypeInfoToLogicalType(typeInfo)
     } else {

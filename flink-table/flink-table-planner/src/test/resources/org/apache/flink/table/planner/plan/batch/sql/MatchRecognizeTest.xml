@@ -1,0 +1,74 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCascadeMatch">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM (
+  SELECT
+    symbol,
+    price
+  FROM Ticker
+  MATCH_RECOGNIZE (
+    PARTITION BY symbol
+     ORDER BY ts_ltz    MEASURES
+      A.price as price,
+      A.tax as tax
+    ONE ROW PER MATCH
+    PATTERN (A)
+    DEFINE
+      A AS A.price > 0
+  ) AS T
+  GROUP BY symbol, price
+)
+MATCH_RECOGNIZE (
+  PARTITION BY symbol
+  MEASURES
+    A.price as dPrice
+  PATTERN (A)
+  DEFINE
+    A AS A.symbol = 'a'
+)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(symbol=[$0], dPrice=[$1])
++- LogicalMatch(partition=[[0]], order=[[]], outputFields=[[symbol, dPrice]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[=(PREV(A.$0, 0), _UTF-16LE'a')]], inputFields=[[symbol, price]])
+   +- LogicalAggregate(group=[{0, 1}])
+      +- LogicalProject(symbol=[$0], price=[$1])
+         +- LogicalMatch(partition=[[0]], order=[[3 ASC-nulls-first]], outputFields=[[symbol, price, tax]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$1, 0), 0)]], inputFields=[[symbol, price, tax, ts_ltz]])
+            +- LogicalProject(symbol=[$0], price=[$1], tax=[$2], ts_ltz=[PROCTIME()])
+               +- LogicalTableScan(table=[[default_catalog, default_database, Ticker]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Match(partitionBy=[symbol], measures=[FINAL(A.price) AS dPrice], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A==(PREV(A.$0, 0), _UTF-16LE'a')}])
++- Exchange(distribution=[hash[symbol]])
+   +- HashAggregate(isMerge=[true], groupBy=[symbol, price], select=[symbol, price])
+      +- Exchange(distribution=[hash[symbol, price]])
+         +- LocalHashAggregate(groupBy=[symbol, price], select=[symbol, price])
+            +- Calc(select=[symbol, price])
+               +- Match(partitionBy=[symbol], orderBy=[ts_ltz ASC], measures=[FINAL(A.price) AS price, FINAL(A.tax) AS tax], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>(PREV(A.$1, 0), 0)}])
+                  +- Calc(select=[symbol, price, tax, PROCTIME() AS ts_ltz])
+                     +- Exchange(distribution=[hash[symbol]])
+                        +- TableSourceScan(table=[[default_catalog, default_database, Ticker]], fields=[symbol, price, tax])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

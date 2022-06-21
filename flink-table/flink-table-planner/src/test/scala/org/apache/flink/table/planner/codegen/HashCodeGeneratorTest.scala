@@ -32,7 +32,7 @@ class HashCodeGeneratorTest {
   def testHash(): Unit = {
     val hashFunc1 = HashCodeGenerator
       .generateRowHash(
-        new CodeGeneratorContext(new Configuration),
+        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
         RowType.of(new IntType(), new BigIntType(), new VarBinaryType(VarBinaryType.MAX_LENGTH)),
         "name",
         Array(1, 0)
@@ -41,7 +41,7 @@ class HashCodeGeneratorTest {
 
     val hashFunc2 = HashCodeGenerator
       .generateRowHash(
-        new CodeGeneratorContext(new Configuration),
+        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
         RowType.of(new IntType(), new BigIntType(), new VarBinaryType(VarBinaryType.MAX_LENGTH)),
         "name",
         Array(1, 2, 0)

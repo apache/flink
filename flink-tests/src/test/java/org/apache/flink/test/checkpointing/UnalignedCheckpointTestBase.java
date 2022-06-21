@@ -757,9 +757,15 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
             conf.set(
                     ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS,
-                    "org.apache.flink.test.checkpointing.SharedPoolNettyShuffleServiceFactory");
+                    SharedPoolNettyShuffleServiceFactory.class.getName());
             conf.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
             conf.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 60000);
+            // half memory consumption of network buffers (default is 64mb), as some tests spawn a
+            // large number of task managers (25)
+            // 12mb was sufficient to run the tests, so 32mb should put us above the recommended
+            // amount of buffers
+            conf.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(32));
+            conf.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(32));
             conf.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
             return conf;
         }

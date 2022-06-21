@@ -29,7 +29,6 @@ import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.g
 import org.apache.flink.table.planner.plan.schema.FlinkTableFunction
 import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType
@@ -115,7 +114,7 @@ class TableFunctionCallGen(rexCall: RexCall, tableFunction: TableFunction[_])
     val externalType = fromDataTypeToLogicalType(externalDataType)
     val wrappedInternalType = LogicalTypeUtils.toRowType(externalType)
 
-    val collectorCtx = CodeGeneratorContext(ctx.tableConfig)
+    val collectorCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
     val externalTerm = newName("externalRecord")
 
     // code for wrapping atomic types

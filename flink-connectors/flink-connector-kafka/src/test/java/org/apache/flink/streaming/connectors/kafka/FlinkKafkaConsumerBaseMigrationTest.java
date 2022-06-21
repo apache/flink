@@ -53,8 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.doAnswer;
@@ -222,11 +221,10 @@ public class FlinkKafkaConsumerBaseMigrationTest {
         testHarness.open();
 
         // assert that no partitions were found and is empty
-        assertTrue(consumerFunction.getSubscribedPartitionsToStartOffsets() != null);
-        assertTrue(consumerFunction.getSubscribedPartitionsToStartOffsets().isEmpty());
+        assertThat(consumerFunction.getSubscribedPartitionsToStartOffsets()).isEmpty();
 
         // assert that no state was restored
-        assertTrue(consumerFunction.getRestoredState().isEmpty());
+        assertThat(consumerFunction.getRestoredState()).isEmpty();
 
         consumerOperator.close();
         consumerOperator.cancel();
@@ -275,20 +273,17 @@ public class FlinkKafkaConsumerBaseMigrationTest {
         }
 
         // assert that there are partitions and is identical to expected list
-        assertTrue(consumerFunction.getSubscribedPartitionsToStartOffsets() != null);
-        assertTrue(!consumerFunction.getSubscribedPartitionsToStartOffsets().isEmpty());
-        assertEquals(
-                expectedSubscribedPartitionsWithStartOffsets,
-                consumerFunction.getSubscribedPartitionsToStartOffsets());
+        assertThat(consumerFunction.getSubscribedPartitionsToStartOffsets())
+                .isNotEmpty()
+                .isEqualTo(expectedSubscribedPartitionsWithStartOffsets);
 
         // the new partitions should have been considered as restored state
-        assertTrue(consumerFunction.getRestoredState() != null);
-        assertTrue(!consumerFunction.getSubscribedPartitionsToStartOffsets().isEmpty());
+        assertThat(consumerFunction.getRestoredState()).isNotNull();
+        assertThat(consumerFunction.getSubscribedPartitionsToStartOffsets()).isNotEmpty();
         for (Map.Entry<KafkaTopicPartition, Long> expectedEntry :
                 expectedSubscribedPartitionsWithStartOffsets.entrySet()) {
-            assertEquals(
-                    expectedEntry.getValue(),
-                    consumerFunction.getRestoredState().get(expectedEntry.getKey()));
+            assertThat(consumerFunction.getRestoredState())
+                    .containsEntry(expectedEntry.getKey(), expectedEntry.getValue());
         }
 
         consumerOperator.close();
@@ -325,15 +320,14 @@ public class FlinkKafkaConsumerBaseMigrationTest {
         testHarness.open();
 
         // assert that there are partitions and is identical to expected list
-        assertTrue(consumerFunction.getSubscribedPartitionsToStartOffsets() != null);
-        assertTrue(!consumerFunction.getSubscribedPartitionsToStartOffsets().isEmpty());
-
-        // on restore, subscribedPartitionsToStartOffsets should be identical to the restored state
-        assertEquals(PARTITION_STATE, consumerFunction.getSubscribedPartitionsToStartOffsets());
+        assertThat(consumerFunction.getSubscribedPartitionsToStartOffsets())
+                .isNotEmpty()
+                // on restore, subscribedPartitionsToStartOffsets should be identical to the
+                // restored state
+                .isEqualTo(PARTITION_STATE);
 
         // assert that state is correctly restored from legacy checkpoint
-        assertTrue(consumerFunction.getRestoredState() != null);
-        assertEquals(PARTITION_STATE, consumerFunction.getRestoredState());
+        assertThat(consumerFunction.getRestoredState()).isNotNull().isEqualTo(PARTITION_STATE);
 
         consumerOperator.close();
         consumerOperator.cancel();

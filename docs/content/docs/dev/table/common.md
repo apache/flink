@@ -39,7 +39,7 @@ The following code example shows the common structure of Table API and SQL progr
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.table.api.*;
-import org.apache.flink.connector.datagen.table.DataGenOptions;
+import org.apache.flink.connector.datagen.table.DataGenConnectorOptions;
 
 // Create a TableEnvironment for batch or streaming execution.
 // See the "Create a TableEnvironment" section for details.
@@ -50,26 +50,26 @@ tableEnv.createTemporaryTable("SourceTable", TableDescriptor.forConnector("datag
     .schema(Schema.newBuilder()
       .column("f0", DataTypes.STRING())
       .build())
-    .option(DataGenOptions.ROWS_PER_SECOND, 100)
+    .option(DataGenConnectorOptions.ROWS_PER_SECOND, 100L)
     .build());
 
 // Create a sink table (using SQL DDL)
-tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable");
+tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable (EXCLUDING OPTIONS) ");
 
 // Create a Table object from a Table API query
-Table table2 = tableEnv.from("SourceTable");
+Table table1 = tableEnv.from("SourceTable");
 
 // Create a Table object from a SQL query
-Table table3 = tableEnv.sqlQuery("SELECT * FROM SourceTable");
+Table table2 = tableEnv.sqlQuery("SELECT * FROM SourceTable");
 
 // Emit a Table API result Table to a TableSink, same for SQL result
-TableResult tableResult = table2.insertInto("SinkTable").execute();
+TableResult tableResult = table1.insertInto("SinkTable").execute();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.table.api._
-import org.apache.flink.connector.datagen.table.DataGenOptions
+import org.apache.flink.connector.datagen.table.DataGenConnectorOptions
 
 // Create a TableEnvironment for batch or streaming execution.
 // See the "Create a TableEnvironment" section for details.
@@ -80,11 +80,11 @@ tableEnv.createTemporaryTable("SourceTable", TableDescriptor.forConnector("datag
   .schema(Schema.newBuilder()
     .column("f0", DataTypes.STRING())
     .build())
-  .option(DataGenOptions.ROWS_PER_SECOND, 100)
+  .option(DataGenConnectorOptions.ROWS_PER_SECOND, 100L)
   .build())
 
 // Create a sink table (using SQL DDL)
-tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable")
+tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable (EXCLUDING OPTIONS) ")
 
 // Create a Table object from a Table API query
 val table1 = tableEnv.from("SourceTable")
@@ -113,7 +113,7 @@ table_env.executeSql("""CREATE TEMPORARY TABLE SourceTable (
 """)
 
 # Create a sink table
-table_env.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable")
+table_env.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable (EXCLUDING OPTIONS) ")
 
 # Create a Table from a Table API query
 table1 = table_env.from_path("SourceTable").select(...)
@@ -331,13 +331,15 @@ The connector describes the external system that stores the data of a table. Sto
 
 Such tables can either be created using the Table API directly, or by switching to SQL DDL.
 
+{{< tabs "059e9a56-282c-5e78-98d3-85be5abd04a2" >}}
+{{< tab "Java" >}}
 ```java
 // Using table descriptors
 final TableDescriptor sourceDescriptor = TableDescriptor.forConnector("datagen")
     .schema(Schema.newBuilder()
     .column("f0", DataTypes.STRING())
     .build())
-    .option(DataGenOptions.ROWS_PER_SECOND, 100)
+    .option(DataGenConnectorOptions.ROWS_PER_SECOND, 100L)
     .build();
 
 tableEnv.createTable("SourceTableA", sourceDescriptor);
@@ -346,6 +348,25 @@ tableEnv.createTemporaryTable("SourceTableB", sourceDescriptor);
 // Using SQL DDL
 tableEnv.executeSql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)");
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# Using table descriptors
+source_descriptor = TableDescriptor.for_connector("datagen") \
+    .schema(Schema.new_builder()
+            .column("f0", DataTypes.STRING())
+            .build()) \
+    .option("rows-per-second", "100") \
+    .build()
+
+t_env.create_table("SourceTableA", source_descriptor)
+t_env.create_temporary_table("SourceTableB", source_descriptor)
+
+# Using SQL DDL
+t_env.execute_sql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ### Expanding Table identifiers
 
@@ -409,6 +430,28 @@ tableEnv.createTemporaryView("`example.View`", table)
 // register the view named 'exampleView' in the catalog named 'other_catalog'
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_catalog.other_database.exampleView", table)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# get a TableEnvironment
+t_env = TableEnvironment.create(...)
+t_env.use_catalog("custom_catalog")
+t_env.use_database("custom_database")
+
+table = ...
+
+# register the view named 'exampleView' in the catalog named 'custom_catalog'
+# in the database named 'custom_database'
+t_env.create_temporary_view("other_database.exampleView", table)
+
+# register the view named 'example.View' in the catalog named 'custom_catalog'
+# in the database named 'custom_database'
+t_env.create_temporary_view("`example.View`", table)
+
+# register the view named 'exampleView' in the catalog named 'other_catalog'
+# in the database named 'other_database'
+t_env.create_temporary_view("other_catalog.other_database.exampleView", table)
 ```
 {{< /tab >}}
 {{< /tabs >}}

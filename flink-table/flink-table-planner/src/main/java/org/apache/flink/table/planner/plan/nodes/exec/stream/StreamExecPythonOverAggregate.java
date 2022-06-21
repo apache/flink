@@ -192,7 +192,8 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                         config.getStateRetentionTime(),
                         TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         pythonConfig,
-                        config);
+                        config,
+                        planner.getFlinkContext().getClassLoader());
 
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
@@ -201,7 +202,9 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         // set KeyType and Selector for state
         final RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(
-                        partitionKeys, InternalTypeInfo.of(inputRowType));
+                        planner.getFlinkContext().getClassLoader(),
+                        partitionKeys,
+                        InternalTypeInfo.of(inputRowType));
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
         return transform;
@@ -218,7 +221,8 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
             long minIdleStateRetentionTime,
             long maxIdleStateRetentionTime,
             Configuration pythonConfig,
-            ExecNodeConfig config) {
+            ExecNodeConfig config,
+            ClassLoader classLoader) {
         Tuple2<int[], PythonFunctionInfo[]> aggCallInfos =
                 CommonPythonUtil.extractPythonAggregateFunctionInfosFromAggregateCall(aggCalls);
         int[] pythonUdafInputOffsets = aggCallInfos.f0;
@@ -226,6 +230,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonOverWindowAggregateFunctionOperator(
                         config,
+                        classLoader,
                         pythonConfig,
                         inputRowType,
                         outputRowType,
@@ -249,6 +254,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonOverWindowAggregateFunctionOperator(
             ExecNodeConfig config,
+            ClassLoader classLoader,
             Configuration pythonConfig,
             RowType inputRowType,
             RowType outputRowType,
@@ -269,7 +275,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                                 .project(outputRowType);
         GeneratedProjection generatedProjection =
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(config),
+                        new CodeGeneratorContext(config, classLoader),
                         "UdafInputProjection",
                         inputRowType,
                         userDefinedFunctionInputType,

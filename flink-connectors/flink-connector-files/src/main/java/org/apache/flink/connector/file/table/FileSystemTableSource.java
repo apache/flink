@@ -24,6 +24,7 @@ import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.FileSourceSplit;
+import org.apache.flink.connector.file.src.enumerate.NonSplittingRecursiveEnumerator;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.table.format.BulkDecodingFormat;
 import org.apache.flink.core.fs.Path;
@@ -34,6 +35,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.format.FileBasedStatisticsReportableInputFormat;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -43,11 +45,13 @@ import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.connector.source.abilities.SupportsStatisticReport;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 
@@ -55,8 +59,10 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -77,7 +83,8 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                 SupportsLimitPushDown,
                 SupportsPartitionPushDown,
                 SupportsFilterPushDown,
-                SupportsReadingMetadata {
+                SupportsReadingMetadata,
+                SupportsStatisticReport {
 
     @Nullable private final DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat;
     @Nullable private final DecodingFormat<DeserializationSchema<RowData>> deserializationFormat;
@@ -329,6 +336,40 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     @Override
     public boolean supportsNestedProjection() {
         return false;
+    }
+
+    @Override
+    public TableStats reportStatistics() {
+        try {
+            // only support BOUNDED source
+            Optional<Duration> monitorIntervalOpt =
+                    tableOptions.getOptional(FileSystemConnectorOptions.SOURCE_MONITOR_INTERVAL);
+            if (monitorIntervalOpt.isPresent() && monitorIntervalOpt.get().toMillis() <= 0) {
+                return TableStats.UNKNOWN;
+            }
+            if (tableOptions.get(FileSystemConnectorOptions.SOURCE_REPORT_STATISTICS)
+                    == FileSystemConnectorOptions.FileStatisticsType.NONE) {
+                return TableStats.UNKNOWN;
+            }
+
+            // use NonSplittingRecursiveEnumerator to get all files
+            NonSplittingRecursiveEnumerator enumerator = new NonSplittingRecursiveEnumerator();
+            Collection<FileSourceSplit> splits = enumerator.enumerateSplits(paths(), 1);
+            List<Path> files =
+                    splits.stream().map(FileSourceSplit::path).collect(Collectors.toList());
+
+            if (bulkReaderFormat instanceof FileBasedStatisticsReportableInputFormat) {
+                return ((FileBasedStatisticsReportableInputFormat) bulkReaderFormat)
+                        .reportStatistics(files, producedDataType);
+            } else if (deserializationFormat instanceof FileBasedStatisticsReportableInputFormat) {
+                return ((FileBasedStatisticsReportableInputFormat) deserializationFormat)
+                        .reportStatistics(files, producedDataType);
+            } else {
+                return TableStats.UNKNOWN;
+            }
+        } catch (Exception e) {
+            return TableStats.UNKNOWN;
+        }
     }
 
     @Override

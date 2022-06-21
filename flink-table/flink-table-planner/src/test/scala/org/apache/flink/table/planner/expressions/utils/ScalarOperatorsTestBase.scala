@@ -67,7 +67,7 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
       DataTypes.FIELD("f8", DataTypes.INT()),
       DataTypes.FIELD("f9", DataTypes.INT()),
       DataTypes.FIELD("f10", DataTypes.STRING()),
-      DataTypes.FIELD("f11", DataTypes.BOOLEAN()),
+      DataTypes.FIELD("f11", DataTypes.BOOLEAN().notNull()),
       DataTypes.FIELD("f12", DataTypes.BOOLEAN()),
       DataTypes.FIELD(
         "f13",
@@ -78,8 +78,8 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
       DataTypes.FIELD("f15", DataTypes.DATE()),
       DataTypes.FIELD("f16", DataTypes.DECIMAL(19, 8)),
       DataTypes.FIELD("f17", DataTypes.DECIMAL(19, 1)),
-      DataTypes.FIELD("f18", DataTypes.BINARY(200)),
-      DataTypes.FIELD("f19", DataTypes.VARBINARY(200)),
+      DataTypes.FIELD("f18", DataTypes.BINARY(200).notNull()),
+      DataTypes.FIELD("f19", DataTypes.VARBINARY(200).notNull()),
       DataTypes.FIELD("f20", DataTypes.VARBINARY(200)),
       DataTypes.FIELD("f21", DataTypes.TIME()),
       DataTypes.FIELD("f22", DataTypes.TIMESTAMP())

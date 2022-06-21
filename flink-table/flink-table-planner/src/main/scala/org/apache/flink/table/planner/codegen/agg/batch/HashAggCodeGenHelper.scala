@@ -832,6 +832,7 @@ object HashAggCodeGenHelper {
       aggMapKeyType: RowType): String = {
     val sortCodeGenerator = new SortCodeGenerator(
       ctx.tableConfig,
+      ctx.classLoader,
       aggMapKeyType,
       SortUtil.getAscendingSortSpec(Array.range(0, aggMapKeyType.getFieldCount)))
     val computer = sortCodeGenerator.generateNormalizedKeyComputer("AggMapKeyComputer")

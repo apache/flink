@@ -273,6 +273,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                             emitStrategy.getAllowLateness(),
                             pythonConfig,
                             config,
+                            planner.getFlinkContext().getClassLoader(),
                             shiftTimeZone);
         }
 
@@ -281,7 +282,10 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
         }
         // set KeyType and Selector for state
         final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(),
+                        grouping,
+                        InternalTypeInfo.of(inputRowType));
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
         return transform;
@@ -363,6 +367,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                     long allowance,
                     Configuration pythonConfig,
                     ExecNodeConfig config,
+                    ClassLoader classLoader,
                     ZoneId shiftTimeZone) {
 
         Tuple2<int[], PythonFunctionInfo[]> aggInfos =
@@ -372,6 +377,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPandasPythonStreamGroupWindowAggregateFunctionOperator(
                         config,
+                        classLoader,
                         pythonConfig,
                         inputRowType,
                         outputRowType,
@@ -436,6 +442,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
     private OneInputStreamOperator<RowData, RowData>
             getPandasPythonStreamGroupWindowAggregateFunctionOperator(
                     ExecNodeConfig config,
+                    ClassLoader classLoader,
                     Configuration pythonConfig,
                     RowType inputRowType,
                     RowType outputRowType,
@@ -487,7 +494,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                     namedWindowProperties,
                     shiftTimeZone,
                     ProjectionCodeGenerator.generateProjection(
-                            CodeGeneratorContext.apply(config),
+                            new CodeGeneratorContext(config, classLoader),
                             "UdafInputProjection",
                             inputRowType,
                             userDefinedFunctionInputType,

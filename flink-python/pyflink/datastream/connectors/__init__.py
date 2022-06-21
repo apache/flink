@@ -16,6 +16,8 @@
 # limitations under the License.
 ################################################################################
 from pyflink.datastream.connectors.base import Sink, Source, DeliveryGuarantee
+from pyflink.datastream.connectors.elasticsearch import (Elasticsearch6SinkBuilder,
+                                                         Elasticsearch7SinkBuilder)
 from pyflink.datastream.connectors.file_system import (FileEnumeratorProvider, FileSink, FileSource,
                                                        BucketAssigner, FileSourceBuilder,
                                                        FileSplitAssignerProvider, OutputFileConfig,
@@ -28,6 +30,8 @@ from pyflink.datastream.connectors.pulsar import PulsarDeserializationSchema, Pu
     PulsarSourceBuilder, SubscriptionType, StartCursor, StopCursor, PulsarSerializationSchema, \
     PulsarSink, PulsarSinkBuilder, MessageDelayer, TopicRoutingMode
 from pyflink.datastream.connectors.rabbitmq import RMQConnectionConfig, RMQSource, RMQSink
+from pyflink.datastream.connectors.kinesis import (FlinkKinesisConsumer, KinesisStreamsSink,
+                                                   KinesisFirehoseSink)
 
 
 __all__ = [
@@ -65,5 +69,9 @@ __all__ = [
     'StopCursor',
     'StreamFormat',
     'StreamingFileSink',
-    'SubscriptionType'
+    'FlinkKinesisConsumer',
+    'KinesisStreamsSink',
+    'KinesisFirehoseSink',
+    'Elasticsearch6SinkBuilder',
+    'Elasticsearch7SinkBuilder'
 ]

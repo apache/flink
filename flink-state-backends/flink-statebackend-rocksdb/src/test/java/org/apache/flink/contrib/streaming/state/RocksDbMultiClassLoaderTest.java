@@ -18,7 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 
 import org.junit.Rule;
 import org.junit.Test;

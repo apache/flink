@@ -84,10 +84,11 @@ public class SideOutputExample {
         // We assign the WatermarkStrategy after creating the source. In a real-world job you
         // should integrate the WatermarkStrategy in the source. The Kafka source allows this,
         // for example.
-        text.assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create());
+        SingleOutputStreamOperator<String> textWithTimestampAndWatermark =
+                text.assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create());
 
         SingleOutputStreamOperator<Tuple2<String, Integer>> tokenized =
-                text.process(new Tokenizer());
+                textWithTimestampAndWatermark.process(new Tokenizer());
 
         DataStream<String> rejectedWords =
                 tokenized

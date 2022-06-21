@@ -183,6 +183,7 @@ object FlinkBatchProgram {
             .build(),
           "prune empty after predicate push down"
         )
+        .addProgram(new FlinkRecomputeStatisticsProgram, "recompute statistics")
         .build()
     )
 

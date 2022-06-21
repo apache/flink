@@ -48,7 +48,8 @@ public class EqualiserCodeGeneratorTest {
     public void testRaw() {
         RecordEqualiser equaliser =
                 new EqualiserCodeGenerator(
-                                new LogicalType[] {new TypeInformationRawType<>(Types.INT)})
+                                new LogicalType[] {new TypeInformationRawType<>(Types.INT)},
+                                Thread.currentThread().getContextClassLoader())
                         .generateRecordEqualiser("RAW")
                         .newInstance(Thread.currentThread().getContextClassLoader());
         Function<RawValueData<?>, BinaryRowData> func =
@@ -69,7 +70,9 @@ public class EqualiserCodeGeneratorTest {
     @Test
     public void testTimestamp() {
         RecordEqualiser equaliser =
-                new EqualiserCodeGenerator(new LogicalType[] {new TimestampType()})
+                new EqualiserCodeGenerator(
+                                new LogicalType[] {new TimestampType()},
+                                Thread.currentThread().getContextClassLoader())
                         .generateRecordEqualiser("TIMESTAMP")
                         .newInstance(Thread.currentThread().getContextClassLoader());
         Function<TimestampData, BinaryRowData> func =
@@ -92,7 +95,8 @@ public class EqualiserCodeGeneratorTest {
                         .toArray(LogicalType[]::new);
 
         final RecordEqualiser equaliser =
-                new EqualiserCodeGenerator(fieldTypes)
+                new EqualiserCodeGenerator(
+                                fieldTypes, Thread.currentThread().getContextClassLoader())
                         .generateRecordEqualiser("ManyFields")
                         .newInstance(Thread.currentThread().getContextClassLoader());
 

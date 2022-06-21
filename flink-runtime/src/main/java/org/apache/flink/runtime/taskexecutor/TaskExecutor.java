@@ -822,8 +822,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     private Stream<ResultPartitionDeploymentDescriptor> filterPartitionsRequiringRelease(
             Collection<ResultPartitionDeploymentDescriptor> producedResultPartitions) {
         return producedResultPartitions.stream()
-                // only blocking partitions require explicit release call
-                .filter(d -> d.getPartitionType().isBlocking())
+                // only releaseByScheduler partitions require explicit release call
+                .filter(d -> d.getPartitionType().isReleaseByScheduler())
                 // partitions without local resources don't store anything on the TaskExecutor
                 .filter(d -> d.getShuffleDescriptor().storesLocalResourcesOn().isPresent());
     }
@@ -907,7 +907,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         try {
             partitionTracker.stopTrackingAndReleaseJobPartitions(partitionToRelease);
             partitionTracker.promoteJobPartitions(partitionsToPromote);
-
+            if (establishedResourceManagerConnection != null) {
+                establishedResourceManagerConnection
+                        .getResourceManagerGateway()
+                        .reportClusterPartitions(
+                                getResourceID(), partitionTracker.createClusterPartitionReport());
+            }
             closeJobManagerConnectionIfNoAllocatedResources(jobId);
         } catch (Throwable t) {
             // TODO: Do we still need this catch branch?

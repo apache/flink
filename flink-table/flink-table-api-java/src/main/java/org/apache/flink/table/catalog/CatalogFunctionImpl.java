@@ -19,8 +19,12 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.StringUtils;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -30,17 +34,24 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class CatalogFunctionImpl implements CatalogFunction {
     private final String className; // Fully qualified class name of the function
     private final FunctionLanguage functionLanguage;
+    private final List<ResourceUri> resourceUris;
 
     public CatalogFunctionImpl(String className) {
-        this(className, FunctionLanguage.JAVA);
+        this(className, FunctionLanguage.JAVA, Collections.emptyList());
     }
 
     public CatalogFunctionImpl(String className, FunctionLanguage functionLanguage) {
+        this(className, functionLanguage, Collections.emptyList());
+    }
+
+    public CatalogFunctionImpl(
+            String className, FunctionLanguage functionLanguage, List<ResourceUri> resourceUris) {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(className),
                 "className cannot be null or empty");
         this.className = className;
         this.functionLanguage = checkNotNull(functionLanguage, "functionLanguage cannot be null");
+        this.resourceUris = resourceUris;
     }
 
     @Override
@@ -50,7 +61,8 @@ public class CatalogFunctionImpl implements CatalogFunction {
 
     @Override
     public CatalogFunction copy() {
-        return new CatalogFunctionImpl(getClassName(), functionLanguage);
+        return new CatalogFunctionImpl(
+                getClassName(), functionLanguage, Collections.unmodifiableList(resourceUris));
     }
 
     @Override
@@ -86,6 +98,30 @@ public class CatalogFunctionImpl implements CatalogFunction {
     }
 
     @Override
+    public List<ResourceUri> getFunctionResources() {
+        return resourceUris;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CatalogFunctionImpl that = (CatalogFunctionImpl) o;
+        return Objects.equals(className, that.className)
+                && functionLanguage == that.functionLanguage
+                && Objects.equals(resourceUris, that.resourceUris);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(className, functionLanguage, resourceUris);
+    }
+
+    @Override
     public String toString() {
         return "CatalogFunctionImpl{"
                 + "className='"
@@ -94,8 +130,8 @@ public class CatalogFunctionImpl implements CatalogFunction {
                 + "functionLanguage='"
                 + getFunctionLanguage()
                 + "', "
-                + "isGeneric='"
-                + isGeneric()
+                + "functionResource='"
+                + getFunctionResources()
                 + "'}";
     }
 }

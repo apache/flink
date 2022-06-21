@@ -140,9 +140,21 @@ public class HiveShimV310 extends HiveShimV239 {
     }
 
     @Override
+    public Class<?> getDateWritableClass() {
+        initDateTimeClasses();
+        return dateWritableConstructor.getDeclaringClass();
+    }
+
+    @Override
     public Class<?> getTimestampDataTypeClass() {
         initDateTimeClasses();
         return hiveTimestampClz;
+    }
+
+    @Override
+    public Class<?> getTimestampWritableClass() {
+        initDateTimeClasses();
+        return timestampWritableConstructor.getDeclaringClass();
     }
 
     @Override

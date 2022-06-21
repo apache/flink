@@ -429,6 +429,9 @@ class AggFunctionFactory(
         new DoubleSingleValueAggFunction
       case BOOLEAN =>
         new BooleanSingleValueAggFunction
+      case CHAR =>
+        val d = argTypes(0).asInstanceOf[CharType]
+        new CharSingleValueAggFunction(d)
       case VARCHAR =>
         new StringSingleValueAggFunction
       case DATE =>

@@ -179,7 +179,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
         for (JobVertex jobVertex : jobGraph.getVertices()) {
             for (IntermediateDataSet dataSet : jobVertex.getProducedDataSets()) {
                 checkState(
-                        dataSet.getResultType().isBlocking(),
+                        dataSet.getResultType().isBlockingOrBlockingPersistentResultPartition(),
                         String.format(
                                 "At the moment, adaptive batch scheduler requires batch workloads "
                                         + "to be executed with types of all edges being BLOCKING. "

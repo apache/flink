@@ -108,8 +108,11 @@ under the License.
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<hadoop.version>2.8.5</hadoop.version>
-		<flink.XmxITCase>2048m</flink.XmxITCase>
-		<flink.XmxUnitTest>1024m</flink.XmxUnitTest>
+		<flink.XmxMax>3072m</flink.XmxMax>
+		<!-- XmxMax / forkCountITCase -->
+		<flink.XmxITCase>1536m</flink.XmxITCase>
+		<!-- XmxMax / forkCountUnitTest -->
+		<flink.XmxUnitTest>768m</flink.XmxUnitTest>
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
@@ -118,6 +121,7 @@ under the License.
 		<flink.forkCountITCase>2</flink.forkCountITCase>
 		<flink.forkCountUnitTest>4</flink.forkCountUnitTest>
 		<flink.reuseForks>true</flink.reuseForks>
+		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m</flink.surefire.baseArgLine>
 		<flink.shaded.version>15.0</flink.shaded.version>
 		<flink.shaded.jackson.version>2.12.4</flink.shaded.jackson.version>
 		<target.java.version>1.8</target.java.version>
@@ -148,7 +152,7 @@ under the License.
 		<hamcrest.version>1.3</hamcrest.version>
 		<assertj.version>3.21.0</assertj.version>
 		<py4j.version>0.10.9.3</py4j.version>
-		<beam.version>2.27.0</beam.version>
+		<beam.version>2.38.0</beam.version>
 		<protoc.version>3.17.3</protoc.version>
 		<okhttp.version>3.14.9</okhttp.version>
 		<testcontainers.version>1.17.2</testcontainers.version>
@@ -1651,7 +1655,7 @@ under the License.
 								<include>${test.unit.pattern}</include>
 							</includes>
 							<forkCount>${flink.forkCountUnitTest}</forkCount>
-							<argLine>-Xms256m -Xmx${flink.XmxUnitTest} -XX:+UseG1GC</argLine>
+							<argLine>${flink.surefire.baseArgLine} -Xmx${flink.XmxUnitTest}</argLine>
 						</configuration>
 					</execution>
 					<!--execute all the integration tests-->
@@ -1672,7 +1676,7 @@ under the License.
 								<exclude>**/*$*</exclude>
 							</excludes>
 							<forkCount>${flink.forkCountITCase}</forkCount>
-							<argLine>-Xms256m -Xmx${flink.XmxITCase} -XX:+UseG1GC</argLine>
+							<argLine>${flink.surefire.baseArgLine} -Xmx${flink.XmxITCase}</argLine>
 							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>

@@ -1507,8 +1507,7 @@ object TestingTableEnvironment {
       catalogManager: Option[CatalogManager] = None,
       tableConfig: TableConfig): TestingTableEnvironment = {
 
-    // temporary solution until FLINK-15635 is fixed
-    val classLoader = Thread.currentThread.getContextClassLoader
+    val classLoader = settings.getUserClassLoader
 
     val executorFactory = FactoryUtil.discoverFactory(
       classLoader,
@@ -1536,10 +1535,11 @@ object TestingTableEnvironment {
           .build
     }
 
-    val functionCatalog = new FunctionCatalog(settings.getConfiguration, catalogMgr, moduleManager)
+    val functionCatalog =
+      new FunctionCatalog(settings.getConfiguration, catalogMgr, moduleManager, classLoader)
 
     val planner = PlannerFactoryUtil
-      .createPlanner(executor, tableConfig, moduleManager, catalogMgr, functionCatalog)
+      .createPlanner(executor, tableConfig, classLoader, moduleManager, catalogMgr, functionCatalog)
       .asInstanceOf[PlannerBase]
 
     new TestingTableEnvironment(

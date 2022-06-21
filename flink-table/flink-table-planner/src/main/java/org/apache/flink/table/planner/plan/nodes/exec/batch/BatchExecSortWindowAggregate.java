@@ -125,7 +125,8 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
         final Tuple2<Long, Long> windowSizeAndSlideSize = WindowCodeGenerator.getWindowDef(window);
         final SortWindowCodeGenerator windowCodeGenerator =
                 new SortWindowCodeGenerator(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(
+                                config, planner.getFlinkContext().getClassLoader()),
                         planner.createRelBuilder(),
                         window,
                         inputTimeFieldIndex,

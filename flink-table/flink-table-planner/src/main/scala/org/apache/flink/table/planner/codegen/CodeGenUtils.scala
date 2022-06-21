@@ -318,7 +318,7 @@ object CodeGenUtils {
       case INTERVAL_DAY_TIME => s"${className[JLong]}.hashCode($term)"
       case ROW | STRUCTURED_TYPE =>
         val fieldCount = getFieldCount(t)
-        val subCtx = CodeGeneratorContext(ctx.tableConfig)
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
         val genHash =
           HashCodeGenerator.generateRowHash(subCtx, t, "SubHashRow", (0 until fieldCount).toArray)
         ctx.addReusableInnerClass(genHash.getClassName, genHash.getCode)

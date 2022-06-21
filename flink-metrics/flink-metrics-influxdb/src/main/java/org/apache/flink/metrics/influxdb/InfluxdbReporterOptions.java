@@ -126,7 +126,7 @@ public class InfluxdbReporterOptions {
     }
 
     /** Supported URL schemes for the {@link InfluxdbReporter}. */
-    enum Scheme {
+    public enum Scheme {
         HTTP("http"),
         HTTPS("https");
 

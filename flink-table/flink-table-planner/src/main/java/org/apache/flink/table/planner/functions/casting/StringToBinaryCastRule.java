@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
-import static org.apache.flink.table.codesplit.CodeSplitUtil.newName;
 import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.couldPad;
 import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.trimOrPadByteArray;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.arrayLength;
@@ -86,7 +86,7 @@ class StringToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Stri
                     .toString();
         } else {
             final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
-            final String byteArrayTerm = newName("byteArrayTerm");
+            final String byteArrayTerm = CodeGenUtils.newName("byteArrayTerm");
 
             return new CastRuleUtils.CodeWriter()
                     .declStmt(byte[].class, byteArrayTerm, methodCall(inputTerm, "toBytes"))

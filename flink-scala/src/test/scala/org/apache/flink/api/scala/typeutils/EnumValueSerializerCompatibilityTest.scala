@@ -30,7 +30,7 @@ import java.io._
 import java.net.{URL, URLClassLoader}
 
 import scala.reflect.NameTransformer
-import scala.tools.nsc.{GenericRunnerSettings, Global}
+import scala.tools.nsc.{Global, Settings}
 import scala.tools.nsc.reporters.ConsoleReporter
 
 class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLike {
@@ -177,10 +177,7 @@ object EnumValueSerializerCompatibilityTest {
   }
 
   def compileScalaFile(file: File): Unit = {
-    val in = new BufferedReader(new StringReader(""))
-    val out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(System.out)))
-
-    val settings = new GenericRunnerSettings(out.println _)
+    val settings = new Settings()
 
     // use the java classpath so that scala libraries are available to the compiler
     settings.usejavacp.value = true
@@ -192,6 +189,9 @@ object EnumValueSerializerCompatibilityTest {
 
     run.compile(List(file.getAbsolutePath))
 
-    reporter.printSummary()
+    if (reporter.hasWarnings || reporter.hasErrors) {
+      reporter.finish()
+      fail("Scala compiler reported warnings or errors")
+    }
   }
 }

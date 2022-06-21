@@ -65,6 +65,7 @@ object LookupJoinCodeGenerator {
   /** Generates a lookup function ([[TableFunction]]) */
   def generateSyncLookupFunction(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
@@ -86,6 +87,7 @@ object LookupJoinCodeGenerator {
     generateLookupFunction(
       classOf[FlatMapFunction[RowData, RowData]],
       tableConfig,
+      classLoader,
       dataTypeFactory,
       inputType,
       tableSourceType,
@@ -103,6 +105,7 @@ object LookupJoinCodeGenerator {
   /** Generates a async lookup function ([[AsyncTableFunction]]) */
   def generateAsyncLookupFunction(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
@@ -115,6 +118,7 @@ object LookupJoinCodeGenerator {
     generateLookupFunction(
       classOf[AsyncFunction[RowData, AnyRef]],
       tableConfig,
+      classLoader,
       dataTypeFactory,
       inputType,
       tableSourceType,
@@ -132,6 +136,7 @@ object LookupJoinCodeGenerator {
   private def generateLookupFunction[F <: Function](
       generatedClass: Class[F],
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
@@ -165,7 +170,7 @@ object LookupJoinCodeGenerator {
     val inference =
       createLookupTypeInference(dataTypeFactory, callContext, lookupFunctionBase, udf, functionName)
 
-    val ctx = CodeGeneratorContext(tableConfig)
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
     val operands = prepareOperands(ctx, inputType, lookupKeys, lookupKeyOrder, fieldCopy)
     val callWithDataType = BridgingFunctionGenUtil.generateFunctionAwareCallWithDataType(
       ctx,
@@ -413,6 +418,7 @@ object LookupJoinCodeGenerator {
    */
   def generateTableAsyncCollector(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       name: String,
       leftInputType: RowType,
       collectedType: RowType,
@@ -425,7 +431,7 @@ object LookupJoinCodeGenerator {
     val input2Term = DEFAULT_INPUT2_TERM
     val outTerm = "resultCollection"
 
-    val ctx = CodeGeneratorContext(tableConfig)
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
 
     val body = if (condition.isEmpty) {
       "getResultFuture().complete(records);"
@@ -495,6 +501,7 @@ object LookupJoinCodeGenerator {
    */
   def generateCalcMapFunction(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       projection: Seq[RexNode],
       condition: RexNode,
       outputType: RelDataType,
@@ -506,7 +513,8 @@ object LookupJoinCodeGenerator {
       classOf[GenericRowData],
       projection,
       Option(condition),
-      tableConfig
+      tableConfig,
+      classLoader
     )
   }
 }

@@ -104,6 +104,11 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
                 RuntimeExecutionMode.BATCH,
                 BatchShuffleMode.ALL_EXCHANGES_PIPELINED,
                 GlobalStreamExchangeMode.ALL_EDGES_PIPELINED);
+
+        testGlobalStreamExchangeMode(
+                RuntimeExecutionMode.BATCH,
+                BatchShuffleMode.WIP_ALL_EXCHANGES_HYBRID,
+                GlobalStreamExchangeMode.ALL_EDGES_HYBRID);
     }
 
     @Test

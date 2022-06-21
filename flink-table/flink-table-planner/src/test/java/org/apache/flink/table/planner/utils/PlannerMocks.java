@@ -66,7 +66,12 @@ public class PlannerMocks {
 
         final ModuleManager moduleManager = new ModuleManager();
 
-        this.functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager);
+        this.functionCatalog =
+                new FunctionCatalog(
+                        tableConfig,
+                        catalogManager,
+                        moduleManager,
+                        PlannerMocks.class.getClassLoader());
 
         this.plannerContext =
                 new PlannerContext(
@@ -80,7 +85,8 @@ public class PlannerMocks {
                                 : asRootSchema(
                                         new CatalogManagerCalciteSchema(
                                                 catalogManager, !isBatchMode)),
-                        traitDefs);
+                        traitDefs,
+                        PlannerMocks.class.getClassLoader());
 
         this.planner = plannerContext.createFlinkPlanner();
         this.parser =
@@ -94,6 +100,7 @@ public class PlannerMocks {
                 true,
                 ExpressionResolver.resolverFor(
                         tableConfig,
+                        PlannerMocks.class.getClassLoader(),
                         name -> {
                             throw new UnsupportedOperationException();
                         },

@@ -220,7 +220,7 @@ object BridgingFunctionGenUtil {
       returnType: LogicalType): String = {
     val outputType = outputDataType.getLogicalType
 
-    val collectorCtx = CodeGeneratorContext(ctx.tableConfig)
+    val collectorCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
     val externalResultTerm = newName("externalResult")
 
     // code for wrapping atomic types
@@ -406,7 +406,10 @@ object BridgingFunctionGenUtil {
     validateClassForRuntime(udf.getClass, methodName, argumentClasses, outputClass, functionName)
   }
 
-  class DefaultExpressionEvaluatorFactory(tableConfig: ReadableConfig, rexFactory: RexFactory)
+  class DefaultExpressionEvaluatorFactory(
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
+      rexFactory: RexFactory)
     extends ExpressionEvaluatorFactory {
 
     override def createEvaluator(
@@ -512,7 +515,7 @@ object BridgingFunctionGenUtil {
       val argFields = args.map(f => new RowField(f.getName, f.getDataType.getLogicalType))
       val outputType = outputDataType.getLogicalType
 
-      val ctx = new EvaluatorCodeGeneratorContext(tableConfig)
+      val ctx = new EvaluatorCodeGeneratorContext(tableConfig, classLoader)
 
       val externalOutputClass = outputDataType.getConversionClass
       val externalOutputTypeTerm = typeTerm(externalOutputClass)
@@ -616,8 +619,8 @@ object BridgingFunctionGenUtil {
     }
   }
 
-  private class EvaluatorCodeGeneratorContext(tableConfig: ReadableConfig)
-    extends CodeGeneratorContext(tableConfig) {
+  private class EvaluatorCodeGeneratorContext(tableConfig: ReadableConfig, classLoader: ClassLoader)
+    extends CodeGeneratorContext(tableConfig, classLoader) {
 
     override def addReusableConverter(
         dataType: DataType,

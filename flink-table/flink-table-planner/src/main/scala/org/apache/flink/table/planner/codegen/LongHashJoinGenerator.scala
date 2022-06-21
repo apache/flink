@@ -83,10 +83,13 @@ object LongHashJoinGenerator {
       anyNullTerm)
   }
 
-  def genProjection(tableConfig: ReadableConfig, types: Array[LogicalType]): GeneratedProjection = {
+  def genProjection(
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
+      types: Array[LogicalType]): GeneratedProjection = {
     val rowType = RowType.of(types: _*)
     ProjectionCodeGenerator.generateProjection(
-      CodeGeneratorContext.apply(tableConfig),
+      new CodeGeneratorContext(tableConfig, classLoader),
       "Projection",
       rowType,
       rowType,
@@ -95,6 +98,7 @@ object LongHashJoinGenerator {
 
   def gen(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       hashJoinType: HashJoinType,
       keyType: RowType,
       buildType: RowType,
@@ -110,13 +114,15 @@ object LongHashJoinGenerator {
     val probeSer = new BinaryRowDataSerializer(probeType.getFieldCount)
 
     val tableTerm = newName("LongHashTable")
-    val ctx = CodeGeneratorContext(tableConfig)
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
     val buildSerTerm = ctx.addReusableObject(buildSer, "buildSer")
     val probeSerTerm = ctx.addReusableObject(probeSer, "probeSer")
 
-    val bGenProj = genProjection(tableConfig, buildType.getChildren.toArray(Array[LogicalType]()))
+    val bGenProj =
+      genProjection(tableConfig, classLoader, buildType.getChildren.toArray(Array[LogicalType]()))
     ctx.addReusableInnerClass(bGenProj.getClassName, bGenProj.getCode)
-    val pGenProj = genProjection(tableConfig, probeType.getChildren.toArray(Array[LogicalType]()))
+    val pGenProj =
+      genProjection(tableConfig, classLoader, probeType.getChildren.toArray(Array[LogicalType]()))
     ctx.addReusableInnerClass(pGenProj.getClassName, pGenProj.getCode)
     ctx.addReusableInnerClass(condFunc.getClassName, condFunc.getCode)
 

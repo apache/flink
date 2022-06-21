@@ -287,7 +287,9 @@ class StreamArrowPythonRowTimeBoundedRangeOperatorTest
                 3,
                 3L,
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
                         "UdafInputProjection",
                         inputType,
                         udfInputType,

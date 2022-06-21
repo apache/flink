@@ -44,6 +44,7 @@ public class CallExpressionResolver {
         this.resolver =
                 ExpressionResolver.resolverFor(
                                 context.getTableConfig(),
+                                context.getClassLoader(),
                                 name -> Optional.empty(),
                                 context.getFunctionCatalog()
                                         .asLookup(

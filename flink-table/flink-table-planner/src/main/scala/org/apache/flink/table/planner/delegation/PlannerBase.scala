@@ -96,7 +96,8 @@ abstract class PlannerBase(
     val moduleManager: ModuleManager,
     val functionCatalog: FunctionCatalog,
     val catalogManager: CatalogManager,
-    isStreamingMode: Boolean)
+    isStreamingMode: Boolean,
+    classLoader: ClassLoader)
   extends Planner {
 
   // temporary utility until we don't use planner expressions anymore
@@ -114,7 +115,8 @@ abstract class PlannerBase(
       functionCatalog,
       catalogManager,
       asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
-      getTraitDefs.toList
+      getTraitDefs.toList,
+      classLoader
     )
 
   private[flink] def createRelBuilder: FlinkRelBuilder = {
@@ -434,7 +436,6 @@ abstract class PlannerBase(
     new SerdeContext(
       getParser,
       planner.config.getContext.asInstanceOf[FlinkContext],
-      getFlinkContext.getClassLoader,
       plannerContext.getTypeFactory,
       planner.operatorTable
     )
