@@ -117,7 +117,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-hdfs-client</artifactId>
-					<version>${hadoop.version}</version>
+					<version>${flink.hadoop.version}</version>
 					<scope>test</scope>
 				</dependency>
 			</dependencies>

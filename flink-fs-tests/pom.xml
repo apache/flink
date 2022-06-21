@@ -102,7 +102,7 @@ under the License.
 			<artifactId>hadoop-hdfs</artifactId>
 			<scope>test</scope>
 			<type>test-jar</type>
-			<version>${hadoop.version}</version><!--$NO-MVN-MAN-VER$-->
+			<version>${flink.hadoop.version}</version><!--$NO-MVN-MAN-VER$-->
 			<exclusions>
 				<exclusion>
 					<groupId>log4j</groupId>
@@ -116,7 +116,7 @@ under the License.
 			<artifactId>hadoop-common</artifactId>
 			<scope>test</scope>
 			<type>test-jar</type>
-			<version>${hadoop.version}</version><!--$NO-MVN-MAN-VER$-->
+			<version>${flink.hadoop.version}</version><!--$NO-MVN-MAN-VER$-->
 			<exclusions>
 				<exclusion>
 					<groupId>log4j</groupId>
@@ -144,7 +144,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-hdfs-client</artifactId>
-					<version>${hadoop.version}</version>
+					<version>${flink.hadoop.version}</version>
 					<scope>test</scope>
 				</dependency>
 			</dependencies>
