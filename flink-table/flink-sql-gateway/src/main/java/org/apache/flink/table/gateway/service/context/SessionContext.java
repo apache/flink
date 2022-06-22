@@ -37,6 +37,7 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
+import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.module.ModuleManager;
 
 import org.slf4j.Logger;
@@ -51,6 +52,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Context describing a session, it's mainly used for user to open a new session in the backend. If
@@ -69,17 +71,21 @@ public class SessionContext {
     private final SessionState sessionState;
     private final URLClassLoader userClassloader;
 
+    private final OperationManager operationManager;
+
     private SessionContext(
             SessionHandle sessionId,
             EndpointVersion endpointVersion,
             Configuration sessionConf,
             URLClassLoader classLoader,
-            SessionState sessionState) {
+            SessionState sessionState,
+            OperationManager operationManager) {
         this.sessionId = sessionId;
         this.endpointVersion = endpointVersion;
         this.sessionConf = sessionConf;
         this.userClassloader = classLoader;
         this.sessionState = sessionState;
+        this.operationManager = operationManager;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -108,6 +114,8 @@ public class SessionContext {
         } catch (IOException e) {
             LOG.debug("Error while closing class loader.", e);
         }
+
+        operationManager.close();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -118,7 +126,8 @@ public class SessionContext {
             DefaultContext defaultContext,
             SessionHandle sessionId,
             EndpointVersion endpointVersion,
-            Configuration sessionConf) {
+            Configuration sessionConf,
+            ExecutorService operationExecutorService) {
         // --------------------------------------------------------------------------------------------------------------
         // Init config
         // --------------------------------------------------------------------------------------------------------------
@@ -159,7 +168,12 @@ public class SessionContext {
                 new SessionState(catalogManager, moduleManager, functionCatalog);
 
         return new SessionContext(
-                sessionId, endpointVersion, configuration, classLoader, sessionState);
+                sessionId,
+                endpointVersion,
+                configuration,
+                classLoader,
+                sessionState,
+                new OperationManager(operationExecutorService));
     }
 
     private static URLClassLoader buildClassLoader(
@@ -202,6 +216,10 @@ public class SessionContext {
                 sessionState.moduleManager,
                 sessionState.functionCatalog,
                 userClassloader);
+    }
+
+    public OperationManager getOperationManager() {
+        return operationManager;
     }
 
     private TableEnvironmentInternal createStreamTableEnvironment(
