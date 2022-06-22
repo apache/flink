@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.rank;
 
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 
 import org.junit.Test;
@@ -50,7 +51,8 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
                 rankRange,
                 generateUpdateBefore,
                 outputRankNumber,
-                cacheSize);
+                cacheSize,
+                ExecutionConfigOptions.StateStaledErrorHandling.CONTINUE_WITHOUT_LOGGING);
     }
 
     @Test

@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
@@ -35,6 +36,7 @@ import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.SortedMapTypeInfo;
+import org.apache.flink.table.runtime.util.ErrorHandlingUtil;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
@@ -58,17 +60,8 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
     private static final long serialVersionUID = 1365312180599454480L;
 
     private static final Logger LOG = LoggerFactory.getLogger(RetractableTopNFunction.class);
-
-    // Message to indicate the state is cleared because of ttl restriction. The message could be
-    // used to output to log.
-    private static final String STATE_CLEARED_WARN_MSG =
-            "The state is cleared because of state ttl. "
-                    + "This will result in incorrect result. You can increase the state ttl to avoid this.";
-
     private final InternalTypeInfo<RowData> sortKeyType;
-
-    // flag to skip records with non-exist error instead to fail, true by default.
-    private final boolean lenient = true;
+    private final ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling;
 
     // a map state stores mapping from sort key to records list
     private transient MapState<RowData, List<RowData>> dataState;
@@ -93,7 +86,8 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
             RankRange rankRange,
             GeneratedRecordEqualiser generatedEqualiser,
             boolean generateUpdateBefore,
-            boolean outputRankNumber) {
+            boolean outputRankNumber,
+            ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
         super(
                 ttlConfig,
                 inputRowType,
@@ -107,6 +101,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
         this.serializableComparator = comparableRecordComparator;
         this.generatedEqualiser = generatedEqualiser;
         this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
+        this.stateStaledErrorHandling = stateStaledErrorHandling;
     }
 
     @Override
@@ -228,17 +223,9 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
         stateStaledErrorHandle();
     }
 
-    /**
-     * Handle state staled error by configured lenient option. If option is true, warning log only,
-     * otherwise a {@link RuntimeException} will be thrown.
-     */
     private void stateStaledErrorHandle() {
-        // Skip the data if it's state is cleared because of state ttl.
-        if (lenient) {
-            LOG.warn(STATE_CLEARED_WARN_MSG);
-        } else {
-            throw new RuntimeException(STATE_CLEARED_WARN_MSG);
-        }
+        ErrorHandlingUtil.handleStateStaledError(
+                ttlConfig, stateStaledErrorHandling, ErrorHandlingUtil.STATE_EXPIRED_WARN_MSG, LOG);
     }
 
     private void emitRecordsWithRowNumber(

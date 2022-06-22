@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
@@ -62,6 +63,8 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 
     protected final long stateRetentionTime;
 
+    protected final ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling;
+
     protected transient JoinConditionWithNullFilters joinCondition;
     protected transient TimestampedCollector<RowData> collector;
 
@@ -72,7 +75,8 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
             JoinInputSideSpec leftInputSideSpec,
             JoinInputSideSpec rightInputSideSpec,
             boolean[] filterNullKeys,
-            long stateRetentionTime) {
+            long stateRetentionTime,
+            ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
         this.leftType = leftType;
         this.rightType = rightType;
         this.generatedJoinCondition = generatedJoinCondition;
@@ -80,6 +84,7 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
         this.rightInputSideSpec = rightInputSideSpec;
         this.stateRetentionTime = stateRetentionTime;
         this.filterNullKeys = filterNullKeys;
+        this.stateStaledErrorHandling = stateStaledErrorHandling;
     }
 
     @Override

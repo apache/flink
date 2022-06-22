@@ -26,8 +26,10 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.ErrorHandlingUtil;
 import org.apache.flink.util.IterableIterator;
 
 import java.util.ArrayList;
@@ -47,11 +49,13 @@ public final class JoinRecordStateViews {
             String stateName,
             JoinInputSideSpec inputSideSpec,
             InternalTypeInfo<RowData> recordType,
-            long retentionTime) {
+            long retentionTime,
+            ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
         StateTtlConfig ttlConfig = createTtlConfig(retentionTime);
         if (inputSideSpec.hasUniqueKey()) {
             if (inputSideSpec.joinKeyContainsUniqueKey()) {
-                return new JoinKeyContainsUniqueKey(ctx, stateName, recordType, ttlConfig);
+                return new JoinKeyContainsUniqueKey(
+                        ctx, stateName, recordType, ttlConfig, stateStaledErrorHandling);
             } else {
                 return new InputSideHasUniqueKey(
                         ctx,
@@ -59,16 +63,32 @@ public final class JoinRecordStateViews {
                         recordType,
                         inputSideSpec.getUniqueKeyType(),
                         inputSideSpec.getUniqueKeySelector(),
-                        ttlConfig);
+                        ttlConfig,
+                        stateStaledErrorHandling);
             }
         } else {
-            return new InputSideHasNoUniqueKey(ctx, stateName, recordType, ttlConfig);
+            return new InputSideHasNoUniqueKey(
+                    ctx, stateName, recordType, ttlConfig, stateStaledErrorHandling);
         }
     }
 
     // ------------------------------------------------------------------------------------
 
-    private static final class JoinKeyContainsUniqueKey implements JoinRecordStateView {
+    private abstract static class AbstractJoinRecordStateView implements JoinRecordStateView {
+
+        protected final StateTtlConfig ttlConfig;
+
+        protected final ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling;
+
+        public AbstractJoinRecordStateView(
+                StateTtlConfig ttlConfig,
+                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+            this.ttlConfig = ttlConfig;
+            this.stateStaledErrorHandling = stateStaledErrorHandling;
+        }
+    }
+
+    private static final class JoinKeyContainsUniqueKey extends AbstractJoinRecordStateView {
 
         private final ValueState<RowData> recordState;
         private final List<RowData> reusedList;
@@ -77,7 +97,9 @@ public final class JoinRecordStateViews {
                 RuntimeContext ctx,
                 String stateName,
                 InternalTypeInfo<RowData> recordType,
-                StateTtlConfig ttlConfig) {
+                StateTtlConfig ttlConfig,
+                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+            super(ttlConfig, stateStaledErrorHandling);
             ValueStateDescriptor<RowData> recordStateDesc =
                     new ValueStateDescriptor<>(stateName, recordType);
             if (ttlConfig.isEnabled()) {
@@ -96,6 +118,8 @@ public final class JoinRecordStateViews {
         @Override
         public void retractRecord(RowData record) throws Exception {
             recordState.clear();
+            // TODO should check if old value is empty especially state ttl is disabled.
+            // for performance perspective, don't do it for now.
         }
 
         @Override
@@ -109,7 +133,7 @@ public final class JoinRecordStateViews {
         }
     }
 
-    private static final class InputSideHasUniqueKey implements JoinRecordStateView {
+    private static final class InputSideHasUniqueKey extends AbstractJoinRecordStateView {
 
         // stores record in the mapping <UK, Record>
         private final MapState<RowData, RowData> recordState;
@@ -121,7 +145,9 @@ public final class JoinRecordStateViews {
                 InternalTypeInfo<RowData> recordType,
                 InternalTypeInfo<RowData> uniqueKeyType,
                 KeySelector<RowData, RowData> uniqueKeySelector,
-                StateTtlConfig ttlConfig) {
+                StateTtlConfig ttlConfig,
+                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+            super(ttlConfig, stateStaledErrorHandling);
             checkNotNull(uniqueKeyType);
             checkNotNull(uniqueKeySelector);
             MapStateDescriptor<RowData, RowData> recordStateDesc =
@@ -143,6 +169,8 @@ public final class JoinRecordStateViews {
         public void retractRecord(RowData record) throws Exception {
             RowData uniqueKey = uniqueKeySelector.getKey(record);
             recordState.remove(uniqueKey);
+            // TODO should check if old value is empty especially state ttl is disabled.
+            // for performance perspective, don't do it for now.
         }
 
         @Override
@@ -151,7 +179,7 @@ public final class JoinRecordStateViews {
         }
     }
 
-    private static final class InputSideHasNoUniqueKey implements JoinRecordStateView {
+    private static final class InputSideHasNoUniqueKey extends AbstractJoinRecordStateView {
 
         private final MapState<RowData, Integer> recordState;
 
@@ -159,7 +187,9 @@ public final class JoinRecordStateViews {
                 RuntimeContext ctx,
                 String stateName,
                 InternalTypeInfo<RowData> recordType,
-                StateTtlConfig ttlConfig) {
+                StateTtlConfig ttlConfig,
+                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+            super(ttlConfig, stateStaledErrorHandling);
             MapStateDescriptor<RowData, Integer> recordStateDesc =
                     new MapStateDescriptor<>(stateName, recordType, Types.INT);
             if (ttlConfig.isEnabled()) {
@@ -189,7 +219,8 @@ public final class JoinRecordStateViews {
                     recordState.remove(record);
                 }
             }
-            // ignore cnt == null, which means state may be expired
+            // cnt == null means state may be expired
+            ErrorHandlingUtil.handleStateStaledError(ttlConfig, stateStaledErrorHandling, null);
         }
 
         @Override

@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
@@ -69,6 +70,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RANK_TOPN_CACHE_SIZE;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_STATE_STALED_ERROR_HANDLING;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -217,6 +219,8 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         long cacheSize = config.get(TABLE_EXEC_RANK_TOPN_CACHE_SIZE);
         StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(config.getStateRetentionTime());
 
+        ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling =
+                config.get(TABLE_EXEC_STATE_STALED_ERROR_HANDLING);
         AbstractTopNFunction processFunction;
         if (rankStrategy instanceof RankProcessStrategy.AppendFastStrategy) {
             if (sortFields.length == 1
@@ -290,7 +294,8 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                                 rankRange,
                                 generateUpdateBefore,
                                 outputRankNumber,
-                                cacheSize);
+                                cacheSize,
+                                stateStaledErrorHandling);
             }
             // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
         } else if (rankStrategy instanceof RankProcessStrategy.RetractStrategy) {
@@ -319,7 +324,8 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                             rankRange,
                             generatedEqualiser,
                             generateUpdateBefore,
-                            outputRankNumber);
+                            outputRankNumber,
+                            stateStaledErrorHandling);
         } else {
             throw new TableException(
                     String.format("rank strategy:%s is not supported.", rankStrategy));

@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.stream;
 
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
@@ -51,7 +52,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
             JoinInputSideSpec leftInputSideSpec,
             JoinInputSideSpec rightInputSideSpec,
             boolean[] filterNullKeys,
-            long stateRetentionTime) {
+            long stateRetentionTime,
+            ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
         super(
                 leftType,
                 rightType,
@@ -59,7 +61,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                 leftInputSideSpec,
                 rightInputSideSpec,
                 filterNullKeys,
-                stateRetentionTime);
+                stateRetentionTime,
+                stateStaledErrorHandling);
         this.isAntiJoin = isAntiJoin;
     }
 
@@ -73,7 +76,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                         LEFT_RECORDS_STATE_NAME,
                         leftInputSideSpec,
                         leftType,
-                        stateRetentionTime);
+                        stateRetentionTime,
+                        stateStaledErrorHandling);
 
         this.rightRecordStateView =
                 JoinRecordStateViews.create(
@@ -81,7 +85,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                         RIGHT_RECORDS_STATE_NAME,
                         rightInputSideSpec,
                         rightType,
-                        stateRetentionTime);
+                        stateRetentionTime,
+                        stateStaledErrorHandling);
     }
 
     /**

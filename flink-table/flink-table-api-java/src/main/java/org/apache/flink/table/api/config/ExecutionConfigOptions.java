@@ -61,6 +61,28 @@ public class ExecutionConfigOptions {
                                     + "Default value is 0, which means that it will never clean up state.");
 
     // ------------------------------------------------------------------------
+    //  Error Handling Options
+    // ------------------------------------------------------------------------
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<StateStaledErrorHandling>
+            TABLE_EXEC_STATE_STALED_ERROR_HANDLING =
+                    key("table.exec.state-staled.error-handling")
+                            .enumType(StateStaledErrorHandling.class)
+                            .defaultValue(StateStaledErrorHandling.CONTINUE_WITHOUT_LOGGING)
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "A unified error handling strategy to handle the situation that operators can not "
+                                                            + "be able to handle the updates normally when the corresponding record was "
+                                                            + "expired which exceeds state ttl.")
+                                            .linebreak()
+                                            .text(
+                                                    "By default, expired records are simply discarded from the system and there's no logging. "
+                                                            + "If you want to reserve the log then choose CONTINUE_WITH_LOGGING, "
+                                                            + "or choose ERROR in order to raise an error to fail the processing immediately.")
+                                            .build());
+
+    // ------------------------------------------------------------------------
     //  Source Options
     // ------------------------------------------------------------------------
 
@@ -571,6 +593,23 @@ public class ExecutionConfigOptions {
 
         /** Add keyed shuffle in any case except single parallelism. */
         FORCE
+    }
+
+    /** The error handling strategy when operator encounter state staled error. */
+    @PublicEvolving
+    public enum StateStaledErrorHandling {
+
+        /** Raise an error when operators encounter state staled error. */
+        ERROR,
+
+        /** Continue processing with logging when operators encounter state staled error. */
+        CONTINUE_WITH_LOGGING,
+
+        /**
+         * Continue processing silently (without any logging) when operator encounter state staled
+         * error.
+         */
+        CONTINUE_WITHOUT_LOGGING
     }
 
     /** Determine if CAST operates using the legacy behaviour or the new one. */

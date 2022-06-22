@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
@@ -65,7 +66,11 @@ public class SinkUpsertMaterializerTest {
     @Test
     public void test() throws Exception {
         SinkUpsertMaterializer materializer =
-                new SinkUpsertMaterializer(ttlConfig, serializer, equaliser);
+                new SinkUpsertMaterializer(
+                        ttlConfig,
+                        serializer,
+                        equaliser,
+                        ExecutionConfigOptions.StateStaledErrorHandling.CONTINUE_WITHOUT_LOGGING);
         KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> testHarness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
                         materializer, keySelector, keySelector.getProducedType());

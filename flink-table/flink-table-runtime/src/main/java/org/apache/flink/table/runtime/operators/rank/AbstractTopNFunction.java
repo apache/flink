@@ -30,6 +30,8 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.data.conversion.RowRowConverter;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -77,6 +79,11 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
     private final long rankStart;
     private final int rankEndIndex;
     protected long rankEnd;
+
+    // data converters for logging only.
+    protected transient DataStructureConverter rowConverter;
+    protected transient DataStructureConverter sortKeyConverter;
+
     private transient Function<RowData, Long> rankEndFetcher;
 
     private ValueState<Long> rankEndState;
@@ -179,6 +186,15 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
                                     + rankEndIdxType.getClass().getName());
             }
         }
+
+        // initialize data converters for logging
+        this.rowConverter = RowRowConverter.create(inputRowType.getDataType());
+        this.sortKeyConverter =
+                RowRowConverter.create(
+                        ((RowDataKeySelector) sortKeySelector).getProducedType().getDataType());
+
+        rowConverter.open(getRuntimeContext().getUserCodeClassLoader());
+        sortKeyConverter.open(getRuntimeContext().getUserCodeClassLoader());
     }
 
     /**

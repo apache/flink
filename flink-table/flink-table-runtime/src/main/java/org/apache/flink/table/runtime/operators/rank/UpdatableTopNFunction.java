@@ -31,12 +31,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.conversion.DataStructureConverter;
-import org.apache.flink.table.data.conversion.RowRowConverter;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.ErrorHandlingUtil;
 import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
@@ -76,13 +76,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 
     private final InternalTypeInfo<RowData> rowKeyType;
     private final long cacheSize;
-
-    // flag to skip records with non-exist error instead to fail, true by default.
-    private final boolean lenient = true;
-
-    // data converter for logging only.
-    private transient DataStructureConverter rowConverter;
-    private transient DataStructureConverter sortKeyConverter;
+    private final ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling;
 
     // a map state stores mapping from row key to record which is in topN
     // in tuple2, f0 is the record row, f1 is the index in the list of the same sort_key
@@ -111,7 +105,8 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
             RankRange rankRange,
             boolean generateUpdateBefore,
             boolean outputRankNumber,
-            long cacheSize) {
+            long cacheSize,
+            ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
         super(
                 ttlConfig,
                 inputRowType,
@@ -125,6 +120,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
         this.cacheSize = cacheSize;
         this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
         this.rowKeySelector = rowKeySelector;
+        this.stateStaledErrorHandling = stateStaledErrorHandling;
     }
 
     @Override
@@ -146,14 +142,6 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
                 "Top{} operator is using LRU caches key-size: {}",
                 getDefaultTopNSize(),
                 lruCacheSize);
-
-        this.rowConverter = RowRowConverter.create(inputRowType.getDataType());
-        this.sortKeyConverter =
-                RowRowConverter.create(
-                        ((RowDataKeySelector) sortKeySelector).getProducedType().getDataType());
-
-        rowConverter.open(getRuntimeContext().getUserCodeClassLoader());
-        sortKeyConverter.open(getRuntimeContext().getUserCodeClassLoader());
 
         TupleTypeInfo<Tuple2<RowData, Integer>> valueTypeInfo =
                 new TupleTypeInfo<>(inputRowType, Types.INT);
@@ -304,16 +292,18 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
                                     inputRowStr,
                                     sortKeyConverter.toExternal(sortKey).toString(),
                                     sortKeyConverter.toExternal(oldSortKey).toString());
-                    if (lenient) {
-                        LOG.warn(errorMsg);
+
+                    ErrorHandlingUtil.handleStateStaledError(
+                            stateStaledErrorHandling, errorMsg, LOG);
+                    // continue processing if stateStaledErrorHandling is not set to ERROR
+                    if (stateStaledErrorHandling
+                            != ExecutionConfigOptions.StateStaledErrorHandling.ERROR) {
                         Tuple2<Integer, Integer> newRankAndInnerRank =
                                 rowNumber(sortKey, rowKey, buffer);
                         int newRank = newRankAndInnerRank.f0;
                         // affect rank range: [oldRank, newRank]
                         emitRecordsWithRowNumberIgnoreStateError(
                                 inputRow, newRank, oldRow, oldRank, out);
-                    } else {
-                        throw new RuntimeException(errorMsg);
                     }
                 }
             }

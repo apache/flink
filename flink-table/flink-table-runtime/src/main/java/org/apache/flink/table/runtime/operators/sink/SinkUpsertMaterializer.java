@@ -26,10 +26,12 @@ import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
+import org.apache.flink.table.runtime.util.ErrorHandlingUtil;
 import org.apache.flink.types.RowKind;
 
 import org.slf4j.Logger;
@@ -61,13 +63,10 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
 
     private static final Logger LOG = LoggerFactory.getLogger(SinkUpsertMaterializer.class);
 
-    private static final String STATE_CLEARED_WARN_MSG =
-            "The state is cleared because of state ttl. This will result in incorrect result. "
-                    + "You can increase the state ttl to avoid this.";
-
     private final StateTtlConfig ttlConfig;
     private final TypeSerializer<RowData> serializer;
     private final GeneratedRecordEqualiser generatedEqualiser;
+    private final ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling;
 
     private transient RecordEqualiser equaliser;
     // Buffer of emitted insertions on which deletions will be applied first.
@@ -78,10 +77,12 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
     public SinkUpsertMaterializer(
             StateTtlConfig ttlConfig,
             TypeSerializer<RowData> serializer,
-            GeneratedRecordEqualiser generatedEqualiser) {
+            GeneratedRecordEqualiser generatedEqualiser,
+            ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
         this.ttlConfig = ttlConfig;
         this.serializer = serializer;
         this.generatedEqualiser = generatedEqualiser;
+        this.stateStaledErrorHandling = stateStaledErrorHandling;
     }
 
     @Override
@@ -119,7 +120,8 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
                 final int lastIndex = values.size() - 1;
                 final int index = removeFirst(values, row);
                 if (index == -1) {
-                    LOG.info(STATE_CLEARED_WARN_MSG);
+                    ErrorHandlingUtil.handleStateStaledError(
+                            ttlConfig, stateStaledErrorHandling, LOG);
                     return;
                 }
                 if (values.isEmpty()) {

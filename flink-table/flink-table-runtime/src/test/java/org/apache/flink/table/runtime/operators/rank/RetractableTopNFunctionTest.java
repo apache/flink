@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.rank;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
@@ -56,7 +57,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 rankRange,
                 generatedEqualiser,
                 generateUpdateBefore,
-                outputRankNumber);
+                outputRankNumber,
+                ExecutionConfigOptions.StateStaledErrorHandling.CONTINUE_WITHOUT_LOGGING);
     }
 
     @Test
@@ -532,7 +534,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                         new ConstantRankRange(1, 1),
                         generatedEqualiser,
                         true,
-                        false);
+                        false,
+                        ExecutionConfigOptions.StateStaledErrorHandling.CONTINUE_WITHOUT_LOGGING);
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
@@ -571,7 +574,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                         new ConstantRankRange(1, 2),
                         generatedEqualiser,
                         true,
-                        true);
+                        true,
+                        ExecutionConfigOptions.StateStaledErrorHandling.CONTINUE_WITHOUT_LOGGING);
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();

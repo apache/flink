@@ -28,8 +28,10 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.ErrorHandlingUtil;
 import org.apache.flink.util.IterableIterator;
 
 import java.util.ArrayList;
@@ -49,12 +51,13 @@ public final class OuterJoinRecordStateViews {
             String stateName,
             JoinInputSideSpec inputSideSpec,
             InternalTypeInfo<RowData> recordType,
-            long retentionTime) {
+            long retentionTime,
+            ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
         StateTtlConfig ttlConfig = createTtlConfig(retentionTime);
         if (inputSideSpec.hasUniqueKey()) {
             if (inputSideSpec.joinKeyContainsUniqueKey()) {
                 return new OuterJoinRecordStateViews.JoinKeyContainsUniqueKey(
-                        ctx, stateName, recordType, ttlConfig);
+                        ctx, stateName, recordType, ttlConfig, stateStaledErrorHandling);
             } else {
                 return new OuterJoinRecordStateViews.InputSideHasUniqueKey(
                         ctx,
@@ -62,17 +65,33 @@ public final class OuterJoinRecordStateViews {
                         recordType,
                         inputSideSpec.getUniqueKeyType(),
                         inputSideSpec.getUniqueKeySelector(),
-                        ttlConfig);
+                        ttlConfig,
+                        stateStaledErrorHandling);
             }
         } else {
             return new OuterJoinRecordStateViews.InputSideHasNoUniqueKey(
-                    ctx, stateName, recordType, ttlConfig);
+                    ctx, stateName, recordType, ttlConfig, stateStaledErrorHandling);
         }
     }
 
     // ------------------------------------------------------------------------------------------
 
-    private static final class JoinKeyContainsUniqueKey implements OuterJoinRecordStateView {
+    private abstract static class AbstractOuterJoinRecordStateView
+            implements OuterJoinRecordStateView {
+
+        protected final StateTtlConfig ttlConfig;
+
+        protected final ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling;
+
+        public AbstractOuterJoinRecordStateView(
+                StateTtlConfig ttlConfig,
+                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+            this.ttlConfig = ttlConfig;
+            this.stateStaledErrorHandling = stateStaledErrorHandling;
+        }
+    }
+
+    private static final class JoinKeyContainsUniqueKey extends AbstractOuterJoinRecordStateView {
 
         private final ValueState<Tuple2<RowData, Integer>> recordState;
         private final List<RowData> reusedRecordList;
@@ -82,7 +101,9 @@ public final class OuterJoinRecordStateViews {
                 RuntimeContext ctx,
                 String stateName,
                 InternalTypeInfo<RowData> recordType,
-                StateTtlConfig ttlConfig) {
+                StateTtlConfig ttlConfig,
+                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+            super(ttlConfig, stateStaledErrorHandling);
             TupleTypeInfo<Tuple2<RowData, Integer>> valueTypeInfo =
                     new TupleTypeInfo<>(recordType, Types.INT);
             ValueStateDescriptor<Tuple2<RowData, Integer>> recordStateDesc =
@@ -115,6 +136,8 @@ public final class OuterJoinRecordStateViews {
         @Override
         public void retractRecord(RowData record) throws Exception {
             recordState.clear();
+            // TODO should check if old value is empty especially state ttl is disabled.
+            // for performance perspective, don't do it for now.
         }
 
         @Override
@@ -140,7 +163,7 @@ public final class OuterJoinRecordStateViews {
         }
     }
 
-    private static final class InputSideHasUniqueKey implements OuterJoinRecordStateView {
+    private static final class InputSideHasUniqueKey extends AbstractOuterJoinRecordStateView {
 
         // stores record in the mapping <UK, <Record, associated-num>>
         private final MapState<RowData, Tuple2<RowData, Integer>> recordState;
@@ -152,7 +175,9 @@ public final class OuterJoinRecordStateViews {
                 InternalTypeInfo<RowData> recordType,
                 InternalTypeInfo<RowData> uniqueKeyType,
                 KeySelector<RowData, RowData> uniqueKeySelector,
-                StateTtlConfig ttlConfig) {
+                StateTtlConfig ttlConfig,
+                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+            super(ttlConfig, stateStaledErrorHandling);
             checkNotNull(uniqueKeyType);
             checkNotNull(uniqueKeySelector);
             TupleTypeInfo<Tuple2<RowData, Integer>> valueTypeInfo =
@@ -188,6 +213,8 @@ public final class OuterJoinRecordStateViews {
         public void retractRecord(RowData record) throws Exception {
             RowData uniqueKey = uniqueKeySelector.getKey(record);
             recordState.remove(uniqueKey);
+            // TODO should check if old value is empty especially state ttl is disabled.
+            // for performance perspective, don't do it for now.
         }
 
         @Override
@@ -202,24 +229,29 @@ public final class OuterJoinRecordStateViews {
         }
     }
 
-    private static final class InputSideHasNoUniqueKey implements OuterJoinRecordStateView {
+    private static final class InputSideHasNoUniqueKey extends AbstractOuterJoinRecordStateView {
 
         // stores record in the mapping <Record, <appear-times, associated-num>>
         private final MapState<RowData, Tuple2<Integer, Integer>> recordState;
+
+        private final StateTtlConfig ttlConfig;
 
         private InputSideHasNoUniqueKey(
                 RuntimeContext ctx,
                 String stateName,
                 InternalTypeInfo<RowData> recordType,
-                StateTtlConfig ttlConfig) {
+                StateTtlConfig ttlConfig,
+                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+            super(ttlConfig, stateStaledErrorHandling);
             TupleTypeInfo<Tuple2<Integer, Integer>> tupleTypeInfo =
                     new TupleTypeInfo<>(Types.INT, Types.INT);
             MapStateDescriptor<RowData, Tuple2<Integer, Integer>> recordStateDesc =
                     new MapStateDescriptor<>(stateName, recordType, tupleTypeInfo);
+            this.ttlConfig = ttlConfig;
+            this.recordState = ctx.getMapState(recordStateDesc);
             if (ttlConfig.isEnabled()) {
                 recordStateDesc.enableTimeToLive(ttlConfig);
             }
-            this.recordState = ctx.getMapState(recordStateDesc);
         }
 
         @Override
@@ -262,6 +294,8 @@ public final class OuterJoinRecordStateViews {
                 } else {
                     recordState.remove(record);
                 }
+            } else {
+                ErrorHandlingUtil.handleStateStaledError(ttlConfig, stateStaledErrorHandling, null);
             }
         }
 
