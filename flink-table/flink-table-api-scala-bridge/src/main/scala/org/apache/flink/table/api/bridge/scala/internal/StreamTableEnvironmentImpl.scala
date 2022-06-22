@@ -38,7 +38,7 @@ import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
 import org.apache.flink.table.types.AbstractDataType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
-import org.apache.flink.util.{ClassLoaderUtil, FlinkUserCodeClassLoaders, Preconditions}
+import org.apache.flink.util.{ClassLoaderUtil, MutableURLClassLoader, Preconditions}
 
 import java.net.URL
 import java.util.Optional
@@ -293,9 +293,9 @@ object StreamTableEnvironmentImpl {
   def create(
       executionEnvironment: StreamExecutionEnvironment,
       settings: EnvironmentSettings): StreamTableEnvironmentImpl = {
-    val userClassLoader: FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader =
+    val userClassLoader: MutableURLClassLoader =
       ClassLoaderUtil
-        .buildSafetyNetWrapperClassLoader(
+        .buildMutableURLClassLoader(
           new Array[URL](0),
           settings.getUserClassLoader,
           settings.getConfiguration)

@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileSystem;
@@ -37,8 +38,8 @@ import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.util.ClassLoaderUtil;
-import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.JarUtils;
+import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.slf4j.Logger;
@@ -74,14 +75,14 @@ public class SessionContext {
     // SafetyNetWrapperClassLoader doesn't override the getURL therefore we need to maintain the
     // dependencies by ourselves.
     private Set<URL> dependencies;
-    private FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader classLoader;
+    private MutableURLClassLoader classLoader;
     private ExecutionContext executionContext;
 
     private SessionContext(
             DefaultContext defaultContext,
             String sessionId,
             Configuration sessionConfiguration,
-            FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader classLoader,
+            MutableURLClassLoader classLoader,
             SessionState sessionState,
             ExecutionContext executionContext) {
         this.defaultContext = defaultContext;
@@ -186,8 +187,11 @@ public class SessionContext {
                 sessionState.catalogManager.getCatalog(name).ifPresent(Catalog::close);
             }
         }
-
-        classLoader.close();
+        try {
+            classLoader.close();
+        } catch (IOException e) {
+            LOG.debug("Error while closing class loader.", e);
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -204,8 +208,11 @@ public class SessionContext {
         // --------------------------------------------------------------------------------------------------------------
         // Init classloader
         // --------------------------------------------------------------------------------------------------------------
-        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader userClassLoader =
-                ClassLoaderUtil.buildSafetyNetWrapperClassLoader(
+
+        // override to use SafetyNetWrapperClassLoader
+        configuration.set(CoreOptions.CHECK_LEAKED_CLASSLOADER, true);
+        final MutableURLClassLoader userClassLoader =
+                ClassLoaderUtil.buildMutableURLClassLoader(
                         defaultContext.getDependencies().toArray(new URL[0]),
                         SessionContext.class.getClassLoader(),
                         configuration);
@@ -340,7 +347,7 @@ public class SessionContext {
                 URL::toString);
 
         classLoader =
-                ClassLoaderUtil.buildSafetyNetWrapperClassLoader(
+                ClassLoaderUtil.buildMutableURLClassLoader(
                         new ArrayList<>(newDependencies).toArray(new URL[0]),
                         SessionContext.class.getClassLoader(),
                         sessionConfiguration);

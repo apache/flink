@@ -25,7 +25,6 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
@@ -160,23 +159,20 @@ import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.ClassLoaderUtil;
-import org.apache.flink.util.FlinkUserCodeClassLoaders;
+import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -270,8 +266,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     public static TableEnvironmentImpl create(EnvironmentSettings settings) {
-        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader userClassLoader =
-                ClassLoaderUtil.buildSafetyNetWrapperClassLoader(
+        final MutableURLClassLoader userClassLoader =
+                ClassLoaderUtil.buildMutableURLClassLoader(
                         new URL[0], settings.getUserClassLoader(), settings.getConfiguration());
 
         final ExecutorFactory executorFactory =
@@ -806,8 +802,17 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         final String defaultJobName = "insert-into_" + String.join(",", sinkIdentifierNames);
 
         // Merge user jars to table configuration
-        mergeJarsToConfiguration(
-                resourceManager.getJarResourceURLs(), tableConfig.getConfiguration());
+        if (!resourceManager.getJarResourceURLs().isEmpty()) {
+            ConfigUtils.mergeCollectionsToConfig(
+                    tableConfig.getConfiguration(),
+                    PipelineOptions.JARS,
+                    resourceManager.getJarResourceURLs().stream()
+                            .map(URL::toString)
+                            .collect(Collectors.toSet()),
+                    String::toString,
+                    String::toString);
+        }
+
         // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
                 execEnv.createPipeline(
@@ -841,8 +846,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         final String defaultJobName = "collect";
 
         // Merge user jars to table configuration
-        mergeJarsToConfiguration(
-                resourceManager.getJarResourceURLs(), tableConfig.getConfiguration());
+        if (!resourceManager.getJarResourceURLs().isEmpty()) {
+            ConfigUtils.mergeCollectionsToConfig(
+                    tableConfig.getConfiguration(),
+                    PipelineOptions.JARS,
+                    resourceManager.getJarResourceURLs().stream()
+                            .map(URL::toString)
+                            .collect(Collectors.toSet()),
+                    String::toString,
+                    String::toString);
+        }
 
         // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
@@ -1886,28 +1899,5 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public String explainPlan(InternalPlan compiledPlan, ExplainDetail... extraDetails) {
         return planner.explainPlan(compiledPlan, extraDetails);
-    }
-
-    /** Merge jars from configuration and others into configuration. */
-    private static void mergeJarsToConfiguration(Set<URL> jars, Configuration configuration) {
-        Set<URL> newJarDependencies = new HashSet<>(jars);
-        newJarDependencies.addAll(getJarsInConfig(configuration));
-        ConfigUtils.encodeCollectionToConfig(
-                configuration, PipelineOptions.JARS, newJarDependencies, URL::toString);
-    }
-
-    /** Get jars from {@link Configuration}. */
-    private static Set<URL> getJarsInConfig(ReadableConfig readableConfig) {
-        Set<URL> jarsInConfig;
-        try {
-            jarsInConfig =
-                    new HashSet<>(
-                            ConfigUtils.decodeListFromConfig(
-                                    readableConfig, PipelineOptions.JARS, URL::new));
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException(
-                    "Failed to parse the option `pipeline.jars` in configuration.", e);
-        }
-        return jarsInConfig;
     }
 }

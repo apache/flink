@@ -35,7 +35,7 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
-import org.apache.flink.util.FlinkUserCodeClassLoaders;
+import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import java.lang.reflect.Method;
@@ -54,13 +54,13 @@ public class ExecutionContext {
     // Members that should be reused in the same session.
     private final Configuration flinkConfig;
     private final SessionState sessionState;
-    private final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader classLoader;
+    private final MutableURLClassLoader classLoader;
 
     private final StreamTableEnvironment tableEnv;
 
     public ExecutionContext(
             Configuration flinkConfig,
-            FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader classLoader,
+            MutableURLClassLoader classLoader,
             SessionState sessionState) {
         this.flinkConfig = flinkConfig;
         this.sessionState = sessionState;
@@ -115,7 +115,7 @@ public class ExecutionContext {
 
         // Updates the classloader of ResourceManager by the new classloader to solve
         // ClassNotFound exception when call add jar syntax case
-        sessionState.resourceManager.updateClassLoader(classLoader);
+        sessionState.resourceManager.updateUserClasLoader(classLoader);
         return createStreamTableEnvironment(
                 streamExecEnv,
                 settings,
@@ -123,8 +123,7 @@ public class ExecutionContext {
                 sessionState.catalogManager,
                 sessionState.moduleManager,
                 sessionState.resourceManager,
-                sessionState.functionCatalog,
-                classLoader);
+                sessionState.functionCatalog);
     }
 
     private static StreamTableEnvironment createStreamTableEnvironment(
@@ -134,8 +133,7 @@ public class ExecutionContext {
             CatalogManager catalogManager,
             ModuleManager moduleManager,
             ResourceManager resourceManager,
-            FunctionCatalog functionCatalog,
-            ClassLoader userClassLoader) {
+            FunctionCatalog functionCatalog) {
 
         TableConfig tableConfig = TableConfig.getDefault();
         tableConfig.setRootConfiguration(executor.getConfiguration());
@@ -145,7 +143,7 @@ public class ExecutionContext {
                 PlannerFactoryUtil.createPlanner(
                         executor,
                         tableConfig,
-                        userClassLoader,
+                        resourceManager.getUserClassLoader(),
                         moduleManager,
                         catalogManager,
                         functionCatalog);

@@ -21,7 +21,7 @@ package org.apache.flink.table.utils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.util.ClassLoaderUtil;
-import org.apache.flink.util.FlinkUserCodeClassLoaders;
+import org.apache.flink.util.MutableURLClassLoader;
 
 import java.net.URL;
 
@@ -30,17 +30,16 @@ public class ResourceManagerMocks {
 
     public static ResourceManager createEmptyResourceManager() {
         Configuration configuration = new Configuration();
-        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader userClassLoader =
-                ClassLoaderUtil.buildSafetyNetWrapperClassLoader(
+        final MutableURLClassLoader userClassLoader =
+                ClassLoaderUtil.buildMutableURLClassLoader(
                         new URL[0], Thread.currentThread().getContextClassLoader(), configuration);
         return new ResourceManager(configuration, userClassLoader);
     }
 
     public static ResourceManager createResourceManager(
             URL[] urls, ClassLoader parentClassLoader, Configuration configuration) {
-        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader userClassLoader =
-                ClassLoaderUtil.buildSafetyNetWrapperClassLoader(
-                        urls, parentClassLoader, configuration);
+        final MutableURLClassLoader userClassLoader =
+                ClassLoaderUtil.buildMutableURLClassLoader(urls, parentClassLoader, configuration);
         return new ResourceManager(configuration, userClassLoader);
     }
 

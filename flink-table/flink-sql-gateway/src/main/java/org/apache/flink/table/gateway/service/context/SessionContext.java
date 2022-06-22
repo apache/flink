@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.gateway.service.context;
 
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -44,6 +43,9 @@ import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.util.ClassLoaderUtil;
+import org.apache.flink.util.MutableURLClassLoader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,11 +54,8 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -182,21 +181,25 @@ public class SessionContext {
         // Init classloader
         // --------------------------------------------------------------------------------------------------------------
 
-        URLClassLoader classLoader =
-                buildClassLoader(Collections.emptySet(), Collections.emptySet(), configuration);
+        // override to use SafetyNetWrapperClassLoader
+        configuration.set(CoreOptions.CHECK_LEAKED_CLASSLOADER, true);
+        final MutableURLClassLoader userClassLoader =
+                ClassLoaderUtil.buildMutableURLClassLoader(
+                        new URL[0], SessionContext.class.getClassLoader(), configuration);
 
         // --------------------------------------------------------------------------------------------------------------
         // Init session state
         // --------------------------------------------------------------------------------------------------------------
 
-        ModuleManager moduleManager = new ModuleManager();
+        final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
+        final ModuleManager moduleManager = new ModuleManager();
 
         final EnvironmentSettings settings = EnvironmentSettings.fromConfiguration(configuration);
 
         CatalogManager catalogManager =
                 CatalogManager.newBuilder()
                         // Currently, the classloader is only used by DataTypeFactory.
-                        .classLoader(classLoader)
+                        .classLoaderSupplier(() -> resourceManager.getUserClassLoader())
                         .config(configuration)
                         .defaultCatalog(
                                 settings.getBuiltInCatalogName(),
@@ -205,35 +208,19 @@ public class SessionContext {
                                         settings.getBuiltInDatabaseName()))
                         .build();
 
-        FunctionCatalog functionCatalog =
-                new FunctionCatalog(configuration, catalogManager, moduleManager, classLoader);
+        final FunctionCatalog functionCatalog =
+                new FunctionCatalog(configuration, resourceManager, catalogManager, moduleManager);
         SessionState sessionState =
-                new SessionState(catalogManager, moduleManager, functionCatalog);
+                new SessionState(catalogManager, moduleManager, resourceManager, functionCatalog);
 
         return new SessionContext(
                 defaultContext,
                 sessionId,
                 endpointVersion,
                 configuration,
-                classLoader,
+                userClassLoader,
                 sessionState,
                 new OperationManager(operationExecutorService));
-    }
-
-    private static URLClassLoader buildClassLoader(
-            Set<URL> envDependencies, Set<URL> userDependencies, Configuration conf) {
-        Set<URL> newDependencies = new HashSet<>();
-        newDependencies.addAll(envDependencies);
-        newDependencies.addAll(userDependencies);
-
-        // override to use SafetyNetWrapperClassLoader
-        conf.set(CoreOptions.CHECK_LEAKED_CLASSLOADER, true);
-
-        return ClientUtils.buildUserCodeClassLoader(
-                new ArrayList<>(newDependencies),
-                Collections.emptyList(),
-                SessionContext.class.getClassLoader(),
-                conf);
     }
 
     // ------------------------------------------------------------------------------------------------------------------
@@ -251,7 +238,7 @@ public class SessionContext {
         tableConfig.setRootConfiguration(defaultContext.getFlinkConfig());
         tableConfig.addConfiguration(sessionConf);
 
-        final Executor executor = lookupExecutor(streamExecEnv);
+        final Executor executor = lookupExecutor(streamExecEnv, userClassloader);
         return createStreamTableEnvironment(
                 streamExecEnv,
                 settings,
@@ -259,29 +246,29 @@ public class SessionContext {
                 executor,
                 sessionState.catalogManager,
                 sessionState.moduleManager,
-                sessionState.functionCatalog,
-                userClassloader);
+                sessionState.resourceManager,
+                sessionState.functionCatalog);
     }
 
     public OperationManager getOperationManager() {
         return operationManager;
     }
 
-    private TableEnvironmentInternal createStreamTableEnvironment(
+    private static TableEnvironmentInternal createStreamTableEnvironment(
             StreamExecutionEnvironment env,
             EnvironmentSettings settings,
             TableConfig tableConfig,
             Executor executor,
             CatalogManager catalogManager,
             ModuleManager moduleManager,
-            FunctionCatalog functionCatalog,
-            ClassLoader userClassLoader) {
+            ResourceManager resourceManager,
+            FunctionCatalog functionCatalog) {
 
         final Planner planner =
                 PlannerFactoryUtil.createPlanner(
                         executor,
                         tableConfig,
-                        userClassLoader,
+                        resourceManager.getUserClassLoader(),
                         moduleManager,
                         catalogManager,
                         functionCatalog);
@@ -289,20 +276,21 @@ public class SessionContext {
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
+                resourceManager,
                 functionCatalog,
                 tableConfig,
                 env,
                 planner,
                 executor,
-                settings.isStreamingMode(),
-                userClassLoader);
+                settings.isStreamingMode());
     }
 
-    private Executor lookupExecutor(StreamExecutionEnvironment executionEnvironment) {
+    private static Executor lookupExecutor(
+            StreamExecutionEnvironment executionEnvironment, ClassLoader userClassLoader) {
         try {
             final ExecutorFactory executorFactory =
                     FactoryUtil.discoverFactory(
-                            userClassloader,
+                            userClassLoader,
                             ExecutorFactory.class,
                             ExecutorFactory.DEFAULT_IDENTIFIER);
             final Method createMethod =
@@ -334,15 +322,18 @@ public class SessionContext {
     public static class SessionState {
 
         public final CatalogManager catalogManager;
+        public final ResourceManager resourceManager;
         public final FunctionCatalog functionCatalog;
         public final ModuleManager moduleManager;
 
         public SessionState(
                 CatalogManager catalogManager,
                 ModuleManager moduleManager,
+                ResourceManager resourceManager,
                 FunctionCatalog functionCatalog) {
             this.catalogManager = catalogManager;
             this.moduleManager = moduleManager;
+            this.resourceManager = resourceManager;
             this.functionCatalog = functionCatalog;
         }
     }

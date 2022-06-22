@@ -54,7 +54,7 @@ public class ResourceManager implements Closeable {
 
     private final Path localResourceDir;
     private final Map<ResourceUri, URL> resourceInfos;
-    private final MutableURLClassLoader userClassLoader;
+    private MutableURLClassLoader userClassLoader;
 
     public ResourceManager(Configuration config, MutableURLClassLoader userClassLoader) {
         this.localResourceDir =
@@ -67,6 +67,10 @@ public class ResourceManager implements Closeable {
 
     public URLClassLoader getUserClassLoader() {
         return userClassLoader;
+    }
+
+    public void updateUserClasLoader(MutableURLClassLoader userClassLoader) {
+        this.userClassLoader = userClassLoader;
     }
 
     public void registerResource(ResourceUri resourceUri) throws IOException {

@@ -54,7 +54,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.ClassLoaderUtil;
-import org.apache.flink.util.FlinkUserCodeClassLoaders;
+import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
 
 import java.net.URL;
@@ -95,8 +95,8 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
 
     public static StreamTableEnvironment create(
             StreamExecutionEnvironment executionEnvironment, EnvironmentSettings settings) {
-        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader userClassLoader =
-                ClassLoaderUtil.buildSafetyNetWrapperClassLoader(
+        final MutableURLClassLoader userClassLoader =
+                ClassLoaderUtil.buildMutableURLClassLoader(
                         new URL[0], settings.getUserClassLoader(), settings.getConfiguration());
         final Executor executor = lookupExecutor(userClassLoader, executionEnvironment);
 
