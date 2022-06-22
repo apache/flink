@@ -66,7 +66,7 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
     private final StateTtlConfig ttlConfig;
     private final TypeSerializer<RowData> serializer;
     private final GeneratedRecordEqualiser generatedEqualiser;
-    private final ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling;
+    private final ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling;
 
     private transient RecordEqualiser equaliser;
     // Buffer of emitted insertions on which deletions will be applied first.
@@ -78,11 +78,11 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
             StateTtlConfig ttlConfig,
             TypeSerializer<RowData> serializer,
             GeneratedRecordEqualiser generatedEqualiser,
-            ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+            ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling) {
         this.ttlConfig = ttlConfig;
         this.serializer = serializer;
         this.generatedEqualiser = generatedEqualiser;
-        this.stateStaledErrorHandling = stateStaledErrorHandling;
+        this.stateStaleErrorHandling = stateStaleErrorHandling;
     }
 
     @Override
@@ -120,8 +120,8 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
                 final int lastIndex = values.size() - 1;
                 final int index = removeFirst(values, row);
                 if (index == -1) {
-                    ErrorHandlingUtil.handleStateStaledError(
-                            ttlConfig, stateStaledErrorHandling, LOG);
+                    ErrorHandlingUtil.handleStateStaleError(
+                            ttlConfig, stateStaleErrorHandling, LOG);
                     return;
                 }
                 if (values.isEmpty()) {

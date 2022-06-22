@@ -52,7 +52,7 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
                 generateUpdateBefore,
                 outputRankNumber,
                 cacheSize,
-                ExecutionConfigOptions.StateStaledErrorHandling.CONTINUE_WITHOUT_LOGGING);
+                ExecutionConfigOptions.StateStaleErrorHandling.CONTINUE_WITHOUT_LOGGING);
     }
 
     @Test

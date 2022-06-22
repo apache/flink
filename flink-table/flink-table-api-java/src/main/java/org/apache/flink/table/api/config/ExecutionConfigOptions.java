@@ -64,11 +64,11 @@ public class ExecutionConfigOptions {
     //  Error Handling Options
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
-    public static final ConfigOption<StateStaledErrorHandling>
-            TABLE_EXEC_STATE_STALED_ERROR_HANDLING =
-                    key("table.exec.state-staled.error-handling")
-                            .enumType(StateStaledErrorHandling.class)
-                            .defaultValue(StateStaledErrorHandling.CONTINUE_WITHOUT_LOGGING)
+    public static final ConfigOption<StateStaleErrorHandling>
+            TABLE_EXEC_STATE_STALE_ERROR_HANDLING =
+                    key("table.exec.state-stale.error-handling")
+                            .enumType(StateStaleErrorHandling.class)
+                            .defaultValue(StateStaleErrorHandling.CONTINUE_WITHOUT_LOGGING)
                             .withDescription(
                                     Description.builder()
                                             .text(
@@ -595,14 +595,14 @@ public class ExecutionConfigOptions {
         FORCE
     }
 
-    /** The error handling strategy when operator encounter state staled error. */
+    /** The error handling strategy when operator encounter state stale error. */
     @PublicEvolving
-    public enum StateStaledErrorHandling {
+    public enum StateStaleErrorHandling {
 
-        /** Raise an error when operators encounter state staled error. */
+        /** Raise an error when operators encounter state stale error. */
         ERROR,
 
-        /** Continue processing with logging when operators encounter state staled error. */
+        /** Continue processing with logging when operators encounter state stale error. */
         CONTINUE_WITH_LOGGING,
 
         /**

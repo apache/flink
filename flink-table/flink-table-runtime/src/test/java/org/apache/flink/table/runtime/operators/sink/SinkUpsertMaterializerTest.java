@@ -70,7 +70,7 @@ public class SinkUpsertMaterializerTest {
                         ttlConfig,
                         serializer,
                         equaliser,
-                        ExecutionConfigOptions.StateStaledErrorHandling.CONTINUE_WITHOUT_LOGGING);
+                        ExecutionConfigOptions.StateStaleErrorHandling.CONTINUE_WITHOUT_LOGGING);
         KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> testHarness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
                         materializer, keySelector, keySelector.getProducedType());

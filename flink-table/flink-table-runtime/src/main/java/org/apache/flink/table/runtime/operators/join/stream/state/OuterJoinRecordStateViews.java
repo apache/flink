@@ -52,12 +52,12 @@ public final class OuterJoinRecordStateViews {
             JoinInputSideSpec inputSideSpec,
             InternalTypeInfo<RowData> recordType,
             long retentionTime,
-            ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+            ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling) {
         StateTtlConfig ttlConfig = createTtlConfig(retentionTime);
         if (inputSideSpec.hasUniqueKey()) {
             if (inputSideSpec.joinKeyContainsUniqueKey()) {
                 return new OuterJoinRecordStateViews.JoinKeyContainsUniqueKey(
-                        ctx, stateName, recordType, ttlConfig, stateStaledErrorHandling);
+                        ctx, stateName, recordType, ttlConfig, stateStaleErrorHandling);
             } else {
                 return new OuterJoinRecordStateViews.InputSideHasUniqueKey(
                         ctx,
@@ -66,11 +66,11 @@ public final class OuterJoinRecordStateViews {
                         inputSideSpec.getUniqueKeyType(),
                         inputSideSpec.getUniqueKeySelector(),
                         ttlConfig,
-                        stateStaledErrorHandling);
+                        stateStaleErrorHandling);
             }
         } else {
             return new OuterJoinRecordStateViews.InputSideHasNoUniqueKey(
-                    ctx, stateName, recordType, ttlConfig, stateStaledErrorHandling);
+                    ctx, stateName, recordType, ttlConfig, stateStaleErrorHandling);
         }
     }
 
@@ -81,13 +81,13 @@ public final class OuterJoinRecordStateViews {
 
         protected final StateTtlConfig ttlConfig;
 
-        protected final ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling;
+        protected final ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling;
 
         public AbstractOuterJoinRecordStateView(
                 StateTtlConfig ttlConfig,
-                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+                ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling) {
             this.ttlConfig = ttlConfig;
-            this.stateStaledErrorHandling = stateStaledErrorHandling;
+            this.stateStaleErrorHandling = stateStaleErrorHandling;
         }
     }
 
@@ -102,8 +102,8 @@ public final class OuterJoinRecordStateViews {
                 String stateName,
                 InternalTypeInfo<RowData> recordType,
                 StateTtlConfig ttlConfig,
-                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
-            super(ttlConfig, stateStaledErrorHandling);
+                ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling) {
+            super(ttlConfig, stateStaleErrorHandling);
             TupleTypeInfo<Tuple2<RowData, Integer>> valueTypeInfo =
                     new TupleTypeInfo<>(recordType, Types.INT);
             ValueStateDescriptor<Tuple2<RowData, Integer>> recordStateDesc =
@@ -176,8 +176,8 @@ public final class OuterJoinRecordStateViews {
                 InternalTypeInfo<RowData> uniqueKeyType,
                 KeySelector<RowData, RowData> uniqueKeySelector,
                 StateTtlConfig ttlConfig,
-                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
-            super(ttlConfig, stateStaledErrorHandling);
+                ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling) {
+            super(ttlConfig, stateStaleErrorHandling);
             checkNotNull(uniqueKeyType);
             checkNotNull(uniqueKeySelector);
             TupleTypeInfo<Tuple2<RowData, Integer>> valueTypeInfo =
@@ -241,8 +241,8 @@ public final class OuterJoinRecordStateViews {
                 String stateName,
                 InternalTypeInfo<RowData> recordType,
                 StateTtlConfig ttlConfig,
-                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
-            super(ttlConfig, stateStaledErrorHandling);
+                ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling) {
+            super(ttlConfig, stateStaleErrorHandling);
             TupleTypeInfo<Tuple2<Integer, Integer>> tupleTypeInfo =
                     new TupleTypeInfo<>(Types.INT, Types.INT);
             MapStateDescriptor<RowData, Tuple2<Integer, Integer>> recordStateDesc =
@@ -295,7 +295,7 @@ public final class OuterJoinRecordStateViews {
                     recordState.remove(record);
                 }
             } else {
-                ErrorHandlingUtil.handleStateStaledError(ttlConfig, stateStaledErrorHandling, null);
+                ErrorHandlingUtil.handleStateStaleError(ttlConfig, stateStaleErrorHandling, null);
             }
         }
 

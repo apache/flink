@@ -53,7 +53,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
             JoinInputSideSpec rightInputSideSpec,
             boolean[] filterNullKeys,
             long stateRetentionTime,
-            ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+            ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling) {
         super(
                 leftType,
                 rightType,
@@ -62,7 +62,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                 rightInputSideSpec,
                 filterNullKeys,
                 stateRetentionTime,
-                stateStaledErrorHandling);
+                stateStaleErrorHandling);
         this.isAntiJoin = isAntiJoin;
     }
 
@@ -77,7 +77,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                         leftInputSideSpec,
                         leftType,
                         stateRetentionTime,
-                        stateStaledErrorHandling);
+                        stateStaleErrorHandling);
 
         this.rightRecordStateView =
                 JoinRecordStateViews.create(
@@ -86,7 +86,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                         rightInputSideSpec,
                         rightType,
                         stateRetentionTime,
-                        stateStaledErrorHandling);
+                        stateStaleErrorHandling);
     }
 
     /**

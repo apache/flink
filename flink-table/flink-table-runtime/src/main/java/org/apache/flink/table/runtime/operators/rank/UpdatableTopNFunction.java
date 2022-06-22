@@ -76,7 +76,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 
     private final InternalTypeInfo<RowData> rowKeyType;
     private final long cacheSize;
-    private final ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling;
+    private final ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling;
 
     // a map state stores mapping from row key to record which is in topN
     // in tuple2, f0 is the record row, f1 is the index in the list of the same sort_key
@@ -106,7 +106,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
             boolean generateUpdateBefore,
             boolean outputRankNumber,
             long cacheSize,
-            ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+            ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling) {
         super(
                 ttlConfig,
                 inputRowType,
@@ -120,7 +120,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
         this.cacheSize = cacheSize;
         this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
         this.rowKeySelector = rowKeySelector;
-        this.stateStaledErrorHandling = stateStaledErrorHandling;
+        this.stateStaleErrorHandling = stateStaleErrorHandling;
     }
 
     @Override
@@ -293,11 +293,12 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
                                     sortKeyConverter.toExternal(sortKey).toString(),
                                     sortKeyConverter.toExternal(oldSortKey).toString());
 
-                    ErrorHandlingUtil.handleStateStaledError(
-                            stateStaledErrorHandling, errorMsg, LOG);
+                    ErrorHandlingUtil.handleStateStaleError(
+                            ttlConfig, stateStaleErrorHandling, errorMsg, LOG);
+
                     // continue processing if stateStaledErrorHandling is not set to ERROR
-                    if (stateStaledErrorHandling
-                            != ExecutionConfigOptions.StateStaledErrorHandling.ERROR) {
+                    if (stateStaleErrorHandling
+                            != ExecutionConfigOptions.StateStaleErrorHandling.ERROR) {
                         Tuple2<Integer, Integer> newRankAndInnerRank =
                                 rowNumber(sortKey, rowKey, buffer);
                         int newRank = newRankAndInnerRank.f0;
@@ -339,12 +340,12 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
                 curRank += rowKeys.size();
             }
         }
-        LOG.error(
-                "Failed to find the sortKey: {}, rowkey: {} in the buffer. This should never happen",
-                sortKey,
-                rowKey);
-        throw new RuntimeException(
-                "Failed to find the sortKey, rowkey in the buffer. This should never happen");
+        String errorMsg =
+                String.format(
+                        "Failed to find the sortKey: %s, rowkey: %s in the buffer. This should never happen",
+                        sortKey, rowKey);
+        LOG.error(errorMsg);
+        throw new RuntimeException(errorMsg);
     }
 
     private void emitRecordsWithRowNumberIgnoreStateError(

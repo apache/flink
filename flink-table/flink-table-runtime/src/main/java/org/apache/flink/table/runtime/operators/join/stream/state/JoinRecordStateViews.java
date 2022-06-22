@@ -50,12 +50,12 @@ public final class JoinRecordStateViews {
             JoinInputSideSpec inputSideSpec,
             InternalTypeInfo<RowData> recordType,
             long retentionTime,
-            ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+            ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling) {
         StateTtlConfig ttlConfig = createTtlConfig(retentionTime);
         if (inputSideSpec.hasUniqueKey()) {
             if (inputSideSpec.joinKeyContainsUniqueKey()) {
                 return new JoinKeyContainsUniqueKey(
-                        ctx, stateName, recordType, ttlConfig, stateStaledErrorHandling);
+                        ctx, stateName, recordType, ttlConfig, stateStaleErrorHandling);
             } else {
                 return new InputSideHasUniqueKey(
                         ctx,
@@ -64,11 +64,11 @@ public final class JoinRecordStateViews {
                         inputSideSpec.getUniqueKeyType(),
                         inputSideSpec.getUniqueKeySelector(),
                         ttlConfig,
-                        stateStaledErrorHandling);
+                        stateStaleErrorHandling);
             }
         } else {
             return new InputSideHasNoUniqueKey(
-                    ctx, stateName, recordType, ttlConfig, stateStaledErrorHandling);
+                    ctx, stateName, recordType, ttlConfig, stateStaleErrorHandling);
         }
     }
 
@@ -78,13 +78,13 @@ public final class JoinRecordStateViews {
 
         protected final StateTtlConfig ttlConfig;
 
-        protected final ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling;
+        protected final ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling;
 
         public AbstractJoinRecordStateView(
                 StateTtlConfig ttlConfig,
-                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+                ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling) {
             this.ttlConfig = ttlConfig;
-            this.stateStaledErrorHandling = stateStaledErrorHandling;
+            this.stateStaleErrorHandling = stateStaleErrorHandling;
         }
     }
 
@@ -98,8 +98,8 @@ public final class JoinRecordStateViews {
                 String stateName,
                 InternalTypeInfo<RowData> recordType,
                 StateTtlConfig ttlConfig,
-                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
-            super(ttlConfig, stateStaledErrorHandling);
+                ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling) {
+            super(ttlConfig, stateStaleErrorHandling);
             ValueStateDescriptor<RowData> recordStateDesc =
                     new ValueStateDescriptor<>(stateName, recordType);
             if (ttlConfig.isEnabled()) {
@@ -146,8 +146,8 @@ public final class JoinRecordStateViews {
                 InternalTypeInfo<RowData> uniqueKeyType,
                 KeySelector<RowData, RowData> uniqueKeySelector,
                 StateTtlConfig ttlConfig,
-                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
-            super(ttlConfig, stateStaledErrorHandling);
+                ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling) {
+            super(ttlConfig, stateStaleErrorHandling);
             checkNotNull(uniqueKeyType);
             checkNotNull(uniqueKeySelector);
             MapStateDescriptor<RowData, RowData> recordStateDesc =
@@ -188,8 +188,8 @@ public final class JoinRecordStateViews {
                 String stateName,
                 InternalTypeInfo<RowData> recordType,
                 StateTtlConfig ttlConfig,
-                ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
-            super(ttlConfig, stateStaledErrorHandling);
+                ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling) {
+            super(ttlConfig, stateStaleErrorHandling);
             MapStateDescriptor<RowData, Integer> recordStateDesc =
                     new MapStateDescriptor<>(stateName, recordType, Types.INT);
             if (ttlConfig.isEnabled()) {
@@ -220,7 +220,7 @@ public final class JoinRecordStateViews {
                 }
             }
             // cnt == null means state may be expired
-            ErrorHandlingUtil.handleStateStaledError(ttlConfig, stateStaledErrorHandling, null);
+            ErrorHandlingUtil.handleStateStaleError(ttlConfig, stateStaleErrorHandling, null);
         }
 
         @Override

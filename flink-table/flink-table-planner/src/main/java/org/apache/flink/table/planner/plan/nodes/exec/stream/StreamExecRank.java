@@ -70,7 +70,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RANK_TOPN_CACHE_SIZE;
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_STATE_STALED_ERROR_HANDLING;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_STATE_STALE_ERROR_HANDLING;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -219,8 +219,8 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         long cacheSize = config.get(TABLE_EXEC_RANK_TOPN_CACHE_SIZE);
         StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(config.getStateRetentionTime());
 
-        ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling =
-                config.get(TABLE_EXEC_STATE_STALED_ERROR_HANDLING);
+        ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling =
+                config.get(TABLE_EXEC_STATE_STALE_ERROR_HANDLING);
         AbstractTopNFunction processFunction;
         if (rankStrategy instanceof RankProcessStrategy.AppendFastStrategy) {
             if (sortFields.length == 1
@@ -295,7 +295,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                                 generateUpdateBefore,
                                 outputRankNumber,
                                 cacheSize,
-                                stateStaledErrorHandling);
+                                stateStaleErrorHandling);
             }
             // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
         } else if (rankStrategy instanceof RankProcessStrategy.RetractStrategy) {
@@ -325,7 +325,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                             generatedEqualiser,
                             generateUpdateBefore,
                             outputRankNumber,
-                            stateStaledErrorHandling);
+                            stateStaleErrorHandling);
         } else {
             throw new TableException(
                     String.format("rank strategy:%s is not supported.", rankStrategy));

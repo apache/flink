@@ -411,7 +411,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                                 config.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis()),
                         InternalSerializers.create(physicalRowType),
                         equaliser,
-                        config.get(ExecutionConfigOptions.TABLE_EXEC_STATE_STALED_ERROR_HANDLING));
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_STATE_STALE_ERROR_HANDLING));
         final String[] fieldNames = physicalRowType.getFieldNames().toArray(new String[0]);
         final List<String> pkFieldNames =
                 Arrays.stream(primaryKeys)

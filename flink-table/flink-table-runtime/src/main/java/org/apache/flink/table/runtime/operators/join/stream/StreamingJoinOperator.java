@@ -62,7 +62,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
             boolean rightIsOuter,
             boolean[] filterNullKeys,
             long stateRetentionTime,
-            ExecutionConfigOptions.StateStaledErrorHandling stateStaledErrorHandling) {
+            ExecutionConfigOptions.StateStaleErrorHandling stateStaleErrorHandling) {
         super(
                 leftType,
                 rightType,
@@ -71,7 +71,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                 rightInputSideSpec,
                 filterNullKeys,
                 stateRetentionTime,
-                stateStaledErrorHandling);
+                stateStaleErrorHandling);
         this.leftIsOuter = leftIsOuter;
         this.rightIsOuter = rightIsOuter;
     }
@@ -92,7 +92,8 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                             "left-records",
                             leftInputSideSpec,
                             leftType,
-                            stateRetentionTime);
+                            stateRetentionTime,
+                            stateStaleErrorHandling);
         } else {
             this.leftRecordStateView =
                     JoinRecordStateViews.create(
@@ -100,7 +101,8 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                             "left-records",
                             leftInputSideSpec,
                             leftType,
-                            stateRetentionTime);
+                            stateRetentionTime,
+                            stateStaleErrorHandling);
         }
 
         if (rightIsOuter) {
@@ -110,7 +112,8 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                             "right-records",
                             rightInputSideSpec,
                             rightType,
-                            stateRetentionTime);
+                            stateRetentionTime,
+                            stateStaleErrorHandling);
         } else {
             this.rightRecordStateView =
                     JoinRecordStateViews.create(
@@ -118,7 +121,8 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                             "right-records",
                             rightInputSideSpec,
                             rightType,
-                            stateRetentionTime);
+                            stateRetentionTime,
+                            stateStaleErrorHandling);
         }
     }
 

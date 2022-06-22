@@ -22,6 +22,7 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.JInt
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions
@@ -452,5 +453,23 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
     testHarness.close()
+  }
+
+  @Test
+  def testUpdateRankErrorHandling(): Unit = {
+    expectedException.expect(classOf[RuntimeException])
+    expectedException.expectMessage(
+      "this break the monotonicity on sort key field which is guaranteed by the sql semantic")
+
+    tEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_STATE_STALE_ERROR_HANDLING,
+      ExecutionConfigOptions.StateStaleErrorHandling.ERROR)
+
+    val (testHarness, _) = prepareUpdateRankWithRowNumberTester()
+    testHarness.open()
+
+    testHarness.processElement(binaryRecord(INSERT, "a", 1: JInt, 100: JInt))
+    // sort key drops
+    testHarness.processElement(binaryRecord(UPDATE_AFTER, "a", 1: JInt, 90: JInt))
   }
 }
