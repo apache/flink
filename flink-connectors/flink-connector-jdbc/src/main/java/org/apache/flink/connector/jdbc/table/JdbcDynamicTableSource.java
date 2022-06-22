@@ -31,13 +31,23 @@ import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** A {@link DynamicTableSource} for JDBC. */
 @Internal
@@ -45,7 +55,9 @@ public class JdbcDynamicTableSource
         implements ScanTableSource,
                 LookupTableSource,
                 SupportsProjectionPushDown,
-                SupportsLimitPushDown {
+                SupportsLimitPushDown,
+                SupportsFilterPushDown {
+    private static Logger log = LoggerFactory.getLogger(JdbcDynamicTableSource.class);
 
     private final JdbcConnectorOptions options;
     private final JdbcReadOptions readOptions;
@@ -53,6 +65,7 @@ public class JdbcDynamicTableSource
     private DataType physicalRowDataType;
     private final String dialectName;
     private long limit = -1;
+    private List<String> resolvedPredicates = new ArrayList<>();
 
     public JdbcDynamicTableSource(
             JdbcConnectorOptions options,
@@ -107,6 +120,7 @@ public class JdbcDynamicTableSource
                         options.getTableName(),
                         DataType.getFieldNames(physicalRowDataType).toArray(new String[0]),
                         new String[0]);
+        final List<String> predicates = new ArrayList<String>();
         if (readOptions.getPartitionColumnName().isPresent()) {
             long lowerBound = readOptions.getPartitionLowerBound().get();
             long upperBound = readOptions.getPartitionUpperBound().get();
@@ -114,14 +128,30 @@ public class JdbcDynamicTableSource
             builder.setParametersProvider(
                     new JdbcNumericBetweenParametersProvider(lowerBound, upperBound)
                             .ofBatchNum(numPartitions));
-            query +=
-                    " WHERE "
-                            + dialect.quoteIdentifier(readOptions.getPartitionColumnName().get())
-                            + " BETWEEN ? AND ?";
+
+            predicates.add(
+                    dialect.quoteIdentifier(readOptions.getPartitionColumnName().get())
+                            + " BETWEEN ? AND ?");
         }
+
+        predicates.addAll(this.resolvedPredicates);
+
+        if (predicates.size() > 0) {
+            String joinedConditions =
+                    predicates.stream()
+                            .map(pred -> String.format("(%s)", pred))
+                            .collect(Collectors.joining(" AND "));
+            query += " WHERE " + joinedConditions;
+        }
+
         if (limit >= 0) {
             query = String.format("%s %s", query, dialect.getLimitClause(limit));
         }
+
+        if (log.isDebugEnabled()) {
+            log.debug("Query generated for JDBC scan: " + query);
+        }
+
         builder.setQuery(query);
         final RowType rowType = (RowType) physicalRowDataType.getLogicalType();
         builder.setRowConverter(dialect.getRowConverter(rowType));
@@ -149,7 +179,11 @@ public class JdbcDynamicTableSource
 
     @Override
     public DynamicTableSource copy() {
-        return new JdbcDynamicTableSource(options, readOptions, lookupOptions, physicalRowDataType);
+        JdbcDynamicTableSource newSource =
+                new JdbcDynamicTableSource(
+                        options, readOptions, lookupOptions, physicalRowDataType);
+        newSource.resolvedPredicates = this.resolvedPredicates;
+        return newSource;
     }
 
     @Override
@@ -171,17 +205,60 @@ public class JdbcDynamicTableSource
                 && Objects.equals(lookupOptions, that.lookupOptions)
                 && Objects.equals(physicalRowDataType, that.physicalRowDataType)
                 && Objects.equals(dialectName, that.dialectName)
-                && Objects.equals(limit, that.limit);
+                && Objects.equals(limit, that.limit)
+                && Objects.equals(resolvedPredicates, that.resolvedPredicates);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                options, readOptions, lookupOptions, physicalRowDataType, dialectName, limit);
+                options,
+                readOptions,
+                lookupOptions,
+                physicalRowDataType,
+                dialectName,
+                limit,
+                resolvedPredicates);
     }
 
     @Override
     public void applyLimit(long limit) {
         this.limit = limit;
+    }
+
+    /**
+     * This method makes use of {@link JdbcFilterPushdownVisitor} to generate dialect-specific SQL
+     * expression. The visitor returns Optional.empty() for filter that it cannot handle, which will
+     * then be handled in Flink runtime.
+     */
+    @Override
+    public Result applyFilters(List<ResolvedExpression> filters) {
+        List<ResolvedExpression> acceptedFilters = new ArrayList<>();
+        List<ResolvedExpression> remainingFilters = new ArrayList<>();
+
+        for (ResolvedExpression filter : filters) {
+            Optional<String> simplePredicateString = parseFilterToString(filter);
+            if (simplePredicateString.isPresent()) {
+                acceptedFilters.add(filter);
+                this.resolvedPredicates.add(simplePredicateString.get());
+            } else {
+                remainingFilters.add(filter);
+            }
+        }
+
+        return Result.of(acceptedFilters, remainingFilters);
+    }
+
+    /**
+     * This implementation is hacky and very specific to our existing use case but it is not very
+     * scalable. We should migrate it to use visitor pattern if we need to support more filter
+     * expression.
+     */
+    private Optional<String> parseFilterToString(ResolvedExpression filter) {
+        if (filter instanceof CallExpression) {
+            CallExpression callExp = (CallExpression) filter;
+            return callExp.accept(this.options.getDialect().getFilterPushdownVisitor());
+        }
+        return Optional.empty();
     }
 }
