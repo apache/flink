@@ -87,7 +87,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.bufferdebloat.BufferDebloater;
 import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
-import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction.Suspension;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.PeriodTimer;
@@ -529,9 +528,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             ioMetrics.getIdleTimeMsPerSecond(), throughputCalculator);
             resumeFuture = inputProcessor.getAvailableFuture();
         }
-        assertNoException(
-                resumeFuture.thenRun(
-                        new ResumeWrapper(controller.suspendDefaultAction(timer), timer)));
+        assertNoException(resumeFuture.thenRun(controller.suspendDefaultAction(timer)::resume));
     }
 
     protected void endData() throws Exception {
@@ -1698,23 +1695,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     protected long getAsyncCheckpointStartDelayNanos() {
         return latestAsyncCheckpointStartDelayNanos;
-    }
-
-    private static class ResumeWrapper implements Runnable {
-        private final Suspension suspendedDefaultAction;
-        private final PeriodTimer timer;
-
-        public ResumeWrapper(Suspension suspendedDefaultAction, PeriodTimer timer) {
-            this.suspendedDefaultAction = suspendedDefaultAction;
-            timer.markStart();
-            this.timer = timer;
-        }
-
-        @Override
-        public void run() {
-            timer.markEnd();
-            suspendedDefaultAction.resume();
-        }
     }
 
     /**

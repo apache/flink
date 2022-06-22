@@ -391,6 +391,7 @@ public class MailboxProcessor implements Closeable {
             suspendedDefaultAction = new DefaultActionSuspension(suspensionTimer);
         }
 
+        maybeRestartIdleTimer();
         return suspendedDefaultAction;
     }
 
@@ -468,6 +469,7 @@ public class MailboxProcessor implements Closeable {
         }
 
         private void resumeInternal() {
+            maybePauseIdleTimer();
             if (suspendedDefaultAction == this) {
                 suspendedDefaultAction = null;
             }
