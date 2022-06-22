@@ -63,7 +63,6 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
@@ -486,7 +485,7 @@ public class HiveParserDMLHelper {
             return rexBuilder.makeCast(targetCalType, srcRex);
         }
 
-        if (isCastFromTimeStampToDecimal(srcRex.getType(), targetCalType)) {
+        if (HiveParserUtils.isFromTimeStampToDecimal(srcRex.getType(), targetCalType)) {
             // special case for cast timestamp to decimal for Flink don't support cast from
             // TIMESTAMP type to NUMERIC type.
             // use custom to_decimal function to cast, which is consistent with Hive.
@@ -539,12 +538,6 @@ public class HiveParserDMLHelper {
             }
             return cast.accept(funcConverter);
         }
-    }
-
-    private static boolean isCastFromTimeStampToDecimal(
-            RelDataType srcType, RelDataType targetType) {
-        return srcType.getSqlTypeName().equals(SqlTypeName.TIMESTAMP)
-                && targetType.getSqlTypeName().equals(SqlTypeName.DECIMAL);
     }
 
     private static RelNode replaceProjectForTypeConversion(

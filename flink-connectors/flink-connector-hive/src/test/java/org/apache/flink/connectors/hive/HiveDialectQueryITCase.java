@@ -668,15 +668,24 @@ public class HiveDialectQueryITCase {
     }
 
     @Test
-    public void testInsertTimeStampToDecimal() throws Exception {
+    public void testCastTimeStampToDecimal() throws Exception {
         try {
+            // test cast timestamp to decimal explicitly
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select cast(cast('2012-12-19 11:12:19.1234567' as timestamp) as decimal(30,8))")
+                                    .collect());
+            assertThat(results.toString()).isEqualTo("[+I[1355886739.12345670]]");
+
+            // test insert timestamp type to decimal type directly
             tableEnv.executeSql("create table t1 (c1 DECIMAL(38,6))");
             tableEnv.executeSql("create table t2 (c2 TIMESTAMP)");
             tableEnv.executeSql("insert into t2 values('2029-06-05 14:28:29.23445')").await();
-            List<Row> results =
+            results =
                     CollectionUtil.iteratorToList(
                             tableEnv.executeSql("select * from t2").collect());
-            assertEquals("[+I[2029-06-05T14:28:29.234450]]", results.toString());
+            assertThat(results.toString()).isEqualTo("[+I[2029-06-05T14:28:29.234450]]");
         } finally {
             tableEnv.executeSql("drop table t1");
             tableEnv.executeSql("drop table t2");
