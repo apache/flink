@@ -34,14 +34,11 @@ import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.opentest4j.TestAbortedException;
 import sun.net.util.IPAddressUtil;
 
 import javax.annotation.Nullable;
@@ -52,19 +49,14 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.isEmptyOrNullString;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeNoException;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Validates that the TaskManagerRunner startup properly obeys the configuration values.
@@ -74,17 +66,16 @@ import static org.junit.Assume.assumeNoException;
  * and verifies its content.
  */
 @NotThreadSafe
-public class TaskManagerRunnerConfigurationTest extends TestLogger {
+class TaskManagerRunnerConfigurationTest {
 
     private static final RpcSystem RPC_SYSTEM = RpcSystem.load();
 
     private static final int TEST_TIMEOUT_SECONDS = 10;
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private Path temporaryFolder;
 
     @Test
-    public void testTaskManagerRpcServiceShouldBindToConfiguredTaskManagerHostname()
-            throws Exception {
+    void testTaskManagerRpcServiceShouldBindToConfiguredTaskManagerHostname() throws Exception {
         final String taskmanagerHost = "testhostname";
         final Configuration config =
                 createFlinkConfigWithPredefinedTaskManagerHostname(taskmanagerHost);
@@ -97,8 +88,8 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
                     TaskManagerRunner.createRpcService(
                             config, highAvailabilityServices, RPC_SYSTEM);
 
-            assertThat(taskManagerRpcService.getPort(), is(greaterThanOrEqualTo(0)));
-            assertThat(taskManagerRpcService.getAddress(), is(equalTo(taskmanagerHost)));
+            assertThat(taskManagerRpcService.getPort()).isGreaterThanOrEqualTo(0);
+            assertThat(taskManagerRpcService.getAddress()).isEqualTo(taskmanagerHost);
         } finally {
             maybeCloseRpcService(taskManagerRpcService);
             highAvailabilityServices.closeAndCleanupAllData();
@@ -106,7 +97,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
     }
 
     @Test
-    public void testTaskManagerRpcServiceShouldBindToHostnameAddress() throws Exception {
+    void testTaskManagerRpcServiceShouldBindToHostnameAddress() throws Exception {
         final Configuration config = createFlinkConfigWithHostBindPolicy(HostBindPolicy.NAME);
         final HighAvailabilityServices highAvailabilityServices =
                 createHighAvailabilityServices(config);
@@ -116,7 +107,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
             taskManagerRpcService =
                     TaskManagerRunner.createRpcService(
                             config, highAvailabilityServices, RPC_SYSTEM);
-            assertThat(taskManagerRpcService.getAddress(), not(isEmptyOrNullString()));
+            assertThat(taskManagerRpcService.getAddress()).isNotNull().isNotEmpty();
         } finally {
             maybeCloseRpcService(taskManagerRpcService);
             highAvailabilityServices.closeAndCleanupAllData();
@@ -124,9 +115,8 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
     }
 
     @Test
-    public void
-            testTaskManagerRpcServiceShouldBindToIpAddressDeterminedByConnectingToResourceManager()
-                    throws Exception {
+    void testTaskManagerRpcServiceShouldBindToIpAddressDeterminedByConnectingToResourceManager()
+            throws Exception {
         final ServerSocket testJobManagerSocket = openServerSocket();
         final Configuration config =
                 createFlinkConfigWithJobManagerPort(testJobManagerSocket.getLocalPort());
@@ -138,7 +128,11 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
             taskManagerRpcService =
                     TaskManagerRunner.createRpcService(
                             config, highAvailabilityServices, RPC_SYSTEM);
-            assertThat(taskManagerRpcService.getAddress(), is(ipAddress()));
+            assertThat(taskManagerRpcService.getAddress())
+                    .matches(
+                            value ->
+                                    (IPAddressUtil.isIPv4LiteralAddress(value)
+                                            || IPAddressUtil.isIPv6LiteralAddress(value)));
         } finally {
             maybeCloseRpcService(taskManagerRpcService);
             highAvailabilityServices.closeAndCleanupAllData();
@@ -147,8 +141,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
     }
 
     @Test
-    public void testCreatingTaskManagerRpcServiceShouldFailIfRpcPortRangeIsInvalid()
-            throws Exception {
+    void testCreatingTaskManagerRpcServiceShouldFailIfRpcPortRangeIsInvalid() throws Exception {
         final Configuration config =
                 new Configuration(
                         createFlinkConfigWithPredefinedTaskManagerHostname("example.org"));
@@ -158,19 +151,23 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
                 createHighAvailabilityServices(config);
 
         try {
-            TaskManagerRunner.createRpcService(config, highAvailabilityServices, RPC_SYSTEM);
-            fail("Should fail because -1 is not a valid port range");
-        } catch (final IllegalArgumentException e) {
-            assertThat(e.getMessage(), containsString("Invalid port range definition: -1"));
+            assertThatThrownBy(
+                            () ->
+                                    TaskManagerRunner.createRpcService(
+                                            config, highAvailabilityServices, RPC_SYSTEM))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Invalid port range definition: -1");
         } finally {
             highAvailabilityServices.closeAndCleanupAllData();
         }
     }
 
     @Test
-    public void testDefaultFsParameterLoading() throws Exception {
+    void testDefaultFsParameterLoading() throws Exception {
         try {
-            final File tmpDir = temporaryFolder.newFolder();
+            final File tmpDir =
+                    Files.createTempDirectory(temporaryFolder, UUID.randomUUID().toString())
+                            .toFile();
             final File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
 
             final URI defaultFS = new URI("otherFS", null, "localhost", 1234, null, null, null);
@@ -183,7 +180,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
             Configuration configuration = TaskManagerRunner.loadConfiguration(args);
             FileSystem.initialize(configuration);
 
-            assertEquals(defaultFS, FileSystem.getDefaultFsUri());
+            assertThat(defaultFS).isEqualTo(FileSystem.getDefaultFsUri());
         } finally {
             // reset FS settings
             FileSystem.initialize(new Configuration());
@@ -191,8 +188,9 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
     }
 
     @Test
-    public void testLoadDynamicalProperties() throws IOException, FlinkParseException {
-        final File tmpDir = temporaryFolder.newFolder();
+    void testLoadDynamicalProperties() throws IOException, FlinkParseException {
+        final File tmpDir =
+                Files.createTempDirectory(temporaryFolder, UUID.randomUUID().toString()).toFile();
         final File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
         final PrintWriter pw1 = new PrintWriter(confFile);
         final long managedMemory = 1024 * 1024 * 256;
@@ -210,11 +208,10 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
                     "-D" + JobManagerOptions.PORT.key() + "=" + jmPort
                 };
         Configuration configuration = TaskManagerRunner.loadConfiguration(args);
-        assertEquals(
-                MemorySize.parse(managedMemory + "b"),
-                configuration.get(TaskManagerOptions.MANAGED_MEMORY_SIZE));
-        assertEquals(jmHost, configuration.get(JobManagerOptions.ADDRESS));
-        assertEquals(jmPort, configuration.getInteger(JobManagerOptions.PORT));
+        assertThat(MemorySize.parse(managedMemory + "b"))
+                .isEqualTo(configuration.get(TaskManagerOptions.MANAGED_MEMORY_SIZE));
+        assertThat(jmHost).isEqualTo(configuration.get(JobManagerOptions.ADDRESS));
+        assertThat(jmPort).isEqualTo(configuration.getInteger(JobManagerOptions.PORT));
     }
 
     private static Configuration createFlinkConfigWithPredefinedTaskManagerHostname(
@@ -255,8 +252,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
         try {
             return new ServerSocket(0);
         } catch (IOException e) {
-            assumeNoException("Skip test because could not open a server socket", e);
-            throw new RuntimeException("satisfy compiler");
+            throw new TestAbortedException("Skip test because could not open a server socket");
         }
     }
 
@@ -265,20 +261,5 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
         if (rpcService != null) {
             rpcService.stopService().get(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         }
-    }
-
-    private static TypeSafeMatcher<String> ipAddress() {
-        return new TypeSafeMatcher<String>() {
-            @Override
-            protected boolean matchesSafely(String value) {
-                return IPAddressUtil.isIPv4LiteralAddress(value)
-                        || IPAddressUtil.isIPv6LiteralAddress(value);
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description.appendText("Is an ip address.");
-            }
-        };
     }
 }
