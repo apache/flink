@@ -79,6 +79,8 @@ flink-table/flink-table-api-java-bridge,\
 flink-table/flink-table-api-scala-bridge,\
 flink-table/flink-table-api-java-uber,\
 flink-table/flink-sql-client,\
+flink-table/flink-sql-gateway-api,\
+flink-table/flink-sql-gateway,\
 flink-table/flink-table-planner,\
 flink-table/flink-table-planner-loader,\
 flink-table/flink-table-planner-loader-bundle,\
