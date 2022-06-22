@@ -198,6 +198,22 @@ public class OptimizerConfigOptions {
                                                     "Default value is `IGNORE`, the optimizer does no changes.")
                                             .build());
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SQL2REL_PROJECT_MERGE_ENABLED =
+            key("table.optimizer.sql2rel.project-merge.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDeprecatedKeys("table.optimizer.sql-to-rel.project.merge.enabled")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "If set to true, it will merge projects when converting SqlNode to RelNode.")
+                                    .linebreak()
+                                    .text(
+                                            "Note: it is not recommended to turn on unless you are aware of possible side effects, "
+                                                    + "such as causing the output of certain non-deterministic expressions to not meet expectations(see FLINK-20887).")
+                                    .build());
+
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving
     public enum NonDeterministicUpdateStrategy {

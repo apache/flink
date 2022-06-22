@@ -23,11 +23,12 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
-+- LogicalUnion(all=[true]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
-   :- LogicalProject(EXPR$0=[1], EXPR$1=[2.0:DECIMAL(2, 1)]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(2, 1) EXPR$1)]
-   :  +- LogicalValues(tuples=[[{ 0 }]]), rowType=[RecordType(INTEGER ZERO)]
-   +- LogicalProject(EXPR$0=[3], EXPR$1=[4:BIGINT]), rowType=[RecordType(INTEGER EXPR$0, BIGINT EXPR$1)]
-      +- LogicalValues(tuples=[[{ 0 }]]), rowType=[RecordType(INTEGER ZERO)]
++- LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
+   +- LogicalUnion(all=[true]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
+      :- LogicalProject(EXPR$0=[1], EXPR$1=[2.0:DECIMAL(2, 1)]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(2, 1) EXPR$1)]
+      :  +- LogicalValues(tuples=[[{ 0 }]]), rowType=[RecordType(INTEGER ZERO)]
+      +- LogicalProject(EXPR$0=[3], EXPR$1=[4:BIGINT]), rowType=[RecordType(INTEGER EXPR$0, BIGINT EXPR$1)]
+         +- LogicalValues(tuples=[[{ 0 }]]), rowType=[RecordType(INTEGER ZERO)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -63,13 +64,14 @@ Values(tuples=[[{ 1, 2, 3 }]])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalUnion(all=[true])
-   :- LogicalProject(EXPR$0=[1], EXPR$1=[2])
-   :  +- LogicalValues(tuples=[[{ 0 }]])
-   :- LogicalProject(EXPR$0=[3], EXPR$1=[null:INTEGER])
-   :  +- LogicalValues(tuples=[[{ 0 }]])
-   +- LogicalProject(EXPR$0=[4], EXPR$1=[5])
-      +- LogicalValues(tuples=[[{ 0 }]])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalUnion(all=[true])
+      :- LogicalProject(EXPR$0=[1], EXPR$1=[2])
+      :  +- LogicalValues(tuples=[[{ 0 }]])
+      :- LogicalProject(EXPR$0=[3], EXPR$1=[null:INTEGER])
+      :  +- LogicalValues(tuples=[[{ 0 }]])
+      +- LogicalProject(EXPR$0=[4], EXPR$1=[5])
+         +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -90,8 +92,9 @@ Union(all=[true], union=[EXPR$0, EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[null:INTEGER])
-+- LogicalValues(tuples=[[{ 0 }]])
+LogicalProject(EXPR$0=[$0])
++- LogicalProject(EXPR$0=[null:INTEGER])
+   +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

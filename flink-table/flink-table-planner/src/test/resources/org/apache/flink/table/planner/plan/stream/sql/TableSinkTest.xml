@@ -721,9 +721,10 @@ SELECT person, sum_votes FROM
 LogicalSink(table=[default_catalog.default_database.SinkRankChangeLog], fields=[person, sum_votes])
 +- LogicalProject(person=[$0], sum_votes=[$1])
    +- LogicalFilter(condition=[<($2, 10)])
-      +- LogicalProject(person=[$0], sum_votes=[$1], rank_number=[ROW_NUMBER() OVER (PARTITION BY /($1, 2) ORDER BY $1 DESC NULLS LAST)])
-         +- LogicalAggregate(group=[{0}], sum_votes=[SUM($1)])
-            +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+      +- LogicalProject(person=[$0], sum_votes=[$1], rank_number=[ROW_NUMBER() OVER (PARTITION BY $2 ORDER BY $1 DESC NULLS LAST)])
+         +- LogicalProject(person=[$0], sum_votes=[$1], vote_section=[/($1, 2)])
+            +- LogicalAggregate(group=[{0}], sum_votes=[SUM($1)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

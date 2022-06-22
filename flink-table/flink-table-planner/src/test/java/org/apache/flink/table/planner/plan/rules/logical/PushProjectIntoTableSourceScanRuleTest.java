@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.factories.TableFactoryHarness;
 import org.apache.flink.table.planner.plan.optimize.program.BatchOptimizeContext;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram;
+import org.apache.flink.table.planner.plan.optimize.program.FlinkChainedProgram;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkHepRuleSetProgramBuilder;
 import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_TYPE;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
@@ -34,6 +35,7 @@ import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
+import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
 import org.junit.Rule;
 import org.junit.Test;
@@ -312,7 +314,9 @@ public class PushProjectIntoTableSourceScanRuleTest
         util().tableEnv().createTable("T3", sourceDescriptor);
 
         util().verifyRelPlan("SELECT 1 FROM T3");
-        assertThat(appliedKeys.get()).hasSize(1);
+        // Because we turned off the project merge in the sql2rel phase, the source node will see
+        // the original unmerged project with all columns selected in this rule test
+        assertThat(appliedKeys.get()).hasSize(3);
     }
 
     @Test
@@ -331,6 +335,8 @@ public class PushProjectIntoTableSourceScanRuleTest
 
     @Test
     public void testProjectionIncludingOnlyMetadata() {
+        replaceProgramWithProjectMergeRule();
+
         final AtomicReference<DataType> appliedProjectionDataType = new AtomicReference<>(null);
         final AtomicReference<DataType> appliedMetadataDataType = new AtomicReference<>(null);
         final TableDescriptor sourceDescriptor =
@@ -352,8 +358,25 @@ public class PushProjectIntoTableSourceScanRuleTest
                 .containsExactly("metadata");
     }
 
+    private void replaceProgramWithProjectMergeRule() {
+        FlinkChainedProgram programs = new FlinkChainedProgram<BatchOptimizeContext>();
+        programs
+                .addLast(
+                        "rules",
+                        FlinkHepRuleSetProgramBuilder.<BatchOptimizeContext>newBuilder()
+                                .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
+                                .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                                .add(RuleSets.ofList(
+                                        CoreRules.PROJECT_MERGE,
+                                        PushProjectIntoTableSourceScanRule.INSTANCE))
+                                .build());
+        util().replaceBatchProgram(programs);
+    }
+
     @Test
     public void testProjectionWithMetadataAndPhysicalFields() {
+        replaceProgramWithProjectMergeRule();
+
         final AtomicReference<DataType> appliedProjectionDataType = new AtomicReference<>(null);
         final AtomicReference<DataType> appliedMetadataDataType = new AtomicReference<>(null);
         final TableDescriptor sourceDescriptor =

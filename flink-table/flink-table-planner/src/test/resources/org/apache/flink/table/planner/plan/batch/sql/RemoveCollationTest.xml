@@ -28,10 +28,11 @@ SELECT sum(b) FROM r group by a
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
    +- LogicalProject(a=[$0], b=[$1])
-      +- LogicalFilter(condition=[AND(=($0, $3), LIKE($2, _UTF-16LE'He%'))])
-         +- LogicalJoin(condition=[true], joinType=[inner])
-            :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+         +- LogicalFilter(condition=[AND(=($0, $3), LIKE($2, _UTF-16LE'He%'))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -63,10 +64,11 @@ SELECT sum(b) FROM r group by d
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
    +- LogicalProject(d=[$3], b=[$1])
-      +- LogicalFilter(condition=[AND(=($0, $3), LIKE($2, _UTF-16LE'He%'))])
-         +- LogicalJoin(condition=[true], joinType=[inner])
-            :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+         +- LogicalFilter(condition=[AND(=($0, $3), LIKE($2, _UTF-16LE'He%'))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -348,21 +350,23 @@ LogicalProject(id=[$0], tb2_ids=[$2], tb3_ids=[$3], name=[$4], tb2_names=[$6], t
    :  :  :- LogicalJoin(condition=[=($0, $5)], joinType=[left])
    :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]])
    :  :  :  +- LogicalAggregate(group=[{0}], tb2_names=[LISTAGG($1, $2)])
-   :  :  :     +- LogicalProject(tb1_id=[$0], tb2_name=[$3], $f2=[_UTF-16LE','])
-   :  :  :        +- LogicalJoin(condition=[=($1, $2)], joinType=[left])
-   :  :  :           :- LogicalProject(id=[$0], tb2_id=[$5])
-   :  :  :           :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
-   :  :  :           :     :- LogicalTableScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]])
-   :  :  :           :     +- LogicalTableFunctionScan(invocation=[split($cor0.tb2_ids)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
-   :  :  :           +- LogicalTableScan(table=[[default_catalog, default_database, tb2, source: [TestTableSource(id, name)]]])
+   :  :  :     +- LogicalProject(tb1_id=[$0], tb2_name=[$1], $f2=[_UTF-16LE','])
+   :  :  :        +- LogicalProject(tb1_id=[$0], tb2_name=[$3])
+   :  :  :           +- LogicalJoin(condition=[=($1, $2)], joinType=[left])
+   :  :  :              :- LogicalProject(id=[$0], tb2_id=[$5])
+   :  :  :              :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :  :  :              :     :- LogicalTableScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]])
+   :  :  :              :     +- LogicalTableFunctionScan(invocation=[split($cor0.tb2_ids)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+   :  :  :              +- LogicalTableScan(table=[[default_catalog, default_database, tb2, source: [TestTableSource(id, name)]]])
    :  :  +- LogicalAggregate(group=[{0}], tb3_names=[LISTAGG($1, $2)])
-   :  :     +- LogicalProject(tb1_id=[$0], tb3_name=[$3], $f2=[_UTF-16LE','])
-   :  :        +- LogicalJoin(condition=[=($1, $2)], joinType=[left])
-   :  :           :- LogicalProject(id=[$0], tb3_id=[$5])
-   :  :           :  +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{3}])
-   :  :           :     :- LogicalTableScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]])
-   :  :           :     +- LogicalTableFunctionScan(invocation=[split($cor1.tb3_ids)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
-   :  :           +- LogicalTableScan(table=[[default_catalog, default_database, tb3, source: [TestTableSource(id, name)]]])
+   :  :     +- LogicalProject(tb1_id=[$0], tb3_name=[$1], $f2=[_UTF-16LE','])
+   :  :        +- LogicalProject(tb1_id=[$0], tb3_name=[$3])
+   :  :           +- LogicalJoin(condition=[=($1, $2)], joinType=[left])
+   :  :              :- LogicalProject(id=[$0], tb3_id=[$5])
+   :  :              :  +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{3}])
+   :  :              :     :- LogicalTableScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]])
+   :  :              :     +- LogicalTableFunctionScan(invocation=[split($cor1.tb3_ids)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+   :  :              +- LogicalTableScan(table=[[default_catalog, default_database, tb3, source: [TestTableSource(id, name)]]])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, tb4, source: [TestTableSource(id, name)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, tb5, source: [TestTableSource(id, name)]]])
 ]]>
@@ -553,9 +557,10 @@ SELECT a, SUM(b) FROM (
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalFilter(condition=[<=($2, 10)])
-      +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(a=[$0], b=[$1], rk=[$2])
+      +- LogicalFilter(condition=[<=($2, 10)])
+         +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -588,9 +593,10 @@ SELECT a, b, MAX(c) FROM (
       <![CDATA[
 LogicalAggregate(group=[{0, 1}], EXPR$2=[MAX($2)])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalFilter(condition=[<=($3, 10)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[$3])
+      +- LogicalFilter(condition=[<=($3, 10)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -623,7 +629,8 @@ SELECT * FROM (
 LogicalProject(a=[$0], b=[$1], c=[$2], rk=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -689,9 +696,10 @@ SELECT COUNT(a), SUM(b) FROM (
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[SUM($1)])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalFilter(condition=[<=($2, 10)])
-      +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (ORDER BY $1 NULLS FIRST)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(a=[$0], b=[$1], rk=[$2])
+      +- LogicalFilter(condition=[<=($2, 10)])
+         +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (ORDER BY $1 NULLS FIRST)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
