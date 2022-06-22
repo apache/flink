@@ -175,7 +175,7 @@ function, and _Evictors_, which can remove elements collected in a window.
 In its basic form, you apply windowing to a keyed stream like this:
 
 ```java
-stream.
+stream
     .keyBy(<key selector>)
     .window(<window assigner>)
     .reduce|aggregate|process(<window function>);
@@ -185,7 +185,7 @@ You can also use windowing with non-keyed streams, but keep in mind that in this
 processing will _not_ be done in parallel:
 
 ```java
-stream.
+stream
     .windowAll(<window assigner>)
     .reduce|aggregate|process(<window function>);
 ```
@@ -339,7 +339,7 @@ Here is an example of what that might look like:
 ```java
 OutputTag<Event> lateTag = new OutputTag<Event>("late"){};
 
-SingleOutputStreamOperator<Event> result = stream.
+SingleOutputStreamOperator<Event> result = stream
     .keyBy(...)
     .window(...)
     .sideOutputLateData(lateTag)
@@ -357,7 +357,7 @@ By default the allowed lateness is 0. In other words, elements behind the waterm
 For example:
 
 ```java
-stream.
+stream
     .keyBy(...)
     .window(...)
     .allowedLateness(Time.seconds(10))
