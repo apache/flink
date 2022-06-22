@@ -152,7 +152,8 @@ public class SessionManager {
                         defaultContext,
                         sessionId,
                         environment.getSessionEndpointVersion(),
-                        Configuration.fromMap(environment.getSessionConfig()));
+                        Configuration.fromMap(environment.getSessionConfig()),
+                        operationExecutorService);
         session = new Session(sessionContext);
         sessions.put(sessionId, session);
 
@@ -210,5 +211,10 @@ public class SessionManager {
     @VisibleForTesting
     int currentSessionCount() {
         return sessions.size();
+    }
+
+    @VisibleForTesting
+    public int getOperationCount(SessionHandle sessionHandle) {
+        return getSession(sessionHandle).getOperationManager().getOperationCount();
     }
 }

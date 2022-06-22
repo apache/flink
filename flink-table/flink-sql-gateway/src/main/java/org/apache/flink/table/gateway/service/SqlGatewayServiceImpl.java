@@ -20,6 +20,10 @@ package org.apache.flink.table.gateway.service;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
+import org.apache.flink.table.gateway.api.operation.OperationHandle;
+import org.apache.flink.table.gateway.api.operation.OperationType;
+import org.apache.flink.table.gateway.api.results.OperationInfo;
+import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
@@ -30,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 /** The implementation of the {@link SqlGatewayService} interface. */
 public class SqlGatewayServiceImpl implements SqlGatewayService {
@@ -70,6 +75,65 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         } catch (Throwable e) {
             LOG.error("Failed to getSessionConfig.", e);
             throw new SqlGatewayException("Failed to getSessionConfig.", e);
+        }
+    }
+
+    @Override
+    public OperationHandle submitOperation(
+            SessionHandle sessionHandle, OperationType type, Callable<ResultSet> executor)
+            throws SqlGatewayException {
+        try {
+            return getSession(sessionHandle).getOperationManager().submitOperation(type, executor);
+        } catch (Throwable e) {
+            LOG.error("Failed to submitOperation.", e);
+            throw new SqlGatewayException("Failed to submitOperation.", e);
+        }
+    }
+
+    @Override
+    public void cancelOperation(SessionHandle sessionHandle, OperationHandle operationHandle) {
+        try {
+            getSession(sessionHandle).getOperationManager().cancelOperation(operationHandle);
+        } catch (Throwable t) {
+            LOG.error("Failed to cancelOperation.", t);
+            throw new SqlGatewayException("Failed to cancelOperation.", t);
+        }
+    }
+
+    @Override
+    public void closeOperation(SessionHandle sessionHandle, OperationHandle operationHandle) {
+        try {
+            getSession(sessionHandle).getOperationManager().closeOperation(operationHandle);
+        } catch (Throwable t) {
+            LOG.error("Failed to closeOperation.", t);
+            throw new SqlGatewayException("Failed to closeOperation.", t);
+        }
+    }
+
+    @Override
+    public OperationInfo getOperationInfo(
+            SessionHandle sessionHandle, OperationHandle operationHandle) {
+        try {
+            return getSession(sessionHandle)
+                    .getOperationManager()
+                    .getOperationInfo(operationHandle);
+        } catch (Throwable t) {
+            LOG.error("Failed to getOperationInfo.", t);
+            throw new SqlGatewayException("Failed to getOperationInfo.", t);
+        }
+    }
+
+    @Override
+    public ResultSet fetchResults(
+            SessionHandle sessionHandle, OperationHandle operationHandle, long token, int maxRows)
+            throws SqlGatewayException {
+        try {
+            return getSession(sessionHandle)
+                    .getOperationManager()
+                    .fetchResults(operationHandle, token, maxRows);
+        } catch (Throwable t) {
+            LOG.error("Failed to fetchResults.", t);
+            throw new SqlGatewayException("Failed to fetchResults.", t);
         }
     }
 
