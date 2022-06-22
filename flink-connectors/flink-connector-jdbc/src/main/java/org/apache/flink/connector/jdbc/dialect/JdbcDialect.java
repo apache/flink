@@ -20,6 +20,7 @@ package org.apache.flink.connector.jdbc.dialect;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
+import org.apache.flink.connector.jdbc.table.JdbcFilterPushdownVisitor;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.RowType;
@@ -180,5 +181,19 @@ public interface JdbcDialect extends Serializable {
                 + " FROM "
                 + quoteIdentifier(tableName)
                 + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");
+    }
+
+    /**
+     * Get FilterPushdownVisitor that can convert Flink SQL Filter Expression into corresponding SQL
+     * dialect Filter Expression. The resulting string can then be pushdown to SQL data source to
+     * optimize the query.
+     *
+     * <p>You can customize the rendering for your dialect by overriding this method, and extends
+     * from {@link JdbcFilterPushdownVisitor}
+     *
+     * @return {@link JdbcFilterPushdownVisitor}
+     */
+    default JdbcFilterPushdownVisitor getFilterPushdownVisitor() {
+        return new JdbcFilterPushdownVisitor(this::quoteIdentifier);
     }
 }
