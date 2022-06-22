@@ -26,10 +26,11 @@ SELECT sum(b1) FROM r group by a1]]>
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
    +- LogicalProject(a1=[$0], b1=[$1])
-      +- LogicalFilter(condition=[AND(=($0, $4), LIKE($2, _UTF-16LE'He%'))])
-         +- LogicalJoin(condition=[true], joinType=[inner])
-            :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-            +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
+         +- LogicalFilter(condition=[AND(=($0, $4), LIKE($2, _UTF-16LE'He%'))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -58,10 +59,11 @@ SELECT sum(b1) FROM r group by a1]]>
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
    +- LogicalProject(a1=[$0], b1=[$1])
-      +- LogicalFilter(condition=[AND(=($0, $4), LIKE($2, _UTF-16LE'He%'))])
-         +- LogicalJoin(condition=[true], joinType=[inner])
-            :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-            +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
+         +- LogicalFilter(condition=[AND(=($0, $4), LIKE($2, _UTF-16LE'He%'))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -89,9 +91,10 @@ SELECT sum(b1) FROM r]]>
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
 +- LogicalProject(b1=[$1])
-   +- LogicalJoin(condition=[true], joinType=[full])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+   +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
+      +- LogicalJoin(condition=[true], joinType=[full])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -175,35 +178,38 @@ SELECT * FROM
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(b=[$5], sd=[$1], sy=[$2], sz=[$3])
-:  +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
-:     :- LogicalAggregate(group=[{0}], sd=[SUM($1)], sy=[SUM($2)], sz=[SUM($3)])
-:     :  +- LogicalProject(b=[$4], d=[$6], ny=[$1], nz=[$2])
-:     :     +- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
-:     :        :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
-:     :        :  :- LogicalProject(a=[$0], ny=[$7], nz=[$11])
-:     :        :  :  +- LogicalJoin(condition=[=($0, $11)], joinType=[left])
-:     :        :  :     :- LogicalJoin(condition=[=($0, $7)], joinType=[left])
-:     :        :  :     :  :- LogicalTableScan(table=[[default_catalog, default_database, x]])
-:     :        :  :     :  +- LogicalTableScan(table=[[default_catalog, default_database, y]])
-:     :        :  :     +- LogicalTableScan(table=[[default_catalog, default_database, z]])
-:     :        :  +- LogicalTableScan(table=[[default_catalog, default_database, t]])
-:     :        +- LogicalTableScan(table=[[default_catalog, default_database, y]])
-:     +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+:- LogicalProject(b=[$0], sd=[$1], sy=[$2], sz=[$3])
+:  +- LogicalProject(b=[$5], sd=[$1], sy=[$2], sz=[$3])
+:     +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+:        :- LogicalAggregate(group=[{0}], sd=[SUM($1)], sy=[SUM($2)], sz=[SUM($3)])
+:        :  +- LogicalProject(b=[$1], d=[$2], ny=[$3], nz=[$4])
+:        :     +- LogicalProject(a=[$0], b=[$4], d=[$6], ny=[$1], nz=[$2])
+:        :        +- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
+:        :           :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+:        :           :  :- LogicalProject(a=[$0], ny=[$7], nz=[$11])
+:        :           :  :  +- LogicalJoin(condition=[=($0, $11)], joinType=[left])
+:        :           :  :     :- LogicalJoin(condition=[=($0, $7)], joinType=[left])
+:        :           :  :     :  :- LogicalTableScan(table=[[default_catalog, default_database, x]])
+:        :           :  :     :  +- LogicalTableScan(table=[[default_catalog, default_database, y]])
+:        :           :  :     +- LogicalTableScan(table=[[default_catalog, default_database, z]])
+:        :           :  +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+:        :           +- LogicalTableScan(table=[[default_catalog, default_database, y]])
+:        +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 +- LogicalProject(e=[$5], sd=[$1], sy=[$2], sz=[$3])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
       :- LogicalAggregate(group=[{0}], sd=[SUM($1)], sy=[SUM($2)], sz=[SUM($3)])
-      :  +- LogicalProject(b=[$8], d=[$3], ny=[$1], nz=[$2])
-      :     +- LogicalJoin(condition=[=($0, $7)], joinType=[inner])
-      :        :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
-      :        :  :- LogicalProject(a=[$0], ny=[$7], nz=[$11])
-      :        :  :  +- LogicalJoin(condition=[=($0, $11)], joinType=[left])
-      :        :  :     :- LogicalJoin(condition=[=($0, $7)], joinType=[left])
-      :        :  :     :  :- LogicalTableScan(table=[[default_catalog, default_database, x]])
-      :        :  :     :  +- LogicalTableScan(table=[[default_catalog, default_database, y]])
-      :        :  :     +- LogicalTableScan(table=[[default_catalog, default_database, z]])
-      :        :  +- LogicalTableScan(table=[[default_catalog, default_database, y]])
-      :        +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+      :  +- LogicalProject(b=[$1], d=[$2], ny=[$3], nz=[$4])
+      :     +- LogicalProject(a=[$0], b=[$8], d=[$3], ny=[$1], nz=[$2])
+      :        +- LogicalJoin(condition=[=($0, $7)], joinType=[inner])
+      :           :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :           :  :- LogicalProject(a=[$0], ny=[$7], nz=[$11])
+      :           :  :  +- LogicalJoin(condition=[=($0, $11)], joinType=[left])
+      :           :  :     :- LogicalJoin(condition=[=($0, $7)], joinType=[left])
+      :           :  :     :  :- LogicalTableScan(table=[[default_catalog, default_database, x]])
+      :           :  :     :  +- LogicalTableScan(table=[[default_catalog, default_database, y]])
+      :           :  :     +- LogicalTableScan(table=[[default_catalog, default_database, z]])
+      :           :  +- LogicalTableScan(table=[[default_catalog, default_database, y]])
+      :           +- LogicalTableScan(table=[[default_catalog, default_database, t]])
       +- LogicalTableScan(table=[[default_catalog, default_database, y]])
 ]]>
     </Resource>
@@ -251,10 +257,11 @@ SELECT sum(b1) FROM r group by a1]]>
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
    +- LogicalProject(a1=[$0], b1=[$1])
-      +- LogicalFilter(condition=[AND(=($0, $4), LIKE($2, _UTF-16LE'He%'))])
-         +- LogicalJoin(condition=[true], joinType=[inner])
-            :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-            +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
+         +- LogicalFilter(condition=[AND(=($0, $4), LIKE($2, _UTF-16LE'He%'))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -613,9 +620,10 @@ SELECT sum(b1) FROM r]]>
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
 +- LogicalProject(b1=[$1])
-   +- LogicalJoin(condition=[true], joinType=[full])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+   +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
+      +- LogicalJoin(condition=[true], joinType=[full])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -665,10 +673,11 @@ SELECT sum(b1) FROM r group by a1]]>
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
    +- LogicalProject(a1=[$0], b1=[$1])
-      +- LogicalFilter(condition=[AND(=($0, $4), LIKE($2, _UTF-16LE'He%'))])
-         +- LogicalJoin(condition=[true], joinType=[inner])
-            :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-            +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
+         +- LogicalFilter(condition=[AND(=($0, $4), LIKE($2, _UTF-16LE'He%'))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

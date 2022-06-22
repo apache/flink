@@ -170,10 +170,11 @@ SELECT TUMBLE_END(newrowtime, INTERVAL '30' SECOND), long, sum(`int`) FROM (
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_END($0)], long=[$1], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)])
-   +- LogicalProject($f0=[$TUMBLE(TUMBLE_ROWTIME($0), 30000:INTERVAL SECOND)], long=[$1], int=[$2])
-      +- LogicalAggregate(group=[{0, 1}], int=[SUM($2)])
-         +- LogicalProject($f0=[$TUMBLE($0, 10000:INTERVAL SECOND)], long=[$1], int=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+   +- LogicalProject($f0=[$TUMBLE($0, 30000:INTERVAL SECOND)], long=[$1], int=[$2])
+      +- LogicalProject(newrowtime=[TUMBLE_ROWTIME($0)], long=[$1], int=[$2])
+         +- LogicalAggregate(group=[{0, 1}], int=[SUM($2)])
+            +- LogicalProject($f0=[$TUMBLE($0, 10000:INTERVAL SECOND)], long=[$1], int=[$2])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -214,9 +215,10 @@ SELECT rowtime FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(rowtime=[FLOOR($0, FLAG(DAY))])
-+- LogicalFilter(condition=[>($1, 0)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+LogicalProject(rowtime=[$0])
++- LogicalProject(rowtime=[FLOOR($0, FLAG(DAY))], long=[$1])
+   +- LogicalFilter(condition=[>($1, 0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

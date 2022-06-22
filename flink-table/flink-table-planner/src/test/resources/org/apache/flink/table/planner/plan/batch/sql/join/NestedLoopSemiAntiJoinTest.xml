@@ -1326,11 +1326,13 @@ SELECT c FROM l WHERE a IN
 LogicalProject(c=[$2])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
-  LogicalJoin(condition=[=($1, $4)], joinType=[full])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
-    LogicalProject(i=[$0], i0=[CAST($0):BIGINT])
-      LogicalFilter(condition=[>($0, 10)])
-        LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalProject(d=[$0], e=[$1], f=[$2], i=[$3])
+    LogicalJoin(condition=[=($1, $4)], joinType=[full])
+      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+      LogicalProject(i=[$0], i0=[CAST($0):BIGINT])
+        LogicalProject(i=[$0])
+          LogicalFilter(condition=[>($0, 10)])
+            LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>

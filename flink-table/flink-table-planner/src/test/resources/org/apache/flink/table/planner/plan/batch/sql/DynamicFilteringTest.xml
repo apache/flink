@@ -221,14 +221,15 @@ HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7], a10=[$8], b10=[$9], c10=[$10], p10=[$11])
-+- LogicalJoin(condition=[=($5, $12)], joinType=[inner])
-   :- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7])
-   :  +- LogicalFilter(condition=[AND(=($3, $7), >($4, 10))])
-   :     +- LogicalJoin(condition=[true], joinType=[inner])
-   :        :- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, dim]])
-   +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], b10=[CAST($1):BIGINT])
-      +- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
++- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7], a10=[$8], b10=[$9], c10=[$10], p10=[$11])
+   +- LogicalJoin(condition=[=($5, $12)], joinType=[inner])
+      :- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7])
+      :  +- LogicalFilter(condition=[AND(=($3, $7), >($4, 10))])
+      :     +- LogicalJoin(condition=[true], joinType=[inner])
+      :        :- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, dim]])
+      +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], b10=[CAST($1):BIGINT])
+         +- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
 
 == Optimized Physical Plan ==
 Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
@@ -380,14 +381,15 @@ Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7], a10=[$8], b10=[$9], c10=[$10], p10=[$11])
-+- LogicalJoin(condition=[=($5, $12)], joinType=[inner])
-   :- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7])
-   :  +- LogicalFilter(condition=[AND(=($3, $7), >($4, 10))])
-   :     +- LogicalJoin(condition=[true], joinType=[inner])
-   :        :- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, dim]])
-   +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], b10=[CAST($1):BIGINT])
-      +- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
++- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7], a10=[$8], b10=[$9], c10=[$10], p10=[$11])
+   +- LogicalJoin(condition=[=($5, $12)], joinType=[inner])
+      :- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7])
+      :  +- LogicalFilter(condition=[AND(=($3, $7), >($4, 10))])
+      :     +- LogicalJoin(condition=[true], joinType=[inner])
+      :        :- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, dim]])
+      +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], b10=[CAST($1):BIGINT])
+         +- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
 
 == Optimized Physical Plan ==
 Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])

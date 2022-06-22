@@ -204,23 +204,25 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4]), rowType=[RecordType(INTE
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0]), rowType=[RecordType(INTEGER a)]
-+- LogicalJoin(condition=[=($5, $6)], joinType=[left]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e, BIGINT a0, BIGINT cnt)]
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a0=[CAST($0):BIGINT]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e, BIGINT a0)]
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c, d, e)]]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
-   +- LogicalAggregate(group=[{}], cnt=[COUNT()]), rowType=[RecordType(BIGINT cnt)]
-      +- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
-         +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a, b, c, d, e)]]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], cnt=[$6]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e, BIGINT cnt)]
+   +- LogicalJoin(condition=[=($5, $6)], joinType=[left]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e, BIGINT a0, BIGINT cnt)]
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a0=[CAST($0):BIGINT]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e, BIGINT a0)]
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c, d, e)]]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
+      +- LogicalAggregate(group=[{}], cnt=[COUNT()]), rowType=[RecordType(BIGINT cnt)]
+         +- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
+            +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a, b, c, d, e)]]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0]), rowType=[RecordType(INTEGER a)]
-+- LogicalJoin(condition=[=($5, $6)], joinType=[left]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e, BIGINT a0, BIGINT cnt)]
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a0=[CAST($0):BIGINT]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e, BIGINT a0)]
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c, d, e)]]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
-   +- LogicalAggregate(group=[{}], cnt=[COUNT()]), rowType=[RecordType(BIGINT cnt)]
-      +- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
-         +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a, b, c, d, e)]]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], cnt=[$6]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e, BIGINT cnt)]
+   +- LogicalJoin(condition=[=($5, $6)], joinType=[left]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e, BIGINT a0, BIGINT cnt)]
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a0=[CAST($0):BIGINT]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e, BIGINT a0)]
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c, d, e)]]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
+      +- LogicalAggregate(group=[{}], cnt=[COUNT()]), rowType=[RecordType(BIGINT cnt)]
+         +- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
+            +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a, b, c, d, e)]]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
 ]]>
     </Resource>
   </TestCase>

@@ -196,7 +196,8 @@ Calc(select=[EXPR$0 AS s])
 LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()])
    +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 900000:INTERVAL MINUTE)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
@@ -263,7 +264,8 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
 LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()])
    +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 900000:INTERVAL MINUTE)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
@@ -1326,7 +1328,8 @@ NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
 Calc(select=[b, w0$o0 AS $1])
@@ -1392,7 +1395,8 @@ Calc(select=[b, w0$o0 AS $1])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
 Calc(select=[b, w0$o0 AS $1])
@@ -2032,7 +2036,8 @@ SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0
 LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[FIRST_VALUE($2)])
    +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 900000:INTERVAL MINUTE)], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
@@ -2156,7 +2161,8 @@ SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0
 LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[FIRST_VALUE($2)])
    +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 900000:INTERVAL MINUTE)], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])

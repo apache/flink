@@ -549,8 +549,9 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
       +- LogicalSnapshot(period=[$cor0.proctime])
          +- LogicalProject(currency=[$0], rate=[$1], proctime=[$2])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], proctime=[PROCTIME()], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() DESC NULLS LAST)])
-                  +- LogicalTableScan(table=[[default_catalog, default_database, RatesOnly]])
+               +- LogicalProject(currency=[$0], rate=[$1], proctime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                  +- LogicalProject(currency=[$0], rate=[$1], proctime=[PROCTIME()])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, RatesOnly]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

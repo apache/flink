@@ -295,7 +295,8 @@ FROM inventory_meta
       <![CDATA[
 LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()])
 +- LogicalProject(id=[$0], name=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, inventory_meta]])
+   +- LogicalProject(id=[$0], name=[$1], amount=[$2], price=[$3], type=[$4], metadata_1=[$5], metadata_2=[$6])
+      +- LogicalTableScan(table=[[default_catalog, default_database, inventory_meta]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">

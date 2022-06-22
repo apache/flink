@@ -22,8 +22,9 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]], hints=[[[OPTIONS inheritPath:[] options:{a.b.c=fakeVal, k5=v5}]]])
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]], hints=[[[OPTIONS inheritPath:[] options:{a.b.c=fakeVal, k5=v5}]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -39,37 +40,15 @@ Calc(select=[a, b, (a + 1) AS c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]], hints=[[[OPTIONS inheritPath:[] options:{a.b.c=fakeVal, k5=v5}]]])
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]], hints=[[[OPTIONS inheritPath:[] options:{a.b.c=fakeVal, k5=v5}]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, (a + 1) AS c])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]], fields=[a, b], hints=[[[OPTIONS options:{a.b.c=fakeVal, k5=v5}]]])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testOptionsHintOnTableApiView[0: is-bounded=true]">
-    <Resource name="sql">
-      <![CDATA[select * from view1/*+ OPTIONS(k1='#v1', k2='#v2', k3='#v3', k4='#v4') */]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-+- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2})]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[right])\n:- Calc(select=[a, b, (a + 1) AS c])\n:  +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[hash[d]])\n])
-:- Exchange(distribution=[hash[d]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]], fields=[d, e, f])
-+- Exchange(distribution=[hash[a]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2})]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -132,6 +111,24 @@ Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInput
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testOverrideOptions[0: is-bounded=true]">
+    <Resource name="sql">
+      <![CDATA[select * from t1/*+ OPTIONS(k1='#v1', k2='#v2') */]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], hints=[[[OPTIONS inheritPath:[] options:{k1=#v1, k2=#v2}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, (a + 1) AS c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], fields=[a, b], hints=[[[OPTIONS options:{k1=#v1, k2=#v2}]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinWithOverriddenOptions[0: is-bounded=true]">
     <Resource name="sql">
       <![CDATA[
@@ -158,6 +155,24 @@ MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=#v3, k4=#v4})], dynamic options: {k3=#v3, k4=#v4}]], fields=[d, e, f], hints=[[[OPTIONS options:{k3=#v3, k4=#v4}]]])
 +- Exchange(distribution=[hash[a]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], fields=[a, b], hints=[[[OPTIONS options:{k1=#v1, k2=#v2}]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOverrideOptions[1: is-bounded=false]">
+    <Resource name="sql">
+      <![CDATA[select * from t1/*+ OPTIONS(k1='#v1', k2='#v2') */]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], hints=[[[OPTIONS inheritPath:[] options:{k1=#v1, k2=#v2}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, (a + 1) AS c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], fields=[a, b], hints=[[[OPTIONS options:{k1=#v1, k2=#v2}]]])
 ]]>
     </Resource>
   </TestCase>
@@ -188,111 +203,6 @@ Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInput
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], fields=[a, b], hints=[[[OPTIONS options:{k1=#v1, k2=#v2}]]])
 +- Exchange(distribution=[hash[d]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=#v3, k4=#v4})], dynamic options: {k3=#v3, k4=#v4}]], fields=[d, e, f], hints=[[[OPTIONS options:{k3=#v3, k4=#v4}]]])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testOptionsHintOnSQLView[1: is-bounded=false]">
-    <Resource name="sql">
-      <![CDATA[select * from view1/*+ OPTIONS(k1='#v1', k2='#v2', k3='#v3', k4='#v4') */]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-+- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2})]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-:- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, (a + 1) AS c])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2})]]], fields=[a, b])
-+- Exchange(distribution=[hash[d]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]], fields=[d, e, f])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testOverrideOptions[0: is-bounded=true]">
-    <Resource name="sql">
-      <![CDATA[select * from t1/*+ OPTIONS(k1='#v1', k2='#v2') */]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], hints=[[[OPTIONS inheritPath:[] options:{k1=#v1, k2=#v2}]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, b, (a + 1) AS c])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], fields=[a, b], hints=[[[OPTIONS options:{k1=#v1, k2=#v2}]]])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testOptionsHintOnSQLView[0: is-bounded=true]">
-    <Resource name="sql">
-      <![CDATA[select * from view1/*+ OPTIONS(k1='#v1', k2='#v2', k3='#v3', k4='#v4') */]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-+- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2})]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[right])\n:- Calc(select=[a, b, (a + 1) AS c])\n:  +- [#2] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[hash[d]])\n])
-:- Exchange(distribution=[hash[d]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]], fields=[d, e, f])
-+- Exchange(distribution=[hash[a]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2})]]], fields=[a, b])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testOptionsHintOnTableApiView[1: is-bounded=false]">
-    <Resource name="sql">
-      <![CDATA[select * from view1/*+ OPTIONS(k1='#v1', k2='#v2', k3='#v3', k4='#v4') */]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-+- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2})]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-:- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, (a + 1) AS c])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2})]]], fields=[a, b])
-+- Exchange(distribution=[hash[d]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]], fields=[d, e, f])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testOverrideOptions[1: is-bounded=false]">
-    <Resource name="sql">
-      <![CDATA[select * from t1/*+ OPTIONS(k1='#v1', k2='#v2') */]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], hints=[[[OPTIONS inheritPath:[] options:{k1=#v1, k2=#v2}]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, b, (a + 1) AS c])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], fields=[a, b], hints=[[[OPTIONS options:{k1=#v1, k2=#v2}]]])
 ]]>
     </Resource>
   </TestCase>

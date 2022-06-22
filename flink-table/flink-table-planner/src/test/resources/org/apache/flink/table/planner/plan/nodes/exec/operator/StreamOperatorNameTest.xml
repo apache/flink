@@ -2650,8 +2650,9 @@ Calc(select=[a, w0$o0])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(f0=[$0], f1=[$1])
-+- LogicalTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.Top3*($0)]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MySource]])
++- LogicalProject(f0=[$0], f1=[$1])
+   +- LogicalTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.Top3*($0)]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MySource]])
 
 == Optimized Physical Plan ==
 GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])
@@ -2701,8 +2702,9 @@ GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(f0=[$0], f1=[$1])
-+- LogicalTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.Top3*($0)]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MySource]])
++- LogicalProject(f0=[$0], f1=[$1])
+   +- LogicalTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.Top3*($0)]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MySource]])
 
 == Optimized Physical Plan ==
 GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])
