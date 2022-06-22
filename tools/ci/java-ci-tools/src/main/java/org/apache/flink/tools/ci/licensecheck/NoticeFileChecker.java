@@ -18,6 +18,9 @@
 
 package org.apache.flink.tools.ci.licensecheck;
 
+import org.apache.flink.tools.ci.utils.dependency.Dependency;
+import org.apache.flink.tools.ci.utils.dependency.DependencyParser;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
@@ -60,13 +63,6 @@ public class NoticeFileChecker {
     private static final Pattern SHADE_INCLUDE_MODULE_PATTERN =
             Pattern.compile(".*Including ([^:]+):([^:]+):jar:([^ ]+) in the shaded jar");
 
-    // pattern for maven-dependency-plugin copyied dependencies
-    private static final Pattern DEPENDENCY_COPY_NEXT_MODULE_PATTERN =
-            Pattern.compile(
-                    ".*maven-dependency-plugin:[^:]+:copy \\([^)]+\\) @ ([^ _]+)(_[0-9.]+)? --.*");
-    private static final Pattern DEPENDENCY_COPY_INCLUDE_MODULE_PATTERN =
-            Pattern.compile(".*Configured Artifact: ([^:]+):([^:]+):([^:]+):jar.*");
-
     // Examples:
     // "- org.apache.htrace:htrace-core:3.1.0-incubating"
     // or
@@ -78,11 +74,14 @@ public class NoticeFileChecker {
     static int run(File buildResult, Path root) throws IOException {
         int severeIssueCount = 0;
         // parse included dependencies from build output
-        Multimap<String, IncludedDependency> modulesWithBundledDependencies =
-                parseModulesFromBuildResult(buildResult);
+        final Multimap<String, IncludedDependency> modulesWithBundledDependencies =
+                combine(
+                        parseModulesFromBuildResult(buildResult),
+                        DependencyParser.parseDependencyCopyOutput(buildResult.toPath()));
+
         LOG.info(
                 "Extracted "
-                        + modulesWithBundledDependencies.asMap().keySet().size()
+                        + modulesWithBundledDependencies.keySet().size()
                         + " modules with a total of "
                         + modulesWithBundledDependencies.values().size()
                         + " dependencies");
@@ -100,6 +99,28 @@ public class NoticeFileChecker {
         }
 
         return severeIssueCount;
+    }
+
+    private static Multimap<String, IncludedDependency> combine(
+            Multimap<String, IncludedDependency> modulesWithBundledDependencies,
+            Map<String, Set<Dependency>> modulesWithCopiedDependencies) {
+        modulesWithCopiedDependencies.forEach(
+                (module, copiedDependencies) -> {
+                    copiedDependencies.stream()
+                            .filter(
+                                    dependency ->
+                                            !dependency.getGroupId().contains("org.apache.flink"))
+                            .map(
+                                    dependency ->
+                                            IncludedDependency.create(
+                                                    dependency.getGroupId(),
+                                                    dependency.getArtifactId(),
+                                                    dependency.getVersion()))
+                            .forEach(
+                                    dependency ->
+                                            modulesWithBundledDependencies.put(module, dependency));
+                });
+        return modulesWithBundledDependencies;
     }
 
     private static int ensureRequiredNoticeFiles(
@@ -274,17 +295,10 @@ public class NoticeFileChecker {
         try (Stream<String> lines = Files.lines(buildResult.toPath())) {
             // String line;
             String currentShadeModule = null;
-            String currentDependencyCopyModule = null;
             for (String line : (Iterable<String>) lines::iterator) {
                 Matcher nextShadeModuleMatcher = SHADE_NEXT_MODULE_PATTERN.matcher(line);
                 if (nextShadeModuleMatcher.find()) {
                     currentShadeModule = nextShadeModuleMatcher.group(2);
-                }
-
-                Matcher nextDependencyCopyModuleMatcher =
-                        DEPENDENCY_COPY_NEXT_MODULE_PATTERN.matcher(line);
-                if (nextDependencyCopyModuleMatcher.find()) {
-                    currentDependencyCopyModule = nextDependencyCopyModuleMatcher.group(1);
                 }
 
                 if (currentShadeModule != null) {
@@ -300,25 +314,8 @@ public class NoticeFileChecker {
                         }
                     }
                 }
-
-                if (currentDependencyCopyModule != null) {
-                    Matcher copyMatcher = DEPENDENCY_COPY_INCLUDE_MODULE_PATTERN.matcher(line);
-                    if (copyMatcher.find()) {
-                        String groupId = copyMatcher.group(1);
-                        String artifactId = copyMatcher.group(2);
-                        String version = copyMatcher.group(3);
-                        if (!"org.apache.flink".equals(groupId)) {
-                            result.put(
-                                    currentDependencyCopyModule,
-                                    IncludedDependency.create(groupId, artifactId, version));
-                        }
-                    }
-                }
                 if (line.contains("Replacing original artifact with shaded artifact")) {
                     currentShadeModule = null;
-                }
-                if (line.contains("Copying")) {
-                    currentDependencyCopyModule = null;
                 }
             }
         }
