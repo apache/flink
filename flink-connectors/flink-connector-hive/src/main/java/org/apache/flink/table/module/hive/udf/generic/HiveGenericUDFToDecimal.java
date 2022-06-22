@@ -26,13 +26,16 @@ import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveDecimalObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorConverter;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.SettableHiveDecimalObjectInspector;
+import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 
 /**
- * Counterpart of Hive's org.apache.hadoop.hive.ql.udf.generic.GenericUDFToDecimal.It removes the
- * method #setTypeInfo() used to pass target type for the case that we can't pass target type to it.
- * Instead, the target type will be passed to the function as the second parameter.
+ * Counterpart of Hive's org.apache.hadoop.hive.ql.udf.generic.GenericUDFToDecimal, which removes
+ * the method #setTypeInfo() used to pass target type for we have no way to pass target type to it
+ * in Flink. Instead, the target type will be passed to the function as the second parameter.
  */
 public class HiveGenericUDFToDecimal extends GenericUDF {
 
@@ -55,17 +58,26 @@ public class HiveGenericUDFToDecimal extends GenericUDF {
                     "The function flink_hive_to_decimal takes only primitive types as first argument.");
         }
 
-        SettableHiveDecimalObjectInspector targetOI;
+        HiveDecimalObjectInspector targetOI;
         try {
-            targetOI = (SettableHiveDecimalObjectInspector) arguments[1];
+            targetOI = (HiveDecimalObjectInspector) arguments[1];
         } catch (ClassCastException e) {
             throw new UDFArgumentException(
                     "The function flink_hive_to_decimal takes only decimal types as second argument.");
         }
 
-        bdConverter = new PrimitiveObjectInspectorConverter.HiveDecimalConverter(srcOI, targetOI);
+        DecimalTypeInfo returnTypeInfo =
+                new DecimalTypeInfo(targetOI.precision(), targetOI.scale());
 
-        return targetOI;
+        bdConverter =
+                new PrimitiveObjectInspectorConverter.HiveDecimalConverter(
+                        srcOI,
+                        (SettableHiveDecimalObjectInspector)
+                                PrimitiveObjectInspectorFactory
+                                        .getPrimitiveWritableConstantObjectInspector(
+                                                returnTypeInfo, null));
+
+        return PrimitiveObjectInspectorFactory.getPrimitiveWritableObjectInspector(returnTypeInfo);
     }
 
     @Override
