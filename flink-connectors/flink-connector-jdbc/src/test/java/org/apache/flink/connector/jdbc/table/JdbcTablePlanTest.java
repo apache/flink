@@ -58,4 +58,10 @@ public class JdbcTablePlanTest extends TableTestBase {
     public void testLimitPushDown() {
         util.verifyExecPlan("SELECT id, time_col FROM jdbc LIMIT 3");
     }
+
+    @Test
+    public void testFilterPushdown() {
+        util.verifyExecPlan(
+                "SELECT id, time_col, real_col FROM jdbc WHERE id = 900001 AND time_col <> '11:11:11.000111' OR double_col >= -1000.23");
+    }
 }

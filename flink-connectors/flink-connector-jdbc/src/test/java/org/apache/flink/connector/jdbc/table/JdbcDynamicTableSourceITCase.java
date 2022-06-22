@@ -264,6 +264,146 @@ public class JdbcDynamicTableSourceITCase {
                 .containsAll(result);
     }
 
+    @Test
+    public void testFilter() throws Exception {
+        String partitionedTable = "PARTITIONED_TABLE";
+        tEnv.executeSql(
+                "CREATE TABLE "
+                        + INPUT_TABLE
+                        + "("
+                        + "id BIGINT,"
+                        + "timestamp6_col TIMESTAMP(6),"
+                        + "timestamp9_col TIMESTAMP(9),"
+                        + "time_col TIME,"
+                        + "real_col FLOAT,"
+                        + "double_col DOUBLE,"
+                        + "decimal_col DECIMAL(10, 4)"
+                        + ") WITH ("
+                        + "  'connector'='jdbc',"
+                        + "  'url'='"
+                        + DB_URL
+                        + "',"
+                        + "  'table-name'='"
+                        + INPUT_TABLE
+                        + "'"
+                        + ")");
+
+        // create a partitioned table to ensure no regression
+        tEnv.executeSql(
+                "CREATE TABLE "
+                        + partitionedTable
+                        + "("
+                        + "id BIGINT,"
+                        + "timestamp6_col TIMESTAMP(6),"
+                        + "timestamp9_col TIMESTAMP(9),"
+                        + "time_col TIME,"
+                        + "real_col FLOAT,"
+                        + "double_col DOUBLE,"
+                        + "decimal_col DECIMAL(10, 4)"
+                        + ") WITH ("
+                        + "  'connector'='jdbc',"
+                        + "  'url'='"
+                        + DB_URL
+                        + "',"
+                        + "  'table-name'='"
+                        + INPUT_TABLE
+                        + "',"
+                        + "  'scan.partition.column'='id',\n"
+                        + "  'scan.partition.num'='1',\n"
+                        + "  'scan.partition.lower-bound'='1',\n"
+                        + "  'scan.partition.upper-bound'='1'\n"
+                        + ")");
+
+        // we create a VIEW here to test column remapping, ie. would filter push down work if we
+        // create a view that depends on our source table
+        tEnv.executeSql(
+                String.format(
+                        "CREATE VIEW FAKE_TABLE ("
+                                + "idx, timestamp6_col, timestamp9_col, time_col, real_col, double_col, decimal_col"
+                                + ") as (SELECT * from %s )",
+                        INPUT_TABLE));
+
+        List<String> onlyRow1 =
+                Stream.of(
+                                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]")
+                        .collect(Collectors.toList());
+
+        List<String> twoRows =
+                Stream.of(
+                                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]",
+                                "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]")
+                        .collect(Collectors.toList());
+
+        List<String> onlyRow2 =
+                Stream.of(
+                                "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]")
+                        .collect(Collectors.toList());
+        List<String> noRows = new ArrayList<>();
+
+        // test simple filter
+        assertQueryReturns("SELECT * FROM FAKE_TABLE WHERE idx = 1", onlyRow1);
+        // test TIMESTAMP filter
+        assertQueryReturns(
+                "SELECT * FROM FAKE_TABLE WHERE timestamp6_col = TIMESTAMP '2020-01-01 15:35:00.123456'",
+                onlyRow1);
+        // test the IN operator
+        assertQueryReturns(
+                "SELECT * FROM "
+                        + "FAKE_TABLE"
+                        + " WHERE 1 = idx AND decimal_col IN (100.1234, 101.1234)",
+                onlyRow1);
+        // test mixing AND and OR operator
+        assertQueryReturns(
+                "SELECT * FROM "
+                        + "FAKE_TABLE"
+                        + " WHERE idx = 1 AND decimal_col = 100.1234 OR decimal_col = 101.1234",
+                twoRows);
+        // test mixing AND/OR with parenthesis, and the swapping the operand of equal expression
+        assertQueryReturns(
+                "SELECT * FROM "
+                        + "FAKE_TABLE"
+                        + " WHERE (2 = idx AND decimal_col = 100.1234) OR decimal_col = 101.1234",
+                onlyRow2);
+
+        // test Greater than, just to make sure we didnt break anything that we cannot pushdown
+        assertQueryReturns(
+                "SELECT * FROM "
+                        + "FAKE_TABLE"
+                        + " WHERE idx = 2 AND decimal_col > 100 OR decimal_col = 101.123",
+                onlyRow2);
+
+        // One more test of parenthesis
+        assertQueryReturns(
+                "SELECT * FROM "
+                        + "FAKE_TABLE"
+                        + " WHERE 2 = idx AND (decimal_col = 100.1234 OR real_col = 101.1234)",
+                noRows);
+
+        assertQueryReturns(
+                "SELECT * FROM "
+                        + partitionedTable
+                        + " WHERE id = 2 AND decimal_col > 100 OR decimal_col = 101.123",
+                noRows);
+
+        assertQueryReturns(
+                "SELECT * FROM "
+                        + partitionedTable
+                        + " WHERE 1 = id AND decimal_col IN (100.1234, 101.1234)",
+                onlyRow1);
+    }
+
+    private List<String> rowIterToList(Iterator<Row> rows) {
+        return CollectionUtil.iteratorToList(rows).stream()
+                .map(Row::toString)
+                .sorted()
+                .collect(Collectors.toList());
+    }
+
+    private void assertQueryReturns(String query, List<String> expected) {
+        List<String> actual = rowIterToList(tEnv.executeSql(query).collect());
+        assertThat(actual).isEqualTo(expected);
+    }
+
     @ParameterizedTest
     @EnumSource(Caching.class)
     void testLookupJoin(Caching caching) throws Exception {
