@@ -61,7 +61,7 @@ the versioning time attribute.
 {{< tab "Java" >}}
 ```java
 TemporalTableFunction rates = tEnv
-    .from("currency_rates").
+    .from("currency_rates")
     .createTemporalTableFunction("update_time", "currency");
  
 tEnv.registerFunction("rates", rates);                                                        
@@ -70,7 +70,7 @@ tEnv.registerFunction("rates", rates);
 {{< tab "Scala" >}}
 ```scala
 rates = tEnv
-    .from("currency_rates").
+    .from("currency_rates")
     .createTemporalTableFunction("update_time", "currency")
  
 tEnv.registerFunction("rates", rates)
