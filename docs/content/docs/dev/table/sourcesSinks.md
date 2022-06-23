@@ -777,7 +777,9 @@ public class SocketSourceFunction extends RichSourceFunction<RowData> implements
 
   @Override
   public void open(Configuration parameters) throws Exception {
-    deserializer.open(() -> getRuntimeContext().getMetricGroup());
+    this.deserializer.open(
+                RuntimeContextInitializationContextAdapters.deserializationAdapter(
+                        getRuntimeContext(), metricGroup -> metricGroup.addGroup("your-group-name")));
   }
 
   @Override
