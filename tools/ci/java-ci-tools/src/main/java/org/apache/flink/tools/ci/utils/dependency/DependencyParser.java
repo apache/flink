@@ -111,7 +111,7 @@ public class DependencyParser {
     private static Map<String, Set<Dependency>> parseDependencyOutput(
             Stream<String> lines,
             Pattern executionLinePattern,
-            Function<Iterator, Set<Dependency>> blockParser) {
+            Function<Iterator<String>, Set<Dependency>> blockParser) {
         final Map<String, Set<Dependency>> result = new LinkedHashMap<>();
 
         final Iterator<String> iterator = lines.iterator();
