@@ -68,8 +68,7 @@ public class BlockingResultInfo {
         for (IntermediateResultPartition partition : intermediateResult.getPartitions()) {
             checkState(partition.isConsumable());
 
-            IOMetrics ioMetrics =
-                    partition.getProducer().getCurrentExecutionAttempt().getIOMetrics();
+            IOMetrics ioMetrics = partition.getProducer().getPartitionProducer().getIOMetrics();
             checkNotNull(ioMetrics, "IOMetrics should not be null.");
 
             blockingPartitionSizes.add(

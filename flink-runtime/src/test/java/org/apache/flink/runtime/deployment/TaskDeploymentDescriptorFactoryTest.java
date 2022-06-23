@@ -164,7 +164,7 @@ public class TaskDeploymentDescriptorFactoryTest extends TestLogger {
     private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(ExecutionVertex ev)
             throws IOException, CachedIntermediateDataSetCorruptedException {
 
-        return TaskDeploymentDescriptorFactory.fromExecutionVertex(ev)
+        return TaskDeploymentDescriptorFactory.fromExecution(ev.getCurrentExecutionAttempt())
                 .createDeploymentDescriptor(new AllocationID(), null, Collections.emptyList());
     }
 
