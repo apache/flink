@@ -21,8 +21,6 @@ package org.apache.flink.tools.ci.licensecheck;
 import org.apache.flink.tools.ci.utils.notice.NoticeContents;
 import org.apache.flink.tools.ci.utils.shared.Dependency;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -40,8 +38,8 @@ class NoticeFileCheckerTest {
     void testRunHappyPath() throws IOException {
         final String moduleName = "test";
         final Dependency bundledDependency = Dependency.create("a", "b", "c", null);
-        final ArrayListMultimap<String, Dependency> bundleDependencies = ArrayListMultimap.create();
-        bundleDependencies.put(moduleName, bundledDependency);
+        final Map<String, Set<Dependency>> bundleDependencies = new HashMap<>();
+        bundleDependencies.put(moduleName, Collections.singleton(bundledDependency));
         final Set<String> deployedModules = Collections.singleton(moduleName);
         final Optional<NoticeContents> noticeContents =
                 Optional.of(
@@ -60,8 +58,8 @@ class NoticeFileCheckerTest {
     void testRunRejectsMissingNotice() throws IOException {
         final String moduleName = "test";
         final Dependency bundledDependency = Dependency.create("a", "b", "c", null);
-        final ArrayListMultimap<String, Dependency> bundleDependencies = ArrayListMultimap.create();
-        bundleDependencies.put(moduleName, bundledDependency);
+        final Map<String, Set<Dependency>> bundleDependencies = new HashMap<>();
+        bundleDependencies.put(moduleName, Collections.singleton(bundledDependency));
         final Set<String> deployedModules = Collections.singleton(moduleName);
         final Optional<NoticeContents> missingNotice = Optional.empty();
 
@@ -77,8 +75,8 @@ class NoticeFileCheckerTest {
     void testRunRejectsIncorrectNotice() throws IOException {
         final String moduleName = "test";
         final Dependency bundledDependency = Dependency.create("a", "b", "c", null);
-        final ArrayListMultimap<String, Dependency> bundleDependencies = ArrayListMultimap.create();
-        bundleDependencies.put(moduleName, bundledDependency);
+        final Map<String, Set<Dependency>> bundleDependencies = new HashMap<>();
+        bundleDependencies.put(moduleName, Collections.singleton(bundledDependency));
         final Set<String> deployedModules = Collections.singleton(moduleName);
         final Optional<NoticeContents> emptyNotice =
                 Optional.of(new NoticeContents(moduleName, Collections.emptyList()));
@@ -95,8 +93,8 @@ class NoticeFileCheckerTest {
     void testRunSkipsNonDeployedModules() throws IOException {
         final String moduleName = "test";
         final Dependency bundledDependency = Dependency.create("a", "b", "c", null);
-        final ArrayListMultimap<String, Dependency> bundleDependencies = ArrayListMultimap.create();
-        bundleDependencies.put(moduleName, bundledDependency);
+        final Map<String, Set<Dependency>> bundleDependencies = new HashMap<>();
+        bundleDependencies.put(moduleName, Collections.singleton(bundledDependency));
         final Set<String> deployedModules = Collections.emptySet();
         // this would usually be a problem, but since the module is not deployed it's OK!
         final Optional<NoticeContents> emptyNotice =
@@ -112,7 +110,7 @@ class NoticeFileCheckerTest {
 
     @Test
     void testRunIncludesBundledNonDeployedModules() throws IOException {
-        final Multimap<String, Dependency> bundledDependencies = ArrayListMultimap.create();
+        final Map<String, Set<Dependency>> bundledDependencies = new HashMap<>();
         final Map<String, Optional<NoticeContents>> notices = new HashMap<>();
 
         // a module that is not deployed but bundles another dependency with an empty NOTICE
@@ -120,7 +118,7 @@ class NoticeFileCheckerTest {
         final Dependency nonDeployedDependency =
                 Dependency.create("a", nonDeployedModuleName, "c", null);
         final Dependency bundledDependency = Dependency.create("a", "b", "c", null);
-        bundledDependencies.put(nonDeployedModuleName, bundledDependency);
+        bundledDependencies.put(nonDeployedModuleName, Collections.singleton(bundledDependency));
         // this would usually not be a problem, but since the module is not bundled it's not OK!
         final Optional<NoticeContents> emptyNotice =
                 Optional.of(new NoticeContents(nonDeployedModuleName, Collections.emptyList()));
@@ -128,7 +126,7 @@ class NoticeFileCheckerTest {
 
         // a module that is deploys and bundles the above
         final String bundlingModule = "bundling";
-        bundledDependencies.put(bundlingModule, nonDeployedDependency);
+        bundledDependencies.put(bundlingModule, Collections.singleton(nonDeployedDependency));
         final Optional<NoticeContents> correctNotice =
                 Optional.of(
                         new NoticeContents(
@@ -145,8 +143,8 @@ class NoticeFileCheckerTest {
     void testCheckNoticeFileHappyPath() {
         final String moduleName = "test";
         final Dependency bundledDependency = Dependency.create("a", "b", "c", null);
-        final ArrayListMultimap<String, Dependency> bundleDependencies = ArrayListMultimap.create();
-        bundleDependencies.put(moduleName, bundledDependency);
+        final Map<String, Set<Dependency>> bundleDependencies = new HashMap<>();
+        bundleDependencies.put(moduleName, Collections.singleton(bundledDependency));
 
         assertThat(
                         NoticeFileChecker.checkNoticeFile(
@@ -159,7 +157,7 @@ class NoticeFileCheckerTest {
 
     @Test
     void testCheckNoticeFileRejectsEmptyFile() {
-        assertThat(NoticeFileChecker.checkNoticeFile(ArrayListMultimap.create(), "test", null))
+        assertThat(NoticeFileChecker.checkNoticeFile(Collections.emptyMap(), "test", null))
                 .containsOnlyKeys(NoticeFileChecker.Severity.CRITICAL);
     }
 
@@ -169,7 +167,7 @@ class NoticeFileCheckerTest {
 
         assertThat(
                         NoticeFileChecker.checkNoticeFile(
-                                ArrayListMultimap.create(),
+                                Collections.emptyMap(),
                                 moduleName,
                                 new NoticeContents(moduleName + "2", Collections.emptyList())))
                 .containsOnlyKeys(NoticeFileChecker.Severity.TOLERATED);
@@ -178,8 +176,9 @@ class NoticeFileCheckerTest {
     @Test
     void testCheckNoticeFileRejectsDuplicateLine() {
         final String moduleName = "test";
-        final ArrayListMultimap<String, Dependency> bundleDependencies = ArrayListMultimap.create();
-        bundleDependencies.put(moduleName, Dependency.create("a", "b", "c", null));
+        final Map<String, Set<Dependency>> bundleDependencies = new HashMap<>();
+        bundleDependencies.put(
+                moduleName, Collections.singleton(Dependency.create("a", "b", "c", null)));
 
         assertThat(
                         NoticeFileChecker.checkNoticeFile(
@@ -196,8 +195,9 @@ class NoticeFileCheckerTest {
     @Test
     void testCheckNoticeFileRejectsMissingDependency() {
         final String moduleName = "test";
-        final ArrayListMultimap<String, Dependency> bundleDependencies = ArrayListMultimap.create();
-        bundleDependencies.put(moduleName, Dependency.create("a", "b", "c", null));
+        final Map<String, Set<Dependency>> bundleDependencies = new HashMap<>();
+        bundleDependencies.put(
+                moduleName, Collections.singleton(Dependency.create("a", "b", "c", null)));
 
         assertThat(
                         NoticeFileChecker.checkNoticeFile(
