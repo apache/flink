@@ -18,10 +18,9 @@
 
 package org.apache.flink.tools.ci.licensecheck;
 
-import org.apache.flink.tools.ci.utils.dependency.Dependency;
 import org.apache.flink.tools.ci.utils.dependency.DependencyParser;
+import org.apache.flink.tools.ci.utils.shared.Dependency;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
@@ -74,7 +73,7 @@ public class NoticeFileChecker {
     static int run(File buildResult, Path root) throws IOException {
         int severeIssueCount = 0;
         // parse included dependencies from build output
-        final Multimap<String, IncludedDependency> modulesWithBundledDependencies =
+        final Multimap<String, Dependency> modulesWithBundledDependencies =
                 combine(
                         parseModulesFromBuildResult(buildResult),
                         DependencyParser.parseDependencyCopyOutput(buildResult.toPath()));
@@ -101,8 +100,8 @@ public class NoticeFileChecker {
         return severeIssueCount;
     }
 
-    private static Multimap<String, IncludedDependency> combine(
-            Multimap<String, IncludedDependency> modulesWithBundledDependencies,
+    private static Multimap<String, Dependency> combine(
+            Multimap<String, Dependency> modulesWithBundledDependencies,
             Map<String, Set<Dependency>> modulesWithCopiedDependencies) {
         modulesWithCopiedDependencies.forEach(
                 (module, copiedDependencies) -> {
@@ -110,12 +109,6 @@ public class NoticeFileChecker {
                             .filter(
                                     dependency ->
                                             !dependency.getGroupId().contains("org.apache.flink"))
-                            .map(
-                                    dependency ->
-                                            IncludedDependency.create(
-                                                    dependency.getGroupId(),
-                                                    dependency.getArtifactId(),
-                                                    dependency.getVersion()))
                             .forEach(
                                     dependency ->
                                             modulesWithBundledDependencies.put(module, dependency));
@@ -124,8 +117,7 @@ public class NoticeFileChecker {
     }
 
     private static int ensureRequiredNoticeFiles(
-            Multimap<String, IncludedDependency> modulesWithShadedDependencies,
-            List<Path> noticeFiles) {
+            Multimap<String, Dependency> modulesWithShadedDependencies, List<Path> noticeFiles) {
         int severeIssueCount = 0;
         Set<String> shadingModules = new HashSet<>(modulesWithShadedDependencies.keys());
         shadingModules.removeAll(
@@ -156,7 +148,7 @@ public class NoticeFileChecker {
     }
 
     private static int checkNoticeFile(
-            Multimap<String, IncludedDependency> modulesWithShadedDependencies, Path noticeFile)
+            Multimap<String, Dependency> modulesWithShadedDependencies, Path noticeFile)
             throws IOException {
         String moduleName = getModuleFromNoticeFile(noticeFile);
 
@@ -180,7 +172,7 @@ public class NoticeFileChecker {
         }
 
         // collect all declared dependencies from NOTICE file
-        Set<IncludedDependency> declaredDependencies = new HashSet<>();
+        Set<Dependency> declaredDependencies = new HashSet<>();
         for (String line : noticeContents) {
             Matcher noticeDependencyMatcher = NOTICE_DEPENDENCY_PATTERN.matcher(line);
             if (noticeDependencyMatcher.find()) {
@@ -192,7 +184,7 @@ public class NoticeFileChecker {
                     artifactId = noticeDependencyMatcher.group(6);
                     version = noticeDependencyMatcher.group(7);
                 }
-                IncludedDependency toAdd = IncludedDependency.create(groupId, artifactId, version);
+                Dependency toAdd = Dependency.create(groupId, artifactId, version);
                 if (!declaredDependencies.add(toAdd)) {
                     addProblem(
                             problemsBySeverity,
@@ -202,9 +194,8 @@ public class NoticeFileChecker {
             }
         }
         // find all dependencies missing from NOTICE file
-        Collection<IncludedDependency> expectedDependencies =
-                modulesWithShadedDependencies.get(moduleName);
-        for (IncludedDependency expectedDependency : expectedDependencies) {
+        Collection<Dependency> expectedDependencies = modulesWithShadedDependencies.get(moduleName);
+        for (Dependency expectedDependency : expectedDependencies) {
             if (!declaredDependencies.contains(expectedDependency)) {
                 addProblem(
                         problemsBySeverity,
@@ -217,7 +208,7 @@ public class NoticeFileChecker {
                 MODULES_DEFINING_EXCESS_DEPENDENCIES.contains(moduleName);
 
         // find all dependencies defined in NOTICE file, which were not expected
-        for (IncludedDependency declaredDependency : declaredDependencies) {
+        for (Dependency declaredDependency : declaredDependencies) {
             if (!expectedDependencies.contains(declaredDependency)) {
                 final Severity severity =
                         moduleDefinesExcessDependencies ? Severity.SUPPRESSED : Severity.TOLERATED;
@@ -288,9 +279,9 @@ public class NoticeFileChecker {
                 .collect(Collectors.toList());
     }
 
-    private static Multimap<String, IncludedDependency> parseModulesFromBuildResult(
-            File buildResult) throws IOException {
-        Multimap<String, IncludedDependency> result = ArrayListMultimap.create();
+    private static Multimap<String, Dependency> parseModulesFromBuildResult(File buildResult)
+            throws IOException {
+        Multimap<String, Dependency> result = ArrayListMultimap.create();
 
         try (Stream<String> lines = Files.lines(buildResult.toPath())) {
             // String line;
@@ -310,7 +301,7 @@ public class NoticeFileChecker {
                         if (!"org.apache.flink".equals(groupId)) {
                             result.put(
                                     currentShadeModule,
-                                    IncludedDependency.create(groupId, artifactId, version));
+                                    Dependency.create(groupId, artifactId, version));
                         }
                     }
                 }
@@ -334,56 +325,6 @@ public class NoticeFileChecker {
         } catch (Throwable e) {
             // wrap anything in a RuntimeException to be callable from the static initializer
             throw new RuntimeException("Error while loading resource", e);
-        }
-    }
-
-    private static final class IncludedDependency {
-
-        private final String groupId;
-        private final String artifactId;
-        private final String version;
-
-        private IncludedDependency(String groupId, String artifactId, String version) {
-            this.groupId = Preconditions.checkNotNull(groupId);
-            this.artifactId = Preconditions.checkNotNull(artifactId);
-            this.version = Preconditions.checkNotNull(version);
-        }
-
-        public static IncludedDependency create(String groupId, String artifactId, String version) {
-            return new IncludedDependency(groupId, artifactId, version);
-        }
-
-        @Override
-        public String toString() {
-            return groupId + ":" + artifactId + ":" + version;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-
-            IncludedDependency that = (IncludedDependency) o;
-
-            if (!groupId.equals(that.groupId)) {
-                return false;
-            }
-            if (!artifactId.equals(that.artifactId)) {
-                return false;
-            }
-            return version.equals(that.version);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = groupId.hashCode();
-            result = 31 * result + artifactId.hashCode();
-            result = 31 * result + version.hashCode();
-            return result;
         }
     }
 }
