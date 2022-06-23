@@ -188,7 +188,7 @@ public class ExecutionJobVertex
         // create all task vertices
         for (int i = 0; i < this.parallelismInfo.getParallelism(); i++) {
             ExecutionVertex vertex =
-                    new ExecutionVertex(
+                    createExecutionVertex(
                             this,
                             i,
                             producedDataSets,
@@ -258,6 +258,24 @@ public class ExecutionJobVertex
             throw new JobException(
                     "Creating the input splits caused an error: " + t.getMessage(), t);
         }
+    }
+
+    protected ExecutionVertex createExecutionVertex(
+            ExecutionJobVertex jobVertex,
+            int subTaskIndex,
+            IntermediateResult[] producedDataSets,
+            Time timeout,
+            long createTimestamp,
+            int executionHistorySizeLimit,
+            int initialAttemptCount) {
+        return new ExecutionVertex(
+                jobVertex,
+                subTaskIndex,
+                producedDataSets,
+                timeout,
+                createTimestamp,
+                executionHistorySizeLimit,
+                initialAttemptCount);
     }
 
     public boolean isInitialized() {
@@ -594,6 +612,17 @@ public class ExecutionJobVertex
         } else {
             // all else collapses under created
             return ExecutionState.CREATED;
+        }
+    }
+
+    /** Factory to create {@link ExecutionJobVertex}. */
+    public static class Factory {
+        ExecutionJobVertex createExecutionJobVertex(
+                InternalExecutionGraphAccessor graph,
+                JobVertex jobVertex,
+                VertexParallelismInformation parallelismInfo)
+                throws JobException {
+            return new ExecutionJobVertex(graph, jobVertex, parallelismInfo);
         }
     }
 }

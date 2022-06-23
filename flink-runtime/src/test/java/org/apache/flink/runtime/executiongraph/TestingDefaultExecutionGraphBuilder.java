@@ -73,6 +73,7 @@ public class TestingDefaultExecutionGraphBuilder {
     private ExecutionStateUpdateListener executionStateUpdateListener =
             (execution, previousState, newState) -> {};
     private VertexParallelismStore vertexParallelismStore;
+    private ExecutionJobVertex.Factory executionJobVertexFactory = new ExecutionJobVertex.Factory();
 
     private TestingDefaultExecutionGraphBuilder() {}
 
@@ -142,6 +143,12 @@ public class TestingDefaultExecutionGraphBuilder {
         return this;
     }
 
+    public TestingDefaultExecutionGraphBuilder setExecutionJobVertexFactory(
+            ExecutionJobVertex.Factory executionJobVertexFactory) {
+        this.executionJobVertexFactory = executionJobVertexFactory;
+        return this;
+    }
+
     private DefaultExecutionGraph build(
             boolean isDynamicGraph, ScheduledExecutorService executorService)
             throws JobException, JobExecutionException {
@@ -168,7 +175,8 @@ public class TestingDefaultExecutionGraphBuilder {
                 Optional.ofNullable(vertexParallelismStore)
                         .orElseGet(() -> SchedulerBase.computeVertexParallelismStore(jobGraph)),
                 () -> new CheckpointStatsTracker(0, new UnregisteredMetricsGroup()),
-                isDynamicGraph);
+                isDynamicGraph,
+                executionJobVertexFactory);
     }
 
     public DefaultExecutionGraph build(ScheduledExecutorService executorService)
