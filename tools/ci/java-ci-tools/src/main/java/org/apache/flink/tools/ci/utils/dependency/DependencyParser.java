@@ -18,6 +18,7 @@
 package org.apache.flink.tools.ci.utils.dependency;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.tools.ci.utils.shared.Dependency;
 
 import java.io.IOException;
 import java.nio.file.Files;

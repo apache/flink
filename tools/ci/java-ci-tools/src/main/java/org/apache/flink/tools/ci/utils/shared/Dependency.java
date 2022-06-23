@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tools.ci.utils.dependency;
+package org.apache.flink.tools.ci.utils.shared;
 
 import javax.annotation.Nullable;
 

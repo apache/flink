@@ -17,8 +17,8 @@
 
 package org.apache.flink.tools.ci.suffixcheck;
 
-import org.apache.flink.tools.ci.utils.dependency.Dependency;
 import org.apache.flink.tools.ci.utils.dependency.DependencyParser;
+import org.apache.flink.tools.ci.utils.shared.Dependency;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -17,6 +17,8 @@
 
 package org.apache.flink.tools.ci.utils.dependency;
 
+import org.apache.flink.tools.ci.utils.shared.Dependency;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
