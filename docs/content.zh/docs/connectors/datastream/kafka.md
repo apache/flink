@@ -149,13 +149,6 @@ Kafka consumer 的配置可以参考 [Apache Kafka 文档](http://kafka.apache.o
 - ```auto.offset.reset.strategy``` 被 OffsetsInitializer#getAutoOffsetResetStrategy() 覆盖
 - ```partition.discovery.interval.ms``` 会在批模式下被覆盖为 -1
 
-下面的代码片段展示了如何配置 Kafka consumer 以使用“PLAIN”作为 SASL 机制并提供 JAAS 配置：
-```java
-KafkaSource.builder()
-    .setProperty("sasl.mechanism", "PLAIN")
-    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";");
-```
-
 ### 动态分区检查
 为了在不重启 Flink 作业的情况下处理 Topic 扩容或新建 Topic 等场景，可以将 Kafka Source 配置为在提供的 Topic / Partition 
 订阅模式下定期检查新分区。要启用动态分区检查，请将 ```partition.discovery.interval.ms``` 设置为非负值：
@@ -268,6 +261,41 @@ Kafka consumer 的所有指标都注册在指标组 ```KafkaSourceReader.KafkaCo
 
 关于 Kafka consumer 的指标，您可以参考 [Apache Kafka 文档](http://kafka.apache.org/documentation/#consumer_monitoring)
 了解更多详细信息。
+
+### 安全
+要启用加密和认证相关的安全配置，只需将安全配置作为其他属性配置在 Kafka source 上即可。下面的代码片段展示了如何配置 Kafka source 以使用
+PLAIN 作为 SASL 机制并提供 JAAS 配置：
+
+```java
+KafkaSource.builder()
+    .setProperty("security.protocol", "SASL_PLAINTEXT")
+    .setProperty("sasl.mechanism", "PLAIN")
+    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";");
+```
+
+另一个更复杂的例子，使用 SASL_SSL 作为安全协议并使用 SCRAM-SHA-256 作为 SASL 机制：
+```java
+KafkaSource.builder()
+    .setProperty("security.protocol", "SASL_SSL")
+    // SSL 配置
+    // 配置服务端提供的 truststore (CA 证书) 的路径
+    // Configure the path of truststore (CA) provided by the server
+    .setProperty("ssl.truststore.location", "/path/to/kafka.client.truststore.jks")
+    .setProperty("ssl.truststore.password", "test1234")
+    // 如果要求客户端认证，则需要配置 keystore (私钥) 的路径
+    // Configure the path of keystore (private key) if client authentication is required
+    .setProperty("ssl.keystore.location", "/path/to/kafka.client.keystore.jks")
+    .setProperty("ssl.keystore.password", "test1234")
+    // SASL 配置
+    // 将 SASL 机制配置为 as SCRAM-SHA-256
+    .setProperty("sasl.mechanism", "SCRAM-SHA-256")
+    // 配置 JAAS
+    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"username\" password=\"password\";");
+```
+如果在作业 JAR 中 Kafka 客户端依赖的类路径被重置了（relocate class），登录模块（login module）的类路径可能会不同，因此请根据登录模块在
+JAR 中实际的类路径来改写以上配置。
+
+关于安全配置的详细描述，请参阅 <a href="https://kafka.apache.org/documentation/#security">Apache Kafka 文档中的"安全"一节</a>。
 
 ### 实现细节
 {{< hint info >}}
