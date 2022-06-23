@@ -564,13 +564,13 @@ public class Execution
                     "Deploying {} (attempt #{}) with attempt id {} and vertex id {} to {} with allocation id {}",
                     vertex.getTaskNameWithSubtaskIndex(),
                     getAttemptNumber(),
-                    vertex.getCurrentExecutionAttempt().getAttemptId(),
+                    attemptId,
                     vertex.getID(),
                     getAssignedResourceLocation(),
                     slot.getAllocationId());
 
             final TaskDeploymentDescriptor deployment =
-                    TaskDeploymentDescriptorFactory.fromExecutionVertex(vertex)
+                    TaskDeploymentDescriptorFactory.fromExecution(this)
                             .createDeploymentDescriptor(
                                     slot.getAllocationId(),
                                     taskRestore,

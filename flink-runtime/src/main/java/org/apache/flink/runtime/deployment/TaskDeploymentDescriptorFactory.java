@@ -253,10 +253,10 @@ public class TaskDeploymentDescriptorFactory {
         }
     }
 
-    public static TaskDeploymentDescriptorFactory fromExecutionVertex(
-            ExecutionVertex executionVertex)
+    public static TaskDeploymentDescriptorFactory fromExecution(Execution execution)
             throws IOException, CachedIntermediateDataSetCorruptedException {
-        InternalExecutionGraphAccessor internalExecutionGraphAccessor =
+        final ExecutionVertex executionVertex = execution.getVertex();
+        final InternalExecutionGraphAccessor internalExecutionGraphAccessor =
                 executionVertex.getExecutionGraphAccessor();
         Map<IntermediateDataSetID, ShuffleDescriptor[]> clusterPartitionShuffleDescriptors;
         try {
@@ -272,7 +272,7 @@ public class TaskDeploymentDescriptorFactory {
         }
 
         return new TaskDeploymentDescriptorFactory(
-                executionVertex.getCurrentExecutionAttempt().getAttemptId(),
+                execution.getAttemptId(),
                 getSerializedJobInformation(internalExecutionGraphAccessor),
                 getSerializedTaskInformation(
                         executionVertex.getJobVertex().getTaskInformationOrBlobKey()),
@@ -338,7 +338,7 @@ public class TaskDeploymentDescriptorFactory {
     public static ShuffleDescriptor getConsumedPartitionShuffleDescriptor(
             IntermediateResultPartition consumedPartition,
             PartitionLocationConstraint partitionDeploymentConstraint) {
-        Execution producer = consumedPartition.getProducer().getCurrentExecutionAttempt();
+        Execution producer = consumedPartition.getProducer().getPartitionProducer();
 
         ExecutionState producerState = producer.getState();
         Optional<ResultPartitionDeploymentDescriptor> consumedPartitionDescriptor =
