@@ -18,11 +18,11 @@
 package org.apache.flink.tools.ci.utils.dependency;
 
 import org.apache.flink.tools.ci.utils.shared.Dependency;
+import org.apache.flink.tools.ci.utils.shared.DependencyTree;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,7 +36,7 @@ class DependencyParserTreeTest {
                 "[INFO] internal:m1:jar:1.1",
                 "[INFO] +- external:dependency1:jar:2.1:compile",
                 "[INFO] |  +- external:dependency2:jar:2.2:compile (optional)",
-                "[INFO] |  |  \\- external:dependency3:jar:2.3:provided (optional)",
+                "[INFO] |  |  \\- external:dependency3:jar:2.3:provided",
                 "[INFO] |  +- external:dependency4:classifier:jar:2.4:compile",
                 "[INFO]",
                 "[INFO] --- maven-dependency-plugin:3.2.0:tree (default-cli) @ m2 ---",
@@ -47,18 +47,19 @@ class DependencyParserTreeTest {
 
     @Test
     void testTreeParsing() {
-        final Map<String, Set<Dependency>> dependenciesByModule =
+        final Map<String, DependencyTree> dependenciesByModule =
                 DependencyParser.parseDependencyTreeOutput(getTestDependencyTree());
 
         assertThat(dependenciesByModule).containsOnlyKeys("m1", "m2");
-        assertThat(dependenciesByModule.get("m1"))
+        assertThat(dependenciesByModule.get("m1").flatten())
                 .containsExactlyInAnyOrder(
                         Dependency.create("external", "dependency1", "2.1", null, "compile", false),
                         Dependency.create("external", "dependency2", "2.2", null, "compile", true),
-                        Dependency.create("external", "dependency3", "2.3", null, "provided", true),
+                        Dependency.create(
+                                "external", "dependency3", "2.3", null, "provided", false),
                         Dependency.create(
                                 "external", "dependency4", "2.4", "classifier", "compile", false));
-        assertThat(dependenciesByModule.get("m2"))
+        assertThat(dependenciesByModule.get("m2").flatten())
                 .containsExactlyInAnyOrder(
                         Dependency.create("internal", "m1", "1.1", null, "compile", false),
                         Dependency.create(
