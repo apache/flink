@@ -52,6 +52,7 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -116,6 +117,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -1022,6 +1024,19 @@ public class StreamExecutionEnvironment {
                                         ExecutionCheckpointingOptions
                                                 .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
                                         flag));
+
+        // merge PipelineOptions.JARS, user maybe set this option in high level such as table
+        // module, so here need to merge the jars from both configuration object
+        configuration
+                .getOptional(PipelineOptions.JARS)
+                .ifPresent(
+                        jars ->
+                                ConfigUtils.mergeCollectionsToConfig(
+                                        this.configuration,
+                                        PipelineOptions.JARS,
+                                        Collections.unmodifiableCollection(jars),
+                                        String::toString,
+                                        String::toString));
 
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
