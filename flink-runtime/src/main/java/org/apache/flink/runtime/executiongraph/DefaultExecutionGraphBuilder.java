@@ -91,7 +91,8 @@ public class DefaultExecutionGraphBuilder {
             VertexAttemptNumberStore vertexAttemptNumberStore,
             VertexParallelismStore vertexParallelismStore,
             Supplier<CheckpointStatsTracker> checkpointStatsTrackerFactory,
-            boolean isDynamicGraph)
+            boolean isDynamicGraph,
+            ExecutionJobVertex.Factory executionJobVertexFactory)
             throws JobExecutionException, JobException {
 
         checkNotNull(jobGraph, "job graph cannot be null");
@@ -136,7 +137,8 @@ public class DefaultExecutionGraphBuilder {
                             initializationTimestamp,
                             vertexAttemptNumberStore,
                             vertexParallelismStore,
-                            isDynamicGraph);
+                            isDynamicGraph,
+                            executionJobVertexFactory);
         } catch (IOException e) {
             throw new JobException("Could not create the ExecutionGraph.", e);
         }

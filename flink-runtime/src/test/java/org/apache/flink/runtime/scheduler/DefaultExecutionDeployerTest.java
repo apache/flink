@@ -333,18 +333,7 @@ class DefaultExecutionDeployerTest {
                         .setPartitionTracker(partitionTracker)
                         .build(executor);
 
-        executionGraph.setInternalTaskFailuresListener(
-                new InternalFailuresListener() {
-                    @Override
-                    public void notifyTaskFailure(
-                            ExecutionAttemptID attemptId,
-                            Throwable t,
-                            boolean cancelTask,
-                            boolean releasePartitions) {}
-
-                    @Override
-                    public void notifyGlobalFailure(Throwable t) {}
-                });
+        executionGraph.setInternalTaskFailuresListener(new TestingInternalFailuresListener());
         executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         return executionGraph;

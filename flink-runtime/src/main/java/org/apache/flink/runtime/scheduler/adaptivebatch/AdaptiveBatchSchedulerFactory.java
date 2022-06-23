@@ -28,6 +28,7 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
@@ -145,7 +146,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                         blobWriter,
                         shuffleMaster,
                         partitionTracker,
-                        true);
+                        true,
+                        new ExecutionJobVertex.Factory());
 
         return new AdaptiveBatchScheduler(
                 log,

@@ -286,6 +286,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     private final boolean isDynamic;
 
+    private final ExecutionJobVertex.Factory executionJobVertexFactory;
+
     // --------------------------------------------------------------------------------------------
     //   Constructors
     // --------------------------------------------------------------------------------------------
@@ -307,7 +309,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             long initializationTimestamp,
             VertexAttemptNumberStore initialAttemptCounts,
             VertexParallelismStore vertexParallelismStore,
-            boolean isDynamic)
+            boolean isDynamic,
+            ExecutionJobVertex.Factory executionJobVertexFactory)
             throws IOException {
 
         this.executionGraphId = new ExecutionGraphID();
@@ -374,6 +377,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.resultPartitionsById = new HashMap<>();
 
         this.isDynamic = isDynamic;
+
+        this.executionJobVertexFactory = checkNotNull(executionJobVertexFactory);
 
         LOG.info(
                 "Created execution graph {} for job {}.",
@@ -840,7 +845,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                     parallelismStore.getParallelismInfo(jobVertex.getID());
 
             // create the execution job vertex and attach it to the graph
-            ExecutionJobVertex ejv = new ExecutionJobVertex(this, jobVertex, parallelismInfo);
+            ExecutionJobVertex ejv =
+                    executionJobVertexFactory.createExecutionJobVertex(
+                            this, jobVertex, parallelismInfo);
 
             ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);
             if (previousTask != null) {

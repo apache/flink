@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
@@ -72,7 +73,8 @@ public class AdaptiveBatchSchedulerTestUtils {
                             blobWriter,
                             shuffleMaster,
                             partitionTracker,
-                            true);
+                            true,
+                            new ExecutionJobVertex.Factory());
 
             return new AdaptiveBatchScheduler(
                     log,
