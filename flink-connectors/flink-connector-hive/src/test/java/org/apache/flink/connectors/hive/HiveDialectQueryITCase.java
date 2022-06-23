@@ -640,6 +640,33 @@ public class HiveDialectQueryITCase {
         assertThat(result.toString()).isEqualTo("[+I[[14, 28]]]");
     }
 
+    @Test
+    public void testWithOverWindow() throws Exception {
+        tableEnv.executeSql("create table over_test(a int, b int, c int, d int)");
+        try {
+            tableEnv.executeSql(
+                            "insert into over_test values(3, 2, 1, 4), (1, 2, 3, 4), (2, 1, 4, 4)")
+                    .await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select a, count(b) over(order by a rows between 1 preceding and 1 following) from over_test")
+                                    .collect());
+            assertThat(result.toString()).isEqualTo("[+I[1, 2], +I[2, 3], +I[3, 2]]");
+
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select a, count(b) over(order by a rows between 1 preceding and 1 following),"
+                                                    + " count(c) over(distribute by a sort by b range between 5 preceding and current row)"
+                                                    + " from over_test")
+                                    .collect());
+            assertThat(result.toString()).isEqualTo("[+I[1, 2, 1], +I[2, 3, 1], +I[3, 2, 1]]");
+        } finally {
+            tableEnv.executeSql("drop table over_test");
+        }
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {
