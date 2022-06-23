@@ -166,7 +166,7 @@ Common causes for class leaks and suggested fixes:
     interners, or Avro's class/object caches in the serializers.
 
   - *JDBC*: JDBC drivers leak references outside the user code classloader. To ensure that these classes are only loaded once
-   you should add the driver jars to Flink's `lib/` folder intead of bundling them in the user-jar. 
+   you should add the driver jars to Flink's `lib/` folder instead of bundling them in the user-jar. 
    If you can't guarantee that none of your user-jars bundle the driver, you have to additionally add the driver classes to the list of parent-first
    loaded classes via [`classloader.parent-first-patterns-additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-additional).
 
