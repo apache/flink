@@ -218,9 +218,10 @@ public final class JoinRecordStateViews {
                 } else {
                     recordState.remove(record);
                 }
+            } else {
+                // cnt == null means state may be expired
+                ErrorHandlingUtil.handleStateStaleError(ttlConfig, stateStaleErrorHandling, null);
             }
-            // cnt == null means state may be expired
-            ErrorHandlingUtil.handleStateStaleError(ttlConfig, stateStaleErrorHandling, null);
         }
 
         @Override

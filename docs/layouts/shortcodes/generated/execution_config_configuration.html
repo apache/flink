@@ -149,6 +149,12 @@ By default no operator is disabled.</td>
             <td>Whether to compress spilled data. Currently we only support compress spilled data for sort and hash-agg and hash-join operators.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.state-stale.error-handling</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">CONTINUE_WITHOUT_LOGGING</td>
+            <td><p>Enum</p></td>
+            <td>A unified error handling strategy to handle the situation that operators can not be able to handle the updates normally when the corresponding record was expired which exceeds state ttl.<br />By default, expired records are simply discarded from the system and there's no logging. If you want to reserve the log then choose CONTINUE_WITH_LOGGING, or choose ERROR in order to raise an error to fail the processing immediately.<br /><br />Possible values:<ul><li>"ERROR"</li><li>"CONTINUE_WITH_LOGGING"</li><li>"CONTINUE_WITHOUT_LOGGING"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.exec.state.ttl</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">0 ms</td>
             <td>Duration</td>
