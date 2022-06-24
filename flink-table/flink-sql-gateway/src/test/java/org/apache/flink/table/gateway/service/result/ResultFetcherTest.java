@@ -28,6 +28,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
+import org.apache.flink.table.gateway.service.utils.IgnoreErrorThreadFactory;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
@@ -180,7 +181,8 @@ public class ResultFetcherTest extends TestLogger {
                 "Failed to wait the buffer has data.");
         List<RowData> firstFetch = fetcher.fetchResults(0, Integer.MAX_VALUE).getData();
         for (int i = 0; i < fetchThreadNum; i++) {
-            new Thread(
+            IgnoreErrorThreadFactory.INSTANCE
+                    .newThread(
                             () -> {
                                 ResultSet resultSet = fetcher.fetchResults(0, Integer.MAX_VALUE);
 

@@ -37,12 +37,14 @@ import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.operation.Operation;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.session.SessionManager;
+import org.apache.flink.table.gateway.service.utils.IgnoreErrorThreadFactory;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.assertj.core.api.Assertions;
+import org.assertj.core.api.Condition;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -58,6 +60,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
 import static org.apache.flink.types.RowKind.DELETE;
 import static org.apache.flink.types.RowKind.INSERT;
 import static org.apache.flink.types.RowKind.UPDATE_AFTER;
@@ -244,7 +247,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testCancelOperationAndFetchResultInParallel() throws Exception {
+    public void testCancelOperationAndFetchResultInParallel() {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
         CountDownLatch latch = new CountDownLatch(1);
         // Make sure cancel the Operation before finish.
@@ -253,9 +256,13 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 sessionHandle,
                 operationHandle,
                 () -> service.cancelOperation(sessionHandle, operationHandle),
-                String.format(
-                        "Can not fetch results from the %s in %s status.",
-                        operationHandle, OperationStatus.CANCELED));
+                new Condition<>(
+                        msg ->
+                                msg.contains(
+                                        String.format(
+                                                "Can not fetch results from the %s in %s status.",
+                                                operationHandle, OperationStatus.CANCELED)),
+                        "Fetch results with expected error message."));
         latch.countDown();
     }
 
@@ -273,9 +280,19 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 sessionHandle,
                 operationHandle,
                 () -> service.closeOperation(sessionHandle, operationHandle),
-                String.format(
-                        "Can not find the submitted operation in the OperationManager with the %s.",
-                        operationHandle));
+                // It's possible the fetcher fetch the result from a closed operation or fetcher
+                // can't find the operation.
+                new Condition<>(
+                        msg ->
+                                msg.contains(
+                                                String.format(
+                                                        "Can not find the submitted operation in the OperationManager with the %s.",
+                                                        operationHandle))
+                                        || msg.contains(
+                                                String.format(
+                                                        "Can not fetch results from the %s in %s status.",
+                                                        operationHandle, OperationStatus.CLOSED)),
+                        "Fetch results with expected error message."));
     }
 
     @Test
@@ -300,8 +317,12 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                     service.getSession(sessionHandle)
                             .getOperationManager()
                             .getOperation(operationHandle));
-            new Thread(() -> service.cancelOperation(sessionHandle, operationHandle)).start();
-            new Thread(() -> service.closeOperation(sessionHandle, operationHandle)).start();
+            IgnoreErrorThreadFactory.INSTANCE
+                    .newThread(() -> service.cancelOperation(sessionHandle, operationHandle))
+                    .start();
+            IgnoreErrorThreadFactory.INSTANCE
+                    .newThread(() -> service.closeOperation(sessionHandle, operationHandle))
+                    .start();
         }
 
         CommonTestUtils.waitUtil(
@@ -323,7 +344,8 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         int submitThreadsNum = 100;
         CountDownLatch latch = new CountDownLatch(submitThreadsNum);
         for (int i = 0; i < submitThreadsNum; i++) {
-            new Thread(
+            IgnoreErrorThreadFactory.INSTANCE
+                    .newThread(
                             () -> {
                                 try {
                                     submitDefaultOperation(sessionHandle, () -> {});
@@ -419,10 +441,11 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
             SessionHandle sessionHandle,
             OperationHandle operationHandle,
             RunnableWithException cancelOrClose,
-            String errorMsg) {
+            Condition<String> condition) {
 
         List<RowData> actual = new ArrayList<>();
-        new Thread(
+        IgnoreErrorThreadFactory.INSTANCE
+                .newThread(
                         () -> {
                             try {
                                 cancelOrClose.run();
@@ -448,7 +471,10 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                 }
                             }
                         })
-                .satisfies(anyCauseMatches(errorMsg));
+                .satisfies(
+                        t ->
+                                assertThatChainOfCauses(t)
+                                        .anySatisfy(t1 -> condition.matches(t1.getMessage())));
 
         assertTrue(new HashSet<>(getDefaultResultSet().getData()).containsAll(actual));
     }
