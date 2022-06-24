@@ -381,7 +381,7 @@ public class NoticeFileChecker {
                         String version = includeMatcher.group(3);
                         result.put(
                                 currentShadeModule,
-                                Dependency.create(groupId, artifactId, version));
+                                Dependency.create(groupId, artifactId, version, null));
                     }
                 }
                 if (line.contains("Replacing original artifact with shaded artifact")) {

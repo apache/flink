@@ -181,7 +181,8 @@ public class DependencyParser {
                 Dependency.create(
                         dependencyMatcher.group("groupId"),
                         dependencyMatcher.group("artifactId"),
-                        dependencyMatcher.group("version")));
+                        dependencyMatcher.group("version"),
+                        dependencyMatcher.group("classifier")));
     }
 
     @VisibleForTesting
@@ -196,6 +197,7 @@ public class DependencyParser {
                         dependencyMatcher.group("groupId"),
                         dependencyMatcher.group("artifactId"),
                         dependencyMatcher.group("version"),
+                        dependencyMatcher.group("classifier"),
                         dependencyMatcher.group("scope"),
                         dependencyMatcher.group("optional") != null));
     }

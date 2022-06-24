@@ -75,7 +75,7 @@ public class NoticeParser {
             String groupId = matcher.group("groupId");
             String artifactId = matcher.group("artifactId");
             String version = matcher.group("version");
-            return Optional.of(Dependency.create(groupId, artifactId, version));
+            return Optional.of(Dependency.create(groupId, artifactId, version, null));
         }
         return Optional.empty();
     }
