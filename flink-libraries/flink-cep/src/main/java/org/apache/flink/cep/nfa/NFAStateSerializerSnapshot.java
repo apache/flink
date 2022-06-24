@@ -32,7 +32,7 @@ public class NFAStateSerializerSnapshot
 
     private static final int CURRENT_VERSION = 2;
 
-    private boolean supportsStateTimestamp;
+    private boolean supportsPreviousTimestamp;
 
     /** Constructor for read instantiation. */
     public NFAStateSerializerSnapshot() {
@@ -73,7 +73,7 @@ public class NFAStateSerializerSnapshot
         TypeSerializer<EventId> eventIdSerializer = (TypeSerializer<EventId>) nestedSerializers[2];
 
         return new NFAStateSerializer(
-                versionSerializer, nodeIdSerializer, eventIdSerializer, supportsStateTimestamp);
+                versionSerializer, nodeIdSerializer, eventIdSerializer, supportsPreviousTimestamp);
     }
 
     @Override
@@ -81,6 +81,6 @@ public class NFAStateSerializerSnapshot
             int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader)
             throws IOException {
         super.readOuterSnapshot(readOuterSnapshotVersion, in, userCodeClassLoader);
-        supportsStateTimestamp = readOuterSnapshotVersion == CURRENT_VERSION;
+        supportsPreviousTimestamp = readOuterSnapshotVersion == CURRENT_VERSION;
     }
 }

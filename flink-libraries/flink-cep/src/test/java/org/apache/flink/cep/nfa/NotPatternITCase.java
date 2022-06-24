@@ -20,6 +20,7 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.WithinType;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -1513,15 +1514,15 @@ public class NotPatternITCase extends TestLogger {
 
     @Test
     public void testNotFollowedByWithinFirstAndLastAtEnd() throws Exception {
-        testNotFollowedByWithinAtEnd(Pattern.WithinType.FIRST_AND_LAST);
+        testNotFollowedByWithinAtEnd(WithinType.FIRST_AND_LAST);
     }
 
     @Test
     public void testNotFollowedByWithinPreviousAndCurrentAtEnd() throws Exception {
-        testNotFollowedByWithinAtEnd(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+        testNotFollowedByWithinAtEnd(WithinType.PREVIOUS_AND_CURRENT);
     }
 
-    public void testNotFollowedByWithinAtEnd(Pattern.WithinType withinType) throws Exception {
+    public void testNotFollowedByWithinAtEnd(WithinType withinType) throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);

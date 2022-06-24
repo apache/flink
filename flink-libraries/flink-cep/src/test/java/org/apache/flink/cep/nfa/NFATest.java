@@ -20,6 +20,7 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.WithinType;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
@@ -158,7 +159,7 @@ public class NFATest extends TestLogger {
 
         expectedPatterns.add(secondPattern);
 
-        NFA<Event> nfa = createStartEndNFA(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+        NFA<Event> nfa = createStartEndNFA(WithinType.PREVIOUS_AND_CURRENT);
         NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).build();
 
         Collection<Map<String, List<Event>>> actualPatterns =
@@ -408,10 +409,10 @@ public class NFATest extends TestLogger {
     }
 
     private NFA<Event> createStartEndNFA() {
-        return createStartEndNFA(Pattern.WithinType.FIRST_AND_LAST);
+        return createStartEndNFA(WithinType.FIRST_AND_LAST);
     }
 
-    private NFA<Event> createStartEndNFA(Pattern.WithinType withinType) {
+    private NFA<Event> createStartEndNFA(WithinType withinType) {
         State<Event> startState = new State<>("start", State.StateType.Start);
         State<Event> endState = new State<>("end", State.StateType.Normal);
         State<Event> endingState = new State<>("", State.StateType.Final);
@@ -443,7 +444,7 @@ public class NFATest extends TestLogger {
         states.add(endState);
         states.add(endingState);
 
-        boolean withinFirstAndLast = Pattern.WithinType.FIRST_AND_LAST.equals(withinType);
+        boolean withinFirstAndLast = WithinType.FIRST_AND_LAST.equals(withinType);
         return new NFA<>(
                 states,
                 withinFirstAndLast ? Collections.emptyMap() : Collections.singletonMap("end", 2L),

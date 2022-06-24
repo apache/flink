@@ -29,6 +29,7 @@ import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
 import org.apache.flink.cep.pattern.Quantifier.Times;
+import org.apache.flink.cep.pattern.WithinType;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.RichAndCondition;
@@ -47,7 +48,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.Stack;
 
-import static org.apache.flink.cep.nfa.compiler.NFAStateNameHandler.getCurrentTimesFromInternal;
+import static org.apache.flink.cep.nfa.compiler.NFAStateNameHandler.STATE_NAME_DELIM;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -182,7 +183,8 @@ public class NFACompiler {
 
             if (lastPattern.getQuantifier().getConsumingStrategy()
                             == Quantifier.ConsumingStrategy.NOT_FOLLOW
-                    && !windowTimes.containsKey(lastPattern.getName())
+                    && (!windowTimes.containsKey(lastPattern.getName())
+                            || windowTimes.get(lastPattern.getName()) <= 0)
                     && getWindowTime() == 0) {
                 throw new MalformedPatternException(
                         "NotFollowedBy is not supported without windowTime as a last part of a Pattern!");
@@ -321,10 +323,10 @@ public class NFACompiler {
                 if (currentPattern.getQuantifier().getConsumingStrategy()
                         == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
                     // skip notFollow patterns, they are converted into edge conditions
-                    if (currentPattern.getWindowTime(Pattern.WithinType.PREVIOUS_AND_CURRENT)
-                                    != null
-                            || getWindowTime() > 0 && lastSink.isFinal()) {
-                        final State<T> notFollow = createState(State.StateType.Pending, false);
+                    if ((currentPattern.getWindowTime(WithinType.PREVIOUS_AND_CURRENT) != null
+                                    || getWindowTime() > 0)
+                            && lastSink.isFinal()) {
+                        final State<T> notFollow = createState(State.StateType.Pending, true);
                         final IterativeCondition<T> notCondition = getTakeCondition(currentPattern);
                         final State<T> stopState =
                                 createStopState(notCondition, currentPattern.getName());
@@ -334,7 +336,7 @@ public class NFACompiler {
                     }
                 } else if (currentPattern.getQuantifier().getConsumingStrategy()
                         == Quantifier.ConsumingStrategy.NOT_NEXT) {
-                    final State<T> notNext = createState(State.StateType.Normal, false);
+                    final State<T> notNext = createState(State.StateType.Normal, true);
                     final IterativeCondition<T> notCondition = getTakeCondition(currentPattern);
                     final State<T> stopState =
                             createStopState(notCondition, currentPattern.getName());
@@ -403,44 +405,18 @@ public class NFACompiler {
             return lastSink;
         }
 
-        private State<T> createState(State.StateType stateType, boolean isIgnore) {
+        private State<T> createState(State.StateType stateType, boolean notIgnore) {
             State<T> state = createState(currentPattern.getName(), stateType);
-            int currentTimes = getCurrentTimesFromInternal(state.getName());
-            if (!isIgnore) {
-                Times patternTimes = currentPattern.getTimes();
-                Map<Integer, Long> stateTimes = getStateTimes();
-                if (patternTimes == null) {
-                    if (stateTimes.containsKey(currentTimes)) {
-                        windowTimes.put(state.getName(), stateTimes.get(currentTimes));
-                    }
-                } else if (patternTimes.getFrom() == patternTimes.getTo()) {
-                    if (stateTimes.containsKey(
-                            currentPattern.getTimes().getFrom() - currentTimes + 1)) {
-                        windowTimes.put(
-                                state.getName(),
-                                stateTimes.get(
-                                        currentPattern.getTimes().getFrom() - currentTimes + 1));
-                    }
-                } else {
-                    if (stateTimes.containsKey(
-                            patternTimes.getTo()
-                                    - currentTimes
-                                    + ignoreTimes.getOrDefault(currentPattern.getName(), 0)
-                                    + 1)) {
-                        windowTimes.put(
-                                state.getName(),
-                                stateTimes.get(
-                                        patternTimes.getTo()
-                                                - currentTimes
-                                                + ignoreTimes.getOrDefault(
-                                                        currentPattern.getName(), 0)
-                                                + 1));
-                    }
+            if (notIgnore) {
+                Times times = currentPattern.getTimes();
+                Time windowTime = currentPattern.getWindowTime(WithinType.PREVIOUS_AND_CURRENT);
+                if (times == null && windowTime != null) {
+                    windowTimes.put(state.getName(), windowTime.toMilliseconds());
+                } else if (times != null
+                        && times.getWindowTime() != null
+                        && state.getName().contains(STATE_NAME_DELIM)) {
+                    windowTimes.put(state.getName(), times.getWindowTime().toMilliseconds());
                 }
-            } else {
-                ignoreTimes.put(
-                        currentPattern.getName(),
-                        ignoreTimes.getOrDefault(currentPattern.getName(), 0) + 1);
             }
             return state;
         }
@@ -458,20 +434,6 @@ public class NFACompiler {
             State<T> state = new State<>(stateName, stateType);
             states.add(state);
             return state;
-        }
-
-        private Map<Integer, Long> getStateTimes() {
-            Map<Integer, Long> stateTimes = new HashMap<>();
-            Time windowTime = currentPattern.getWindowTime(Pattern.WithinType.PREVIOUS_AND_CURRENT);
-            if (windowTime != null) {
-                stateTimes.put(1, windowTime.toMilliseconds());
-            }
-            Times times = currentPattern.getTimes();
-            if (times != null && times.getWindowTimes() != null) {
-                times.getWindowTimes()
-                        .forEach((key, value) -> stateTimes.put(key, value.toMilliseconds()));
-            }
-            return stateTimes;
         }
 
         private State<T> createStopState(
@@ -735,7 +697,7 @@ public class NFACompiler {
                         (GroupPattern) currentPattern, sinkState, proceedState, isOptional);
             }
 
-            final State<T> singletonState = createState(State.StateType.Normal, false);
+            final State<T> singletonState = createState(State.StateType.Normal, true);
             // if event is accepted then all notPatterns previous to the optional states are no
             // longer valid
             final State<T> sink = copyWithoutTransitiveNots(sinkState);
@@ -774,7 +736,7 @@ public class NFACompiler {
             if (ignoreCondition != null) {
                 final State<T> ignoreState;
                 if (isOptional) {
-                    ignoreState = createState(State.StateType.Normal, true);
+                    ignoreState = createState(State.StateType.Normal, false);
                     ignoreState.addTake(sink, takeCondition);
                     ignoreState.addIgnore(ignoreCondition);
                     addStopStates(ignoreState);
@@ -837,7 +799,7 @@ public class NFACompiler {
             Pattern<T, ?> oldFollowingPattern = followingPattern;
             GroupPattern<T, ?> oldGroupPattern = currentGroupPattern;
 
-            final State<T> dummyState = createState(State.StateType.Normal, false);
+            final State<T> dummyState = createState(State.StateType.Normal, true);
             State<T> lastSink = dummyState;
             currentGroupPattern = groupPattern;
             currentPattern = groupPattern.getRawPattern();
@@ -876,7 +838,7 @@ public class NFACompiler {
                             getTakeCondition(currentPattern), untilCondition, true);
 
             IterativeCondition<T> proceedCondition = getTrueFunction();
-            final State<T> loopingState = createState(State.StateType.Normal, false);
+            final State<T> loopingState = createState(State.StateType.Normal, true);
 
             if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
                 if (untilCondition != null) {
@@ -901,7 +863,7 @@ public class NFACompiler {
             addStopStateToLooping(loopingState);
 
             if (ignoreCondition != null) {
-                final State<T> ignoreState = createState(State.StateType.Normal, true);
+                final State<T> ignoreState = createState(State.StateType.Normal, false);
                 ignoreState.addTake(loopingState, takeCondition);
                 ignoreState.addIgnore(ignoreCondition);
                 loopingState.addIgnore(ignoreState, ignoreCondition);

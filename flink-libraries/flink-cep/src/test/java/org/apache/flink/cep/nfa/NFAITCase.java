@@ -26,6 +26,7 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
+import org.apache.flink.cep.pattern.WithinType;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.cep.utils.TestSharedBuffer;
@@ -452,7 +453,7 @@ public class NFAITCase extends TestLogger {
                                         return value.getName().equals("end");
                                     }
                                 })
-                        .within(Time.milliseconds(9), Pattern.WithinType.PREVIOUS_AND_CURRENT);
+                        .within(Time.milliseconds(9), WithinType.PREVIOUS_AND_CURRENT);
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -628,7 +629,7 @@ public class NFAITCase extends TestLogger {
                                         return value.getName().equals("end");
                                     }
                                 })
-                        .within(Time.milliseconds(10), Pattern.WithinType.PREVIOUS_AND_CURRENT);
+                        .within(Time.milliseconds(10), WithinType.PREVIOUS_AND_CURRENT);
 
         NFA<Event> nfa = compile(pattern, true);
 
@@ -659,15 +660,15 @@ public class NFAITCase extends TestLogger {
 
     @Test
     public void testPendingStateMatchesWithinFirstAndLast() throws Exception {
-        testPendingStateMatches(Pattern.WithinType.FIRST_AND_LAST);
+        testPendingStateMatches(WithinType.FIRST_AND_LAST);
     }
 
     @Test
     public void testPendingStateMatchesWithinPreviousAndCurrent() throws Exception {
-        testPendingStateMatches(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+        testPendingStateMatches(WithinType.PREVIOUS_AND_CURRENT);
     }
 
-    private void testPendingStateMatches(Pattern.WithinType withinType) throws Exception {
+    private void testPendingStateMatches(WithinType withinType) throws Exception {
         List<StreamRecord<Event>> events = new ArrayList<>();
         Set<Map<String, List<Event>>> resultingPendingMatches = new HashSet<>();
         Set<Map<String, List<Event>>> expectedPendingMatches = new HashSet<>();
@@ -3417,15 +3418,15 @@ public class NFAITCase extends TestLogger {
 
     @Test
     public void testTimesClearingBufferWithinFirstAndLast() throws Exception {
-        testTimesClearingBuffer(Pattern.WithinType.FIRST_AND_LAST);
+        testTimesClearingBuffer(WithinType.FIRST_AND_LAST);
     }
 
     @Test
     public void testTimesClearingBufferWithinPreviousAndCurrent() throws Exception {
-        testTimesClearingBuffer(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+        testTimesClearingBuffer(WithinType.PREVIOUS_AND_CURRENT);
     }
 
-    private void testTimesClearingBuffer(Pattern.WithinType withinType) throws Exception {
+    private void testTimesClearingBuffer(WithinType withinType) throws Exception {
         Event startEvent = new Event(40, "c", 1.0);
         Event middleEvent1 = new Event(41, "a", 2.0);
         Event middleEvent2 = new Event(42, "a", 3.0);
@@ -3490,15 +3491,15 @@ public class NFAITCase extends TestLogger {
 
     @Test
     public void testOptionalClearingBufferWithinFirstAndLast() throws Exception {
-        testOptionalClearingBuffer(Pattern.WithinType.FIRST_AND_LAST);
+        testOptionalClearingBuffer(WithinType.FIRST_AND_LAST);
     }
 
     @Test
     public void testOptionalClearingBufferWithinPreviousAndCurrent() throws Exception {
-        testOptionalClearingBuffer(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+        testOptionalClearingBuffer(WithinType.PREVIOUS_AND_CURRENT);
     }
 
-    private void testOptionalClearingBuffer(Pattern.WithinType withinType) throws Exception {
+    private void testOptionalClearingBuffer(WithinType withinType) throws Exception {
         Event startEvent = new Event(40, "c", 1.0);
         Event middleEvent = new Event(43, "a", 4.0);
         Event end1 = new Event(44, "b", 5.0);
@@ -3558,15 +3559,15 @@ public class NFAITCase extends TestLogger {
 
     @Test
     public void testAtLeastOneClearingBufferWithinFirstAndLast() throws Exception {
-        testAtLeastOneClearingBuffer(Pattern.WithinType.FIRST_AND_LAST);
+        testAtLeastOneClearingBuffer(WithinType.FIRST_AND_LAST);
     }
 
     @Test
     public void testAtLeastOneClearingBufferWithPreviousAndCurrent() throws Exception {
-        testAtLeastOneClearingBuffer(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+        testAtLeastOneClearingBuffer(WithinType.PREVIOUS_AND_CURRENT);
     }
 
-    private void testAtLeastOneClearingBuffer(Pattern.WithinType withinType) throws Exception {
+    private void testAtLeastOneClearingBuffer(WithinType withinType) throws Exception {
         Event startEvent = new Event(40, "c", 1.0);
         Event middleEvent1 = new Event(41, "a", 2.0);
         Event middleEvent2 = new Event(42, "a", 3.0);
@@ -3734,7 +3735,7 @@ public class NFAITCase extends TestLogger {
                                         return value.getName().equals("b");
                                     }
                                 })
-                        .within(Time.milliseconds(8), Pattern.WithinType.PREVIOUS_AND_CURRENT);
+                        .within(Time.milliseconds(8), WithinType.PREVIOUS_AND_CURRENT);
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -4277,15 +4278,15 @@ public class NFAITCase extends TestLogger {
 
     @Test
     public void testLoopClearingWithinFirstAndLast() throws Exception {
-        testLoopClearing(Pattern.WithinType.FIRST_AND_LAST);
+        testLoopClearing(WithinType.FIRST_AND_LAST);
     }
 
     @Test
     public void testLoopClearingWithinPreviousAndCurrent() throws Exception {
-        testLoopClearing(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+        testLoopClearing(WithinType.PREVIOUS_AND_CURRENT);
     }
 
-    private void testLoopClearing(Pattern.WithinType withinType) throws Exception {
+    private void testLoopClearing(WithinType withinType) throws Exception {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start", AfterMatchSkipStrategy.skipPastLastEvent())
                         .times(4)
@@ -4312,6 +4313,6 @@ public class NFAITCase extends TestLogger {
 
         assertThat(
                 sharedBuffer.getEventsBufferSize(),
-                equalTo(withinType.equals(Pattern.WithinType.FIRST_AND_LAST) ? 1 : 2));
+                equalTo(withinType.equals(WithinType.FIRST_AND_LAST) ? 1 : 2));
     }
 }

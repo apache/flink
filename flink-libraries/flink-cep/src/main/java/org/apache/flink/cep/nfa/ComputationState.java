@@ -42,7 +42,7 @@ public class ComputationState {
     private final long startTimestamp;
 
     // Timestamp of the previous element in the state
-    private final long stateTimestamp;
+    private final long previousTimestamp;
 
     @Nullable private final NodeId previousBufferEntry;
 
@@ -54,11 +54,11 @@ public class ComputationState {
             final DeweyNumber version,
             @Nullable final EventId startEventID,
             final long startTimestamp,
-            final long stateTimestamp) {
+            final long previousTimestamp) {
         this.currentStateName = currentState;
         this.version = version;
         this.startTimestamp = startTimestamp;
-        this.stateTimestamp = stateTimestamp;
+        this.previousTimestamp = previousTimestamp;
         this.previousBufferEntry = previousBufferEntry;
         this.startEventID = startEventID;
     }
@@ -75,8 +75,8 @@ public class ComputationState {
         return startTimestamp;
     }
 
-    public long getStateTimestamp() {
-        return stateTimestamp;
+    public long getPreviousTimestamp() {
+        return previousTimestamp;
     }
 
     public String getCurrentStateName() {
@@ -94,7 +94,7 @@ public class ComputationState {
             return Objects.equals(currentStateName, other.currentStateName)
                     && Objects.equals(version, other.version)
                     && startTimestamp == other.startTimestamp
-                    && stateTimestamp == other.stateTimestamp
+                    && previousTimestamp == other.previousTimestamp
                     && Objects.equals(startEventID, other.startEventID)
                     && Objects.equals(previousBufferEntry, other.previousBufferEntry);
         } else {
@@ -112,8 +112,8 @@ public class ComputationState {
                 + version
                 + ", startTimestamp="
                 + startTimestamp
-                + ", stateTimestamp="
-                + stateTimestamp
+                + ", previousTimestamp="
+                + previousTimestamp
                 + ", previousBufferEntry="
                 + previousBufferEntry
                 + ", startEventID="
@@ -127,7 +127,7 @@ public class ComputationState {
                 currentStateName,
                 version,
                 startTimestamp,
-                stateTimestamp,
+                previousTimestamp,
                 startEventID,
                 previousBufferEntry);
     }
@@ -145,9 +145,14 @@ public class ComputationState {
             final NodeId previousEntry,
             final DeweyNumber version,
             final long startTimestamp,
-            final long stateTimestamp,
+            final long previousTimestamp,
             final EventId startEventID) {
         return new ComputationState(
-                currentState, previousEntry, version, startEventID, startTimestamp, stateTimestamp);
+                currentState,
+                previousEntry,
+                version,
+                startEventID,
+                startTimestamp,
+                previousTimestamp);
     }
 }

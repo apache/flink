@@ -28,6 +28,7 @@ import org.apache.flink.cep.nfa.StateTransitionAction;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.WithinType;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.TestLogger;
@@ -351,9 +352,9 @@ public class NFACompilerTest extends TestLogger {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
                         .followedBy("middle")
-                        .within(Time.seconds(10), Pattern.WithinType.PREVIOUS_AND_CURRENT)
+                        .within(Time.seconds(10), WithinType.PREVIOUS_AND_CURRENT)
                         .followedBy("then")
-                        .within(Time.seconds(20), Pattern.WithinType.PREVIOUS_AND_CURRENT)
+                        .within(Time.seconds(20), WithinType.PREVIOUS_AND_CURRENT)
                         .followedBy("end");
 
         NFACompiler.NFAFactoryCompiler<Event> factory =

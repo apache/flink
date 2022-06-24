@@ -30,7 +30,7 @@ import java.util.Set;
  */
 public class NFAStateNameHandler {
 
-    private static final String STATE_NAME_DELIM = ":";
+    public static final String STATE_NAME_DELIM = ":";
 
     private final Set<String> usedNames = new HashSet<>();
 
@@ -43,19 +43,6 @@ public class NFAStateNameHandler {
     public static String getOriginalNameFromInternal(String internalName) {
         Preconditions.checkNotNull(internalName);
         return internalName.split(STATE_NAME_DELIM)[0];
-    }
-
-    /**
-     * Implements the reverse process of the {@link #getUniqueInternalName(String)}.
-     *
-     * @param internalName The name to be decoded.
-     * @return The current times for the state.
-     */
-    public static Integer getCurrentTimesFromInternal(String internalName) {
-        Preconditions.checkNotNull(internalName);
-        return internalName.contains(STATE_NAME_DELIM)
-                ? Integer.parseInt(internalName.split(STATE_NAME_DELIM)[1]) + 2
-                : 1;
     }
 
     /**
