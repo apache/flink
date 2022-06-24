@@ -34,6 +34,7 @@ public final class Dependency {
     private final String groupId;
     private final String artifactId;
     private final String version;
+    @Nullable private final String classifier;
     @Nullable private final String scope;
     @Nullable private final Boolean isOptional;
 
@@ -41,23 +42,36 @@ public final class Dependency {
             String groupId,
             String artifactId,
             String version,
+            @Nullable String classifier,
             @Nullable String scope,
             @Nullable Boolean isOptional) {
         this.groupId = Objects.requireNonNull(groupId);
         this.artifactId = Objects.requireNonNull(artifactId);
         this.version = Objects.requireNonNull(version);
+        this.classifier = classifier;
         this.scope = scope;
         this.isOptional = isOptional;
     }
 
     public static Dependency create(
-            String groupId, String artifactId, String version, String scope, boolean isOptional) {
+            String groupId,
+            String artifactId,
+            String version,
+            String classifier,
+            String scope,
+            boolean isOptional) {
         return new Dependency(
-                groupId, artifactId, version, Objects.requireNonNull(scope), isOptional);
+                groupId,
+                artifactId,
+                version,
+                classifier,
+                Objects.requireNonNull(scope),
+                isOptional);
     }
 
-    public static Dependency create(String groupId, String artifactId, String version) {
-        return new Dependency(groupId, artifactId, version, null, null);
+    public static Dependency create(
+            String groupId, String artifactId, String version, String classifier) {
+        return new Dependency(groupId, artifactId, version, classifier, null, null);
     }
 
     public String getGroupId() {
@@ -70,6 +84,10 @@ public final class Dependency {
 
     public String getVersion() {
         return version;
+    }
+
+    public Optional<String> getClassifier() {
+        return Optional.ofNullable(classifier);
     }
 
     public Optional<String> getScope() {

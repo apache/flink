@@ -31,8 +31,10 @@ class NoticeParserTest {
     @Test
     void testParseNoticeFileCommonPath() {
         final String module = "some-module";
-        final Dependency dependency1 = Dependency.create("groupId1", "artifactId1", "version1");
-        final Dependency dependency2 = Dependency.create("groupId2", "artifactId2", "version2");
+        final Dependency dependency1 =
+                Dependency.create("groupId1", "artifactId1", "version1", null);
+        final Dependency dependency2 =
+                Dependency.create("groupId2", "artifactId2", "version2", null);
         final List<String> noticeContents =
                 Arrays.asList(
                         module,
@@ -55,7 +57,7 @@ class NoticeParserTest {
     @Test
     void testParseNoticeFileBundlesPath() {
         final String module = "some-module";
-        final Dependency dependency = Dependency.create("groupId", "artifactId", "version");
+        final Dependency dependency = Dependency.create("groupId", "artifactId", "version", null);
         final List<String> noticeContents =
                 Arrays.asList(module, "", "Something bundles \"" + dependency + "\"");
 
@@ -71,7 +73,7 @@ class NoticeParserTest {
     @Test
     void testParseNoticeFileMalformedDependencyIgnored() {
         final String module = "some-module";
-        final Dependency dependency = Dependency.create("groupId", "artifactId", "version");
+        final Dependency dependency = Dependency.create("groupId", "artifactId", "version", null);
         final List<String> noticeContents = Arrays.asList(module, "- " + dependency, "- a:b");
 
         assertThat(NoticeParser.parseNoticeFile(noticeContents))
