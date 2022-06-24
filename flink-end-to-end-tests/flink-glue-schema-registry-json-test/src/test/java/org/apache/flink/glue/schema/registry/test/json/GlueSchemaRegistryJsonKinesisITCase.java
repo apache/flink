@@ -35,6 +35,7 @@ import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 import org.testcontainers.containers.Network;
@@ -56,6 +57,7 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** End-to-end test for Glue Schema Registry Json format using Kinesalite. */
+@Ignore("FLINK-28169")
 public class GlueSchemaRegistryJsonKinesisITCase extends TestLogger {
     private static final String INPUT_STREAM = "gsr_json_input_stream";
     private static final String OUTPUT_STREAM = "gsr_json_output_stream";
