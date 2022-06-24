@@ -19,6 +19,7 @@
 package org.apache.flink.table.gateway.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
@@ -110,6 +111,23 @@ public interface SqlGatewayService {
     // -------------------------------------------------------------------------------------------
     // Statements
     // -------------------------------------------------------------------------------------------
+
+    /**
+     * Execute the submitted statement.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param statement the SQL to execute.
+     * @param executionTimeoutMs the execution timeout. Please use non-positive value to forbid the
+     *     timeout mechanism.
+     * @param executionConfig execution config for the statement.
+     * @return handle to identify the operation.
+     */
+    OperationHandle executeStatement(
+            SessionHandle sessionHandle,
+            String statement,
+            long executionTimeoutMs,
+            Configuration executionConfig)
+            throws SqlGatewayException;
 
     /**
      * Fetch the results from the operation. When maxRows is Integer.MAX_VALUE, it means to fetch

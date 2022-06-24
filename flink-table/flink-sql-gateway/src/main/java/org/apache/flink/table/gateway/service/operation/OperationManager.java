@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.service.operation;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
@@ -38,9 +39,11 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /** Manager for the {@link Operation}. */
+@Internal
 public class OperationManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(OperationManager.class);
@@ -83,11 +86,25 @@ public class OperationManager {
                                     rows.size());
                         });
 
-        writeLock(
-                () -> {
-                    submittedOperations.put(handle, operation);
-                    operation.run(service);
-                });
+        submitOperationInternal(handle, operation);
+        return handle;
+    }
+
+    /**
+     * Submit the operation to the {@link OperationManager}. The {@link OperationManager} manges the
+     * lifecycle of the {@link Operation}, including register resources, fire the execution and so
+     * on.
+     *
+     * @param operationType The type of the submitted operation.
+     * @param fetcherSupplier offer the fetcher to get the results.
+     * @return OperationHandle to fetch the results or check the status.
+     */
+    public OperationHandle submitOperation(
+            OperationType operationType, Function<OperationHandle, ResultFetcher> fetcherSupplier) {
+        OperationHandle handle = OperationHandle.create();
+        Operation operation =
+                new Operation(handle, operationType, () -> fetcherSupplier.apply(handle));
+        submitOperationInternal(handle, operation);
         return handle;
     }
 
@@ -170,6 +187,14 @@ public class OperationManager {
                                         operationHandle));
                     }
                     return operation;
+                });
+    }
+
+    private void submitOperationInternal(OperationHandle handle, Operation operation) {
+        writeLock(
+                () -> {
+                    submittedOperations.put(handle, operation);
+                    operation.run(service);
                 });
     }
 

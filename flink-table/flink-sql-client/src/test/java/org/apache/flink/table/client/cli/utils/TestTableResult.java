@@ -127,4 +127,9 @@ public class TestTableResult implements TableResultInternal {
                 Thread.currentThread().getContextClassLoader(),
                 false);
     }
+
+    @Override
+    public long getRowCount() {
+        return -1;
+    }
 }

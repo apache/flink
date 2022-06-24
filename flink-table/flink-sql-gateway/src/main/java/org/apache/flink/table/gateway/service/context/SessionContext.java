@@ -19,6 +19,8 @@
 package org.apache.flink.table.gateway.service.context;
 
 import org.apache.flink.client.ClientUtils;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -37,7 +39,9 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
+import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
+import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
 
 import org.slf4j.Logger;
@@ -63,6 +67,7 @@ public class SessionContext {
 
     private static final Logger LOG = LoggerFactory.getLogger(SessionContext.class);
 
+    private final DefaultContext defaultContext;
     private final SessionHandle sessionId;
     private final EndpointVersion endpointVersion;
 
@@ -74,12 +79,14 @@ public class SessionContext {
     private final OperationManager operationManager;
 
     private SessionContext(
+            DefaultContext defaultContext,
             SessionHandle sessionId,
             EndpointVersion endpointVersion,
             Configuration sessionConf,
             URLClassLoader classLoader,
             SessionState sessionState,
             OperationManager operationManager) {
+        this.defaultContext = defaultContext;
         this.sessionId = sessionId;
         this.endpointVersion = endpointVersion;
         this.sessionConf = sessionConf;
@@ -87,22 +94,6 @@ public class SessionContext {
         this.sessionState = sessionState;
         this.operationManager = operationManager;
     }
-
-    // --------------------------------------------------------------------------------------------
-    // Getter method
-    // --------------------------------------------------------------------------------------------
-
-    public SessionHandle getSessionId() {
-        return this.sessionId;
-    }
-
-    public Map<String, String> getConfigMap() {
-        return sessionConf.toMap();
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // Method to execute commands
-    // --------------------------------------------------------------------------------------------
 
     /** Close resources, e.g. catalogs. */
     public void close() {
@@ -116,6 +107,58 @@ public class SessionContext {
         }
 
         operationManager.close();
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Getter/Setter
+    // --------------------------------------------------------------------------------------------
+
+    public SessionHandle getSessionId() {
+        return this.sessionId;
+    }
+
+    public Map<String, String> getConfigMap() {
+        return sessionConf.toMap();
+    }
+
+    public void setConfig(String key, String value) {
+        try {
+            // Test whether the key value will influence the creation of the Executor.
+            createOperationExecutor(Configuration.fromMap(Collections.singletonMap(key, value)));
+        } catch (Exception e) {
+            // get error and reset the key with old value
+            throw new SqlExecutionException(
+                    String.format("Failed to set key %s with value %s.", key, value), e);
+        }
+        sessionConf.setString(key, value);
+    }
+
+    public synchronized void resetConfig(String key) {
+        Configuration configuration = defaultContext.getFlinkConfig();
+        // If the key exist in default yaml , reset to default
+        if (configuration.containsKey(key)) {
+            String defaultValue =
+                    configuration.get(ConfigOptions.key(key).stringType().noDefaultValue());
+            setConfig(key, defaultValue);
+        } else {
+            ConfigOption<String> keyToDelete = ConfigOptions.key(key).stringType().noDefaultValue();
+            sessionConf.removeConfig(keyToDelete);
+        }
+    }
+
+    public synchronized void resetAllConfigs() {
+        for (String key : sessionConf.keySet()) {
+            sessionConf.removeConfig(ConfigOptions.key(key).stringType().noDefaultValue());
+        }
+        sessionConf.addAll(defaultContext.getFlinkConfig());
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Method to execute commands
+    // --------------------------------------------------------------------------------------------
+
+    public OperationExecutor createOperationExecutor(Configuration executionConfig) {
+        return new OperationExecutor(this, executionConfig);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -168,6 +211,7 @@ public class SessionContext {
                 new SessionState(catalogManager, moduleManager, functionCatalog);
 
         return new SessionContext(
+                defaultContext,
                 sessionId,
                 endpointVersion,
                 configuration,
@@ -201,10 +245,11 @@ public class SessionContext {
         final EnvironmentSettings settings =
                 EnvironmentSettings.newInstance().withConfiguration(sessionConf).build();
 
-        TableConfig tableConfig = new TableConfig();
-        tableConfig.addConfiguration(sessionConf);
-
         StreamExecutionEnvironment streamExecEnv = createStreamExecutionEnvironment();
+
+        TableConfig tableConfig = TableConfig.getDefault();
+        tableConfig.setRootConfiguration(defaultContext.getFlinkConfig());
+        tableConfig.addConfiguration(sessionConf);
 
         final Executor executor = lookupExecutor(streamExecEnv);
         return createStreamTableEnvironment(

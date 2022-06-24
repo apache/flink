@@ -19,6 +19,7 @@
 package org.apache.flink.table.gateway.service.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
@@ -47,6 +48,7 @@ import java.util.Optional;
 public class ResultFetcher {
 
     private static final Logger LOG = LoggerFactory.getLogger(ResultFetcher.class);
+    private static final int TABLE_RESULT_MAX_INITIAL_CAPACITY = 5000;
 
     private final OperationHandle operationHandle;
 
@@ -57,6 +59,19 @@ public class ResultFetcher {
 
     private long currentToken = 0;
     private boolean noMoreResults = false;
+
+    public static ResultFetcher fromTableResult(
+            OperationHandle operationHandle, TableResultInternal result) {
+        return new ResultFetcher(
+                operationHandle,
+                result.getResolvedSchema(),
+                result.collectInternal(),
+                result.getRowCount() < 0
+                        ? TABLE_RESULT_MAX_INITIAL_CAPACITY
+                        : Math.min(
+                                TABLE_RESULT_MAX_INITIAL_CAPACITY,
+                                Long.valueOf(result.getRowCount()).intValue()));
+    }
 
     public ResultFetcher(
             OperationHandle operationHandle,
