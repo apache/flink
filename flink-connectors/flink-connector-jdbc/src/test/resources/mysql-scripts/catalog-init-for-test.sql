@@ -17,8 +17,8 @@
  */
 
 /**
-* The test for mysql 5.7.X & 8.0.X versions.
-* The init script contains some types that are incompatible with 5.6.X or lower versions.
+* The test for mysql 5.6.X & 5.7.X & 8.0.X versions.
+* The init script contains some types that are incompatible with lower versions.
 */
 
 -- Creates test user info and grants privileges.
@@ -59,7 +59,6 @@ CREATE TABLE `t_all_types` (
   `col_int_unsigned` int(10) unsigned DEFAULT NULL,
   `col_integer` int(11) DEFAULT NULL,
   `col_integer_unsigned` int(10) unsigned DEFAULT NULL,
-  `col_json` json DEFAULT NULL,
   `col_longblob` longblob,
   `col_longtext` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
   `col_mediumblob` mediumblob,
@@ -91,8 +90,8 @@ CREATE TABLE `t_all_types` (
 -- ----------------------------
 -- Records of t_all_types
 -- ----------------------------
-INSERT INTO `t_all_types` VALUES (1, -1, 1, null, b'1', null, 'hello', '2021-08-04', '2021-08-04 01:54:16', -1, 1, -1, 1, 'enum2', -9.1, 9.1, -1, 1, -1, 1, '{\"k1\": \"v1\"}', null, 'col_longtext', null, -1, 1, 'col_mediumtext', -99, 99, -1, 1, 'set_ele1', -1, 1, 'col_text', '10:32:34', '2021-08-04 01:54:16', 'col_tinytext', -1, 1, null, 'col_varchar', '2021-08-04 01:54:16.463', '09:33:43.000', '2021-08-04 01:54:16.463', null);
-INSERT INTO `t_all_types` VALUES (2, -1, 1, null, b'1', null, 'hello', '2021-08-04', '2021-08-04 01:53:19', -1, 1, -1, 1, 'enum2', -9.1, 9.1, -1, 1, -1, 1, '{\"k1\": \"v1\"}', null, 'col_longtext', null, -1, 1, 'col_mediumtext', -99, 99, -1, 1, 'set_ele1,set_ele12', -1, 1, 'col_text', '10:32:34', '2021-08-04 01:53:19', 'col_tinytext', -1, 1, null, 'col_varchar', '2021-08-04 01:53:19.098', '09:33:43.000', '2021-08-04 01:53:19.098', null);
+INSERT INTO `t_all_types` VALUES (1, -1, 1, null, b'1', null, 'hello', '2021-08-04', '2021-08-04 01:54:16', -1, 1, -1, 1, 'enum2', -9.1, 9.1, -1, 1, -1, 1, null, 'col_longtext', null, -1, 1, 'col_mediumtext', -99, 99, -1, 1, 'set_ele1', -1, 1, 'col_text', '10:32:34', '2021-08-04 01:54:16', 'col_tinytext', -1, 1, null, 'col_varchar', '2021-08-04 01:54:16.463', '09:33:43.000', '2021-08-04 01:54:16.463', null);
+INSERT INTO `t_all_types` VALUES (2, -1, 1, null, b'1', null, 'hello', '2021-08-04', '2021-08-04 01:53:19', -1, 1, -1, 1, 'enum2', -9.1, 9.1, -1, 1, -1, 1, null, 'col_longtext', null, -1, 1, 'col_mediumtext', -99, 99, -1, 1, 'set_ele1,set_ele12', -1, 1, 'col_text', '10:32:34', '2021-08-04 01:53:19', 'col_tinytext', -1, 1, null, 'col_varchar', '2021-08-04 01:53:19.098', '09:33:43.000', '2021-08-04 01:53:19.098', null);
 
 -- Create test table t_all_types_sink.
 DROP TABLE IF EXISTS `t_all_types_sink`;
@@ -104,4 +103,27 @@ CREATE TABLE `t_grouped_by_sink` (
   `pid` bigint(20) NOT NULL AUTO_INCREMENT,
   `col_bigint` bigint(20) DEFAULT NULL,
   PRIMARY KEY (`pid`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Create test table t_pk.
+DROP TABLE IF EXISTS `t_pk`;
+CREATE TABLE `t_pk` (
+  `uid` bigint(20) NOT NULL AUTO_INCREMENT,
+  `col_bigint` bigint(20) DEFAULT NULL,
+  PRIMARY KEY (`uid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Create the `test2` database.
+DROP DATABASE IF EXISTS `test2`;
+CREATE DATABASE `test2` CHARSET=utf8;
+
+-- Uses `test2` database.
+use `test2`;
+
+-- Create test table t_pk.
+DROP TABLE IF EXISTS `t_pk`;
+CREATE TABLE `t_pk` (
+  `pid` int(11) NOT NULL AUTO_INCREMENT,
+  `col_varchar` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`pid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
