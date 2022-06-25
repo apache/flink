@@ -111,7 +111,7 @@ RocksDB State Backend 的性能在很大程度上取决于它可用的内存量�
 默认情况下，RocksDB State Backend 将 Flink 的托管内存用于 RocksDB 的缓冲区和缓存（`State.Backend.RocksDB.memory.managed:true`）。请参考 [RocksDB 内存管理]({{< ref "docs/ops/state/state_backends" >}}#memory-management) 了解该机制的工作原理。
 关于 RocksDB 内存调优相关的性能问题，如下步骤可能会有所帮助：
 
-  - 尝试提高性能的第一步应该是增加托管内存的大小。这通常会大大改善这种情况，而不会增加调整 RocksDB 低级选项的复杂性。
+  - 尝试提高性能的第一步应该是增加托管内存的大小。这通常会大大改善这种情况，而不是通过调整 RocksDB 底层参数引入复杂性。
     尤其是在容器、进程规模较大的情况下，除非应用程序本身逻辑需要大量的 JVM 堆，否则大部分总内存通常都可以用于 RocksDB 。默认的托管内存比例 *(0.4)* 是保守的，当 TaskManager 进程的内存为很多 GB 时，通常是可以增加该托管内存比例。
 
   - 在 RocksDB 中，写缓冲区的数量取决于应用程序中所拥有的状态数量（数据流中所有算子的状态）。每个状态对应一个列族（ColumnFamily），它需要自己写缓冲区。因此，具有多状态的应用程序通常需要更多的内存才能获得相同的性能。
