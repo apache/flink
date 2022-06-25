@@ -56,7 +56,7 @@ Flink 应用要想在大规模场景下可靠地运行，必须要满足如下�
 请注意，在出现瞬态反压、数据倾斜或网络问题时，这些数值偶尔会很高。
 
 
-[Unaligned checkpoints]({{< ref "docs/ops/state/checkpoints" >}}#unaligned-checkpoints) 可用于加快传播时间的 checkpoint barriers。 但是请注意，这并不能解决导致反压的根本问题(端到端记录延迟仍然很高)。
+[Unaligned checkpoints]({{< ref "docs/ops/state/checkpoints" >}}#unaligned-checkpoints) 可用于加快checkpoint barriers的传播。 但是请注意，这并不能解决导致反压的根本问题(端到端记录延迟仍然很高)。
 
 ## Checkpoint 调优
 
