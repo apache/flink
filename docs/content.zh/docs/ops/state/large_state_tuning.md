@@ -85,7 +85,7 @@ Flink 应用要想在大规模场景下可靠地运行，必须要满足如下�
 ## RocksDB 调优
 
 许多大型 Flink 流应用程序的状态存储主要是 *RocksDB State Backend*。
-后端的扩展能力远远超出了主内存，并且可靠地存储了大的 [keyed state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}})。
+该backend在主内存之上提供了很好的拓展能力，并且可靠地存储了大的 [keyed state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}})。
 
 RocksDB 的性能可能因配置而异，本节讲述了一些使用 RocksDB State Backend 调优作业的最佳实践。
 
