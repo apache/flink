@@ -47,7 +47,7 @@ Flink 应用要想在大规模场景下可靠地运行，必须要满足如下�
 这两个指标（均通过 Task 级别 [Checkpointing 指标]({{< ref "docs/ops/metrics" >}}#checkpointing) 展示）
 以及在 [监控 Checkpoint]({{< ref "docs/ops/monitoring/checkpoint_monitoring" >}}))中，当看 checkpoint 详细信息时，特别有趣的是:
 
-  - 算子收到第一个 checkpoint barrier 的时间。当触发 checkpoint 的延迟时间一直很高时，这意味着 *checkpoint barrier* 需要很长时间才能从 source 到达 operators。 这通常表明系统处于反压下运行。
+  - 算子收到第一个 checkpoint barrier 的时间。当触发 checkpoint 的耗费时间一直很高时，这意味着 *checkpoint barrier* 需要很长时间才能从 source 到达 operators。 这通常表明系统处于反压下运行。
 
   - Alignment Duration，为处理第一个和最后一个 checkpoint barrier 之间的时间。在 unaligned checkpoints 下，`exactly-once` 和 `at-least-once` checkpoints 的 subtasks 处理来自上游 subtasks 的所有数据，且没有任何中断。
     然而，对于 aligned `exactly-once` checkpoints，已经收到 checkpoint barrier 的通道被阻止继续发送数据，直到所有剩余的通道都赶上并接收它们的 checkpoint barrier（对齐时间）。
