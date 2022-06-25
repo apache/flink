@@ -98,7 +98,6 @@ import org.apache.calcite.util.ConversionUtil;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
-import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -747,10 +746,7 @@ public class HiveParserUtils {
     public static HiveParserASTNode rewriteGroupingFunctionAST(
             final List<HiveParserASTNode> grpByAstExprs,
             HiveParserASTNode targetNode,
-            final boolean noneSet)
-            throws SemanticException {
-        final MutableBoolean visited = new MutableBoolean(false);
-        final MutableBoolean found = new MutableBoolean(false);
+            final boolean noneSet) {
         final boolean legacyGrouping = legacyGrouping();
 
         TreeVisitorAction action =
@@ -765,13 +761,10 @@ public class HiveParserUtils {
                     public Object post(Object t) {
                         HiveParserASTNode current = (HiveParserASTNode) t;
                         // rewrite grouping function
-                        if (current.getType() == HiveASTParser.TOK_FUNCTION
-                                && current.getChildCount() >= 2) {
+                        if (current.getType() == HiveASTParser.TOK_FUNCTION) {
                             HiveParserASTNode func = (HiveParserASTNode) current.getChild(0);
-                            if (func.getText().equals("grouping")) {
-                                visited.setValue(true);
-                                convertGrouping(
-                                        current, grpByAstExprs, noneSet, legacyGrouping, found);
+                            if (func.getText().equals("grouping") && func.getChildCount() == 0) {
+                                convertGrouping(current, grpByAstExprs, noneSet, legacyGrouping);
                             }
                         } else if (legacyGrouping
                                 && current.getType() == HiveASTParser.TOK_TABLE_OR_COL
@@ -786,13 +779,8 @@ public class HiveParserUtils {
                         return t;
                     }
                 };
-        HiveParserASTNode newTargetNode =
-                (HiveParserASTNode)
-                        new TreeVisitor(HiveASTParseDriver.ADAPTOR).visit(targetNode, action);
-        if (visited.booleanValue() && !found.booleanValue()) {
-            throw new SemanticException("Expression in GROUPING function not present in GROUP BY");
-        }
-        return newTargetNode;
+        return (HiveParserASTNode)
+                new TreeVisitor(HiveASTParseDriver.ADAPTOR).visit(targetNode, action);
     }
 
     private static HiveParserASTNode convertToLegacyGroupingId(
@@ -817,51 +805,76 @@ public class HiveParserUtils {
     }
 
     private static void convertGrouping(
-            HiveParserASTNode function,
+            HiveParserASTNode root,
             List<HiveParserASTNode> grpByAstExprs,
             boolean noneSet,
-            boolean legacyGrouping,
-            MutableBoolean found) {
-        HiveParserASTNode col = (HiveParserASTNode) function.getChild(1);
-        for (int i = 0; i < grpByAstExprs.size(); i++) {
-            HiveParserASTNode grpByExpr = grpByAstExprs.get(i);
-            if (grpByExpr.toStringTree().equals(col.toStringTree())) {
-                HiveParserASTNode child1;
-                if (noneSet) {
-                    // Query does not contain CUBE, ROLLUP, or GROUPING
-                    // SETS, and thus, grouping should return 0
-                    child1 =
-                            (HiveParserASTNode)
-                                    HiveASTParseDriver.ADAPTOR.create(
-                                            HiveASTParser.IntegralLiteral, String.valueOf(0));
-                } else {
-                    // We refer to grouping_id column
-                    child1 =
-                            (HiveParserASTNode)
-                                    HiveASTParseDriver.ADAPTOR.create(
-                                            HiveASTParser.TOK_TABLE_OR_COL, "TOK_TABLE_OR_COL");
-                    HiveASTParseDriver.ADAPTOR.addChild(
-                            child1,
+            boolean legacyGrouping) {
+        int numberOperands = root.getChildCount();
+        // We implement this logic using replaceChildren instead of replacing
+        // the root node itself because windowing logic stores multiple
+        // pointers to the AST, and replacing root might lead to some pointers
+        // leading to non-rewritten version
+        HiveParserASTNode newRoot = new HiveParserASTNode();
+        // Rewritten grouping function
+        HiveParserASTNode groupingFunc =
+                (HiveParserASTNode)
+                        HiveASTParseDriver.ADAPTOR.create(HiveASTParser.Identifier, "grouping");
+        HiveASTParseDriver.ADAPTOR.addChild(
+                groupingFunc,
+                HiveASTParseDriver.ADAPTOR.create(HiveASTParser.Identifier, "rewritten"));
+        newRoot.addChild(groupingFunc);
+        // Grouping ID reference
+        HiveParserASTNode childGroupingID;
+        if (noneSet) {
+            // Query does not contain CUBE, ROLLUP, or GROUPING
+            // SETS, and thus, grouping should return 0
+            childGroupingID =
+                    (HiveParserASTNode)
                             HiveASTParseDriver.ADAPTOR.create(
-                                    HiveASTParser.Identifier, VirtualColumn.GROUPINGID.getName()));
-                    if (legacyGrouping) {
-                        child1 = convertToLegacyGroupingId(child1, grpByAstExprs.size());
-                    }
-                }
-                HiveParserASTNode child2 =
-                        (HiveParserASTNode)
-                                HiveASTParseDriver.ADAPTOR.create(
-                                        HiveASTParser.IntegralLiteral,
-                                        String.valueOf(
-                                                nonNegativeMod(
-                                                        legacyGrouping ? i : -i - 1,
-                                                        grpByAstExprs.size())));
-                function.setChild(1, child1);
-                function.addChild(child2);
-                found.setValue(true);
-                break;
+                                    HiveASTParser.IntegralLiteral, String.valueOf(0));
+        } else {
+            // We refer to grouping_id column
+            childGroupingID =
+                    (HiveParserASTNode)
+                            HiveASTParseDriver.ADAPTOR.create(
+                                    HiveASTParser.TOK_TABLE_OR_COL, "TOK_TABLE_OR_COL");
+            HiveASTParseDriver.ADAPTOR.addChild(
+                    childGroupingID,
+                    HiveASTParseDriver.ADAPTOR.create(
+                            HiveASTParser.Identifier, VirtualColumn.GROUPINGID.getName()));
+            if (legacyGrouping) {
+                childGroupingID = convertToLegacyGroupingId(childGroupingID, grpByAstExprs.size());
             }
         }
+        newRoot.addChild(childGroupingID);
+
+        // Indices
+        for (int i = 1; i < numberOperands; i++) {
+            HiveParserASTNode c = (HiveParserASTNode) root.getChild(i);
+            for (int j = 0; j < grpByAstExprs.size(); j++) {
+                HiveParserASTNode grpByExpr = grpByAstExprs.get(j);
+                if (grpByExpr.toStringTree().equals(c.toStringTree())) {
+                    // Create and add AST node with position of grouping function input
+                    // in group by clause
+                    HiveParserASTNode childN =
+                            (HiveParserASTNode)
+                                    HiveASTParseDriver.ADAPTOR.create(
+                                            HiveASTParser.IntegralLiteral,
+                                            String.valueOf(
+                                                    nonNegativeMod(
+                                                            legacyGrouping ? j : -j - 1,
+                                                            grpByAstExprs.size())));
+                    newRoot.addChild(childN);
+                    break;
+                }
+            }
+        }
+
+        if (numberOperands + 1 != HiveASTParseDriver.ADAPTOR.getChildCount(newRoot)) {
+            throw new FlinkHiveException("Expression in GROUPING function not present in GROUP BY");
+        }
+        // Replace expression
+        root.replaceChildren(0, numberOperands - 1, newRoot);
     }
 
     public static boolean legacyGrouping(Configuration conf) {

@@ -333,6 +333,34 @@ public class HiveDialectQueryITCase {
         }
     }
 
+    @Test
+    public void testWindowWithGrouping() throws Exception {
+        tableEnv.executeSql("create table t(category int, live int, comments int)");
+        try {
+            tableEnv.executeSql("insert into table t values (1, 0, 2), (2, 0, 2), (3, 0, 2)")
+                    .await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select grouping(category),"
+                                                    + " lag(live) over(partition by grouping(category)) "
+                                                    + "from t group by category, live")
+                                    .collect());
+            assertThat(result.toString()).isEqualTo("[+I[0, null], +I[0, 0], +I[0, 0]]");
+            // test grouping with multiple parameters
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select grouping(category, live),"
+                                                    + " lead(live) over(partition by grouping(category, live)) "
+                                                    + "from t group by category, live")
+                                    .collect());
+            assertThat(result.toString()).isEqualTo("[+I[0, 0], +I[0, 0], +I[0, null]]");
+        } finally {
+            tableEnv.executeSql("drop table t");
+        }
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {
