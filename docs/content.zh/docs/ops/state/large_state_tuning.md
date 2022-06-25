@@ -156,7 +156,7 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 
   - 在无故障时间内无反压运行程序所需的资源之上能够提供一些额外的资源。
     需要这些资源来“追赶”在应用程序恢复期间积累的输入数据。
-    这通常取决于恢复操作需要多长时间（这取决于在故障转移时需要加载到新 TaskManager 中的状态大小）以及故障恢复的速度。
+    这通常取决于恢复操作需要多长时间（这取决于在故障恢复时需要加载到新 TaskManager 中的状态大小）以及故障恢复的速度。
 
     *重要提示*：基准点应该在开启 checkpointing 来建立，因为 checkpointing 会占用一些资源（例如网络带宽）。
 
