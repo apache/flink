@@ -20,6 +20,7 @@ package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.deserialize.PbRowDataDeserializationSchema;
 import org.apache.flink.formats.protobuf.testproto.SimpleTest;
+import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -36,7 +37,7 @@ import static org.junit.Assert.assertTrue;
 public class SimpleProtoToRowTest {
     @Test
     public void testSimple() throws Exception {
-        RowType rowType = PbRowTypeInformationUtil.generateRowType(SimpleTest.getDescriptor());
+        RowType rowType = PbToRowTypeUtil.generateRowType(SimpleTest.getDescriptor());
         PbFormatConfig formatConfig =
                 new PbFormatConfig(SimpleTest.class.getName(), false, false, "");
         PbRowDataDeserializationSchema deserializationSchema =
@@ -73,7 +74,7 @@ public class SimpleProtoToRowTest {
 
     @Test
     public void testNotExistsValueIgnoringDefault() throws Exception {
-        RowType rowType = PbRowTypeInformationUtil.generateRowType(SimpleTest.getDescriptor());
+        RowType rowType = PbToRowTypeUtil.generateRowType(SimpleTest.getDescriptor());
         PbFormatConfig formatConfig =
                 new PbFormatConfig(SimpleTest.class.getName(), false, false, "");
         PbRowDataDeserializationSchema deserializationSchema =
@@ -98,7 +99,7 @@ public class SimpleProtoToRowTest {
 
     @Test
     public void testDefaultValues() throws Exception {
-        RowType rowType = PbRowTypeInformationUtil.generateRowType(SimpleTest.getDescriptor());
+        RowType rowType = PbToRowTypeUtil.generateRowType(SimpleTest.getDescriptor());
         PbFormatConfig formatConfig =
                 new PbFormatConfig(SimpleTest.class.getName(), false, true, "");
         PbRowDataDeserializationSchema deserializationSchema =
@@ -130,8 +131,7 @@ public class SimpleProtoToRowTest {
 
     @Test
     public void testIntEnum() throws Exception {
-        RowType rowType =
-                PbRowTypeInformationUtil.generateRowType(SimpleTest.getDescriptor(), true);
+        RowType rowType = PbToRowTypeUtil.generateRowType(SimpleTest.getDescriptor(), true);
         PbFormatConfig formatConfig =
                 new PbFormatConfig(SimpleTest.class.getName(), false, false, "");
         PbRowDataDeserializationSchema deserializationSchema =

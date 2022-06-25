@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.protobuf;
+package org.apache.flink.formats.protobuf.util;
 
+import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -36,7 +37,7 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 
 /** Generate Row type information according to pb descriptors. */
-public class PbRowTypeInformationUtil {
+public class PbToRowTypeUtil {
     public static RowType generateRowType(Descriptors.Descriptor root) {
         return generateRowType(root, false);
     }

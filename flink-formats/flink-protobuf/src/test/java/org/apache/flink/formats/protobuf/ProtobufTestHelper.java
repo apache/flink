@@ -20,6 +20,8 @@ package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.protobuf.serialize.PbRowDataSerializationSchema;
+import org.apache.flink.formats.protobuf.util.PbFormatUtils;
+import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -85,10 +87,8 @@ public class ProtobufTestHelper {
             RowData row, Class messageClass, PbFormatConfig formatConfig, boolean enumAsInt)
             throws Exception {
         RowType rowType =
-                PbRowTypeInformationUtil.generateRowType(
-                        org.apache.flink.formats.protobuf.PbFormatUtils.getDescriptor(
-                                messageClass.getName()),
-                        enumAsInt);
+                PbToRowTypeUtil.generateRowType(
+                        PbFormatUtils.getDescriptor(messageClass.getName()), enumAsInt);
         row = validateRow(row, rowType);
         PbRowDataSerializationSchema serializationSchema =
                 new PbRowDataSerializationSchema(rowType, formatConfig);
@@ -99,7 +99,7 @@ public class ProtobufTestHelper {
     public static byte[] rowToPbBytesWithoutValidation(
             RowData row, Class messageClass, PbFormatConfig formatConfig) {
         RowType rowType =
-                PbRowTypeInformationUtil.generateRowType(
+                PbToRowTypeUtil.generateRowType(
                         PbFormatUtils.getDescriptor(messageClass.getName()));
         PbRowDataSerializationSchema serializationSchema =
                 new PbRowDataSerializationSchema(rowType, formatConfig);

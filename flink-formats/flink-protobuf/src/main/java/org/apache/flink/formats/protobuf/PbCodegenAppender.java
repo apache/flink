@@ -20,30 +20,21 @@ package org.apache.flink.formats.protobuf;
 
 /** Helper class which do code fragment concat. */
 public class PbCodegenAppender {
-    private StringBuilder sb;
+    private final StringBuilder sb;
 
     public PbCodegenAppender() {
         sb = new StringBuilder();
     }
 
     public void appendLine(String code) {
-        sb.append(code + ";\n");
+        sb.append(code).append(";\n");
     }
 
     public void appendSegment(String code) {
-        sb.append(code + "\n");
+        sb.append(code).append("\n");
     }
 
     public String code() {
-        return sb.toString();
-    }
-
-    public static String printWithLineNumber(String code) {
-        StringBuilder sb = new StringBuilder();
-        String[] lines = code.split("\n");
-        for (int i = 0; i < lines.length; i++) {
-            sb.append("Line " + (i + 1) + ": " + lines[i] + "\n");
-        }
         return sb.toString();
     }
 
@@ -51,7 +42,7 @@ public class PbCodegenAppender {
         StringBuilder newSb = new StringBuilder();
         String[] lines = sb.toString().split("\n");
         for (int i = 0; i < lines.length; i++) {
-            newSb.append("Line " + (i + 1) + ": " + lines[i] + "\n");
+            newSb.append("Line ").append(i + 1).append(": ").append(lines[i]).append("\n");
         }
         return newSb.toString();
     }

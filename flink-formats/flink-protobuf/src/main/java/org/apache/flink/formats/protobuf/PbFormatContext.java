@@ -20,8 +20,8 @@ package org.apache.flink.formats.protobuf;
 
 /** store config and common information. */
 public class PbFormatContext {
-    private String outerPrefix;
-    private PbFormatConfig pbFormatConfig;
+    private final String outerPrefix;
+    private final PbFormatConfig pbFormatConfig;
 
     public PbFormatContext(String outerPrefix, PbFormatConfig pbFormatConfig) {
         this.outerPrefix = outerPrefix;
@@ -32,15 +32,7 @@ public class PbFormatContext {
         return outerPrefix;
     }
 
-    public void setOuterPrefix(String outerPrefix) {
-        this.outerPrefix = outerPrefix;
-    }
-
     public PbFormatConfig getPbFormatConfig() {
         return pbFormatConfig;
-    }
-
-    public void setPbFormatConfig(PbFormatConfig pbFormatConfig) {
-        this.pbFormatConfig = pbFormatConfig;
     }
 }

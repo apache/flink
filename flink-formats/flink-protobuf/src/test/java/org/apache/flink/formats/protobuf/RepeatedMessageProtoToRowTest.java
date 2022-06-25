@@ -20,6 +20,7 @@ package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.deserialize.PbRowDataDeserializationSchema;
 import org.apache.flink.formats.protobuf.testproto.RepeatedMessageTest;
+import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -33,8 +34,7 @@ import static org.junit.Assert.assertEquals;
 public class RepeatedMessageProtoToRowTest {
     @Test
     public void testRepeatedMessage() throws Exception {
-        RowType rowType =
-                PbRowTypeInformationUtil.generateRowType(RepeatedMessageTest.getDescriptor());
+        RowType rowType = PbToRowTypeUtil.generateRowType(RepeatedMessageTest.getDescriptor());
         PbFormatConfig formatConfig =
                 new PbFormatConfig(RepeatedMessageTest.class.getName(), false, false, "");
         PbRowDataDeserializationSchema deserializationSchema =

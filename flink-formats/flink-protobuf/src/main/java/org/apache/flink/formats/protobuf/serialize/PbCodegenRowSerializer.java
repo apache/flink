@@ -20,10 +20,10 @@ package org.apache.flink.formats.protobuf.serialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
-import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbFormatContext;
-import org.apache.flink.formats.protobuf.PbFormatUtils;
+import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
+import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
@@ -44,16 +44,17 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
     }
 
     @Override
-    public String codegen(String returnPbVarName, String internalDataGetStr)
-            throws PbCodegenException {
+    public String codegen(String resultVar, String flinkObjectCode) throws PbCodegenException {
+        // The type of flinkObjectCode is a RowData of flink,
+        // it should be converted to object of protobuf as resultVariable.
         PbCodegenVarId varUid = PbCodegenVarId.getInstance();
         int uid = varUid.getAndIncrement();
         PbCodegenAppender appender = new PbCodegenAppender();
-        String rowDataVar = "rowData" + uid;
+        String flinkRowDataVar = "rowData" + uid;
         String pbMessageTypeStr =
                 PbFormatUtils.getFullJavaName(descriptor, formatContext.getOuterPrefix());
         String messageBuilderVar = "messageBuilder" + uid;
-        appender.appendLine("RowData " + rowDataVar + " = " + internalDataGetStr);
+        appender.appendLine("RowData " + flinkRowDataVar + " = " + flinkObjectCode);
         appender.appendLine(
                 pbMessageTypeStr
                         + ".Builder "
@@ -83,14 +84,13 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
 
             // Only set non-null element of flink row to proto object. The real value in proto
             // result depends on protobuf implementation.
-            appender.appendSegment("if(!" + rowDataVar + ".isNullAt(" + index + ")){");
+            appender.appendSegment("if(!" + flinkRowDataVar + ".isNullAt(" + index + ")){");
             appender.appendLine(elementPbTypeStr + " " + elementPbVar);
-            String subRowGetCode =
-                    PbCodegenUtils.getContainerDataFieldGetterCodePhrase(
-                            rowDataVar, index + "", subType);
+            String flinkRowElementCode =
+                    PbCodegenUtils.flinkContainerElementCode(flinkRowDataVar, index + "", subType);
             PbCodegenSerializer codegen =
                     PbCodegenSerializeFactory.getPbCodegenSer(elementFd, subType, formatContext);
-            String code = codegen.codegen(elementPbVar, subRowGetCode);
+            String code = codegen.codegen(elementPbVar, flinkRowElementCode);
             appender.appendSegment(code);
             if (subType.getTypeRoot() == LogicalTypeRoot.ARRAY) {
                 appender.appendLine(
@@ -120,7 +120,7 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
             appender.appendSegment("}");
             index += 1;
         }
-        appender.appendLine(returnPbVarName + " = " + messageBuilderVar + ".build()");
+        appender.appendLine(resultVar + " = " + messageBuilderVar + ".build()");
         return appender.code();
     }
 }

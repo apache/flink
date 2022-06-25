@@ -20,10 +20,10 @@ package org.apache.flink.formats.protobuf.serialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
-import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.formats.protobuf.PbFormatContext;
+import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 
@@ -43,8 +43,9 @@ public class PbCodegenMapSerializer implements PbCodegenSerializer {
     }
 
     @Override
-    public String codegen(String returnPbVarName, String internalDataGetStr)
-            throws PbCodegenException {
+    public String codegen(String resultVar, String flinkObjectCode) throws PbCodegenException {
+        // The type of flinkObjectCode is a MapData of flink,
+        // it should be converted to map of protobuf as resultVariable.
         PbCodegenVarId varUid = PbCodegenVarId.getInstance();
         int uid = varUid.getAndIncrement();
         LogicalType keyType = mapType.getKeyType();
@@ -60,19 +61,17 @@ public class PbCodegenMapSerializer implements PbCodegenSerializer {
         String valueProtoTypeStr =
                 PbCodegenUtils.getTypeStrFromProto(valueFd, false, formatContext.getOuterPrefix());
 
-        String keyArrDataVar = "keyArrData" + uid;
-        String valueArrDataVar = "valueArrData" + uid;
+        String flinkKeyArrDataVar = "keyArrData" + uid;
+        String flinkValueArrDataVar = "valueArrData" + uid;
         String iVar = "i" + uid;
         String pbMapVar = "resultPbMap" + uid;
         String keyPbVar = "keyPbVar" + uid;
         String valuePbVar = "valuePbVar" + uid;
-        String keyDataVar = "keyDataVar" + uid;
-        String valueDataVar = "valueDataVar" + uid;
 
         appender.appendLine(
-                "ArrayData " + keyArrDataVar + " = " + internalDataGetStr + ".keyArray()");
+                "ArrayData " + flinkKeyArrDataVar + " = " + flinkObjectCode + ".keyArray()");
         appender.appendLine(
-                "ArrayData " + valueArrDataVar + " = " + internalDataGetStr + ".valueArray()");
+                "ArrayData " + flinkValueArrDataVar + " = " + flinkObjectCode + ".valueArray()");
 
         appender.appendLine(
                 "Map<"
@@ -88,33 +87,27 @@ public class PbCodegenMapSerializer implements PbCodegenSerializer {
                         + " = 0; "
                         + iVar
                         + " < "
-                        + keyArrDataVar
+                        + flinkKeyArrDataVar
                         + ".size(); "
                         + iVar
                         + "++){");
 
         // process key
-        String keyGenCode =
-                PbCodegenUtils.generateArrElementCodeWithDefaultValue(
-                        keyArrDataVar, iVar, keyPbVar, keyDataVar, keyFd, keyType, formatContext);
-        appender.appendSegment(keyGenCode);
+        String convertFlinkKeyArrayElementToPbCode =
+                PbCodegenUtils.convertFlinkArrayElementToPbWithDefaultValueCode(
+                        flinkKeyArrDataVar, iVar, keyPbVar, keyFd, keyType, formatContext);
+        appender.appendSegment(convertFlinkKeyArrayElementToPbCode);
 
         // process value
-        String valueGenCode =
-                PbCodegenUtils.generateArrElementCodeWithDefaultValue(
-                        valueArrDataVar,
-                        iVar,
-                        valuePbVar,
-                        valueDataVar,
-                        valueFd,
-                        valueType,
-                        formatContext);
-        appender.appendSegment(valueGenCode);
+        String convertFlinkValueArrayElementToPbCode =
+                PbCodegenUtils.convertFlinkArrayElementToPbWithDefaultValueCode(
+                        flinkValueArrDataVar, iVar, valuePbVar, valueFd, valueType, formatContext);
+        appender.appendSegment(convertFlinkValueArrayElementToPbCode);
 
         appender.appendLine(pbMapVar + ".put(" + keyPbVar + ", " + valuePbVar + ")");
         appender.appendSegment("}");
 
-        appender.appendLine(returnPbVarName + " = " + pbMapVar);
+        appender.appendLine(resultVar + " = " + pbMapVar);
         return appender.code();
     }
 }

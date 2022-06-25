@@ -20,11 +20,11 @@ package org.apache.flink.formats.protobuf.deserialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
-import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatContext;
-import org.apache.flink.formats.protobuf.PbFormatUtils;
+import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
+import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;

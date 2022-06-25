@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.protobuf;
+package org.apache.flink.formats.protobuf.util;
 
+import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
@@ -28,8 +29,8 @@ import com.google.protobuf.Descriptors;
 public class PbFormatUtils {
 
     /**
-     * protobuf code has a bug that, f_abc_7d will be convert to fAbc7d in {@code
-     * com.google.protobuf.Descriptors.FileDescriptor.getJsonName()}, but actually we need fAbc7D.
+     * protobuf code has a bug that, f_abc_7d will be converted to fAbc7d in {@link
+     * Descriptors.FieldDescriptor#getJsonName()}, but actually we need fAbc7D.
      */
     public static String fieldNameToJsonName(String name) {
         final int length = name.length();
@@ -118,9 +119,9 @@ public class PbFormatUtils {
                     Class.forName(className, true, Thread.currentThread().getContextClassLoader());
             return (Descriptors.Descriptor)
                     pbClass.getMethod(PbConstant.PB_METHOD_GET_DESCRIPTOR).invoke(null);
-        } catch (Exception y) {
+        } catch (Exception e) {
             throw new IllegalArgumentException(
-                    String.format("get %s descriptors error!", className), y);
+                    String.format("get %s descriptors error!", className), e);
         }
     }
 

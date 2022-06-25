@@ -34,11 +34,9 @@ public class PbCodegenSimpleDeserializer implements PbCodegenDeserializer {
         this.logicalType = logicalType;
     }
 
-    /** {@code pbGetStr} is primitive type and must not be null. */
     @Override
-    public String codegen(String returnInternalDataVarName, String pbGetStr)
-            throws PbCodegenException {
-        // the type of messageGetStr must not be primitive type,
+    public String codegen(String resultVar, String pbObjectCode) throws PbCodegenException {
+        // the type of pbObjectCode must not be primitive type,
         // it should convert to internal flink row type like StringData.
         StringBuilder sb = new StringBuilder();
         switch (fd.getJavaType()) {
@@ -47,30 +45,30 @@ public class PbCodegenSimpleDeserializer implements PbCodegenDeserializer {
             case FLOAT:
             case DOUBLE:
             case BOOLEAN:
-                sb.append(returnInternalDataVarName + " = " + pbGetStr + ";");
+                sb.append(resultVar + " = " + pbObjectCode + ";");
                 break;
             case BYTE_STRING:
-                sb.append(returnInternalDataVarName + " = " + pbGetStr + ".toByteArray();");
+                sb.append(resultVar + " = " + pbObjectCode + ".toByteArray();");
                 break;
             case STRING:
                 sb.append(
-                        returnInternalDataVarName
+                        resultVar
                                 + " = BinaryStringData.fromString("
-                                + pbGetStr
+                                + pbObjectCode
                                 + ".toString());");
             case ENUM:
                 if (logicalType.getTypeRoot() == LogicalTypeRoot.CHAR
                         || logicalType.getTypeRoot() == LogicalTypeRoot.VARCHAR) {
                     sb.append(
-                            returnInternalDataVarName
+                            resultVar
                                     + " = BinaryStringData.fromString("
-                                    + pbGetStr
+                                    + pbObjectCode
                                     + ".toString());");
                 } else if (logicalType.getTypeRoot() == LogicalTypeRoot.TINYINT
                         || logicalType.getTypeRoot() == LogicalTypeRoot.SMALLINT
                         || logicalType.getTypeRoot() == LogicalTypeRoot.INTEGER
                         || logicalType.getTypeRoot() == LogicalTypeRoot.BIGINT) {
-                    sb.append(returnInternalDataVarName + " = " + pbGetStr + ".getNumber();");
+                    sb.append(resultVar + " = " + pbObjectCode + ".getNumber();");
                 } else {
                     throw new PbCodegenException(
                             "Illegal type for protobuf enum, only char/vachar/int/bigint is supported");

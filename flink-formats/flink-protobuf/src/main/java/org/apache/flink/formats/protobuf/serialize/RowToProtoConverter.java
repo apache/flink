@@ -20,12 +20,12 @@ package org.apache.flink.formats.protobuf.serialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
-import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatContext;
-import org.apache.flink.formats.protobuf.PbFormatUtils;
 import org.apache.flink.formats.protobuf.deserialize.ProtoToRowConverter;
+import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
+import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -50,7 +50,6 @@ import java.util.UUID;
  */
 public class RowToProtoConverter {
     private static final Logger LOG = LoggerFactory.getLogger(ProtoToRowConverter.class);
-
     private final Method encodeMethod;
 
     public RowToProtoConverter(RowType rowType, PbFormatConfig formatConfig)

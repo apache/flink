@@ -21,7 +21,7 @@ package org.apache.flink.formats.protobuf.serialize;
 import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbFormatContext;
-import org.apache.flink.formats.protobuf.PbFormatUtils;
+import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import com.google.protobuf.Descriptors;
@@ -40,46 +40,47 @@ public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
         this.formatContext = formatContext;
     }
 
-    /**
-     * @param internalDataGetStr the real value of {@code internalDataGetStr} may be String, int,
-     *     long, double, float, boolean, byte[], enum value {@code internalDataGetStr} must not be
-     *     null.
-     */
     @Override
-    public String codegen(String returnPbVarName, String internalDataGetStr) {
+    public String codegen(String resultVar, String flinkObjectCode) {
+        // the real value of flinkObjectCode may be String, Integer,
+        // Long, Double, Float, Boolean, byte[].
+        // The type of flinkObject is simple data type of flink, and flinkObject must not be null.
+        // it should be converted to protobuf simple data as resultVariable.
         PbCodegenAppender appender = new PbCodegenAppender();
         switch (type.getTypeRoot()) {
-            case BIGINT:
             case FLOAT:
             case DOUBLE:
             case BOOLEAN:
-                return returnPbVarName + " = " + internalDataGetStr + ";";
+                return resultVar + " = " + flinkObjectCode + ";";
+            case BIGINT:
             case INTEGER:
+            case SMALLINT:
+            case TINYINT:
                 if (fd.getJavaType() == JavaType.ENUM) {
                     String enumTypeStr =
                             PbFormatUtils.getFullJavaName(
                                     fd.getEnumType(), formatContext.getOuterPrefix());
                     appender.appendLine(
-                            returnPbVarName
+                            resultVar
                                     + " = "
                                     + enumTypeStr
                                     + ".forNumber((int)"
-                                    + internalDataGetStr
+                                    + flinkObjectCode
                                     + ")");
                     // choose the first enum element as default value if such value is invalid enum
-                    appender.appendSegment("if(null == " + returnPbVarName + "){");
-                    appender.appendLine(returnPbVarName + " = " + enumTypeStr + ".values()[0]");
+                    appender.appendSegment("if(null == " + resultVar + "){");
+                    appender.appendLine(resultVar + " = " + enumTypeStr + ".values()[0]");
                     appender.appendSegment("}");
                     return appender.code();
                 } else {
-                    return returnPbVarName + " = " + internalDataGetStr + ";";
+                    return resultVar + " = " + flinkObjectCode + ";";
                 }
             case VARCHAR:
             case CHAR:
                 int uid = PbCodegenVarId.getInstance().getAndIncrement();
                 String fromVar = "fromVar" + uid;
                 appender.appendLine("String " + fromVar);
-                appender.appendLine(fromVar + " = " + internalDataGetStr + ".toString()");
+                appender.appendLine(fromVar + " = " + flinkObjectCode + ".toString()");
                 if (fd.getJavaType() == JavaType.ENUM) {
                     String enumValueDescVar = "enumValueDesc" + uid;
                     String enumTypeStr =
@@ -95,25 +96,20 @@ public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
                                     + ")");
                     appender.appendSegment("if(null == " + enumValueDescVar + "){");
                     // choose the first enum element as default value if such value is invalid enum
-                    appender.appendLine(returnPbVarName + " = " + enumTypeStr + ".values()[0]");
+                    appender.appendLine(resultVar + " = " + enumTypeStr + ".values()[0]");
                     appender.appendSegment("}");
                     appender.appendSegment("else{");
                     // choose the exact enum value
                     appender.appendLine(
-                            returnPbVarName
-                                    + " = "
-                                    + enumTypeStr
-                                    + ".valueOf("
-                                    + enumValueDescVar
-                                    + ")");
+                            resultVar + " = " + enumTypeStr + ".valueOf(" + enumValueDescVar + ")");
                     appender.appendLine("}");
                 } else {
-                    appender.appendLine(returnPbVarName + " = " + fromVar);
+                    appender.appendLine(resultVar + " = " + fromVar);
                 }
                 return appender.code();
             case VARBINARY:
             case BINARY:
-                return returnPbVarName + " = ByteString.copyFrom(" + internalDataGetStr + ");";
+                return resultVar + " = ByteString.copyFrom(" + flinkObjectCode + ");";
             default:
                 throw new IllegalArgumentException("Unsupported data type in schema: " + type);
         }

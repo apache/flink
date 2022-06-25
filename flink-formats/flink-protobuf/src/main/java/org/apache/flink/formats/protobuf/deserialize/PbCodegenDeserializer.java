@@ -22,20 +22,18 @@ import org.apache.flink.formats.protobuf.PbCodegenException;
 
 /**
  * {@link PbCodegenDeserializer} is responsible for converting protobuf object to flink internal
- * data by codegen process. The codegen procedure could be considered as
+ * object by codegen process. The codegen procedure could be considered as
  *
- * <PRE>{@code returnVarName = codegen(pbGetStr) }
+ * <PRE>{@code returnVarName = codegen(pbStr) }
  * </PRE>
  */
 public interface PbCodegenDeserializer {
     /**
-     * @param returnInternalDataVarName the final var name that is calculated by codegen. This var
-     *     name will be used by outsider codegen environment. {@code returnInternalDataVarName}
-     *     should be flink data object
-     * @param pbGetStr may be a variable or expression. Current codegen environment can use this
-     *     literal name directly to access the input. {@code pbGetStr} is a value coming from
-     *     protobuf object
+     * @param resultVar the final var name that is calculated by codegen. This var name will be used
+     *     by outsider codegen environment. {@code resultVariable} should be flink object
+     * @param pbObjectCode may be a variable or expression. Current codegen environment can use this
+     *     literal name directly to access the input. {@code pbObject} should be a protobuf object
      * @return The java code generated
      */
-    String codegen(String returnInternalDataVarName, String pbGetStr) throws PbCodegenException;
+    String codegen(String resultVar, String pbObjectCode) throws PbCodegenException;
 }

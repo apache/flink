@@ -21,8 +21,8 @@ package org.apache.flink.formats.protobuf.serialize;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
-import org.apache.flink.formats.protobuf.PbFormatUtils;
-import org.apache.flink.formats.protobuf.PbSchemaValidator;
+import org.apache.flink.formats.protobuf.PbSchemaValidatorUtils;
+import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -37,11 +37,10 @@ import com.google.protobuf.Descriptors;
  * <p>Failures during deserialization are forwarded as wrapped {@link FlinkRuntimeException}.
  */
 public class PbRowDataSerializationSchema implements SerializationSchema<RowData> {
+    public static final long serialVersionUID = 1L;
 
     private final RowType rowType;
-
     private final PbFormatConfig pbFormatConfig;
-
     private transient RowToProtoConverter rowToProtoConverter;
 
     public PbRowDataSerializationSchema(RowType rowType, PbFormatConfig pbFormatConfig) {
@@ -49,7 +48,7 @@ public class PbRowDataSerializationSchema implements SerializationSchema<RowData
         this.pbFormatConfig = pbFormatConfig;
         Descriptors.Descriptor descriptor =
                 PbFormatUtils.getDescriptor(pbFormatConfig.getMessageClassName());
-        new PbSchemaValidator(descriptor, rowType).validate();
+        PbSchemaValidatorUtils.validate(descriptor, rowType);
         try {
             // validate converter in client side to early detect errors
             rowToProtoConverter = new RowToProtoConverter(rowType, pbFormatConfig);

@@ -33,12 +33,4 @@ public class PbCodegenException extends Exception {
     public PbCodegenException(Throwable cause) {
         super(cause);
     }
-
-    public PbCodegenException(
-            String message,
-            Throwable cause,
-            boolean enableSuppression,
-            boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
-    }
 }

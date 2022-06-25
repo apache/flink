@@ -33,12 +33,10 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 
 /** Validation class to verify protobuf definition and flink schema. */
-public class PbSchemaValidator {
-    private Descriptors.Descriptor descriptor;
-    private RowType rowType;
+public class PbSchemaValidatorUtils {
 
     private static final EnumMap<JavaType, EnumSet<LogicalTypeRoot>> TYPE_MATCH_MAP =
-            new EnumMap(JavaType.class);
+            new EnumMap<>(JavaType.class);
 
     static {
         TYPE_MATCH_MAP.put(JavaType.BOOLEAN, EnumSet.of(LogicalTypeRoot.BOOLEAN));
@@ -62,28 +60,7 @@ public class PbSchemaValidator {
         TYPE_MATCH_MAP.put(JavaType.LONG, EnumSet.of(LogicalTypeRoot.BIGINT));
     }
 
-    public PbSchemaValidator(Descriptors.Descriptor descriptor, RowType rowType) {
-        this.descriptor = descriptor;
-        this.rowType = rowType;
-    }
-
-    public Descriptors.Descriptor getDescriptor() {
-        return descriptor;
-    }
-
-    public void setDescriptor(Descriptors.Descriptor descriptor) {
-        this.descriptor = descriptor;
-    }
-
-    public RowType getRowType() {
-        return rowType;
-    }
-
-    public void setRowType(RowType rowType) {
-        this.rowType = rowType;
-    }
-
-    public void validate() {
+    public static void validate(Descriptors.Descriptor descriptor, RowType rowType) {
         validateTypeMatch(descriptor, rowType);
     }
 
@@ -93,7 +70,7 @@ public class PbSchemaValidator {
      * @param descriptor the {@link Descriptors.Descriptor} of the protobuf object.
      * @param rowType the corresponding {@link RowType} to the {@link Descriptors.Descriptor}
      */
-    public void validateTypeMatch(Descriptors.Descriptor descriptor, RowType rowType) {
+    private static void validateTypeMatch(Descriptors.Descriptor descriptor, RowType rowType) {
         rowType.getFields()
                 .forEach(
                         rowField -> {
@@ -116,7 +93,7 @@ public class PbSchemaValidator {
      * @param fd the {@link Descriptors.Descriptor} of the protobuf object.
      * @param logicalType the corresponding {@link LogicalType} to the {@link FieldDescriptor}
      */
-    public void validateTypeMatch(FieldDescriptor fd, LogicalType logicalType) {
+    private static void validateTypeMatch(FieldDescriptor fd, LogicalType logicalType) {
         if (!fd.isRepeated()) {
             if (fd.getJavaType() != JavaType.MESSAGE) {
                 // simple type
@@ -174,7 +151,7 @@ public class PbSchemaValidator {
      * @param fd {@link FieldDescriptor} in proto descriptor
      * @param logicalTypeRoot {@link LogicalTypeRoot} of row element
      */
-    private void validateSimpleType(FieldDescriptor fd, LogicalTypeRoot logicalTypeRoot) {
+    private static void validateSimpleType(FieldDescriptor fd, LogicalTypeRoot logicalTypeRoot) {
         if (!TYPE_MATCH_MAP.containsKey(fd.getJavaType())) {
             throw new ValidationException("Unsupported protobuf java type: " + fd.getJavaType());
         }

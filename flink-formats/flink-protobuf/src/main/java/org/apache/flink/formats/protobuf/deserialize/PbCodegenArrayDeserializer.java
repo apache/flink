@@ -20,9 +20,9 @@ package org.apache.flink.formats.protobuf.deserialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
-import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbFormatContext;
+import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import com.google.protobuf.Descriptors;
@@ -43,27 +43,26 @@ public class PbCodegenArrayDeserializer implements PbCodegenDeserializer {
     }
 
     @Override
-    public String codegen(String returnInternalDataVarName, String pbGetStr)
-            throws PbCodegenException {
-        // The type of messageGetStr is a native List object,
-        // it should be converted to ArrayData of flink internal type.
+    public String codegen(String resultVar, String pbObjectCode) throws PbCodegenException {
+        // The type of pbObjectCode represents a general List object,
+        // it should be converted to ArrayData of flink internal type as resultVariable.
         PbCodegenAppender appender = new PbCodegenAppender();
         PbCodegenVarId varUid = PbCodegenVarId.getInstance();
         int uid = varUid.getAndIncrement();
         String protoTypeStr =
                 PbCodegenUtils.getTypeStrFromProto(fd, false, formatContext.getOuterPrefix());
         String listPbVar = "list" + uid;
-        String newArrDataVar = "newArr" + uid;
-        String subReturnDataVar = "subReturnVar" + uid;
+        String flinkArrVar = "newArr" + uid;
+        String flinkArrEleVar = "subReturnVar" + uid;
         String iVar = "i" + uid;
         String subPbObjVar = "subObj" + uid;
 
-        appender.appendLine("List<" + protoTypeStr + "> " + listPbVar + "=" + pbGetStr);
+        appender.appendLine("List<" + protoTypeStr + "> " + listPbVar + "=" + pbObjectCode);
         appender.appendLine(
-                "Object[] " + newArrDataVar + "= new " + "Object[" + listPbVar + ".size()]");
+                "Object[] " + flinkArrVar + "= new " + "Object[" + listPbVar + ".size()]");
         appender.appendSegment(
                 "for(int " + iVar + "=0;" + iVar + " < " + listPbVar + ".size(); " + iVar + "++){");
-        appender.appendLine("Object " + subReturnDataVar + " = null");
+        appender.appendLine("Object " + flinkArrEleVar + " = null");
         appender.appendLine(
                 protoTypeStr
                         + " "
@@ -77,12 +76,11 @@ public class PbCodegenArrayDeserializer implements PbCodegenDeserializer {
                         + ")");
         PbCodegenDeserializer codegenDes =
                 PbCodegenDeserializeFactory.getPbCodegenDes(fd, elementType, formatContext);
-        String code = codegenDes.codegen(subReturnDataVar, subPbObjVar);
+        String code = codegenDes.codegen(flinkArrEleVar, subPbObjVar);
         appender.appendSegment(code);
-        appender.appendLine(newArrDataVar + "[" + iVar + "]=" + subReturnDataVar + "");
+        appender.appendLine(flinkArrVar + "[" + iVar + "]=" + flinkArrEleVar + "");
         appender.appendSegment("}");
-        appender.appendLine(
-                returnInternalDataVarName + " = new GenericArrayData(" + newArrDataVar + ")");
+        appender.appendLine(resultVar + " = new GenericArrayData(" + flinkArrVar + ")");
         return appender.code();
     }
 }

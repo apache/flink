@@ -20,6 +20,7 @@ package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.deserialize.PbRowDataDeserializationSchema;
 import org.apache.flink.formats.protobuf.testproto.MapTest;
+import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -35,7 +36,7 @@ import static org.junit.Assert.assertEquals;
 public class MapProtoToRowTest {
     @Test
     public void testMessage() throws Exception {
-        RowType rowType = PbRowTypeInformationUtil.generateRowType(MapTest.getDescriptor());
+        RowType rowType = PbToRowTypeUtil.generateRowType(MapTest.getDescriptor());
         PbFormatConfig formatConfig = new PbFormatConfig(MapTest.class.getName(), false, false, "");
         PbRowDataDeserializationSchema deserializationSchema =
                 new PbRowDataDeserializationSchema(

@@ -25,8 +25,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * sections. It can be only used in protobuf format code.
  */
 public class PbCodegenVarId {
-    private static PbCodegenVarId varUid = new PbCodegenVarId();
-    private AtomicInteger atomicInteger = new AtomicInteger();
+    private static final PbCodegenVarId varUid = new PbCodegenVarId();
+    private final AtomicInteger atomicInteger = new AtomicInteger();
 
     private PbCodegenVarId() {}
 

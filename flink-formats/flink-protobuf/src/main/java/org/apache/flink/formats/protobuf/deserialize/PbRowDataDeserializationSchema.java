@@ -22,8 +22,8 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
-import org.apache.flink.formats.protobuf.PbFormatUtils;
-import org.apache.flink.formats.protobuf.PbSchemaValidator;
+import org.apache.flink.formats.protobuf.PbSchemaValidatorUtils;
+import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -42,14 +42,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Failures during deserialization are forwarded as wrapped IOExceptions.
  */
 public class PbRowDataDeserializationSchema implements DeserializationSchema<RowData> {
-
     private static final long serialVersionUID = 1L;
 
     private final RowType rowType;
     private final TypeInformation<RowData> resultTypeInfo;
-
     private final PbFormatConfig formatConfig;
-
     private transient ProtoToRowConverter protoToRowConverter;
 
     public PbRowDataDeserializationSchema(
@@ -59,9 +56,8 @@ public class PbRowDataDeserializationSchema implements DeserializationSchema<Row
         this.resultTypeInfo = resultTypeInfo;
         this.formatConfig = formatConfig;
         // do it in client side to report error in the first place
-        new PbSchemaValidator(
-                        PbFormatUtils.getDescriptor(formatConfig.getMessageClassName()), rowType)
-                .validate();
+        PbSchemaValidatorUtils.validate(
+                PbFormatUtils.getDescriptor(formatConfig.getMessageClassName()), rowType);
         // this step is only used to validate codegen in client side in the first place
         try {
             // validate converter in client side to early detect errors

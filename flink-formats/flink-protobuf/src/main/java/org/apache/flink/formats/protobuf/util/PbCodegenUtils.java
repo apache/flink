@@ -16,9 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.protobuf;
+package org.apache.flink.formats.protobuf.util;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.formats.protobuf.PbCodegenAppender;
+import org.apache.flink.formats.protobuf.PbCodegenException;
+import org.apache.flink.formats.protobuf.PbCodegenVarId;
+import org.apache.flink.formats.protobuf.PbConstant;
+import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.serialize.PbCodegenSerializeFactory;
 import org.apache.flink.formats.protobuf.serialize.PbCodegenSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -33,37 +38,37 @@ public class PbCodegenUtils {
     private static final Logger LOG = LoggerFactory.getLogger(PbCodegenUtils.class);
 
     /**
-     * @param dataGetter code phrase which represent flink container type like row/array in codegen
-     *     sections
+     * @param flinkContainerCode code phrase which represent flink container type like row/array in
+     *     codegen sections
      * @param index the index number in flink container type
      * @param eleType the element type
      */
-    public static String getContainerDataFieldGetterCodePhrase(
-            String dataGetter, String index, LogicalType eleType) {
+    public static String flinkContainerElementCode(
+            String flinkContainerCode, String index, LogicalType eleType) {
         switch (eleType.getTypeRoot()) {
             case INTEGER:
-                return dataGetter + ".getInt(" + index + ")";
+                return flinkContainerCode + ".getInt(" + index + ")";
             case BIGINT:
-                return dataGetter + ".getLong(" + index + ")";
+                return flinkContainerCode + ".getLong(" + index + ")";
             case FLOAT:
-                return dataGetter + ".getFloat(" + index + ")";
+                return flinkContainerCode + ".getFloat(" + index + ")";
             case DOUBLE:
-                return dataGetter + ".getDouble(" + index + ")";
+                return flinkContainerCode + ".getDouble(" + index + ")";
             case BOOLEAN:
-                return dataGetter + ".getBoolean(" + index + ")";
+                return flinkContainerCode + ".getBoolean(" + index + ")";
             case VARCHAR:
             case CHAR:
-                return dataGetter + ".getString(" + index + ")";
+                return flinkContainerCode + ".getString(" + index + ")";
             case VARBINARY:
             case BINARY:
-                return dataGetter + ".getBinary(" + index + ")";
+                return flinkContainerCode + ".getBinary(" + index + ")";
             case ROW:
                 int size = eleType.getChildren().size();
-                return dataGetter + ".getRow(" + index + ", " + size + ")";
+                return flinkContainerCode + ".getRow(" + index + ", " + size + ")";
             case MAP:
-                return dataGetter + ".getMap(" + index + ")";
+                return flinkContainerCode + ".getMap(" + index + ")";
             case ARRAY:
-                return dataGetter + ".getArray(" + index + ")";
+                return flinkContainerCode + ".getArray(" + index + ")";
             default:
                 throw new IllegalArgumentException("Unsupported data type in schema: " + eleType);
         }
@@ -168,7 +173,7 @@ public class PbCodegenUtils {
      *
      * @return The java code phrase which represents default value calculation.
      */
-    public static String getDefaultPbValue(
+    public static String pbDefaultValueCode(
             FieldDescriptor fieldDescriptor, PbFormatContext pbFormatContext)
             throws PbCodegenException {
         String outerPrefix = pbFormatContext.getOuterPrefix();
@@ -201,47 +206,49 @@ public class PbCodegenUtils {
     }
 
     /**
-     * This method will be called from row serializer of array/map type because flink contains both
-     * array/map type in array format. Map/Arr cannot contain null value in proto object so we must
-     * do conversion in case of null values in map/arr type.
+     * This method will be called from serializer of flink array/map type because flink contains
+     * both array/map type in array format. Map/Array cannot contain null value in pb object then we
+     * must do conversion in case of null values in map/array type.
      *
-     * @param arrDataVar code phrase represent arrayData of arr type or keyData/valueData in map
-     *     type.
+     * @param flinkArrDataVar code phrase represent arrayData of arr type or keyData/valueData in
+     *     map type.
      * @param iVar the index in arrDataVar
-     * @param pbVar the returned pb variable name in codegen.
-     * @param dataVar the input variable from flink row
+     * @param resultPbVar the returned pb variable name in codegen.
      * @param elementPbFd {@link FieldDescriptor} of element type in proto object
      * @param elementDataType {@link LogicalType} of element type in flink object
      * @return The java code segment which represents field value retrieval.
      */
-    public static String generateArrElementCodeWithDefaultValue(
-            String arrDataVar,
+    public static String convertFlinkArrayElementToPbWithDefaultValueCode(
+            String flinkArrDataVar,
             String iVar,
-            String pbVar,
-            String dataVar,
+            String resultPbVar,
             FieldDescriptor elementPbFd,
             LogicalType elementDataType,
             PbFormatContext pbFormatContext)
             throws PbCodegenException {
+        PbCodegenVarId varUid = PbCodegenVarId.getInstance();
+        int uid = varUid.getAndIncrement();
+        String flinkElementVar = "elementVar" + uid;
         PbCodegenAppender appender = new PbCodegenAppender();
         String protoTypeStr =
                 PbCodegenUtils.getTypeStrFromProto(
                         elementPbFd, false, pbFormatContext.getOuterPrefix());
         String dataTypeStr = PbCodegenUtils.getTypeStrFromLogicType(elementDataType);
-        appender.appendLine(protoTypeStr + " " + pbVar);
-        appender.appendSegment("if(" + arrDataVar + ".isNullAt(" + iVar + ")){");
+        appender.appendLine(protoTypeStr + " " + resultPbVar);
+        appender.appendSegment("if(" + flinkArrDataVar + ".isNullAt(" + iVar + ")){");
         appender.appendLine(
-                pbVar + "=" + PbCodegenUtils.getDefaultPbValue(elementPbFd, pbFormatContext));
+                resultPbVar
+                        + "="
+                        + PbCodegenUtils.pbDefaultValueCode(elementPbFd, pbFormatContext));
         appender.appendSegment("}else{");
-        appender.appendLine(dataTypeStr + " " + dataVar);
-        String getElementDataCode =
-                PbCodegenUtils.getContainerDataFieldGetterCodePhrase(
-                        arrDataVar, iVar, elementDataType);
-        appender.appendLine(dataVar + " = " + getElementDataCode);
+        appender.appendLine(dataTypeStr + " " + flinkElementVar);
+        String flinkContainerElementCode =
+                PbCodegenUtils.flinkContainerElementCode(flinkArrDataVar, iVar, elementDataType);
+        appender.appendLine(flinkElementVar + " = " + flinkContainerElementCode);
         PbCodegenSerializer codegenSer =
                 PbCodegenSerializeFactory.getPbCodegenSer(
                         elementPbFd, elementDataType, pbFormatContext);
-        String code = codegenSer.codegen(pbVar, dataVar);
+        String code = codegenSer.codegen(resultPbVar, flinkElementVar);
         appender.appendSegment(code);
         appender.appendSegment("}");
         return appender.code();

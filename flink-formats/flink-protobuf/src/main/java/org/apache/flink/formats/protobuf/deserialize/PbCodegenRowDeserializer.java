@@ -22,7 +22,7 @@ import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbFormatContext;
-import org.apache.flink.formats.protobuf.PbFormatUtils;
+import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -43,62 +43,62 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
     }
 
     @Override
-    public String codegen(String returnInternalDataVarName, String pbGetStr)
-            throws PbCodegenException {
-        // The type of messageGetStr is a native pb object,
-        // it should be converted to RowData of flink internal type
+    public String codegen(String resultVar, String pbObjectCode) throws PbCodegenException {
+        // The type of pbObjectCode is a general pb object,
+        // it should be converted to RowData of flink internal type as resultVariable
         PbCodegenAppender appender = new PbCodegenAppender();
         PbCodegenVarId varUid = PbCodegenVarId.getInstance();
         int uid = varUid.getAndIncrement();
         String pbMessageVar = "message" + uid;
-        String rowDataVar = "rowData" + uid;
+        String flinkRowDataVar = "rowData" + uid;
 
         int fieldSize = rowType.getFieldNames().size();
         String pbMessageTypeStr =
                 PbFormatUtils.getFullJavaName(descriptor, formatContext.getOuterPrefix());
-        appender.appendLine(pbMessageTypeStr + " " + pbMessageVar + " = " + pbGetStr);
+        appender.appendLine(pbMessageTypeStr + " " + pbMessageVar + " = " + pbObjectCode);
         appender.appendLine(
-                "GenericRowData " + rowDataVar + " = new GenericRowData(" + fieldSize + ")");
+                "GenericRowData " + flinkRowDataVar + " = new GenericRowData(" + fieldSize + ")");
         int index = 0;
         for (String fieldName : rowType.getFieldNames()) {
             int subUid = varUid.getAndIncrement();
-            String elementDataVar = "elementDataVar" + subUid;
+            String flinkRowEleVar = "elementDataVar" + subUid;
 
             LogicalType subType = rowType.getTypeAt(rowType.getFieldIndex(fieldName));
             FieldDescriptor elementFd = descriptor.findFieldByName(fieldName);
             String strongCamelFieldName = PbFormatUtils.getStrongCamelCaseJsonName(fieldName);
             PbCodegenDeserializer codegen =
                     PbCodegenDeserializeFactory.getPbCodegenDes(elementFd, subType, formatContext);
-            appender.appendLine("Object " + elementDataVar + " = null");
+            appender.appendLine("Object " + flinkRowEleVar + " = null");
             if (!formatContext.getPbFormatConfig().isReadDefaultValues()) {
                 // only works in syntax=proto2 and readDefaultValues=false
                 // readDefaultValues must be true in pb3 mode
-                String isMessageNonEmptyStr =
-                        isMessageNonEmptyStr(
+                String isMessageElementNonEmptyCode =
+                        isMessageElementNonEmptyCode(
                                 pbMessageVar,
                                 strongCamelFieldName,
                                 PbFormatUtils.isRepeatedType(subType));
-                appender.appendSegment("if(" + isMessageNonEmptyStr + "){");
+                appender.appendSegment("if(" + isMessageElementNonEmptyCode + "){");
             }
-            String elementMessageGetStr =
-                    pbMessageElementGetStr(
+            String pbGetMessageElementCode =
+                    pbGetMessageElementCode(
                             pbMessageVar,
                             strongCamelFieldName,
                             elementFd,
                             PbFormatUtils.isArrayType(subType));
-            String code = codegen.codegen(elementDataVar, elementMessageGetStr);
+            String code = codegen.codegen(flinkRowEleVar, pbGetMessageElementCode);
             appender.appendSegment(code);
             if (!formatContext.getPbFormatConfig().isReadDefaultValues()) {
                 appender.appendSegment("}");
             }
-            appender.appendLine(rowDataVar + ".setField(" + index + ", " + elementDataVar + ")");
+            appender.appendLine(
+                    flinkRowDataVar + ".setField(" + index + ", " + flinkRowEleVar + ")");
             index += 1;
         }
-        appender.appendLine(returnInternalDataVarName + " = " + rowDataVar);
+        appender.appendLine(resultVar + " = " + flinkRowDataVar);
         return appender.code();
     }
 
-    private String pbMessageElementGetStr(
+    private String pbGetMessageElementCode(
             String message, String fieldName, FieldDescriptor fd, boolean isList) {
         if (fd.isMapField()) {
             // map
@@ -111,7 +111,8 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
         }
     }
 
-    private String isMessageNonEmptyStr(String message, String fieldName, boolean isListOrMap) {
+    private String isMessageElementNonEmptyCode(
+            String message, String fieldName, boolean isListOrMap) {
         if (isListOrMap) {
             return message + ".get" + fieldName + "Count() > 0";
         } else {

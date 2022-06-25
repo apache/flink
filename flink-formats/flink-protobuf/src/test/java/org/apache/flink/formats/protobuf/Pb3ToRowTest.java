@@ -21,6 +21,7 @@ package org.apache.flink.formats.protobuf;
 import org.apache.flink.formats.protobuf.deserialize.PbRowDataDeserializationSchema;
 import org.apache.flink.formats.protobuf.testproto.Pb3Test;
 import org.apache.flink.formats.protobuf.testproto.Pb3Test.Corpus;
+import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -39,7 +40,7 @@ import static org.junit.Assert.assertFalse;
 public class Pb3ToRowTest {
     @Test
     public void testDeserialization() throws Exception {
-        RowType rowType = PbRowTypeInformationUtil.generateRowType(Pb3Test.getDescriptor());
+        RowType rowType = PbToRowTypeUtil.generateRowType(Pb3Test.getDescriptor());
         PbFormatConfig formatConfig = new PbFormatConfig(Pb3Test.class.getName(), false, false, "");
         PbRowDataDeserializationSchema deserializationSchema =
                 new PbRowDataDeserializationSchema(
@@ -99,7 +100,7 @@ public class Pb3ToRowTest {
 
     @Test
     public void testReadDefaultValues() throws Exception {
-        RowType rowType = PbRowTypeInformationUtil.generateRowType(Pb3Test.getDescriptor());
+        RowType rowType = PbToRowTypeUtil.generateRowType(Pb3Test.getDescriptor());
         PbFormatConfig formatConfig = new PbFormatConfig(Pb3Test.class.getName(), false, false, "");
         PbRowDataDeserializationSchema deserializationSchema =
                 new PbRowDataDeserializationSchema(

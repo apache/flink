@@ -20,7 +20,7 @@ package org.apache.flink.formats.protobuf.deserialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbFormatContext;
-import org.apache.flink.formats.protobuf.PbFormatUtils;
+import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
@@ -45,7 +45,7 @@ public class PbCodegenDeserializeFactory {
         } else if (type instanceof MapType) {
             return new PbCodegenMapDeserializer(fd, (MapType) type, formatContext);
         } else {
-            throw new PbCodegenException("cannot support flink type: " + type);
+            throw new PbCodegenException("Do not support flink type: " + type);
         }
     }
 

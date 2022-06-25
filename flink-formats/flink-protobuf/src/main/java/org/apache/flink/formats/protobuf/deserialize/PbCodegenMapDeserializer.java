@@ -20,10 +20,10 @@ package org.apache.flink.formats.protobuf.deserialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
-import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.formats.protobuf.PbFormatContext;
+import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 
@@ -43,10 +43,9 @@ public class PbCodegenMapDeserializer implements PbCodegenDeserializer {
     }
 
     @Override
-    public String codegen(String returnInternalDataVarName, String pbGetStr)
-            throws PbCodegenException {
-        // The type of messageGetStr is a native Map object,
-        // it should be converted to MapData of flink internal type
+    public String codegen(String resultVar, String pbObjectCode) throws PbCodegenException {
+        // The type of pbObjectCode is a general Map object,
+        // it should be converted to MapData of flink internal type as resultVariable
         PbCodegenVarId varUid = PbCodegenVarId.getInstance();
         int uid = varUid.getAndIncrement();
 
@@ -65,8 +64,8 @@ public class PbCodegenMapDeserializer implements PbCodegenDeserializer {
         String pbMapVar = "pbMap" + uid;
         String pbMapEntryVar = "pbEntry" + uid;
         String resultDataMapVar = "resultDataMap" + uid;
-        String keyDataVar = "keyDataVar" + uid;
-        String valueDataVar = "valueDataVar" + uid;
+        String flinkKeyVar = "keyDataVar" + uid;
+        String flinkValueVar = "valueDataVar" + uid;
 
         appender.appendLine(
                 "Map<"
@@ -76,7 +75,7 @@ public class PbCodegenMapDeserializer implements PbCodegenDeserializer {
                         + "> "
                         + pbMapVar
                         + " = "
-                        + pbGetStr
+                        + pbObjectCode
                         + ";");
         appender.appendLine("Map " + resultDataMapVar + " = new HashMap()");
         appender.appendSegment(
@@ -89,24 +88,24 @@ public class PbCodegenMapDeserializer implements PbCodegenDeserializer {
                         + ": "
                         + pbMapVar
                         + ".entrySet()){");
-        appender.appendLine("Object " + keyDataVar + "= null");
-        appender.appendLine("Object " + valueDataVar + "= null");
+        appender.appendLine("Object " + flinkKeyVar + "= null");
+        appender.appendLine("Object " + flinkValueVar + "= null");
         PbCodegenDeserializer keyDes =
                 PbCodegenDeserializeFactory.getPbCodegenDes(keyFd, keyType, formatContext);
         PbCodegenDeserializer valueDes =
                 PbCodegenDeserializeFactory.getPbCodegenDes(valueFd, valueType, formatContext);
         String keyGenCode =
                 keyDes.codegen(
-                        keyDataVar, "((" + pbKeyTypeStr + ")" + pbMapEntryVar + ".getKey())");
+                        flinkKeyVar, "((" + pbKeyTypeStr + ")" + pbMapEntryVar + ".getKey())");
         appender.appendSegment(keyGenCode);
         String valueGenCode =
                 valueDes.codegen(
-                        valueDataVar, "((" + pbValueTypeStr + ")" + pbMapEntryVar + ".getValue())");
+                        flinkValueVar,
+                        "((" + pbValueTypeStr + ")" + pbMapEntryVar + ".getValue())");
         appender.appendSegment(valueGenCode);
-        appender.appendLine(resultDataMapVar + ".put(" + keyDataVar + ", " + valueDataVar + ")");
+        appender.appendLine(resultDataMapVar + ".put(" + flinkKeyVar + ", " + flinkValueVar + ")");
         appender.appendSegment("}");
-        appender.appendLine(
-                returnInternalDataVarName + " = new GenericMapData(" + resultDataMapVar + ")");
+        appender.appendLine(resultVar + " = new GenericMapData(" + resultDataMapVar + ")");
         return appender.code();
     }
 }

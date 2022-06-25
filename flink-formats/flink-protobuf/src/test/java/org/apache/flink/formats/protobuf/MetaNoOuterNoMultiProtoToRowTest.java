@@ -21,6 +21,7 @@ package org.apache.flink.formats.protobuf;
 import org.apache.flink.formats.protobuf.deserialize.PbRowDataDeserializationSchema;
 import org.apache.flink.formats.protobuf.serialize.PbRowDataSerializationSchema;
 import org.apache.flink.formats.protobuf.testproto.TestSimpleNoouterNomulti;
+import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -42,7 +43,7 @@ public class MetaNoOuterNoMultiProtoToRowTest {
     @Test
     public void testSimple() {
         RowType rowType =
-                PbRowTypeInformationUtil.generateRowType(
+                PbToRowTypeUtil.generateRowType(
                         TestSimpleNoouterNomulti.SimpleTestNoouterNomulti.getDescriptor());
         PbFormatConfig formatConfig =
                 new PbFormatConfig(
@@ -59,7 +60,7 @@ public class MetaNoOuterNoMultiProtoToRowTest {
     @Test
     public void testOuterClassName() {
         RowType rowType =
-                PbRowTypeInformationUtil.generateRowType(
+                PbToRowTypeUtil.generateRowType(
                         TestSimpleNoouterNomulti.SimpleTestNoouterNomulti.getDescriptor());
         PbFormatConfig formatConfig =
                 new PbFormatConfig(
