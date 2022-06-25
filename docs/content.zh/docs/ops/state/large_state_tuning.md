@@ -237,7 +237,7 @@ Task 本地恢复 *默认禁用*，可以通过 Flink 的 CheckpointingOptions.L
 
 ### 不同 state backends 的 task 本地恢复的详细介绍
 
-***限制**：目前，task 本地恢复仅涵盖 keyed state backends。 Keyed state 通常是该状态的最大部分。 在不久的将来，我们还将介绍算子状态和计时器（timers）。*
+***限制**：目前，task 本地恢复仅涵盖 keyed state backends。 Keyed state 通常是该状态的最大部分。 在不久的将来，我们还将支持算子状态和计时器（timers）。*
 
 以下 state backends 可以支持 task 本地恢复。
 
