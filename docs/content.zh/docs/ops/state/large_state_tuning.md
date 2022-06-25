@@ -151,7 +151,7 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 本节讨论如何确定 Flink 作业应该使用多少资源才能可靠地运行。
 容量规划的基本经验法则是：
 
-  - 应有足够的能力在恒定*反压* 下正常运行。
+  - 应该有足够的资源保障正常运行时不出现反压
     如何检查应用程序是否在反压下运行，详细信息请参阅 [反压监控]({{< ref "docs/ops/monitoring/back_pressure" >}})。
 
   - 在无故障时间内无反压运行程序所需的资源之上能够提供一些额外的资源。
