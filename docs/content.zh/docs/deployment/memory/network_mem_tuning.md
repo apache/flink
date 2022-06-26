@@ -118,22 +118,18 @@ Flink 有多个本地缓冲区池 —— 每个输出和输入流对应一个。
 
 不同于输入缓冲区池，这里配置的独占缓冲区和流动缓冲区只被当作推荐值。如果没有足够的缓冲区，每个输出 subpartition 可以只使用一个独占缓冲区而没有流动缓冲区。
 
-#### Overdraft buffers
+#### 透支缓冲区（Overdraft buffers）
 
-For each output subtask can also request up to `taskmanager.network.memory.max-overdraft-buffers-per-gate`
-(by default 5) extra overdraft buffers. Those buffers are only used, if the subtask is backpressured
-by downstream subtasks and the subtask requires more than a single network buffer to finish what its
-currently doing. This can happen in situations like:
-- Serializing very large records, that do not fit into a single network buffer.
-- Flat Map like operator, that produces many output records per single input record.
-- Operators that output many records either periodically or on a reaction to some events (for
-example `WindowOperator`'s triggers).
+另外，每个 subtask 输出数据时可以至多请求 `taskmanager.network.memory.max-overdraft-buffers-per-gate`
+（默认 5）个额外的透支缓冲区（overdraft buffers）。只有当前 subtask 被下游 subtasks 反压且当前 subtask 需要
+请求超过 1 个网络缓冲区（network buffer）才能完成当前的操作时，透支缓冲区才会被使用。可能发生在以下情况：
+- 序列化非常大的 records，不能放到单个网络缓冲区中。
+- 类似 flat map 的算子，即：处理单个 record 时可能会生产多个 records。
+- 周期性地或某些事件触发产生大量 records 的算子（例如：`WindowOperator` 的触发）。
 
-Without overdraft buffers in such situations Flink subtask thread would block on the backpressure,
-preventing for example unaligned checkpoints from completing. To mitigate this, the overdraft
-buffers concept has been added. Those overdraft buffers are strictly optional and Flink can
-gradually make progress using only regular buffers, which means `0` is an acceptable configuration
-for the `taskmanager.network.memory.max-overdraft-buffers-per-gate`.
+在这些情况下，如果没有透支缓冲区，Flink 的 subtask 线程会被阻塞在反压，从而阻止例如 Unaligned Checkpoint 的完成。
+为了缓解这种情况，增加了透支缓冲区的概念。这些透支缓冲区是可选的，Flink 可以仅仅使用常规的缓冲区逐渐取得进展，也就是
+说 `0` 是 `taskmanager.network.memory.max-overdraft-buffers-per-gate` 可以接受的配置值。
 
 ## 缓冲区的数量
 
