@@ -41,7 +41,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.Sort;
-import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -193,6 +192,7 @@ public class HiveParserDMLHelper {
         // add type conversions
         queryRelNode =
                 addTypeConversions(
+                        plannerContext,
                         plannerContext.getCluster().getRexBuilder(),
                         queryRelNode,
                         new ArrayList<>(targetColToCalcType.values()),
@@ -336,6 +336,7 @@ public class HiveParserDMLHelper {
     }
 
     static RelNode addTypeConversions(
+            PlannerContext plannerContext,
             RexBuilder rexBuilder,
             RelNode queryRelNode,
             List<RelDataType> targetCalcTypes,
@@ -344,6 +345,7 @@ public class HiveParserDMLHelper {
             throws SemanticException {
         if (queryRelNode instanceof Project) {
             return replaceProjectForTypeConversion(
+                    plannerContext,
                     rexBuilder,
                     (Project) queryRelNode,
                     targetCalcTypes,
@@ -353,6 +355,7 @@ public class HiveParserDMLHelper {
             // current node is not Project, we search for it in inputs
             RelNode newInput =
                     addTypeConversions(
+                            plannerContext,
                             rexBuilder,
                             queryRelNode.getInput(0),
                             targetCalcTypes,
@@ -410,6 +413,7 @@ public class HiveParserDMLHelper {
     }
 
     private static RelNode replaceProjectForTypeConversion(
+            PlannerContext plannerContext,
             RexBuilder rexBuilder,
             Project project,
             List<RelDataType> targetCalcTypes,
@@ -439,11 +443,11 @@ public class HiveParserDMLHelper {
         }
         if (updated) {
             RelNode newProject =
-                    LogicalProject.create(
-                            project.getInput(),
-                            Collections.emptyList(),
-                            updatedExprs,
-                            getProjectNames(project));
+                    plannerContext
+                            .createRelBuilder()
+                            .push(project.getInput())
+                            .project(updatedExprs, getProjectNames(project))
+                            .build();
             project.replaceInput(0, null);
             return newProject;
         } else {
@@ -580,11 +584,11 @@ public class HiveParserDMLHelper {
         }
 
         RelNode res =
-                LogicalProject.create(
-                        project.getInput(),
-                        Collections.emptyList(),
-                        extendedExprs,
-                        (List<String>) null);
+                plannerContext
+                        .createRelBuilder()
+                        .push(project.getInput())
+                        .project(extendedExprs)
+                        .build();
         project.replaceInput(0, null);
         return res;
     }
@@ -614,6 +618,6 @@ public class HiveParserDMLHelper {
                 exprs.add(rexNode);
             }
         }
-        return LogicalProject.create(input, Collections.emptyList(), exprs, (List<String>) null);
+        return plannerContext.createRelBuilder().push(input).project(exprs).build();
     }
 }

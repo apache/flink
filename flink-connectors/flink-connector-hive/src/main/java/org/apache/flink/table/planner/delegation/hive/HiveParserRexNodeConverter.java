@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
+import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserExprNodeDescUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserExprNodeSubQueryDesc;
@@ -117,6 +118,7 @@ public class HiveParserRexNodeConverter {
     private static final BigInteger MAX_LONG_BI = BigInteger.valueOf(Long.MAX_VALUE);
 
     private final RelOptCluster cluster;
+    private final PlannerContext plannerContext;
     private final List<InputCtx> inputCtxs;
     private final boolean flattenExpr;
     private final SqlFunctionConverter funcConverter;
@@ -128,6 +130,7 @@ public class HiveParserRexNodeConverter {
 
     // subqueries will need outer query's row resolver
     public HiveParserRexNodeConverter(
+            PlannerContext plannerContext,
             RelOptCluster cluster,
             RelDataType inpDataType,
             Map<String, Integer> outerNameToPos,
@@ -138,6 +141,7 @@ public class HiveParserRexNodeConverter {
             boolean flattenExpr,
             int correlatedId,
             SqlFunctionConverter funcConverter) {
+        this.plannerContext = plannerContext;
         this.cluster = cluster;
         this.inputCtxs =
                 Collections.singletonList(new InputCtx(inpDataType, nameToPos, hiveRR, offset));
@@ -149,12 +153,14 @@ public class HiveParserRexNodeConverter {
     }
 
     public HiveParserRexNodeConverter(
+            PlannerContext plannerContext,
             RelOptCluster cluster,
             RelDataType inpDataType,
             Map<String, Integer> nameToPosMap,
             int offset,
             boolean flattenExpr,
             SqlFunctionConverter funcConverter) {
+        this.plannerContext = plannerContext;
         this.cluster = cluster;
         this.inputCtxs =
                 Collections.singletonList(new InputCtx(inpDataType, nameToPosMap, null, offset));
@@ -165,10 +171,12 @@ public class HiveParserRexNodeConverter {
     }
 
     private HiveParserRexNodeConverter(
+            PlannerContext plannerContext,
             RelOptCluster cluster,
             List<InputCtx> inpCtxLst,
             boolean flattenExpr,
             SqlFunctionConverter funcConverter) {
+        this.plannerContext = plannerContext;
         this.cluster = cluster;
         this.inputCtxs = Collections.unmodifiableList(new ArrayList<>(inpCtxLst));
         this.flattenExpr = flattenExpr;
@@ -178,6 +186,7 @@ public class HiveParserRexNodeConverter {
     }
 
     public static RexNode convert(
+            PlannerContext plannerContext,
             RelOptCluster cluster,
             ExprNodeDesc joinCondnExprNode,
             List<RelNode> inputRels,
@@ -199,7 +208,8 @@ public class HiveParserRexNodeConverter {
             offSet += r.getRowType().getFieldCount();
         }
 
-        return (new HiveParserRexNodeConverter(cluster, inputCtxLst, flattenExpr, funcConverter))
+        return (new HiveParserRexNodeConverter(
+                        plannerContext, cluster, inputCtxLst, flattenExpr, funcConverter))
                 .convert(joinCondnExprNode);
     }
 
@@ -603,6 +613,7 @@ public class HiveParserRexNodeConverter {
             // type conversion for RHS
             RelNode rhsRel =
                     HiveParserDMLHelper.addTypeConversions(
+                            plannerContext,
                             cluster.getRexBuilder(),
                             subQueryDesc.getRexSubQuery(),
                             Collections.singletonList(

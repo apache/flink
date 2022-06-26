@@ -79,7 +79,6 @@ import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalIntersect;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalMinus;
-import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rel.logical.LogicalUnion;
@@ -416,19 +415,19 @@ public class HiveParserCalcitePlanner {
         // parity
         if (leftNeedsTypeCast) {
             leftRel =
-                    LogicalProject.create(
-                            leftRel,
-                            Collections.emptyList(),
-                            leftProjs,
-                            leftRel.getRowType().getFieldNames());
+                    plannerContext
+                            .createRelBuilder()
+                            .push(leftRel)
+                            .project(leftProjs, leftRel.getRowType().getFieldNames())
+                            .build();
         }
         if (rightNeedsTypeCast) {
             rightRel =
-                    LogicalProject.create(
-                            rightRel,
-                            Collections.emptyList(),
-                            rightProjs,
-                            rightRel.getRowType().getFieldNames());
+                    plannerContext
+                            .createRelBuilder()
+                            .push(rightRel)
+                            .project(rightProjs, rightRel.getRowType().getFieldNames())
+                            .build();
         }
 
         // 6. Construct SetOp Rel
@@ -525,6 +524,7 @@ public class HiveParserCalcitePlanner {
             inputRels.add(rightRel);
             joinCondRex =
                     HiveParserRexNodeConverter.convert(
+                                    plannerContext,
                                     cluster,
                                     joinCondExprNode,
                                     inputRels,
@@ -646,8 +646,11 @@ public class HiveParserCalcitePlanner {
                     topFieldNames.add(field.getName());
                 }
                 topRel =
-                        LogicalProject.create(
-                                topRel, Collections.emptyList(), topFields, topFieldNames);
+                        plannerContext
+                                .createRelBuilder()
+                                .push(topRel)
+                                .project(topFields, topFieldNames)
+                                .build();
             }
 
             topRR = new HiveParserRowResolver();
@@ -896,6 +899,7 @@ public class HiveParserCalcitePlanner {
         Map<String, Integer> hiveColNameToCalcitePos = relToHiveColNameCalcitePosMap.get(srcRel);
         RexNode convertedFilterExpr =
                 new HiveParserRexNodeConverter(
+                                plannerContext,
                                 cluster,
                                 srcRel.getRowType(),
                                 outerNameToPosMap,
@@ -1057,6 +1061,7 @@ public class HiveParserCalcitePlanner {
                     relToHiveColNameCalcitePosMap.get(srcRel);
             RexNode convertedFilterLHS =
                     new HiveParserRexNodeConverter(
+                                    plannerContext,
                                     cluster,
                                     srcRel.getRowType(),
                                     outerNameToPosMap,
@@ -1114,7 +1119,13 @@ public class HiveParserCalcitePlanner {
         Map<String, Integer> colNameToPos = relToHiveColNameCalcitePosMap.get(srcRel);
         HiveParserRexNodeConverter converter =
                 new HiveParserRexNodeConverter(
-                        cluster, srcRel.getRowType(), colNameToPos, 0, false, funcConverter);
+                        plannerContext,
+                        cluster,
+                        srcRel.getRowType(),
+                        colNameToPos,
+                        0,
+                        false,
+                        funcConverter);
 
         final boolean hasGroupSets = groupSets != null && !groupSets.isEmpty();
         final List<RexNode> gbInputRexNodes = new ArrayList<>();
@@ -1159,8 +1170,7 @@ public class HiveParserCalcitePlanner {
         // create the actual input before creating agg calls so that the calls can properly infer
         // return type
         RelNode gbInputRel =
-                LogicalProject.create(
-                        srcRel, Collections.emptyList(), gbInputRexNodes, (List<String>) null);
+                plannerContext.createRelBuilder().push(srcRel).project(gbInputRexNodes).build();
 
         List<AggregateCall> aggregateCalls = new ArrayList<>();
         for (AggInfo aggInfo : aggInfos) {
@@ -1400,6 +1410,7 @@ public class HiveParserCalcitePlanner {
             HiveParserRowResolver inputRR = relToRowResolver.get(srcRel);
             HiveParserRexNodeConverter converter =
                     new HiveParserRexNodeConverter(
+                            plannerContext,
                             cluster,
                             srcRel.getRowType(),
                             relToHiveColNameCalcitePosMap.get(srcRel),
@@ -1619,6 +1630,7 @@ public class HiveParserCalcitePlanner {
 
             HiveParserRexNodeConverter converter =
                     new HiveParserRexNodeConverter(
+                            plannerContext,
                             cluster,
                             srcRel.getRowType(),
                             relToHiveColNameCalcitePosMap.get(srcRel),
@@ -1796,7 +1808,13 @@ public class HiveParserCalcitePlanner {
             Map<String, Integer> posMap = relToHiveColNameCalcitePosMap.get(srcRel);
             HiveParserRexNodeConverter converter =
                     new HiveParserRexNodeConverter(
-                            cluster, srcRel.getRowType(), posMap, 0, false, funcConverter);
+                            plannerContext,
+                            cluster,
+                            srcRel.getRowType(),
+                            posMap,
+                            0,
+                            false,
+                            funcConverter);
             List<RexNode> calciteAggFnArgs = new ArrayList<>();
             List<RelDataType> calciteAggFnArgTypes = new ArrayList<>();
             for (int i = 0; i < hiveAggInfo.getAggParams().size(); i++) {
@@ -1977,7 +1995,11 @@ public class HiveParserCalcitePlanner {
 
         // 3 Build Calcite Rel Node for project using converted projections & col names
         RelNode selRel =
-                LogicalProject.create(srcRel, Collections.emptyList(), calciteColLst, columnNames);
+                plannerContext
+                        .createRelBuilder()
+                        .push(srcRel)
+                        .project(calciteColLst, columnNames)
+                        .build();
 
         // 4. Keep track of col name-to-pos map && RR for new select
         relToHiveColNameCalcitePosMap.put(selRel, buildHiveToCalciteColumnMap(outRR));
@@ -2324,6 +2346,7 @@ public class HiveParserCalcitePlanner {
 
         HiveParserRexNodeConverter rexNodeConverter =
                 new HiveParserRexNodeConverter(
+                        plannerContext,
                         cluster,
                         srcRel.getRowType(),
                         outerNameToPos,
@@ -2627,11 +2650,11 @@ public class HiveParserCalcitePlanner {
             projectRR.put(null, colAlias, colInfo);
         }
         RelNode projectNode =
-                LogicalProject.create(
-                        correlRel,
-                        Collections.emptyList(),
-                        projects,
-                        tableFunctionScan.getRowType());
+                plannerContext
+                        .createRelBuilder()
+                        .push(correlRel)
+                        .project(projects, tableFunctionScan.getRowType().getFieldNames())
+                        .build();
         relToHiveColNameCalcitePosMap.put(projectNode, buildHiveToCalciteColumnMap(projectRR));
         relToRowResolver.put(projectNode, projectRR);
         return projectNode;
@@ -2854,6 +2877,7 @@ public class HiveParserCalcitePlanner {
                             lateralView, inputRR, semanticAnalyzer, frameworkConfig, cluster);
             HiveParserRexNodeConverter rexNodeConverter =
                     new HiveParserRexNodeConverter(
+                            plannerContext,
                             cluster,
                             res.getRowType(),
                             relToHiveColNameCalcitePosMap.get(res),
