@@ -968,8 +968,14 @@ class DataStreamTests(object):
             def process_broadcast_element(
                 self, value: Tuple[int, str], ctx: BroadcastProcessFunction.Context
             ):
+                key = value[0]
+                yield str(key) + value[1]
                 broadcast_state = ctx.get_broadcast_state(self._map_state_desc)
-                broadcast_state.put(value[0], value[1])
+                broadcast_state.put(key, value[1])
+                if self._cache.get(key) is not None:
+                    for v in self._cache[key]:
+                        yield value[1] + str(v)
+                    self._cache[key].clear()
 
         map_state_desc = MapStateDescriptor(
             "mapping", key_type_info=Types.INT(), value_type_info=Types.STRING()
@@ -979,7 +985,7 @@ class DataStreamTests(object):
         ).add_sink(self.test_sink)
 
         self.env.execute("test_co_broadcast_process")
-        expected = ["a2", "a4", "b1", "b3", "b5"]
+        expected = ["0a", "0a", "1b", "1b", "a2", "a4", "b1", "b3", "b5"]
         self.assert_equals_sorted(expected, self.test_sink.get_results())
 
 

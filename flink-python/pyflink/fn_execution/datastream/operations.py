@@ -255,10 +255,9 @@ def extract_stateless_function(
                 data = value[2]
                 if data[0]:
                     results = process_element(data[1], read_only_broadcast_ctx)
-                    yield from _emit_results(timestamp, watermark, results, has_side_output)
                 else:
-                    # process_broadcast_element does not produce any results
-                    process_broadcast_element(data[2], broadcast_ctx)
+                    results = process_broadcast_element(data[2], broadcast_ctx)
+                yield from _emit_results(timestamp, watermark, results, has_side_output)
 
             process_element_func = wrapped_func
 
