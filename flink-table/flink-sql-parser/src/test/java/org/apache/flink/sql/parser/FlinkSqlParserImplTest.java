@@ -317,31 +317,49 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     void testAlterTableAdd() {
         // add single column
         sql("alter table t1 add new_column string comment 'new_column docs'")
-                .ok("ALTER TABLE `T1` ADD `NEW_COLUMN` STRING COMMENT 'new_column docs'");
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs'\n"
+                                + ")");
         sql("alter table t1 add new_column string comment 'new_column docs' first")
-                .ok("ALTER TABLE `T1` ADD `NEW_COLUMN` STRING COMMENT 'new_column docs' FIRST");
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' FIRST\n"
+                                + ")");
         sql("alter table t1 add new_column string comment 'new_column docs' after id")
                 .ok(
-                        "ALTER TABLE `T1` ADD `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`");
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`\n"
+                                + ")");
         // add compute column
         sql("alter table t1 add col_int as col_a - col_b after col_b")
-                .ok("ALTER TABLE `T1` ADD `COL_INT` AS (`COL_A` - `COL_B`) AFTER `COL_B`");
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `COL_INT` AS (`COL_A` - `COL_B`) AFTER `COL_B`\n"
+                                + ")");
         // add metadata column
         sql("alter table t1 add col_int int metadata from 'mk1' virtual comment 'comment_metadata' after col_b")
                 .ok(
-                        "ALTER TABLE `T1` ADD `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL "
-                                + "COMMENT 'comment_metadata' AFTER `COL_B`");
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_metadata' AFTER `COL_B`\n"
+                                + ")");
 
         // add watermark
         sql("alter table t1 add watermark for ts as ts - interval '1' second")
-                .ok("ALTER TABLE `T1` ADD WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)");
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
         sql("alter table default_database.t1 add watermark for ts as ts - interval '1' second")
                 .ok(
-                        "ALTER TABLE `DEFAULT_DATABASE`.`T1` ADD WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)");
+                        "ALTER TABLE `DEFAULT_DATABASE`.`T1` ADD (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
         sql("alter table default_catalog.default_database.t1 add watermark for ts as ts - interval '1' second")
                 .ok(
-                        "ALTER TABLE `DEFAULT_CATALOG`.`DEFAULT_DATABASE`.`T1` "
-                                + "ADD WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)");
+                        "ALTER TABLE `DEFAULT_CATALOG`.`DEFAULT_DATABASE`.`T1` ADD (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
 
         // add multiple columns/constraint/watermark
         final String sql1 =
@@ -365,70 +383,64 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
                         + ")";
         sql(sql1).ok(expected1);
-
-        // add constraint with paren
-        sql("alter table t1 add (\nconstraint ct1 primary key(a, b) not enforced\n)")
-                .ok(
-                        "ALTER TABLE `T1` ADD (\n"
-                                + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
-                                + ")");
-        sql("alter table t1 add (\nunique(a, b)\n)")
-                .ok("ALTER TABLE `T1` ADD (\n  UNIQUE (`A`, `B`)\n)");
-
-        // add watermark with paren
-        sql("alter table t1 add (\nwatermark for ts as ts - interval '1' second\n)")
-                .ok(
-                        "ALTER TABLE `T1` ADD (\n"
-                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
-                                + ")");
-
-        // add single column with paren
-        sql("alter table t1 add (\nnew_column string comment 'new_column docs' first\n)")
-                .ok(
-                        "ALTER TABLE `T1` ADD (\n"
-                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' FIRST\n"
-                                + ")");
-        sql("alter table t1 add (\nnew_column string comment 'new_column docs' after id\n)")
-                .ok(
-                        "ALTER TABLE `T1` ADD (\n"
-                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`\n"
-                                + ")");
     }
 
     @Test
     public void testAlterTableModify() {
         // modify single column
         sql("alter table t1 modify new_column string comment 'new_column docs'")
-                .ok("ALTER TABLE `T1` MODIFY `NEW_COLUMN` STRING COMMENT 'new_column docs'");
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs'\n"
+                                + ")");
         sql("alter table t1 modify new_column string comment 'new_column docs' first")
-                .ok("ALTER TABLE `T1` MODIFY `NEW_COLUMN` STRING COMMENT 'new_column docs' FIRST");
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' FIRST\n"
+                                + ")");
         sql("alter table t1 modify new_column string comment 'new_column docs' after id")
                 .ok(
-                        "ALTER TABLE `T1` MODIFY `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`");
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`\n"
+                                + ")");
         // modify compute column
         sql("alter table t1 modify col_int as col_a - col_b after col_b")
-                .ok("ALTER TABLE `T1` MODIFY `COL_INT` AS (`COL_A` - `COL_B`) AFTER `COL_B`");
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `COL_INT` AS (`COL_A` - `COL_B`) AFTER `COL_B`\n"
+                                + ")");
         // modify metadata column
         sql("alter table t1 modify col_int int metadata from 'mk1' virtual comment 'comment_metadata' after col_b")
                 .ok(
-                        "ALTER TABLE `T1` MODIFY `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL "
-                                + "COMMENT 'comment_metadata' AFTER `COL_B`");
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_metadata' AFTER `COL_B`\n"
+                                + ")");
 
         // modify watermark
         sql("alter table t1 modify watermark for ts as ts - interval '1' second")
-                .ok("ALTER TABLE `T1` MODIFY WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)");
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
         sql("alter table default_database.t1 modify watermark for ts as ts - interval '1' second")
                 .ok(
-                        "ALTER TABLE `DEFAULT_DATABASE`.`T1` MODIFY WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)");
+                        "ALTER TABLE `DEFAULT_DATABASE`.`T1` MODIFY (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
         sql("alter table default_catalog.default_database.t1 modify watermark for ts as ts - interval '1' second")
                 .ok(
-                        "ALTER TABLE `DEFAULT_CATALOG`.`DEFAULT_DATABASE`.`T1` "
-                                + "MODIFY WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)");
+                        "ALTER TABLE `DEFAULT_CATALOG`.`DEFAULT_DATABASE`.`T1` MODIFY (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
 
         // modify constraint
         sql("alter table t1 modify constraint ct1 primary key(a, b) not enforced")
-                .ok("ALTER TABLE `T1` MODIFY CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED");
-        sql("alter table t1 modify unique(a, b)").ok("ALTER TABLE `T1` MODIFY UNIQUE (`A`, `B`)");
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
+                                + ")");
+        sql("alter table t1 modify unique(a, b)")
+                .ok("ALTER TABLE `T1` MODIFY (\n" + "  UNIQUE (`A`, `B`)\n" + ")");
 
         // modify multiple columns/constraint/watermark
         final String sql1 =
@@ -452,34 +464,6 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
                         + ")";
         sql(sql1).ok(expected1);
-
-        // modify constraint with paren
-        sql("alter table t1 modify (\nconstraint ct1 primary key(a, b) not enforced\n)")
-                .ok(
-                        "ALTER TABLE `T1` MODIFY (\n"
-                                + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
-                                + ")");
-        sql("alter table t1 modify (\nunique(a, b)\n)")
-                .ok("ALTER TABLE `T1` MODIFY (\n  UNIQUE (`A`, `B`)\n)");
-
-        // modify watermark with paren
-        sql("alter table t1 modify (\nwatermark for ts as ts - interval '1' second\n)")
-                .ok(
-                        "ALTER TABLE `T1` MODIFY (\n"
-                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
-                                + ")");
-
-        // modify single column with paren
-        sql("alter table t1 modify (\nnew_column string comment 'new_column docs' first\n)")
-                .ok(
-                        "ALTER TABLE `T1` MODIFY (\n"
-                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' FIRST\n"
-                                + ")");
-        sql("alter table t1 modify (\nnew_column string comment 'new_column docs' after id\n)")
-                .ok(
-                        "ALTER TABLE `T1` MODIFY (\n"
-                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`\n"
-                                + ")");
     }
 
     @Test

@@ -41,10 +41,11 @@ import java.util.List;
  * -- add single column
  * ALTER TABLE mytable MODIFY new_column STRING COMMENT 'new_column docs';
  *
- * -- add multiple columns, constraint, and watermark
+ * -- modify multiple columns, constraint, and watermark
  * ALTER TABLE mytable MODIFY (
  *     log_ts STRING COMMENT 'log timestamp string' FIRST,
  *     ts AS TO_TIMESTAMP(log_ts) AFTER log_ts,
+ *     col_meta int metadata from 'mk1' virtual AFTER col_b,
  *     PRIMARY KEY (id) NOT ENFORCED,
  *     WATERMARK FOR ts AS ts - INTERVAL '3' SECOND
  * );
@@ -52,8 +53,6 @@ import java.util.List;
  */
 public class SqlAlterTableModify extends SqlAlterTable {
 
-    // Whether the modified column is in a paren, currently it is only used for SQL unparse.
-    private final boolean withParen;
     private final SqlNodeList modifiedColumns;
     @Nullable private final SqlWatermark watermark;
     private final List<SqlTableConstraint> constraint;
@@ -61,12 +60,10 @@ public class SqlAlterTableModify extends SqlAlterTable {
     public SqlAlterTableModify(
             SqlParserPos pos,
             SqlIdentifier tableName,
-            boolean withParen,
             SqlNodeList modifiedColumns,
             @Nullable SqlWatermark watermark,
             List<SqlTableConstraint> constraint) {
         super(pos, tableName, null);
-        this.withParen = withParen;
         this.modifiedColumns = modifiedColumns;
         this.watermark = watermark;
         this.constraint = constraint;
@@ -86,36 +83,23 @@ public class SqlAlterTableModify extends SqlAlterTable {
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparse(writer, leftPrec, rightPrec);
         writer.keyword("MODIFY");
-        // Distinguish whether the modified column/watermark/constraint is in a paren
-        if (withParen) {
-            SqlWriter.Frame frame =
-                    writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
-            for (SqlNode column : modifiedColumns.getList()) {
-                printIndent(writer);
-                column.unparse(writer, leftPrec, rightPrec);
-            }
-            for (SqlTableConstraint constraint : constraint) {
-                printIndent(writer);
-                constraint.unparse(writer, leftPrec, rightPrec);
-            }
 
-            if (watermark != null) {
-                printIndent(writer);
-                watermark.unparse(writer, leftPrec, rightPrec);
-            }
-
-            writer.newlineAndIndent();
-            writer.endList(frame);
-        } else {
-            if (modifiedColumns.getList().size() == 1) {
-                // modify single column case
-                modifiedColumns.getList().get(0).unparse(writer, leftPrec, rightPrec);
-            } else if (watermark != null) {
-                // modify watermark case
-                watermark.unparse(writer, leftPrec, rightPrec);
-            } else if (constraint.size() == 1) {
-                constraint.get(0).unparse(writer, leftPrec, rightPrec);
-            }
+        SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
+        for (SqlNode column : modifiedColumns.getList()) {
+            printIndent(writer);
+            column.unparse(writer, leftPrec, rightPrec);
         }
+        for (SqlTableConstraint constraint : constraint) {
+            printIndent(writer);
+            constraint.unparse(writer, leftPrec, rightPrec);
+        }
+
+        if (watermark != null) {
+            printIndent(writer);
+            watermark.unparse(writer, leftPrec, rightPrec);
+        }
+
+        writer.newlineAndIndent();
+        writer.endList(frame);
     }
 }

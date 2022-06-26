@@ -595,7 +595,6 @@ SqlAlterTable SqlAlterTable() :
     SqlNodeList partitionSpec = null;
     SqlIdentifier constraintName;
     AlterTableContext ctx = new AlterTableContext();
-    boolean withParen = true;
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
@@ -631,14 +630,13 @@ SqlAlterTable SqlAlterTable() :
         <ADD>
         (
             AlterTableAddOrModify(ctx) {
-                // TODO: remove it after supports convert SqlNode to Operation
+                // TODO: remove it after supports convert SqlNode to Operation,
+                // the jira link https://issues.apache.org/jira/browse/FLINK-22315
                 if (ctx.constraints.size() > 0) {
                     return new SqlAlterTableAddConstraint(
                                 tableIdentifier,
                                 ctx.constraints.get(0),
                                 startPos.plus(getPos()));
-                } else {
-                    withParen = false;
                 }
             }
         |
@@ -653,7 +651,6 @@ SqlAlterTable SqlAlterTable() :
             return new SqlAlterTableAdd(
                         startPos.plus(getPos()),
                         tableIdentifier,
-                        withParen,
                         new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
                         ctx.watermark,
                         ctx.constraints);
@@ -661,9 +658,7 @@ SqlAlterTable SqlAlterTable() :
     |
         <MODIFY>
         (
-            AlterTableAddOrModify(ctx) {
-                withParen = false;
-            }
+            AlterTableAddOrModify(ctx)
         |
             <LPAREN>
             AlterTableAddOrModify(ctx)
@@ -676,7 +671,6 @@ SqlAlterTable SqlAlterTable() :
             return new SqlAlterTableModify(
                         startPos.plus(getPos()),
                         tableIdentifier,
-                        withParen,
                         new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
                         ctx.watermark,
                         ctx.constraints);

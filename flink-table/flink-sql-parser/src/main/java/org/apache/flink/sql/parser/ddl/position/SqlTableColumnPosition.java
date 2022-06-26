@@ -61,7 +61,7 @@ public class SqlTableColumnPosition extends SqlCall {
         return positionSpec.getValueAs(SqlColumnPosSpec.class) == SqlColumnPosSpec.FIRST;
     }
 
-    public boolean isReferencedColumn() {
+    public boolean isAfterReferencedColumn() {
         return positionSpec.getValueAs(SqlColumnPosSpec.class) == SqlColumnPosSpec.AFTER
                 && referencedColumn != null;
     }
@@ -75,7 +75,7 @@ public class SqlTableColumnPosition extends SqlCall {
     }
 
     @Nullable
-    public SqlIdentifier getReferencedColumn() {
+    public SqlIdentifier getAfterReferencedColumn() {
         return referencedColumn;
     }
 
@@ -96,7 +96,7 @@ public class SqlTableColumnPosition extends SqlCall {
         column.unparse(writer, leftPrec, rightPrec);
         if (isFirstColumn()) {
             positionSpec.unparse(writer, leftPrec, rightPrec);
-        } else if (isReferencedColumn()) {
+        } else if (isAfterReferencedColumn()) {
             positionSpec.unparse(writer, leftPrec, rightPrec);
             referencedColumn.unparse(writer, leftPrec, rightPrec);
         }

@@ -46,6 +46,7 @@ import java.util.Optional;
  * ALTER TABLE mytable ADD (
  *     log_ts STRING COMMENT 'log timestamp string' FIRST,
  *     ts AS TO_TIMESTAMP(log_ts) AFTER log_ts,
+ *     col_meta int metadata from 'mk1' virtual AFTER col_b,
  *     PRIMARY KEY (id) NOT ENFORCED,
  *     WATERMARK FOR ts AS ts - INTERVAL '3' SECOND
  * );
@@ -53,8 +54,6 @@ import java.util.Optional;
  */
 public class SqlAlterTableAdd extends SqlAlterTable {
 
-    // Whether the added column is in a paren, currently it is only used for SQL unparse.
-    private final boolean withParen;
     private final SqlNodeList addedColumns;
     @Nullable private final SqlWatermark watermark;
     private final List<SqlTableConstraint> constraint;
@@ -62,12 +61,10 @@ public class SqlAlterTableAdd extends SqlAlterTable {
     public SqlAlterTableAdd(
             SqlParserPos pos,
             SqlIdentifier tableName,
-            boolean withParen,
             SqlNodeList addedColumns,
             @Nullable SqlWatermark sqlWatermark,
             List<SqlTableConstraint> constraint) {
         super(pos, tableName, null);
-        this.withParen = withParen;
         this.addedColumns = addedColumns;
         this.watermark = sqlWatermark;
         this.constraint = constraint;
@@ -95,33 +92,22 @@ public class SqlAlterTableAdd extends SqlAlterTable {
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparse(writer, leftPrec, rightPrec);
         writer.keyword("ADD");
-        // Distinguish whether the added column/watermark/constraint is in a paren
-        if (withParen) {
-            SqlWriter.Frame frame =
-                    writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
-            for (SqlNode column : addedColumns.getList()) {
-                printIndent(writer);
-                column.unparse(writer, leftPrec, rightPrec);
-            }
-            for (SqlTableConstraint constraint : constraint) {
-                printIndent(writer);
-                constraint.unparse(writer, leftPrec, rightPrec);
-            }
-            if (watermark != null) {
-                printIndent(writer);
-                watermark.unparse(writer, leftPrec, rightPrec);
-            }
 
-            writer.newlineAndIndent();
-            writer.endList(frame);
-        } else {
-            if (addedColumns.getList().size() == 1) {
-                // add single column case
-                addedColumns.getList().get(0).unparse(writer, leftPrec, rightPrec);
-            } else if (watermark != null) {
-                // add watermark case
-                watermark.unparse(writer, leftPrec, rightPrec);
-            }
+        SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
+        for (SqlNode column : addedColumns.getList()) {
+            printIndent(writer);
+            column.unparse(writer, leftPrec, rightPrec);
         }
+        for (SqlTableConstraint constraint : constraint) {
+            printIndent(writer);
+            constraint.unparse(writer, leftPrec, rightPrec);
+        }
+        if (watermark != null) {
+            printIndent(writer);
+            watermark.unparse(writer, leftPrec, rightPrec);
+        }
+
+        writer.newlineAndIndent();
+        writer.endList(frame);
     }
 }
