@@ -72,6 +72,10 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
         this.supportsPreviousTimestamp = supportsPreviousTimestamp;
     }
 
+    public boolean isSupportsPreviousTimestamp() {
+        return supportsPreviousTimestamp;
+    }
+
     @Override
     public boolean isImmutableType() {
         return false;

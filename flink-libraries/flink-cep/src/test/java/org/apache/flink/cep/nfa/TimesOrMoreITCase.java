@@ -28,6 +28,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
@@ -40,13 +41,14 @@ import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
 
 /** Tests for {@link Pattern#timesOrMore(int)}. */
+@RunWith(Parameterized.class)
 public class TimesOrMoreITCase extends TestLogger {
 
     @Parameterized.Parameter public Time time;
 
     @Parameterized.Parameters(name = "Times Range Time: {0}")
     public static Collection<Time> parameters() {
-        return Arrays.asList(null, Time.milliseconds(10));
+        return Arrays.asList(null, Time.milliseconds(5));
     }
 
     @Test

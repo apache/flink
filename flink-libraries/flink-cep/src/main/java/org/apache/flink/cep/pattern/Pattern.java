@@ -32,6 +32,8 @@ import org.apache.flink.cep.pattern.conditions.SubtypeCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -260,12 +262,9 @@ public class Pattern<T, F extends T> {
      * @param withinType Type of the within interval between events
      * @param windowTime Time of the matching window
      * @return The same pattern operator with the new window length
-     * @throws MalformedPatternException if window length between the previous and current event is
-     *     larger than which between the first and last event.
      */
     public Pattern<T, F> within(Time windowTime, WithinType withinType) {
         if (windowTime != null) {
-            checkWindowTimeBetweenEvents(windowTime, withinType);
             windowTimes.put(withinType, windowTime);
         }
 
@@ -387,7 +386,7 @@ public class Pattern<T, F extends T> {
      *     applied.
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
-    public Pattern<T, F> oneOrMore(Time windowTime) {
+    public Pattern<T, F> oneOrMore(@Nullable Time windowTime) {
         checkIfNoNotPattern();
         checkIfQuantifierApplied();
         this.quantifier = Quantifier.looping(quantifier.getConsumingStrategy());
@@ -429,7 +428,7 @@ public class Pattern<T, F extends T> {
      * @return The same pattern with number of times applied
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
-    public Pattern<T, F> times(int times, Time windowTime) {
+    public Pattern<T, F> times(int times, @Nullable Time windowTime) {
         checkIfNoNotPattern();
         checkIfQuantifierApplied();
         Preconditions.checkArgument(times > 0, "You should give a positive number greater than 0.");
@@ -460,7 +459,7 @@ public class Pattern<T, F extends T> {
      * @return The same pattern with the number of times range applied
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
-    public Pattern<T, F> times(int from, int to, Time windowTime) {
+    public Pattern<T, F> times(int from, int to, @Nullable Time windowTime) {
         checkIfNoNotPattern();
         checkIfQuantifierApplied();
         this.quantifier = Quantifier.times(quantifier.getConsumingStrategy());
@@ -496,7 +495,7 @@ public class Pattern<T, F extends T> {
      *     applied.
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
-    public Pattern<T, F> timesOrMore(int times, Time windowTime) {
+    public Pattern<T, F> timesOrMore(int times, @Nullable Time windowTime) {
         checkIfNoNotPattern();
         checkIfQuantifierApplied();
         this.quantifier = Quantifier.looping(quantifier.getConsumingStrategy());
@@ -659,21 +658,6 @@ public class Pattern<T, F extends T> {
                 && previous.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
             throw new MalformedPatternException(
                     "Optional pattern cannot be preceded by greedy pattern");
-        }
-    }
-
-    private void checkWindowTimeBetweenEvents(Time windowTime, WithinType withinType) {
-        if (WithinType.PREVIOUS_AND_CURRENT.equals(withinType)
-                ? windowTimes.containsKey(WithinType.FIRST_AND_LAST)
-                        && windowTime.toMilliseconds()
-                                > windowTimes.get(WithinType.FIRST_AND_LAST).toMilliseconds()
-                : windowTimes.containsKey(WithinType.PREVIOUS_AND_CURRENT)
-                        && windowTime.toMilliseconds()
-                                < windowTimes
-                                        .get(WithinType.PREVIOUS_AND_CURRENT)
-                                        .toMilliseconds()) {
-            throw new MalformedPatternException(
-                    "Window length between the previous and current event cannot be larger than the window length between the first and last event for pattern.");
         }
     }
 

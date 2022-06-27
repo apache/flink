@@ -21,6 +21,8 @@ package org.apache.flink.cep.pattern;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.EnumSet;
 import java.util.Objects;
 
@@ -213,11 +215,11 @@ public class Quantifier {
             return windowTime;
         }
 
-        public static Times of(int from, int to, Time windowTime) {
+        public static Times of(int from, int to, @Nullable Time windowTime) {
             return new Times(from, to, windowTime);
         }
 
-        public static Times of(int times, Time windowTime) {
+        public static Times of(int times, @Nullable Time windowTime) {
             return new Times(times, times, windowTime);
         }
 
@@ -230,7 +232,9 @@ public class Quantifier {
                 return false;
             }
             Times times = (Times) o;
-            return from == times.from && to == times.to && windowTime == times.windowTime;
+            return from == times.from
+                    && to == times.to
+                    && windowTime.toMilliseconds() == times.windowTime.toMilliseconds();
         }
 
         @Override

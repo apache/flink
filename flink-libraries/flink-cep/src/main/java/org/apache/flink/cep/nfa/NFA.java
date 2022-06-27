@@ -283,20 +283,20 @@ public class NFA<T> {
 
         for (ComputationState computationState : nfaState.getPartialMatches()) {
             String currentStateName = computationState.getCurrentStateName();
-            boolean withinStateTimeout =
+            boolean isCurrentStateTimeout =
                     windowTimes.containsKey(currentStateName)
                             && isStateTimedOut(
                                     computationState,
                                     timestamp,
                                     computationState.getPreviousTimestamp(),
                                     windowTimes.get(currentStateName));
-            boolean isStateTimeout =
+            boolean isLastStateTimeout =
                     isStateTimedOut(
                             computationState,
                             timestamp,
                             computationState.getStartTimestamp(),
                             windowTime);
-            if (withinStateTimeout || isStateTimeout) {
+            if (isCurrentStateTimeout || isLastStateTimeout) {
                 if (getState(computationState).isPending()) {
                     // extract the Pending State
                     Map<String, List<T>> pendingPattern =
@@ -311,7 +311,7 @@ public class NFA<T> {
                     timeoutResult.add(
                             Tuple2.of(
                                     timedOutPattern,
-                                    withinStateTimeout
+                                    isCurrentStateTimeout
                                             ? computationState.getPreviousTimestamp()
                                                     + windowTimes.get(
                                                             computationState.getCurrentStateName())

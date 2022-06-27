@@ -41,7 +41,7 @@ public class ComputationState {
     // Timestamp of the first element in the pattern
     private final long startTimestamp;
 
-    // Timestamp of the previous element in the state
+    // Timestamp of the previous element of the pattern
     private final long previousTimestamp;
 
     @Nullable private final NodeId previousBufferEntry;

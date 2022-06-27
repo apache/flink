@@ -49,7 +49,7 @@ public class TimesRangeITCase extends TestLogger {
 
     @Parameterized.Parameters(name = "Times Range Time: {0}")
     public static Collection<Time> parameters() {
-        return Arrays.asList(null, Time.milliseconds(10));
+        return Arrays.asList(null, Time.milliseconds(6));
     }
 
     @Test

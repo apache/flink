@@ -144,7 +144,6 @@ public class NFACompiler {
         private final NFAStateNameHandler stateNameHandler = new NFAStateNameHandler();
         private final Map<String, State<T>> stopStates = new HashMap<>();
         private final List<State<T>> states = new ArrayList<>();
-        private final Map<String, Integer> ignoreTimes = new HashMap<>();
         private final Map<String, Long> windowTimes = new HashMap<>();
 
         private Optional<Long> windowTime;
@@ -172,6 +171,8 @@ public class NFACompiler {
             checkPatternNameUniqueness();
 
             checkPatternSkipStrategy();
+
+            checkPatternWindowTimes();
 
             // we're traversing the pattern from the end to the beginning --> the first state is the
             // final state
@@ -205,6 +206,18 @@ public class NFACompiler {
 
         Map<String, Long> getWindowTimes() {
             return windowTimes;
+        }
+
+        /** Check pattern window times between events. */
+        private void checkPatternWindowTimes() {
+            if (windowTimes.values().stream()
+                    .anyMatch(
+                            time ->
+                                    windowTime.isPresent()
+                                            && time.compareTo(windowTime.get()) > 0)) {
+                throw new MalformedPatternException(
+                        "Window length between the previous and current event cannot be larger than the window length between the first and last event for a Pattern.");
+            }
         }
 
         /** Check pattern after match skip strategy. */
@@ -405,9 +418,9 @@ public class NFACompiler {
             return lastSink;
         }
 
-        private State<T> createState(State.StateType stateType, boolean notIgnore) {
+        private State<T> createState(State.StateType stateType, boolean isTake) {
             State<T> state = createState(currentPattern.getName(), stateType);
-            if (notIgnore) {
+            if (isTake) {
                 Times times = currentPattern.getTimes();
                 Time windowTime = currentPattern.getWindowTime(WithinType.PREVIOUS_AND_CURRENT);
                 if (times == null && windowTime != null) {
