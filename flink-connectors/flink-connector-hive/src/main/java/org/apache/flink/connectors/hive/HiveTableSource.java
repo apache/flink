@@ -25,11 +25,19 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.file.src.FileSourceSplit;
+import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.table.ContinuousPartitionFetcher;
 import org.apache.flink.connector.file.table.DefaultPartTimeExtractor;
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.connectors.hive.read.HiveContinuousPartitionContext;
 import org.apache.flink.connectors.hive.read.HivePartitionFetcherContextBase;
+import org.apache.flink.connectors.hive.read.HiveSourceSplit;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.formats.csv.util.CsvFormatStatisticsReportUtil;
+import org.apache.flink.formats.parquet.utils.ParquetFormatStatisticsReportUtil;
+import org.apache.flink.orc.util.OrcFormatStatisticsReportUtil;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -41,14 +49,17 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ProviderContext;
+import org.apache.flink.table.connector.format.FileBasedStatisticsReportableInputFormat;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsStatisticReport;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -64,6 +75,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER;
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
@@ -75,7 +87,8 @@ public class HiveTableSource
         implements ScanTableSource,
                 SupportsPartitionPushDown,
                 SupportsProjectionPushDown,
-                SupportsLimitPushDown {
+                SupportsLimitPushDown,
+                SupportsStatisticReport {
 
     private static final String HIVE_TRANSFORMATION = "hive";
 
@@ -259,6 +272,86 @@ public class HiveTableSource
         source.projectedFields = projectedFields;
         source.limit = limit;
         return source;
+    }
+
+    @Override
+    public TableStats reportStatistics() {
+        try {
+            // only support BOUNDED source
+            if (isStreamingSource()) {
+                return TableStats.UNKNOWN;
+            }
+            if (flinkConf.get(FileSystemConnectorOptions.SOURCE_REPORT_STATISTICS)
+                    != FileSystemConnectorOptions.FileStatisticsType.ALL) {
+                return TableStats.UNKNOWN;
+            }
+
+            HiveSourceBuilder sourceBuilder =
+                    new HiveSourceBuilder(jobConf, flinkConf, tablePath, hiveVersion, catalogTable)
+                            .setProjectedFields(projectedFields)
+                            .setLimit(limit);
+            int threadNum =
+                    flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM);
+            List<HiveTablePartition> hivePartitionsToRead =
+                    getAllPartitions(
+                            jobConf,
+                            hiveVersion,
+                            tablePath,
+                            catalogTable.getPartitionKeys(),
+                            remainingPartitions);
+            BulkFormat<RowData, HiveSourceSplit> defaultBulkFormat =
+                    sourceBuilder.createDefaultBulkFormat();
+            List<HiveSourceSplit> inputSplits =
+                    HiveSourceFileEnumerator.createInputSplits(
+                            0, hivePartitionsToRead, threadNum, jobConf);
+            if (inputSplits.size() != 0) {
+                if (defaultBulkFormat instanceof FileBasedStatisticsReportableInputFormat) {
+                    // If HiveInputFormat's variable useMapRedReader is false, Hive using Flink's
+                    // InputFormat to read data.
+                    return ((FileBasedStatisticsReportableInputFormat) defaultBulkFormat)
+                            .reportStatistics(
+                                    inputSplits.stream()
+                                            .map(FileSourceSplit::path)
+                                            .collect(Collectors.toList()),
+                                    catalogTable.getSchema().toRowDataType());
+                } else {
+                    // If HiveInputFormat's variable useMapRedReader is true, Hive using MapRed
+                    // InputFormat to read data.
+                    return getMapRedInputFormatStatistics(
+                            inputSplits, catalogTable.getSchema().toRowDataType());
+                }
+            } else {
+                return TableStats.UNKNOWN;
+            }
+
+        } catch (Exception e) {
+            return TableStats.UNKNOWN;
+        }
+    }
+
+    private TableStats getMapRedInputFormatStatistics(
+            List<HiveSourceSplit> inputSplits, DataType producedDataType) {
+        // TODO now we assume that one hive external table has only one storage file format
+        String serializationLib =
+                inputSplits
+                        .get(0)
+                        .getHiveTablePartition()
+                        .getStorageDescriptor()
+                        .getSerdeInfo()
+                        .getSerializationLib()
+                        .toLowerCase();
+        List<Path> files =
+                inputSplits.stream().map(FileSourceSplit::path).collect(Collectors.toList());
+        // Now we only support Csv, Parquet, Orc formats.
+        if (serializationLib.contains("parquet")) {
+            return ParquetFormatStatisticsReportUtil.getTableStatistics(
+                    files, producedDataType, jobConf, hiveVersion.startsWith("3"));
+        } else if (serializationLib.contains("orc")) {
+            return OrcFormatStatisticsReportUtil.getTableStatistics(
+                    files, producedDataType, jobConf);
+        } else {
+            return CsvFormatStatisticsReportUtil.getTableStatistics(files);
+        }
     }
 
     /** PartitionFetcher.Context for {@link ContinuousPartitionFetcher}. */

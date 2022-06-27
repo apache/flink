@@ -24,13 +24,17 @@ import org.apache.flink.connector.file.src.util.Pool;
 import org.apache.flink.connector.file.table.ColumnarRowIterator;
 import org.apache.flink.connector.file.table.PartitionFieldExtractor;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.formats.parquet.utils.ParquetFormatStatisticsReportUtil;
 import org.apache.flink.formats.parquet.utils.SerializableConfiguration;
 import org.apache.flink.formats.parquet.vector.ColumnBatchFactory;
+import org.apache.flink.table.connector.format.FileBasedStatisticsReportableInputFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.columnar.ColumnarRowData;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
+import org.apache.flink.table.plan.stats.TableStats;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.hadoop.conf.Configuration;
@@ -45,7 +49,8 @@ import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.cre
  * ColumnarRowData} to provide a row view of column batch.
  */
 public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
-        extends ParquetVectorizedInputFormat<RowData, SplitT> {
+        extends ParquetVectorizedInputFormat<RowData, SplitT>
+        implements FileBasedStatisticsReportableInputFormat {
 
     private static final long serialVersionUID = 1L;
 
@@ -115,6 +120,12 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
     @Override
     public TypeInformation<RowData> getProducedType() {
         return producedTypeInfo;
+    }
+
+    @Override
+    public TableStats reportStatistics(List<Path> files, DataType producedDataType) {
+        return ParquetFormatStatisticsReportUtil.getTableStatistics(
+                files, producedDataType, hadoopConfig.conf(), isUtcTimestamp);
     }
 
     private static class ColumnarRowReaderBatch extends ParquetReaderBatch<RowData> {

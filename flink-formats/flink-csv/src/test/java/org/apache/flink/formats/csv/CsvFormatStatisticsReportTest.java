@@ -21,9 +21,12 @@ package org.apache.flink.formats.csv;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.plan.stats.TableStats;
+import org.apache.flink.table.planner.utils.StatisticsReportTestBase;
+import org.apache.flink.table.types.DataType;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,57 +40,46 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for statistics functionality in {@link CsvFormatFactory}. */
-public class CsvFormatStatisticsReportTest {
+public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
 
     private static CsvFileFormatFactory.CsvBulkDecodingFormat csvBulkDecodingFormat;
 
     @BeforeEach
-    public void setup() {
+    public void setup(@TempDir File file) throws Exception {
+        super.setup(file);
+        createFileSystemSource("csv");
         Configuration configuration = new Configuration();
         csvBulkDecodingFormat = new CsvFileFormatFactory.CsvBulkDecodingFormat(configuration);
     }
 
     @Test
-    public void testCsvFormatStatsReportWithSingleFile() throws IOException {
-        String fileContent =
-                "#description of the data\n"
-                        + "header1|header2|header3|\n"
-                        + "this is|1|2.0|\n"
-                        + "//a comment\n"
-                        + "a test|3|4.0|\n"
-                        + "#next|5|6.0|\n";
-
-        Path tempFile = createTempFile(fileContent);
-
+    public void testCsvFormatStatsReportWithSingleFile() throws Exception {
+        // insert data and get statistics.
+        DataType dataType = tEnv.from("sourceTable").getResolvedSchema().toPhysicalRowDataType();
+        tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
+        assertThat(folder.listFiles()).isNotNull().hasSize(1);
+        File[] files = folder.listFiles();
+        assert files != null;
         TableStats tableStats =
-                csvBulkDecodingFormat.reportStatistics(Collections.singletonList(tempFile), null);
-        assertThat(tableStats).isEqualTo(new TableStats(6));
+                csvBulkDecodingFormat.reportStatistics(
+                        Collections.singletonList(new Path(files[0].toURI().toString())), null);
+        assertThat(tableStats).isEqualTo(new TableStats(3));
     }
 
     @Test
-    public void testCsvFormatStatsReportWithMultiFile() throws IOException {
-        String fileContent1 =
-                "#description of the data\r\n"
-                        + "header1|header2|header3|\r\n"
-                        + "this is|1|2.0|\r\n"
-                        + "//a comment\r\n"
-                        + "a test|3|4.0|\r\n"
-                        + "#next|5|6.0|\r\n";
-        String fileContent2 =
-                "#description of the data\r\n"
-                        + "header1|header2|header3|\r\n"
-                        + "this is|1|2.0|\r\n"
-                        + "//a comment\r\n"
-                        + "a test|3|4.0|\r\n"
-                        + "#next|5|6.0|\r\n";
-        Path tempFile1 = createTempFile(fileContent1);
-        Path tempFile2 = createTempFile(fileContent2);
-        List<Path> files = new ArrayList<>();
-        files.add(tempFile1);
-        files.add(tempFile2);
-
-        TableStats tableStats = csvBulkDecodingFormat.reportStatistics(files, null);
-        assertThat(tableStats).isEqualTo(new TableStats(12));
+    public void testCsvFormatStatsReportWithMultiFile() throws Exception {
+        // insert data and get statistics.
+        DataType dataType = tEnv.from("sourceTable").getResolvedSchema().toPhysicalRowDataType();
+        tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
+        tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
+        assertThat(folder.listFiles()).isNotNull().hasSize(2);
+        File[] files = folder.listFiles();
+        List<Path> paths = new ArrayList<>();
+        assert files != null;
+        paths.add(new Path(files[0].toURI().toString()));
+        paths.add(new Path(files[1].toURI().toString()));
+        TableStats tableStats = csvBulkDecodingFormat.reportStatistics(paths, null);
+        assertThat(tableStats).isEqualTo(new TableStats(6));
     }
 
     @Test
