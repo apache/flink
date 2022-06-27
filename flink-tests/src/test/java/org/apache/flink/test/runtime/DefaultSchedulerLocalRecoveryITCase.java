@@ -90,7 +90,9 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
                 continue;
             }
             AllocationID priorAllocation =
-                    vertex.getPriorExecutionAttempt(currentAttemptNumber - 1)
+                    vertex.getExecutionHistory()
+                            .getHistoricalExecution(currentAttemptNumber - 1)
+                            .get()
                             .getAssignedAllocationID();
             AllocationID currentAllocation =
                     vertex.getCurrentExecutionAttempt().getAssignedAllocationID();

@@ -207,8 +207,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     private final TaskDeploymentDescriptorFactory.PartitionLocationConstraint
             partitionLocationConstraint;
 
-    /** The maximum number of prior execution attempts kept in history. */
-    private final int maxPriorAttemptsHistoryLength;
+    /** The maximum number of historical execution attempts kept in history. */
+    private final int executionHistorySizeLimit;
 
     // ------ Execution status and progress. These values are volatile, and accessed under the lock
     // -------
@@ -295,7 +295,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             ScheduledExecutorService futureExecutor,
             Executor ioExecutor,
             Time rpcTimeout,
-            int maxPriorAttemptsHistoryLength,
+            int executionHistorySizeLimit,
             ClassLoader userClassLoader,
             BlobWriter blobWriter,
             PartitionGroupReleaseStrategy.Factory partitionGroupReleaseStrategyFactory,
@@ -346,7 +346,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.kvStateLocationRegistry =
                 new KvStateLocationRegistry(jobInformation.getJobId(), getAllVertices());
 
-        this.maxPriorAttemptsHistoryLength = maxPriorAttemptsHistoryLength;
+        this.executionHistorySizeLimit = executionHistorySizeLimit;
 
         this.schedulingFuture = null;
         this.jobMasterMainThreadExecutor =
@@ -871,7 +871,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         checkNotNull(ejv);
 
         ejv.initialize(
-                maxPriorAttemptsHistoryLength,
+                executionHistorySizeLimit,
                 rpcTimeout,
                 createTimestamp,
                 this.initialAttemptCounts.getAttemptCounts(ejv.getJobVertexId()),

@@ -108,7 +108,7 @@ public class DefaultExecutionGraphBuilder {
                         jobGraph.getUserJarBlobKeys(),
                         jobGraph.getClasspaths());
 
-        final int maxPriorAttemptsHistoryLength =
+        final int executionHistorySizeLimit =
                 jobManagerConfig.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE);
 
         final PartitionGroupReleaseStrategy.Factory partitionGroupReleaseStrategyFactory =
@@ -124,7 +124,7 @@ public class DefaultExecutionGraphBuilder {
                             futureExecutor,
                             ioExecutor,
                             rpcTimeout,
-                            maxPriorAttemptsHistoryLength,
+                            executionHistorySizeLimit,
                             classLoader,
                             blobWriter,
                             partitionGroupReleaseStrategyFactory,

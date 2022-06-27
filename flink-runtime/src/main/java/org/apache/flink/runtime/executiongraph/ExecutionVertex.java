@@ -34,7 +34,6 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -69,7 +68,7 @@ public class ExecutionVertex
 
     private final ExecutionVertexID executionVertexId;
 
-    private final EvictingBoundedList<ArchivedExecution> priorExecutions;
+    private final ExecutionHistory executionHistory;
 
     private final Time timeout;
 
@@ -94,8 +93,8 @@ public class ExecutionVertex
      * @param timeout The RPC timeout to use for deploy / cancel calls
      * @param createTimestamp The timestamp for the vertex creation, used to initialize the first
      *     Execution with.
-     * @param maxPriorExecutionHistoryLength The number of prior Executions (= execution attempts)
-     *     to keep.
+     * @param executionHistorySizeLimit The maximum number of historical Executions (= execution
+     *     attempts) to keep.
      * @param initialAttemptCount The attempt number of the first execution of this vertex.
      */
     @VisibleForTesting
@@ -105,7 +104,7 @@ public class ExecutionVertex
             IntermediateResult[] producedDataSets,
             Time timeout,
             long createTimestamp,
-            int maxPriorExecutionHistoryLength,
+            int executionHistorySizeLimit,
             int initialAttemptCount) {
 
         this.jobVertex = jobVertex;
@@ -132,7 +131,7 @@ public class ExecutionVertex
             resultPartitions.put(irp.getPartitionId(), irp);
         }
 
-        this.priorExecutions = new EvictingBoundedList<>(maxPriorExecutionHistoryLength);
+        this.executionHistory = new ExecutionHistory(executionHistorySizeLimit);
 
         this.currentExecution =
                 new Execution(
@@ -270,16 +269,9 @@ public class ExecutionVertex
         return currentExecution.getAssignedResourceLocation();
     }
 
-    @Nullable
     @Override
-    public ArchivedExecution getPriorExecutionAttempt(int attemptNumber) {
-        synchronized (priorExecutions) {
-            if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
-                return priorExecutions.get(attemptNumber);
-            } else {
-                throw new IllegalArgumentException("attempt does not exist");
-            }
-        }
+    public ExecutionHistory getExecutionHistory() {
+        return executionHistory;
     }
 
     void setLatestPriorSlotAllocation(
@@ -299,12 +291,6 @@ public class ExecutionVertex
 
     public Optional<AllocationID> findLastAllocation() {
         return Optional.ofNullable(lastAssignedAllocationID);
-    }
-
-    EvictingBoundedList<ArchivedExecution> getCopyOfPriorExecutionsList() {
-        synchronized (priorExecutions) {
-            return new EvictingBoundedList<>(priorExecutions);
-        }
     }
 
     public final InternalExecutionGraphAccessor getExecutionGraphAccessor() {
@@ -364,7 +350,7 @@ public class ExecutionVertex
                         .vertexUnfinished(executionVertexId);
             }
 
-            priorExecutions.add(oldExecution.archive());
+            executionHistory.add(oldExecution.archive());
 
             final Execution newExecution =
                     new Execution(

@@ -156,7 +156,7 @@ public class ExecutionJobVertex
     }
 
     protected void initialize(
-            int maxPriorAttemptsHistoryLength,
+            int executionHistorySizeLimit,
             Time timeout,
             long createTimestamp,
             SubtaskAttemptNumberStore initialAttemptCounts,
@@ -194,7 +194,7 @@ public class ExecutionJobVertex
                             producedDataSets,
                             timeout,
                             createTimestamp,
-                            maxPriorAttemptsHistoryLength,
+                            executionHistorySizeLimit,
                             initialAttemptCounts.getAttemptCount(i));
 
             this.taskVertices[i] = vertex;
