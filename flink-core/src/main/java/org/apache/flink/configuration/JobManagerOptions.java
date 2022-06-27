@@ -250,7 +250,7 @@ public class JobManagerOptions {
                             "Fraction of Total Process Memory to be reserved for JVM Overhead. "
                                     + JVM_OVERHEAD_DESCRIPTION);
 
-    /** The maximum number of prior execution attempts kept in history. */
+    /** The maximum number of historical execution attempts kept in history. */
     @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
     public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE =
             key("jobmanager.execution.attempts-history-size")
@@ -258,7 +258,7 @@ public class JobManagerOptions {
                     .defaultValue(16)
                     .withDeprecatedKeys("job-manager.max-attempts-history-size")
                     .withDescription(
-                            "The maximum number of prior execution attempts kept in history.");
+                            "The maximum number of historical execution attempts kept in history.");
 
     /**
      * This option specifies the failover strategy, i.e. how the job computation recovers from task
