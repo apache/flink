@@ -81,7 +81,6 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
                         new URL[0],
                         Thread.currentThread().getContextClassLoader(),
                         tableConfig.getConfiguration());
-
         return new TableEnvironmentMock(
                 catalogManager,
                 moduleManager,
