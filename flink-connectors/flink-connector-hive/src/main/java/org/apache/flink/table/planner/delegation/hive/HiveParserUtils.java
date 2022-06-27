@@ -361,8 +361,12 @@ public class HiveParserUtils {
     // creates LogicFilter node
     public static RelNode genFilterRelNode(
             RelNode relNode, RexNode rexNode, Collection<CorrelationId> variables) {
-        Class[] argTypes = new Class[] {RelNode.class, RexNode.class, null};
-        argTypes[2] = useShadedImmutableSet ? shadedImmutableSetClz : immutableSetClz;
+        Class[] argTypes =
+                new Class[] {
+                    RelNode.class,
+                    RexNode.class,
+                    useShadedImmutableSet ? shadedImmutableSetClz : immutableSetClz
+                };
         Method method = HiveReflectionUtils.tryGetMethod(LogicalFilter.class, "create", argTypes);
         Preconditions.checkState(method != null, "Cannot get the method to create a LogicalFilter");
         try {

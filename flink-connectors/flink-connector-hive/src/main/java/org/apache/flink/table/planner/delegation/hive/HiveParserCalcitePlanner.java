@@ -913,7 +913,8 @@ public class HiveParserCalcitePlanner {
                 HiveParserUtils.genFilterRelNode(
                         srcRel,
                         factoredFilterExpr,
-                        HiveParserBaseSemanticAnalyzer.getVariablesSet(factoredFilterExpr));
+                        HiveParserBaseSemanticAnalyzer.getVariablesSetForFilter(
+                                factoredFilterExpr));
         relToRowResolver.put(filterRel, relToRowResolver.get(srcRel));
         relToHiveColNameCalcitePosMap.put(filterRel, hiveColNameToCalcitePos);
 
@@ -1077,7 +1078,8 @@ public class HiveParserCalcitePlanner {
                     HiveParserUtils.genFilterRelNode(
                             srcRel,
                             convertedFilterLHS,
-                            HiveParserBaseSemanticAnalyzer.getVariablesSet(convertedFilterLHS));
+                            HiveParserBaseSemanticAnalyzer.getVariablesSetForFilter(
+                                    convertedFilterLHS));
 
             relToHiveColNameCalcitePosMap.put(filterRel, relToHiveColNameCalcitePosMap.get(srcRel));
             relToRowResolver.put(filterRel, relToRowResolver.get(srcRel));

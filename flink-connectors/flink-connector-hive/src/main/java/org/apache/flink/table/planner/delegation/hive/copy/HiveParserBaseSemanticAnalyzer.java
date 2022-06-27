@@ -79,6 +79,7 @@ import org.apache.hadoop.hive.ql.metadata.InvalidTableException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
+import org.apache.hadoop.hive.ql.optimizer.calcite.reloperators.HiveFilter;
 import org.apache.hadoop.hive.ql.parse.PTFInvocationSpec.Order;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.parse.WindowingSpec;
@@ -1867,13 +1868,16 @@ public class HiveParserBaseSemanticAnalyzer {
                 rows);
     }
 
-    // traverse the given node to find all correlated variables
-    public static Set<CorrelationId> getVariablesSet(RexNode rexNode) {
+    /**
+     * traverse the given node to find all correlated variables, the main logic is from {@link
+     * HiveFilter#getVariablesSet()}.
+     */
+    public static Set<CorrelationId> getVariablesSetForFilter(RexNode rexNode) {
         Set<CorrelationId> correlationVariables = new HashSet<>();
         if (rexNode instanceof RexSubQuery) {
             RexSubQuery rexSubQuery = (RexSubQuery) rexNode;
             // we expect correlated variables in Filter only for now.
-            // also check case where operator has o inputs .e.g TableScan
+            // also check case where operator has 0 inputs .e.g TableScan
             if (rexSubQuery.rel.getInputs().isEmpty()) {
                 return correlationVariables;
             }
@@ -1887,6 +1891,8 @@ public class HiveParserBaseSemanticAnalyzer {
                         correlationVariables.addAll(
                                 findCorrelatedVar(((LogicalJoin) input).getCondition()));
                     }
+                    // todo: throw Unsupported exception when the input isn't LogicalJoin and
+                    // contains correlate variables in FLINK-28317
                     return correlationVariables;
                 }
                 input = input.getInput(0);
@@ -1902,7 +1908,7 @@ public class HiveParserBaseSemanticAnalyzer {
             int numOperands = ((RexCall) rexNode).getOperands().size();
             for (int i = 0; i < numOperands; i++) {
                 RexNode op = ((RexCall) rexNode).getOperands().get(i);
-                correlationVariables.addAll(getVariablesSet(op));
+                correlationVariables.addAll(getVariablesSetForFilter(op));
             }
         }
         return correlationVariables;
