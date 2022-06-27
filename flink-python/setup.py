@@ -278,6 +278,7 @@ try:
                 'pyflink.fn_execution.beam',
                 'pyflink.fn_execution.datastream',
                 'pyflink.fn_execution.datastream.window',
+                'pyflink.fn_execution.formats',
                 'pyflink.fn_execution.table',
                 'pyflink.fn_execution.utils',
                 'pyflink.metrics',
