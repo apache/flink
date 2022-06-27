@@ -124,6 +124,15 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
     }
 
     @Override
+    CompletableFuture<?> getTerminationFuture() {
+        final List<CompletableFuture<?>> terminationFutures =
+                currentExecutions.values().stream()
+                        .map(Execution::getTerminalStateFuture)
+                        .collect(Collectors.toList());
+        return FutureUtils.waitForAll(terminationFutures);
+    }
+
+    @Override
     public void resetForNewExecution() {
         super.resetForNewExecution();
 
