@@ -318,6 +318,10 @@ public class ExecutionVertex
         return resultPartitions;
     }
 
+    CompletableFuture<?> getTerminationFuture() {
+        return currentExecution.getTerminalStateFuture();
+    }
+
     // --------------------------------------------------------------------------------------------
     //  Graph building
     // --------------------------------------------------------------------------------------------
