@@ -78,13 +78,17 @@ mkdir -p "$PYFLINK_DOCKER_DIR"
 cp "${FLINK_PYTHON_DIR}/dist/${PYFLINK_PACKAGE_FILE}" $PYFLINK_DOCKER_DIR/
 cp "${FLINK_PYTHON_DIR}/apache-flink-libraries/dist/${PYFLINK_LIBRARIES_PACKAGE_FILE}" $PYFLINK_DOCKER_DIR/
 cp "${FLINK_PYTHON_DIR}/dev/lint-python.sh" $PYFLINK_DOCKER_DIR/
+cp "${FLINK_PYTHON_DIR}/dev/dev-requirements.txt" $PYFLINK_DOCKER_DIR/
 if [[ -d "dist" ]]; then rm -Rf dist; fi
 cd ${PYFLINK_DOCKER_DIR}
 echo "FROM ${PURE_FLINK_IMAGE_NAME}" >> Dockerfile
+echo "RUN apt-get update && apt-get install build-essential -y" >> Dockerfile
 echo "COPY lint-python.sh /tmp/lint-python.sh" >> Dockerfile
+echo "COPY dev-requirements.txt /tmp/dev-requirements.txt" >> Dockerfile
 echo "RUN bash /tmp/lint-python.sh -s basic" >> Dockerfile
 echo "COPY ${PYFLINK_PACKAGE_FILE} ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
 echo "COPY ${PYFLINK_LIBRARIES_PACKAGE_FILE} ${PYFLINK_LIBRARIES_PACKAGE_FILE}" >> Dockerfile
+echo "RUN /tmp/.conda/bin/python -m pip install -r /tmp/dev-requirements.txt"  >> Dockerfile
 echo "RUN /tmp/.conda/bin/python -m pip install ${PYFLINK_LIBRARIES_PACKAGE_FILE}" >> Dockerfile
 echo "RUN /tmp/.conda/bin/python -m pip install ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
 echo "RUN rm ${PYFLINK_LIBRARIES_PACKAGE_FILE}" >> Dockerfile

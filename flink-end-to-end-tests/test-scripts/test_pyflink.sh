@@ -86,6 +86,8 @@ cd "${FLINK_PYTHON_DIR}"
 
 rm -rf dist
 
+pip install -r dev/dev-requirements.txt
+
 python setup.py sdist
 
 pushd apache-flink-libraries
