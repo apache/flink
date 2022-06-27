@@ -18,8 +18,8 @@
 
 package org.apache.flink.formats.protobuf.serialize;
 
-import org.apache.flink.formats.protobuf.PbCodegenAppender;
-import org.apache.flink.formats.protobuf.PbCodegenVarId;
+import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
+import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -41,17 +41,18 @@ public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
     }
 
     @Override
-    public String codegen(String resultVar, String flinkObjectCode) {
+    public String codegen(String resultVar, String flinkObjectCode, int indent) {
         // the real value of flinkObjectCode may be String, Integer,
         // Long, Double, Float, Boolean, byte[].
         // The type of flinkObject is simple data type of flink, and flinkObject must not be null.
         // it should be converted to protobuf simple data as resultVariable.
-        PbCodegenAppender appender = new PbCodegenAppender();
+        PbCodegenAppender appender = new PbCodegenAppender(indent);
         switch (type.getTypeRoot()) {
             case FLOAT:
             case DOUBLE:
             case BOOLEAN:
-                return resultVar + " = " + flinkObjectCode + ";";
+                appender.appendLine(resultVar + " = " + flinkObjectCode);
+                return appender.code();
             case BIGINT:
             case INTEGER:
             case SMALLINT:
@@ -68,13 +69,13 @@ public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
                                     + flinkObjectCode
                                     + ")");
                     // choose the first enum element as default value if such value is invalid enum
-                    appender.appendSegment("if(null == " + resultVar + "){");
+                    appender.begin("if(null == " + resultVar + "){");
                     appender.appendLine(resultVar + " = " + enumTypeStr + ".values()[0]");
-                    appender.appendSegment("}");
-                    return appender.code();
+                    appender.end("}");
                 } else {
-                    return resultVar + " = " + flinkObjectCode + ";";
+                    appender.appendLine(resultVar + " = " + flinkObjectCode);
                 }
+                return appender.code();
             case VARCHAR:
             case CHAR:
                 int uid = PbCodegenVarId.getInstance().getAndIncrement();
@@ -94,22 +95,23 @@ public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
                                     + ".getDescriptor().findValueByName("
                                     + fromVar
                                     + ")");
-                    appender.appendSegment("if(null == " + enumValueDescVar + "){");
+                    appender.begin("if(null == " + enumValueDescVar + "){");
                     // choose the first enum element as default value if such value is invalid enum
                     appender.appendLine(resultVar + " = " + enumTypeStr + ".values()[0]");
-                    appender.appendSegment("}");
-                    appender.appendSegment("else{");
+                    appender.end("}");
+                    appender.begin("else{");
                     // choose the exact enum value
                     appender.appendLine(
                             resultVar + " = " + enumTypeStr + ".valueOf(" + enumValueDescVar + ")");
-                    appender.appendLine("}");
+                    appender.end("}");
                 } else {
                     appender.appendLine(resultVar + " = " + fromVar);
                 }
                 return appender.code();
             case VARBINARY:
             case BINARY:
-                return resultVar + " = ByteString.copyFrom(" + flinkObjectCode + ");";
+                appender.appendLine(resultVar + " = ByteString.copyFrom(" + flinkObjectCode + ")");
+                return appender.code();
             default:
                 throw new IllegalArgumentException("Unsupported data type in schema: " + type);
         }

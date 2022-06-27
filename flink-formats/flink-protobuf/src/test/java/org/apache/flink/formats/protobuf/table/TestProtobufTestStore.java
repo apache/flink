@@ -26,5 +26,5 @@ import java.util.List;
 /** The test data store for protobuf SQL integration test only. */
 public class TestProtobufTestStore {
     public static List<AbstractMessage> sourcePbInputs = new ArrayList<>();
-    public static List<byte[]> sinkResults = new ArrayList();
+    public static List<byte[]> sinkResults = new ArrayList<>();
 }

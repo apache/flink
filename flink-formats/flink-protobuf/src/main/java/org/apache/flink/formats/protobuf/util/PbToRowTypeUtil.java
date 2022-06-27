@@ -55,7 +55,7 @@ public class PbToRowTypeUtil {
         return RowType.of(types, rowFieldNames);
     }
 
-    public static LogicalType generateFieldTypeInformation(
+    private static LogicalType generateFieldTypeInformation(
             FieldDescriptor field, boolean enumAsInt) {
         JavaType fieldType = field.getJavaType();
         LogicalType type;

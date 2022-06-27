@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.protobuf;
+package org.apache.flink.formats.protobuf.util;
 
 import java.util.concurrent.atomic.AtomicInteger;
 

@@ -19,9 +19,7 @@
 package org.apache.flink.formats.protobuf.util;
 
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
-import org.apache.flink.formats.protobuf.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.serialize.PbCodegenSerializeFactory;
@@ -224,23 +222,25 @@ public class PbCodegenUtils {
             String resultPbVar,
             FieldDescriptor elementPbFd,
             LogicalType elementDataType,
-            PbFormatContext pbFormatContext)
+            PbFormatContext pbFormatContext,
+            int indent)
             throws PbCodegenException {
         PbCodegenVarId varUid = PbCodegenVarId.getInstance();
         int uid = varUid.getAndIncrement();
         String flinkElementVar = "elementVar" + uid;
-        PbCodegenAppender appender = new PbCodegenAppender();
+        PbCodegenAppender appender = new PbCodegenAppender(indent);
         String protoTypeStr =
                 PbCodegenUtils.getTypeStrFromProto(
                         elementPbFd, false, pbFormatContext.getOuterPrefix());
         String dataTypeStr = PbCodegenUtils.getTypeStrFromLogicType(elementDataType);
         appender.appendLine(protoTypeStr + " " + resultPbVar);
-        appender.appendSegment("if(" + flinkArrDataVar + ".isNullAt(" + iVar + ")){");
+        appender.begin("if(" + flinkArrDataVar + ".isNullAt(" + iVar + ")){");
         appender.appendLine(
                 resultPbVar
                         + "="
                         + PbCodegenUtils.pbDefaultValueCode(elementPbFd, pbFormatContext));
-        appender.appendSegment("}else{");
+        appender.end("}else{");
+        appender.begin();
         appender.appendLine(dataTypeStr + " " + flinkElementVar);
         String flinkContainerElementCode =
                 PbCodegenUtils.flinkContainerElementCode(flinkArrDataVar, iVar, elementDataType);
@@ -248,9 +248,9 @@ public class PbCodegenUtils {
         PbCodegenSerializer codegenSer =
                 PbCodegenSerializeFactory.getPbCodegenSer(
                         elementPbFd, elementDataType, pbFormatContext);
-        String code = codegenSer.codegen(resultPbVar, flinkElementVar);
+        String code = codegenSer.codegen(resultPbVar, flinkElementVar, appender.currentIndent());
         appender.appendSegment(code);
-        appender.appendSegment("}");
+        appender.end("}");
         return appender.code();
     }
 

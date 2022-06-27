@@ -21,7 +21,7 @@ package org.apache.flink.formats.protobuf.serialize;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
-import org.apache.flink.formats.protobuf.PbSchemaValidatorUtils;
+import org.apache.flink.formats.protobuf.util.PbSchemaValidatorUtils;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;

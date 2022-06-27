@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.protobuf.serialize;
 
-import org.apache.flink.formats.protobuf.PbCodegenAppender;
+import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
@@ -61,7 +61,7 @@ public class RowToProtoConverter {
             Descriptors.Descriptor descriptor =
                     PbFormatUtils.getDescriptor(formatConfig.getMessageClassName());
 
-            PbCodegenAppender codegenAppender = new PbCodegenAppender();
+            PbCodegenAppender codegenAppender = new PbCodegenAppender(0);
             String uuid = UUID.randomUUID().toString().replaceAll("\\-", "");
             String generatedClassName = "GeneratedRowToProto_" + uuid;
             String generatedPackageName = RowToProtoConverter.class.getPackage().getName();
@@ -77,8 +77,8 @@ public class RowToProtoConverter {
             codegenAppender.appendLine("import " + Map.class.getName());
             codegenAppender.appendLine("import " + HashMap.class.getName());
 
-            codegenAppender.appendSegment("public class " + generatedClassName + "{");
-            codegenAppender.appendSegment(
+            codegenAppender.begin("public class " + generatedClassName + "{");
+            codegenAppender.begin(
                     "public static AbstractMessage "
                             + PbConstant.GENERATED_ENCODE_METHOD
                             + "(RowData rowData){");
@@ -86,11 +86,11 @@ public class RowToProtoConverter {
             PbCodegenSerializer codegenSer =
                     PbCodegenSerializeFactory.getPbCodegenTopRowSer(
                             descriptor, rowType, formatContext);
-            String genCode = codegenSer.codegen("message", "rowData");
+            String genCode = codegenSer.codegen("message", "rowData", codegenAppender.currentIndent());
             codegenAppender.appendSegment(genCode);
             codegenAppender.appendLine("return message");
-            codegenAppender.appendSegment("}");
-            codegenAppender.appendSegment("}");
+            codegenAppender.end("}");
+            codegenAppender.end("}");
 
             String printCode = codegenAppender.printWithLineNumber();
             LOG.debug("Protobuf encode codegen: \n" + printCode);

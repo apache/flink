@@ -36,5 +36,5 @@ public interface PbCodegenSerializer {
      *     internal object.
      * @return The java code generated
      */
-    String codegen(String resultVar, String flinkObjectCode) throws PbCodegenException;
+    String codegen(String resultVar, String flinkObjectCode, int indent) throws PbCodegenException;
 }

@@ -36,11 +36,11 @@ import static org.junit.Assert.assertEquals;
 public class MapRowToProtoTest {
     @Test
     public void testSimple() throws Exception {
-        Map map1 = new HashMap();
+        Map<StringData, StringData> map1 = new HashMap<>();
         map1.put(StringData.fromString("a"), StringData.fromString("b"));
-        Map map2 = new HashMap();
+        Map<StringData, RowData> map2 = new HashMap<>();
         map2.put(StringData.fromString("c"), GenericRowData.of(1, 2L));
-        Map map3 = new HashMap();
+        Map<StringData, byte[]> map3 = new HashMap<>();
         map3.put(StringData.fromString("e"), new byte[] {1, 2, 3});
         RowData row =
                 GenericRowData.of(
