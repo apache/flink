@@ -18,9 +18,11 @@
 
 package org.apache.flink.streaming.api.utils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
@@ -35,28 +37,32 @@ import java.io.IOException;
  * allows Python side to determine how long the record is. This wraps a {@link TypeSerializer} for
  * byte[] and a {@link TypeSerializer} for {@link T}.
  */
+@Internal
 public class LengthPrefixWrapperSerializer<T> extends TypeSerializer<T> {
+
+    private static final long serialVersionUID = 1L;
 
     private final TypeSerializer<byte[]> bytesSerializer;
 
     private final TypeSerializer<T> dataSerializer;
 
-    private final ByteArrayInputStreamWithPos bais;
+    private transient ByteArrayInputStreamWithPos bais;
 
-    private final DataInputViewStreamWrapper baisWrapper;
+    private transient DataInputViewStreamWrapper baisWrapper;
 
-    private final ByteArrayOutputStreamWithPos baos;
+    private transient ByteArrayOutputStreamWithPos baos;
 
-    private final DataOutputViewStreamWrapper baosWrapper;
+    private transient DataOutputViewStreamWrapper baosWrapper;
 
-    public LengthPrefixWrapperSerializer(
+    public LengthPrefixWrapperSerializer(TypeSerializer<T> dataSerializer) {
+        this(BytePrimitiveArraySerializer.INSTANCE, dataSerializer);
+    }
+
+    private LengthPrefixWrapperSerializer(
             TypeSerializer<byte[]> bytesSerializer, TypeSerializer<T> dataSerializer) {
         this.bytesSerializer = bytesSerializer;
         this.dataSerializer = dataSerializer;
-        this.bais = new ByteArrayInputStreamWithPos();
-        this.baisWrapper = new DataInputViewStreamWrapper(this.bais);
-        this.baos = new ByteArrayOutputStreamWithPos();
-        this.baosWrapper = new DataOutputViewStreamWrapper(this.baos);
+        initializeBuffer();
     }
 
     @Override
@@ -87,7 +93,11 @@ public class LengthPrefixWrapperSerializer<T> extends TypeSerializer<T> {
 
     @Override
     public int getLength() {
-        return bytesSerializer.getLength();
+        if (dataSerializer.getLength() == -1) {
+            return -1;
+        } else {
+            return dataSerializer.getLength() + Integer.BYTES;
+        }
     }
 
     @Override
@@ -118,18 +128,42 @@ public class LengthPrefixWrapperSerializer<T> extends TypeSerializer<T> {
 
     @Override
     public boolean equals(Object obj) {
-        return obj.getClass().equals(this.getClass()) && bytesSerializer.equals(obj);
+        if (obj == this) {
+            return true;
+        }
+        if (obj == null || !obj.getClass().equals(this.getClass())) {
+            return false;
+        }
+        @SuppressWarnings("rawtypes")
+        final LengthPrefixWrapperSerializer objSerializer = (LengthPrefixWrapperSerializer) obj;
+        return bytesSerializer.equals(objSerializer.getBytesSerializer())
+                && dataSerializer.equals(objSerializer.getDataSerializer());
     }
 
     @Override
     public int hashCode() {
-        return bytesSerializer.hashCode();
+        return bytesSerializer.hashCode() + dataSerializer.hashCode();
     }
 
     @Override
     public TypeSerializerSnapshot<T> snapshotConfiguration() {
         return new LengthPrefixWrapperSerializerSnapshot<>(
                 bytesSerializer.snapshotConfiguration(), dataSerializer.snapshotConfiguration());
+    }
+
+    public TypeSerializer<byte[]> getBytesSerializer() {
+        return bytesSerializer;
+    }
+
+    public TypeSerializer<T> getDataSerializer() {
+        return dataSerializer;
+    }
+
+    private void initializeBuffer() {
+        bais = new ByteArrayInputStreamWithPos();
+        baisWrapper = new DataInputViewStreamWrapper(this.bais);
+        baos = new ByteArrayOutputStreamWithPos();
+        baosWrapper = new DataOutputViewStreamWrapper(this.baos);
     }
 
     /**
@@ -139,9 +173,13 @@ public class LengthPrefixWrapperSerializer<T> extends TypeSerializer<T> {
     public static class LengthPrefixWrapperSerializerSnapshot<T>
             implements TypeSerializerSnapshot<T> {
 
-        private final TypeSerializerSnapshot<byte[]> bytesSerializerSnapshot;
+        private static final int VERSION = 1;
 
-        private final TypeSerializerSnapshot<T> dataSerializerSnapshot;
+        private TypeSerializerSnapshot<byte[]> bytesSerializerSnapshot;
+
+        private TypeSerializerSnapshot<T> dataSerializerSnapshot;
+
+        public LengthPrefixWrapperSerializerSnapshot() {}
 
         public LengthPrefixWrapperSerializerSnapshot(
                 TypeSerializerSnapshot<byte[]> bytesSerializerSnapshot,
@@ -152,27 +190,36 @@ public class LengthPrefixWrapperSerializer<T> extends TypeSerializer<T> {
 
         @Override
         public int getCurrentVersion() {
-            return dataSerializerSnapshot.getCurrentVersion();
+            return VERSION;
         }
 
         @Override
         public void writeSnapshot(DataOutputView out) throws IOException {
-            bytesSerializerSnapshot.writeSnapshot(out);
-            dataSerializerSnapshot.writeSnapshot(out);
+            TypeSerializerSnapshot.writeVersionedSnapshot(out, bytesSerializerSnapshot);
+            TypeSerializerSnapshot.writeVersionedSnapshot(out, dataSerializerSnapshot);
         }
 
         @Override
         public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
                 throws IOException {
-            bytesSerializerSnapshot.readSnapshot(readVersion, in, userCodeClassLoader);
-            dataSerializerSnapshot.readSnapshot(readVersion, in, userCodeClassLoader);
+            if (readVersion != VERSION) {
+                throw new IllegalArgumentException(
+                        "unknown snapshot version for AvroSerializerSnapshot " + readVersion);
+            }
+            bytesSerializerSnapshot =
+                    TypeSerializerSnapshot.readVersionedSnapshot(in, userCodeClassLoader);
+            dataSerializerSnapshot =
+                    TypeSerializerSnapshot.readVersionedSnapshot(in, userCodeClassLoader);
         }
 
         @Override
         public TypeSerializer<T> restoreSerializer() {
-            return new LengthPrefixWrapperSerializer<>(
-                    bytesSerializerSnapshot.restoreSerializer(),
-                    dataSerializerSnapshot.restoreSerializer());
+            LengthPrefixWrapperSerializer<T> serializer =
+                    new LengthPrefixWrapperSerializer<>(
+                            bytesSerializerSnapshot.restoreSerializer(),
+                            dataSerializerSnapshot.restoreSerializer());
+            serializer.initializeBuffer();
+            return serializer;
         }
 
         @Override
@@ -181,13 +228,16 @@ public class LengthPrefixWrapperSerializer<T> extends TypeSerializer<T> {
             if (!(newSerializer instanceof LengthPrefixWrapperSerializer)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
+            final LengthPrefixWrapperSerializer<T> lengthPrefixWrapperSerializer =
+                    (LengthPrefixWrapperSerializer<T>) newSerializer;
             // bytes serializer is considered always compatible
             TypeSerializerSchemaCompatibility<T> dataSerializerCompatibility =
-                    dataSerializerSnapshot.resolveSchemaCompatibility(newSerializer);
+                    dataSerializerSnapshot.resolveSchemaCompatibility(
+                            lengthPrefixWrapperSerializer.getDataSerializer());
             if (dataSerializerCompatibility.isCompatibleWithReconfiguredSerializer()) {
                 return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
                         new LengthPrefixWrapperSerializer<>(
-                                ((LengthPrefixWrapperSerializer<T>) newSerializer).bytesSerializer,
+                                lengthPrefixWrapperSerializer.getBytesSerializer(),
                                 dataSerializerCompatibility.getReconfiguredSerializer()));
             } else {
                 return dataSerializerCompatibility;

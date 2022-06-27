@@ -19,6 +19,10 @@ from avro.io import DatumReader, SchemaResolutionException, BinaryDecoder
 
 
 class FlinkAvroDecoder(BinaryDecoder):
+    """
+    Flink-customized basic type decoder, with some different encodings, e.g. Default avro encode int
+    and long into variable-sized bytes, while Flink use fixed bytes in some places.
+    """
 
     def __init__(self, reader):
         super(FlinkAvroDecoder, self).__init__(reader)
@@ -71,6 +75,10 @@ class FlinkAvroDecoder(BinaryDecoder):
 
 
 class FlinkAvroDatumReader(DatumReader):
+    """
+    Flink-customized datum reader to parse composite data structure, to fit with changed basic type
+    serialization in FlinkAvroDecoder.
+    """
 
     def __init__(self, writer_schema=None, reader_schema=None):
         super().__init__(writer_schema, reader_schema)

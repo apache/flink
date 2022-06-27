@@ -77,8 +77,6 @@ import java.util.Set;
 @Internal
 public class PythonTypeUtils {
 
-    public static ClassLoader userClassLoader = Thread.currentThread().getContextClassLoader();
-
     /** Get coder proto according to the given type information. */
     public static class TypeInfoToProtoConverter {
 
@@ -182,7 +180,9 @@ public class PythonTypeUtils {
                     .equals("org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo")) {
                 try {
                     return buildAvroTypeProto(typeInformation);
-                } catch (Exception ignore) {
+                } catch (Exception e) {
+                    throw new RuntimeException(
+                            "Error when building proto for GenericRecordAvroTypeInfo", e);
                 }
             }
 
@@ -321,7 +321,7 @@ public class PythonTypeUtils {
                     Class.forName(
                             "org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo",
                             true,
-                            userClassLoader);
+                            PythonTypeUtils.class.getClassLoader());
             Field schemaField = clazz.getDeclaredField("schema");
             schemaField.setAccessible(true);
             String schema = schemaField.get(avroTypeInfo).toString();
@@ -586,8 +586,6 @@ public class PythonTypeUtils {
                                 "org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo")) {
                     ExecutionConfig executionConfig = new ExecutionConfig();
                     return new LengthPrefixWrapperSerializer<>(
-                            PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO.createSerializer(
-                                    executionConfig),
                             typeInformation.createSerializer(executionConfig));
                 }
             }
