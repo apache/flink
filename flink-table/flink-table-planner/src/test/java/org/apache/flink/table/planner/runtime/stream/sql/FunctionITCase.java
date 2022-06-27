@@ -27,6 +27,7 @@ import org.apache.flink.table.annotation.HintFlag;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.dataview.MapView;
@@ -44,6 +45,8 @@ import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.table.resource.ResourceType;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
@@ -239,6 +242,27 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
+    public void testCreateTemporarySystemFunctionWithTableAPI() {
+        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, jarPath);
+        tEnv().createTemporarySystemFunction("f10", udfClassName, Arrays.asList(resourceUri));
+        assertThat(Arrays.asList(tEnv().listFunctions())).contains("f10");
+
+        tEnv().executeSql("DROP TEMPORARY SYSTEM FUNCTION f10");
+        assertThat(Arrays.asList(tEnv().listFunctions())).doesNotContain("f10");
+    }
+
+    @Test
+    public void testUserDefinedTemporarySystemFunctionWithTableAPI() throws Exception {
+        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, jarPath);
+        String dropFunctionSql = "DROP TEMPORARY SYSTEM FUNCTION lowerUdf";
+        testUserDefinedFunctionByUsingJar(
+                environment ->
+                        environment.createTemporarySystemFunction(
+                                "lowerUdf", udfClassName, Arrays.asList(resourceUri)),
+                dropFunctionSql);
+    }
+
+    @Test
     public void testCreateCatalogFunctionByUsingJar() {
         String ddl =
                 String.format(
@@ -252,6 +276,27 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
+    public void testCreateCatalogFunctionWithTableAPI() {
+        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, jarPath);
+        tEnv().createFunction("f11", udfClassName, Arrays.asList(resourceUri));
+        assertThat(Arrays.asList(tEnv().listFunctions())).contains("f11");
+
+        tEnv().executeSql("DROP FUNCTION default_database.f11");
+        assertThat(Arrays.asList(tEnv().listFunctions())).doesNotContain("f11");
+    }
+
+    @Test
+    public void testUserDefinedCatalogFunctionWithTableAPI() throws Exception {
+        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, jarPath);
+        String dropFunctionSql = "DROP FUNCTION default_database.lowerUdf";
+        testUserDefinedFunctionByUsingJar(
+                environment ->
+                        environment.createFunction(
+                                "lowerUdf", udfClassName, Arrays.asList(resourceUri)),
+                dropFunctionSql);
+    }
+
+    @Test
     public void testCreateTemporaryCatalogFunctionByUsingJar() {
         String ddl =
                 String.format(
@@ -262,6 +307,27 @@ public class FunctionITCase extends StreamingTestBase {
 
         tEnv().executeSql("DROP TEMPORARY FUNCTION default_database.f12");
         assertThat(Arrays.asList(tEnv().listFunctions())).doesNotContain("f12");
+    }
+
+    @Test
+    public void testCreateTemporaryCatalogFunctionWithTableAPI() {
+        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, jarPath);
+        tEnv().createTemporaryFunction("f12", udfClassName, Arrays.asList(resourceUri));
+        assertThat(Arrays.asList(tEnv().listFunctions())).contains("f12");
+
+        tEnv().executeSql("DROP TEMPORARY FUNCTION default_database.f12");
+        assertThat(Arrays.asList(tEnv().listFunctions())).doesNotContain("f12");
+    }
+
+    @Test
+    public void testUserDefinedTemporaryCatalogFunctionWithTableAPI() throws Exception {
+        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, jarPath);
+        String dropFunctionSql = "DROP TEMPORARY FUNCTION default_database.lowerUdf";
+        testUserDefinedFunctionByUsingJar(
+                environment ->
+                        environment.createTemporaryFunction(
+                                "lowerUdf", udfClassName, Arrays.asList(resourceUri)),
+                dropFunctionSql);
     }
 
     @Test
@@ -440,7 +506,7 @@ public class FunctionITCase extends StreamingTestBase {
                         udfClassName, jarPath);
 
         String dropFunctionDDL = "drop temporary system function lowerUdf";
-        testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
+        testUserDefinedFunctionByUsingJar(env -> env.executeSql(functionDDL), dropFunctionDDL);
     }
 
     @Test
@@ -450,7 +516,7 @@ public class FunctionITCase extends StreamingTestBase {
                         "create function lowerUdf as '%s' using jar '%s'", udfClassName, jarPath);
 
         String dropFunctionDDL = "drop function lowerUdf";
-        testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
+        testUserDefinedFunctionByUsingJar(env -> env.executeSql(functionDDL), dropFunctionDDL);
     }
 
     @Test
@@ -461,7 +527,7 @@ public class FunctionITCase extends StreamingTestBase {
                         udfClassName, jarPath);
 
         String dropFunctionDDL = "drop temporary function lowerUdf";
-        testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
+        testUserDefinedFunctionByUsingJar(env -> env.executeSql(functionDDL), dropFunctionDDL);
     }
 
     @Test
@@ -530,7 +596,7 @@ public class FunctionITCase extends StreamingTestBase {
         tEnv().executeSql("drop table t2");
     }
 
-    private void testUserDefinedFunctionByUsingJar(String createFunctionDDL, String dropFunctionDDL)
+    private void testUserDefinedFunctionByUsingJar(FunctionCreator creator, String dropFunctionDDL)
             throws Exception {
         List<Row> sourceData =
                 Arrays.asList(
@@ -550,7 +616,7 @@ public class FunctionITCase extends StreamingTestBase {
 
         tEnv().executeSql(sourceDDL);
         tEnv().executeSql(sinkDDL);
-        tEnv().executeSql(createFunctionDDL);
+        creator.createFunction(tEnv());
         Table t2 = tEnv().sqlQuery(query);
         t2.executeInsert("t2").await();
 
@@ -566,7 +632,6 @@ public class FunctionITCase extends StreamingTestBase {
 
         tEnv().executeSql("drop table t1");
         tEnv().executeSql("drop table t2");
-
         // delete the function
         tEnv().executeSql(dropFunctionDDL);
     }
@@ -1256,7 +1321,11 @@ public class FunctionITCase extends StreamingTestBase {
                 .isTrue();
 
         testUserDefinedFunctionByUsingJar(
-                String.format("create function lowerUdf as '%s' LANGUAGE JAVA", udfClassName),
+                env ->
+                        env.executeSql(
+                                String.format(
+                                        "create function lowerUdf as '%s' LANGUAGE JAVA",
+                                        udfClassName)),
                 "drop function lowerUdf");
     }
 
@@ -1685,5 +1754,9 @@ public class FunctionITCase extends StreamingTestBase {
         public Boolean eval(@DataTypeHint("BOOLEAN NOT NULL") Boolean b) {
             return b;
         }
+    }
+
+    private interface FunctionCreator {
+        void createFunction(TableEnvironment environment);
     }
 }
