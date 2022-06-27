@@ -21,6 +21,7 @@ import io
 import os
 import platform
 import sys
+import warnings
 from distutils.command.build_ext import build_ext
 from shutil import copytree, copy, rmtree
 
@@ -30,6 +31,8 @@ if sys.version_info < (3, 6):
     print("Python versions prior to 3.6 are not supported for PyFlink.",
           file=sys.stderr)
     sys.exit(-1)
+elif sys.version_info.minor == 6:
+    warnings.warn("Python version 3.6 won't be supported for PyFlink after 1.16.")
 
 
 def remove_if_exists(file_path):
