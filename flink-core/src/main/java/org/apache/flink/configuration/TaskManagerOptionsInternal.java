@@ -32,4 +32,15 @@ public class TaskManagerOptionsInternal {
                     .noDefaultValue()
                     .withDescription(
                             "**DO NOT USE** The metadata of TaskManager's ResourceID to be used for logging.");
+
+    /**
+     * The ID of the node where the TaskManager is located on. In Yarn and Native Kubernetes mode,
+     * this option will be set by resource manager when launch a container for the task executor. In
+     * other modes, this option will not be set. This option is only used internally.
+     */
+    public static final ConfigOption<String> TASK_MANAGER_NODE_ID =
+            key("internal.taskmanager.node-id")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("ID of the node where the TaskManager is located on.");
 }

@@ -179,11 +179,27 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
     @Test
     void testMainContainerEnv() {
         final Map<String, String> expectedEnvVars = new HashMap<>(customizedEnvs);
-
-        final Map<String, String> resultEnvVars =
-                this.resultMainContainer.getEnv().stream()
-                        .collect(Collectors.toMap(EnvVar::getName, EnvVar::getValue));
+        final Map<String, String> resultEnvVars = new HashMap<>();
+        this.resultMainContainer
+                .getEnv()
+                .forEach(envVar -> resultEnvVars.put(envVar.getName(), envVar.getValue()));
         expectedEnvVars.forEach((k, v) -> assertThat(resultEnvVars.get(k)).isEqualTo(v));
+    }
+
+    @Test
+    void testNodeIdEnv() {
+        assertThat(this.resultMainContainer.getEnv())
+                .anyMatch(
+                        envVar ->
+                                envVar.getName().equals(Constants.ENV_FLINK_POD_NODE_ID)
+                                        && envVar.getValueFrom()
+                                                .getFieldRef()
+                                                .getApiVersion()
+                                                .equals(Constants.API_VERSION)
+                                        && envVar.getValueFrom()
+                                                .getFieldRef()
+                                                .getFieldPath()
+                                                .equals(Constants.POD_NODE_ID_FIELD_PATH));
     }
 
     @Test
