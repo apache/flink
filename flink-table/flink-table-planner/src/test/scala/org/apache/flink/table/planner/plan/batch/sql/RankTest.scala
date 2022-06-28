@@ -88,6 +88,26 @@ class RankTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testPercentRankWithoutOrderBy(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT PERCENT_RANK() over (partition by a) FROM MyTable
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testPercentRankWithMultiGroups(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT PERCENT_RANK() over (partition by a order by b) as a,
+        |       PERCENT_RANK() over (partition by b) as b
+        |       FROM MyTable
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
   @Test
   def testRankValueFilterWithUpperValue(): Unit = {
     val sqlQuery =

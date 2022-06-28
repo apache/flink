@@ -2805,6 +2805,51 @@ class OverAggregateITCase extends BatchTestBase {
       )
     )
   }
+
+  @Test
+  def testPercentRank(): Unit = {
+    checkResult(
+      "SELECT d, PERCENT_RANK() over (order by e desc) FROM Table5",
+      Seq(
+        row(5, 0.0),
+        row(5, 0.07142857142857142),
+        row(5, 0.14285714285714285),
+        row(5, 0.21428571428571427),
+        row(5, 0.2857142857142857),
+        row(4, 0.35714285714285715),
+        row(4, 0.42857142857142855),
+        row(4, 0.5),
+        row(4, 0.5714285714285714),
+        row(3, 0.6428571428571429),
+        row(3, 0.7142857142857143),
+        row(3, 0.7857142857142857),
+        row(2, 0.8571428571428571),
+        row(2, 0.9285714285714286),
+        row(1, 1.0)
+      )
+    )
+
+    checkResult(
+      "SELECT d, PERCENT_RANK() over (partition by d order by e) FROM Table5",
+      Seq(
+        row(1, 0.0),
+        row(2, 0.0),
+        row(2, 1.0),
+        row(3, 0.0),
+        row(3, 0.5),
+        row(3, 1.0),
+        row(4, 0.0),
+        row(4, 0.3333333333333333),
+        row(4, 0.6666666666666666),
+        row(4, 1.0),
+        row(5, 0.0),
+        row(5, 0.25),
+        row(5, 0.5),
+        row(5, 0.75),
+        row(5, 1.0)
+      )
+    )
+  }
 }
 
 /** The initial accumulator for count aggregate function */
