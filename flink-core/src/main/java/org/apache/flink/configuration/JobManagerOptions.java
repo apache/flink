@@ -593,6 +593,40 @@ public class JobManagerOptions {
                                             code(SchedulerType.AdaptiveBatch.name()))
                                     .build());
 
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Boolean> SPECULATIVE_ENABLED =
+            key("jobmanager.adaptive-batch-scheduler.speculative.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Controls whether to enable speculative execution.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> SPECULATIVE_MAX_CONCURRENT_EXECUTIONS =
+            key("jobmanager.adaptive-batch-scheduler.speculative.max-concurrent-executions")
+                    .intType()
+                    .defaultValue(2)
+                    .withDescription(
+                            "Controls the maximum number of execution attempts of each operator "
+                                    + "that can execute concurrently, including the original one "
+                                    + "and speculative ones.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> BLOCK_SLOW_NODE_DURATION =
+            key("jobmanager.adaptive-batch-scheduler.speculative.block-slow-node-duration")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(1))
+                    .withDescription(
+                            "Controls how long an detected slow node should be blocked for.");
+
     /**
      * The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.
      */
