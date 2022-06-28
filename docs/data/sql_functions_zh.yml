@@ -1098,6 +1098,8 @@ aggregate:
     description: 连接字符串表达式的值并在它们之间放置分隔符值。字符串末尾不添加分隔符时则分隔符的默认值为“,”。
   - sql: CUME_DIST()
     description: 返回值在一组值的累积分布。结果是小于或等于当前行的值的行数除以窗口分区的总行数。
+  - sql: PERCENT_RANK()
+    description: 返回值在一组值的百分比排名。结果是当前行在窗口分区中的排名减 1，然后除以窗口分区的总行数减 1。如果窗口分区的总行数为 1，则该函数返回 0。
 
 catalog:
   - sql: CURRENT_DATABASE()
