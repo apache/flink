@@ -24,7 +24,6 @@ from libc.stdlib cimport free, malloc
 
 import datetime
 import decimal
-import io
 import pickle
 from typing import List, Union
 
@@ -949,8 +948,8 @@ cdef class DataViewFilterCoderImpl(FieldCoderImpl):
 cdef class AvroCoderImpl(FieldCoderImpl):
 
     def __init__(self, schema_string: str):
-        self._bytes_io = io.BytesIO()
-        self._decoder = FlinkAvroDecoder(self._bytes_io)
+        self._buffer_wrapper = FlinkAvroBufferWrapper()
+        self._decoder = FlinkAvroDecoder(self._buffer_wrapper)
         self._schema = avro_schema.parse(schema_string)
         self._reader = FlinkAvroDatumReader(writer_schema=self._schema, reader_schema=self._schema)
 
@@ -958,12 +957,5 @@ cdef class AvroCoderImpl(FieldCoderImpl):
         raise NotImplementedError()
 
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
-        size = <size_t> in_stream.read_int32()
-        if size <= 0:
-            return None
-        data = in_stream.read(size)
-        self._bytes_io.seek(0)
-        self._bytes_io.truncate(0)
-        self._bytes_io.write(data)
-        self._bytes_io.seek(0)
+        self._buffer_wrapper.switch_stream(in_stream)
         return self._reader.read(self._decoder)

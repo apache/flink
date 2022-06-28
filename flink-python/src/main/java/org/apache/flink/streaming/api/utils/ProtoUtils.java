@@ -154,8 +154,12 @@ public enum ProtoUtils {
                         .setIndexOfThisSubtask(runtimeContext.getIndexOfThisSubtask())
                         .setAttemptNumber(runtimeContext.getAttemptNumber())
                         .addAllJobParameters(
-                                runtimeContext.getExecutionConfig().getGlobalJobParameters().toMap()
-                                        .entrySet().stream()
+                                runtimeContext
+                                        .getExecutionConfig()
+                                        .getGlobalJobParameters()
+                                        .toMap()
+                                        .entrySet()
+                                        .stream()
                                         .map(
                                                 entry ->
                                                         FlinkFnApi.UserDefinedDataStreamFunction
@@ -272,7 +276,8 @@ public enum ProtoUtils {
 
         // set the key typeinfo for the head operator
         FlinkFnApi.TypeInfo builtKeyTypeInfo =
-                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(keyTypeInfo);
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(
+                        keyTypeInfo, runtimeContext.getUserCodeClassLoader());
         results.set(0, results.get(0).toBuilder().setKeyTypeInfo(builtKeyTypeInfo).build());
         return results;
     }
@@ -354,9 +359,11 @@ public enum ProtoUtils {
     public static FlinkFnApi.CoderInfoDescriptor createRawTypeCoderInfoDescriptorProto(
             TypeInformation<?> typeInformation,
             FlinkFnApi.CoderInfoDescriptor.Mode mode,
-            boolean separatedWithEndMessage) {
+            boolean separatedWithEndMessage,
+            ClassLoader userClassLoader) {
         FlinkFnApi.TypeInfo typeinfo =
-                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(typeInformation);
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(
+                        typeInformation, userClassLoader);
         return createCoderInfoDescriptorProto(
                 null,
                 null,

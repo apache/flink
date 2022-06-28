@@ -40,6 +40,6 @@ public final class TimerUtils {
     public static FlinkFnApi.CoderInfoDescriptor createTimerDataCoderInfoDescriptorProto(
             TypeInformation<Row> timerDataType) {
         return ProtoUtils.createRawTypeCoderInfoDescriptorProto(
-                timerDataType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false);
+                timerDataType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false, null);
     }
 }

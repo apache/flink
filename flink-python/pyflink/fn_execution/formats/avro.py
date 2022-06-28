@@ -15,7 +15,24 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import struct
+
 from avro.io import DatumReader, SchemaResolutionException, BinaryDecoder
+
+STRUCT_FLOAT = struct.Struct('>f')  # big-endian float
+STRUCT_DOUBLE = struct.Struct('>d')  # big-endian double
+
+
+class FlinkAvroBufferWrapper(object):
+
+    def __init__(self):
+        self._in_stream = None
+
+    def switch_stream(self, in_stream):
+        self._in_stream = in_stream
+
+    def read(self, n=1):
+        return self._in_stream.read(n)
 
 
 class FlinkAvroDecoder(BinaryDecoder):
@@ -56,6 +73,12 @@ class FlinkAvroDecoder(BinaryDecoder):
             n |= (b & 0x7F) << shift
             shift += 7
         return n
+
+    def read_float(self):
+        return STRUCT_FLOAT.unpack(self.read(4))[0]
+
+    def read_double(self):
+        return STRUCT_DOUBLE.unpack(self.read(8))[0]
 
     def read_bytes(self):
         nbytes = self.read_int()

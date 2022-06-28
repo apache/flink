@@ -17,7 +17,6 @@
 ################################################################################
 import datetime
 import decimal
-import io
 import pickle
 from abc import ABC, abstractmethod
 from typing import List
@@ -842,8 +841,8 @@ class DataViewFilterCoderImpl(FieldCoderImpl):
 class AvroCoderImpl(FieldCoderImpl):
 
     def __init__(self, schema_string: str):
-        self._bytes_io = io.BytesIO()
-        self._decoder = FlinkAvroDecoder(self._bytes_io)
+        self._buffer_wrapper = FlinkAvroBufferWrapper()
+        self._decoder = FlinkAvroDecoder(self._buffer_wrapper)
         self._schema = avro_schema.parse(schema_string)
         self._reader = FlinkAvroDatumReader(writer_schema=self._schema, reader_schema=self._schema)
 
@@ -851,12 +850,6 @@ class AvroCoderImpl(FieldCoderImpl):
         raise NotImplementedError()
 
     def decode_from_stream(self, in_stream: InputStream, length: int = 0):
-        length = in_stream.read_int32()
-        if length <= 0:
-            return None
-        data = in_stream.read(length)
-        self._bytes_io.seek(0)
-        self._bytes_io.truncate(0)
-        self._bytes_io.write(data)
-        self._bytes_io.seek(0)
+        # Since writer_schema equals reader_schema, in_stream does not need to support seek and tell
+        self._buffer_wrapper.switch_stream(in_stream)
         return self._reader.read(self._decoder)

@@ -186,7 +186,7 @@ cdef class DataViewFilterCoderImpl(FieldCoderImpl):
     cdef PickleCoderImpl _pickle_coder
 
 cdef class AvroCoderImpl(FieldCoderImpl):
-    cdef object _bytes_io
+    cdef object _buffer_wrapper
     cdef object _decoder
     cdef object _schema
     cdef object _reader
