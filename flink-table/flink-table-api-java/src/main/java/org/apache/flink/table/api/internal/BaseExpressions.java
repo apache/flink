@@ -1024,12 +1024,12 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(unresolvedCall(TO_BASE64, toExpr()));
     }
 
-    /** Returns the numeric value of the first character the input string. */
+    /** Returns the numeric value of the first character of the input string. */
     public OutType ascii() {
         return toApiSpecificExpression(unresolvedCall(ASCII, toExpr()));
     }
 
-    /** Returns the ASCII character result of the input string. */
+    /** Returns the ASCII character result of the input integer. */
     public OutType chr() {
         return toApiSpecificExpression(unresolvedCall(CHR, toExpr()));
     }
