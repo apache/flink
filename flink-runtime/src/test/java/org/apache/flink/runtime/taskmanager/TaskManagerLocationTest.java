@@ -92,6 +92,39 @@ class TaskManagerLocationTest {
     }
 
     @Test
+    void testEqualsHashAndCompareToWithDifferentNodeId() throws Exception {
+        ResourceID resourceID = ResourceID.generate();
+        InetAddress inetAddress = InetAddress.getByName("1.2.3.4");
+        TaskManagerLocation.HostNameSupplier hostNameSupplier =
+                new TaskManagerLocation.DefaultHostNameSupplier(inetAddress);
+        String nodeId1 = "node1";
+        String nodeId2 = "node2";
+
+        // one == three != two
+        TaskManagerLocation one =
+                new TaskManagerLocation(resourceID, inetAddress, 19871, hostNameSupplier, nodeId1);
+        TaskManagerLocation two =
+                new TaskManagerLocation(resourceID, inetAddress, 19871, hostNameSupplier, nodeId2);
+        TaskManagerLocation three =
+                new TaskManagerLocation(resourceID, inetAddress, 19871, hostNameSupplier, nodeId1);
+
+        assertThat(one).isEqualTo(three);
+        assertThat(one).isNotEqualTo(two);
+        assertThat(two).isNotEqualTo(three);
+
+        assertThat(one.hashCode()).isEqualTo(three.hashCode());
+        assertThat(one.hashCode()).isNotEqualTo(two.hashCode());
+        assertThat(two.hashCode()).isNotEqualTo(three.hashCode());
+
+        assertThat(one.compareTo(three)).isEqualTo(0);
+        assertThat(one.compareTo(two)).isNotEqualTo(0);
+        assertThat(two.compareTo(three)).isNotEqualTo(0);
+
+        int val = one.compareTo(two);
+        assertThat(two.compareTo(one)).isEqualTo(-val);
+    }
+
+    @Test
     void testSerialization() {
         try {
             // without resolved hostname
@@ -211,7 +244,8 @@ class TaskManagerLocationTest {
                         ResourceID.generate(),
                         address,
                         19871,
-                        new TaskManagerLocation.IpOnlyHostNameSupplier(address));
+                        new TaskManagerLocation.IpOnlyHostNameSupplier(address),
+                        address.getHostAddress());
 
         assertThat("worker10").isNotEqualTo(info.getHostname());
         assertThat("worker10").isNotEqualTo(info.getFQDNHostname());

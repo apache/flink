@@ -31,6 +31,7 @@ import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 
@@ -39,8 +40,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.kubernetes.utils.Constants.API_VERSION;
 import static org.apache.flink.kubernetes.utils.Constants.DNS_PLOICY_DEFAULT;
 import static org.apache.flink.kubernetes.utils.Constants.DNS_PLOICY_HOSTNETWORK;
+import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_NODE_ID;
+import static org.apache.flink.kubernetes.utils.Constants.POD_NODE_ID_FIELD_PATH;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** An initializer for the TaskManager {@link org.apache.flink.kubernetes.kubeclient.FlinkPod}. */
@@ -149,7 +153,16 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                 .withResources(resourceRequirements);
 
         // Merge fields
-        mainContainerBuilder.addAllToPorts(getContainerPorts()).addAllToEnv(getCustomizedEnvs());
+        mainContainerBuilder
+                .addAllToPorts(getContainerPorts())
+                .addAllToEnv(getCustomizedEnvs())
+                .addNewEnv()
+                .withName(ENV_FLINK_POD_NODE_ID)
+                .withValueFrom(
+                        new EnvVarSourceBuilder()
+                                .withNewFieldRef(API_VERSION, POD_NODE_ID_FIELD_PATH)
+                                .build())
+                .endEnv();
         getFlinkLogDirEnv().ifPresent(mainContainerBuilder::addToEnv);
 
         return mainContainerBuilder.build();

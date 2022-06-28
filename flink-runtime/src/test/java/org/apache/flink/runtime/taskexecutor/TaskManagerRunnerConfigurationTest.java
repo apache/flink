@@ -24,9 +24,12 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
+import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
@@ -47,6 +50,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.nio.file.Files;
@@ -212,6 +216,37 @@ class TaskManagerRunnerConfigurationTest {
                 .isEqualTo(configuration.get(TaskManagerOptions.MANAGED_MEMORY_SIZE));
         assertThat(jmHost).isEqualTo(configuration.get(JobManagerOptions.ADDRESS));
         assertThat(jmPort).isEqualTo(configuration.getInteger(JobManagerOptions.PORT));
+    }
+
+    @Test
+    void testNodeIdShouldBeConfiguredValueIfExplicitlySet() throws Exception {
+        String nodeId = "node1";
+        Configuration configuration = new Configuration();
+        configuration.set(TaskManagerOptionsInternal.TASK_MANAGER_NODE_ID, nodeId);
+        TaskManagerServicesConfiguration servicesConfiguration =
+                createTaskManagerServiceConfiguration(configuration);
+        assertThat(servicesConfiguration.getNodeId()).isEqualTo(nodeId);
+    }
+
+    @Test
+    void testNodeIdShouldBeExternalAddressIfNotExplicitlySet() throws Exception {
+        TaskManagerServicesConfiguration servicesConfiguration =
+                createTaskManagerServiceConfiguration(new Configuration());
+        assertThat(servicesConfiguration.getNodeId())
+                .isEqualTo(InetAddress.getLocalHost().getHostName());
+    }
+
+    private TaskManagerServicesConfiguration createTaskManagerServiceConfiguration(
+            Configuration config) throws Exception {
+        return TaskManagerServicesConfiguration.fromConfiguration(
+                config,
+                ResourceID.generate(),
+                InetAddress.getLocalHost().getHostName(),
+                true,
+                TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(config),
+                WorkingDirectory.create(
+                        Files.createTempDirectory(temporaryFolder, UUID.randomUUID().toString())
+                                .toFile()));
     }
 
     private static Configuration createFlinkConfigWithPredefinedTaskManagerHostname(

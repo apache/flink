@@ -113,7 +113,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
     private static final long FATAL_ERROR_SHUTDOWN_TIMEOUT_MS = 10000L;
 
     private static final int SUCCESS_EXIT_CODE = 0;
-    @VisibleForTesting static final int FAILURE_EXIT_CODE = 1;
+    @VisibleForTesting public static final int FAILURE_EXIT_CODE = 1;
 
     private final Thread shutdownHook;
 
