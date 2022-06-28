@@ -18,6 +18,7 @@
 package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
@@ -46,8 +47,9 @@ public class FsStateChangelogStorageFactory implements StateChangelogStorageFact
 
     @Override
     public StateChangelogStorage<?> createStorage(
-            Configuration configuration, TaskManagerJobMetricGroup metricGroup) throws IOException {
-        return new FsStateChangelogStorage(configuration, metricGroup);
+            JobID jobID, Configuration configuration, TaskManagerJobMetricGroup metricGroup)
+            throws IOException {
+        return new FsStateChangelogStorage(jobID, configuration, metricGroup);
     }
 
     @Override
