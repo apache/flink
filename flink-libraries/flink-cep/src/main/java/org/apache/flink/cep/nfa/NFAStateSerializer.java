@@ -55,10 +55,11 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
     private final boolean supportsPreviousTimestamp;
 
     public NFAStateSerializer() {
-        this.versionSerializer = DeweyNumber.DeweyNumberSerializer.INSTANCE;
-        this.eventIdSerializer = EventId.EventIdSerializer.INSTANCE;
-        this.nodeIdSerializer = new NodeId.NodeIdSerializer();
-        this.supportsPreviousTimestamp = true;
+        this(
+                DeweyNumber.DeweyNumberSerializer.INSTANCE,
+                new NodeId.NodeIdSerializer(),
+                EventId.EventIdSerializer.INSTANCE,
+                true);
     }
 
     NFAStateSerializer(
@@ -212,7 +213,7 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
         NodeId prevState = nodeIdSerializer.deserialize(source);
         DeweyNumber version = versionSerializer.deserialize(source);
         long startTimestamp = source.readLong();
-        long previousTimestamp = 0;
+        long previousTimestamp = -1L;
         if (supportsPreviousTimestamp) {
             previousTimestamp = source.readLong();
         }

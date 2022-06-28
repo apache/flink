@@ -172,8 +172,6 @@ public class NFACompiler {
 
             checkPatternSkipStrategy();
 
-            checkPatternWindowTimes();
-
             // we're traversing the pattern from the end to the beginning --> the first state is the
             // final state
             State<T> sinkState = createEndingState();
@@ -181,6 +179,9 @@ public class NFACompiler {
             sinkState = createMiddleStates(sinkState);
             // add the beginning state
             createStartState(sinkState);
+
+            // check the window times between events for pattern
+            checkPatternWindowTimes();
 
             if (lastPattern.getQuantifier().getConsumingStrategy()
                             == Quantifier.ConsumingStrategy.NOT_FOLLOW
@@ -210,14 +211,13 @@ public class NFACompiler {
 
         /** Check pattern window times between events. */
         private void checkPatternWindowTimes() {
-            if (windowTimes.values().stream()
-                    .anyMatch(
-                            time ->
-                                    windowTime.isPresent()
-                                            && time.compareTo(windowTime.get()) > 0)) {
-                throw new MalformedPatternException(
-                        "Window length between the previous and current event cannot be larger than the window length between the first and last event for a Pattern.");
-            }
+            windowTime.ifPresent(
+                    windowTime -> {
+                        if (windowTimes.values().stream().anyMatch(time -> time > windowTime)) {
+                            throw new MalformedPatternException(
+                                    "The window length between the previous and current event cannot be larger than the window length between the first and last event for a Pattern.");
+                        }
+                    });
         }
 
         /** Check pattern after match skip strategy. */

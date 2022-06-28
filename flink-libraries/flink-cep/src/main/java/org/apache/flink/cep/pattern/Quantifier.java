@@ -190,9 +190,9 @@ public class Quantifier {
     public static class Times {
         private final int from;
         private final int to;
-        private final Time windowTime;
+        private final @Nullable Time windowTime;
 
-        private Times(int from, int to, Time windowTime) {
+        private Times(int from, int to, @Nullable Time windowTime) {
             Preconditions.checkArgument(
                     from > 0, "The from should be a positive number greater than 0.");
             Preconditions.checkArgument(
@@ -234,7 +234,11 @@ public class Quantifier {
             Times times = (Times) o;
             return from == times.from
                     && to == times.to
-                    && windowTime.toMilliseconds() == times.windowTime.toMilliseconds();
+                    && ((windowTime == null && times.windowTime == null)
+                            || (windowTime != null
+                                    && times.windowTime != null
+                                    && windowTime.toMilliseconds()
+                                            == times.windowTime.toMilliseconds()));
         }
 
         @Override

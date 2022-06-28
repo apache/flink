@@ -31,9 +31,7 @@ import java.io.IOException;
 public class NFAStateSerializerSnapshot
         extends CompositeTypeSerializerSnapshot<NFAState, NFAStateSerializer> {
 
-    private static final int CURRENT_VERSION = 4;
-
-    private static final int FIRST_VERSION_WITH_PREVIOUS_TIMESTAMP = 3;
+    private static final int CURRENT_VERSION = 2;
 
     private boolean supportsPreviousTimestamp = true;
 
@@ -45,6 +43,7 @@ public class NFAStateSerializerSnapshot
     /** Constructor to create the snapshot for writing. */
     public NFAStateSerializerSnapshot(NFAStateSerializer serializerInstance) {
         super(serializerInstance);
+        supportsPreviousTimestamp = serializerInstance.isSupportsPreviousTimestamp();
     }
 
     @Override
@@ -56,10 +55,8 @@ public class NFAStateSerializerSnapshot
     protected void readOuterSnapshot(
             int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader)
             throws IOException {
-        if (readOuterSnapshotVersion < FIRST_VERSION_WITH_PREVIOUS_TIMESTAMP) {
+        if (readOuterSnapshotVersion < CURRENT_VERSION) {
             supportsPreviousTimestamp = false;
-        } else if (readOuterSnapshotVersion == FIRST_VERSION_WITH_PREVIOUS_TIMESTAMP) {
-            supportsPreviousTimestamp = true;
         } else {
             supportsPreviousTimestamp = in.readBoolean();
         }

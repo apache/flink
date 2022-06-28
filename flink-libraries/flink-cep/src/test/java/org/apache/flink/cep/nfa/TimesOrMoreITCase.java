@@ -48,7 +48,7 @@ public class TimesOrMoreITCase extends TestLogger {
 
     @Parameterized.Parameters(name = "Times Range Time: {0}")
     public static Collection<Time> parameters() {
-        return Arrays.asList(null, Time.milliseconds(5));
+        return Arrays.asList(null, Time.milliseconds(3));
     }
 
     @Test
@@ -172,8 +172,7 @@ public class TimesOrMoreITCase extends TestLogger {
 
         List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-        comparePatterns(
-                resultingPatterns,
+        List<List<Event>> expectedPatterns =
                 Lists.<List<Event>>newArrayList(
                         Lists.newArrayList(
                                 ConsecutiveData.startEvent,
@@ -185,17 +184,23 @@ public class TimesOrMoreITCase extends TestLogger {
                                 ConsecutiveData.startEvent,
                                 ConsecutiveData.middleEvent1,
                                 ConsecutiveData.middleEvent2,
-                                ConsecutiveData.end),
-                        Lists.newArrayList(
-                                ConsecutiveData.startEvent,
-                                ConsecutiveData.middleEvent1,
-                                ConsecutiveData.middleEvent3,
-                                ConsecutiveData.end),
-                        Lists.newArrayList(
-                                ConsecutiveData.startEvent,
-                                ConsecutiveData.middleEvent2,
-                                ConsecutiveData.middleEvent3,
-                                ConsecutiveData.end)));
+                                ConsecutiveData.end));
+        if (time == null) {
+            expectedPatterns.addAll(
+                    Lists.newArrayList(
+                            Lists.newArrayList(
+                                    ConsecutiveData.startEvent,
+                                    ConsecutiveData.middleEvent1,
+                                    ConsecutiveData.middleEvent3,
+                                    ConsecutiveData.end),
+                            Lists.newArrayList(
+                                    ConsecutiveData.startEvent,
+                                    ConsecutiveData.middleEvent2,
+                                    ConsecutiveData.middleEvent3,
+                                    ConsecutiveData.end)));
+        }
+
+        comparePatterns(resultingPatterns, expectedPatterns);
     }
 
     @Test
@@ -509,8 +514,7 @@ public class TimesOrMoreITCase extends TestLogger {
 
         List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-        comparePatterns(
-                resultingPatterns,
+        List<List<Event>> expectedPatterns =
                 Lists.<List<Event>>newArrayList(
                         Lists.newArrayList(
                                 ConsecutiveData.startEvent,
@@ -525,15 +529,20 @@ public class TimesOrMoreITCase extends TestLogger {
                                 ConsecutiveData.end),
                         Lists.newArrayList(
                                 ConsecutiveData.startEvent,
-                                ConsecutiveData.middleEvent1,
-                                ConsecutiveData.middleEvent3,
-                                ConsecutiveData.end),
-                        Lists.newArrayList(
-                                ConsecutiveData.startEvent,
                                 ConsecutiveData.middleEvent2,
                                 ConsecutiveData.middleEvent3,
                                 ConsecutiveData.end),
-                        Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end)));
+                        Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end));
+        if (time == null) {
+            expectedPatterns.add(
+                    Lists.newArrayList(
+                            ConsecutiveData.startEvent,
+                            ConsecutiveData.middleEvent1,
+                            ConsecutiveData.middleEvent3,
+                            ConsecutiveData.end));
+        }
+
+        comparePatterns(resultingPatterns, expectedPatterns);
     }
 
     @Test
@@ -666,8 +675,7 @@ public class TimesOrMoreITCase extends TestLogger {
 
         List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-        comparePatterns(
-                resultingPatterns,
+        List<List<Event>> expectedPatterns =
                 Lists.<List<Event>>newArrayList(
                         Lists.newArrayList(
                                 ConsecutiveData.startEvent,
@@ -679,12 +687,17 @@ public class TimesOrMoreITCase extends TestLogger {
                                 ConsecutiveData.startEvent,
                                 ConsecutiveData.middleEvent1,
                                 ConsecutiveData.middleEvent2,
-                                ConsecutiveData.end),
-                        Lists.newArrayList(
-                                ConsecutiveData.startEvent,
-                                ConsecutiveData.middleEvent1,
-                                ConsecutiveData.middleEvent3,
-                                ConsecutiveData.end)));
+                                ConsecutiveData.end));
+        if (time == null) {
+            expectedPatterns.add(
+                    Lists.newArrayList(
+                            ConsecutiveData.startEvent,
+                            ConsecutiveData.middleEvent1,
+                            ConsecutiveData.middleEvent3,
+                            ConsecutiveData.end));
+        }
+
+        comparePatterns(resultingPatterns, expectedPatterns);
     }
 
     @Test
@@ -806,8 +819,7 @@ public class TimesOrMoreITCase extends TestLogger {
 
         List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-        comparePatterns(
-                resultingPatterns,
+        List<List<Event>> expectedPatterns =
                 Lists.<List<Event>>newArrayList(
                         Lists.newArrayList(
                                 ConsecutiveData.startEvent,
@@ -819,17 +831,23 @@ public class TimesOrMoreITCase extends TestLogger {
                                 ConsecutiveData.startEvent,
                                 ConsecutiveData.middleEvent1,
                                 ConsecutiveData.middleEvent2,
-                                ConsecutiveData.end),
-                        Lists.newArrayList(
-                                ConsecutiveData.startEvent,
-                                ConsecutiveData.middleEvent2,
-                                ConsecutiveData.middleEvent3,
-                                ConsecutiveData.end),
-                        Lists.newArrayList(
-                                ConsecutiveData.startEvent,
-                                ConsecutiveData.middleEvent1,
-                                ConsecutiveData.middleEvent3,
-                                ConsecutiveData.end)));
+                                ConsecutiveData.end));
+        if (time == null) {
+            expectedPatterns.addAll(
+                    Lists.newArrayList(
+                            Lists.newArrayList(
+                                    ConsecutiveData.startEvent,
+                                    ConsecutiveData.middleEvent2,
+                                    ConsecutiveData.middleEvent3,
+                                    ConsecutiveData.end),
+                            Lists.newArrayList(
+                                    ConsecutiveData.startEvent,
+                                    ConsecutiveData.middleEvent1,
+                                    ConsecutiveData.middleEvent3,
+                                    ConsecutiveData.end)));
+        }
+
+        comparePatterns(resultingPatterns, expectedPatterns);
     }
 
     private static class ConsecutiveData {
