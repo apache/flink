@@ -72,9 +72,11 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COSH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COUNT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DECODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DEGREES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DIVIDE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ENCODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXTRACT;
@@ -1032,6 +1034,18 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns the ASCII character result of the input integer. */
     public OutType chr() {
         return toApiSpecificExpression(unresolvedCall(CHR, toExpr()));
+    }
+
+    /** Decodes the first argument into a String using the provided character set. */
+    public OutType decode(InType charset) {
+        return toApiSpecificExpression(
+                unresolvedCall(DECODE, toExpr(), objectToExpression(charset)));
+    }
+
+    /** Encodes the string into a BINARY using the provided character set. */
+    public OutType encode(InType charset) {
+        return toApiSpecificExpression(
+                unresolvedCall(ENCODE, toExpr(), objectToExpression(charset)));
     }
 
     /** Returns a string that removes the left whitespaces from the given string. */
