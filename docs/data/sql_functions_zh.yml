@@ -446,7 +446,7 @@ string:
     description: |
       从 URL 返回指定的部分。string2 的有效值包括“HOST”，“PATH”，“QUERY”，“REF”，“PROTOCOL”，“AUTHORITY”，“FILE”和“USERINFO”。
       如果有任一参数为 `NULL`，则返回 `NULL`。例如
-      `parse_url(' http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST')` 返回 `'facebook.com'`。
+      `parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST')` 返回 `'facebook.com'`。
       还可以通过提供关键词 string3 作为第三个参数来提取 QUERY 中特定键的值。例如
       `parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1')` 返回 `'v1'`。
   - sql: REGEXP(string1, string2)
