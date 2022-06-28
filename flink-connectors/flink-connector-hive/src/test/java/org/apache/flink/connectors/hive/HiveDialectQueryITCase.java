@@ -347,6 +347,15 @@ public class HiveDialectQueryITCase {
                                                     + "from t group by category, live")
                                     .collect());
             assertThat(result.toString()).isEqualTo("[+I[0, null], +I[0, 0], +I[0, 0]]");
+            // test grouping with multiple parameters
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select grouping(category, live),"
+                                                    + " lead(live) over(partition by grouping(category, live)) "
+                                                    + "from t group by category, live")
+                                    .collect());
+            assertThat(result.toString()).isEqualTo("[+I[0, 0], +I[0, 0], +I[0, null]]");
         } finally {
             tableEnv.executeSql("drop table t");
         }
