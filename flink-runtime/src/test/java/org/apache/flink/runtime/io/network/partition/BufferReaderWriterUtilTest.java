@@ -37,6 +37,7 @@ import java.nio.channels.FileChannel.MapMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -183,6 +184,20 @@ class BufferReaderWriterUtilTest {
         }
     }
 
+    @Test
+    void testPositionToNextBuffer(@TempDir Path tempPath) throws Exception {
+        final FileChannel fc = tmpFileChannel(tempPath);
+        ByteBuffer[] byteBuffersWithHeader = createByteBuffersWithHeader(2);
+        long totalBytes =
+                Arrays.stream(byteBuffersWithHeader).mapToLong(ByteBuffer::remaining).sum();
+        BufferReaderWriterUtil.writeBuffers(fc, totalBytes, byteBuffersWithHeader);
+        // reset the channel's position to read.
+        fc.position(0);
+        BufferReaderWriterUtil.positionToNextBuffer(fc, byteBuffersWithHeader[0]);
+        long expectedPosition = totalBytes / 2;
+        assertThat(fc.position()).isEqualTo(expectedPosition);
+    }
+
     // ------------------------------------------------------------------------
     //  Mixed
     // ------------------------------------------------------------------------
@@ -214,6 +229,21 @@ class BufferReaderWriterUtilTest {
                 StandardOpenOption.CREATE,
                 StandardOpenOption.READ,
                 StandardOpenOption.WRITE);
+    }
+
+    /**
+     * Create an array of ByteBuffer, the odd-numbered position in the array is header buffer, and
+     * the even-numbered position is the corresponding data buffer.
+     */
+    private static ByteBuffer[] createByteBuffersWithHeader(int numBuffers) {
+        ByteBuffer[] buffers = new ByteBuffer[numBuffers * 2];
+        for (int i = 0; i < numBuffers; i++) {
+            buffers[2 * i] = BufferReaderWriterUtil.allocatedHeaderBuffer();
+            Buffer buffer = createTestBuffer();
+            BufferReaderWriterUtil.setByteChannelBufferHeader(buffer, buffers[2 * i]);
+            buffers[2 * i + 1] = buffer.getNioBufferReadable();
+        }
+        return buffers;
     }
 
     private static Buffer createTestBuffer() {
