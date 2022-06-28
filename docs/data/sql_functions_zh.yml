@@ -1074,8 +1074,10 @@ aggregate:
   - sql: LAG(expression [, offset] [, default])
     description: 返回窗口中当前行之前第 offset 行处的表达式值。offset 的默认值为 1，default 的默认值为 `NULL`。
   - sql: FIRST_VALUE(expression)
+    table: FIELD.firstValue
     description: 返回一组有序值中的第一个值。
   - sql: LAST_VALUE(expression)
+    table: FIELD.lastValue
     description: 返回一组有序值中的最后一个值。
   - sql: LISTAGG(expression [, separator])
     description: 连接字符串表达式的值并在它们之间放置分隔符值。字符串末尾不添加分隔符时则分隔符的默认值为“,”。
