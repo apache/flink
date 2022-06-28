@@ -1009,6 +1009,11 @@ aggregate:
     description: Return the cumulative distribution of a value in a group of values. The result is the number of rows preceding or equal to the current row in the ordering of the partition divided by the number of rows in the window partition.
   - sql: PERCENT_RANK()
     description: Return the percentage ranking of a value in a group of values. The result is the rank value minus one, divided by the number of rows in the parition minus one. If the partition only contains one row, the function will return 0.
+  - sql: NTILE(n)
+    description: |
+      Divides the rows for each window partition into `n` buckets ranging from 1 to at most `n`.
+      If the number of rows in the window partition doesn't divide evenly into the number of buckets, then the remainder values are distributed one per bucket, starting with the first bucket.
+      For example, with 6 rows and 4 buckets, the bucket values would be as follows: 1 1 2 2 3 4
 
 catalog:
   - sql: CURRENT_DATABASE()

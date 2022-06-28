@@ -2855,6 +2855,54 @@ class OverAggregateITCase extends BatchTestBase {
       )
     )
   }
+
+  @Test
+  def testNTILE(): Unit = {
+    checkResult(
+      "SELECT f, NTILE(4) over (order by e)," +
+        " NTILE(3) over (partition by d order by e desc) FROM Table5",
+      Seq(
+        row(0, 1, 1),
+        row(1, 1, 2),
+        row(2, 1, 1),
+        row(3, 1, 3),
+        row(4, 2, 2),
+        row(5, 2, 1),
+        row(6, 2, 3),
+        row(7, 2, 2),
+        row(8, 3, 1),
+        row(9, 3, 1),
+        row(10, 3, 3),
+        row(11, 3, 2),
+        row(12, 4, 2),
+        row(13, 4, 1),
+        row(14, 4, 1)
+      )
+    )
+
+    // test values of order-key containing duplicates
+    checkResult(
+      "SELECT d,  NTILE(4) over (order by d)" +
+        " FROM Table5",
+      Seq(
+        row(5, 3),
+        row(5, 3),
+        row(5, 4),
+        row(5, 4),
+        row(5, 4),
+        row(4, 2),
+        row(4, 2),
+        row(4, 3),
+        row(4, 3),
+        row(3, 1),
+        row(3, 2),
+        row(3, 2),
+        row(2, 1),
+        row(2, 1),
+        row(1, 1)
+      )
+    )
+  }
 }
 
 /** The initial accumulator for count aggregate function */
