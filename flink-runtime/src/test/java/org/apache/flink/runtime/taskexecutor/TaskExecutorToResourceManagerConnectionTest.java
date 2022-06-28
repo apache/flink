@@ -65,6 +65,8 @@ class TaskExecutorToResourceManagerConnectionTest {
 
     private static final int TASK_MANAGER_JMX_PORT = 23456;
 
+    private static final String TASK_MANAGER_NODE_ID = "local";
+
     private static final HardwareDescription TASK_MANAGER_HARDWARE_DESCRIPTION =
             HardwareDescription.extractFromSystem(Long.MAX_VALUE);
 
@@ -93,6 +95,7 @@ class TaskExecutorToResourceManagerConnectionTest {
                             taskExecutorRegistration.getHardwareDescription();
                     final TaskExecutorMemoryConfiguration actualMemoryConfiguration =
                             taskExecutorRegistration.getMemoryConfiguration();
+                    final String nodeID = taskExecutorRegistration.getNodeId();
 
                     assertThat(actualAddress).isEqualTo(TASK_MANAGER_ADDRESS);
                     assertThat(actualResourceId).isEqualTo(TASK_MANAGER_RESOURCE_ID);
@@ -101,6 +104,7 @@ class TaskExecutorToResourceManagerConnectionTest {
                             .isEqualTo(TASK_MANAGER_HARDWARE_DESCRIPTION);
                     assertThat(actualMemoryConfiguration)
                             .isEqualTo(TASK_MANAGER_MEMORY_CONFIGURATION);
+                    assertThat(nodeID).isEqualTo(TASK_MANAGER_NODE_ID);
 
                     return CompletableFuture.completedFuture(successfulRegistration());
                 });
@@ -135,7 +139,8 @@ class TaskExecutorToResourceManagerConnectionTest {
                         TASK_MANAGER_HARDWARE_DESCRIPTION,
                         TASK_MANAGER_MEMORY_CONFIGURATION,
                         ResourceProfile.ZERO,
-                        ResourceProfile.ZERO);
+                        ResourceProfile.ZERO,
+                        TASK_MANAGER_NODE_ID);
         return new TaskExecutorToResourceManagerConnection(
                 LOGGER,
                 rpcService,
