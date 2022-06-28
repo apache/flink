@@ -309,6 +309,35 @@ public class AsyncWaitOperatorTest extends TestLogger {
         }
     }
 
+    private static class IllWrittenOddInputEmptyResultAsyncFunction
+            extends MyAbstractAsyncFunction<Integer> {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture)
+                throws Exception {
+            executorService.submit(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                Thread.sleep(3);
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
+                            if (input % 2 == 1) {
+                                // repeated calling complete
+                                for (int i = 0; i < 10; i++) {
+                                    resultFuture.complete(Collections.EMPTY_LIST);
+                                }
+                            } else {
+                                resultFuture.complete(Collections.singletonList(input * 2));
+                            }
+                        }
+                    });
+        }
+    }
+
     /** A {@link Comparator} to compare {@link StreamRecord} while sorting them. */
     private class StreamRecordComparator implements Comparator<Object> {
         @Override
@@ -1137,24 +1166,45 @@ public class AsyncWaitOperatorTest extends TestLogger {
     /** Test the AsyncWaitOperator with ordered mode and processing time. */
     @Test
     public void testProcessingTimeOrderedWithRetry() throws Exception {
-        testProcessingTimeWithRetry(AsyncDataStream.OutputMode.ORDERED);
+        testProcessingTimeWithRetry(
+                AsyncDataStream.OutputMode.ORDERED, new OddInputEmptyResultAsyncFunction());
     }
 
     /** Test the AsyncWaitOperator with unordered mode and processing time. */
     @Test
-    public void testProcessingUnorderedWithRetry() throws Exception {
-        testProcessingTimeWithRetry(AsyncDataStream.OutputMode.UNORDERED);
+    public void testProcessingTimeUnorderedWithRetry() throws Exception {
+        testProcessingTimeWithRetry(
+                AsyncDataStream.OutputMode.UNORDERED, new OddInputEmptyResultAsyncFunction());
     }
 
-    private void testProcessingTimeWithRetry(AsyncDataStream.OutputMode mode) throws Exception {
+    /**
+     * Test the AsyncWaitOperator with an ill-written async function under unordered mode and
+     * processing time.
+     */
+    @Test
+    public void testProcessingTimeRepeatedCompleteUnorderedWithRetry() throws Exception {
+        testProcessingTimeWithRetry(
+                AsyncDataStream.OutputMode.UNORDERED,
+                new IllWrittenOddInputEmptyResultAsyncFunction());
+    }
+
+    /**
+     * Test the AsyncWaitOperator with an ill-written async function under ordered mode and
+     * processing time.
+     */
+    @Test
+    public void testProcessingTimeRepeatedCompleteOrderedWithRetry() throws Exception {
+        testProcessingTimeWithRetry(
+                AsyncDataStream.OutputMode.ORDERED,
+                new IllWrittenOddInputEmptyResultAsyncFunction());
+    }
+
+    private void testProcessingTimeWithRetry(
+            AsyncDataStream.OutputMode mode, RichAsyncFunction asyncFunction) throws Exception {
 
         final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
                 createTestHarnessWithRetry(
-                        new OddInputEmptyResultAsyncFunction(),
-                        TIMEOUT,
-                        6,
-                        mode,
-                        emptyResultFixedDelayRetryStrategy);
+                        asyncFunction, TIMEOUT, 6, mode, emptyResultFixedDelayRetryStrategy);
 
         final long initialTime = 0L;
         final Queue<Object> expectedOutput = new ArrayDeque<>();
@@ -1186,8 +1236,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
         expectedOutput.add(new StreamRecord<>(12, initialTime + 6));
         expectedOutput.add(new StreamRecord<>(16, initialTime + 8));
 
+        asyncDelayedSettingProcessingTime(executor, testHarness, startTime + 90, 50);
         synchronized (testHarness.getCheckpointLock()) {
-            asyncDelayedSettingProcessingTime(executor, testHarness, startTime + 90, 50);
             testHarness.endInput();
             testHarness.close();
         }

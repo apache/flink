@@ -119,8 +119,8 @@ public class AsyncWaitOperator<IN, OUT>
     /** Queue, into which to store the currently in-flight stream elements. */
     private transient StreamElementQueue<OUT> queue;
 
-    /** Unfinished delay retry handlers, will be removed when a retry has been done. */
-    private transient Set<RetryableResultHandlerDelegator> incompleteDelayRetryHandlers;
+    /** In-flight delay retry handlers, will be removed when a retry has been triggered. */
+    private transient Set<RetryableResultHandlerDelegator> inFlightDelayRetryHandlers;
 
     /** Mailbox executor used to yield while waiting for buffers to empty. */
     private final transient MailboxExecutor mailboxExecutor;
@@ -211,7 +211,7 @@ public class AsyncWaitOperator<IN, OUT>
 
         this.isObjectReuseEnabled = getExecutionConfig().isObjectReuseEnabled();
         if (retryEnabled) {
-            this.incompleteDelayRetryHandlers = new HashSet<>();
+            this.inFlightDelayRetryHandlers = new HashSet<>();
             this.delayedRetryAvailable = new AtomicBoolean(true);
         }
 
@@ -341,8 +341,8 @@ public class AsyncWaitOperator<IN, OUT>
         if (retryEnabled) {
             // disable delayed retry, after which all data will give up retry and complete normally.
             this.delayedRetryAvailable.set(false);
-            if (incompleteDelayRetryHandlers.size() > 0) {
-                for (RetryableResultHandlerDelegator delegator : incompleteDelayRetryHandlers) {
+            if (inFlightDelayRetryHandlers.size() > 0) {
+                for (RetryableResultHandlerDelegator delegator : inFlightDelayRetryHandlers) {
                     assert delegator.resultHandler.inputRecord.isRecord();
                     assert delegator.retryInFlight.get() && delegator.delayedRetryTimer != null;
                     // cancel delayed retry timer
@@ -351,7 +351,7 @@ public class AsyncWaitOperator<IN, OUT>
                     }
                     // cancel failure means retry action already being executed
                 }
-                incompleteDelayRetryHandlers.clear();
+                inFlightDelayRetryHandlers.clear();
             }
         }
     }
@@ -394,10 +394,15 @@ public class AsyncWaitOperator<IN, OUT>
 
     private void doRetry(RetryableResultHandlerDelegator resultHandlerDelegator) throws Exception {
         // increment current attempt number
-        resultHandlerDelegator.incrementAttempts();
+        resultHandlerDelegator.currentAttempts++;
 
         // fire a new attempt
         userFunction.asyncInvoke(resultHandlerDelegator.getInputRecord(), resultHandlerDelegator);
+
+        // remove from incomplete set after attempt fired
+        inFlightDelayRetryHandlers.remove(resultHandlerDelegator);
+        // reset in-flight flag for next possible retry
+        resultHandlerDelegator.retryInFlight.compareAndSet(true, false);
     }
 
     /** A delegator holds the real {@link ResultHandler} to handle retries. */
@@ -429,8 +434,15 @@ public class AsyncWaitOperator<IN, OUT>
 
         @Override
         public void complete(Collection<OUT> results) {
+            Preconditions.checkNotNull(
+                    results, "Results must not be null, use empty collection to emit nothing");
+
             if (retryEnabled) {
-                mailboxExecutor.submit(() -> cleanupLastRetryInMailbox(), "cleanup last retry");
+                // ignore repeated call(s)
+                if (!retryInFlight.compareAndSet(false, true)) {
+                    return;
+                }
+
                 if (!resultHandler.completed.get() && ifRetryOrCompleted(results, null)) {
                     return;
                 }
@@ -441,21 +453,16 @@ public class AsyncWaitOperator<IN, OUT>
         @Override
         public void completeExceptionally(Throwable error) {
             if (retryEnabled) {
-                mailboxExecutor.submit(() -> cleanupLastRetryInMailbox(), "cleanup last retry");
-                if (ifRetryOrCompleted(null, error)) {
+                // ignore repeated call(s)
+                if (!retryInFlight.compareAndSet(false, true)) {
+                    return;
+                }
+
+                if (!resultHandler.completed.get() && ifRetryOrCompleted(null, error)) {
                     return;
                 }
             }
             resultHandler.completeExceptionally(error);
-        }
-
-        private void cleanupLastRetryInMailbox() {
-            if (retryInFlight.compareAndSet(true, false)) {
-                assert incompleteDelayRetryHandlers.contains(this);
-                // remove from delayed retry queue
-                incompleteDelayRetryHandlers.remove(this);
-                delayedRetryTimer = null;
-            }
         }
 
         private boolean ifRetryOrCompleted(Collection<OUT> results, Throwable error) {
@@ -468,10 +475,10 @@ public class AsyncWaitOperator<IN, OUT>
                     satisfy = (satisfy || retryExceptionPredicate.test(error));
                 }
                 if (satisfy) {
-                    if (asyncRetryStrategy.canRetry(getCurrentAttempts())) {
+                    if (asyncRetryStrategy.canRetry(currentAttempts)) {
                         long nextBackoffTimeMillis =
-                                asyncRetryStrategy.getBackoffTimeMillis(getCurrentAttempts());
-                        setBackoffTimeMillis(nextBackoffTimeMillis);
+                                asyncRetryStrategy.getBackoffTimeMillis(currentAttempts);
+                        backoffTimeMillis = nextBackoffTimeMillis;
                         if (delayedRetryAvailable.get()) {
                             // timer thread will finally dispatch the task to mailbox executor
                             mailboxExecutor.submit(
@@ -490,11 +497,9 @@ public class AsyncWaitOperator<IN, OUT>
                 Collection<OUT> results,
                 Throwable error) {
             if (delayedRetryAvailable.get()) {
-                incompleteDelayRetryHandlers.add(resultHandlerDelegator);
-                retryInFlight.set(true);
+                inFlightDelayRetryHandlers.add(resultHandlerDelegator);
                 final long delayedRetry =
-                        resultHandlerDelegator.getBackoffTimeMillis()
-                                + getProcessingTimeService().getCurrentProcessingTime();
+                        backoffTimeMillis + getProcessingTimeService().getCurrentProcessingTime();
                 delayedRetryTimer =
                         processingTimeService.registerTimer(
                                 delayedRetry, timestamp -> doRetry(resultHandlerDelegator));
@@ -506,22 +511,6 @@ public class AsyncWaitOperator<IN, OUT>
                     resultHandler.completeExceptionally(error);
                 }
             }
-        }
-
-        public long getBackoffTimeMillis() {
-            return backoffTimeMillis;
-        }
-
-        public void setBackoffTimeMillis(long backoffTimeMillis) {
-            this.backoffTimeMillis = backoffTimeMillis;
-        }
-
-        public int getCurrentAttempts() {
-            return currentAttempts;
-        }
-
-        private void incrementAttempts() {
-            currentAttempts++;
         }
 
         private IN getInputRecord() {
@@ -554,8 +543,6 @@ public class AsyncWaitOperator<IN, OUT>
 
         @Override
         public void complete(Collection<OUT> results) {
-            Preconditions.checkNotNull(
-                    results, "Results must not be null, use empty collection to emit nothing");
 
             // already completed (exceptionally or with previous complete call from ill-written
             // AsyncFunction), so

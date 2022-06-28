@@ -325,10 +325,8 @@ object AsyncDataStream {
     orderedWait(input, timeout, timeUnit, DEFAULT_QUEUE_CAPACITY)(asyncFunction)
   }
 
-  // ======= retryable ========
-
   /**
-   * Add an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
+   * Adds an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
    * order of output stream records may be reordered.
    *
    * @param input
@@ -380,7 +378,7 @@ object AsyncDataStream {
   }
 
   /**
-   * Add an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
+   * Adds an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
    * order of output stream records may be reordered.
    *
    * @param input
@@ -508,7 +506,7 @@ object AsyncDataStream {
   }
 
   /**
-   * Add an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
+   * Adds an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
    * output order is the same as the input order of the elements.
    *
    * @param input
@@ -560,7 +558,7 @@ object AsyncDataStream {
   }
 
   /**
-   * Add an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
+   * Adds an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
    * output order is the same as the input order of the elements.
    *
    * @param input

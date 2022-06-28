@@ -60,27 +60,6 @@ public class AsyncDataStream {
      * @param timeout for the asynchronous operation to complete
      * @param bufSize The max number of inputs the {@link AsyncWaitOperator} can hold inside.
      * @param mode Processing mode for {@link AsyncWaitOperator}.
-     * @param <IN> Input type.
-     * @param <OUT> Output type.
-     * @return A new {@link SingleOutputStreamOperator}
-     */
-    private static <IN, OUT> SingleOutputStreamOperator<OUT> addOperator(
-            DataStream<IN> in,
-            AsyncFunction<IN, OUT> func,
-            long timeout,
-            int bufSize,
-            OutputMode mode) {
-        return addOperator(in, func, timeout, bufSize, mode, NO_RETRY_STRATEGY);
-    }
-
-    /**
-     * Add an AsyncWaitOperator.
-     *
-     * @param in The {@link DataStream} where the {@link AsyncWaitOperator} will be added.
-     * @param func {@link AsyncFunction} wrapped inside {@link AsyncWaitOperator}.
-     * @param timeout for the asynchronous operation to complete
-     * @param bufSize The max number of inputs the {@link AsyncWaitOperator} can hold inside.
-     * @param mode Processing mode for {@link AsyncWaitOperator}.
      * @param asyncRetryStrategy AsyncRetryStrategy for {@link AsyncFunction}.
      * @param <IN> Input type.
      * @param <OUT> Output type.
@@ -93,6 +72,11 @@ public class AsyncDataStream {
             int bufSize,
             OutputMode mode,
             AsyncRetryStrategy<OUT> asyncRetryStrategy) {
+        if (asyncRetryStrategy != NO_RETRY_STRATEGY) {
+            Preconditions.checkArgument(
+                    timeout > 0, "Timeout should be configured when do async with retry.");
+        }
+
         TypeInformation<OUT> outTypeInfo =
                 TypeExtractor.getUnaryOperatorReturnType(
                         func,
@@ -117,7 +101,7 @@ public class AsyncDataStream {
     }
 
     /**
-     * Add an AsyncWaitOperator. The order of output stream records may be reordered.
+     * Adds an AsyncWaitOperator. The order of output stream records may be reordered.
      *
      * @param in Input {@link DataStream}
      * @param func {@link AsyncFunction}
@@ -134,11 +118,17 @@ public class AsyncDataStream {
             long timeout,
             TimeUnit timeUnit,
             int capacity) {
-        return addOperator(in, func, timeUnit.toMillis(timeout), capacity, OutputMode.UNORDERED);
+        return addOperator(
+                in,
+                func,
+                timeUnit.toMillis(timeout),
+                capacity,
+                OutputMode.UNORDERED,
+                NO_RETRY_STRATEGY);
     }
 
     /**
-     * Add an AsyncWaitOperator. The order of output stream records may be reordered.
+     * Adds an AsyncWaitOperator. The order of output stream records may be reordered.
      *
      * @param in Input {@link DataStream}
      * @param func {@link AsyncFunction}
@@ -151,11 +141,16 @@ public class AsyncDataStream {
     public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWait(
             DataStream<IN> in, AsyncFunction<IN, OUT> func, long timeout, TimeUnit timeUnit) {
         return addOperator(
-                in, func, timeUnit.toMillis(timeout), DEFAULT_QUEUE_CAPACITY, OutputMode.UNORDERED);
+                in,
+                func,
+                timeUnit.toMillis(timeout),
+                DEFAULT_QUEUE_CAPACITY,
+                OutputMode.UNORDERED,
+                NO_RETRY_STRATEGY);
     }
 
     /**
-     * Add an AsyncWaitOperator. The order to process input records is guaranteed to be the same as
+     * Adds an AsyncWaitOperator. The order to process input records is guaranteed to be the same as
      * input ones.
      *
      * @param in Input {@link DataStream}
@@ -173,11 +168,17 @@ public class AsyncDataStream {
             long timeout,
             TimeUnit timeUnit,
             int capacity) {
-        return addOperator(in, func, timeUnit.toMillis(timeout), capacity, OutputMode.ORDERED);
+        return addOperator(
+                in,
+                func,
+                timeUnit.toMillis(timeout),
+                capacity,
+                OutputMode.ORDERED,
+                NO_RETRY_STRATEGY);
     }
 
     /**
-     * Add an AsyncWaitOperator. The order to process input records is guaranteed to be the same as
+     * Adds an AsyncWaitOperator. The order to process input records is guaranteed to be the same as
      * input ones.
      *
      * @param in Input {@link DataStream}
@@ -191,13 +192,16 @@ public class AsyncDataStream {
     public static <IN, OUT> SingleOutputStreamOperator<OUT> orderedWait(
             DataStream<IN> in, AsyncFunction<IN, OUT> func, long timeout, TimeUnit timeUnit) {
         return addOperator(
-                in, func, timeUnit.toMillis(timeout), DEFAULT_QUEUE_CAPACITY, OutputMode.ORDERED);
+                in,
+                func,
+                timeUnit.toMillis(timeout),
+                DEFAULT_QUEUE_CAPACITY,
+                OutputMode.ORDERED,
+                NO_RETRY_STRATEGY);
     }
 
-    // ======= retryable ========
-
     /**
-     * Add an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
+     * Adds an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
      * order of output stream records may be reordered.
      *
      * @param in Input {@link DataStream}
@@ -215,9 +219,7 @@ public class AsyncDataStream {
             AsyncFunction<IN, OUT> func,
             long timeout,
             TimeUnit timeUnit,
-            AsyncRetryStrategy asyncRetryStrategy) {
-        Preconditions.checkArgument(
-                timeout > 0, "Timeout should be configured when do async with retry.");
+            AsyncRetryStrategy<OUT> asyncRetryStrategy) {
         return addOperator(
                 in,
                 func,
@@ -228,7 +230,7 @@ public class AsyncDataStream {
     }
 
     /**
-     * Add an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
+     * Adds an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
      * order of output stream records may be reordered.
      *
      * @param in Input {@link DataStream}
@@ -248,9 +250,7 @@ public class AsyncDataStream {
             long timeout,
             TimeUnit timeUnit,
             int capacity,
-            AsyncRetryStrategy asyncRetryStrategy) {
-        Preconditions.checkArgument(
-                timeout > 0, "Timeout should be configured when do async with retry.");
+            AsyncRetryStrategy<OUT> asyncRetryStrategy) {
         return addOperator(
                 in,
                 func,
@@ -261,7 +261,7 @@ public class AsyncDataStream {
     }
 
     /**
-     * Add an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
+     * Adds an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
      * order to process input records is guaranteed to be the same as * input ones.
      *
      * @param in Input {@link DataStream}
@@ -279,9 +279,7 @@ public class AsyncDataStream {
             AsyncFunction<IN, OUT> func,
             long timeout,
             TimeUnit timeUnit,
-            AsyncRetryStrategy asyncRetryStrategy) {
-        Preconditions.checkArgument(
-                timeout > 0, "Timeout should be configured when do async with retry.");
+            AsyncRetryStrategy<OUT> asyncRetryStrategy) {
         return addOperator(
                 in,
                 func,
@@ -292,7 +290,7 @@ public class AsyncDataStream {
     }
 
     /**
-     * Add an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
+     * Adds an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
      * order to process input records is guaranteed to be the same as * input ones.
      *
      * @param in Input {@link DataStream}
@@ -312,9 +310,7 @@ public class AsyncDataStream {
             long timeout,
             TimeUnit timeUnit,
             int capacity,
-            AsyncRetryStrategy asyncRetryStrategy) {
-        Preconditions.checkArgument(
-                timeout > 0, "Timeout should be configured when do async with retry.");
+            AsyncRetryStrategy<OUT> asyncRetryStrategy) {
         return addOperator(
                 in,
                 func,

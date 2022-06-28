@@ -33,7 +33,7 @@ event-driven programming may be useful preparation.
 Note: Details about the design and implementation of the asynchronous I/O utility can be found in the proposal and design document
 [FLIP-12: Asynchronous I/O Design and Implementation](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65870673).
 Details about the new retry support can be found in document
-[FLIP-232: Add Retry Support For Async I/O In DataStream API](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=211883963)。
+[FLIP-232: Add Retry Support For Async I/O In DataStream API](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=211883963).
 
 ## The need for Asynchronous I/O Operations
 
