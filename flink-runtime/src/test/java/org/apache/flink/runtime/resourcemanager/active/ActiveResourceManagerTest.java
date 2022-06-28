@@ -949,7 +949,8 @@ public class ActiveResourceManagerTest extends TestLogger {
                             new HardwareDescription(1, 2L, 3L, 4L),
                             TESTING_CONFIG,
                             ResourceProfile.ZERO,
-                            ResourceProfile.ZERO);
+                            ResourceProfile.ZERO,
+                            resourceID.toString());
 
             return resourceManager
                     .getSelfGateway(ResourceManagerGateway.class)
