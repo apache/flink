@@ -39,6 +39,7 @@ public class Session implements Closeable {
 
     public Session(SessionContext sessionContext) {
         this.sessionContext = sessionContext;
+        this.lastAccessTime = System.currentTimeMillis();
     }
 
     public void touch() {
