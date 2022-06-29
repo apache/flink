@@ -92,8 +92,9 @@ class HsResultPartitionReadSchedulerTest {
                         new HsFileDataIndexImpl(NUM_SUBPARTITIONS),
                         dataFilePath,
                         factory,
-                        HybridShuffleConfiguration.createConfiguration(
-                                bufferPool.getNumBuffersPerRequest(), NUM_SUBPARTITIONS));
+                        HybridShuffleConfiguration.builder(
+                                        NUM_SUBPARTITIONS, bufferPool.getNumBuffersPerRequest())
+                                .build());
         subpartitionViewOperation = new TestingSubpartitionViewInternalOperation();
     }
 
@@ -224,10 +225,10 @@ class HsResultPartitionReadSchedulerTest {
                         new HsFileDataIndexImpl(NUM_SUBPARTITIONS),
                         dataFilePath,
                         factory,
-                        HybridShuffleConfiguration.createConfiguration(
-                                bufferPool.getNumBuffersPerRequest(),
-                                NUM_SUBPARTITIONS,
-                                bufferRequestTimeout));
+                        HybridShuffleConfiguration.builder(
+                                        NUM_SUBPARTITIONS, bufferPool.getNumBuffersPerRequest())
+                                .setBufferRequestTimeout(bufferRequestTimeout)
+                                .build());
 
         TestingHsSubpartitionFileReader reader = new TestingHsSubpartitionFileReader();
         CompletableFuture<Void> prepareForSchedulingFinished = new CompletableFuture<>();
