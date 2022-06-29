@@ -391,7 +391,7 @@ public class StateBackendLoader {
         return originalStateBackend;
     }
 
-    private static boolean isChangelogStateBackend(StateBackend backend) {
+    public static boolean isChangelogStateBackend(StateBackend backend) {
         return CHANGELOG_STATE_BACKEND.equals(backend.getClass().getName());
     }
 
