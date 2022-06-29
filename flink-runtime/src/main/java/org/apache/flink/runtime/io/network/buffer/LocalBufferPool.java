@@ -119,7 +119,7 @@ class LocalBufferPool implements BufferPool {
     @GuardedBy("availableMemorySegments")
     private int unavailableSubpartitionsCount = 0;
 
-    private final int maxOverdraftBuffersPerGate;
+    private int maxOverdraftBuffersPerGate;
 
     @GuardedBy("availableMemorySegments")
     private int numberOfRequestedOverdraftMemorySegments;
@@ -663,6 +663,14 @@ class LocalBufferPool implements BufferPool {
         }
 
         mayNotifyAvailable(toNotify);
+    }
+
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {
+        this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
+    }
+
+    public int getMaxOverdraftBuffersPerGate() {
+        return maxOverdraftBuffersPerGate;
     }
 
     @Override

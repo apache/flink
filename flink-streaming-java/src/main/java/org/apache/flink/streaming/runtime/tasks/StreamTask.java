@@ -272,7 +272,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     /** Thread pool for async snapshot workers. */
     private final ExecutorService asyncOperationsThreadPool;
 
-    private final RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriter;
+    protected final RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriter;
 
     protected final MailboxProcessor mailboxProcessor;
 
