@@ -236,29 +236,30 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
         schedulingStrategy.onExecutionStateChange(
                 executionVertexId, taskExecutionState.getExecutionState());
-        maybeHandleTaskFailure(taskExecutionState, executionVertexId);
+        maybeHandleTaskFailure(taskExecutionState, getCurrentExecutionOfVertex(executionVertexId));
     }
 
     private void maybeHandleTaskFailure(
-            final TaskExecutionStateTransition taskExecutionState,
-            final ExecutionVertexID executionVertexId) {
+            final TaskExecutionStateTransition taskExecutionState, final Execution execution) {
 
         if (taskExecutionState.getExecutionState() == ExecutionState.FAILED) {
             final Throwable error = taskExecutionState.getError(userCodeLoader);
-            handleTaskFailure(executionVertexId, error);
+            handleTaskFailure(execution, error);
         }
     }
 
     private void handleTaskFailure(
-            final ExecutionVertexID executionVertexId, @Nullable final Throwable error) {
+            final Execution failedExecution, @Nullable final Throwable error) {
         Throwable revisedError =
-                maybeTranslateToCachedIntermediateDataSetException(error, executionVertexId);
+                maybeTranslateToCachedIntermediateDataSetException(
+                        error, failedExecution.getVertex().getID());
         final long timestamp = System.currentTimeMillis();
         setGlobalFailureCause(revisedError, timestamp);
-        notifyCoordinatorsAboutTaskFailure(executionVertexId, revisedError);
+        notifyCoordinatorsAboutTaskFailure(failedExecution.getVertex().getID(), revisedError);
+
         final FailureHandlingResult failureHandlingResult =
                 executionFailureHandler.getFailureHandlingResult(
-                        executionVertexId, revisedError, timestamp);
+                        failedExecution, revisedError, timestamp);
         maybeRestartTasks(failureHandlingResult);
     }
 
@@ -329,8 +330,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
         final FailureHandlingResultSnapshot failureHandlingResultSnapshot =
                 FailureHandlingResultSnapshot.create(
-                        failureHandlingResult,
-                        id -> this.getExecutionVertex(id).getCurrentExecutionAttempt());
+                        failureHandlingResult, id -> getExecutionVertex(id).getCurrentExecutions());
         delayExecutor.schedule(
                 () ->
                         FutureUtils.assertNoException(
@@ -401,7 +401,11 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     }
 
     private ExecutionAttemptID getCurrentExecutionIdOfVertex(ExecutionVertexID executionVertexId) {
-        return getExecutionVertex(executionVertexId).getCurrentExecutionAttempt().getAttemptId();
+        return getCurrentExecutionOfVertex(executionVertexId).getAttemptId();
+    }
+
+    private Execution getCurrentExecutionOfVertex(ExecutionVertexID executionVertexId) {
+        return getExecutionVertex(executionVertexId).getCurrentExecutionAttempt();
     }
 
     // ------------------------------------------------------------------------
@@ -415,8 +419,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
         final List<Execution> executionsToDeploy =
                 verticesToDeploy.stream()
-                        .map(this::getExecutionVertex)
-                        .map(ExecutionVertex::getCurrentExecutionAttempt)
+                        .map(this::getCurrentExecutionOfVertex)
                         .collect(Collectors.toList());
 
         executionDeployer.allocateSlotsAndDeploy(executionsToDeploy, requiredVersionByVertex);

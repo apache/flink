@@ -45,6 +45,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
@@ -82,7 +83,7 @@ class FailureHandlingResultSnapshotTest {
         final ExecutionVertex rootCauseExecutionVertex = extractExecutionVertex(0);
         final FailureHandlingResult failureHandlingResult =
                 FailureHandlingResult.restartable(
-                        rootCauseExecutionVertex.getID(),
+                        rootCauseExecutionVertex.getCurrentExecutionAttempt(),
                         new RuntimeException("Expected exception: root cause"),
                         System.currentTimeMillis(),
                         StreamSupport.stream(
@@ -96,7 +97,7 @@ class FailureHandlingResultSnapshotTest {
         assertThatThrownBy(
                         () ->
                                 FailureHandlingResultSnapshot.create(
-                                        failureHandlingResult, this::getLatestExecution))
+                                        failureHandlingResult, this::getCurrentExecutions))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -108,7 +109,7 @@ class FailureHandlingResultSnapshotTest {
 
         final FailureHandlingResult failureHandlingResult =
                 FailureHandlingResult.restartable(
-                        rootCauseExecutionVertex.getID(),
+                        rootCauseExecutionVertex.getCurrentExecutionAttempt(),
                         null,
                         rootCauseTimestamp,
                         StreamSupport.stream(
@@ -121,7 +122,7 @@ class FailureHandlingResultSnapshotTest {
 
         final FailureHandlingResultSnapshot testInstance =
                 FailureHandlingResultSnapshot.create(
-                        failureHandlingResult, this::getLatestExecution);
+                        failureHandlingResult, this::getCurrentExecutions);
 
         final Throwable actualException =
                 new SerializedThrowable(testInstance.getRootCause())
@@ -149,7 +150,7 @@ class FailureHandlingResultSnapshotTest {
 
         final FailureHandlingResult failureHandlingResult =
                 FailureHandlingResult.restartable(
-                        rootCauseExecutionVertex.getID(),
+                        rootCauseExecutionVertex.getCurrentExecutionAttempt(),
                         rootCause,
                         rootCauseTimestamp,
                         StreamSupport.stream(
@@ -162,7 +163,7 @@ class FailureHandlingResultSnapshotTest {
 
         final FailureHandlingResultSnapshot testInstance =
                 FailureHandlingResultSnapshot.create(
-                        failureHandlingResult, this::getLatestExecution);
+                        failureHandlingResult, this::getCurrentExecutions);
 
         assertThat(testInstance.getRootCause()).isSameAs(rootCause);
         assertThat(testInstance.getTimestamp()).isEqualTo(rootCauseTimestamp);
@@ -215,7 +216,7 @@ class FailureHandlingResultSnapshotTest {
 
         final FailureHandlingResultSnapshot testInstance =
                 FailureHandlingResultSnapshot.create(
-                        failureHandlingResult, this::getLatestExecution);
+                        failureHandlingResult, this::getCurrentExecutions);
 
         assertThat(testInstance.getRootCause()).isSameAs(rootCause);
         assertThat(testInstance.getTimestamp()).isEqualTo(timestamp);
@@ -226,7 +227,7 @@ class FailureHandlingResultSnapshotTest {
                         failedExecutionVertex1.getCurrentExecutionAttempt());
     }
 
-    private Execution getLatestExecution(ExecutionVertexID executionVertexId) {
+    private Collection<Execution> getCurrentExecutions(ExecutionVertexID executionVertexId) {
         if (!executionGraph.getAllVertices().containsKey(executionVertexId.getJobVertexId())) {
             throw new IllegalArgumentException(
                     "The ExecutionJobVertex having the ID "
@@ -249,7 +250,7 @@ class FailureHandlingResultSnapshotTest {
                             + " does not exist.");
         }
 
-        return executions[executionVertexId.getSubtaskIndex()].getCurrentExecutionAttempt();
+        return executions[executionVertexId.getSubtaskIndex()].getCurrentExecutions();
     }
 
     private long triggerFailure(ExecutionVertex executionVertex, Throwable throwable) {

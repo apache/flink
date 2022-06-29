@@ -28,8 +28,8 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.Collections;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -52,38 +52,27 @@ public class FailureHandlingResultSnapshot {
      *
      * @param failureHandlingResult The {@code FailureHandlingResult} that is used for extracting
      *     the failure information.
-     * @param latestExecutionLookup The look-up function for retrieving the latest {@link Execution}
-     *     instance for a given {@link ExecutionVertexID}.
+     * @param currentExecutionsLookup The look-up function for retrieving all the current {@link
+     *     Execution} instances for a given {@link ExecutionVertexID}.
      * @return The {@code FailureHandlingResultSnapshot}.
      */
     public static FailureHandlingResultSnapshot create(
             FailureHandlingResult failureHandlingResult,
-            Function<ExecutionVertexID, Execution> latestExecutionLookup) {
+            Function<ExecutionVertexID, Collection<Execution>> currentExecutionsLookup) {
         final Execution rootCauseExecution =
-                failureHandlingResult
-                        .getExecutionVertexIdOfFailedTask()
-                        .map(latestExecutionLookup)
-                        .orElse(null);
-        Preconditions.checkArgument(
-                rootCauseExecution == null || rootCauseExecution.getFailureInfo().isPresent(),
-                String.format(
-                        "The execution %s didn't provide a failure info even though the corresponding ExecutionVertex %s is marked as having handled the root cause of this failure.",
-                        // the "(null)" values should never be used due to the condition - it's just
-                        // added to make the compiler happy
-                        rootCauseExecution != null ? rootCauseExecution.getAttemptId() : "(null)",
-                        failureHandlingResult
-                                .getExecutionVertexIdOfFailedTask()
-                                .map(Objects::toString)
-                                .orElse("(null)")));
+                failureHandlingResult.getFailedExecution().orElse(null);
 
-        final ExecutionVertexID rootCauseExecutionVertexId =
-                failureHandlingResult.getExecutionVertexIdOfFailedTask().orElse(null);
+        if (rootCauseExecution != null && !rootCauseExecution.getFailureInfo().isPresent()) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "The failed execution %s didn't provide a failure info.",
+                            rootCauseExecution.getAttemptId()));
+        }
+
         final Set<Execution> concurrentlyFailedExecutions =
                 failureHandlingResult.getVerticesToRestart().stream()
-                        .filter(
-                                executionVertexId ->
-                                        !executionVertexId.equals(rootCauseExecutionVertexId))
-                        .map(latestExecutionLookup)
+                        .flatMap(id -> currentExecutionsLookup.apply(id).stream())
+                        .filter(execution -> execution != rootCauseExecution)
                         .filter(execution -> execution.getFailureInfo().isPresent())
                         .collect(Collectors.toSet());
 
