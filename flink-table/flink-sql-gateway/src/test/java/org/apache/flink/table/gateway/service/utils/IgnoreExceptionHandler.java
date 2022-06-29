@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
 /** Handler to log the exception and exits. */
 public class IgnoreExceptionHandler implements Thread.UncaughtExceptionHandler {
 
-    public static IgnoreExceptionHandler INSTANCE = new IgnoreExceptionHandler();
+    public static final IgnoreExceptionHandler INSTANCE = new IgnoreExceptionHandler();
 
     private static final Logger LOG = LoggerFactory.getLogger(IgnoreExceptionHandler.class);
 
