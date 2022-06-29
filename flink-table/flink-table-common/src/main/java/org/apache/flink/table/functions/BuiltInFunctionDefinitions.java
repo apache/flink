@@ -760,6 +760,28 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BYTES())))
                     .build();
 
+    public static final BuiltInFunctionDefinition LEFT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("left")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC)))
+                    .outputTypeStrategy(nullableIfArgs(varyingString(argument(0))))
+                    .build();
+
+    public static final BuiltInFunctionDefinition RIGHT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("right")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC)))
+                    .outputTypeStrategy(nullableIfArgs(varyingString(argument(0))))
+                    .build();
+
     public static final BuiltInFunctionDefinition UUID =
             BuiltInFunctionDefinition.newBuilder()
                     .name("uuid")

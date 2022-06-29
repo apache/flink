@@ -103,6 +103,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_E
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUERY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_VALUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LAST_VALUE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LEFT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LIKE;
@@ -135,6 +136,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_REPLACE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPEAT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPLACE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RIGHT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ROUND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ROWTIME;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RPAD;
@@ -1046,6 +1048,16 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType encode(InType charset) {
         return toApiSpecificExpression(
                 unresolvedCall(ENCODE, toExpr(), objectToExpression(charset)));
+    }
+
+    /** Returns the leftmost integer characters from the input string. */
+    public OutType left(InType len) {
+        return toApiSpecificExpression(unresolvedCall(LEFT, toExpr(), objectToExpression(len)));
+    }
+
+    /** Returns the rightmost integer characters from the input string. */
+    public OutType right(InType len) {
+        return toApiSpecificExpression(unresolvedCall(RIGHT, toExpr(), objectToExpression(len)));
     }
 
     /** Returns a string that removes the left whitespaces from the given string. */

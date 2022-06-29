@@ -196,6 +196,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testLeftAndRight(): Unit = {
+    val str = "Hello"
+    testAllApis(str.left(3), s"LEFT('$str', 3)", "Hel")
+    testAllApis(str.right(3), s"RIGHT('$str', 3)", "llo")
+  }
+
+  @Test
   def testInstr(): Unit = {
     testSqlApi("instr('Corporate Floor', 'or', 3, 2)", "14")
 
