@@ -28,7 +28,8 @@ from pyflink.common import Row, RowKind
 from pyflink.common.time import Instant
 from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.fn_execution.ResettableIO import ResettableIO
-from pyflink.fn_execution.formats import FlinkAvroDecoder, FlinkAvroDatumReader
+from pyflink.fn_execution.formats.avro import FlinkAvroDecoder, FlinkAvroDatumReader, \
+    FlinkAvroBufferWrapper
 from pyflink.fn_execution.stream_slow import InputStream, OutputStream
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
 
