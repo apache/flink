@@ -840,7 +840,10 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testSqlApi("DATE_FORMAT(cast(NULL as varchar), 'yyyy/MM/dd HH:mm:ss')", nullable)
 
-    testSqlApi("FROM_UNIXTIME(cast(NULL as bigInt))", nullable)
+    testAllApis(
+      fromUnixtime(nullOf(DataTypes.BIGINT())),
+      "FROM_UNIXTIME(cast(NULL as bigInt))",
+      nullable)
 
     testSqlApi("TO_DATE(cast(NULL as varchar))", nullable)
 
@@ -886,9 +889,15 @@ class TemporalTypesTest extends ExpressionTestBase {
     val fmt3 = "yy-MM-dd HH-mm-ss"
     val sdf3 = new SimpleDateFormat(fmt3, Locale.US)
 
-    testSqlApi("from_unixtime(f21)", sdf1.format(new Timestamp(44000)))
-    testSqlApi(s"from_unixtime(f21, '$fmt2')", sdf2.format(new Timestamp(44000)))
-    testSqlApi(s"from_unixtime(f21, '$fmt3')", sdf3.format(new Timestamp(44000)))
+    testAllApis(fromUnixtime('f21), "from_unixtime(f21)", sdf1.format(new Timestamp(44000)))
+    testAllApis(
+      fromUnixtime('f21, fmt2),
+      s"from_unixtime(f21, '$fmt2')",
+      sdf2.format(new Timestamp(44000)))
+    testAllApis(
+      fromUnixtime('f21, fmt3),
+      s"from_unixtime(f21, '$fmt3')",
+      sdf3.format(new Timestamp(44000)))
 
     testSqlApi("from_unixtime(f22)", sdf1.format(new Timestamp(3000)))
     testSqlApi(s"from_unixtime(f22, '$fmt2')", sdf2.format(new Timestamp(3000)))
