@@ -18,27 +18,19 @@
 
 package org.apache.flink.table.gateway.service.utils;
 
-import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ThreadFactory;
+/** Handler to log the exception and exits. */
+public class IgnoreExceptionHandler implements Thread.UncaughtExceptionHandler {
 
-/** Factory to create the thread that ignores error message. */
-public class IgnoreErrorThreadFactory implements ThreadFactory {
+    public static IgnoreExceptionHandler INSTANCE = new IgnoreExceptionHandler();
 
-    public static final IgnoreErrorThreadFactory INSTANCE = new IgnoreErrorThreadFactory();
-
-    private IgnoreErrorThreadFactory() {}
+    private static final Logger LOG = LoggerFactory.getLogger(IgnoreExceptionHandler.class);
 
     @Override
-    public Thread newThread(@NotNull Runnable r) {
-        Thread thread = new Thread(r);
-        thread.setUncaughtExceptionHandler(
-                new Thread.UncaughtExceptionHandler() {
-                    @Override
-                    public void uncaughtException(Thread t, Throwable e) {
-                        // ignore error
-                    }
-                });
-        return thread;
+    public void uncaughtException(Thread t, Throwable e) {
+        // ignore error
+        LOG.error("Thread '{}' produced an uncaught exception. Ignore...", t.getName(), e);
     }
 }

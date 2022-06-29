@@ -37,10 +37,11 @@ import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.operation.Operation;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.session.SessionManager;
-import org.apache.flink.table.gateway.service.utils.IgnoreErrorThreadFactory;
+import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.assertj.core.api.Assertions;
@@ -58,6 +59,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadFactory;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
@@ -84,6 +86,9 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
             SessionEnvironment.newBuilder()
                     .setSessionEndpointVersion(MockedEndpointVersion.V1)
                     .build();
+    private final ThreadFactory threadFactory =
+            new ExecutorThreadFactory(
+                    "SqlGatewayService Test Pool", IgnoreExceptionHandler.INSTANCE);
 
     @BeforeAll
     public static void setUp() {
@@ -317,10 +322,10 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                     service.getSession(sessionHandle)
                             .getOperationManager()
                             .getOperation(operationHandle));
-            IgnoreErrorThreadFactory.INSTANCE
+            threadFactory
                     .newThread(() -> service.cancelOperation(sessionHandle, operationHandle))
                     .start();
-            IgnoreErrorThreadFactory.INSTANCE
+            threadFactory
                     .newThread(() -> service.closeOperation(sessionHandle, operationHandle))
                     .start();
         }
@@ -344,7 +349,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         int submitThreadsNum = 100;
         CountDownLatch latch = new CountDownLatch(submitThreadsNum);
         for (int i = 0; i < submitThreadsNum; i++) {
-            IgnoreErrorThreadFactory.INSTANCE
+            threadFactory
                     .newThread(
                             () -> {
                                 try {
@@ -444,7 +449,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
             Condition<String> condition) {
 
         List<RowData> actual = new ArrayList<>();
-        IgnoreErrorThreadFactory.INSTANCE
+        threadFactory
                 .newThread(
                         () -> {
                             try {
@@ -465,7 +470,10 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                                 operationHandle,
                                                 token,
                                                 Integer.MAX_VALUE);
-                                token = resultSet.getNextToken();
+                                // Keep fetching from the Operation until meet exceptions.
+                                if (resultSet.getNextToken() != null) {
+                                    token = resultSet.getNextToken();
+                                }
                                 if (resultSet.getResultType() == ResultSet.ResultType.PAYLOAD) {
                                     actual.addAll(resultSet.getData());
                                 }
