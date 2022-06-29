@@ -154,12 +154,8 @@ public enum ProtoUtils {
                         .setIndexOfThisSubtask(runtimeContext.getIndexOfThisSubtask())
                         .setAttemptNumber(runtimeContext.getAttemptNumber())
                         .addAllJobParameters(
-                                runtimeContext
-                                        .getExecutionConfig()
-                                        .getGlobalJobParameters()
-                                        .toMap()
-                                        .entrySet()
-                                        .stream()
+                                runtimeContext.getExecutionConfig().getGlobalJobParameters().toMap()
+                                        .entrySet().stream()
                                         .map(
                                                 entry ->
                                                         FlinkFnApi.UserDefinedDataStreamFunction
