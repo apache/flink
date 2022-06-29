@@ -64,6 +64,12 @@ public interface BufferPool extends BufferProvider, BufferRecycler {
      */
     void setNumBuffers(int numBuffers);
 
+    /** Sets the max overdraft buffer size of per gate. */
+    void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate);
+
+    /** Returns the max overdraft buffer size of per gate. */
+    int getMaxOverdraftBuffersPerGate();
+
     /** Returns the number memory segments, which are currently held by this buffer pool. */
     int getNumberOfAvailableMemorySegments();
 

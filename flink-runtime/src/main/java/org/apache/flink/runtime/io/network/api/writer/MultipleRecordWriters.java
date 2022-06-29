@@ -71,6 +71,13 @@ public class MultipleRecordWriters<T extends IOReadableWritable>
     }
 
     @Override
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {
+        for (RecordWriter<T> recordWriter : recordWriters) {
+            recordWriter.setMaxOverdraftBuffersPerGate(maxOverdraftBuffersPerGate);
+        }
+    }
+
+    @Override
     public CompletableFuture<?> getAvailableFuture() {
         for (int i = 0; i < futures.length; i++) {
             futures[i] = recordWriters.get(i).getAvailableFuture();
