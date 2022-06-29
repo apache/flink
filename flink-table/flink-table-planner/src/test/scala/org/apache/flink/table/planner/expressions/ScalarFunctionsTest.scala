@@ -739,10 +739,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
           "USERINFO" -> userInfo)
 
       for ((n, v) <- parts) {
-        testSqlApi(s"parse_url('$url', '$n')", v)
+        testAllApis(url.parseUrl(s"$n"), s"parse_url('$url', '$n')", v)
       }
 
-      testSqlApi(s"parse_url('$url', 'QUERY', 'query')", qv)
+      testAllApis(url.parseUrl("QUERY", "query"), s"parse_url('$url', 'QUERY', 'query')", qv)
     }
 
     testUrl(

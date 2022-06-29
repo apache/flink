@@ -152,6 +152,8 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('instr(a, b)', str(expr1.instr(expr2)))
         self.assertEqual('locate(a, b)', str(expr1.locate(expr2)))
         self.assertEqual('locate(a, b, 2)', str(expr1.locate(expr2, 2)))
+        self.assertEqual('parseUrl(a, b)', str(expr1.parse_url(expr2)))
+        self.assertEqual("parseUrl(a, b, 'query')", str(expr1.parse_url(expr2, 'query')))
         self.assertEqual('ltrim(a)', str(expr1.ltrim))
         self.assertEqual('rtrim(a)', str(expr1.rtrim))
         self.assertEqual('repeat(a, 3)', str(expr1.repeat(3)))
