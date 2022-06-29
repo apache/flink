@@ -20,27 +20,21 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.core.IsSame.sameInstance;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FailureHandlingResult}. */
-public class FailureHandlingResultTest extends TestLogger {
+class FailureHandlingResultTest {
 
     /** Tests normal FailureHandlingResult. */
     @Test
-    public void testNormalFailureHandlingResult() {
+    void testNormalFailureHandlingResult() {
         // create a normal FailureHandlingResult
         ExecutionVertexID executionVertexID = new ExecutionVertexID(new JobVertexID(), 0);
         Set<ExecutionVertexID> tasks = new HashSet<>();
@@ -52,39 +46,35 @@ public class FailureHandlingResultTest extends TestLogger {
                 FailureHandlingResult.restartable(
                         executionVertexID, error, timestamp, tasks, delay, false);
 
-        assertTrue(result.canRestart());
-        assertEquals(delay, result.getRestartDelayMS());
-        assertEquals(tasks, result.getVerticesToRestart());
-        assertThat(result.getError(), sameInstance(error));
-        assertThat(result.getTimestamp(), is(timestamp));
-        assertTrue(result.getExecutionVertexIdOfFailedTask().isPresent());
-        assertThat(result.getExecutionVertexIdOfFailedTask().get(), is(executionVertexID));
+        assertThat(result.canRestart()).isTrue();
+        assertThat(delay).isEqualTo(result.getRestartDelayMS());
+        assertThat(tasks).isEqualTo(result.getVerticesToRestart());
+        assertThat(result.getError()).isSameAs(error);
+        assertThat(result.getTimestamp()).isEqualTo(timestamp);
+        assertThat(result.getExecutionVertexIdOfFailedTask().isPresent()).isTrue();
+        assertThat(result.getExecutionVertexIdOfFailedTask().get()).isEqualTo(executionVertexID);
     }
 
     /** Tests FailureHandlingResult which suppresses restarts. */
     @Test
-    public void testRestartingSuppressedFailureHandlingResultWithNoCausingExecutionVertexId() {
+    void testRestartingSuppressedFailureHandlingResultWithNoCausingExecutionVertexId() {
         // create a FailureHandlingResult with error
         Throwable error = new Exception("test error");
         long timestamp = System.currentTimeMillis();
         FailureHandlingResult result =
                 FailureHandlingResult.unrecoverable(null, error, timestamp, false);
 
-        assertFalse(result.canRestart());
-        assertThat(result.getError(), sameInstance(error));
-        assertThat(result.getTimestamp(), is(timestamp));
-        assertFalse(result.getExecutionVertexIdOfFailedTask().isPresent());
-        try {
-            result.getVerticesToRestart();
-            fail("get tasks to restart is not allowed when restarting is suppressed");
-        } catch (IllegalStateException ex) {
-            // expected
-        }
-        try {
-            result.getRestartDelayMS();
-            fail("get restart delay is not allowed when restarting is suppressed");
-        } catch (IllegalStateException ex) {
-            // expected
-        }
+        assertThat(result.canRestart()).isFalse();
+        assertThat(result.getError()).isSameAs(error);
+        assertThat(result.getTimestamp()).isEqualTo(timestamp);
+        assertThat(result.getExecutionVertexIdOfFailedTask().isPresent()).isFalse();
+
+        assertThatThrownBy(result::getVerticesToRestart)
+                .as("getVerticesToRestart is not allowed when restarting is suppressed")
+                .isInstanceOf(IllegalStateException.class);
+
+        assertThatThrownBy(result::getRestartDelayMS)
+                .as("getRestartDelayMS is not allowed when restarting is suppressed")
+                .isInstanceOf(IllegalStateException.class);
     }
 }
