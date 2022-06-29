@@ -122,6 +122,11 @@ public class CheckpointConfigHandler
                             .getPeriodicMaterializeIntervalMillis();
             String changelogStorageName = executionGraph.getChangelogStorageName().orElse(null);
 
+            boolean stateChangelogEnabled =
+                    executionGraph.isChangelogStateBackendEnabled() != null
+                            ? executionGraph.isChangelogStateBackendEnabled().getOrDefault(false)
+                            : false;
+
             return new CheckpointConfigInfo(
                     checkpointCoordinatorConfiguration.isExactlyOnce()
                             ? CheckpointConfigInfo.ProcessingMode.EXACTLY_ONCE
@@ -137,6 +142,7 @@ public class CheckpointConfigHandler
                     checkpointCoordinatorConfiguration.getTolerableCheckpointFailureNumber(),
                     checkpointCoordinatorConfiguration.getAlignedCheckpointTimeout(),
                     checkpointCoordinatorConfiguration.isEnableCheckpointsAfterTasksFinish(),
+                    stateChangelogEnabled,
                     periodicMaterializeIntervalMillis,
                     changelogStorageName);
         }

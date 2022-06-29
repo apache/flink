@@ -551,15 +551,15 @@
             </td>
           </tr>
           <tr>
-            <td>Changelog state-backend</td>
-            <td *ngIf="checkPointConfig['state_backend'] === 'ChangelogStateBackend'">Enabled</td>
-            <td *ngIf="checkPointConfig['state_backend'] !== 'ChangelogStateBackend'">Disabled</td>
+            <td>State Changelog</td>
+            <td *ngIf="checkPointConfig['state_changelog_enabled']">Enabled</td>
+            <td *ngIf="!checkPointConfig['state_changelog_enabled']">Disabled</td>
           </tr>
-          <tr *ngIf="checkPointConfig['state_backend'] === 'ChangelogStateBackend'">
+          <tr *ngIf="checkPointConfig['state_changelog_enabled']">
             <td>Changelog Storage</td>
             <td>{{ checkPointConfig['changelog_storage'] }}</td>
           </tr>
-          <tr *ngIf="checkPointConfig['state_backend'] === 'ChangelogStateBackend'">
+          <tr *ngIf="checkPointConfig['state_changelog_enabled']">
             <td>Changelog Periodic Materialization Interval</td>
             <td>
               {{

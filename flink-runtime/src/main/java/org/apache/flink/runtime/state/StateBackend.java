@@ -81,6 +81,15 @@ import java.util.Collection;
 public interface StateBackend extends java.io.Serializable {
 
     /**
+     * Return the name of this backend, default is simple class name. {@link
+     * org.apache.flink.runtime.state.delegate.DelegatingStateBackend} may return the simple class
+     * name of the delegated backend.
+     */
+    default String getName() {
+        return this.getClass().getSimpleName();
+    }
+
+    /**
      * Creates a new {@link CheckpointableKeyedStateBackend} that is responsible for holding
      * <b>keyed state</b> and checkpointing it.
      *
