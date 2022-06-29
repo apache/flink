@@ -49,7 +49,7 @@ public class MultipleRecordWriters<T extends IOReadableWritable>
     @Override
     public void broadcastEvent(AbstractEvent event) throws IOException {
         IOException exception = null;
-        for (RecordWriter recordWriter : recordWriters) {
+        for (RecordWriter<T> recordWriter : recordWriters) {
             try {
                 recordWriter.broadcastEvent(event);
             } catch (IOException e) {
@@ -80,7 +80,7 @@ public class MultipleRecordWriters<T extends IOReadableWritable>
 
     @Override
     public boolean isAvailable() {
-        for (RecordWriter recordWriter : recordWriters) {
+        for (RecordWriter<T> recordWriter : recordWriters) {
             if (!recordWriter.isAvailable()) {
                 return false;
             }
@@ -90,7 +90,7 @@ public class MultipleRecordWriters<T extends IOReadableWritable>
 
     @Override
     public void close() {
-        for (RecordWriter recordWriter : recordWriters) {
+        for (RecordWriter<T> recordWriter : recordWriters) {
             recordWriter.close();
         }
     }
