@@ -37,7 +37,7 @@ under the License.
 	<properties>
 		<hiverunner.version>4.0.0</hiverunner.version>
 		<reflections.version>0.9.8</reflections.version>
-		<derby.version>10.10.2.0</derby.version>
+		<derby.version>10.15.2.0</derby.version>
 		<hive.avro.version>1.8.2</hive.avro.version>
 	</properties>
 
@@ -1091,7 +1091,7 @@ under the License.
 			<id>hive3</id>
 			<properties>
 				<hive.version>3.1.1</hive.version>
-				<derby.version>10.14.1.0</derby.version>
+				<derby.version>10.15.2.0</derby.version>
 				<!-- need a hadoop version that fixes HADOOP-14683 -->
 				<hivemetastore.hadoop.version>2.8.2</hivemetastore.hadoop.version>
 			</properties>
