@@ -30,6 +30,7 @@ import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.collections.iterators.IteratorChain;
 import org.junit.jupiter.api.BeforeAll;
@@ -52,7 +53,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link ResultFetcher}. */
-public class ResultFetcherTest {
+public class ResultFetcherTest extends TestLogger {
 
     private static ResolvedSchema schema;
     private static List<RowData> data;
