@@ -272,8 +272,7 @@ public enum ProtoUtils {
 
         // set the key typeinfo for the head operator
         FlinkFnApi.TypeInfo builtKeyTypeInfo =
-                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(
-                        keyTypeInfo, runtimeContext.getUserCodeClassLoader());
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(keyTypeInfo);
         results.set(0, results.get(0).toBuilder().setKeyTypeInfo(builtKeyTypeInfo).build());
         return results;
     }
@@ -355,11 +354,9 @@ public enum ProtoUtils {
     public static FlinkFnApi.CoderInfoDescriptor createRawTypeCoderInfoDescriptorProto(
             TypeInformation<?> typeInformation,
             FlinkFnApi.CoderInfoDescriptor.Mode mode,
-            boolean separatedWithEndMessage,
-            ClassLoader userClassLoader) {
+            boolean separatedWithEndMessage) {
         FlinkFnApi.TypeInfo typeinfo =
-                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(
-                        typeInformation, userClassLoader);
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(typeInformation);
         return createCoderInfoDescriptorProto(
                 null,
                 null,

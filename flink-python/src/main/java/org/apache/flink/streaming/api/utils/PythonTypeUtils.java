@@ -56,6 +56,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
 import org.apache.flink.table.runtime.typeutils.ExternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
@@ -64,11 +65,8 @@ import org.apache.flink.table.runtime.typeutils.serializers.python.StringSeriali
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
-
-import javax.annotation.Nullable;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -79,9 +77,6 @@ import java.util.Set;
 /** A util class for converting the given TypeInformation to other objects. */
 @Internal
 public class PythonTypeUtils {
-
-    private static final ClassLoader USER_CLASS_LOADER =
-            Thread.currentThread().getContextClassLoader();
 
     /** Get coder proto according to the given type information. */
     public static class TypeInfoToProtoConverter {
@@ -130,25 +125,18 @@ public class PythonTypeUtils {
                         FlinkFnApi.TypeInfo.TypeName.SQL_TIME,
                         FlinkFnApi.TypeInfo.TypeName.SQL_TIMESTAMP);
 
-        /**
-         * userClassLoader could be null if no external class loading is needed, e.g. load Avro
-         * classes.
-         */
-        public static FlinkFnApi.TypeInfo toTypeInfoProto(
-                TypeInformation<?> typeInformation, @Nullable ClassLoader userClassLoader) {
+        public static FlinkFnApi.TypeInfo toTypeInfoProto(TypeInformation<?> typeInformation) {
 
             if (typeInformation instanceof BasicTypeInfo) {
                 return buildBasicTypeProto((BasicTypeInfo<?>) typeInformation);
             }
 
             if (typeInformation instanceof PrimitiveArrayTypeInfo) {
-                return buildPrimitiveArrayTypeProto(
-                        (PrimitiveArrayTypeInfo<?>) typeInformation, userClassLoader);
+                return buildPrimitiveArrayTypeProto((PrimitiveArrayTypeInfo<?>) typeInformation);
             }
 
             if (typeInformation instanceof ObjectArrayTypeInfo) {
-                return buildObjectArrayTypeProto(
-                        (ObjectArrayTypeInfo<?, ?>) typeInformation, userClassLoader);
+                return buildObjectArrayTypeProto((ObjectArrayTypeInfo<?, ?>) typeInformation);
             }
 
             if (typeInformation instanceof SqlTimeTypeInfo) {
@@ -156,7 +144,7 @@ public class PythonTypeUtils {
             }
 
             if (typeInformation instanceof RowTypeInfo) {
-                return buildRowTypeProto((RowTypeInfo) typeInformation, userClassLoader);
+                return buildRowTypeProto((RowTypeInfo) typeInformation);
             }
 
             if (typeInformation instanceof PickledByteArrayTypeInfo) {
@@ -166,27 +154,25 @@ public class PythonTypeUtils {
             }
 
             if (typeInformation instanceof TupleTypeInfo) {
-                return buildTupleTypeProto((TupleTypeInfo<?>) typeInformation, userClassLoader);
+                return buildTupleTypeProto((TupleTypeInfo<?>) typeInformation);
             }
 
             if (typeInformation instanceof BasicArrayTypeInfo) {
-                return buildBasicArrayTypeProto(
-                        (BasicArrayTypeInfo<?, ?>) typeInformation, userClassLoader);
+                return buildBasicArrayTypeProto((BasicArrayTypeInfo<?, ?>) typeInformation);
             }
 
             if (typeInformation instanceof MapTypeInfo) {
-                return buildMapTypeProto((MapTypeInfo<?, ?>) typeInformation, userClassLoader);
+                return buildMapTypeProto((MapTypeInfo<?, ?>) typeInformation);
             }
 
             if (typeInformation instanceof ListTypeInfo) {
-                return buildListTypeProto((ListTypeInfo<?>) typeInformation, userClassLoader);
+                return buildListTypeProto((ListTypeInfo<?>) typeInformation);
             }
 
             if (typeInformation instanceof ExternalTypeInfo) {
                 return toTypeInfoProto(
                         LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
-                                ((ExternalTypeInfo<?>) typeInformation).getDataType()),
-                        userClassLoader);
+                                ((ExternalTypeInfo<?>) typeInformation).getDataType()));
             }
 
             if (typeInformation
@@ -194,8 +180,7 @@ public class PythonTypeUtils {
                     .getCanonicalName()
                     .equals("org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo")) {
                 try {
-                    Preconditions.checkNotNull(userClassLoader);
-                    return buildAvroTypeProto(typeInformation, userClassLoader);
+                    return buildAvroTypeProto((GenericRecordAvroTypeInfo) typeInformation);
                 } catch (Exception e) {
                     throw new RuntimeException(
                             "Error when building proto for GenericRecordAvroTypeInfo", e);
@@ -234,9 +219,9 @@ public class PythonTypeUtils {
         }
 
         private static FlinkFnApi.TypeInfo buildPrimitiveArrayTypeProto(
-                PrimitiveArrayTypeInfo<?> primitiveArrayTypeInfo, ClassLoader userClassLoader) {
+                PrimitiveArrayTypeInfo<?> primitiveArrayTypeInfo) {
             FlinkFnApi.TypeInfo elementFieldType =
-                    toTypeInfoProto(primitiveArrayTypeInfo.getComponentType(), userClassLoader);
+                    toTypeInfoProto(primitiveArrayTypeInfo.getComponentType());
             if (!primitiveArrayElementTypeNames.contains(elementFieldType.getTypeName())) {
                 throw new UnsupportedOperationException(
                         String.format(
@@ -251,19 +236,18 @@ public class PythonTypeUtils {
         }
 
         private static FlinkFnApi.TypeInfo buildObjectArrayTypeProto(
-                ObjectArrayTypeInfo<?, ?> objectArrayTypeInfo, ClassLoader userClassLoader) {
+                ObjectArrayTypeInfo<?, ?> objectArrayTypeInfo) {
             return FlinkFnApi.TypeInfo.newBuilder()
                     .setTypeName(getTypeName(objectArrayTypeInfo))
                     .setCollectionElementType(
-                            toTypeInfoProto(
-                                    objectArrayTypeInfo.getComponentInfo(), userClassLoader))
+                            toTypeInfoProto(objectArrayTypeInfo.getComponentInfo()))
                     .build();
         }
 
         private static FlinkFnApi.TypeInfo buildBasicArrayTypeProto(
-                BasicArrayTypeInfo<?, ?> basicArrayTypeInfo, ClassLoader userClassLoader) {
+                BasicArrayTypeInfo<?, ?> basicArrayTypeInfo) {
             FlinkFnApi.TypeInfo elementFieldType =
-                    toTypeInfoProto(basicArrayTypeInfo.getComponentInfo(), userClassLoader);
+                    toTypeInfoProto(basicArrayTypeInfo.getComponentInfo());
             if (!basicArrayElementTypeNames.contains(elementFieldType.getTypeName())) {
                 throw new UnsupportedOperationException(
                         String.format(
@@ -277,8 +261,7 @@ public class PythonTypeUtils {
                     .build();
         }
 
-        private static FlinkFnApi.TypeInfo buildRowTypeProto(
-                RowTypeInfo rowTypeInfo, ClassLoader userClassLoader) {
+        private static FlinkFnApi.TypeInfo buildRowTypeProto(RowTypeInfo rowTypeInfo) {
             FlinkFnApi.TypeInfo.RowTypeInfo.Builder rowTypeInfoBuilder =
                     FlinkFnApi.TypeInfo.RowTypeInfo.newBuilder();
 
@@ -287,9 +270,7 @@ public class PythonTypeUtils {
                 rowTypeInfoBuilder.addFields(
                         FlinkFnApi.TypeInfo.RowTypeInfo.Field.newBuilder()
                                 .setFieldName(rowTypeInfo.getFieldNames()[index])
-                                .setFieldType(
-                                        toTypeInfoProto(
-                                                rowTypeInfo.getTypeAt(index), userClassLoader))
+                                .setFieldType(toTypeInfoProto(rowTypeInfo.getTypeAt(index)))
                                 .build());
             }
 
@@ -299,15 +280,13 @@ public class PythonTypeUtils {
                     .build();
         }
 
-        private static FlinkFnApi.TypeInfo buildTupleTypeProto(
-                TupleTypeInfo<?> tupleTypeInfo, ClassLoader userClassLoader) {
+        private static FlinkFnApi.TypeInfo buildTupleTypeProto(TupleTypeInfo<?> tupleTypeInfo) {
             FlinkFnApi.TypeInfo.TupleTypeInfo.Builder tupleTypeInfoBuilder =
                     FlinkFnApi.TypeInfo.TupleTypeInfo.newBuilder();
 
             int arity = tupleTypeInfo.getArity();
             for (int index = 0; index < arity; index++) {
-                tupleTypeInfoBuilder.addFieldTypes(
-                        toTypeInfoProto(tupleTypeInfo.getTypeAt(index), userClassLoader));
+                tupleTypeInfoBuilder.addFieldTypes(toTypeInfoProto(tupleTypeInfo.getTypeAt(index)));
             }
 
             return FlinkFnApi.TypeInfo.newBuilder()
@@ -316,14 +295,13 @@ public class PythonTypeUtils {
                     .build();
         }
 
-        private static FlinkFnApi.TypeInfo buildMapTypeProto(
-                MapTypeInfo<?, ?> mapTypeInfo, ClassLoader userClassLoader) {
+        private static FlinkFnApi.TypeInfo buildMapTypeProto(MapTypeInfo<?, ?> mapTypeInfo) {
             FlinkFnApi.TypeInfo.MapTypeInfo.Builder mapTypeInfoBuilder =
                     FlinkFnApi.TypeInfo.MapTypeInfo.newBuilder();
 
             mapTypeInfoBuilder
-                    .setKeyType(toTypeInfoProto(mapTypeInfo.getKeyTypeInfo(), userClassLoader))
-                    .setValueType(toTypeInfoProto(mapTypeInfo.getValueTypeInfo(), userClassLoader));
+                    .setKeyType(toTypeInfoProto(mapTypeInfo.getKeyTypeInfo()))
+                    .setValueType(toTypeInfoProto(mapTypeInfo.getValueTypeInfo()));
 
             return FlinkFnApi.TypeInfo.newBuilder()
                     .setTypeName(getTypeName(mapTypeInfo))
@@ -331,23 +309,16 @@ public class PythonTypeUtils {
                     .build();
         }
 
-        private static FlinkFnApi.TypeInfo buildListTypeProto(
-                ListTypeInfo<?> listTypeInfo, ClassLoader userClassLoader) {
+        private static FlinkFnApi.TypeInfo buildListTypeProto(ListTypeInfo<?> listTypeInfo) {
             return FlinkFnApi.TypeInfo.newBuilder()
                     .setTypeName(getTypeName(listTypeInfo))
-                    .setCollectionElementType(
-                            toTypeInfoProto(listTypeInfo.getElementTypeInfo(), userClassLoader))
+                    .setCollectionElementType(toTypeInfoProto(listTypeInfo.getElementTypeInfo()))
                     .build();
         }
 
         private static FlinkFnApi.TypeInfo buildAvroTypeProto(
-                TypeInformation<?> avroTypeInfo, ClassLoader userClassLoader) throws Exception {
-            Class<?> clazz =
-                    Class.forName(
-                            "org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo",
-                            true,
-                            userClassLoader);
-            Field schemaField = clazz.getDeclaredField("schema");
+                GenericRecordAvroTypeInfo avroTypeInfo) throws Exception {
+            Field schemaField = avroTypeInfo.getClass().getDeclaredField("schema");
             schemaField.setAccessible(true);
             String schema = schemaField.get(avroTypeInfo).toString();
             return FlinkFnApi.TypeInfo.newBuilder()
