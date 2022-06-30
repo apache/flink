@@ -25,6 +25,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -89,6 +90,8 @@ public class StreamNode {
     private String userHash;
 
     private final Map<Integer, StreamConfig.InputRequirement> inputRequirements = new HashMap<>();
+
+    private @Nullable IntermediateDataSetID consumeClusterDatasetId;
 
     @VisibleForTesting
     public StreamNode(
@@ -404,5 +407,15 @@ public class StreamNode {
     @Override
     public int hashCode() {
         return id;
+    }
+
+    @Nullable
+    public IntermediateDataSetID getConsumeClusterDatasetId() {
+        return consumeClusterDatasetId;
+    }
+
+    public void setConsumeClusterDatasetId(
+            @Nullable IntermediateDataSetID consumeClusterDatasetId) {
+        this.consumeClusterDatasetId = consumeClusterDatasetId;
     }
 }

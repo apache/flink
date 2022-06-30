@@ -35,6 +35,8 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.io.network.partition.DataSetMetaInfo;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -72,6 +74,13 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
+import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetDeleteStatusHeaders;
+import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetDeleteStatusMessageParameters;
+import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetDeleteTriggerHeaders;
+import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetDeleteTriggerMessageParameters;
+import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetIdPathParameter;
+import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetListHeaders;
+import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetListResponseBody;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultResponseBody;
 import org.apache.flink.runtime.rest.messages.job.JobStatusInfoHeaders;
@@ -91,6 +100,7 @@ import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -123,12 +133,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -400,6 +412,200 @@ class RestClusterClientTest {
             private TestSavepointDisposalStatusHandler(
                     OptionalFailure<AsynchronousOperationInfo>... responses) {
                 super(SavepointDisposalStatusHeaders.getInstance());
+                this.responses = new ArrayDeque<>(Arrays.asList(responses));
+            }
+
+            @Override
+            protected CompletableFuture<AsynchronousOperationResult<AsynchronousOperationInfo>>
+                    handleRequest(
+                            @Nonnull HandlerRequest<EmptyRequestBody> request,
+                            @Nonnull DispatcherGateway gateway)
+                            throws RestHandlerException {
+                final TriggerId actualTriggerId =
+                        request.getPathParameter(TriggerIdPathParameter.class);
+
+                if (actualTriggerId.equals(triggerId)) {
+                    final OptionalFailure<AsynchronousOperationInfo> nextResponse =
+                            responses.poll();
+
+                    if (nextResponse != null) {
+                        if (nextResponse.isFailure()) {
+                            throw new RestHandlerException(
+                                    "Failure",
+                                    HttpResponseStatus.BAD_REQUEST,
+                                    nextResponse.getFailureCause());
+                        } else {
+                            return CompletableFuture.completedFuture(
+                                    AsynchronousOperationResult.completed(
+                                            nextResponse.getUnchecked()));
+                        }
+                    } else {
+                        throw new AssertionError();
+                    }
+                } else {
+                    throw new AssertionError();
+                }
+            }
+        }
+    }
+
+    @Test
+    public void testListCompletedClusterDatasetIds() {
+        Set<AbstractID> expectedCompletedClusterDatasetIds = new HashSet<>();
+        expectedCompletedClusterDatasetIds.add(new AbstractID());
+        expectedCompletedClusterDatasetIds.add(new AbstractID());
+
+        try (TestRestServerEndpoint restServerEndpoint =
+                createRestServerEndpoint(
+                        new TestListCompletedClusterDatasetHandler(
+                                expectedCompletedClusterDatasetIds))) {
+            try (RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
+                final Set<AbstractID> returnedIds =
+                        restClusterClient.listCompletedClusterDatasetIds().get();
+                assertThat(returnedIds).isEqualTo(expectedCompletedClusterDatasetIds);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private class TestListCompletedClusterDatasetHandler
+            extends TestHandler<
+                    EmptyRequestBody, ClusterDataSetListResponseBody, EmptyMessageParameters> {
+
+        private final Set<AbstractID> intermediateDataSetIds;
+
+        private TestListCompletedClusterDatasetHandler(Set<AbstractID> intermediateDataSetIds) {
+            super(ClusterDataSetListHeaders.INSTANCE);
+            this.intermediateDataSetIds = intermediateDataSetIds;
+        }
+
+        @Override
+        protected CompletableFuture<ClusterDataSetListResponseBody> handleRequest(
+                @Nonnull HandlerRequest<EmptyRequestBody> request,
+                @Nonnull DispatcherGateway gateway)
+                throws RestHandlerException {
+
+            Map<IntermediateDataSetID, DataSetMetaInfo> datasets = new HashMap<>();
+            intermediateDataSetIds.forEach(
+                    id ->
+                            datasets.put(
+                                    new IntermediateDataSetID(id),
+                                    DataSetMetaInfo.withNumRegisteredPartitions(1, 1)));
+            return CompletableFuture.completedFuture(ClusterDataSetListResponseBody.from(datasets));
+        }
+    }
+
+    @Test
+    public void testInvalidateClusterDataset() throws Exception {
+        final IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
+        final String exceptionMessage = "Test exception.";
+        final FlinkException testException = new FlinkException(exceptionMessage);
+
+        final TestClusterDatasetDeleteHandlers testClusterDatasetDeleteHandlers =
+                new TestClusterDatasetDeleteHandlers(intermediateDataSetID);
+        final TestClusterDatasetDeleteHandlers.TestClusterDatasetDeleteTriggerHandler
+                testClusterDatasetDeleteTriggerHandler =
+                        testClusterDatasetDeleteHandlers
+                        .new TestClusterDatasetDeleteTriggerHandler();
+        final TestClusterDatasetDeleteHandlers.TestClusterDatasetDeleteStatusHandler
+                testClusterDatasetDeleteStatusHandler =
+                        testClusterDatasetDeleteHandlers
+                        .new TestClusterDatasetDeleteStatusHandler(
+                                OptionalFailure.of(AsynchronousOperationInfo.complete()),
+                                OptionalFailure.of(
+                                        AsynchronousOperationInfo.completeExceptional(
+                                                new SerializedThrowable(testException))),
+                                OptionalFailure.ofFailure(testException));
+
+        try (TestRestServerEndpoint restServerEndpoint =
+                createRestServerEndpoint(
+                        testClusterDatasetDeleteStatusHandler,
+                        testClusterDatasetDeleteTriggerHandler)) {
+            RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
+
+            try {
+                {
+                    final CompletableFuture<Void> invalidateCacheFuture =
+                            restClusterClient.invalidateClusterDataset(intermediateDataSetID);
+                    assertThat(invalidateCacheFuture.get()).isNull();
+                }
+
+                {
+                    final CompletableFuture<Void> invalidateCacheFuture =
+                            restClusterClient.invalidateClusterDataset(intermediateDataSetID);
+
+                    try {
+                        invalidateCacheFuture.get();
+                        fail("Expected an exception");
+                    } catch (ExecutionException ee) {
+                        assertThat(
+                                        ExceptionUtils.findThrowableWithMessage(
+                                                        ee, exceptionMessage)
+                                                .isPresent())
+                                .isTrue();
+                    }
+                }
+
+                {
+                    try {
+                        restClusterClient.invalidateClusterDataset(intermediateDataSetID).get();
+                        fail("Expected an exception.");
+                    } catch (ExecutionException ee) {
+                        assertThat(
+                                        ExceptionUtils.findThrowable(ee, RestClientException.class)
+                                                .isPresent())
+                                .isTrue();
+                    }
+                }
+            } finally {
+                restClusterClient.close();
+            }
+        }
+    }
+
+    private class TestClusterDatasetDeleteHandlers {
+
+        private final TriggerId triggerId = new TriggerId();
+
+        private final IntermediateDataSetID intermediateDataSetID;
+
+        private TestClusterDatasetDeleteHandlers(IntermediateDataSetID intermediateDatasetId) {
+            this.intermediateDataSetID = Preconditions.checkNotNull(intermediateDatasetId);
+        }
+
+        private class TestClusterDatasetDeleteTriggerHandler
+                extends TestHandler<
+                        EmptyRequestBody,
+                        TriggerResponse,
+                        ClusterDataSetDeleteTriggerMessageParameters> {
+            private TestClusterDatasetDeleteTriggerHandler() {
+                super(ClusterDataSetDeleteTriggerHeaders.INSTANCE);
+            }
+
+            @Override
+            protected CompletableFuture<TriggerResponse> handleRequest(
+                    HandlerRequest<EmptyRequestBody> request, DispatcherGateway gateway)
+                    throws RestHandlerException {
+                assertThat(request.getPathParameter(ClusterDataSetIdPathParameter.class))
+                        .isEqualTo(intermediateDataSetID);
+                return CompletableFuture.completedFuture(new TriggerResponse(triggerId));
+            }
+        }
+
+        private class TestClusterDatasetDeleteStatusHandler
+                extends TestHandler<
+                        EmptyRequestBody,
+                        AsynchronousOperationResult<AsynchronousOperationInfo>,
+                        ClusterDataSetDeleteStatusMessageParameters> {
+
+            private final Queue<OptionalFailure<AsynchronousOperationInfo>> responses;
+
+            private TestClusterDatasetDeleteStatusHandler(
+                    OptionalFailure<AsynchronousOperationInfo>... responses) {
+                super(ClusterDataSetDeleteStatusHeaders.INSTANCE);
                 this.responses = new ArrayDeque<>(Arrays.asList(responses));
             }
 

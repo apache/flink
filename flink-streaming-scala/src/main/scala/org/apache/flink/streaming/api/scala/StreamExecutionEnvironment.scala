@@ -49,7 +49,7 @@ import java.net.URI
 import scala.collection.JavaConverters._
 
 @Public
-class StreamExecutionEnvironment(javaEnv: JavaEnv) {
+class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
 
   /** @return the wrapped Java environment */
   def getJavaEnv: JavaEnv = javaEnv
@@ -1034,6 +1034,14 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
   /** Returns whether Unaligned Checkpoints are force-enabled. */
   def isForceUnalignedCheckpoints: Boolean = javaEnv.isForceUnalignedCheckpoints
+
+  /**
+   * Close and clean up the execution environment. All the cached intermediate results will be
+   * released physically.
+   */
+  override def close(): Unit = {
+    javaEnv.close()
+  }
 }
 
 object StreamExecutionEnvironment {

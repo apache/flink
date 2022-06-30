@@ -36,6 +36,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphUtils;
@@ -797,6 +798,10 @@ public class StreamingJobGraphGenerator {
             jobVertex = new JobVertex(chainedNames.get(streamNodeId), jobVertexId, operatorIDPairs);
         }
 
+        if (streamNode.getConsumeClusterDatasetId() != null) {
+            jobVertex.addIntermediateDataSetIdToConsume(streamNode.getConsumeClusterDatasetId());
+        }
+
         for (OperatorCoordinator.Provider coordinatorProvider :
                 chainInfo.getCoordinatorProviders()) {
             coordinatorSerializationFutures.add(
@@ -899,6 +904,13 @@ public class StreamingJobGraphGenerator {
                 }
             }
         }
+
+        // set the input config of the vertex if it consumes from cached intermediate dataset.
+        if (vertex.getConsumeClusterDatasetId() != null) {
+            config.setNumberOfNetworkInputs(1);
+            inputConfigs[0] = new StreamConfig.NetworkInputConfig(inputSerializers[0], 0);
+        }
+
         config.setInputs(inputConfigs);
 
         config.setTypeSerializerOut(vertex.getTypeSerializerOut());
@@ -1052,18 +1064,31 @@ public class StreamingJobGraphGenerator {
             hasHybridResultPartition = true;
         }
 
+        IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
+        if (isPersistentIntermediateDataset(resultPartitionType, edge)) {
+            resultPartitionType = ResultPartitionType.BLOCKING_PERSISTENT;
+            intermediateDataSetID = edge.getIntermediateDatasetIdToProduce();
+        }
+
         checkBufferTimeout(resultPartitionType, edge);
 
         JobEdge jobEdge;
         if (partitioner.isPointwise()) {
             jobEdge =
                     downStreamVertex.connectNewDataSetAsInput(
-                            headVertex, DistributionPattern.POINTWISE, resultPartitionType);
+                            headVertex,
+                            DistributionPattern.POINTWISE,
+                            resultPartitionType,
+                            intermediateDataSetID);
         } else {
             jobEdge =
                     downStreamVertex.connectNewDataSetAsInput(
-                            headVertex, DistributionPattern.ALL_TO_ALL, resultPartitionType);
+                            headVertex,
+                            DistributionPattern.ALL_TO_ALL,
+                            resultPartitionType,
+                            intermediateDataSetID);
         }
+
         // set strategy name so that web interface can show it.
         jobEdge.setShipStrategyName(partitioner.toString());
         jobEdge.setBroadcast(partitioner.isBroadcast());
@@ -1078,6 +1103,12 @@ public class StreamingJobGraphGenerator {
                     headOfChain,
                     downStreamVertexID);
         }
+    }
+
+    private boolean isPersistentIntermediateDataset(
+            ResultPartitionType resultPartitionType, StreamEdge edge) {
+        return resultPartitionType.isBlockingOrBlockingPersistentResultPartition()
+                && edge.getIntermediateDatasetIdToProduce() != null;
     }
 
     private void checkBufferTimeout(ResultPartitionType type, StreamEdge edge) {
