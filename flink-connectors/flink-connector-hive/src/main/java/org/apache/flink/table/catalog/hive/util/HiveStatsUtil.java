@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.catalog.hive.util;
 
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
@@ -30,6 +32,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.metastore.api.BinaryColumnStatsData;
@@ -90,6 +93,67 @@ public class HiveStatsUtil {
         return colStats;
     }
 
+    /**
+     * Create a map of Flink column stats from the given Hive partition and columns statistic of the
+     * partition.
+     *
+     * <p>The basic idea is to merge the column's statistic of all partitions to get completed
+     * statistic for one column.
+     */
+    public static Map<String, CatalogColumnStatisticsDataBase> createCatalogColumnStats(
+            Map<String, List<ColumnStatisticsObj>> partitionColumnStatistics,
+            String hiveVersion,
+            HiveCatalog hiveCatalog,
+            ObjectPath tablePath) {
+        // column -> the column statistic of all partitions
+        Map<String, List<CatalogColumnStatisticsDataBase>> colPartitionStats = new HashMap<>();
+
+        // column -> partition that the column statistic belongs
+        // the mapping is needed when we merge the avgLength statistic
+        // for we need to know the rows of each partition to calculate avgLength
+        Map<String, List<String>> columnPartitions = new HashMap<>();
+        // iterate each partition and the columns' statistic
+        for (Map.Entry<String, List<ColumnStatisticsObj>> partitionColumnStatisticsEntry :
+                partitionColumnStatistics.entrySet()) {
+            String partition = partitionColumnStatisticsEntry.getKey();
+            List<ColumnStatisticsObj> columnStatisticsObjList =
+                    partitionColumnStatisticsEntry.getValue();
+            // iterate each column to get statistic
+            for (ColumnStatisticsObj colStatsObj : columnStatisticsObjList) {
+                // create catalog column statistic
+                CatalogColumnStatisticsDataBase columnStats =
+                        createTableColumnStats(
+                                HiveTypeUtil.toFlinkType(
+                                        TypeInfoUtils.getTypeInfoFromTypeString(
+                                                colStatsObj.getColType())),
+                                colStatsObj.getStatsData(),
+                                hiveVersion);
+                // record the column and the corresponding column statistic
+                colPartitionStats.putIfAbsent(colStatsObj.getColName(), new ArrayList<>());
+                colPartitionStats.get(colStatsObj.getColName()).add(columnStats);
+                // record the column and partition that the column statistic belongs,
+                columnPartitions.putIfAbsent(colStatsObj.getColName(), new ArrayList<>());
+                columnPartitions.get(colStatsObj.getColName()).add(partition);
+            }
+        }
+
+        // column -> merged column statistic
+        Map<String, CatalogColumnStatisticsDataBase> colStats = new HashMap<>();
+        // partition -> row count in partition
+        Map<String, Long> cachedPartitionRowCount = new HashMap<>();
+        colPartitionStats.forEach(
+                (colName, colPartitionStatisticList) ->
+                        colStats.put(
+                                colName,
+                                mergeCatalogTableColumnStats(
+                                        colPartitionStatisticList,
+                                        columnPartitions.get(colName),
+                                        hiveCatalog,
+                                        cachedPartitionRowCount,
+                                        tablePath)));
+        return colStats;
+    }
+
     /** Create columnStatistics from the given Hive column stats of a hive table. */
     public static ColumnStatistics createTableColumnStats(
             Table hiveTable,
@@ -140,6 +204,67 @@ public class HiveStatsUtil {
         return new ColumnStatistics(desc, colStatsList);
     }
 
+    private static CatalogColumnStatisticsDataBase mergeCatalogTableColumnStats(
+            List<CatalogColumnStatisticsDataBase> columnStatisticsDataList,
+            List<String> partitions,
+            HiveCatalog hiveCatalog,
+            Map<String, Long> cachePartitionRowCount,
+            ObjectPath tablePath) {
+        Preconditions.checkArgument(columnStatisticsDataList.size() > 0);
+        CatalogColumnStatisticsDataBase colStat = columnStatisticsDataList.get(0);
+        if (colStat instanceof CatalogColumnStatisticsDataBinary) {
+            return mergeCatalogColumnStatisticsDataBinary(
+                    columnStatisticsDataList,
+                    partitions,
+                    hiveCatalog,
+                    cachePartitionRowCount,
+                    tablePath);
+        } else if (colStat instanceof CatalogColumnStatisticsDataBoolean) {
+            return mergeCatalogColumnStatisticsDataBoolean(columnStatisticsDataList);
+        } else if (colStat instanceof CatalogColumnStatisticsDataDate) {
+            return mergeCatalogColumnStatisticsDataDate(columnStatisticsDataList);
+        } else if (colStat instanceof CatalogColumnStatisticsDataDouble) {
+            return mergeCatalogColumnStatisticsDataDouble(columnStatisticsDataList);
+        } else if (colStat instanceof CatalogColumnStatisticsDataLong) {
+            return mergeCatalogColumnStatisticsDataLong(columnStatisticsDataList);
+        } else if (colStat instanceof CatalogColumnStatisticsDataString) {
+            return mergeCatalogColumnStatisticsDataString(
+                    columnStatisticsDataList,
+                    partitions,
+                    hiveCatalog,
+                    cachePartitionRowCount,
+                    tablePath);
+        } else {
+            return null;
+        }
+    }
+
+    private static Long getPartitionRowCount(
+            Map<String, Long> cachePartitionRowCountMap,
+            String partition,
+            HiveCatalog hiveCatalog,
+            ObjectPath objectPath) {
+        if (!cachePartitionRowCountMap.containsKey(partition)) {
+            Long rowCount;
+            try {
+                rowCount =
+                        hiveCatalog
+                                .getPartitionStatistics(
+                                        objectPath, HiveCatalog.createPartitionSpec(partition))
+                                .getRowCount();
+            } catch (Exception e) {
+                LOG.info(
+                        String.format(
+                                "Can't get row count for partition %s, so return null directly.",
+                                partition),
+                        e);
+                rowCount = null;
+            }
+            cachePartitionRowCountMap.put(partition, rowCount);
+        }
+        return cachePartitionRowCountMap.get(partition);
+    }
+
     /** Create Flink ColumnStats from Hive ColumnStatisticsData. */
     private static CatalogColumnStatisticsDataBase createTableColumnStats(
             DataType colType, ColumnStatisticsData stats, String hiveVersion) {
@@ -178,7 +303,7 @@ public class HiveStatsUtil {
                     stringStats.isSetMaxColLen() ? stringStats.getMaxColLen() : null,
                     stringStats.isSetAvgColLen() ? stringStats.getAvgColLen() : null,
                     stringStats.isSetNumDVs() ? stringStats.getNumDVs() : null,
-                    stringStats.isSetNumDVs() ? stringStats.getNumNulls() : null);
+                    stringStats.isSetNumNulls() ? stringStats.getNumNulls() : null);
         } else if (stats.isSetDecimalStats()) {
             DecimalColumnStatsData decimalStats = stats.getDecimalStats();
             // for now, just return CatalogColumnStatisticsDataDouble for decimal columns

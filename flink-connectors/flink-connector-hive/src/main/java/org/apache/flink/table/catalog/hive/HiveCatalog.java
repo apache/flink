@@ -1140,7 +1140,7 @@ public class HiveCatalog extends AbstractCatalog {
      * Creates a {@link CatalogPartitionSpec} from a Hive partition name string. Example of Hive
      * partition name string - "name=bob/year=2019"
      */
-    private static CatalogPartitionSpec createPartitionSpec(String hivePartitionName) {
+    public static CatalogPartitionSpec createPartitionSpec(String hivePartitionName) {
         String[] partKeyVals = hivePartitionName.split("/");
         Map<String, String> spec = new HashMap<>(partKeyVals.length);
         for (String keyVal : partKeyVals) {
@@ -1608,7 +1608,25 @@ public class HiveCatalog extends AbstractCatalog {
                 return new CatalogColumnStatistics(
                         HiveStatsUtil.createCatalogColumnStats(columnStatisticsObjs, hiveVersion));
             } else {
-                // TableColumnStats of partitioned table is unknown, the behavior is same as HIVE
+                // in partitioned table, we have two types of column. One if partitioned column, and
+                // the other is non-partitioned
+                List<String> partNames =
+                        client.listPartitionNames(
+                                hiveTable.getDbName(), hiveTable.getTableName(), (short) -1);
+                // to get statistics for partitioned column, we list all partitions,
+                // and extract the statistics from the partition name.
+                // todo: get partitioned column statistic
+
+                // to get non-partitioned column statistic, we list all partitions,
+                // and merge the column statistic from partition level to table level.
+
+                Map<String, List<ColumnStatisticsObj>> partitionColumnStatistics =
+                        client.getPartitionColumnStatistics(
+                                hiveTable.getDbName(),
+                                hiveTable.getTableName(),
+                                partNames,
+                                getFieldNames(hiveTable.getSd().getCols()));
+
                 return CatalogColumnStatistics.UNKNOWN;
             }
         } catch (TException e) {
