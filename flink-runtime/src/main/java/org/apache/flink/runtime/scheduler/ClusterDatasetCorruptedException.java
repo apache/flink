@@ -24,21 +24,20 @@ import org.apache.flink.runtime.throwable.ThrowableType;
 
 import java.util.List;
 
-/** Indicates some task fail to consume cached intermediate dataset. */
+/** Indicates some task fail to consume cluster dataset. */
 @ThrowableAnnotation(ThrowableType.NonRecoverableError)
-public class CachedIntermediateDataSetCorruptedException extends JobException {
-    private final List<IntermediateDataSetID> corruptedIntermediateDataSetID;
+public class ClusterDatasetCorruptedException extends JobException {
+    private final List<IntermediateDataSetID> corruptedClusterDatasetIds;
 
-    public CachedIntermediateDataSetCorruptedException(
-            Throwable cause, List<IntermediateDataSetID> corruptedIntermediateDataSetID) {
+    public ClusterDatasetCorruptedException(
+            Throwable cause, List<IntermediateDataSetID> corruptedClusterDatasetIds) {
         super(
-                String.format(
-                        "Corrupted intermediate dataset IDs: %s", corruptedIntermediateDataSetID),
+                String.format("Corrupted cluster dataset IDs: %s", corruptedClusterDatasetIds),
                 cause);
-        this.corruptedIntermediateDataSetID = corruptedIntermediateDataSetID;
+        this.corruptedClusterDatasetIds = corruptedClusterDatasetIds;
     }
 
-    public List<IntermediateDataSetID> getCorruptedIntermediateDataSetID() {
-        return corruptedIntermediateDataSetID;
+    public List<IntermediateDataSetID> getCorruptedClusterDatasetIds() {
+        return corruptedClusterDatasetIds;
     }
 }

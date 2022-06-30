@@ -49,6 +49,7 @@ import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionCheck
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
 import org.apache.flink.streaming.api.transformations.BroadcastStateTransformation;
+import org.apache.flink.streaming.api.transformations.CacheTransformation;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedBroadcastStateTransformation;
@@ -69,6 +70,7 @@ import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.translators.BroadcastStateTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.CacheTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.KeyedBroadcastStateTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.LegacySinkTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.LegacySourceTransformationTranslator;
@@ -205,6 +207,7 @@ public class StreamGraphGenerator {
         tmp.put(
                 KeyedBroadcastStateTransformation.class,
                 new KeyedBroadcastStateTransformationTranslator<>());
+        tmp.put(CacheTransformation.class, new CacheTransformationTranslator<>());
         translatorMap = Collections.unmodifiableMap(tmp);
     }
 
