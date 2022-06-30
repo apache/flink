@@ -1490,7 +1490,7 @@ public class HiveCatalog extends AbstractCatalog {
                 || newTableStats.getFileCount()
                         != parsePositiveIntStat(parameters, StatsSetupConst.NUM_FILES)
                 || newTableStats.getRawDataSize()
-                        != parsePositiveLongStat(parameters, StatsSetupConst.NUM_FILES);
+                        != parsePositiveLongStat(parameters, StatsSetupConst.RAW_DATA_SIZE);
     }
 
     /**
@@ -1590,7 +1590,23 @@ public class HiveCatalog extends AbstractCatalog {
         if (!isTablePartitioned(hiveTable)) {
             return createCatalogTableStatistics(hiveTable.getParameters());
         } else {
-            return CatalogTableStatistics.UNKNOWN;
+            // we accumulate the statistic of all partitions to get the partitioned table's
+            // statistic
+            List<CatalogTableStatistics> partitionStatisticsList;
+            try {
+                partitionStatisticsList =
+                        client
+                                .listPartitions(
+                                        tablePath.getDatabaseName(),
+                                        tablePath.getObjectName(),
+                                        (short) -1)
+                                .stream()
+                                .map(p -> createCatalogTableStatistics(p.getParameters()))
+                                .collect(Collectors.toList());
+            } catch (TException e) {
+                throw new CatalogException("Fail to list partitions for table " + tablePath, e);
+            }
+            return CatalogTableStatistics.accumulateStatistics(partitionStatisticsList);
         }
     }
 

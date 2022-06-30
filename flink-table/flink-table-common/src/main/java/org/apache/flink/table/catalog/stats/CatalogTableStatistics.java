@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog.stats;
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Statistics for a non-partitioned table or a partition of a partitioned table. */
@@ -92,5 +93,34 @@ public class CatalogTableStatistics {
                 this.totalSize,
                 this.rawDataSize,
                 new HashMap<>(this.properties));
+    }
+
+    /**
+     * Accumulate a list of the table statistics. If the list is empty, return {@link
+     * CatalogTableStatistics#UNKNOWN}.
+     *
+     * @param tableStatisticsList the list of table statistics to be accumulated
+     * @return the accumulated table statistic
+     */
+    public static CatalogTableStatistics accumulateStatistics(
+            List<CatalogTableStatistics> tableStatisticsList) {
+        if (tableStatisticsList.isEmpty()) {
+            return UNKNOWN;
+        }
+
+        CatalogTableStatistics catalogTableStatistics = tableStatisticsList.get(0);
+        long rowCount = catalogTableStatistics.getRowCount();
+        int fileCount = catalogTableStatistics.getFileCount();
+        long totalSize = catalogTableStatistics.getTotalSize();
+        long rawDataSize = catalogTableStatistics.getRawDataSize();
+
+        for (int i = 1; i < tableStatisticsList.size(); i++) {
+            catalogTableStatistics = tableStatisticsList.get(i);
+            rowCount += catalogTableStatistics.getRowCount();
+            fileCount += catalogTableStatistics.getFileCount();
+            totalSize += catalogTableStatistics.getTotalSize();
+            rawDataSize += catalogTableStatistics.getRawDataSize();
+        }
+        return new CatalogTableStatistics(rowCount, fileCount, totalSize, rawDataSize);
     }
 }
