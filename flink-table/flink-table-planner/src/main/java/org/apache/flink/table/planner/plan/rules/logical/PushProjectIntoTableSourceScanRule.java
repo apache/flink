@@ -48,14 +48,18 @@ import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -337,12 +341,48 @@ public class PushProjectIntoTableSourceScanRule
     private List<RexNode> rewriteProjections(
             RelOptRuleCall call, TableSourceTable source, NestedSchema projectedSchema) {
         final LogicalProject project = call.rel(0);
+        List<RexNode> newProjects = project.getProjects();
+
         if (supportsProjectionPushDown(source.tableSource())) {
-            return NestedProjectionUtil.rewrite(
-                    project.getProjects(), projectedSchema, call.builder().getRexBuilder());
-        } else {
-            return project.getProjects();
+            newProjects =
+                    NestedProjectionUtil.rewrite(
+                            project.getProjects(), projectedSchema, call.builder().getRexBuilder());
         }
+
+        if (supportsMetadata(source.tableSource())) {
+            Map<String, Integer> metaColMapping = new HashMap<>();
+            List<Column.MetadataColumn> metadataColumns =
+                    DynamicSourceUtils.extractMetadataColumns(
+                            source.contextResolvedTable().getResolvedSchema());
+            if (metadataColumns.size() > 0) {
+                Set<String> metaCols =
+                        metadataColumns.stream().map(m -> m.getName()).collect(Collectors.toSet());
+
+                for (RelDataTypeField field : source.getRowType().getFieldList()) {
+                    if (metaCols.contains(field.getName())) {
+                        metaColMapping.put(field.getName(), field.getIndex());
+                    }
+                }
+                List<RexNode> finalProjects = new ArrayList<>();
+                List<String> oldInputFields = project.getInput().getRowType().getFieldNames();
+                for (RexNode col : newProjects) {
+                    // only remapping meta date columns
+                    if (col instanceof RexInputRef) {
+                        String columnName = oldInputFields.get(((RexInputRef) col).getIndex());
+                        int newIdx = metaColMapping.getOrDefault(columnName, -1);
+                        if (newIdx != -1) {
+                            finalProjects.add(new RexInputRef(newIdx, col.getType()));
+                        } else {
+                            finalProjects.add(col);
+                        }
+                    } else {
+                        finalProjects.add(col);
+                    }
+                }
+                newProjects = finalProjects;
+            }
+        }
+        return newProjects;
     }
 
     // ---------------------------------------------------------------------------------------------

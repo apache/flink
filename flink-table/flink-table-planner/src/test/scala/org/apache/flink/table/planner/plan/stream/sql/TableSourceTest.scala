@@ -233,6 +233,15 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testNestedProjectWithMetadata(): Unit = {
+    testNestedProjectWithMetadataBase(true)
+  }
+
+  @Test
+  def testNoNestedProjectWithMetadata(): Unit = {
+    testNestedProjectWithMetadataBase(false)
+  }
+
+  private def testNestedProjectWithMetadataBase(supportsNestedProjectionPushDown: Boolean): Unit = {
     val ddl =
       s"""
          |CREATE TABLE T (
@@ -243,7 +252,7 @@ class TableSourceTest extends TableTestBase {
          |  metadata_2 string metadata
          |) WITH (
          |  'connector' = 'values',
-         |  'nested-projection-supported' = 'true',
+         |  'nested-projection-supported' = '$supportsNestedProjectionPushDown',
          |  'bounded' = 'true',
          |  'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'
          |)
@@ -289,4 +298,44 @@ class TableSourceTest extends TableTestBase {
          |""".stripMargin
     )
   }
+
+  @Test
+  def testReadsMetaDataOnly(): Unit = {
+    testPushProjectAndOrMetaDataBase(false, true)
+  }
+
+  @Test
+  def testReadsMetaDataAndSupportProjectionPushDown(): Unit = {
+    testPushProjectAndOrMetaDataBase(true, true)
+  }
+
+  @Test
+  def testSupportProjectionPushDownOnly(): Unit = {
+    testPushProjectAndOrMetaDataBase(true, false)
+  }
+
+  private def testPushProjectAndOrMetaDataBase(
+      supportsProjectionPushDown: Boolean,
+      supportsReadingMetadata: Boolean): Unit = {
+    val ddl =
+      s"""
+         |CREATE TABLE src (
+         |  id int,
+         |  name varchar,
+         |  tags varchar ${if (supportsReadingMetadata) { "METADATA VIRTUAL" }
+        else ""},
+         |  ts timestamp(3) ${if (supportsReadingMetadata) { "METADATA VIRTUAL" }
+        else ""}
+         |) WITH (
+         |  'connector' = 'values',
+         |  ${if (supportsReadingMetadata) {
+          "'readable-metadata' = 'tags:varchar,ts:timestamp(3)',"
+        } else ""}
+         |  'enable-projection-push-down' = '$supportsProjectionPushDown'
+         |)""".stripMargin
+    util.tableEnv.executeSql(ddl)
+
+    util.verifyExecPlan("SELECT id, ts FROM src")
+  }
+
 }
