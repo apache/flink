@@ -84,6 +84,45 @@ Calc(select=[id, deepNested_nested1 AS nested1, ((deepNested_nested1.value + dee
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testNoNestedProjectWithMetadata">
+    <Resource name="sql">
+      <![CDATA[
+SELECT id,
+       deepNested.nested1 AS nested1,
+       deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results
+FROM T
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.nested2.num), $2)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, deepNested.nested1 AS nested1, ((deepNested.nested1.value + deepNested.nested2.num) + metadata_1) AS results])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested], metadata=[metadata_1]]], fields=[id, deepNested, metadata_1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectionPushDownOnly">
+    <Resource name="sql">
+      <![CDATA[SELECT id, ts1, tags FROM src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], ts1=[+($4, 10000:INTERVAL SECOND)], tags=[$2])
++- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, (ts + 10000:INTERVAL SECOND) AS ts1, tags])
++- TableSourceScan(table=[[default_catalog, default_database, src, project=[id, ts, tags], metadata=[]]], fields=[id, ts, tags])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testProjectOnlyRowtime">
     <Resource name="sql">
       <![CDATA[SELECT rtime FROM T]]>
@@ -122,6 +161,81 @@ GroupAggregate(select=[COUNT(*) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testProjectWithoutProctime">
+    <Resource name="sql">
+      <![CDATA[select name, val, rtime, id from T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$3], val=[$2], rtime=[$1], id=[$0])
++- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
+   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
++- Calc(select=[name, val, rtime, id])
+   +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithoutRowtime">
+    <Resource name="sql">
+      <![CDATA[SELECT ptime, name, val, id FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(ptime=[$4], name=[$3], val=[$2], id=[$0])
++- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
+   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
++- WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
+   +- Calc(select=[id, rtime, val, name, PROCTIME() AS ptime])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReadsComputedColumnWithoutProjectionPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT id, ts1, op FROM src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], ts1=[+($4, 10000:INTERVAL SECOND)], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
++- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, (ts + 10000:INTERVAL SECOND) AS ts1, CAST(op AS VARCHAR(2147483647)) AS op])
++- TableSourceScan(table=[[default_catalog, default_database, src, metadata=[op, ts]]], fields=[id, name, op, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReadsComputedColumnWithProjectionPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT id, ts1, op FROM src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], ts1=[+($4, 10000:INTERVAL SECOND)], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
++- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, (ts + 10000:INTERVAL SECOND) AS ts1, CAST(op AS VARCHAR(2147483647)) AS op])
++- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[op, ts]]], fields=[id, op, ts])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRowTimeTableSourceGroupWindow">
     <Resource name="sql">
       <![CDATA[
@@ -153,23 +267,37 @@ Calc(select=[name, w$end AS EXPR$1, EXPR$2])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testProjectWithoutProctime">
+  <TestCase name="testReadsMetaDataWithDifferentOrder">
     <Resource name="sql">
-      <![CDATA[select name, val, rtime, id from T]]>
+      <![CDATA[SELECT ts, id, name, tags, op FROM src]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$3], val=[$2], rtime=[$1], id=[$0])
-+- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
-   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+LogicalProject(ts=[$4], id=[$0], name=[$1], tags=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
++- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
-+- Calc(select=[name, val, rtime, id])
-   +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
+Calc(select=[ts, id, name, CAST(tags AS VARCHAR(2147483647)) AS tags, CAST(op AS VARCHAR(2147483647)) AS op])
++- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, name, op, tags, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReadsMetaDataWithoutProjectionPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT id, ts, tags FROM src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], ts=[$4], tags=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
++- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, ts, CAST(tags AS VARCHAR(2147483647)) AS tags])
++- TableSourceScan(table=[[default_catalog, default_database, src, metadata=[tags, ts]]], fields=[id, name, tags, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -192,24 +320,20 @@ Calc(select=[rowtime, id, name, val])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testProjectWithoutRowtime">
+  <TestCase name="testReadsMetaDataWithProjectionPushDown">
     <Resource name="sql">
-      <![CDATA[SELECT ptime, name, val, id FROM T]]>
+      <![CDATA[SELECT id, ts, tags FROM src]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(ptime=[$4], name=[$3], val=[$2], id=[$0])
-+- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
-   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+LogicalProject(id=[$0], ts=[$4], tags=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
++- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
-+- WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
-   +- Calc(select=[id, rtime, val, name, PROCTIME() AS ptime])
-      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
+Calc(select=[id, ts, CAST(tags AS VARCHAR(2147483647)) AS tags])
++- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[tags, ts]]], fields=[id, tags, ts])
 ]]>
     </Resource>
   </TestCase>

@@ -233,6 +233,15 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testNestedProjectWithMetadata(): Unit = {
+    testNestedProjectWithMetadataBase(true)
+  }
+
+  @Test
+  def testNoNestedProjectWithMetadata(): Unit = {
+    testNestedProjectWithMetadataBase(false)
+  }
+
+  private def testNestedProjectWithMetadataBase(supportsNestedProjectionPushDown: Boolean): Unit = {
     val ddl =
       s"""
          |CREATE TABLE T (
@@ -243,7 +252,7 @@ class TableSourceTest extends TableTestBase {
          |  metadata_2 string metadata
          |) WITH (
          |  'connector' = 'values',
-         |  'nested-projection-supported' = 'true',
+         |  'nested-projection-supported' = '$supportsNestedProjectionPushDown',
          |  'bounded' = 'true',
          |  'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'
          |)
@@ -288,5 +297,68 @@ class TableSourceTest extends TableTestBase {
          |FROM NestedItemTable
          |""".stripMargin
     )
+  }
+
+  private def prepareDdlWithPushProjectAndMetaData(
+      projectionPushDown: Boolean,
+      readsMeta: Boolean): Unit = {
+    val ddl =
+      s"""
+         |CREATE TABLE src (
+         |  id int,
+         |  name varchar,
+         |  tags varchar ${if (readsMeta) "METADATA VIRTUAL" else ""},
+         |  op varchar ${if (readsMeta) "METADATA VIRTUAL" else ""},
+         |  ts timestamp(3) ${if (readsMeta) "METADATA VIRTUAL" else ""},
+         |  ts1 as ts + interval '10' second
+         |) WITH (
+         |  'connector' = 'values',
+         |  ${if (readsMeta) "'readable-metadata'='tags:varchar,op:varchar,ts:timestamp(3)'," else ""}
+         |  'enable-projection-push-down' = '$projectionPushDown'
+         |)""".stripMargin
+
+    util.tableEnv.executeSql(ddl)
+  }
+
+  @Test
+  def testReadsMetaDataWithDifferentOrder(): Unit = {
+    prepareDdlWithPushProjectAndMetaData(false, true)
+
+    util.verifyExecPlan("SELECT ts, id, name, tags, op FROM src")
+  }
+
+  @Test
+  def testReadsMetaDataWithoutProjectionPushDown(): Unit = {
+    prepareDdlWithPushProjectAndMetaData(false, true)
+
+    util.verifyExecPlan("SELECT id, ts, tags FROM src")
+  }
+
+  @Test
+  def testReadsComputedColumnWithoutProjectionPushDown(): Unit = {
+    prepareDdlWithPushProjectAndMetaData(false, true)
+
+    util.verifyExecPlan("SELECT id, ts1, op FROM src")
+  }
+
+  @Test
+  def testReadsComputedColumnWithProjectionPushDown(): Unit = {
+    prepareDdlWithPushProjectAndMetaData(true, true)
+
+    util.verifyExecPlan("SELECT id, ts1, op FROM src")
+  }
+
+  @Test
+  def testReadsMetaDataWithProjectionPushDown(): Unit = {
+    prepareDdlWithPushProjectAndMetaData(true, true)
+
+    util.verifyExecPlan("SELECT id, ts, tags FROM src")
+  }
+
+  @Test
+  def testProjectionPushDownOnly(): Unit = {
+    prepareDdlWithPushProjectAndMetaData(true, false)
+
+    util.verifyExecPlan("SELECT id, ts1, tags FROM src")
   }
 }
