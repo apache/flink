@@ -381,8 +381,11 @@ public class NetworkBufferPool
     }
 
     public int getRequestedSegmentsUsage() {
-        return Math.toIntExact(
-                100L * getNumberOfRequestedMemorySegments() / getTotalNumberOfMemorySegments());
+        int totalNumberOfMemorySegments = getTotalNumberOfMemorySegments();
+        return totalNumberOfMemorySegments == 0
+                ? 0
+                : Math.toIntExact(
+                        100L * getNumberOfRequestedMemorySegments() / totalNumberOfMemorySegments);
     }
 
     @VisibleForTesting
