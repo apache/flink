@@ -362,11 +362,6 @@ public class EmbeddedRocksDBStateBackendTest
 
             RocksDB spyDB = keyedStateBackend.db;
 
-            if (!enableIncrementalCheckpointing) {
-                verify(spyDB, times(1)).getSnapshot();
-                verify(spyDB, times(0)).releaseSnapshot(any(Snapshot.class));
-            }
-
             // Ensure every RocksObjects not closed yet
             for (RocksObject rocksCloseable : allCreatedCloseables) {
                 verify(rocksCloseable, times(0)).close();
@@ -661,11 +656,6 @@ public class EmbeddedRocksDBStateBackendTest
 
         assertNotNull(null, keyedStateBackend.db);
         RocksDB spyDB = keyedStateBackend.db;
-
-        if (!enableIncrementalCheckpointing) {
-            verify(spyDB, times(1)).getSnapshot();
-            verify(spyDB, times(1)).releaseSnapshot(any(Snapshot.class));
-        }
 
         keyedStateBackend.dispose();
         verify(spyDB, times(1)).close();
