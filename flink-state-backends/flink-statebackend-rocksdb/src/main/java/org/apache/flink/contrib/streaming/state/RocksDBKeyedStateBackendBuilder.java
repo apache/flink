@@ -28,8 +28,8 @@ import org.apache.flink.contrib.streaming.state.restore.RocksDBNoneRestoreOperat
 import org.apache.flink.contrib.streaming.state.restore.RocksDBRestoreOperation;
 import org.apache.flink.contrib.streaming.state.restore.RocksDBRestoreResult;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksDBSnapshotStrategyBase;
-import org.apache.flink.contrib.streaming.state.snapshot.RocksFullSnapshotStrategy;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksIncrementalSnapshotStrategy;
+import org.apache.flink.contrib.streaming.state.snapshot.RocksNativeFullSnapshotStrategy;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
@@ -524,11 +524,11 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             SortedMap<Long, Map<StateHandleID, StreamStateHandle>> materializedSstFiles,
             long lastCompletedCheckpointId) {
         RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy;
+        RocksDBStateUploader stateUploader =
+                injectRocksDBStateUploader == null
+                        ? new RocksDBStateUploader(numberOfTransferingThreads)
+                        : injectRocksDBStateUploader;
         if (enableIncrementalCheckpointing) {
-            RocksDBStateUploader stateUploader =
-                    injectRocksDBStateUploader == null
-                            ? new RocksDBStateUploader(numberOfTransferingThreads)
-                            : injectRocksDBStateUploader;
             checkpointSnapshotStrategy =
                     new RocksIncrementalSnapshotStrategy<>(
                             db,
@@ -546,16 +546,17 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                             lastCompletedCheckpointId);
         } else {
             checkpointSnapshotStrategy =
-                    new RocksFullSnapshotStrategy<>(
+                    new RocksNativeFullSnapshotStrategy<>(
                             db,
                             rocksDBResourceGuard,
                             keySerializerProvider.currentSchemaSerializer(),
                             kvStateInformation,
-                            registeredPQStates,
                             keyGroupRange,
                             keyGroupPrefixBytes,
                             localRecoveryConfig,
-                            keyGroupCompressionDecorator);
+                            instanceBasePath,
+                            backendUID,
+                            stateUploader);
         }
         return checkpointSnapshotStrategy;
     }
