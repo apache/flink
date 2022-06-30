@@ -20,12 +20,16 @@ package org.apache.flink.table.gateway.api.endpoint;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.gateway.api.utils.FakeSqlGatewayEndpoint;
 import org.apache.flink.table.gateway.api.utils.MockedSqlGatewayEndpoint;
 import org.apache.flink.table.gateway.api.utils.MockedSqlGatewayService;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
@@ -37,20 +41,42 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class SqlGatewayEndpointFactoryUtilsTest {
 
     @Test
-    public void testCreateEndpoint() {
-        Configuration config = Configuration.fromMap(getDefaultConfig());
-        SqlGatewayEndpoint actual =
-                createSqlGatewayEndpoint("mocked", new MockedSqlGatewayService(), config);
-        MockedSqlGatewayEndpoint expected = new MockedSqlGatewayEndpoint("localhost", 9999, null);
-        assertEquals(expected, actual);
+    public void testCreateEndpoints() {
+        Map<String, String> config = getDefaultConfig();
+        config.put("sql-gateway.endpoint.type", "mocked;fake");
+        List<SqlGatewayEndpoint> actual =
+                createSqlGatewayEndpoint(
+                        new MockedSqlGatewayService(), Configuration.fromMap(config));
+        MockedSqlGatewayEndpoint expectedMocked =
+                new MockedSqlGatewayEndpoint("localhost", 9999, null);
+        assertEquals(
+                new HashSet<>(Arrays.asList(expectedMocked, FakeSqlGatewayEndpoint.INSTANCE)),
+                new HashSet<>(actual));
+    }
+
+    @Test
+    public void testCreateEndpointWithDupliateIdentifier() {
+        Map<String, String> config = getDefaultConfig();
+        config.put("sql-gateway.endpoint.type", "mocked;mocked");
+        validateException(
+                config,
+                "Get the duplicate endpoint identifier: mocked. Please keep the specified endpoint identifier unique.");
+    }
+
+    @Test
+    public void testCreateEndpointWithoutType() {
+        Map<String, String> config = getDefaultConfig();
+        config.remove("sql-gateway.endpoint.type");
+        validateException(
+                config,
+                "Endpoint options do not contain an option key 'sql-gateway.endpoint.type' for discovering an endpoint.");
     }
 
     @Test
     public void testCreateUnknownEndpoint() {
         Map<String, String> config = getDefaultConfig();
-
+        config.put("sql-gateway.endpoint.type", "mocked;unknown");
         validateException(
-                "unknown",
                 config,
                 String.format(
                         "Could not find any factory for identifier 'unknown' "
@@ -89,24 +115,19 @@ public class SqlGatewayEndpointFactoryUtilsTest {
     // --------------------------------------------------------------------------------------------
 
     private void validateException(Map<String, String> config, String errorMessage) {
-        validateException("mocked", config, errorMessage);
-    }
-
-    private void validateException(
-            String identifier, Map<String, String> config, String errorMessage) {
         assertThatThrownBy(
                         () ->
                                 createSqlGatewayEndpoint(
-                                        identifier,
                                         new MockedSqlGatewayService(),
                                         Configuration.fromMap(config)))
                 .satisfies(anyCauseMatches(ValidationException.class, errorMessage));
     }
 
     private Map<String, String> getDefaultConfig() {
-        Map<String, String> configs = new HashMap<>();
-        configs.put("sql-gateway.endpoint.mocked.host", "localhost");
-        configs.put("sql-gateway.endpoint.mocked.port", "9999");
-        return configs;
+        Map<String, String> config = new HashMap<>();
+        config.put("sql-gateway.endpoint.type", "mocked");
+        config.put("sql-gateway.endpoint.mocked.host", "localhost");
+        config.put("sql-gateway.endpoint.mocked.port", "9999");
+        return config;
     }
 }

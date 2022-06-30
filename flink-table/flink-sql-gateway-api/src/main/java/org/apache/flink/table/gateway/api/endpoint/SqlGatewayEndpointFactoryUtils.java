@@ -18,19 +18,25 @@
 
 package org.apache.flink.table.gateway.api.endpoint;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.FactoryUtil.FactoryHelper;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Util to discover the {@link SqlGatewayEndpoint}. */
+@PublicEvolving
 public class SqlGatewayEndpointFactoryUtils {
 
     private static final String GATEWAY_ENDPOINT_PREFIX = "sql-gateway.endpoint";
@@ -42,19 +48,38 @@ public class SqlGatewayEndpointFactoryUtils {
                     .noDefaultValue()
                     .withDescription("Specify the endpoints that are used.");
 
-    public static SqlGatewayEndpoint createSqlGatewayEndpoint(
-            String endpointIdentifier, SqlGatewayService service, Configuration configuration) {
-        final SqlGatewayEndpointFactory factory =
-                FactoryUtil.discoverFactory(
-                        Thread.currentThread().getContextClassLoader(),
-                        SqlGatewayEndpointFactory.class,
-                        endpointIdentifier);
-        Configuration endpointConfig =
-                new DelegatingConfiguration(
-                        configuration,
-                        String.format("%s.%s.", GATEWAY_ENDPOINT_PREFIX, endpointIdentifier));
-        return factory.createSqlGatewayEndpoint(
-                new DefaultSqlGatewayEndpointFactoryContext(service, endpointConfig));
+    /**
+     * Attempts to discover the appropriate endpoint factory and creates the instance of the
+     * endpoints.
+     */
+    public static List<SqlGatewayEndpoint> createSqlGatewayEndpoint(
+            SqlGatewayService service, Configuration configuration) {
+        List<String> identifiers = configuration.get(SQL_GATEWAY_ENDPOINT_TYPE);
+
+        if (identifiers == null || identifiers.isEmpty()) {
+            throw new ValidationException(
+                    String.format(
+                            "Endpoint options do not contain an option key '%s' for discovering an endpoint.",
+                            SQL_GATEWAY_ENDPOINT_TYPE.key()));
+        }
+        validateSpecifiedEndpointsAreUnique(identifiers);
+
+        List<SqlGatewayEndpoint> endpoints = new ArrayList<>();
+        for (String identifier : identifiers) {
+            final SqlGatewayEndpointFactory factory =
+                    FactoryUtil.discoverFactory(
+                            Thread.currentThread().getContextClassLoader(),
+                            SqlGatewayEndpointFactory.class,
+                            identifier);
+            Configuration endpointConfig =
+                    new DelegatingConfiguration(
+                            configuration,
+                            String.format("%s.%s.", GATEWAY_ENDPOINT_PREFIX, identifier));
+            endpoints.add(
+                    factory.createSqlGatewayEndpoint(
+                            new DefaultSqlGatewayEndpointFactoryContext(service, endpointConfig)));
+        }
+        return endpoints;
     }
 
     /**
@@ -109,6 +134,20 @@ public class SqlGatewayEndpointFactoryUtils {
         @Override
         public Map<String, String> getOptions() {
             return configuration.toMap();
+        }
+    }
+
+    private static void validateSpecifiedEndpointsAreUnique(List<String> identifiers) {
+        Set<String> uniqueIdentifiers = new HashSet<>();
+
+        for (String identifier : identifiers) {
+            if (uniqueIdentifiers.contains(identifier)) {
+                throw new ValidationException(
+                        String.format(
+                                "Get the duplicate endpoint identifier: %s. Please keep the specified endpoint identifier unique.",
+                                identifier));
+            }
+            uniqueIdentifiers.add(identifier);
         }
     }
 }

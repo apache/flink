@@ -17,3 +17,5 @@
 #
 
 org.apache.flink.table.gateway.api.utils.MockedSqlGatewayEndpointFactory
+org.apache.flink.table.gateway.api.utils.FakeSqlGatewayEndpointFactory
+
