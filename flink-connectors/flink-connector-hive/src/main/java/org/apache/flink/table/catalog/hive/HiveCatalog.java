@@ -70,6 +70,7 @@ import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveStatsUtil;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Schema;
@@ -1615,19 +1616,32 @@ public class HiveCatalog extends AbstractCatalog {
                                 hiveTable.getDbName(), hiveTable.getTableName(), (short) -1);
                 // to get statistics for partitioned column, we list all partitions,
                 // and extract the statistics from the partition name.
-                // todo: get partitioned column statistic
+                String defaultPartitionName =
+                        getHiveConf().getVar(HiveConf.ConfVars.DEFAULTPARTITIONNAME);
+                Map<String, CatalogColumnStatisticsDataBase> columnStatisticMap =
+                        new HashMap<>(
+                                HiveStatsUtil.createCatalogPartitionColumnStats(
+                                        client,
+                                        hiveShim,
+                                        hiveTable,
+                                        partNames,
+                                        hiveTable.getPartitionKeys(),
+                                        defaultPartitionName));
 
                 // to get non-partitioned column statistic, we list all partitions,
                 // and merge the column statistic from partition level to table level.
-
-                Map<String, List<ColumnStatisticsObj>> partitionColumnStatistics =
+                Map<String, List<ColumnStatisticsObj>> columnStatisticsForPartitions =
                         client.getPartitionColumnStatistics(
                                 hiveTable.getDbName(),
                                 hiveTable.getTableName(),
                                 partNames,
                                 getFieldNames(hiveTable.getSd().getCols()));
+                Map<String, CatalogColumnStatisticsDataBase> nonPartitionColumnStatistic =
+                        HiveStatsUtil.createCatalogColumnStats(
+                                columnStatisticsForPartitions, hiveVersion, this, tablePath);
+                columnStatisticMap.putAll(nonPartitionColumnStatistic);
 
-                return CatalogColumnStatistics.UNKNOWN;
+                return new CatalogColumnStatistics(columnStatisticMap);
             }
         } catch (TException e) {
             throw new CatalogException(

@@ -249,6 +249,70 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
     }
 
     @Test
+    void testPartitionedTableColumnStatistics() throws Exception {
+        catalog.createDatabase(db1, createDb(), false);
+        CatalogTable catalogTable = createPartitionedTable();
+        catalog.createTable(path1, catalogTable, false);
+        CatalogPartitionSpec partition1Spec =
+                new CatalogPartitionSpec(
+                        new HashMap<String, String>() {
+                            {
+                                put("second", "2000");
+                                put("third", "p2");
+                            }
+                        });
+        CatalogPartitionSpec partition2Spec =
+                new CatalogPartitionSpec(
+                        new HashMap<String, String>() {
+                            {
+                                put("second", "2200");
+                                put("third", "p22");
+                            }
+                        });
+
+        catalog.createPartition(path1, partition1Spec, createPartition(), true);
+        catalog.createPartition(path1, partition2Spec, createPartition(), true);
+        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
+
+        columnStatisticsDataBaseMap.put(
+                "first", new CatalogColumnStatisticsDataString(10L, 3.0, 2L, 100L));
+        CatalogColumnStatistics catalogColumnStatistics =
+                new CatalogColumnStatistics(columnStatisticsDataBaseMap);
+        catalog.alterPartitionColumnStatistics(
+                path1, partition1Spec, catalogColumnStatistics, false);
+
+        columnStatisticsDataBaseMap.put(
+                "first", new CatalogColumnStatisticsDataString(0L, 1.0, 4L, 100L));
+        catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
+        catalog.alterPartitionColumnStatistics(
+                path1, partition2Spec, catalogColumnStatistics, false);
+
+        // we haven't set partition statistic, so we can't calculate avgLength of all partitions
+        // for we can't know how many rows in each partition
+        columnStatisticsDataBaseMap.put(
+                "first", new CatalogColumnStatisticsDataString(10L, 2.0, 6L, 200L));
+        // put partition columns statistics
+        columnStatisticsDataBaseMap.put(
+                "second", new CatalogColumnStatisticsDataLong(2000L, 2200L, 2L, 0L));
+        columnStatisticsDataBaseMap.put(
+                "third", new CatalogColumnStatisticsDataString(3L, 2.5, 2L, 0L));
+        catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
+        checkEquals(catalogColumnStatistics, catalog.getTableColumnStatistics(path1));
+
+        // now set partition statistic, so that we can calculate avgLength from all partitions
+        catalog.alterPartitionStatistics(
+                path1, partition1Spec, new CatalogTableStatistics(3L, 1, 2L, 2L), false);
+        catalog.alterPartitionStatistics(
+                path1, partition2Spec, new CatalogTableStatistics(1L, 1, 2L, 2L), false);
+
+        // avgLength = (3 * 3 + 1 * 1) / (3 + 1)
+        columnStatisticsDataBaseMap.put(
+                "first", new CatalogColumnStatisticsDataString(10L, 2.5, 4L, 200L));
+        catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
+        checkEquals(catalogColumnStatistics, catalog.getTableColumnStatistics(path1));
+    }
+
+    @Test
     void testCreateTableWithConstraints() throws Exception {
         assumeThat(HiveVersionTestUtil.HIVE_310_OR_LATER).isTrue();
         HiveCatalog hiveCatalog = (HiveCatalog) catalog;
