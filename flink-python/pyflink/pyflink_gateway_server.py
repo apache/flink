@@ -218,6 +218,7 @@ def construct_test_classpath():
         "flink-formats/flink-csv/target/flink-csv*.jar",
         "flink-formats/flink-sql-avro/target/flink-sql-avro*.jar",
         "flink-formats/flink-json/target/flink-json*.jar",
+        "flink-connectors/flink-sql-connector-kafka/target/flink-sql-connector-kafka*.jar",
         "flink-python/target/artifacts/testDataStream.jar",
         "flink-python/target/flink-python*-tests.jar",
         ("flink-state-backends/flink-statebackend-rocksdb/target/"

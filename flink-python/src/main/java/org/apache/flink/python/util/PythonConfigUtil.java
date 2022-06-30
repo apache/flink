@@ -42,6 +42,7 @@ import org.apache.flink.streaming.api.transformations.python.PythonBroadcastStat
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.translators.python.PythonBroadcastStateTransformationTranslator;
 import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Queues;
@@ -50,6 +51,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -362,5 +364,59 @@ public class PythonConfigUtil {
                         StreamExecutionEnvironment.class, Transformation.class);
         constructor.setAccessible(true);
         return constructor.newInstance(env, transformation);
+    }
+
+    /**
+     * Helper class to construct a {@link HashMap} from Python side, in case that some unexpected
+     * boxing/unboxing happens, e.g. {@link Long} as the map key.
+     */
+    @SuppressWarnings("rawtypes,unchecked")
+    public static class HashMapHelper {
+
+        private final Constructor<?> keyConstructor;
+        private final Constructor<?> valueConstructor;
+        private final Map underlyingMap;
+
+        public HashMapHelper(Constructor<?> keyConstructor, Constructor<?> valueConstructor) {
+            this.keyConstructor = keyConstructor;
+            this.valueConstructor = valueConstructor;
+            this.underlyingMap = new HashMap();
+        }
+
+        public HashMapHelper(Constructor<?> constructor, boolean isKey) {
+            if (isKey) {
+                this.keyConstructor = constructor;
+                this.valueConstructor = null;
+            } else {
+                this.keyConstructor = null;
+                this.valueConstructor = constructor;
+            }
+            this.underlyingMap = new HashMap();
+        }
+
+        public void put(Object[] keyParams, Object[] valueParams)
+                throws InvocationTargetException, InstantiationException, IllegalAccessException {
+            Preconditions.checkNotNull(keyConstructor);
+            Preconditions.checkNotNull(valueConstructor);
+            underlyingMap.put(
+                    keyConstructor.newInstance(keyParams),
+                    valueConstructor.newInstance(valueParams));
+        }
+
+        public void put(Object key, Object[] valueParams)
+                throws InvocationTargetException, InstantiationException, IllegalAccessException {
+            Preconditions.checkNotNull(valueConstructor);
+            underlyingMap.put(key, valueConstructor.newInstance(valueParams));
+        }
+
+        public void put(Object[] keyParams, Object value)
+                throws InvocationTargetException, InstantiationException, IllegalAccessException {
+            Preconditions.checkNotNull(keyConstructor);
+            underlyingMap.put(keyConstructor.newInstance(keyParams), value);
+        }
+
+        public Map getMap() {
+            return underlyingMap;
+        }
     }
 }
