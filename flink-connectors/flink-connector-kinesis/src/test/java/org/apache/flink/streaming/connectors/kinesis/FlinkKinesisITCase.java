@@ -39,7 +39,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.TestNameProvider;
 
 import org.junit.Before;
-import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -58,6 +58,8 @@ import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_CONSUMER_NAME;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_POSITION;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -67,13 +69,13 @@ public class FlinkKinesisITCase extends TestLogger {
     private String stream;
     private static final Logger LOG = LoggerFactory.getLogger(FlinkKinesisITCase.class);
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER =
+    @Rule
+    public final MiniClusterWithClientResource miniCluster =
             new MiniClusterWithClientResource(
                     new MiniClusterResourceConfiguration.Builder().build());
 
-    @ClassRule
-    public static KinesaliteContainer kinesalite =
+    @Rule
+    public KinesaliteContainer kinesalite =
             new KinesaliteContainer(DockerImageName.parse(DockerImageVersions.KINESALITE));
 
     @Rule public TemporaryFolder temp = new TemporaryFolder();
@@ -86,19 +88,31 @@ public class FlinkKinesisITCase extends TestLogger {
 
     @Before
     public void setupClient() throws Exception {
-        client = new KinesisPubsubClient(kinesalite.getContainerProperties());
+        client = new KinesisPubsubClient(getContainerProperties());
         stream = TestNameProvider.getCurrentTestName().replaceAll("\\W", "");
         client.createTopic(stream, 1, new Properties());
     }
 
     @Test
     public void testStopWithSavepoint() throws Exception {
-        testStopWithSavepoint(false);
+        testStopWithSavepoint(false, false);
     }
 
     @Test
     public void testStopWithSavepointWithDrain() throws Exception {
-        testStopWithSavepoint(true);
+        testStopWithSavepoint(true, false);
+    }
+
+    @Test
+    @Ignore("Kinesalite does not support EFO")
+    public void testStopWithSavepointWithEfo() throws Exception {
+        testStopWithSavepoint(false, true);
+    }
+
+    @Test
+    @Ignore("Kinesalite does not support EFO")
+    public void testStopWithSavepointWithDrainAndEfo() throws Exception {
+        testStopWithSavepoint(true, true);
     }
 
     /**
@@ -113,7 +127,7 @@ public class FlinkKinesisITCase extends TestLogger {
      *   <li>With the fix, the job proceeds and we can lift the backpressure.
      * </ol>
      */
-    private void testStopWithSavepoint(boolean drain) throws Exception {
+    private void testStopWithSavepoint(boolean drain, boolean efo) throws Exception {
         // add elements to the test stream
         int numElements = 1000;
         client.sendMessage(
@@ -124,14 +138,10 @@ public class FlinkKinesisITCase extends TestLogger {
         env.setParallelism(1);
         env.enableCheckpointing(100L);
 
-        Properties config = kinesalite.getContainerProperties();
-        config.setProperty(STREAM_INITIAL_POSITION, InitialPosition.TRIM_HORIZON.name());
-        FlinkKinesisConsumer<String> consumer =
-                new FlinkKinesisConsumer<>(stream, STRING_SCHEMA, config);
-
         SharedReference<CountDownLatch> savepointTrigger = sharedObjects.add(new CountDownLatch(1));
-        DataStream<String> stream =
-                env.addSource(consumer).map(new WaitingMapper(savepointTrigger));
+        DataStream<String> outputStream =
+                env.addSource(createKinesisConsumer(efo)).map(new WaitingMapper(savepointTrigger));
+
         // call stop with savepoint in another thread
         ForkJoinTask<Object> stopTask =
                 ForkJoinPool.commonPool()
@@ -142,7 +152,7 @@ public class FlinkKinesisITCase extends TestLogger {
                                     return null;
                                 });
         try {
-            List<String> result = stream.executeAndCollect(10000);
+            List<String> result = outputStream.executeAndCollect(10000);
             if (drain) {
                 assertThat(
                         result,
@@ -165,10 +175,24 @@ public class FlinkKinesisITCase extends TestLogger {
         }
     }
 
+    private FlinkKinesisConsumer<String> createKinesisConsumer(boolean efo) {
+        Properties config = getContainerProperties();
+        config.setProperty(STREAM_INITIAL_POSITION, InitialPosition.TRIM_HORIZON.name());
+        if (efo) {
+            config.putIfAbsent(RECORD_PUBLISHER_TYPE, "EFO");
+            config.putIfAbsent(EFO_CONSUMER_NAME, "efo-flink-app");
+        }
+        return new FlinkKinesisConsumer<>(stream, STRING_SCHEMA, config);
+    }
+
+    private Properties getContainerProperties() {
+        return kinesalite.getContainerProperties();
+    }
+
     private String stopWithSavepoint(boolean drain) throws Exception {
         JobStatusMessage job =
-                MINI_CLUSTER.getClusterClient().listJobs().get().stream().findFirst().get();
-        return MINI_CLUSTER
+                miniCluster.getClusterClient().listJobs().get().stream().findFirst().get();
+        return miniCluster
                 .getClusterClient()
                 .stopWithSavepoint(
                         job.getJobId(),
@@ -188,13 +212,15 @@ public class FlinkKinesisITCase extends TestLogger {
 
         WaitingMapper(SharedReference<CountDownLatch> savepointTrigger) {
             this.savepointTrigger = savepointTrigger;
-            checkpointDeadline = Deadline.fromNow(Duration.ofDays(1));
+            // effectively set 1 hour timeout on the wait
+            // this is reduced to 1 second once the data starts flowing
+            checkpointDeadline = Deadline.fromNow(Duration.ofMinutes(10));
         }
 
         private void readObject(ObjectInputStream stream)
                 throws ClassNotFoundException, IOException {
             stream.defaultReadObject();
-            checkpointDeadline = Deadline.fromNow(Duration.ofDays(1));
+            checkpointDeadline = Deadline.fromNow(Duration.ofMinutes(10));
         }
 
         @Override
