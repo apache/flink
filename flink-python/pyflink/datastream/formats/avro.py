@@ -19,17 +19,34 @@ from pyflink.java_gateway import get_gateway
 
 
 class Schema(object):
+    """
+    Avro Schema class contains Java org.apache.avro.Schema.
+
+    .. versionadded:: 1.16.0
+    """
 
     def __init__(self, j_schema):
         self._j_schema = j_schema
 
     @staticmethod
     def parse_string(json_schema: str) -> 'Schema':
+        """
+        Parse JSON string as Avro Schema.
+
+        :param json_schema: JSON represented schema string.
+        :return: the Avro Schema.
+        """
         JSchema = get_gateway().jvm.org.apache.flink.avro.shaded.org.apache.avro.Schema
         return Schema(JSchema.Parser().parse(json_schema))
 
     @staticmethod
     def parse_file(file_path: str) -> 'Schema':
+        """
+        Parse a schema definition file as Avro Schema.
+
+        :param file_path: path to schema definition file.
+        :return: the Avro Schema.
+        """
         jvm = get_gateway().jvm
         j_file = jvm.java.io.File(file_path)
         JSchema = jvm.org.apache.flink.avro.shaded.org.apache.avro.Schema

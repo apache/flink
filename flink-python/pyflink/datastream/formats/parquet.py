@@ -21,9 +21,27 @@ from pyflink.java_gateway import get_gateway
 
 
 class AvroParquetReaders(object):
+    """
+    A convenience builder to create AvroParquetRecordFormat instances for the different kinds of
+    Avro record types. Only GenericRecord is supported in PyFlink.
+
+    .. versionadded:: 1.16.0
+    """
 
     @staticmethod
-    def for_generic_record(schema: 'Schema'):
+    def for_generic_record(schema: 'Schema') -> 'StreamFormat':
+        """
+        Creates a new AvroParquetRecordFormat that reads the parquet file into Avro GenericRecords.
+
+        To read into GenericRecords, this method needs an Avro Schema. That is because Flink needs
+        to be able to serialize the results in its data flow, which is very inefficient without the
+        schema. And while the Schema is stored in the Avro file header, Flink needs this schema
+        during 'pre-flight' time when the data flow is set up and wired, which is before there is
+        access to the files.
+
+        :param schema: the Avro Schema.
+        :return: StreamFormat for reading Avro GenericRecords.
+        """
         jvm = get_gateway().jvm
         JAvroParquetReaders = jvm.org.apache.flink.formats.parquet.avro.AvroParquetReaders
         return StreamFormat(JAvroParquetReaders.forGenericRecord(schema._j_schema))
