@@ -40,12 +40,17 @@ import org.antlr.runtime.tree.TreeVisitorAction;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
+import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexCorrelVariable;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexFieldCollation;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexWindowBound;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
@@ -74,6 +79,7 @@ import org.apache.hadoop.hive.ql.metadata.InvalidTableException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
+import org.apache.hadoop.hive.ql.optimizer.calcite.reloperators.HiveFilter;
 import org.apache.hadoop.hive.ql.parse.PTFInvocationSpec.Order;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.parse.WindowingSpec;
@@ -1860,6 +1866,70 @@ public class HiveParserBaseSemanticAnalyzer {
                 cluster,
                 rexBuilder.getTypeFactory().createStructType(calciteRowType.getFieldList()),
                 rows);
+    }
+
+    /**
+     * traverse the given node to find all correlated variables, the main logic is from {@link
+     * HiveFilter#getVariablesSet()}.
+     */
+    public static Set<CorrelationId> getVariablesSetForFilter(RexNode rexNode) {
+        Set<CorrelationId> correlationVariables = new HashSet<>();
+        if (rexNode instanceof RexSubQuery) {
+            RexSubQuery rexSubQuery = (RexSubQuery) rexNode;
+            // we expect correlated variables in Filter only for now.
+            // also check case where operator has 0 inputs .e.g TableScan
+            if (rexSubQuery.rel.getInputs().isEmpty()) {
+                return correlationVariables;
+            }
+            RelNode input = rexSubQuery.rel.getInput(0);
+            while (input != null
+                    && !(input instanceof LogicalFilter)
+                    && input.getInputs().size() >= 1) {
+                // we don't expect corr vars within UNION for now
+                if (input.getInputs().size() > 1) {
+                    if (input instanceof LogicalJoin) {
+                        correlationVariables.addAll(
+                                findCorrelatedVar(((LogicalJoin) input).getCondition()));
+                    }
+                    // todo: throw Unsupported exception when the input isn't LogicalJoin and
+                    // contains correlate variables in FLINK-28317
+                    return correlationVariables;
+                }
+                input = input.getInput(0);
+            }
+            if (input instanceof LogicalFilter) {
+                correlationVariables.addAll(
+                        findCorrelatedVar(((LogicalFilter) input).getCondition()));
+            }
+            return correlationVariables;
+        }
+        // AND, NOT etc
+        if (rexNode instanceof RexCall) {
+            int numOperands = ((RexCall) rexNode).getOperands().size();
+            for (int i = 0; i < numOperands; i++) {
+                RexNode op = ((RexCall) rexNode).getOperands().get(i);
+                correlationVariables.addAll(getVariablesSetForFilter(op));
+            }
+        }
+        return correlationVariables;
+    }
+
+    private static Set<CorrelationId> findCorrelatedVar(RexNode node) {
+        Set<CorrelationId> allVars = new HashSet<>();
+        if (node instanceof RexCall) {
+            RexCall nd = (RexCall) node;
+            for (RexNode rn : nd.getOperands()) {
+                if (rn instanceof RexFieldAccess) {
+                    final RexNode ref = ((RexFieldAccess) rn).getReferenceExpr();
+                    if (ref instanceof RexCorrelVariable) {
+                        allVars.add(((RexCorrelVariable) ref).id);
+                    }
+                } else {
+                    allVars.addAll(findCorrelatedVar(rn));
+                }
+            }
+        }
+        return allVars;
     }
 
     private static void validatePartColumnType(

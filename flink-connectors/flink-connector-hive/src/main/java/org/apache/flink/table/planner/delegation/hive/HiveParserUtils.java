@@ -63,6 +63,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -161,6 +162,13 @@ public class HiveParserUtils {
             HiveReflectionUtils.tryGetClass(
                     "org.apache.flink.calcite.shaded.com.google.common.collect.ImmutableList");
     private static final boolean useShadedImmutableList = shadedImmutableListClz != null;
+
+    private static final Class immutableSetClz =
+            HiveReflectionUtils.tryGetClass("com.google.common.collect.ImmutableSet");
+    private static final Class shadedImmutableSetClz =
+            HiveReflectionUtils.tryGetClass(
+                    "org.apache.flink.calcite.shaded.com.google.common.collect.ImmutableSet");
+    private static final boolean useShadedImmutableSet = shadedImmutableSetClz != null;
 
     private HiveParserUtils() {}
 
@@ -317,6 +325,17 @@ public class HiveParserUtils {
         }
     }
 
+    // converts a collection to guava ImmutableSet
+    private static Object toImmutableSet(Collection collection) {
+        try {
+            Class clz = useShadedImmutableSet ? shadedImmutableSetClz : immutableSetClz;
+            return HiveReflectionUtils.invokeMethod(
+                    clz, null, "copyOf", new Class[] {Collection.class}, new Object[] {collection});
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            throw new FlinkHiveException("Failed to create immutable set", e);
+        }
+    }
+
     // creates LogicalValues node
     public static RelNode genValuesRelNode(
             RelOptCluster cluster, RelDataType rowType, List<List<RexLiteral>> rows) {
@@ -336,6 +355,24 @@ public class HiveParserUtils {
                             null, cluster, rowType, HiveParserUtils.toImmutableList(immutableRows));
         } catch (IllegalAccessException | InvocationTargetException e) {
             throw new FlinkHiveException("Failed to create LogicalValues", e);
+        }
+    }
+
+    // creates LogicFilter node
+    public static RelNode genFilterRelNode(
+            RelNode relNode, RexNode rexNode, Collection<CorrelationId> variables) {
+        Class[] argTypes =
+                new Class[] {
+                    RelNode.class,
+                    RexNode.class,
+                    useShadedImmutableSet ? shadedImmutableSetClz : immutableSetClz
+                };
+        Method method = HiveReflectionUtils.tryGetMethod(LogicalFilter.class, "create", argTypes);
+        Preconditions.checkState(method != null, "Cannot get the method to create a LogicalFilter");
+        try {
+            return (LogicalFilter) method.invoke(null, relNode, rexNode, toImmutableSet(variables));
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new FlinkHiveException("Failed to create LogicalFilter", e);
         }
     }
 

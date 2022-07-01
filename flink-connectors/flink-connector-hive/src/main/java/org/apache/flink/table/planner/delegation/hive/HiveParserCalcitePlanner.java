@@ -75,7 +75,6 @@ import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
-import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalIntersect;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalMinus;
@@ -910,7 +909,12 @@ public class HiveParserCalcitePlanner {
         RexNode factoredFilterExpr =
                 RexUtil.pullFactors(cluster.getRexBuilder(), convertedFilterExpr)
                         .accept(funcConverter);
-        RelNode filterRel = LogicalFilter.create(srcRel, factoredFilterExpr);
+        RelNode filterRel =
+                HiveParserUtils.genFilterRelNode(
+                        srcRel,
+                        factoredFilterExpr,
+                        HiveParserBaseSemanticAnalyzer.getVariablesSetForFilter(
+                                factoredFilterExpr));
         relToRowResolver.put(filterRel, relToRowResolver.get(srcRel));
         relToHiveColNameCalcitePosMap.put(filterRel, hiveColNameToCalcitePos);
 
@@ -1070,7 +1074,12 @@ public class HiveParserCalcitePlanner {
                             .convert(subQueryExpr)
                             .accept(funcConverter);
 
-            RelNode filterRel = LogicalFilter.create(srcRel, convertedFilterLHS);
+            RelNode filterRel =
+                    HiveParserUtils.genFilterRelNode(
+                            srcRel,
+                            convertedFilterLHS,
+                            HiveParserBaseSemanticAnalyzer.getVariablesSetForFilter(
+                                    convertedFilterLHS));
 
             relToHiveColNameCalcitePosMap.put(filterRel, relToHiveColNameCalcitePosMap.get(srcRel));
             relToRowResolver.put(filterRel, relToRowResolver.get(srcRel));
