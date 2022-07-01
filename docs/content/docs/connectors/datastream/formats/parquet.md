@@ -137,7 +137,7 @@ final DataStream<RowData> stream =
 
 ## Avro Records
 
-Flink supports producing three types of Avro records by reading Parquet files:
+Flink supports producing three types of Avro records by reading Parquet files (Only generic record is supported in PyFlink):
 
 - [Generic record](https://avro.apache.org/docs/1.10.0/api/java/index.html)
 - [Specific record](https://avro.apache.org/docs/1.10.0/api/java/index.html)
@@ -166,6 +166,8 @@ In the following example, you will create a DataStream containing Parquet record
 It will parse the Avro schema based on the JSON string. There are many other ways to parse a schema, e.g. from java.io.File or java.io.InputStream. Please refer to [Avro Schema](https://avro.apache.org/docs/1.10.0/api/java/org/apache/avro/Schema.html) for details.
 After that, you will create an `AvroParquetRecordFormat` via `AvroParquetReaders` for Avro Generic records.
 
+{{< tabs "GenericRecord" >}}
+{{< tab "Java" >}}
 ```java
 // parsing avro schema
 final Schema schema =
@@ -191,6 +193,33 @@ final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEn
 final DataStream<GenericRecord> stream =
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# parsing avro schema
+schema = Schema.parse_string("""
+{
+    "type": "record",
+    "name": "User",
+    "fields": [
+        {"name": "name", "type": "string"},
+        {"name": "favoriteNumber",  "type": ["int", "null"]},
+        {"name": "favoriteColor", "type": ["string", "null"]}
+    ]
+}
+""")
+
+source = FileSource.for_record_stream_format(
+    AvroParquetReaders.for_generic_record(schema), # file paths
+).build()
+
+env = StreamExecutionEnvironment.get_execution_environment()
+env.enable_checkpointing(10)
+
+stream = env.from_source(source, WatermarkStrategy.no_watermarks(), "file-source")
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ### Specific record
 

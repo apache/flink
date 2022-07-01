@@ -133,7 +133,7 @@ final DataStream<RowData> stream =
 
 ## Avro Records
 
-Flink 支持三种方式来读取 Parquet 文件并创建 Avro records ：
+Flink 支持三种方式来读取 Parquet 文件并创建 Avro records （PyFlink 只支持 generic record）：
 
 - [Generic record](https://avro.apache.org/docs/1.10.0/api/java/index.html)
 - [Specific record](https://avro.apache.org/docs/1.10.0/api/java/index.html)
@@ -163,6 +163,8 @@ Flink 会基于 JSON 字符串解析 Avro schema。也有很多其他的方式�
 请参考 [Avro Schema](https://avro.apache.org/docs/1.10.0/api/java/org/apache/avro/Schema.html) 以获取更多详细信息。
 然后，你可以通过 `AvroParquetReaders` 为 Avro Generic 记录创建 `AvroParquetRecordFormat`。
 
+{{< tabs "GenericRecord" >}}
+{{< tab "Java" >}}
 ```java
 // 解析 avro schema
 final Schema schema =
@@ -188,6 +190,33 @@ final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEn
 final DataStream<GenericRecord> stream =
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# 解析 avro schema
+schema = Schema.parse_string("""
+{
+    "type": "record",
+    "name": "User",
+    "fields": [
+        {"name": "name", "type": "string"},
+        {"name": "favoriteNumber",  "type": ["int", "null"]},
+        {"name": "favoriteColor", "type": ["string", "null"]}
+    ]
+}
+""")
+
+source = FileSource.for_record_stream_format(
+    AvroParquetReaders.for_generic_record(schema), # file paths
+).build()
+
+env = StreamExecutionEnvironment.get_execution_environment()
+env.enable_checkpointing(10)
+
+stream = env.from_source(source, WatermarkStrategy.no_watermarks(), "file-source")
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ### Specific record
 
