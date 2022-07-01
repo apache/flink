@@ -163,9 +163,13 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
         DataStructureConverter converter =
                 context.createDataStructureConverter(tableSchema.toRowDataType());
-        return (DataStreamSinkProvider)
-                (providerContext, dataStream) ->
-                        consume(providerContext, dataStream, context.isBounded(), converter);
+        return new DataStreamSinkProvider() {
+            @Override
+            public DataStreamSink<?> consumeDataStream(
+                    ProviderContext providerContext, DataStream<RowData> dataStream) {
+                return consume(providerContext, dataStream, context.isBounded(), converter);
+            }
+        };
     }
 
     private DataStreamSink<?> consume(
