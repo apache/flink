@@ -31,7 +31,7 @@ import org.apache.flink.connector.pulsar.sink.writer.delayer.FixedMessageDelayer
 import org.apache.flink.connector.pulsar.sink.writer.delayer.MessageDelayer;
 import org.apache.flink.connector.pulsar.sink.writer.router.RoundRobinTopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
-import org.apache.flink.connector.pulsar.sink.writer.topic.TopicMetadataListener;
+import org.apache.flink.connector.pulsar.sink.writer.topic.register.FixedTopicRegister;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
@@ -72,7 +72,7 @@ class PulsarWriterTest extends PulsarTestSuiteBase {
 
         SinkConfiguration configuration = sinkConfiguration(guarantee);
         PulsarSerializationSchema<String> schema = pulsarSchema(STRING);
-        TopicMetadataListener listener = new TopicMetadataListener(singletonList(topic));
+        FixedTopicRegister listener = new FixedTopicRegister(singletonList(topic));
         RoundRobinTopicRouter<String> router = new RoundRobinTopicRouter<>(configuration);
         FixedMessageDelayer<String> delayer = MessageDelayer.never();
         MockInitContext initContext = new MockInitContext();

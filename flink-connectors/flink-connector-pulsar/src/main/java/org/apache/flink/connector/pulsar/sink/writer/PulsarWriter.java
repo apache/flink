@@ -33,8 +33,8 @@ import org.apache.flink.connector.pulsar.sink.writer.delayer.MessageDelayer;
 import org.apache.flink.connector.pulsar.sink.writer.message.PulsarMessage;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
-import org.apache.flink.connector.pulsar.sink.writer.topic.TopicMetadataListener;
-import org.apache.flink.connector.pulsar.sink.writer.topic.TopicProducerRegister;
+import org.apache.flink.connector.pulsar.sink.writer.topic.ProducerRegister;
+import org.apache.flink.connector.pulsar.sink.writer.topic.TopicRegister;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
@@ -66,13 +66,13 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
 
     private final SinkConfiguration sinkConfiguration;
     private final PulsarSerializationSchema<IN> serializationSchema;
-    private final TopicMetadataListener metadataListener;
+    private final TopicRegister<IN> topicRegister;
     private final TopicRouter<IN> topicRouter;
     private final MessageDelayer<IN> messageDelayer;
     private final DeliveryGuarantee deliveryGuarantee;
     private final PulsarSinkContext sinkContext;
     private final MailboxExecutor mailboxExecutor;
-    private final TopicProducerRegister producerRegister;
+    private final ProducerRegister producerRegister;
 
     private long pendingMessages = 0;
 
@@ -85,20 +85,20 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
      *
      * @param sinkConfiguration The configuration to configure the Pulsar producer.
      * @param serializationSchema Transform the incoming records into different message properties.
-     * @param metadataListener The listener for querying topic metadata.
+     * @param topicRegister The listener for querying topic metadata.
      * @param topicRouter Topic router to choose topic by incoming records.
      * @param initContext Context to provide information about the runtime environment.
      */
     public PulsarWriter(
             SinkConfiguration sinkConfiguration,
             PulsarSerializationSchema<IN> serializationSchema,
-            TopicMetadataListener metadataListener,
+            TopicRegister<IN> topicRegister,
             TopicRouter<IN> topicRouter,
             MessageDelayer<IN> messageDelayer,
             InitContext initContext) {
         this.sinkConfiguration = checkNotNull(sinkConfiguration);
         this.serializationSchema = checkNotNull(serializationSchema);
-        this.metadataListener = checkNotNull(metadataListener);
+        this.topicRegister = checkNotNull(topicRegister);
         this.topicRouter = checkNotNull(topicRouter);
         this.messageDelayer = checkNotNull(messageDelayer);
         checkNotNull(initContext);
@@ -110,7 +110,7 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
         // Initialize topic metadata listener.
         LOG.debug("Initialize topic metadata after creating Pulsar writer.");
         ProcessingTimeService timeService = initContext.getProcessingTimeService();
-        this.metadataListener.open(sinkConfiguration, timeService);
+        this.topicRegister.open(sinkConfiguration, timeService);
 
         // Initialize topic router.
         this.topicRouter.open(sinkConfiguration);
@@ -125,7 +125,7 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
         }
 
         // Create this producer register after opening serialization schema!
-        this.producerRegister = new TopicProducerRegister(sinkConfiguration);
+        this.producerRegister = new ProducerRegister(sinkConfiguration);
     }
 
     @Override
@@ -134,8 +134,8 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
 
         // Choose the right topic to send.
         String key = message.getKey();
-        List<String> availableTopics = metadataListener.availableTopics();
-        String topic = topicRouter.route(element, key, availableTopics, sinkContext);
+        List<String> topics = topicRegister.topics(element);
+        String topic = topicRouter.route(element, key, topics, sinkContext);
 
         // Create message builder for sending message.
         TypedMessageBuilder<?> builder = createMessageBuilder(topic, context, message);
@@ -269,6 +269,6 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
     @Override
     public void close() throws Exception {
         // Close all the resources and throw the exception at last.
-        closeAll(metadataListener, producerRegister);
+        closeAll(topicRegister, producerRegister);
     }
 }

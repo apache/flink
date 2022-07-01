@@ -56,17 +56,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * we have to create different instances for different topics.
  */
 @Internal
-public class TopicProducerRegister implements Closeable {
+public class ProducerRegister implements Closeable {
 
     private final PulsarClient pulsarClient;
     private final SinkConfiguration sinkConfiguration;
-    private final Map<String, Map<SchemaInfo, Producer<?>>> producerRegister;
+    private final Map<String, Map<SchemaInfo, Producer<?>>> register;
     private final Map<String, Transaction> transactionRegister;
 
-    public TopicProducerRegister(SinkConfiguration sinkConfiguration) {
+    public ProducerRegister(SinkConfiguration sinkConfiguration) {
         this.pulsarClient = createClient(sinkConfiguration);
         this.sinkConfiguration = sinkConfiguration;
-        this.producerRegister = new HashMap<>();
+        this.register = new HashMap<>();
         this.transactionRegister = new HashMap<>();
     }
 
@@ -110,7 +110,7 @@ public class TopicProducerRegister implements Closeable {
      * successfully persisted.
      */
     public void flush() throws IOException {
-        Collection<Map<SchemaInfo, Producer<?>>> collection = producerRegister.values();
+        Collection<Map<SchemaInfo, Producer<?>>> collection = register.values();
         for (Map<SchemaInfo, Producer<?>> producers : collection) {
             for (Producer<?> producer : producers.values()) {
                 producer.flush();
@@ -128,7 +128,7 @@ public class TopicProducerRegister implements Closeable {
             closer.register(this::abortTransactions);
 
             // Remove all the producers.
-            closer.register(producerRegister::clear);
+            closer.register(register::clear);
 
             // All the producers would be closed by this method.
             // We would block until all the producers have been successfully closed.
@@ -140,7 +140,7 @@ public class TopicProducerRegister implements Closeable {
     @SuppressWarnings("unchecked")
     private <T> Producer<T> getOrCreateProducer(String topic, Schema<T> schema) {
         Map<SchemaInfo, Producer<?>> producers =
-                producerRegister.computeIfAbsent(topic, key -> new HashMap<>());
+                register.computeIfAbsent(topic, key -> new HashMap<>());
         SchemaInfo schemaInfo = schema.getSchemaInfo();
 
         if (producers.containsKey(schemaInfo)) {

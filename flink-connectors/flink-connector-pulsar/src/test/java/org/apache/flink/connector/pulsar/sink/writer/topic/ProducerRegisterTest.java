@@ -38,8 +38,8 @@ import static org.apache.flink.connector.base.DeliveryGuarantee.EXACTLY_ONCE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/** Unit tests for {@link TopicProducerRegister}. */
-class TopicProducerRegisterTest extends PulsarTestSuiteBase {
+/** Unit tests for {@link ProducerRegister}. */
+class ProducerRegisterTest extends PulsarTestSuiteBase {
 
     @ParameterizedTest
     @EnumSource(DeliveryGuarantee.class)
@@ -49,7 +49,7 @@ class TopicProducerRegisterTest extends PulsarTestSuiteBase {
         operator().createTopic(topic, 8);
 
         SinkConfiguration configuration = sinkConfiguration(deliveryGuarantee);
-        TopicProducerRegister register = new TopicProducerRegister(configuration);
+        ProducerRegister register = new ProducerRegister(configuration);
 
         String message = randomAlphabetic(10);
         register.createMessageBuilder(topic, Schema.STRING).value(message).send();
@@ -76,7 +76,7 @@ class TopicProducerRegisterTest extends PulsarTestSuiteBase {
         operator().createTopic(topic, 8);
 
         SinkConfiguration configuration = sinkConfiguration(deliveryGuarantee);
-        TopicProducerRegister register = new TopicProducerRegister(configuration);
+        ProducerRegister register = new ProducerRegister(configuration);
 
         String message = randomAlphabetic(10);
         register.createMessageBuilder(topic, Schema.STRING).value(message).sendAsync();

@@ -29,6 +29,7 @@ import java.util.Objects;
 
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicName;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithPartition;
+import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.createFullRange;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -38,6 +39,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public class TopicPartition implements Serializable {
     private static final long serialVersionUID = -1474354741550810953L;
+
+    /**
+     * If {@link TopicPartition#getPartitionId()} is equal to this. This topic partition wouldn't be
+     * a partition instance. It would be a top topic name.
+     */
+    public static final int NON_PARTITION_ID = -1;
 
     /**
      * The topic name of the pulsar. It would be a full topic name, if your don't provide the tenant
@@ -58,6 +65,16 @@ public class TopicPartition implements Serializable {
      */
     private final TopicRange range;
 
+    /** Create a top level topic without partition information. */
+    public TopicPartition(String topic) {
+        this(topic, NON_PARTITION_ID);
+    }
+
+    /** Create a topic partition without key hash range. */
+    public TopicPartition(String topic, int partitionId) {
+        this(topic, partitionId, createFullRange());
+    }
+
     public TopicPartition(String topic, int partitionId, TopicRange range) {
         this.topic = topicName(checkNotNull(topic));
         this.partitionId = partitionId;
@@ -72,12 +89,16 @@ public class TopicPartition implements Serializable {
         return partitionId;
     }
 
+    public boolean isPartition() {
+        return partitionId != NON_PARTITION_ID;
+    }
+
     /**
      * Pulsar split the topic partition into a bunch of small topics, we would get the real topic
      * name by using this method.
      */
     public String getFullTopicName() {
-        if (partitionId >= 0) {
+        if (isPartition()) {
             return topicNameWithPartition(topic, partitionId);
         } else {
             return topic;

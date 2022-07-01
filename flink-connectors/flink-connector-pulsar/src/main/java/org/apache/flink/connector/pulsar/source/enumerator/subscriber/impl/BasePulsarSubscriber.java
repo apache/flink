@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
+import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition.NON_PARTITION_ID;
 
 /** PulsarSubscriber abstract class to simplify Pulsar admin related operations. */
 public abstract class BasePulsarSubscriber implements PulsarSubscriber {
@@ -60,7 +61,7 @@ public abstract class BasePulsarSubscriber implements PulsarSubscriber {
         if (!metadata.isPartitioned()) {
             // For non-partitioned topic.
             return ranges.stream()
-                    .map(range -> new TopicPartition(metadata.getName(), -1, range))
+                    .map(range -> new TopicPartition(metadata.getName(), NON_PARTITION_ID, range))
                     .collect(toList());
         } else {
             List<TopicPartition> partitions = new ArrayList<>();

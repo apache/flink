@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.sink.writer.topic;
+package org.apache.flink.connector.pulsar.sink.writer.topic.register;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
@@ -25,11 +25,13 @@ import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
 
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
@@ -39,21 +41,23 @@ import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNam
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/** Unit tests for {@link TopicMetadataListener}. */
-class TopicMetadataListenerTest extends PulsarTestSuiteBase {
+/** Unit tests for {@link FixedTopicRegister}. */
+class FixedTopicRegisterTest extends PulsarTestSuiteBase {
 
     @Test
-    void listenEmptyTopics() {
-        TopicMetadataListener listener = new TopicMetadataListener();
+    void listenEmptyTopics() throws IOException {
+        FixedTopicRegister<String> listener = new FixedTopicRegister<>(emptyList());
         SinkConfiguration configuration = sinkConfiguration(Duration.ofMinutes(5).toMillis());
         TestProcessingTimeService timeService = new TestProcessingTimeService();
 
-        List<String> topics = listener.availableTopics();
+        List<String> topics = listener.topics("");
         assertThat(topics).isEmpty();
 
         listener.open(configuration, timeService);
-        topics = listener.availableTopics();
+        topics = listener.topics("");
         assertThat(topics).isEmpty();
+
+        listener.close();
     }
 
     @Test
@@ -62,41 +66,45 @@ class TopicMetadataListenerTest extends PulsarTestSuiteBase {
         operator().createTopic(topic, 6);
         List<String> partitions = topicPartitions(topic, 6);
 
-        TopicMetadataListener listener = new TopicMetadataListener(partitions);
+        FixedTopicRegister<String> listener = new FixedTopicRegister<>(partitions);
         long interval = Duration.ofMinutes(15).toMillis();
         SinkConfiguration configuration = sinkConfiguration(interval);
         TestProcessingTimeService timeService = new TestProcessingTimeService();
 
-        List<String> topics = listener.availableTopics();
+        List<String> topics = listener.topics("");
         assertEquals(topics, partitions);
 
         listener.open(configuration, timeService);
-        topics = listener.availableTopics();
+        topics = listener.topics("");
         assertEquals(topics, partitions);
 
         operator().increaseTopicPartitions(topic, 12);
         timeService.advance(interval);
-        topics = listener.availableTopics();
+        topics = listener.topics("");
         assertEquals(topics, partitions);
+
+        listener.close();
     }
 
     @Test
-    void fetchTopicPartitionInformation() {
+    void fetchTopicPartitionInformation() throws IOException {
         String topic = randomAlphabetic(10);
         operator().createTopic(topic, 8);
 
-        TopicMetadataListener listener = new TopicMetadataListener(singletonList(topic));
+        FixedTopicRegister<String> listener = new FixedTopicRegister<>(singletonList(topic));
         SinkConfiguration configuration = sinkConfiguration(Duration.ofMinutes(10).toMillis());
         TestProcessingTimeService timeService = new TestProcessingTimeService();
 
-        List<String> topics = listener.availableTopics();
+        List<String> topics = listener.topics("");
         assertThat(topics).isEmpty();
 
         listener.open(configuration, timeService);
-        topics = listener.availableTopics();
+        topics = listener.topics("");
         List<String> desiredTopics = topicPartitions(topic, 8);
 
         assertThat(topics).hasSize(8).isEqualTo(desiredTopics);
+
+        listener.close();
     }
 
     @Test
@@ -106,13 +114,13 @@ class TopicMetadataListenerTest extends PulsarTestSuiteBase {
 
         long interval = Duration.ofMinutes(20).toMillis();
 
-        TopicMetadataListener listener = new TopicMetadataListener(singletonList(topic));
+        FixedTopicRegister<String> listener = new FixedTopicRegister<>(singletonList(topic));
         SinkConfiguration configuration = sinkConfiguration(interval);
         TestProcessingTimeService timeService = new TestProcessingTimeService();
         timeService.setCurrentTime(System.currentTimeMillis());
 
         listener.open(configuration, timeService);
-        List<String> topics = listener.availableTopics();
+        List<String> topics = listener.topics("");
         List<String> desiredTopics = topicPartitions(topic, 8);
 
         assertThat(topics).isEqualTo(desiredTopics);
@@ -121,26 +129,30 @@ class TopicMetadataListenerTest extends PulsarTestSuiteBase {
         operator().increaseTopicPartitions(topic, 16);
         timeService.advance(interval);
 
-        topics = listener.availableTopics();
+        topics = listener.topics("");
         desiredTopics = topicPartitions(topic, 16);
         assertThat(topics).isEqualTo(desiredTopics);
+
+        listener.close();
     }
 
     @Test
-    void fetchNonPartitionTopic() {
+    void fetchNonPartitionTopic() throws IOException {
         String topic = randomAlphabetic(10);
         operator().createTopic(topic, 0);
         List<String> nonPartitionTopic =
                 Collections.singletonList(topicNameWithoutPartition(topic));
 
-        TopicMetadataListener listener = new TopicMetadataListener(nonPartitionTopic);
+        FixedTopicRegister<String> listener = new FixedTopicRegister<>(nonPartitionTopic);
         long interval = Duration.ofMinutes(15).toMillis();
         SinkConfiguration configuration = sinkConfiguration(interval);
         TestProcessingTimeService timeService = new TestProcessingTimeService();
 
         listener.open(configuration, timeService);
-        List<String> topics = listener.availableTopics();
+        List<String> topics = listener.topics("");
         assertEquals(topics, nonPartitionTopic);
+
+        listener.close();
     }
 
     private List<String> topicPartitions(String topic, int partitionSize) {

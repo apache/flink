@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.sink.writer.topic;
+package org.apache.flink.connector.pulsar.sink.writer.topic.register;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
+import org.apache.flink.connector.pulsar.sink.writer.topic.TopicRegister;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Objects;
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
@@ -31,15 +32,12 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static java.util.Collections.emptyList;
 import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createAdmin;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyAdmin;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.isPartition;
@@ -53,10 +51,10 @@ import static org.apache.pulsar.common.partition.PartitionedTopicMetadata.NON_PA
  * built-in logic. We use Flink's ProcessingTimer as the executor.
  */
 @Internal
-public class TopicMetadataListener implements Serializable, Closeable {
+public class FixedTopicRegister<IN> implements TopicRegister<IN> {
     private static final long serialVersionUID = 6186948471557507522L;
 
-    private static final Logger LOG = LoggerFactory.getLogger(TopicMetadataListener.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FixedTopicRegister.class);
 
     private final ImmutableList<String> partitionedTopics;
     private final Map<String, Integer> topicMetadata;
@@ -67,11 +65,7 @@ public class TopicMetadataListener implements Serializable, Closeable {
     private transient Long topicMetadataRefreshInterval;
     private transient ProcessingTimeService timeService;
 
-    public TopicMetadataListener() {
-        this(emptyList());
-    }
-
-    public TopicMetadataListener(List<String> topics) {
+    public FixedTopicRegister(List<String> topics) {
         List<String> partitions = new ArrayList<>(topics.size());
         Map<String, Integer> metadata = new HashMap<>(topics.size());
         for (String topic : topics) {
@@ -88,7 +82,7 @@ public class TopicMetadataListener implements Serializable, Closeable {
         this.availableTopics = ImmutableList.of();
     }
 
-    /** Register the topic metadata update in process time service. */
+    @Override
     public void open(SinkConfiguration sinkConfiguration, ProcessingTimeService timeService) {
         if (topicMetadata.isEmpty()) {
             LOG.info("No topics have been provided, skip listener initialize.");
@@ -107,12 +101,8 @@ public class TopicMetadataListener implements Serializable, Closeable {
         triggerNextTopicMetadataUpdate(true);
     }
 
-    /**
-     * Return all the available topic partitions. We would recalculate the partitions if the topic
-     * metadata has been changed. Otherwise, we would return the cached result for better
-     * performance.
-     */
-    public List<String> availableTopics() {
+    @Override
+    public List<String> topics(IN in) {
         if (availableTopics.isEmpty()
                 && (!partitionedTopics.isEmpty() || !topicMetadata.isEmpty())) {
             List<String> results = new ArrayList<>();

@@ -48,6 +48,9 @@ public class TopicRange implements Serializable {
     /** The end position for hash range, it's 65535. */
     public static final int MAX_RANGE = RANGE_SIZE - 1;
 
+    /** A full topic range instance for avoiding multiple instance creation. */
+    private static final TopicRange FULL_RANGE = new TopicRange(MIN_RANGE, MAX_RANGE);
+
     /** The start of the range, default is zero. */
     private final int start;
 
@@ -68,9 +71,9 @@ public class TopicRange implements Serializable {
         return new Range(start, end);
     }
 
-    /** Create a topic range which contains the fully hash range. */
+    /** Create a topic range which contains the full hash range. */
     public static TopicRange createFullRange() {
-        return new TopicRange(MIN_RANGE, MAX_RANGE);
+        return FULL_RANGE;
     }
 
     public int getStart() {
