@@ -663,6 +663,7 @@ function sphinx_check() {
     else
         print_function "STAGE" "sphinx checks... [SUCCESS]"
     fi
+    popd
 }
 
 # mypy check
@@ -691,25 +692,31 @@ CURRENT_DIR="$(cd "$( dirname "$0" )" && pwd)"
 FLINK_PYTHON_DIR=$(dirname "$CURRENT_DIR")
 
 # conda home path
-CONDA_HOME=$CURRENT_DIR/.conda
+if [ -z "${FLINK_CONDA_HOME+x}" ]; then
+    CONDA_HOME="$CURRENT_DIR/.conda"
+    ENV_HOME="$CONDA_HOME"
+else
+    CONDA_HOME=$FLINK_CONDA_HOME
+    ENV_HOME="${CONDA_PREFIX-$CONDA_HOME}"
+fi
 
 # conda path
 CONDA_PATH=$CONDA_HOME/bin/conda
 
 # pip path
-PIP_PATH=$CONDA_HOME/bin/pip
+PIP_PATH=$ENV_HOME/bin/pip
 
 # tox path
-TOX_PATH=$CONDA_HOME/bin/tox
+TOX_PATH=$ENV_HOME/bin/tox
 
 # flake8 path
-FLAKE8_PATH=$CONDA_HOME/bin/flake8
+FLAKE8_PATH=$ENV_HOME/bin/flake8
 
 # sphinx path
-SPHINX_PATH=$CONDA_HOME/bin/sphinx-build
+SPHINX_PATH=$ENV_HOME/bin/sphinx-build
 
 # mypy path
-MYPY_PATH=${CONDA_HOME}/bin/mypy
+MYPY_PATH=$ENV_HOME/bin/mypy
 
 _OLD_PATH="$PATH"
 

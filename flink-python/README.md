@@ -51,3 +51,22 @@ We can enter the directory where this README.md file is located and run test cas
 ```
 ./dev/lint-python.sh
 ```
+
+To use your system conda environment, you can set `FLINK_CONDA_HOME` variable:
+
+```shell
+export FLINK_CONDA_HOME=$(dirname $(dirname $CONDA_EXE))
+```
+
+Create a virtual environment:
+```shell
+conda create -n pyflink_38 python=3.8
+```
+
+Then you can activate your environment and run tests, for example:
+
+```shell
+conda activate pyflink_38
+pip install -r ./dev/dev-requirements.txt
+./dev/lint-python.sh
+```
