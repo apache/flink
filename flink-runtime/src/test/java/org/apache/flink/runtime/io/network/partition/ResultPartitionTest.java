@@ -41,6 +41,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
+import static org.apache.flink.runtime.io.network.buffer.LocalBufferPoolDestroyTest.isInBlockingBufferRequest;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.verifyCreateSubpartitionViewThrowsException;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -394,8 +395,10 @@ class ResultPartitionTest {
         // wait until request thread start to run.
         syncLock.await();
 
-        Thread.sleep(100);
-
+        // wait until request buffer blocking.
+        while (!isInBlockingBufferRequest(requestThread.getStackTrace())) {
+            Thread.sleep(50);
+        }
         // recycle the buffer
         buffer.recycleBuffer();
         requestThread.join();
