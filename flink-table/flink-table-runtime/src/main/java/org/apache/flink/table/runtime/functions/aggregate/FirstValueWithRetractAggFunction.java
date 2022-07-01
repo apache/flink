@@ -20,19 +20,19 @@ package org.apache.flink.table.runtime.functions.aggregate;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-
-import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
 
 /** Built-in FIRST_VALUE with retraction aggregate function. */
 @Internal
@@ -40,10 +40,20 @@ public final class FirstValueWithRetractAggFunction<T>
         extends BuiltInAggregateFunction<
                 T, FirstValueWithRetractAggFunction.FirstValueWithRetractAccumulator<T>> {
 
-    private final transient DataType valueDataType;
+    private final transient DataType[] valueDataTypes;
+    private final boolean ignoreNullByDefault;
 
-    public FirstValueWithRetractAggFunction(LogicalType valueType) {
-        this.valueDataType = toInternalDataType(valueType);
+    public FirstValueWithRetractAggFunction(LogicalType... valueTypes) {
+        this(valueTypes, true);
+    }
+
+    public FirstValueWithRetractAggFunction(
+            LogicalType[] valueTypes, boolean nullTreatmentByDefault) {
+        this.valueDataTypes =
+                Arrays.stream(valueTypes)
+                        .map(DataTypeUtils::toInternalDataType)
+                        .toArray(DataType[]::new);
+        this.ignoreNullByDefault = !nullTreatmentByDefault;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -52,30 +62,32 @@ public final class FirstValueWithRetractAggFunction<T>
 
     @Override
     public List<DataType> getArgumentDataTypes() {
-        return Collections.singletonList(valueDataType);
+        return Arrays.asList(valueDataTypes);
     }
 
     @Override
     public DataType getAccumulatorDataType() {
         return DataTypes.STRUCTURED(
                 FirstValueWithRetractAccumulator.class,
-                DataTypes.FIELD("firstValue", valueDataType.nullable()),
+                DataTypes.FIELD("firstValue", valueDataTypes[0].nullable()),
                 DataTypes.FIELD("firstOrder", DataTypes.BIGINT()),
                 DataTypes.FIELD(
                         "valueToOrderMap",
                         MapView.newMapViewDataType(
-                                valueDataType.notNull(),
+                                valueDataTypes[0],
                                 DataTypes.ARRAY(DataTypes.BIGINT()).bridgedTo(List.class))),
                 DataTypes.FIELD(
                         "orderToValueMap",
                         MapView.newMapViewDataType(
                                 DataTypes.BIGINT(),
-                                DataTypes.ARRAY(valueDataType.notNull()).bridgedTo(List.class))));
+                                DataTypes.ARRAY(valueDataTypes[0]).bridgedTo(List.class))),
+                DataTypes.FIELD(
+                        "nullValueOrderList", ListView.newListViewDataType(DataTypes.BIGINT())));
     }
 
     @Override
     public DataType getOutputDataType() {
-        return valueDataType;
+        return valueDataTypes[0];
     }
 
     // --------------------------------------------------------------------------------------------
@@ -88,6 +100,11 @@ public final class FirstValueWithRetractAggFunction<T>
         public Long firstOrder;
         public MapView<T, List<Long>> valueToOrderMap;
         public MapView<Long, List<T>> orderToValueMap;
+        /**
+         * the separate order list for null value since {@link ListView} does not allow {@code
+         * null}s .
+         */
+        public ListView<Long> nullValueOrderList;
 
         @Override
         public boolean equals(Object o) {
@@ -101,12 +118,14 @@ public final class FirstValueWithRetractAggFunction<T>
             return Objects.equals(firstValue, that.firstValue)
                     && Objects.equals(firstOrder, that.firstOrder)
                     && Objects.equals(valueToOrderMap, that.valueToOrderMap)
-                    && Objects.equals(orderToValueMap, that.orderToValueMap);
+                    && Objects.equals(orderToValueMap, that.orderToValueMap)
+                    && Objects.equals(nullValueOrderList, that.nullValueOrderList);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(firstValue, firstOrder, valueToOrderMap, orderToValueMap);
+            return Objects.hash(
+                    firstValue, firstOrder, valueToOrderMap, orderToValueMap, nullValueOrderList);
         }
     }
 
@@ -117,35 +136,49 @@ public final class FirstValueWithRetractAggFunction<T>
         acc.firstOrder = null;
         acc.valueToOrderMap = new MapView<>();
         acc.orderToValueMap = new MapView<>();
+        acc.nullValueOrderList = new ListView<>();
         return acc;
     }
 
-    @SuppressWarnings("unchecked")
     public void accumulate(FirstValueWithRetractAccumulator<T> acc, Object value) throws Exception {
-        if (value != null) {
+        accumulate(acc, value, ignoreNullByDefault);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void accumulate(
+            FirstValueWithRetractAccumulator<T> acc, Object value, boolean ignoreNull)
+            throws Exception {
+        // only when the value isn't null or not to ignore null, accumulate it
+        if (value != null || !ignoreNull) {
             T v = (T) value;
             Long order = System.currentTimeMillis();
-            List<Long> orderList = acc.valueToOrderMap.get(v);
+            List<Long> orderList = getValueOrderList(acc, v);
             if (orderList == null) {
                 orderList = new ArrayList<>();
             }
             orderList.add(order);
-            acc.valueToOrderMap.put(v, orderList);
-            accumulate(acc, v, order);
+            putValueOrderList(acc, v, orderList);
+            accumulate(acc, v, order, ignoreNull);
         }
     }
 
-    @SuppressWarnings("unchecked")
     public void accumulate(FirstValueWithRetractAccumulator<T> acc, Object value, Long order)
             throws Exception {
-        if (value != null) {
+        accumulate(acc, value, order, ignoreNullByDefault);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void accumulate(
+            FirstValueWithRetractAccumulator<T> acc, Object value, Long order, boolean ignoreNull)
+            throws Exception {
+        // only when the value isn't null or not to ignore null, accumulate it
+        if ((value != null || !ignoreNull) && order != null) {
             T v = (T) value;
             Long prevOrder = acc.firstOrder;
             if (prevOrder == null || prevOrder > order) {
                 acc.firstValue = v;
                 acc.firstOrder = order;
             }
-
             List<T> valueList = acc.orderToValueMap.get(order);
             if (valueList == null) {
                 valueList = new ArrayList<>();
@@ -157,40 +190,76 @@ public final class FirstValueWithRetractAggFunction<T>
 
     public void accumulate(FirstValueWithRetractAccumulator<T> acc, StringData value)
             throws Exception {
+        accumulate(acc, value, ignoreNullByDefault);
+    }
+
+    public void accumulate(
+            FirstValueWithRetractAccumulator<T> acc, StringData value, boolean ignoreNull)
+            throws Exception {
+        // when value isn't null, accumulate it
         if (value != null) {
             accumulate(acc, (Object) ((BinaryStringData) value).copy());
+        } else if (!ignoreNull) {
+            // otherwise, if not ignore null, accumulate it
+            accumulate(acc, (Object) null, false);
         }
     }
 
     public void accumulate(FirstValueWithRetractAccumulator<T> acc, StringData value, Long order)
             throws Exception {
+        accumulate(acc, value, order, ignoreNullByDefault);
+    }
+
+    public void accumulate(
+            FirstValueWithRetractAccumulator<T> acc,
+            StringData value,
+            Long order,
+            boolean ignoreNull)
+            throws Exception {
+        // when value isn't null, accumulate it
         if (value != null) {
             accumulate(acc, (Object) ((BinaryStringData) value).copy(), order);
+        } else if (!ignoreNull) {
+            // otherwise, if not ignore null, accumulate it
+            accumulate(acc, (Object) null, order, false);
         }
     }
 
-    @SuppressWarnings("unchecked")
     public void retract(FirstValueWithRetractAccumulator<T> acc, Object value) throws Exception {
-        if (value != null) {
+        retract(acc, value, ignoreNullByDefault);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void retract(FirstValueWithRetractAccumulator<T> acc, Object value, boolean ignoreNull)
+            throws Exception {
+        // only when the value isn't null or not to ignore null, retract it
+        if (value != null || !ignoreNull) {
             T v = (T) value;
-            List<Long> orderList = acc.valueToOrderMap.get(v);
+            List<Long> orderList = getValueOrderList(acc, v);
             if (orderList != null && orderList.size() > 0) {
                 Long order = orderList.get(0);
                 orderList.remove(0);
                 if (orderList.isEmpty()) {
-                    acc.valueToOrderMap.remove(v);
+                    removeValueFromValueToOrderMap(acc, v);
                 } else {
-                    acc.valueToOrderMap.put(v, orderList);
+                    putValueOrderList(acc, v, orderList);
                 }
-                retract(acc, v, order);
+                retract(acc, v, order, ignoreNull);
             }
         }
     }
 
-    @SuppressWarnings("unchecked")
     public void retract(FirstValueWithRetractAccumulator<T> acc, Object value, Long order)
             throws Exception {
-        if (value != null) {
+        retract(acc, value, order, ignoreNullByDefault);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void retract(
+            FirstValueWithRetractAccumulator<T> acc, Object value, Long order, boolean ignoreNull)
+            throws Exception {
+        // only when the value isn't null or not to ignore null, retract it
+        if ((value != null || !ignoreNull) && order != null) {
             T v = (T) value;
             List<T> valueList = acc.orderToValueMap.get(order);
             if (valueList == null) {
@@ -205,7 +274,7 @@ public final class FirstValueWithRetractAggFunction<T>
                     acc.orderToValueMap.put(order, valueList);
                 }
             }
-            if (v.equals(acc.firstValue)) {
+            if ((v == null && acc.firstValue == null) || (v != null && v.equals(acc.firstValue))) {
                 Long startKey = acc.firstOrder;
                 Iterator<Long> iter = acc.orderToValueMap.keys().iterator();
                 // find the minimal order which is greater than or equal to `startKey`
@@ -216,7 +285,6 @@ public final class FirstValueWithRetractAggFunction<T>
                         nextKey = key;
                     }
                 }
-
                 if (nextKey != Long.MAX_VALUE) {
                     acc.firstValue = acc.orderToValueMap.get(nextKey).get(0);
                     acc.firstOrder = nextKey;
@@ -228,11 +296,40 @@ public final class FirstValueWithRetractAggFunction<T>
         }
     }
 
+    private List<Long> getValueOrderList(FirstValueWithRetractAccumulator<T> acc, T value)
+            throws Exception {
+        if (value == null) {
+            return acc.nullValueOrderList.getList();
+        } else {
+            return acc.valueToOrderMap.get(value);
+        }
+    }
+
+    public void putValueOrderList(
+            FirstValueWithRetractAccumulator<T> acc, T value, List<Long> orderList)
+            throws Exception {
+        if (value == null) {
+            acc.nullValueOrderList.setList(orderList);
+        } else {
+            acc.valueToOrderMap.put(value, orderList);
+        }
+    }
+
+    public void removeValueFromValueToOrderMap(FirstValueWithRetractAccumulator<T> acc, T value)
+            throws Exception {
+        if (value == null) {
+            acc.nullValueOrderList.clear();
+        } else {
+            acc.valueToOrderMap.remove(value);
+        }
+    }
+
     public void resetAccumulator(FirstValueWithRetractAccumulator<T> acc) {
         acc.firstValue = null;
         acc.firstOrder = null;
         acc.valueToOrderMap.clear();
         acc.orderToValueMap.clear();
+        acc.nullValueOrderList.clear();
     }
 
     @Override

@@ -20,19 +20,19 @@ package org.apache.flink.table.runtime.functions.aggregate;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-
-import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
 
 /** Built-in LAST_VALUE with retraction aggregate function. */
 @Internal
@@ -40,10 +40,20 @@ public final class LastValueWithRetractAggFunction<T>
         extends BuiltInAggregateFunction<
                 T, LastValueWithRetractAggFunction.LastValueWithRetractAccumulator<T>> {
 
-    private final transient DataType valueDataType;
+    private final transient DataType[] valueDataTypes;
+    private final boolean ignoreNullByDefault;
 
-    public LastValueWithRetractAggFunction(LogicalType valueType) {
-        this.valueDataType = toInternalDataType(valueType);
+    public LastValueWithRetractAggFunction(LogicalType... valueTypes) {
+        this(valueTypes, true);
+    }
+
+    public LastValueWithRetractAggFunction(
+            LogicalType[] valueTypes, boolean nullTreatmentByDefault) {
+        this.valueDataTypes =
+                Arrays.stream(valueTypes)
+                        .map(DataTypeUtils::toInternalDataType)
+                        .toArray(DataType[]::new);
+        this.ignoreNullByDefault = !nullTreatmentByDefault;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -52,30 +62,33 @@ public final class LastValueWithRetractAggFunction<T>
 
     @Override
     public List<DataType> getArgumentDataTypes() {
-        return Collections.singletonList(valueDataType);
+        return Arrays.asList(valueDataTypes);
     }
 
     @Override
     public DataType getAccumulatorDataType() {
         return DataTypes.STRUCTURED(
                 LastValueWithRetractAccumulator.class,
-                DataTypes.FIELD("lastValue", valueDataType.nullable()),
+                DataTypes.FIELD("lastValue", valueDataTypes[0].nullable()),
                 DataTypes.FIELD("lastOrder", DataTypes.BIGINT()),
                 DataTypes.FIELD(
                         "valueToOrderMap",
                         MapView.newMapViewDataType(
-                                valueDataType.notNull(),
+                                valueDataTypes[0].notNull(),
                                 DataTypes.ARRAY(DataTypes.BIGINT()).bridgedTo(List.class))),
                 DataTypes.FIELD(
                         "orderToValueMap",
                         MapView.newMapViewDataType(
                                 DataTypes.BIGINT(),
-                                DataTypes.ARRAY(valueDataType.notNull()).bridgedTo(List.class))));
+                                DataTypes.ARRAY(valueDataTypes[0].notNull())
+                                        .bridgedTo(List.class))),
+                DataTypes.FIELD(
+                        "nullValueOrderList", ListView.newListViewDataType(DataTypes.BIGINT())));
     }
 
     @Override
     public DataType getOutputDataType() {
-        return valueDataType;
+        return valueDataTypes[0];
     }
 
     // --------------------------------------------------------------------------------------------
@@ -88,6 +101,11 @@ public final class LastValueWithRetractAggFunction<T>
         public Long lastOrder = null;
         public MapView<T, List<Long>> valueToOrderMap = new MapView<>();
         public MapView<Long, List<T>> orderToValueMap = new MapView<>();
+        /**
+         * the separate order list for null value since {@link ListView} does not allow {@code
+         * null}s .
+         */
+        public ListView<Long> nullValueOrderList = new ListView<>();
 
         @Override
         public boolean equals(Object o) {
@@ -101,12 +119,14 @@ public final class LastValueWithRetractAggFunction<T>
             return Objects.equals(lastValue, that.lastValue)
                     && Objects.equals(lastOrder, that.lastOrder)
                     && valueToOrderMap.equals(that.valueToOrderMap)
-                    && orderToValueMap.equals(that.orderToValueMap);
+                    && orderToValueMap.equals(that.orderToValueMap)
+                    && Objects.equals(nullValueOrderList, that.nullValueOrderList);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(lastValue, lastOrder, valueToOrderMap, orderToValueMap);
+            return Objects.hash(
+                    lastValue, lastOrder, valueToOrderMap, orderToValueMap, nullValueOrderList);
         }
     }
 
@@ -115,32 +135,43 @@ public final class LastValueWithRetractAggFunction<T>
         return new LastValueWithRetractAccumulator<>();
     }
 
-    @SuppressWarnings("unchecked")
     public void accumulate(LastValueWithRetractAccumulator<T> acc, Object value) throws Exception {
-        if (value != null) {
+        accumulate(acc, value, ignoreNullByDefault);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void accumulate(LastValueWithRetractAccumulator<T> acc, Object value, boolean ignoreNull)
+            throws Exception {
+        if (value != null || !ignoreNull) {
             T v = (T) value;
             Long order = System.currentTimeMillis();
-            List<Long> orderList = acc.valueToOrderMap.get(v);
+            List<Long> orderList = getValueOrderList(acc, v);
             if (orderList == null) {
                 orderList = new ArrayList<>();
             }
             orderList.add(order);
-            acc.valueToOrderMap.put(v, orderList);
-            accumulate(acc, value, order);
+            putValueOrderList(acc, v, orderList);
+            accumulate(acc, value, order, ignoreNull);
         }
     }
 
-    @SuppressWarnings("unchecked")
     public void accumulate(LastValueWithRetractAccumulator<T> acc, Object value, Long order)
             throws Exception {
-        if (value != null) {
+        accumulate(acc, value, order, ignoreNullByDefault);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void accumulate(
+            LastValueWithRetractAccumulator<T> acc, Object value, Long order, boolean ignoreNull)
+            throws Exception {
+        // only when the value isn't null or not to ignore null, accumulate it
+        if ((value != null || !ignoreNull) && order != null) {
             T v = (T) value;
             Long prevOrder = acc.lastOrder;
             if (prevOrder == null || prevOrder <= order) {
                 acc.lastValue = v;
                 acc.lastOrder = order;
             }
-
             List<T> valueList = acc.orderToValueMap.get(order);
             if (valueList == null) {
                 valueList = new ArrayList<>();
@@ -152,40 +183,56 @@ public final class LastValueWithRetractAggFunction<T>
 
     public void accumulate(LastValueWithRetractAccumulator<T> acc, StringData value)
             throws Exception {
+        accumulate(acc, value, ignoreNullByDefault);
+    }
+
+    public void accumulate(
+            LastValueWithRetractAccumulator<T> acc, StringData value, boolean ignoreNull)
+            throws Exception {
+        // when value isn't null, accumulate it
         if (value != null) {
             accumulate(acc, (Object) ((BinaryStringData) value).copy());
+        } else if (!ignoreNull) {
+            // otherwise, if not ignore null, accumulate it
+            accumulate(acc, (Object) null, false);
         }
     }
 
-    public void accumulate(LastValueWithRetractAccumulator<T> acc, StringData value, Long order)
-            throws Exception {
-        if (value != null) {
-            accumulate(acc, (Object) ((BinaryStringData) value).copy(), order);
-        }
+    public void retract(LastValueWithRetractAccumulator<T> acc, Object value) throws Exception {
+        retract(acc, value, ignoreNullByDefault);
     }
 
     @SuppressWarnings("unchecked")
-    public void retract(LastValueWithRetractAccumulator<T> acc, Object value) throws Exception {
-        if (value != null) {
+    public void retract(LastValueWithRetractAccumulator<T> acc, Object value, boolean ignoreNull)
+            throws Exception {
+        // only when the value isn't null or not to ignore null, retract it
+        if (value != null || !ignoreNull) {
             T v = (T) value;
-            List<Long> orderList = acc.valueToOrderMap.get(v);
+            List<Long> orderList = getValueOrderList(acc, v);
             if (orderList != null && orderList.size() > 0) {
                 Long order = orderList.get(0);
                 orderList.remove(0);
                 if (orderList.isEmpty()) {
-                    acc.valueToOrderMap.remove(v);
+                    removeValueFromValueToOrderMap(acc, v);
                 } else {
-                    acc.valueToOrderMap.put(v, orderList);
+                    putValueOrderList(acc, v, orderList);
                 }
-                retract(acc, value, order);
+                retract(acc, value, order, ignoreNull);
             }
         }
     }
 
-    @SuppressWarnings("unchecked")
     public void retract(LastValueWithRetractAccumulator<T> acc, Object value, Long order)
             throws Exception {
-        if (value != null) {
+        retract(acc, value, order, ignoreNullByDefault);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void retract(
+            LastValueWithRetractAccumulator<T> acc, Object value, Long order, boolean ignoreNull)
+            throws Exception {
+        // only when the value isn't null or not to ignore null, retract it
+        if ((value != null || !ignoreNull) && order != null) {
             T v = (T) value;
             List<T> valueList = acc.orderToValueMap.get(order);
             if (valueList == null) {
@@ -200,7 +247,7 @@ public final class LastValueWithRetractAggFunction<T>
                     acc.orderToValueMap.put(order, valueList);
                 }
             }
-            if (v.equals(acc.lastValue)) {
+            if ((v == null && acc.lastValue == null) || (v != null && v.equals(acc.lastValue))) {
                 Long startKey = acc.lastOrder;
                 Iterator<Long> iter = acc.orderToValueMap.keys().iterator();
                 // find the maximal order which is less than or equal to `startKey`
@@ -211,7 +258,6 @@ public final class LastValueWithRetractAggFunction<T>
                         nextKey = key;
                     }
                 }
-
                 if (nextKey != Long.MIN_VALUE) {
                     List<T> values = acc.orderToValueMap.get(nextKey);
                     acc.lastValue = values.get(values.size() - 1);
@@ -224,11 +270,40 @@ public final class LastValueWithRetractAggFunction<T>
         }
     }
 
+    private List<Long> getValueOrderList(LastValueWithRetractAccumulator<T> acc, T value)
+            throws Exception {
+        if (value == null) {
+            return acc.nullValueOrderList.getList();
+        } else {
+            return acc.valueToOrderMap.get(value);
+        }
+    }
+
+    public void putValueOrderList(
+            LastValueWithRetractAccumulator<T> acc, T value, List<Long> orderList)
+            throws Exception {
+        if (value == null) {
+            acc.nullValueOrderList.setList(orderList);
+        } else {
+            acc.valueToOrderMap.put(value, orderList);
+        }
+    }
+
+    public void removeValueFromValueToOrderMap(LastValueWithRetractAccumulator<T> acc, T value)
+            throws Exception {
+        if (value == null) {
+            acc.nullValueOrderList.clear();
+        } else {
+            acc.valueToOrderMap.remove(value);
+        }
+    }
+
     public void resetAccumulator(LastValueWithRetractAccumulator<T> acc) {
         acc.lastValue = null;
         acc.lastOrder = null;
         acc.valueToOrderMap.clear();
         acc.orderToValueMap.clear();
+        acc.nullValueOrderList.clear();
     }
 
     @Override

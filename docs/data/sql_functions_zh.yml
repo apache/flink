@@ -1085,11 +1085,11 @@ aggregate:
     description: 返回窗口中当前行之后第 offset 行处的表达式值。offset 的默认值为 1，default 的默认值为 `NULL`。
   - sql: LAG(expression [, offset] [, default])
     description: 返回窗口中当前行之前第 offset 行处的表达式值。offset 的默认值为 1，default 的默认值为 `NULL`。
-  - sql: FIRST_VALUE(expression)
-    table: FIELD.firstValue
-    description: 返回一组有序值中的第一个值。
-  - sql: LAST_VALUE(expression)
-    table: FIELD.lastValue
-    description: 返回一组有序值中的最后一个值。
+  - sql: FIRST_VALUE(expression [, ignoreNULLs])
+    table: FIELD.firstValue([ ignoreNULLs ])
+    description: 返回一组有序值中的第一个值。第二个参数 ignoreNulls 表示是否忽略 `NULL` 值。如果没有指定第二个参数，则默认行为取决于配置项 [table.exec.first-last-value.null-treatment]({{< ref "docs/dev/table/config" >}}#table-exec-first-last-value-null-treatment)。
+  - sql: LAST_VALUE(expression [, ignoreNULLs])
+    table: FIELD.lastValue([ ignoreNULLs ])
+    description: 返回一组有序值中的最后一个值。第二个参数 ignoreNulls 表示是否忽略 `NUL`L 值。如果没有指定第二个参数，则默认行为取决于配置项 [table.exec.first-last-value.null-treatment]({{< ref "docs/dev/table/config" >}}#table-exec-first-last-value-null-treatment)。
   - sql: LISTAGG(expression [, separator])
     description: 连接字符串表达式的值并在它们之间放置分隔符值。字符串末尾不添加分隔符时则分隔符的默认值为“,”。

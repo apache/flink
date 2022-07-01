@@ -426,13 +426,14 @@ public class ExecutionConfigOptions {
                                     + "or the new one that introduces various fixes and improvements.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<Boolean> TABLE_EXEC_LEGACY_LAST_VALUE_BEHAVIOUR =
-            key("table.exec.legacy-last-value-behaviour")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Determines whether LAST_VALUE(express) will follow the legacy behaviour, which is ignoring null."
-                                    + " Or the new one which doesn't ignore null");
+    public static final ConfigOption<FirstLastValueNullTreatment>
+            TABLE_EXEC_FIRST_LAST_VALUE_NULL_TREATMENT =
+                    key("table.exec.first-last-value.null-treatment")
+                            .enumType(FirstLastValueNullTreatment.class)
+                            .defaultValue(FirstLastValueNullTreatment.RESPECT_NULLS)
+                            .withDescription(
+                                    "Determines whether FIRST_VALUE/LAST_VALUE will respect nulls or ignore nulls by default."
+                                            + " The default is to respect nulls.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Long> TABLE_EXEC_RANK_TOPN_CACHE_SIZE =
@@ -604,6 +605,31 @@ public class ExecutionConfigOptions {
 
         public boolean isEnabled() {
             return enabled;
+        }
+    }
+
+    /** Determine if FIRST_VALUE/LAST_VALUE respect nulls or ignore nulls. */
+    @PublicEvolving
+    public enum FirstLastValueNullTreatment implements DescribedEnum {
+        RESPECT_NULLS(false, text("FIRST_VALUE/LAST_VALUE will respect nulls by default.")),
+        IGNORE_NULLS(true, text("FIRST_VALUE/LAST_VALUE will ignore nulls by default."));
+
+        private final boolean ignoreNull;
+        private final InlineElement description;
+
+        FirstLastValueNullTreatment(boolean ignoreNull, InlineElement description) {
+            this.ignoreNull = ignoreNull;
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+
+        public boolean ignoreNull() {
+            return ignoreNull;
         }
     }
 }

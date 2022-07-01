@@ -23,6 +23,8 @@ import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.ExecutionConfigOptions.FirstLastValueNullTreatment
 import org.apache.flink.table.functions.{AggregateFunction, FunctionDefinition, ScalarFunctionDefinition}
 import org.apache.flink.table.module.{CoreModule, Module}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
@@ -2708,12 +2710,6 @@ class OverAggregateITCase extends BatchTestBase {
   }
 
   @Test
-  def testLastValue(): Unit = {
-    val sqlQuery = "select last_value(false) OVER () from Table5"
-    checkResult(sqlQuery, Seq())
-  }
-
-  @Test
   def testAggWithLiteral(): Unit = {
     val sqlQuery =
       """
@@ -2764,6 +2760,65 @@ class OverAggregateITCase extends BatchTestBase {
     checkResult(
       "select dep,name,rank() over (partition by dep order by salary desc) as rnk from emp",
       Seq(row("1", "A", 2), row("1", "B", 1), row("2", "C", 1)))
+  }
+
+  @Test
+  def testFirstLastValue(): Unit = {
+    registerCollection(
+      "student",
+      Seq(
+        row("1", "Bob", null),
+        row("2", "Bob", 12),
+        row("3", "Alice", 14),
+        row("4", "Alice", null)),
+      new RowTypeInfo(STRING_TYPE_INFO, STRING_TYPE_INFO, INT_TYPE_INFO),
+      "id, name, age"
+    )
+
+    val respectNullExpected = Seq(
+      row("Bob", null, 12),
+      row("Bob", null, 12),
+      row("Alice", 14, null),
+      row("Alice", 14, null))
+    val ignoreNullExpected =
+      Seq(row("Bob", 12, 12), row("Bob", 12, 12), row("Alice", 14, 14), row("Alice", 14, 14))
+
+    // default is respect nulls
+    checkResult(
+      "select name, first_value(age) over(partition by name)," +
+        " last_value(age) over(partition by name) from student",
+      respectNullExpected
+    )
+
+    // modify configuration to ignore nulls by default
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_FIRST_LAST_VALUE_NULL_TREATMENT,
+      ExecutionConfigOptions.FirstLastValueNullTreatment.IGNORE_NULLS)
+    checkResult(
+      "select name, first_value(age) over(partition by name)," +
+        " last_value(age) over(partition by name) from student",
+      ignoreNullExpected
+    )
+
+    // test first_value/last_value ignore nulls
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_FIRST_LAST_VALUE_NULL_TREATMENT,
+      ExecutionConfigOptions.FirstLastValueNullTreatment.IGNORE_NULLS)
+    checkResult(
+      "select name, first_value(age, true) over(partition by name)," +
+        " last_value(age, true) over(partition by name) from student",
+      ignoreNullExpected
+    )
+
+    // test first_value/last_value respect nulls
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_FIRST_LAST_VALUE_NULL_TREATMENT,
+      ExecutionConfigOptions.FirstLastValueNullTreatment.IGNORE_NULLS)
+    checkResult(
+      "select name, first_value(age, false) over(partition by name)," +
+        " last_value(age, false) over(partition by name) from student",
+      respectNullExpected
+    )
   }
 }
 

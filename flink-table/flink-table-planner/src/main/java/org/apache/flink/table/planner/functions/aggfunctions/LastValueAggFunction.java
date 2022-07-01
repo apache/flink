@@ -32,20 +32,24 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.not;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.or;
 
-/** last_value function. */
-public class LastValueAggFunctionNew extends DeclarativeAggregateFunction {
+/** Built-in LAST_VALUE aggregate function. */
+public class LastValueAggFunction extends DeclarativeAggregateFunction {
 
-    private final DataType argDataType;
+    private final DataType[] argDataTypes;
     private final UnresolvedReferenceExpression lastValue = unresolvedRef("lastValue");
     private final UnresolvedReferenceExpression valueSet = unresolvedRef("valueSet");
+    private final boolean hasIgnoreNullArg;
+    private final boolean ignoreNullByDefault;
 
-    public LastValueAggFunctionNew(DataType argDataType) {
-        this.argDataType = argDataType;
+    public LastValueAggFunction(DataType[] argDataTypes, boolean nullTreatmentByDefault) {
+        this.argDataTypes = argDataTypes;
+        this.hasIgnoreNullArg = argDataTypes.length == 2;
+        this.ignoreNullByDefault = !nullTreatmentByDefault;
     }
 
     @Override
     public int operandCount() {
-        return 1;
+        return argDataTypes.length;
     }
 
     @Override
@@ -55,25 +59,66 @@ public class LastValueAggFunctionNew extends DeclarativeAggregateFunction {
 
     @Override
     public DataType[] getAggBufferTypes() {
-        return new DataType[] {argDataType, DataTypes.BOOLEAN().notNull()};
+        return new DataType[] {argDataTypes[0], DataTypes.BOOLEAN().notNull()};
     }
 
     @Override
     public DataType getResultType() {
-        return argDataType;
+        return argDataTypes[0];
     }
 
     @Override
     public Expression[] initialValuesExpressions() {
-        return new Expression[] {nullOf(argDataType), literal(false)};
+        return new Expression[] {nullOf(argDataTypes[0]), literal(false)};
     }
 
     @Override
     public Expression[] accumulateExpressions() {
-        return new Expression[] {
-            ifThenElse(isNull(operand(0)), lastValue, operand(0)),
-            or(valueSet, not(isNull(operand(0))))
-        };
+        // pseudo code:
+        // if (hasIgnoreNullArg) {
+        //   if (operand(1)) {
+        //     // ignore null
+        //     lastValue = operand(0) == null ? lastValue : operand(0)
+        //     valueSet = valueSet || operand(0) != null
+        //   } else {
+        //     // not ignore null
+        //     lastValue = operand(0)
+        //     valueSet = true
+        //   }
+        // } else {
+        //   // otherwise, if ignore null by default
+        //   if (nullTreatmentByDefault) {
+        //     lastValue = operand(0) == null ? lastValue : operand(0)
+        //     valueSet = valueSet || operand(0) != null
+        //   } else {
+        //     // if not ignore null by default
+        //     lastValue = operand(0)
+        //     valueSet = true
+        //   }
+        // }
+        if (hasIgnoreNullArg) {
+            return new Expression[] {
+                /* lastValue = */ ifThenElse(
+                        operand(1),
+                        ifThenElse(isNull(operand(0)), lastValue, operand(0)),
+                        operand(0)),
+                /* valueSet = */ ifThenElse(
+                        operand(1), or(valueSet, not(isNull(operand(0)))), literal(true))
+            };
+        } else {
+            // if ignore null by default
+            if (ignoreNullByDefault) {
+                return new Expression[] {
+                    /* lastValue = */ ifThenElse(isNull(operand(0)), lastValue, operand(0)),
+                    /* valueSet = */ or(valueSet, not(isNull(operand(0))))
+                };
+            } else {
+                // otherwise, not ignore null by default
+                return new Expression[] {
+                    /* lastValue = */ operand(0), /* valueSet = */ literal(true)
+                };
+            }
+        }
     }
 
     @Override
@@ -92,5 +137,10 @@ public class LastValueAggFunctionNew extends DeclarativeAggregateFunction {
     @Override
     public Expression getValueExpression() {
         return lastValue;
+    }
+
+    @Override
+    public boolean isDeterministic() {
+        return false;
     }
 }

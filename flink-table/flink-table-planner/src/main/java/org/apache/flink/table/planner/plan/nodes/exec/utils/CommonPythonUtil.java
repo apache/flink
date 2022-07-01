@@ -36,8 +36,8 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.CountAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunctionNew;
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunctionNew;
+import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.ListAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MaxAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MinAggFunction;
@@ -466,13 +466,13 @@ public class CommonPythonUtil {
         if (javaBuiltInAggregateFunction instanceof CountAggFunction) {
             return BuiltInPythonAggregateFunction.COUNT;
         }
-        if (javaBuiltInAggregateFunction instanceof FirstValueAggFunctionNew) {
+        if (javaBuiltInAggregateFunction instanceof FirstValueAggFunction) {
             return BuiltInPythonAggregateFunction.FIRST_VALUE;
         }
         if (javaBuiltInAggregateFunction instanceof FirstValueWithRetractAggFunction) {
             return BuiltInPythonAggregateFunction.FIRST_VALUE_RETRACT;
         }
-        if (javaBuiltInAggregateFunction instanceof LastValueAggFunctionNew) {
+        if (javaBuiltInAggregateFunction instanceof LastValueAggFunction) {
             return BuiltInPythonAggregateFunction.LAST_VALUE;
         }
         if (javaBuiltInAggregateFunction instanceof LastValueWithRetractAggFunction) {

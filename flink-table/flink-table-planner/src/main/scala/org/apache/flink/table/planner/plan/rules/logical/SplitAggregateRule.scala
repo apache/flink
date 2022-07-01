@@ -407,10 +407,6 @@ object SplitAggregateRule {
     MAX -> (Seq(MAX), Seq(MAX)),
     SUM -> (Seq(SUM), Seq(SUM)),
     SUM0 -> (Seq(SUM0), Seq(SUM0)),
-    FlinkSqlOperatorTable.FIRST_VALUE ->
-      (Seq(FlinkSqlOperatorTable.FIRST_VALUE), Seq(FlinkSqlOperatorTable.FIRST_VALUE)),
-    FlinkSqlOperatorTable.LAST_VALUE ->
-      (Seq(FlinkSqlOperatorTable.LAST_VALUE), Seq(FlinkSqlOperatorTable.LAST_VALUE)),
     FlinkSqlOperatorTable.LISTAGG ->
       (Seq(FlinkSqlOperatorTable.LISTAGG), Seq(FlinkSqlOperatorTable.LISTAGG)),
     SINGLE_VALUE -> (Seq(SINGLE_VALUE), Seq(SINGLE_VALUE))
@@ -435,8 +431,12 @@ object SplitAggregateRule {
     PARTIAL_FINAL_MAP.get(aggCall.getAggregation) match {
       case Some((partialAggFunctions, _)) => partialAggFunctions
       case _ =>
-        throw new TableException(
-          "Aggregation " + aggCall.getAggregation + " is not supported to split!")
+        aggCall.getAggregation match {
+          case _: SqlFirstLastValueAggFunction => Seq(aggCall.getAggregation)
+          case _ =>
+            throw new TableException(
+              "Aggregation " + aggCall.getAggregation + " is not supported to split!")
+        }
     }
   }
 
@@ -444,8 +444,12 @@ object SplitAggregateRule {
     PARTIAL_FINAL_MAP.get(aggCall.getAggregation) match {
       case Some((_, finalAggFunctions)) => finalAggFunctions
       case _ =>
-        throw new TableException(
-          "Aggregation " + aggCall.getAggregation + " is not supported to split!")
+        aggCall.getAggregation match {
+          case _: SqlFirstLastValueAggFunction => Seq(aggCall.getAggregation)
+          case _ =>
+            throw new TableException(
+              "Aggregation " + aggCall.getAggregation + " is not supported to split!")
+        }
     }
   }
 

@@ -789,19 +789,25 @@ class Expression(Generic[T]):
     def avg(self) -> 'Expression':
         return _unary_op("avg")(self)
 
-    @property
-    def first_value(self) -> 'Expression':
+    def first_value(self, ignore_nulls=None) -> 'Expression':
         """
         Returns the first value of field across all input values.
+        The parameters ignore_nulls means whether to ignore null or not.
         """
-        return _unary_op("firstValue")(self)
+        if ignore_nulls is None:
+            return _unary_op("firstValue")(self)
+        else:
+            return _binary_op("firstValue")(self, ignore_nulls)
 
-    @property
-    def last_value(self) -> 'Expression':
+    def last_value(self, ignore_nulls=None) -> 'Expression':
         """
         Returns the last value of field across all input values.
+        The parameters ignore_nulls means whether to ignore null or not.
         """
-        return _unary_op("lastValue")(self)
+        if ignore_nulls is None:
+            return _unary_op("lastValue")(self)
+        else:
+            return _binary_op("lastValue")(self, ignore_nulls)
 
     @property
     def stddev_pop(self) -> 'Expression':

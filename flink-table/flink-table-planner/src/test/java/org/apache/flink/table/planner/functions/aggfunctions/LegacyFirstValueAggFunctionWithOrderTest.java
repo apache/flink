@@ -24,7 +24,7 @@ import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.runtime.functions.aggregate.FirstValueAggOldFunction;
+import org.apache.flink.table.runtime.functions.aggregate.LegacyFirstValueAggFunction;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -46,7 +46,7 @@ import java.util.List;
  * order argument.
  */
 @RunWith(Enclosed.class)
-public final class FirstValueAggOldFunctionWithOrderTest {
+public final class LegacyFirstValueAggFunctionWithOrderTest {
 
     // --------------------------------------------------------------------------------------------
     // Test sets for a particular type being aggregated
@@ -57,8 +57,8 @@ public final class FirstValueAggOldFunctionWithOrderTest {
     // --------------------------------------------------------------------------------------------
 
     /** Test for {@link TinyIntType}. */
-    public static final class ByteFirstValueAggOldFunctionWithOrderTest
-            extends NumberFirstValueAggOldFunctionWithOrderTestBase<Byte> {
+    public static final class ByteLegacyFirstValueAggOldFunctionWithOrderTest
+            extends NumberLegacyFirstValueAggOldFunctionWithOrderTestBase<Byte> {
 
         @Override
         protected Byte getValue(String v) {
@@ -67,13 +67,13 @@ public final class FirstValueAggOldFunctionWithOrderTest {
 
         @Override
         protected AggregateFunction<Byte, RowData> getAggregator() {
-            return new FirstValueAggOldFunction<>(DataTypes.TINYINT().getLogicalType());
+            return new LegacyFirstValueAggFunction<>(DataTypes.TINYINT().getLogicalType());
         }
     }
 
     /** Test for {@link ShortType}. */
-    public static final class ShortFirstValueAggOldFunctionWithOrderTest
-            extends NumberFirstValueAggOldFunctionWithOrderTestBase<Short> {
+    public static final class ShortLegacyFirstValueAggOldFunctionWithOrderTest
+            extends NumberLegacyFirstValueAggOldFunctionWithOrderTestBase<Short> {
 
         @Override
         protected Short getValue(String v) {
@@ -82,13 +82,13 @@ public final class FirstValueAggOldFunctionWithOrderTest {
 
         @Override
         protected AggregateFunction<Short, RowData> getAggregator() {
-            return new FirstValueAggOldFunction<>(DataTypes.SMALLINT().getLogicalType());
+            return new LegacyFirstValueAggFunction<>(DataTypes.SMALLINT().getLogicalType());
         }
     }
 
     /** Test for {@link IntType}. */
-    public static final class IntFirstValueAggOldFunctionWithOrderTest
-            extends NumberFirstValueAggOldFunctionWithOrderTestBase<Integer> {
+    public static final class IntLegacyFirstValueAggOldFunctionWithOrderTest
+            extends NumberLegacyFirstValueAggOldFunctionWithOrderTestBase<Integer> {
 
         @Override
         protected Integer getValue(String v) {
@@ -97,13 +97,13 @@ public final class FirstValueAggOldFunctionWithOrderTest {
 
         @Override
         protected AggregateFunction<Integer, RowData> getAggregator() {
-            return new FirstValueAggOldFunction<>(DataTypes.INT().getLogicalType());
+            return new LegacyFirstValueAggFunction<>(DataTypes.INT().getLogicalType());
         }
     }
 
     /** Test for {@link BigIntType}. */
-    public static final class LongFirstValueAggOldFunctionWithOrderTest
-            extends NumberFirstValueAggOldFunctionWithOrderTestBase<Long> {
+    public static final class LongLegacyFirstValueAggOldFunctionWithOrderTest
+            extends NumberLegacyFirstValueAggOldFunctionWithOrderTestBase<Long> {
 
         @Override
         protected Long getValue(String v) {
@@ -112,13 +112,13 @@ public final class FirstValueAggOldFunctionWithOrderTest {
 
         @Override
         protected AggregateFunction<Long, RowData> getAggregator() {
-            return new FirstValueAggOldFunction<>(DataTypes.BIGINT().getLogicalType());
+            return new LegacyFirstValueAggFunction<>(DataTypes.BIGINT().getLogicalType());
         }
     }
 
     /** Test for {@link FloatType}. */
-    public static final class FloatFirstValueAggOldFunctionWithOrderTest
-            extends NumberFirstValueAggOldFunctionWithOrderTestBase<Float> {
+    public static final class FloatLegacyFirstValueAggOldFunctionWithOrderTest
+            extends NumberLegacyFirstValueAggOldFunctionWithOrderTestBase<Float> {
 
         @Override
         protected Float getValue(String v) {
@@ -127,13 +127,13 @@ public final class FirstValueAggOldFunctionWithOrderTest {
 
         @Override
         protected AggregateFunction<Float, RowData> getAggregator() {
-            return new FirstValueAggOldFunction<>(DataTypes.FLOAT().getLogicalType());
+            return new LegacyFirstValueAggFunction<>(DataTypes.FLOAT().getLogicalType());
         }
     }
 
     /** Test for {@link DoubleType}. */
-    public static final class DoubleFirstValueAggOldFunctionWithOrderTest
-            extends NumberFirstValueAggOldFunctionWithOrderTestBase<Double> {
+    public static final class DoubleLegacyFirstValueAggOldFunctionWithOrderTest
+            extends NumberLegacyFirstValueAggOldFunctionWithOrderTestBase<Double> {
 
         @Override
         protected Double getValue(String v) {
@@ -142,13 +142,13 @@ public final class FirstValueAggOldFunctionWithOrderTest {
 
         @Override
         protected AggregateFunction<Double, RowData> getAggregator() {
-            return new FirstValueAggOldFunction<>(DataTypes.DOUBLE().getLogicalType());
+            return new LegacyFirstValueAggFunction<>(DataTypes.DOUBLE().getLogicalType());
         }
     }
 
     /** Test for {@link BooleanType}. */
-    public static final class BooleanFirstValueAggOldFunctionWithOrderTest
-            extends FirstValueAggOldFunctionWithOrderTestBase<Boolean> {
+    public static final class BooleanLegacyValueAggOldFunctionWithOrderTest
+            extends LegacyValueAggOldFunctionWithOrderTestBase<Boolean> {
 
         @Override
         protected List<List<Boolean>> getInputValueSets() {
@@ -177,13 +177,13 @@ public final class FirstValueAggOldFunctionWithOrderTest {
 
         @Override
         protected AggregateFunction<Boolean, RowData> getAggregator() {
-            return new FirstValueAggOldFunction<>(DataTypes.BOOLEAN().getLogicalType());
+            return new LegacyFirstValueAggFunction<>(DataTypes.BOOLEAN().getLogicalType());
         }
     }
 
     /** Test for {@link DecimalType}. */
-    public static final class DecimalFirstValueAggOldFunctionWithOrderTest
-            extends FirstValueAggOldFunctionWithOrderTestBase<DecimalData> {
+    public static final class DecimalLegacyValueAggOldFunctionWithOrderTest
+            extends LegacyValueAggOldFunctionWithOrderTestBase<DecimalData> {
 
         private int precision = 20;
         private int scale = 6;
@@ -223,14 +223,14 @@ public final class FirstValueAggOldFunctionWithOrderTest {
 
         @Override
         protected AggregateFunction<DecimalData, RowData> getAggregator() {
-            return new FirstValueAggOldFunction<>(
+            return new LegacyFirstValueAggFunction<>(
                     DataTypes.DECIMAL(precision, scale).getLogicalType());
         }
     }
 
     /** Test for {@link VarCharType}. */
-    public static final class StringFirstValueAggOldFunctionWithOrderTest
-            extends FirstValueAggOldFunctionWithOrderTestBase<StringData> {
+    public static final class StringLegacyValueAggOldFunctionWithOrderTest
+            extends LegacyValueAggOldFunctionWithOrderTestBase<StringData> {
 
         @Override
         protected List<List<StringData>> getInputValueSets() {
@@ -268,7 +268,7 @@ public final class FirstValueAggOldFunctionWithOrderTest {
 
         @Override
         protected AggregateFunction<StringData, RowData> getAggregator() {
-            return new FirstValueAggOldFunction<>(DataTypes.STRING().getLogicalType());
+            return new LegacyFirstValueAggFunction<>(DataTypes.STRING().getLogicalType());
         }
     }
 
@@ -278,9 +278,9 @@ public final class FirstValueAggOldFunctionWithOrderTest {
     // for tests declared above.
     // --------------------------------------------------------------------------------------------
 
-    /** Test base for {@link FirstValueAggOldFunction}. */
-    public abstract static class FirstValueAggOldFunctionWithOrderTestBase<T>
-            extends FirstLastValueAggOldFunctionWithOrderTestBase<T, RowData> {
+    /** Test base for {@link LegacyFirstValueAggFunction}. */
+    public abstract static class LegacyValueAggOldFunctionWithOrderTestBase<T>
+            extends FirstLastValueAggFunctionWithOrderTestBase<T, RowData> {
 
         @Override
         protected Class<?> getAccClass() {
@@ -288,9 +288,9 @@ public final class FirstValueAggOldFunctionWithOrderTest {
         }
     }
 
-    /** Test base for {@link FirstValueAggOldFunction} with number types. */
-    public abstract static class NumberFirstValueAggOldFunctionWithOrderTestBase<T>
-            extends FirstValueAggOldFunctionWithOrderTestBase<T> {
+    /** Test base for {@link LegacyFirstValueAggFunction} with number types. */
+    public abstract static class NumberLegacyFirstValueAggOldFunctionWithOrderTestBase<T>
+            extends LegacyValueAggOldFunctionWithOrderTestBase<T> {
 
         protected abstract T getValue(String v);
 

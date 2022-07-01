@@ -142,7 +142,7 @@ public class PlannerContext {
                 .parserConfig(getSqlParserConfig())
                 .costFactory(new FlinkCostFactory())
                 .typeSystem(typeSystem)
-                .convertletTable(new FlinkConvertletTable(context.getTableConfig()))
+                .convertletTable(FlinkConvertletTable.INSTANCE)
                 .sqlToRelConverterConfig(getSqlToRelConverterConfig())
                 .operatorTable(getSqlOperatorTable(getCalciteConfig()))
                 // set the executor to evaluate constant expressions
@@ -315,6 +315,6 @@ public class PlannerContext {
                         context.getCatalogManager().getDataTypeFactory(),
                         typeFactory,
                         context.getRexFactory()),
-                FlinkSqlOperatorTable.instance());
+                FlinkSqlOperatorTable.instance(context.getTableConfig()));
     }
 }

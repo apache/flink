@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions;
 
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -32,6 +33,7 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionRequirement;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction;
@@ -66,10 +68,6 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
         AGG_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.MAX, FlinkSqlOperatorTable.MAX);
         AGG_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.MIN, FlinkSqlOperatorTable.MIN);
         AGG_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SUM, FlinkSqlOperatorTable.SUM);
-        AGG_DEF_SQL_OPERATOR_MAPPING.put(
-                BuiltInFunctionDefinitions.FIRST_VALUE, FlinkSqlOperatorTable.FIRST_VALUE);
-        AGG_DEF_SQL_OPERATOR_MAPPING.put(
-                BuiltInFunctionDefinitions.LAST_VALUE, FlinkSqlOperatorTable.LAST_VALUE);
         AGG_DEF_SQL_OPERATOR_MAPPING.put(
                 BuiltInFunctionDefinitions.SUM0, FlinkSqlOperatorTable.SUM0);
         AGG_DEF_SQL_OPERATOR_MAPPING.put(
@@ -112,6 +110,16 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
         if (AGG_DEF_SQL_OPERATOR_MAPPING.containsKey(definition)) {
             return AGG_DEF_SQL_OPERATOR_MAPPING.get(definition);
         }
+        // special case for first_value and last_value, which aren't static field in
+        // FlinkSqlOperatorTable
+        if (definition == BuiltInFunctionDefinitions.FIRST_VALUE) {
+            return FlinkSqlOperatorTable.instance(getTableConfig()).firstValue;
+        }
+
+        if (definition == BuiltInFunctionDefinitions.LAST_VALUE) {
+            return FlinkSqlOperatorTable.instance(getTableConfig()).lastValue;
+        }
+
         if (BuiltInFunctionDefinitions.DISTINCT == definition) {
             Expression innerAgg = call.getChildren().get(0);
             return innerAgg.accept(this);
@@ -183,6 +191,10 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
                 ShortcutUtils.unwrapTypeFactory(relBuilder),
                 false,
                 scala.Option.empty());
+    }
+
+    private TableConfig getTableConfig() {
+        return ((FlinkContext) relBuilder.getCluster().getPlanner().getContext()).getTableConfig();
     }
 
     @Override

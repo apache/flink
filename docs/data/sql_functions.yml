@@ -994,11 +994,15 @@ aggregate:
     description: Returns the value of expression at the offsetth row after the current row in the window. The default value of offset is 1 and the default value of default is NULL.
   - sql: LAG(expression [, offset] [, default])
     description: Returns the value of expression at the offsetth row before the current row in the window. The default value of offset is 1 and the default value of default is NULL.
-  - sql: FIRST_VALUE(expression)
-    table: FIELD.firstValue
-    description: Returns the first value in an ordered set of values.
-  - sql: LAST_VALUE(expression)
-    table: FIELD.lastValue
-    description: Returns the last value in an ordered set of values.
+  - sql: FIRST_VALUE(expression [, ignoreNULLs])
+    table: FIELD.firstValue([ ignoreNULLs ])
+    description: |
+      Returns the first value in an ordered set of values. The parameter ignoreNULLs means whether to ignore NULL or not.
+      If the parameter ignoreNULLs is not specified, the default behavior is defined by [table.exec.first-last-value.null-treatment]({{< ref "docs/dev/table/config" >}}#table-exec-first-last-value-null-treatment).
+  - sql: LAST_VALUE(expression [, ignoreNULLs])
+    table: FIELD.lastValue([ ignoreNULLs ])
+    description: |
+      Returns the last value in an ordered set of values. The parameter ignoreNULLs means whether to ignore NULL or not.
+      If the parameter ignoreNULLs is not specified, the default behavior is defined by [table.exec.first-last-value.null-treatment]({{< ref "docs/dev/table/config" >}}#table-exec-first-last-value-null-treatment).
   - sql: LISTAGG(expression [, separator])
     description: Concatenates the values of string expressions and places separator values between them. The separator is not added at the end of string. The default value of separator is ','.

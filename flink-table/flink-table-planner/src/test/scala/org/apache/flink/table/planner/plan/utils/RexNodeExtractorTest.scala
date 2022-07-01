@@ -411,7 +411,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     // first_value(id) == 100
     val condition2 = rexBuilder.makeCall(
       SqlStdOperatorTable.EQUALS,
-      rexBuilder.makeCall(FlinkSqlOperatorTable.FIRST_VALUE, t1),
+      rexBuilder.makeCall(FlinkSqlOperatorTable.instance(TableConfig.getDefault).firstValue, t1),
       t2)
 
     val complexExpr = rexBuilder.makeCall(SqlStdOperatorTable.AND, condition1, condition2)

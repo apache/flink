@@ -2027,7 +2027,7 @@ SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0
     } ]
   } ]
 }]]>
-	</Resource>
+    </Resource>
   </TestCase>
   <TestCase name="testHashWindowAggregate[isNameSimplifyEnabled=false]">
     <Resource name="explain">
@@ -2097,8 +2097,8 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     </Resource>
   </TestCase>
   <TestCase name="testMatch[isNameSimplifyEnabled=false]">
-	<Resource name="explain">
- <![CDATA[== Abstract Syntax Tree ==
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(aid=[$0], bid=[$1], cid=[$2])
 +- LogicalMatch(partition=[[]], order=[[5 ASC-nulls-first]], outputFields=[[aid, bid, cid]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[=(LAST(*.$0, 0), 1), =(LAST(*.$1, 0), 2), =(LAST(*.$2, 0), _UTF-16LE'c')]], inputFields=[[a, b, c, d, rowtime, proctime]])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
@@ -2148,10 +2148,10 @@ Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, F
     } ]
   } ]
 }]]>
-   </Resource>
+    </Resource>
   </TestCase>
   <TestCase name="testMatch[isNameSimplifyEnabled=true]">
-	<Resource name="explain">
+    <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(aid=[$0], bid=[$1], cid=[$2])
 +- LogicalMatch(partition=[[]], order=[[5 ASC-nulls-first]], outputFields=[[aid, bid, cid]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[=(LAST(*.$0, 0), 1), =(LAST(*.$1, 0), 2), =(LAST(*.$2, 0), _UTF-16LE'c')]], inputFields=[[a, b, c, d, rowtime, proctime]])
@@ -2202,6 +2202,6 @@ Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, F
     } ]
   } ]
 }]]>
-	</Resource>
+    </Resource>
   </TestCase>
 </Root>

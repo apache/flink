@@ -347,13 +347,14 @@ LogicalAggregate(group=[{0}], EXPR$1=[FIRST_VALUE($1)], EXPR$2=[COUNT(DISTINCT $
       <![CDATA[
 GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, FIRST_VALUE_RETRACT($f3_0) AS $f1, $SUM0_RETRACT($f4_0) AS $f2])
 +- Exchange(distribution=[hash[a]])
-   +- GroupAggregate(groupBy=[a, $f3, $f4], partialFinalType=[PARTIAL], select=[a, $f3, $f4, FIRST_VALUE(c) FILTER $g_2 AS $f3_0, COUNT(DISTINCT b) FILTER $g_1 AS $f4_0])
+   +- GlobalGroupAggregate(groupBy=[a, $f3, $f4], partialFinalType=[PARTIAL], select=[a, $f3, $f4, FIRST_VALUE((firstValue$0, valueSet$1)) AS $f3_0, COUNT(distinct$0 count$2) AS $f4_0])
       +- Exchange(distribution=[hash[a, $f3, $f4]])
-         +- Calc(select=[a, b, c, $f3, $f4, ($e = 2) AS $g_2, ($e = 1) AS $g_1])
-            +- Expand(projects=[{a, b, c, $f3, null AS $f4, 1 AS $e}, {a, b, c, null AS $f3, $f4, 2 AS $e}])
-               +- Calc(select=[a, b, c, MOD(HASH_CODE(b), 1024) AS $f3, MOD(HASH_CODE(c), 1024) AS $f4])
-                  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LocalGroupAggregate(groupBy=[a, $f3, $f4], partialFinalType=[PARTIAL], select=[a, $f3, $f4, FIRST_VALUE(c) FILTER $g_2 AS (firstValue$0, valueSet$1), COUNT(distinct$0 b) FILTER $g_1 AS count$2, DISTINCT(b) AS distinct$0])
+            +- Calc(select=[a, b, c, $f3, $f4, ($e = 2) AS $g_2, ($e = 1) AS $g_1])
+               +- Expand(projects=[{a, b, c, $f3, null AS $f4, 1 AS $e}, {a, b, c, null AS $f3, $f4, 2 AS $e}])
+                  +- Calc(select=[a, b, c, MOD(HASH_CODE(b), 1024) AS $f3, MOD(HASH_CODE(c), 1024) AS $f4])
+                     +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -372,13 +373,14 @@ LogicalAggregate(group=[{0}], EXPR$1=[LAST_VALUE($1)], EXPR$2=[COUNT(DISTINCT $2
       <![CDATA[
 GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, LAST_VALUE_RETRACT($f3_0) AS $f1, $SUM0_RETRACT($f4_0) AS $f2])
 +- Exchange(distribution=[hash[a]])
-   +- GroupAggregate(groupBy=[a, $f3, $f4], partialFinalType=[PARTIAL], select=[a, $f3, $f4, LAST_VALUE(c) FILTER $g_2 AS $f3_0, COUNT(DISTINCT b) FILTER $g_1 AS $f4_0])
+   +- GlobalGroupAggregate(groupBy=[a, $f3, $f4], partialFinalType=[PARTIAL], select=[a, $f3, $f4, LAST_VALUE((lastValue$0, valueSet$1)) AS $f3_0, COUNT(distinct$0 count$2) AS $f4_0])
       +- Exchange(distribution=[hash[a, $f3, $f4]])
-         +- Calc(select=[a, b, c, $f3, $f4, ($e = 2) AS $g_2, ($e = 1) AS $g_1])
-            +- Expand(projects=[{a, b, c, $f3, null AS $f4, 1 AS $e}, {a, b, c, null AS $f3, $f4, 2 AS $e}])
-               +- Calc(select=[a, b, c, MOD(HASH_CODE(b), 1024) AS $f3, MOD(HASH_CODE(c), 1024) AS $f4])
-                  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LocalGroupAggregate(groupBy=[a, $f3, $f4], partialFinalType=[PARTIAL], select=[a, $f3, $f4, LAST_VALUE(c) FILTER $g_2 AS (lastValue$0, valueSet$1), COUNT(distinct$0 b) FILTER $g_1 AS count$2, DISTINCT(b) AS distinct$0])
+            +- Calc(select=[a, b, c, $f3, $f4, ($e = 2) AS $g_2, ($e = 1) AS $g_1])
+               +- Expand(projects=[{a, b, c, $f3, null AS $f4, 1 AS $e}, {a, b, c, null AS $f3, $f4, 2 AS $e}])
+                  +- Calc(select=[a, b, c, MOD(HASH_CODE(b), 1024) AS $f3, MOD(HASH_CODE(c), 1024) AS $f4])
+                     +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

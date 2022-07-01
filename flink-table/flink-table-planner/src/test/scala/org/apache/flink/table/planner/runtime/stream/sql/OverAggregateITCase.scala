@@ -17,12 +17,14 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestData, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestData, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeProcessOperator
@@ -1336,5 +1338,66 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "6.660000000000000000",
       "11.100000000000000000")
     assertEquals(expected, sink.getAppendResults)
+  }
+
+  @Test
+  def testFirstLastValue(): Unit = {
+    val data = new mutable.MutableList[Row]
+    data.+=(Row.of("1", "Bob", null))
+    data.+=(Row.of("2", "Bob", Int.box(12)))
+    data.+=(Row.of("3", "Alice", Int.box(14)))
+    data.+=(Row.of("4", "Alice", null))
+
+    env.setParallelism(1)
+    val rowType = new RowTypeInfo(STRING_TYPE_INFO, STRING_TYPE_INFO, INT_TYPE_INFO)
+    val t = failingDataSource(data)(rowType)
+      .toTable(tEnv, 'id, 'name, 'age, 'proctime.proctime)
+    tEnv.registerTable("student", t)
+
+    val respectNullExpected = List("Bob,null,null", "Bob,null,12", "Alice,14,14", "Alice,14,null")
+    val ignoreNullExpected = List("Bob,null,null", "Bob,12,12", "Alice,14,14", "Alice,14,14")
+
+    // default is respect nulls
+    var sqlQuery = "select name, first_value(age) over(partition by name order by proctime" +
+      " ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)," +
+      " last_value(age) over(partition by name order by proctime" +
+      " ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) from student"
+    var result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    var sink = new TestingRetractSink()
+    result.addSink(sink)
+    env.execute()
+    assertEquals(respectNullExpected, sink.getRetractResults)
+
+    // modify configuration to ignore nulls by default
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_FIRST_LAST_VALUE_NULL_TREATMENT,
+      ExecutionConfigOptions.FirstLastValueNullTreatment.IGNORE_NULLS)
+    sink = new TestingRetractSink()
+    result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink)
+    env.execute()
+    assertEquals(ignoreNullExpected, sink.getRetractResults)
+
+    // test first_value/last_value ignore nulls
+    sqlQuery = "select name, first_value(age, true) over(partition by name order by proctime" +
+      " ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)," +
+      " last_value(age, true) over(partition by name order by proctime" +
+      " ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) from student"
+    sink = new TestingRetractSink()
+    result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink)
+    env.execute()
+    assertEquals(ignoreNullExpected, sink.getRetractResults)
+
+    // test first_value/last_value respect nulls
+    sqlQuery = "select name, first_value(age, false) over(partition by name order by proctime" +
+      " ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)," +
+      " last_value(age, false) over(partition by name order by proctime" +
+      " ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) from student"
+    sink = new TestingRetractSink()
+    result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink)
+    env.execute()
+    assertEquals(respectNullExpected, sink.getRetractResults)
   }
 }

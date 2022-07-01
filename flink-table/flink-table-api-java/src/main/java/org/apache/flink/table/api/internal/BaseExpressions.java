@@ -458,14 +458,40 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(unresolvedCall(AVG, toExpr()));
     }
 
-    /** Returns the first value of field across all input values. */
+    /**
+     * Returns the first value of field across all input values. Whether it will ignore nulls or not
+     * depends on {@link ExecutionConfigOptions#TABLE_EXEC_FIRST_LAST_VALUE_NULL_TREATMENT}.
+     */
     public OutType firstValue() {
         return toApiSpecificExpression(unresolvedCall(FIRST_VALUE, toExpr()));
     }
 
-    /** Returns the last value of field across all input values. */
+    /**
+     * Returns the first value of field across all input values, {@param ignoreNull} is for ignore
+     * null or not.
+     */
+    public OutType firstValue(InType ignoreNull) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        FIRST_VALUE, toExpr(), ApiExpressionUtils.objectToExpression(ignoreNull)));
+    }
+
+    /**
+     * Returns the last value of field across all input values. Whether it will ignore nulls or not
+     * depends on {@link ExecutionConfigOptions#TABLE_EXEC_FIRST_LAST_VALUE_NULL_TREATMENT}.
+     */
     public OutType lastValue() {
         return toApiSpecificExpression(unresolvedCall(LAST_VALUE, toExpr()));
+    }
+
+    /**
+     * Returns the last value of field across all input values. {@param ignoreNull} is for ignore
+     * null or not.
+     */
+    public OutType lastValue(InType ignoreNull) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        LAST_VALUE, toExpr(), ApiExpressionUtils.objectToExpression(ignoreNull)));
     }
 
     /** Returns the population standard deviation of an expression (the square root of varPop()). */

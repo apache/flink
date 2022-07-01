@@ -47,6 +47,12 @@ By default no operator is disabled.</td>
             <td>Determines whether CAST will operate following the legacy behaviour or the new one that introduces various fixes and improvements.<br /><br />Possible values:<ul><li>"ENABLED": CAST will operate following the legacy behaviour.</li><li>"DISABLED": CAST will operate following the new correct behaviour.</li></ul></td>
         </tr>
         <tr>
+            <td><h5>table.exec.first-last-value.null-treatment</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">RESPECT_NULLS</td>
+            <td><p>Enum</p></td>
+            <td>Determines whether FIRST_VALUE/LAST_VALUE will respect nulls or ignore nulls by default. The default is to respect nulls.<br /><br />Possible values:<ul><li>"RESPECT_NULLS": FIRST_VALUE/LAST_VALUE will respect nulls by default.</li><li>"IGNORE_NULLS": FIRST_VALUE/LAST_VALUE will ignore nulls by default.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.exec.mini-batch.allow-latency</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">0 ms</td>
             <td>Duration</td>

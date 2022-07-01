@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.functions.sql;
 
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.internal.SqlAuxiliaryGroupAggFunction;
 import org.apache.flink.table.planner.plan.type.FlinkReturnTypes;
@@ -57,18 +59,29 @@ import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_
 /** Operator table that contains only Flink-specific functions and operators. */
 public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
-    /** The table of contains Flink-specific operators. */
-    private static FlinkSqlOperatorTable instance;
+    // the default behavior for function FIRST_VALUE/LAST_VALUE will change according to user's
+    // configuration, so make them non-static fields.
+    /** <code>FIRST_VALUE</code> aggregate function. */
+    public SqlFirstLastValueAggFunction firstValue;
+    /** <code>LAST_VALUE</code> aggregate function. */
+    public SqlFirstLastValueAggFunction lastValue;
+
+    private FlinkSqlOperatorTable(TableConfig tableConfig) {
+        boolean nullTreatment =
+                !tableConfig
+                        .get(ExecutionConfigOptions.TABLE_EXEC_FIRST_LAST_VALUE_NULL_TREATMENT)
+                        .ignoreNull();
+        firstValue = new SqlFirstLastValueAggFunction(SqlKind.FIRST_VALUE, nullTreatment);
+        lastValue = new SqlFirstLastValueAggFunction(SqlKind.LAST_VALUE, nullTreatment);
+    }
 
     /** Returns the Flink operator table, creating it if necessary. */
-    public static synchronized FlinkSqlOperatorTable instance() {
-        if (instance == null) {
-            // Creates and initializes the standard operator table.
-            // Uses two-phase construction, because we can't initialize the
-            // table until the constructor of the sub-class has completed.
-            instance = new FlinkSqlOperatorTable();
-            instance.init();
-        }
+    public static FlinkSqlOperatorTable instance(TableConfig tableConfig) {
+        // Creates and initializes the standard operator table.
+        // Uses two-phase construction, because we can't initialize the
+        // table until the constructor of the sub-class has completed.
+        FlinkSqlOperatorTable instance = new FlinkSqlOperatorTable(tableConfig);
+        instance.init();
         return instance;
     }
 
@@ -877,14 +890,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
     /** <code>AUXILIARY_GROUP</code> aggregate function. Only be used in internally. */
     public static final SqlAggFunction AUXILIARY_GROUP = new SqlAuxiliaryGroupAggFunction();
-
-    /** <code>FIRST_VALUE</code> aggregate function. */
-    public static final SqlFirstLastValueAggFunction FIRST_VALUE =
-            new SqlFirstLastValueAggFunction(SqlKind.FIRST_VALUE);
-
-    /** <code>LAST_VALUE</code> aggregate function. */
-    public static final SqlFirstLastValueAggFunction LAST_VALUE =
-            new SqlFirstLastValueAggFunction(SqlKind.LAST_VALUE);
 
     /** <code>LISTAGG</code> aggregate function. */
     public static final SqlListAggFunction LISTAGG = new SqlListAggFunction();
