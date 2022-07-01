@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connectors.hive.HiveDynamicTableFactory;
 import org.apache.flink.connectors.hive.HiveTableFactory;
 import org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils;
@@ -1725,6 +1726,76 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     @Override
+    public List<CatalogTableStatistics> getPartitionsStatistics(
+            ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
+            throws PartitionNotExistException, CatalogException {
+
+        return getPartitions(tablePath, partitionSpecs).f0.stream()
+                .map(p -> createCatalogTableStatistics(p.getParameters()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * @return Partitions and names of partitions
+     */
+    private Tuple2<List<Partition>, List<String>> getPartitions(
+            ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
+            throws PartitionNotExistException, CatalogException {
+
+        checkNotNull(partitionSpecs);
+
+        // if TableNotExistException is thrown while getting the hive table,
+        // use the first partitionSpec to a new PartitionNotExistException.
+        CatalogPartitionSpec partitionSpec = partitionSpecs.get(0);
+        List<Partition> partitions = new ArrayList<>(partitionSpecs.size());
+        List<String> partitionsNames = new ArrayList<>(partitionSpecs.size());
+
+        try {
+            Table hiveTable = getHiveTable(tablePath);
+
+            for (CatalogPartitionSpec partSpec : partitionSpecs) {
+                partitionSpec = partSpec;
+                partitionsNames.add(getEscapedPartitionName(tablePath, partSpec, hiveTable));
+            }
+
+            partitions.addAll(
+                    client.getPartitionsByNames(
+                            hiveTable.getDbName(), hiveTable.getTableName(), partitionsNames));
+        } catch (TableNotExistException | PartitionSpecInvalidException e) {
+            throw new PartitionNotExistException(getName(), tablePath, partitionSpec, e);
+        } catch (TException e) {
+            throw new CatalogException(
+                    String.format(
+                            "Failed to get partition stats of table %s 's partition %s",
+                            tablePath.getFullName(), String.valueOf(partitionSpec)),
+                    e);
+        }
+
+        return Tuple2.of(partitions, partitionsNames);
+    }
+
+    private Tuple2<Table, List<String>> getPartitionsNames(
+            ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
+            throws PartitionNotExistException {
+
+        CatalogPartitionSpec partitionSpec = partitionSpecs.get(0);
+        List<String> partitionsNames = new ArrayList<>(partitionSpecs.size());
+        Table hiveTable = null;
+
+        try {
+            hiveTable = getHiveTable(tablePath);
+
+            for (CatalogPartitionSpec partSpec : partitionSpecs) {
+                partitionSpec = partSpec;
+                partitionsNames.add(getEscapedPartitionName(tablePath, partSpec, hiveTable));
+            }
+        } catch (TableNotExistException | PartitionSpecInvalidException e) {
+            throw new PartitionNotExistException(getName(), tablePath, partitionSpec, e);
+        }
+        return Tuple2.of(hiveTable, partitionsNames);
+    }
+
+    @Override
     public CatalogColumnStatistics getPartitionColumnStatistics(
             ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
             throws PartitionNotExistException, CatalogException {
@@ -1757,6 +1828,49 @@ public class HiveCatalog extends AbstractCatalog {
                             tablePath.getFullName(), String.valueOf(partitionSpec)),
                     e);
         }
+    }
+
+    @Override
+    public List<CatalogColumnStatistics> getPartitionsColumnStatistics(
+            ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
+            throws PartitionNotExistException, CatalogException {
+
+        checkNotNull(partitionSpecs);
+
+        List<CatalogColumnStatistics> result = new ArrayList<>(partitionSpecs.size());
+
+        final Tuple2<Table, List<String>> partitionsTuple2 =
+                getPartitionsNames(tablePath, partitionSpecs);
+
+        try {
+            Map<String, List<ColumnStatisticsObj>> partitionColumnStatistics =
+                    client.getPartitionColumnStatistics(
+                            partitionsTuple2.f0.getDbName(),
+                            partitionsTuple2.f0.getTableName(),
+                            partitionsTuple2.f1,
+                            getFieldNames(partitionsTuple2.f0.getSd().getCols()));
+
+            for (String partitionName : partitionsTuple2.f1) {
+                List<ColumnStatisticsObj> columnStatisticsObjs =
+                        partitionColumnStatistics.get(partitionName);
+                if (columnStatisticsObjs != null && !columnStatisticsObjs.isEmpty()) {
+                    result.add(
+                            new CatalogColumnStatistics(
+                                    HiveStatsUtil.createCatalogColumnStats(
+                                            columnStatisticsObjs, hiveVersion)));
+                } else {
+                    result.add(CatalogColumnStatistics.UNKNOWN);
+                }
+            }
+        } catch (TException e) {
+            throw new CatalogException(
+                    String.format(
+                            "Failed to get table stats of table %s 's partitions %s",
+                            tablePath.getFullName(), String.valueOf(partitionSpecs)),
+                    e);
+        }
+
+        return result;
     }
 
     @Override

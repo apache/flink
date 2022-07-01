@@ -63,6 +63,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -79,6 +80,7 @@ import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.USERNAM
 import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory.IDENTIFIER;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Abstract catalog for any JDBC catalogs. */
 public abstract class AbstractJdbcCatalog extends AbstractCatalog {
@@ -436,6 +438,38 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
             ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
             throws PartitionNotExistException, CatalogException {
         return CatalogTableStatistics.UNKNOWN;
+    }
+
+    @Override
+    public List<CatalogTableStatistics> getPartitionsStatistics(
+            ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
+            throws PartitionNotExistException, CatalogException {
+
+        checkNotNull(partitionSpecs);
+        int size = partitionSpecs.size();
+
+        List<CatalogTableStatistics> result = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            result.add(CatalogTableStatistics.UNKNOWN);
+        }
+
+        return result;
+    }
+
+    @Override
+    public List<CatalogColumnStatistics> getPartitionsColumnStatistics(
+            ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
+            throws PartitionNotExistException, CatalogException {
+
+        checkNotNull(partitionSpecs);
+        int size = partitionSpecs.size();
+
+        List<CatalogColumnStatistics> result = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            result.add(CatalogColumnStatistics.UNKNOWN);
+        }
+
+        return result;
     }
 
     @Override
