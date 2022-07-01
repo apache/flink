@@ -1156,7 +1156,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                     table.getResolvedTable(),
                                                     showCreateTableOperation.getTableIdentifier(),
                                                     table.isTemporary()))))
-                    .rowCount(1)
                     .build();
 
         } else if (operation instanceof ShowCreateViewOperation) {
@@ -1183,7 +1182,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                     table.getResolvedTable(),
                                                     showCreateViewOperation.getViewIdentifier(),
                                                     table.isTemporary()))))
-                    .rowCount(1)
                     .build();
         } else if (operation instanceof ShowCurrentCatalogOperation) {
             return buildShowResult(
@@ -1297,7 +1295,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                     .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
                     .data(Collections.singletonList(Row.of(explanation)))
-                    .rowCount(1)
                     .build();
         } else if (operation instanceof DescribeTableOperation) {
             DescribeTableOperation describeTableOperation = (DescribeTableOperation) operation;
@@ -1527,7 +1524,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 Integer.MAX_VALUE,
                                 true,
                                 false))
-                .rowCount(rows.length)
                 .build();
     }
 

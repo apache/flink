@@ -36,24 +36,26 @@ import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
-import org.apache.flink.util.CloseableIterator;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 /** An executor to execute the {@link Operation}. */
 public class OperationExecutor {
 
-    private final SessionContext sessionContext;
-    private final Configuration executionConfig;
-
     private static final String JOB_ID = "job id";
     private static final String SET_KEY = "key";
     private static final String SET_VALUE = "value";
+
+    private final SessionContext sessionContext;
+    private final Configuration executionConfig;
 
     @VisibleForTesting
     public OperationExecutor(SessionContext context, Configuration executionConfig) {
@@ -74,7 +76,7 @@ public class OperationExecutor {
         }
         Operation op = parsedOperations.get(0);
         if (op instanceof SetOperation) {
-            return callSetOperation(handle, (SetOperation) op);
+            return callSetOperation(tableEnv, handle, (SetOperation) op);
         } else if (op instanceof ResetOperation) {
             return callResetOperation(handle, (ResetOperation) op);
         } else if (op instanceof BeginStatementSetOperation) {
@@ -89,24 +91,32 @@ public class OperationExecutor {
         } else if (op instanceof StatementSetOperation) {
             return callModifyOperations(
                     tableEnv, handle, ((StatementSetOperation) op).getOperations());
+        } else if (op instanceof QueryOperation) {
+            TableResultInternal result = tableEnv.executeInternal(op);
+            return new ResultFetcher(handle, result.getResolvedSchema(), result.collectInternal());
         } else {
             TableResultInternal result = tableEnv.executeInternal(op);
-            return ResultFetcher.fromTableResult(handle, result);
+            return new ResultFetcher(
+                    handle, result.getResolvedSchema(), drill(result.collectInternal()));
         }
     }
 
-    private ResultFetcher callSetOperation(OperationHandle handle, SetOperation setOp) {
+    private ResultFetcher callSetOperation(
+            TableEnvironmentInternal tableEnv, OperationHandle handle, SetOperation setOp) {
         if (setOp.getKey().isPresent() && setOp.getValue().isPresent()) {
             sessionContext.setConfig(setOp.getKey().get(), setOp.getValue().get());
-            return ResultFetcher.fromTableResult(handle, TableResultInternal.TABLE_RESULT_OK);
+            return new ResultFetcher(
+                    handle,
+                    TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
+                    drill(TableResultInternal.TABLE_RESULT_OK.collectInternal()));
         } else if (!setOp.getKey().isPresent() && !setOp.getValue().isPresent()) {
-            Map<String, String> configMap = sessionContext.getConfigMap();
+            Map<String, String> configMap = tableEnv.getConfig().getConfiguration().toMap();
             return new ResultFetcher(
                     handle,
                     ResolvedSchema.of(
                             Column.physical(SET_KEY, DataTypes.STRING()),
                             Column.physical(SET_VALUE, DataTypes.STRING())),
-                    CloseableIterator.adapterForIterator(
+                    drill(
                             configMap.entrySet().stream()
                                     .map(
                                             entry ->
@@ -115,8 +125,7 @@ public class OperationExecutor {
                                                             StringData.fromString(
                                                                     entry.getValue())))
                                     .map(row -> (RowData) row)
-                                    .iterator()),
-                    configMap.size());
+                                    .iterator()));
         } else {
             // Impossible
             throw new SqlExecutionException("Illegal SetOperation: " + setOp.asSummaryString());
@@ -127,9 +136,12 @@ public class OperationExecutor {
         if (resetOp.getKey().isPresent()) {
             sessionContext.resetConfig(resetOp.getKey().get());
         } else {
-            sessionContext.resetAllConfigs();
+            sessionContext.resetAllConfig();
         }
-        return ResultFetcher.fromTableResult(handle, TableResultInternal.TABLE_RESULT_OK);
+        return new ResultFetcher(
+                handle,
+                TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
+                drill(TableResultInternal.TABLE_RESULT_OK.collectInternal()));
     }
 
     private ResultFetcher callModifyOperations(
@@ -140,19 +152,21 @@ public class OperationExecutor {
         return new ResultFetcher(
                 handle,
                 ResolvedSchema.of(Column.physical(JOB_ID, DataTypes.STRING())),
-                CloseableIterator.adapterForIterator(
-                        Collections.singletonList(
-                                        (RowData)
-                                                GenericRowData.of(
-                                                        StringData.fromString(
-                                                                result.getJobClient()
-                                                                        .orElseThrow(
-                                                                                () ->
-                                                                                        new SqlExecutionException(
-                                                                                                "Can't get job client for the operation."))
-                                                                        .getJobID()
-                                                                        .toString())))
-                                .iterator()),
-                1);
+                Collections.singletonList(
+                        GenericRowData.of(
+                                StringData.fromString(
+                                        result.getJobClient()
+                                                .orElseThrow(
+                                                        () ->
+                                                                new SqlExecutionException(
+                                                                        "Can't get job client for the operation."))
+                                                .getJobID()
+                                                .toString()))));
+    }
+
+    private List<RowData> drill(Iterator<RowData> tableResult) {
+        List<RowData> rows = new ArrayList<>();
+        tableResult.forEachRemaining(rows::add);
+        return rows;
     }
 }

@@ -37,6 +37,13 @@ public class ResultStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(ResultStore.class);
 
+    public static final ResultStore DUMMY_RESULT_STORE =
+            new ResultStore(CloseableIterator.adapterForIterator(Collections.emptyIterator()), 0);
+
+    static {
+        DUMMY_RESULT_STORE.close();
+    }
+
     private final CloseableIterator<RowData> result;
     private final List<RowData> recordsBuffer = new ArrayList<>();
     private final int maxBufferSize;

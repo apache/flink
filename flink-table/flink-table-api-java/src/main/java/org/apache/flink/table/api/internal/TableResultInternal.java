@@ -39,14 +39,10 @@ public interface TableResultInternal extends TableResult {
                     .resultKind(ResultKind.SUCCESS)
                     .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
                     .data(Collections.singletonList(Row.of("OK")))
-                    .rowCount(1)
                     .build();
 
     /** Returns an iterator that returns the iterator with the internal row data type. */
     CloseableIterator<RowData> collectInternal();
 
     RowDataToStringConverter getRowDataToStringConverter();
-
-    /** The number of rows the {@link TableResult} contains. Use -1 to indicate unknown. */
-    long getRowCount();
 }

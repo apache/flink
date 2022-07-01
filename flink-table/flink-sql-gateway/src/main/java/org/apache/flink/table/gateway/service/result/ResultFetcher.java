@@ -19,7 +19,6 @@
 package org.apache.flink.table.gateway.service.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
@@ -60,20 +59,15 @@ public class ResultFetcher {
     private long currentToken = 0;
     private boolean noMoreResults = false;
 
-    public static ResultFetcher fromTableResult(
-            OperationHandle operationHandle, TableResultInternal result) {
-        return new ResultFetcher(
-                operationHandle,
-                result.getResolvedSchema(),
-                result.collectInternal(),
-                result.getRowCount() < 0
-                        ? TABLE_RESULT_MAX_INITIAL_CAPACITY
-                        : Math.min(
-                                TABLE_RESULT_MAX_INITIAL_CAPACITY,
-                                Long.valueOf(result.getRowCount()).intValue()));
+    public ResultFetcher(
+            OperationHandle operationHandle,
+            ResolvedSchema resultSchema,
+            CloseableIterator<RowData> resultRows) {
+        this(operationHandle, resultSchema, resultRows, TABLE_RESULT_MAX_INITIAL_CAPACITY);
     }
 
-    public ResultFetcher(
+    @VisibleForTesting
+    ResultFetcher(
             OperationHandle operationHandle,
             ResolvedSchema resultSchema,
             CloseableIterator<RowData> resultRows,
@@ -81,6 +75,14 @@ public class ResultFetcher {
         this.operationHandle = operationHandle;
         this.resultSchema = resultSchema;
         this.resultStore = new ResultStore(resultRows, maxBufferSize);
+    }
+
+    public ResultFetcher(
+            OperationHandle operationHandle, ResolvedSchema resultSchema, List<RowData> rows) {
+        this.operationHandle = operationHandle;
+        this.resultSchema = resultSchema;
+        this.bufferedResults.addAll(rows);
+        this.resultStore = ResultStore.DUMMY_RESULT_STORE;
     }
 
     public void close() {

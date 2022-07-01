@@ -54,15 +54,13 @@ public class TableResultImpl implements TableResultInternal {
     private final ResultKind resultKind;
     private final ResultProvider resultProvider;
     private final PrintStyle printStyle;
-    private final long rowCount;
 
     private TableResultImpl(
             @Nullable JobClient jobClient,
             ResolvedSchema resolvedSchema,
             ResultKind resultKind,
             ResultProvider resultProvider,
-            PrintStyle printStyle,
-            long rowCount) {
+            PrintStyle printStyle) {
         this.jobClient = jobClient;
         this.resolvedSchema =
                 Preconditions.checkNotNull(resolvedSchema, "resolvedSchema should not be null");
@@ -70,7 +68,6 @@ public class TableResultImpl implements TableResultInternal {
         Preconditions.checkNotNull(resultProvider, "result provider should not be null");
         this.resultProvider = resultProvider;
         this.printStyle = Preconditions.checkNotNull(printStyle, "printStyle should not be null");
-        this.rowCount = rowCount;
     }
 
     @Override
@@ -151,11 +148,6 @@ public class TableResultImpl implements TableResultInternal {
     }
 
     @Override
-    public long getRowCount() {
-        return rowCount;
-    }
-
-    @Override
     public void print() {
         Iterator<RowData> it = resultProvider.toInternalIterator();
         printStyle.print(it, new PrintWriter(System.out));
@@ -172,7 +164,6 @@ public class TableResultImpl implements TableResultInternal {
         private ResultKind resultKind = null;
         private ResultProvider resultProvider = null;
         private PrintStyle printStyle = null;
-        private long rowCount = -1;
 
         private Builder() {}
 
@@ -225,11 +216,6 @@ public class TableResultImpl implements TableResultInternal {
             return this;
         }
 
-        public Builder rowCount(long rowCount) {
-            this.rowCount = rowCount;
-            return this;
-        }
-
         /** Specifies print style. Default is {@link TableauStyle} with max integer column width. */
         public Builder setPrintStyle(PrintStyle printStyle) {
             Preconditions.checkNotNull(printStyle, "printStyle should not be null");
@@ -243,7 +229,7 @@ public class TableResultImpl implements TableResultInternal {
                 printStyle = PrintStyle.rawContent(resultProvider.getRowDataStringConverter());
             }
             return new TableResultImpl(
-                    jobClient, resolvedSchema, resultKind, resultProvider, printStyle, rowCount);
+                    jobClient, resolvedSchema, resultKind, resultProvider, printStyle);
         }
     }
 }

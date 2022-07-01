@@ -146,7 +146,7 @@ public class SessionContext {
         }
     }
 
-    public synchronized void resetAllConfigs() {
+    public synchronized void resetAllConfig() {
         for (String key : sessionConf.keySet()) {
             sessionConf.removeConfig(ConfigOptions.key(key).stringType().noDefaultValue());
         }

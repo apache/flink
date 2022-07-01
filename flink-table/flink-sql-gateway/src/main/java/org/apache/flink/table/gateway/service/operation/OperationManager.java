@@ -20,20 +20,17 @@ package org.apache.flink.table.gateway.service.operation;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
-import org.apache.flink.util.CloseableIterator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -78,12 +75,8 @@ public class OperationManager {
                         operationType,
                         () -> {
                             ResultSet resultSet = executor.call();
-                            List<RowData> rows = resultSet.getData();
                             return new ResultFetcher(
-                                    handle,
-                                    resultSet.getResultSchema(),
-                                    CloseableIterator.adapterForIterator(rows.iterator()),
-                                    rows.size());
+                                    handle, resultSet.getResultSchema(), resultSet.getData());
                         });
 
         submitOperationInternal(handle, operation);
