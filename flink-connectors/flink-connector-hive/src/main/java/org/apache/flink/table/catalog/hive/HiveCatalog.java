@@ -1717,42 +1717,36 @@ public class HiveCatalog extends AbstractCatalog {
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException, CatalogException {
 
-        checkNotNull(partitionSpecs);
-
-        // if TableNotExistException is thrown while getting the hive table,
-        // use the first partitionSpec to a new PartitionNotExistException.
-        CatalogPartitionSpec partitionSpec = partitionSpecs.get(0);
-        List<Partition> partitions = new ArrayList<>(partitionSpecs.size());
-        List<String> partitionsNames = new ArrayList<>(partitionSpecs.size());
+        List<Partition> partitions = null;
+        Tuple2<Table, List<String>> partitionsNamesTuple2 = null;
 
         try {
-            Table hiveTable = getHiveTable(tablePath);
-
-            for (CatalogPartitionSpec partSpec : partitionSpecs) {
-                partitionSpec = partSpec;
-                partitionsNames.add(getEscapedPartitionName(tablePath, partSpec, hiveTable));
-            }
+            partitionsNamesTuple2 = getPartitionsNames(tablePath, partitionSpecs);
 
             partitions.addAll(
                     client.getPartitionsByNames(
-                            hiveTable.getDbName(), hiveTable.getTableName(), partitionsNames));
-        } catch (TableNotExistException | PartitionSpecInvalidException e) {
-            throw new PartitionNotExistException(getName(), tablePath, partitionSpec, e);
+                            partitionsNamesTuple2.f0.getDbName(),
+                            partitionsNamesTuple2.f0.getTableName(),
+                            partitionsNamesTuple2.f1));
         } catch (TException e) {
             throw new CatalogException(
                     String.format(
-                            "Failed to get partition stats of table %s 's partition %s",
-                            tablePath.getFullName(), String.valueOf(partitionSpec)),
+                            "Failed to get partition stats of table %s 's partitions %s",
+                            tablePath.getFullName(), String.valueOf(partitionSpecs)),
                     e);
         }
 
-        return Tuple2.of(partitions, partitionsNames);
+        return Tuple2.of(partitions, partitionsNamesTuple2.f1);
     }
 
     private Tuple2<Table, List<String>> getPartitionsNames(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException {
 
+        checkNotNull(partitionSpecs);
+
+        // if TableNotExistException is thrown while getting the hive table,
+        // use the first partitionSpec to a new PartitionNotExistException.
         CatalogPartitionSpec partitionSpec = partitionSpecs.get(0);
         List<String> partitionsNames = new ArrayList<>(partitionSpecs.size());
         Table hiveTable = null;
