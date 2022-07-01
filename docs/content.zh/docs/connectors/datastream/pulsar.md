@@ -648,6 +648,17 @@ PulsarSink.builder().set_topics(["topic-a-partition-0", "topic-a-partition-2", "
 举个例子，如果通过 `PulsarSink.builder().setTopics("some-topic1", "some-topic1-partition-0")` 来指定写入的 Topic，那么其结果等价于 `PulsarSink.builder().setTopics("some-topic1")`。
 {{< /hint >}}
 
+#### 基于消息实例的动态 Topic 指定
+
+除了前面说的一开始就指定 Topic 或者是 Topic 分区，你还可以在程序启动后基于消息内容动态指定 Topic，只需要实现 `TopicExtractor` 接口即可。
+`TopicExtractor` 接口还提供了 `TopicMetadataProvider` 用于查询某个 Topic 在 Pulsar 上有多少个分区，
+查询结果会缓存并在 `PulsarSinkOptions.PULSAR_TOPIC_METADATA_REFRESH_INTERVAL` 之后失效。
+
+`TopicExtractor` 的返回结果支持带分区信息和不带分区信息的 Topic。
+
+1. 当返回结果里没有分区信息时，我们会查询对应的分区大小，生成所有的分区 Topic，然后传递给 `TopicRouter` 用于路由。分区信息将会被缓存 `PulsarSinkOptions.PULSAR_TOPIC_METADATA_REFRESH_INTERVAL`。
+2. 如果你的返回结果里面提供了分区信息，我们则会什么都不做，直接传递给下游。
+
 ### 序列化器
 
 序列化器（`PulsarSerializationSchema`）负责将 Flink 中的每条记录序列化成 byte 数组，并通过网络发送至指定的写入 Topic。和 Pulsar Source 类似的是，序列化器同时支持使用基于 Flink 的 `SerializationSchema` 接口实现序列化器和使用 Pulsar 原生的 `Schema` 类型实现的序列化器。不过序列化器并不支持 Pulsar 的 `Schema.AUTO_PRODUCE_BYTES()`。

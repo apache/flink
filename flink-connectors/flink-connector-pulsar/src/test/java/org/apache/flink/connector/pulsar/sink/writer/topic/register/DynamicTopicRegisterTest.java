@@ -62,7 +62,9 @@ class DynamicTopicRegisterTest extends PulsarTestSuiteBase {
         extractor.setPartition(partition);
         List<String> topics = register.topics(randomAlphabetic(10));
 
-        assertThat(topics).hasSize(1).isEqualTo(partition.getFullTopicName());
+        assertThat(topics)
+                .hasSize(1)
+                .allSatisfy(topic -> assertThat(topic).isEqualTo(partition.getFullTopicName()));
 
         register.close();
     }

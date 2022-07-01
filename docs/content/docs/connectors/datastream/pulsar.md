@@ -736,6 +736,18 @@ For example, when using the `PulsarSink.builder().setTopics("some-topic1", "some
 this is simplified to `PulsarSink.builder().setTopics("some-topic1")`.
 {{< /hint >}}
 
+#### Dynamic Topics by income messages
+
+Topics could be defined by the message content instead of providing the fix topic set. You can dynamically
+provide the topic by implementing `TopicExtractor`. The topic metadata in `TopicExtractor` can be queried
+by using `TopicMetadataProvider` and the query result would be expired after we have queried for
+`PulsarSinkOptions.PULSAR_TOPIC_METADATA_REFRESH_INTERVAL` time.
+
+You can return two types of value in `TopicExtractor`. A topic name with or without partition information.
+
+1. If you don't want to provide the partition, we would query the partition size and passing all the partitions to `TopicRouter`. The partition size would be cached in `PulsarSinkOptions.PULSAR_TOPIC_METADATA_REFRESH_INTERVAL`.
+2. If you provided the topic partition, we would do nothing but just pass it to downstream.
+
 ### Serializer
 
 A serializer (`PulsarSerializationSchema`) is required for serializing the record instance into bytes.
