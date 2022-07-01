@@ -23,20 +23,18 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Properties;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for {@link FlinkKinesisConsumer}. In contrast to tests in {@link FlinkKinesisConsumerTest}
  * it does not use power mock, which makes it possible to use e.g. the {@link ExpectedException}.
  */
 public class KinesisConsumerTest extends TestLogger {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testKinesisConsumerThrowsExceptionIfSchemaImplementsCollector() {
@@ -64,12 +62,15 @@ public class KinesisConsumerTest extends TestLogger {
                         return null;
                     }
                 };
-
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(
-                "Kinesis consumer does not support DeserializationSchema that implements deserialization with a"
-                        + " Collector. Unsupported DeserializationSchema: "
-                        + "org.apache.flink.streaming.connectors.kinesis.KinesisConsumerTest");
-        new FlinkKinesisConsumer<>("fakeStream", schemaWithCollector, new Properties());
+        assertThatThrownBy(
+                        () -> {
+                            new FlinkKinesisConsumer<>(
+                                    "fakeStream", schemaWithCollector, new Properties());
+                        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        "Kinesis consumer does not support DeserializationSchema that implements deserialization with a"
+                                + " Collector. Unsupported DeserializationSchema: "
+                                + "org.apache.flink.streaming.connectors.kinesis.KinesisConsumerTest");
     }
 }

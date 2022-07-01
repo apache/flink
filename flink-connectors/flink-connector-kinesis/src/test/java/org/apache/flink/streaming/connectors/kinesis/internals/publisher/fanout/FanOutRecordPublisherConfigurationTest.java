@@ -21,9 +21,7 @@ import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConsta
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -45,21 +43,23 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_TIMEOUT_SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FanOutRecordPublisherConfiguration}. */
 public class FanOutRecordPublisherConfigurationTest extends TestLogger {
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
     @Test
     public void testPollingRecordPublisher() {
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("Only efo record publisher can register a FanOutProperties.");
+        assertThatThrownBy(
+                        () -> {
+                            Properties testConfig = TestUtils.getStandardProperties();
+                            testConfig.setProperty(
+                                    RECORD_PUBLISHER_TYPE, RecordPublisherType.POLLING.toString());
 
-        Properties testConfig = TestUtils.getStandardProperties();
-        testConfig.setProperty(RECORD_PUBLISHER_TYPE, RecordPublisherType.POLLING.toString());
-
-        new FanOutRecordPublisherConfiguration(testConfig, new ArrayList<>());
+                            new FanOutRecordPublisherConfiguration(testConfig, new ArrayList<>());
+                        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only efo record publisher can register a FanOutProperties.");
     }
 
     @Test
@@ -78,12 +78,14 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
     public void testEagerStrategyWithNoConsumerName() {
         String msg = "No valid enhanced fan-out consumer name is set through " + EFO_CONSUMER_NAME;
 
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(msg);
-
-        Properties testConfig = TestUtils.getStandardProperties();
-        testConfig.setProperty(RECORD_PUBLISHER_TYPE, EFO.toString());
-        new FanOutRecordPublisherConfiguration(testConfig, new ArrayList<>());
+        assertThatThrownBy(
+                        () -> {
+                            Properties testConfig = TestUtils.getStandardProperties();
+                            testConfig.setProperty(RECORD_PUBLISHER_TYPE, EFO.toString());
+                            new FanOutRecordPublisherConfiguration(testConfig, new ArrayList<>());
+                        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(msg);
     }
 
     @Test
@@ -110,14 +112,16 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
 
         String msg =
                 "Invalid efo consumer arn settings for not providing consumer arns: flink.stream.efo.consumerarn.fakedstream1, flink.stream.efo.consumerarn.fakedstream2";
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(msg);
+        assertThatThrownBy(
+                        () -> {
+                            Properties testConfig = TestUtils.getStandardProperties();
+                            testConfig.setProperty(RECORD_PUBLISHER_TYPE, EFO.toString());
+                            testConfig.setProperty(EFO_REGISTRATION_TYPE, NONE.toString());
 
-        Properties testConfig = TestUtils.getStandardProperties();
-        testConfig.setProperty(RECORD_PUBLISHER_TYPE, EFO.toString());
-        testConfig.setProperty(EFO_REGISTRATION_TYPE, NONE.toString());
-
-        new FanOutRecordPublisherConfiguration(testConfig, streams);
+                            new FanOutRecordPublisherConfiguration(testConfig, streams);
+                        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(msg);
     }
 
     @Test
@@ -126,15 +130,18 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
 
         String msg =
                 "Invalid efo consumer arn settings for not providing consumer arns: flink.stream.efo.consumerarn.fakedstream2";
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(msg);
+        assertThatThrownBy(
+                        () -> {
+                            Properties testConfig = TestUtils.getStandardProperties();
+                            testConfig.setProperty(RECORD_PUBLISHER_TYPE, EFO.toString());
+                            testConfig.setProperty(EFO_REGISTRATION_TYPE, NONE.toString());
+                            testConfig.setProperty(
+                                    EFO_CONSUMER_ARN_PREFIX + "." + "fakedstream1", "fakedstream1");
 
-        Properties testConfig = TestUtils.getStandardProperties();
-        testConfig.setProperty(RECORD_PUBLISHER_TYPE, EFO.toString());
-        testConfig.setProperty(EFO_REGISTRATION_TYPE, NONE.toString());
-        testConfig.setProperty(EFO_CONSUMER_ARN_PREFIX + "." + "fakedstream1", "fakedstream1");
-
-        new FanOutRecordPublisherConfiguration(testConfig, streams);
+                            new FanOutRecordPublisherConfiguration(testConfig, streams);
+                        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(msg);
     }
 
     @Test

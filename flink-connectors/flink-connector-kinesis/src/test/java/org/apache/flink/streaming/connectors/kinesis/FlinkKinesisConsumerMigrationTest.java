@@ -44,18 +44,17 @@ import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -66,7 +65,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>For regenerating the binary snapshot files run {@link #writeSnapshot()} on the corresponding
  * Flink release-* branch.
  */
-@RunWith(Parameterized.class)
 public class FlinkKinesisConsumerMigrationTest {
 
     /**
@@ -91,11 +89,8 @@ public class FlinkKinesisConsumerMigrationTest {
         TEST_STATE.put(shardMetadata, TEST_SEQUENCE_NUMBER);
     }
 
-    private final FlinkVersion testMigrateVersion;
-
-    @Parameterized.Parameters(name = "Migration Savepoint: {0}")
-    public static Collection<FlinkVersion> parameters() {
-        return Arrays.asList(
+    private static Stream<FlinkVersion> flinkVersionProvider() {
+        return Stream.of(
                 FlinkVersion.v1_3,
                 FlinkVersion.v1_4,
                 FlinkVersion.v1_7,
@@ -107,10 +102,6 @@ public class FlinkKinesisConsumerMigrationTest {
                 FlinkVersion.v1_13,
                 FlinkVersion.v1_14,
                 FlinkVersion.v1_15);
-    }
-
-    public FlinkKinesisConsumerMigrationTest(FlinkVersion testMigrateVersion) {
-        this.testMigrateVersion = testMigrateVersion;
     }
 
     /** Manually run this to write binary snapshot data. */
@@ -131,8 +122,9 @@ public class FlinkKinesisConsumerMigrationTest {
                 new HashMap<>());
     }
 
-    @Test
-    public void testRestoreWithEmptyState() throws Exception {
+    @ParameterizedTest
+    @MethodSource("flinkVersionProvider")
+    public void testRestoreWithEmptyState(FlinkVersion flinkVersion) throws Exception {
         final List<StreamShardHandle> initialDiscoveryShards = new ArrayList<>(TEST_STATE.size());
         for (StreamShardMetadata shardMetadata : TEST_STATE.keySet()) {
             Shard shard = new Shard();
@@ -170,7 +162,7 @@ public class FlinkKinesisConsumerMigrationTest {
         testHarness.initializeState(
                 OperatorSnapshotUtil.getResourceFilename(
                         "kinesis-consumer-migration-test-flink"
-                                + testMigrateVersion
+                                + flinkVersion
                                 + "-empty-snapshot"));
         testHarness.open();
 
@@ -197,8 +189,9 @@ public class FlinkKinesisConsumerMigrationTest {
         consumerOperator.cancel();
     }
 
-    @Test
-    public void testRestore() throws Exception {
+    @ParameterizedTest
+    @MethodSource("flinkVersionProvider")
+    public void testRestore(FlinkVersion flinkVersion) throws Exception {
         final List<StreamShardHandle> initialDiscoveryShards = new ArrayList<>(TEST_STATE.size());
         for (StreamShardMetadata shardMetadata : TEST_STATE.keySet()) {
             Shard shard = new Shard();
@@ -235,9 +228,7 @@ public class FlinkKinesisConsumerMigrationTest {
         testHarness.setup();
         testHarness.initializeState(
                 OperatorSnapshotUtil.getResourceFilename(
-                        "kinesis-consumer-migration-test-flink"
-                                + testMigrateVersion
-                                + "-snapshot"));
+                        "kinesis-consumer-migration-test-flink" + flinkVersion + "-snapshot"));
         testHarness.open();
 
         consumerFunction.run(new TestSourceContext<>());
@@ -264,8 +255,9 @@ public class FlinkKinesisConsumerMigrationTest {
         consumerOperator.cancel();
     }
 
-    @Test
-    public void testRestoreWithReshardedStream() throws Exception {
+    @ParameterizedTest
+    @MethodSource("flinkVersionProvider")
+    public void testRestoreWithReshardedStream(FlinkVersion flinkVersion) throws Exception {
         final List<StreamShardHandle> initialDiscoveryShards = new ArrayList<>(TEST_STATE.size());
         for (StreamShardMetadata shardMetadata : TEST_STATE.keySet()) {
             // setup the closed shard
@@ -330,9 +322,7 @@ public class FlinkKinesisConsumerMigrationTest {
         testHarness.setup();
         testHarness.initializeState(
                 OperatorSnapshotUtil.getResourceFilename(
-                        "kinesis-consumer-migration-test-flink"
-                                + testMigrateVersion
-                                + "-snapshot"));
+                        "kinesis-consumer-migration-test-flink" + flinkVersion + "-snapshot"));
         testHarness.open();
 
         consumerFunction.run(new TestSourceContext<>());

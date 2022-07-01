@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 import software.amazon.awssdk.utils.AttributeMap;

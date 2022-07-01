@@ -39,9 +39,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -65,8 +63,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class KinesisDynamicTableFactoryTest extends TestLogger {
 
     private static final String STREAM_NAME = "myStream";
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     // --------------------------------------------------------------------------------------------
     // Positive tests

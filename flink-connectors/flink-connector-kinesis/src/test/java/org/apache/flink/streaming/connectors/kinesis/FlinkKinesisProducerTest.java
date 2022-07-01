@@ -38,9 +38,8 @@ import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.common.util.concurrent.SettableFuture;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -62,19 +61,20 @@ import static org.mockito.Mockito.when;
 /** Suite of {@link FlinkKinesisProducer} tests. */
 public class FlinkKinesisProducerTest extends TestLogger {
 
-    @Rule public ExpectedException exception = ExpectedException.none();
-
     // ----------------------------------------------------------------------
     // Tests to verify serializability
     // ----------------------------------------------------------------------
 
     @Test
     public void testCreateWithNonSerializableDeserializerFails() {
-        exception.expect(IllegalArgumentException.class);
-        exception.expectMessage("The provided serialization schema is not serializable");
-
-        new FlinkKinesisProducer<>(
-                new NonSerializableSerializationSchema(), TestUtils.getStandardProperties());
+        assertThatThrownBy(
+                        () -> {
+                            new FlinkKinesisProducer<>(
+                                    new NonSerializableSerializationSchema(),
+                                    TestUtils.getStandardProperties());
+                        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("The provided serialization schema is not serializable");
     }
 
     @Test
@@ -85,11 +85,15 @@ public class FlinkKinesisProducerTest extends TestLogger {
 
     @Test
     public void testConfigureWithNonSerializableCustomPartitionerFails() {
-        exception.expect(IllegalArgumentException.class);
-        exception.expectMessage("The provided custom partitioner is not serializable");
-
-        new FlinkKinesisProducer<>(new SimpleStringSchema(), TestUtils.getStandardProperties())
-                .setCustomPartitioner(new NonSerializableCustomPartitioner());
+        assertThatThrownBy(
+                        () -> {
+                            new FlinkKinesisProducer<>(
+                                            new SimpleStringSchema(),
+                                            TestUtils.getStandardProperties())
+                                    .setCustomPartitioner(new NonSerializableCustomPartitioner());
+                        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("The provided custom partitioner is not serializable");
     }
 
     @Test
@@ -169,7 +173,8 @@ public class FlinkKinesisProducerTest extends TestLogger {
      * pending records. The test for that is covered in testAtLeastOnceProducer.
      */
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testAsyncErrorRethrownAfterFlush() throws Throwable {
         final DummyFlinkKinesisProducer<String> producer =
                 new DummyFlinkKinesisProducer<>(new SimpleStringSchema());
@@ -214,7 +219,8 @@ public class FlinkKinesisProducerTest extends TestLogger {
      * the test will not finish if the logic is broken.
      */
     @SuppressWarnings({"unchecked", "ResultOfMethodCallIgnored"})
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testAtLeastOnceProducer() throws Throwable {
         final DummyFlinkKinesisProducer<String> producer =
                 new DummyFlinkKinesisProducer<>(new SimpleStringSchema());
@@ -277,7 +283,8 @@ public class FlinkKinesisProducerTest extends TestLogger {
      * drops below the limit; we set a timeout because the test will not finish if the logic is
      * broken.
      */
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testBackpressure() throws Throwable {
         final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
 

@@ -23,9 +23,7 @@ import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interfa
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.StreamConsumerFakeKinesis;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
 
 import java.util.Properties;
@@ -50,6 +48,7 @@ import static org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesi
 import static org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.STREAM_CONSUMER_ARN_NEW;
 import static org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.StreamConsumerFakeKinesis.NUMBER_OF_DESCRIBE_REQUESTS_TO_ACTIVATE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -74,16 +73,18 @@ public class StreamConsumerRegistrarTest {
     private static final long EXPECTED_DEREGISTRATION_BASE = 4;
     private static final double EXPECTED_DEREGISTRATION_POW = 1;
 
-    @Rule public final ExpectedException thrown = ExpectedException.none();
-
     @Test
-    public void testStreamNotFoundWhenRegisteringThrowsException() throws Exception {
-        thrown.expect(ResourceNotFoundException.class);
+    public void testStreamNotFoundWhenRegisteringThrowsException() {
+        assertThatThrownBy(
+                        () -> {
+                            KinesisProxyV2Interface kinesis =
+                                    FakeKinesisFanOutBehavioursFactory.streamNotFound();
+                            StreamConsumerRegistrar registrar =
+                                    createRegistrar(kinesis, mock(FullJitterBackoff.class));
 
-        KinesisProxyV2Interface kinesis = FakeKinesisFanOutBehavioursFactory.streamNotFound();
-        StreamConsumerRegistrar registrar = createRegistrar(kinesis, mock(FullJitterBackoff.class));
-
-        registrar.registerStreamConsumer(STREAM, "name");
+                            registrar.registerStreamConsumer(STREAM, "name");
+                        })
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
@@ -137,24 +138,28 @@ public class StreamConsumerRegistrarTest {
     }
 
     @Test
-    public void testRegisterStreamConsumerTimeoutWaitingForConsumerToBecomeActive()
-            throws Exception {
-        thrown.expect(FlinkKinesisTimeoutException.class);
-        thrown.expectMessage(
-                "Timeout waiting for stream consumer to become active: name on stream-arn");
+    public void testRegisterStreamConsumerTimeoutWaitingForConsumerToBecomeActive() {
+        assertThatThrownBy(
+                        () -> {
+                            StreamConsumerFakeKinesis kinesis =
+                                    FakeKinesisFanOutBehavioursFactory
+                                            .registerExistingConsumerAndWaitToBecomeActive();
 
-        StreamConsumerFakeKinesis kinesis =
-                FakeKinesisFanOutBehavioursFactory.registerExistingConsumerAndWaitToBecomeActive();
+                            Properties configProps = createEfoProperties();
+                            configProps.setProperty(REGISTER_STREAM_TIMEOUT_SECONDS, "1");
 
-        Properties configProps = createEfoProperties();
-        configProps.setProperty(REGISTER_STREAM_TIMEOUT_SECONDS, "1");
+                            FanOutRecordPublisherConfiguration configuration =
+                                    new FanOutRecordPublisherConfiguration(
+                                            configProps, singletonList(STREAM));
+                            StreamConsumerRegistrar registrar =
+                                    new StreamConsumerRegistrar(
+                                            kinesis, configuration, backoffFor(1001));
 
-        FanOutRecordPublisherConfiguration configuration =
-                new FanOutRecordPublisherConfiguration(configProps, singletonList(STREAM));
-        StreamConsumerRegistrar registrar =
-                new StreamConsumerRegistrar(kinesis, configuration, backoffFor(1001));
-
-        registrar.registerStreamConsumer(STREAM, "name");
+                            registrar.registerStreamConsumer(STREAM, "name");
+                        })
+                .isInstanceOf(FlinkKinesisTimeoutException.class)
+                .hasMessageContaining(
+                        "Timeout waiting for stream consumer to become active: name on stream-arn");
     }
 
     @Test
@@ -197,24 +202,27 @@ public class StreamConsumerRegistrarTest {
     }
 
     @Test
-    public void testDeregisterStreamConsumerTimeoutWaitingForConsumerToDeregister()
-            throws Exception {
-        thrown.expect(FlinkKinesisTimeoutException.class);
-        thrown.expectMessage(
-                "Timeout waiting for stream consumer to deregister: stream-consumer-arn");
+    public void testDeregisterStreamConsumerTimeoutWaitingForConsumerToDeregister() {
+        assertThatThrownBy(
+                        () -> {
+                            StreamConsumerFakeKinesis kinesis =
+                                    FakeKinesisFanOutBehavioursFactory.existingActiveConsumer();
 
-        StreamConsumerFakeKinesis kinesis =
-                FakeKinesisFanOutBehavioursFactory.existingActiveConsumer();
+                            Properties configProps = createEfoProperties();
+                            configProps.setProperty(DEREGISTER_STREAM_TIMEOUT_SECONDS, "1");
 
-        Properties configProps = createEfoProperties();
-        configProps.setProperty(DEREGISTER_STREAM_TIMEOUT_SECONDS, "1");
+                            FanOutRecordPublisherConfiguration configuration =
+                                    new FanOutRecordPublisherConfiguration(
+                                            configProps, singletonList(STREAM));
+                            StreamConsumerRegistrar registrar =
+                                    new StreamConsumerRegistrar(
+                                            kinesis, configuration, backoffFor(1001));
 
-        FanOutRecordPublisherConfiguration configuration =
-                new FanOutRecordPublisherConfiguration(configProps, singletonList(STREAM));
-        StreamConsumerRegistrar registrar =
-                new StreamConsumerRegistrar(kinesis, configuration, backoffFor(1001));
-
-        registrar.deregisterStreamConsumer(STREAM);
+                            registrar.deregisterStreamConsumer(STREAM);
+                        })
+                .isInstanceOf(FlinkKinesisTimeoutException.class)
+                .hasMessageContaining(
+                        "Timeout waiting for stream consumer to deregister: stream-consumer-arn");
     }
 
     @Test
@@ -231,17 +239,19 @@ public class StreamConsumerRegistrarTest {
     }
 
     @Test
-    public void testDeregisterStreamConsumerArnNotFound() throws Exception {
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("Stream consumer ARN not found for stream: not-found");
+    public void testDeregisterStreamConsumerArnNotFound() {
+        assertThatThrownBy(
+                        () -> {
+                            FullJitterBackoff backoff = mock(FullJitterBackoff.class);
 
-        FullJitterBackoff backoff = mock(FullJitterBackoff.class);
+                            StreamConsumerFakeKinesis kinesis =
+                                    FakeKinesisFanOutBehavioursFactory.streamConsumerNotFound();
+                            StreamConsumerRegistrar registrar = createRegistrar(kinesis, backoff);
 
-        StreamConsumerFakeKinesis kinesis =
-                FakeKinesisFanOutBehavioursFactory.streamConsumerNotFound();
-        StreamConsumerRegistrar registrar = createRegistrar(kinesis, backoff);
-
-        registrar.deregisterStreamConsumer("not-found");
+                            registrar.deregisterStreamConsumer("not-found");
+                        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Stream consumer ARN not found for stream: not-found");
     }
 
     @Test

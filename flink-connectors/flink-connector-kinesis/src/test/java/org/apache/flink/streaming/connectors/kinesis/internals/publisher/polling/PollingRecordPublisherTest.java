@@ -24,9 +24,7 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavi
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils.TestConsumer;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumerTestUtils.createFakeShardConsumerMetricGroup;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.COMPLETE;
@@ -34,6 +32,7 @@ import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM;
 import static org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.AdditionalMatchers.geq;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -45,8 +44,6 @@ import static org.mockito.Mockito.verify;
 public class PollingRecordPublisherTest {
 
     private static final long FETCH_INTERVAL_MILLIS = 500L;
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testRunPublishesRecordsToConsumer() throws Exception {
@@ -126,29 +123,35 @@ public class PollingRecordPublisherTest {
     }
 
     @Test
-    public void validateExpiredIteratorBackoffMillisNegativeThrows() throws Exception {
-        thrown.expect(IllegalArgumentException.class);
-
-        new PollingRecordPublisher(
-                StartingPosition.restartFromSequenceNumber(SENTINEL_EARLIEST_SEQUENCE_NUM.get()),
-                TestUtils.createDummyStreamShardHandle(),
-                mock(PollingRecordPublisherMetricsReporter.class),
-                mock(KinesisProxyInterface.class),
-                100,
-                -1);
+    public void validateExpiredIteratorBackoffMillisNegativeThrows() {
+        assertThatThrownBy(
+                        () -> {
+                            new PollingRecordPublisher(
+                                    StartingPosition.restartFromSequenceNumber(
+                                            SENTINEL_EARLIEST_SEQUENCE_NUM.get()),
+                                    TestUtils.createDummyStreamShardHandle(),
+                                    mock(PollingRecordPublisherMetricsReporter.class),
+                                    mock(KinesisProxyInterface.class),
+                                    100,
+                                    -1);
+                        })
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void validateMaxNumberOfRecordsPerFetchZeroThrows() throws Exception {
-        thrown.expect(IllegalArgumentException.class);
-
-        new PollingRecordPublisher(
-                StartingPosition.restartFromSequenceNumber(SENTINEL_EARLIEST_SEQUENCE_NUM.get()),
-                TestUtils.createDummyStreamShardHandle(),
-                mock(PollingRecordPublisherMetricsReporter.class),
-                mock(KinesisProxyInterface.class),
-                0,
-                100);
+    public void validateMaxNumberOfRecordsPerFetchZeroThrows() {
+        assertThatThrownBy(
+                        () -> {
+                            new PollingRecordPublisher(
+                                    StartingPosition.restartFromSequenceNumber(
+                                            SENTINEL_EARLIEST_SEQUENCE_NUM.get()),
+                                    TestUtils.createDummyStreamShardHandle(),
+                                    mock(PollingRecordPublisherMetricsReporter.class),
+                                    mock(KinesisProxyInterface.class),
+                                    0,
+                                    100);
+                        })
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     PollingRecordPublisher createPollingRecordPublisher(final KinesisProxyInterface kinesis)

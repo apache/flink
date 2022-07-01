@@ -32,9 +32,7 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils.TestCon
 import com.amazonaws.http.timers.client.SdkInterruptedException;
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import io.netty.handler.timeout.ReadTimeoutException;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 import software.amazon.awssdk.services.kinesis.model.Record;
@@ -64,6 +62,7 @@ import static org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesi
 import static org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.singletonShard;
 import static org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils.createDummyStreamShardHandle;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -81,8 +80,6 @@ import static software.amazon.awssdk.services.kinesis.model.ShardIteratorType.TR
 
 /** Tests for {@link FanOutRecordPublisher}. */
 public class FanOutRecordPublisherTest {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     private static final long EXPECTED_SUBSCRIBE_TO_SHARD_MAX = 1;
     private static final long EXPECTED_SUBSCRIBE_TO_SHARD_BASE = 2;
@@ -195,30 +192,35 @@ public class FanOutRecordPublisherTest {
     }
 
     @Test
-    public void testExceptionThrownInConsumerPropagatesToRecordPublisher() throws Exception {
-        thrown.expect(RuntimeException.class);
-        thrown.expectMessage("An error thrown from the consumer");
+    public void testExceptionThrownInConsumerPropagatesToRecordPublisher() {
+        assertThatThrownBy(
+                        () -> {
+                            SingleShardFanOutKinesisV2 kinesis =
+                                    FakeKinesisFanOutBehavioursFactory.boundedShard().build();
+                            RecordPublisher recordPublisher = createRecordPublisher(kinesis);
 
-        SingleShardFanOutKinesisV2 kinesis =
-                FakeKinesisFanOutBehavioursFactory.boundedShard().build();
-        RecordPublisher recordPublisher = createRecordPublisher(kinesis);
-
-        recordPublisher.run(
-                batch -> {
-                    throw new RuntimeException("An error thrown from the consumer");
-                });
+                            recordPublisher.run(
+                                    batch -> {
+                                        throw new RuntimeException(
+                                                "An error thrown from the consumer");
+                                    });
+                        })
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("An error thrown from the consumer");
     }
 
     @Test
-    public void testResourceNotFoundWhenObtainingSubscriptionTerminatesApplication()
-            throws Exception {
-        thrown.expect(ResourceNotFoundException.class);
+    public void testResourceNotFoundWhenObtainingSubscriptionTerminatesApplication() {
+        assertThatThrownBy(
+                        () -> {
+                            KinesisProxyV2Interface kinesis =
+                                    FakeKinesisFanOutBehavioursFactory
+                                            .resourceNotFoundWhenObtainingSubscription();
+                            RecordPublisher recordPublisher = createRecordPublisher(kinesis);
 
-        KinesisProxyV2Interface kinesis =
-                FakeKinesisFanOutBehavioursFactory.resourceNotFoundWhenObtainingSubscription();
-        RecordPublisher recordPublisher = createRecordPublisher(kinesis);
-
-        recordPublisher.run(new TestConsumer());
+                            recordPublisher.run(new TestConsumer());
+                        })
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
@@ -287,36 +289,43 @@ public class FanOutRecordPublisherTest {
     }
 
     @Test
-    public void testSubscribeToShardFailsWhenMaxRetriesExceeded() throws Exception {
-        thrown.expect(RuntimeException.class);
-        thrown.expectMessage("Maximum retries exceeded for SubscribeToShard. Failed 3 times.");
+    public void testSubscribeToShardFailsWhenMaxRetriesExceeded() {
+        assertThatThrownBy(
+                        () -> {
+                            Properties efoProperties = createEfoProperties();
+                            efoProperties.setProperty(
+                                    SUBSCRIBE_TO_SHARD_RETRIES,
+                                    String.valueOf(EXPECTED_SUBSCRIBE_TO_SHARD_RETRIES));
+                            FanOutRecordPublisherConfiguration configuration =
+                                    new FanOutRecordPublisherConfiguration(
+                                            efoProperties, emptyList());
 
-        Properties efoProperties = createEfoProperties();
-        efoProperties.setProperty(
-                SUBSCRIBE_TO_SHARD_RETRIES, String.valueOf(EXPECTED_SUBSCRIBE_TO_SHARD_RETRIES));
-        FanOutRecordPublisherConfiguration configuration =
-                new FanOutRecordPublisherConfiguration(efoProperties, emptyList());
+                            LimitExceededException retryableError =
+                                    LimitExceededException.builder().build();
+                            SubscriptionErrorKinesisV2 kinesis =
+                                    FakeKinesisFanOutBehavioursFactory.errorDuringSubscription(
+                                            retryableError);
+                            FullJitterBackoff backoff = mock(FullJitterBackoff.class);
 
-        LimitExceededException retryableError = LimitExceededException.builder().build();
-        SubscriptionErrorKinesisV2 kinesis =
-                FakeKinesisFanOutBehavioursFactory.errorDuringSubscription(retryableError);
-        FullJitterBackoff backoff = mock(FullJitterBackoff.class);
+                            FanOutRecordPublisher recordPublisher =
+                                    new FanOutRecordPublisher(
+                                            latest(),
+                                            "arn",
+                                            createDummyStreamShardHandle(),
+                                            kinesis,
+                                            configuration,
+                                            backoff);
 
-        FanOutRecordPublisher recordPublisher =
-                new FanOutRecordPublisher(
-                        latest(),
-                        "arn",
-                        createDummyStreamShardHandle(),
-                        kinesis,
-                        configuration,
-                        backoff);
-
-        int count = 0;
-        while (recordPublisher.run(new TestConsumer()) == INCOMPLETE) {
-            if (++count > EXPECTED_SUBSCRIBE_TO_SHARD_RETRIES) {
-                break;
-            }
-        }
+                            int count = 0;
+                            while (recordPublisher.run(new TestConsumer()) == INCOMPLETE) {
+                                if (++count > EXPECTED_SUBSCRIBE_TO_SHARD_RETRIES) {
+                                    break;
+                                }
+                            }
+                        })
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining(
+                        "Maximum retries exceeded for SubscribeToShard. Failed 3 times.");
     }
 
     @Test

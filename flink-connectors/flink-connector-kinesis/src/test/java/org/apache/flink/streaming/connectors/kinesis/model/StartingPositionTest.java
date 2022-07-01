@@ -18,18 +18,15 @@
 package org.apache.flink.streaming.connectors.kinesis.model;
 
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link StartingPosition}. */
 public class StartingPositionTest {
-
-    @Rule public final ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testStartingPositionFromTimestamp() {
@@ -83,12 +80,16 @@ public class StartingPositionTest {
 
     @Test
     public void testStartingPositionRestartFromSentinelEnding() {
-        thrown.expect(IllegalArgumentException.class);
-
-        SequenceNumber sequenceNumber =
-                SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get();
-        StartingPosition position = StartingPosition.restartFromSequenceNumber(sequenceNumber);
-        assertThat(position.getShardIteratorType()).isEqualTo(ShardIteratorType.LATEST);
-        assertThat(position.getStartingMarker()).isNull();
+        assertThatThrownBy(
+                        () -> {
+                            SequenceNumber sequenceNumber =
+                                    SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get();
+                            StartingPosition position =
+                                    StartingPosition.restartFromSequenceNumber(sequenceNumber);
+                            assertThat(position.getShardIteratorType())
+                                    .isEqualTo(ShardIteratorType.LATEST);
+                            assertThat(position.getStartingMarker()).isNull();
+                        })
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

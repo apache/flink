@@ -27,7 +27,7 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOut
 
 import com.amazonaws.SdkClientException;
 import com.amazonaws.http.timers.client.SdkInterruptedException;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kinesis.model.StartingPosition;
 
 import java.text.SimpleDateFormat;

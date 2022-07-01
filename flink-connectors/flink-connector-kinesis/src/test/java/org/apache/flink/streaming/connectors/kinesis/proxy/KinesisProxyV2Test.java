@@ -19,9 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis.proxy;
 
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutRecordPublisherConfiguration;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
@@ -61,6 +59,7 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_MAX;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -91,8 +90,6 @@ public class KinesisProxyV2Test {
     private static final long EXPECTED_DESCRIBE_STREAM_BASE = 6;
     private static final double EXPECTED_DESCRIBE_STREAM_POW = 0.5;
     private static final int EXPECTED_DESCRIBE_STREAM_RETRIES = 10;
-
-    @Rule public final ExpectedException exception = ExpectedException.none();
 
     @Test
     public void testSubscribeToShard() {
@@ -356,20 +353,28 @@ public class KinesisProxyV2Test {
     }
 
     @Test
-    public void testDescribeStreamSummaryFailsAfterMaxRetries() throws Exception {
-        exception.expect(RuntimeException.class);
-        exception.expectMessage("Retries exceeded - all 10 retry attempts failed.");
+    public void testDescribeStreamSummaryFailsAfterMaxRetries() {
+        assertThatThrownBy(
+                        () -> {
+                            FullJitterBackoff backoff = mock(FullJitterBackoff.class);
+                            KinesisAsyncClient client = mock(KinesisAsyncClient.class);
+                            KinesisProxyV2 proxy =
+                                    new KinesisProxyV2(
+                                            client,
+                                            mock(SdkAsyncHttpClient.class),
+                                            createConfiguration(),
+                                            backoff);
 
-        FullJitterBackoff backoff = mock(FullJitterBackoff.class);
-        KinesisAsyncClient client = mock(KinesisAsyncClient.class);
-        KinesisProxyV2 proxy =
-                new KinesisProxyV2(
-                        client, mock(SdkAsyncHttpClient.class), createConfiguration(), backoff);
+                            when(client.describeStreamSummary(
+                                            any(DescribeStreamSummaryRequest.class)))
+                                    .thenThrow(
+                                            new RuntimeException(
+                                                    LimitExceededException.builder().build()));
 
-        when(client.describeStreamSummary(any(DescribeStreamSummaryRequest.class)))
-                .thenThrow(new RuntimeException(LimitExceededException.builder().build()));
-
-        proxy.describeStreamSummary("arn");
+                            proxy.describeStreamSummary("arn");
+                        })
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Retries exceeded - all 10 retry attempts failed.");
     }
 
     private FanOutRecordPublisherConfiguration createConfiguration() {

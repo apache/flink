@@ -50,7 +50,8 @@ import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableLong;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.powermock.reflect.Whitebox;
 
 import java.util.ArrayList;
@@ -89,7 +90,8 @@ public class KinesisDataFetcherTest extends TestLogger {
         assertThat(fetcher.isRunning()).isTrue();
     }
 
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testIsRunningFalseAfterShutDown() throws InterruptedException {
         KinesisDataFetcher<String> fetcher =
                 createTestDataFetcherWithNoShards(10, 2, "test-stream");
@@ -147,12 +149,17 @@ public class KinesisDataFetcherTest extends TestLogger {
         consumerThread.sync();
     }
 
-    @Test(expected = RuntimeException.class)
-    public void testIfNoShardsAreFoundShouldThrowException() throws Exception {
-        KinesisDataFetcher<String> fetcher =
-                createTestDataFetcherWithNoShards(10, 2, "fakeStream1", "fakeStream2");
+    @Test
+    public void testIfNoShardsAreFoundShouldThrowException() {
+        assertThatThrownBy(
+                        () -> {
+                            KinesisDataFetcher<String> fetcher =
+                                    createTestDataFetcherWithNoShards(
+                                            10, 2, "fakeStream1", "fakeStream2");
 
-        fetcher.runFetcher(); // this should throw RuntimeException
+                            fetcher.runFetcher(); // this should throw RuntimeException
+                        })
+                .isInstanceOf(RuntimeException.class);
     }
 
     @Test
@@ -1014,7 +1021,8 @@ public class KinesisDataFetcherTest extends TestLogger {
                 .isTrue();
     }
 
-    @Test(timeout = 1000L)
+    @Test
+    @Timeout(1)
     public void testRecordPublisherFactoryIsTornDown() throws InterruptedException {
         KinesisProxyV2Interface kinesisV2 = mock(KinesisProxyV2Interface.class);
 
@@ -1037,7 +1045,8 @@ public class KinesisDataFetcherTest extends TestLogger {
         fetcher.awaitTermination();
     }
 
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testRecordPublisherFactoryIsTornDownWhenDeregisterStreamConsumerThrowsException()
             throws InterruptedException {
         KinesisProxyV2Interface kinesisV2 = mock(KinesisProxyV2Interface.class);
@@ -1067,7 +1076,8 @@ public class KinesisDataFetcherTest extends TestLogger {
         fetcher.awaitTermination();
     }
 
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testExecutorServiceShutDownWhenCloseRecordPublisherFactoryThrowsException()
             throws InterruptedException {
         TestableKinesisDataFetcher<String> fetcher =

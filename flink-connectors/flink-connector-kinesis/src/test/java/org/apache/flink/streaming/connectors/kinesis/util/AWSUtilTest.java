@@ -27,9 +27,7 @@ import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.WebIdentityTokenCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -45,13 +43,12 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for AWSUtil. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(AWSUtil.class)
 public class AWSUtilTest {
-
-    @Rule private final ExpectedException exception = ExpectedException.none();
 
     @Test
     public void testDefaultCredentialsProvider() {
@@ -117,12 +114,14 @@ public class AWSUtilTest {
 
     @Test
     public void testInvalidCredentialsProvider() {
-        exception.expect(IllegalArgumentException.class);
+        assertThatThrownBy(
+                        () -> {
+                            Properties testConfig = new Properties();
+                            testConfig.setProperty(AWS_CREDENTIALS_PROVIDER, "INVALID_PROVIDER");
 
-        Properties testConfig = new Properties();
-        testConfig.setProperty(AWS_CREDENTIALS_PROVIDER, "INVALID_PROVIDER");
-
-        AWSUtil.getCredentialsProvider(testConfig);
+                            AWSUtil.getCredentialsProvider(testConfig);
+                        })
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

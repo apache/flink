@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.model;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.streaming.connectors.kinesis.model.DynamoDBStreamsShardHandle.SHARDID_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
