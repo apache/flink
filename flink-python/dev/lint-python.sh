@@ -692,10 +692,11 @@ CURRENT_DIR="$(cd "$( dirname "$0" )" && pwd)"
 FLINK_PYTHON_DIR=$(dirname "$CURRENT_DIR")
 
 # conda home path
-if [ -z "${CONDA_HOME+x}" ]; then
+if [ -z "${FLINK_CONDA_HOME+x}" ]; then
     CONDA_HOME="$CURRENT_DIR/.conda"
     ENV_HOME="$CONDA_HOME"
 else
+    CONDA_HOME=$FLINK_CONDA_HOME
     ENV_HOME="${CONDA_PREFIX-$CONDA_HOME}"
 fi
 

@@ -52,10 +52,10 @@ We can enter the directory where this README.md file is located and run test cas
 ./dev/lint-python.sh
 ```
 
-To use your system conda environment, you can set `CONDA_HOME` variable:
+To use your system conda environment, you can set `FLINK_CONDA_HOME` variable:
 
 ```shell
-export CONDA_HOME=$(dirname $(dirname $CONDA_EXE))
+export FLINK_CONDA_HOME=$(dirname $(dirname $CONDA_EXE))
 ```
 
 Then you can activate your environment and run tests, for example:
