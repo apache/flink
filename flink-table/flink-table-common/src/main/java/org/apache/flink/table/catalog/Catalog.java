@@ -311,11 +311,7 @@ public interface Catalog {
     void alterTable(ObjectPath tablePath, CatalogBaseTable newTable, boolean ignoreIfNotExists)
             throws TableNotExistException, CatalogException;
 
-    /**
-     * If true, tables which do not specify a connector will be translated to managed tables.
-     *
-     * @see CatalogBaseTable.TableKind#MANAGED
-     */
+    /** If true, tables which do not specify a connector will be translated to managed tables. */
     default boolean supportsManagedTable() {
         return false;
     }
@@ -567,6 +563,19 @@ public interface Catalog {
             throws PartitionNotExistException, CatalogException;
 
     /**
+     * Get a list of statistics of given partitions.
+     *
+     * @param tablePath path of the table
+     * @param partitionSpecs partition specs of partitions
+     * @return list of statistics of given partitions
+     * @throws PartitionNotExistException if one partition does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    List<CatalogTableStatistics> getPartitionsStatistics(
+            ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
+            throws PartitionNotExistException, CatalogException;
+
+    /**
      * Get the column statistics of a partition.
      *
      * @param tablePath path of the table
@@ -577,6 +586,19 @@ public interface Catalog {
      */
     CatalogColumnStatistics getPartitionColumnStatistics(
             ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+            throws PartitionNotExistException, CatalogException;
+
+    /**
+     * Get a list of column statistics for given partitions.
+     *
+     * @param tablePath path of the table
+     * @param partitionSpecs partition specs of partitions
+     * @return list of column statistics for given partitions
+     * @throws PartitionNotExistException if one partition does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    List<CatalogColumnStatistics> getPartitionsColumnStatistics(
+            ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException, CatalogException;
 
     /**
