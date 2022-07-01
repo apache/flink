@@ -1200,6 +1200,18 @@ class Expression(Generic[T]):
         """
         return _unary_op("chr")(self)
 
+    def decode(self, charset: Union[str, 'Expression[str]']) -> 'Expression[str]':
+        """
+        Decodes the first argument into a String using the provided character set.
+        """
+        return _binary_op("decode")(self, charset)
+
+    def encode(self, charset: Union[str, 'Expression[str]']) -> 'Expression[bytes]':
+        """
+        Encodes the string into a BINARY using the provided character set.
+        """
+        return _binary_op("encode")(self, charset)
+
     @property
     def ltrim(self) -> 'Expression[str]':
         """

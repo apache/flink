@@ -2532,7 +2532,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testEncodeAndDecode(): Unit = {
-    testSqlApi("decode(encode('aabbef', 'UTF-16LE'), 'UTF-16LE')", "aabbef")
+    testAllApis(
+      "aabbef".encode("UTF-16LE").decode("UTF-16LE"),
+      "decode(encode('aabbef', 'UTF-16LE'), 'UTF-16LE')",
+      "aabbef")
 
     testSqlApi("decode(encode('aabbef', 'utf-8'), 'utf-8')", "aabbef")
 

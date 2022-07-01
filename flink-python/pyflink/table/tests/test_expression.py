@@ -145,6 +145,8 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('toBase64(a)', str(expr1.to_base64))
         self.assertEqual('ascii(a)', str(expr1.ascii))
         self.assertEqual('chr(a)', str(expr1.chr))
+        self.assertEqual("decode(a, 'utf-8')", str(expr1.decode('utf-8')))
+        self.assertEqual("encode(a, 'utf-8')", str(expr1.encode('utf-8')))
         self.assertEqual('ltrim(a)', str(expr1.ltrim))
         self.assertEqual('rtrim(a)', str(expr1.rtrim))
         self.assertEqual('repeat(a, 3)', str(expr1.repeat(3)))

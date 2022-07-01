@@ -422,10 +422,12 @@ string:
       并返回模数的 CHR。如果整数为 `NULL`，则返回 `NULL`。例如 `chr(97)` 返回 `a`，`chr(353)` 返回 `a`，
       `ascii(CAST(NULL AS VARCHAR))` 返回 `NULL`。
   - sql: DECODE(binary, string)
+    table: BINARY.decode(STRING)
     description: |
       使用提供的字符集（'US-ASCII'，'ISO-8859-1'，'UTF-8'，'UTF-16BE'，'UTF-16LE'，'UTF-16'）解码。
       如果任一参数为空，则结果也将为空。
   - sql: ENCODE(string1, string2)
+    table: STRING1.encode(STRING2)
     description: |
       使用提供的字符集（'US-ASCII'，'ISO-8859-1'，'UTF-8'，'UTF-16BE'，'UTF-16LE'，'UTF-16'）编码。
       如果任一参数为空，则结果也将为空。
