@@ -158,7 +158,7 @@ under the License.
 		<protoc.version>3.21.7</protoc.version>
 		<okhttp.version>3.14.9</okhttp.version>
 		<!-- keep net.java.dev.jna:jna version in sync -->
-		<testcontainers.version>1.17.2</testcontainers.version>
+		<testcontainers.version>1.17.6</testcontainers.version>
 		<lz4.version>1.8.0</lz4.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
