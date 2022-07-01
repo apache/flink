@@ -141,6 +141,13 @@ Format 参数
       <td>String</td>
       <td>是否将 "null" 字符串转化为 null 值。</td>
     </tr>
+    <tr>
+      <td><h5>csv.write-bigdecimal-in-scientific-notation</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>设置将 Bigdecimal 类型的数据表示为科学计数法（默认为true，即需要转为科学计数法），例如一个BigDecimal的值为100000，设置true，结果为 '1E+5'；设置为false，结果为 100000。注意：只有当值不等于0且是10的倍数才会转为科学计数法</td>
+    </tr>
     </tbody>
 </table>
 

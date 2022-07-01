@@ -20,7 +20,10 @@ package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -37,6 +40,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,6 +49,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.table.data.DecimalData.fromBigDecimal;
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_DATA_TYPE;
 import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_TYPE;
@@ -231,6 +236,58 @@ public class CsvFormatFactoryTest extends TestLogger {
     }
 
     @Test
+    public void testSerializationWithWriteBigDecimalInScientificNotation() {
+        final Map<String, String> options =
+                getModifiedOptions(
+                        opts -> opts.put("csv.write-bigdecimal-in-scientific-notation", "true"));
+
+        ResolvedSchema schema =
+                ResolvedSchema.of(
+                        Column.physical("a", DataTypes.STRING()),
+                        Column.physical("b", DataTypes.DECIMAL(10, 3)),
+                        Column.physical("c", DataTypes.BOOLEAN()));
+        final DynamicTableSink actualSink = createTableSink(schema, options);
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+
+        SerializationSchema<RowData> runtimeEncoder =
+                sinkMock.valueFormat.createRuntimeEncoder(null, schema.toPhysicalRowDataType());
+
+        RowData rowData =
+                GenericRowData.of(
+                        fromString("abc"), fromBigDecimal(new BigDecimal("100000"), 10, 3), false);
+        byte[] bytes = runtimeEncoder.serialize(rowData);
+        assertThat(new String(bytes)).isEqualTo("abc;'1E+5';false");
+    }
+
+    @Test
+    public void testSerializationWithNotWriteBigDecimalInScientificNotation() {
+        final Map<String, String> options =
+                getModifiedOptions(
+                        opts -> opts.put("csv.write-bigdecimal-in-scientific-notation", "false"));
+
+        ResolvedSchema schema =
+                ResolvedSchema.of(
+                        Column.physical("a", DataTypes.STRING()),
+                        Column.physical("b", DataTypes.DECIMAL(10, 3)),
+                        Column.physical("c", DataTypes.BOOLEAN()));
+        final DynamicTableSink actualSink = createTableSink(schema, options);
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+
+        SerializationSchema<RowData> runtimeEncoder =
+                sinkMock.valueFormat.createRuntimeEncoder(null, schema.toPhysicalRowDataType());
+
+        RowData rowData =
+                GenericRowData.of(
+                        fromString("abc"), fromBigDecimal(new BigDecimal("100000"), 10, 3), false);
+        byte[] bytes = runtimeEncoder.serialize(rowData);
+        assertThat(new String(bytes)).isEqualTo("abc;'100000';false");
+    }
+
+    @Test
     public void testProjectionPushdown() throws IOException {
         final Map<String, String> options = getAllOptions();
 
@@ -311,6 +368,7 @@ public class CsvFormatFactoryTest extends TestLogger {
         options.put("csv.array-element-delimiter", "|");
         options.put("csv.escape-character", "\\");
         options.put("csv.null-literal", "n/a");
+        options.put("csv.write-bigdecimal-in-scientific-notation", "true");
         return options;
     }
 
