@@ -98,12 +98,6 @@ public abstract class SqlAlterTable extends SqlCall {
         return SqlPartitionUtils.getPartitionKVs(getPartitionSpec());
     }
 
-    protected void printIndent(SqlWriter writer) {
-        writer.sep(",", false);
-        writer.newlineAndIndent();
-        writer.print("  ");
-    }
-
     /** Alter table context. */
     public static class AlterTableContext extends SqlCreateTable.TableCreationContext {
         public List<SqlNode> columnPositions = new ArrayList<>();

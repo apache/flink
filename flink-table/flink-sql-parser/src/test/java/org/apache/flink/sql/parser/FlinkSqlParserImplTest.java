@@ -314,8 +314,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    void testAlterTableAdd() {
-        // add single column
+    void testAlterTableAddSinlgeColumn() {
         sql("alter table t1 add new_column string comment 'new_column docs'")
                 .ok(
                         "ALTER TABLE `T1` ADD (\n"
@@ -343,8 +342,10 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         "ALTER TABLE `T1` ADD (\n"
                                 + "  `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_metadata' AFTER `COL_B`\n"
                                 + ")");
+    }
 
-        // add watermark
+    @Test
+    void testAlterTableAddWatermark() {
         sql("alter table t1 add watermark for ts as ts - interval '1' second")
                 .ok(
                         "ALTER TABLE `T1` ADD (\n"
@@ -361,7 +362,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
                                 + ")");
 
-        // add multiple columns/constraint/watermark
+        sql("alter table default_catalog.default_database.t1 add (\n"
+                        + "watermark for ts as ts - interval '1' second,\n"
+                        + "^watermark^ for f1 as now()\n"
+                        + ")")
+                .fails("Multiple WATERMARK statements is not supported yet.");
+    }
+
+    @Test
+    void testAlterTableAddMultipleColumn() {
         final String sql1 =
                 "alter table t1 add (\n"
                         + "col_int int,\n"
@@ -386,8 +395,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testAlterTableModify() {
-        // modify single column
+    public void testAlterTableModifySingleColumn() {
         sql("alter table t1 modify new_column string comment 'new_column docs'")
                 .ok(
                         "ALTER TABLE `T1` MODIFY (\n"
@@ -415,8 +423,10 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         "ALTER TABLE `T1` MODIFY (\n"
                                 + "  `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_metadata' AFTER `COL_B`\n"
                                 + ")");
+    }
 
-        // modify watermark
+    @Test
+    void testAlterTableModifyWatermark() {
         sql("alter table t1 modify watermark for ts as ts - interval '1' second")
                 .ok(
                         "ALTER TABLE `T1` MODIFY (\n"
@@ -433,7 +443,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
                                 + ")");
 
-        // modify constraint
+        sql("alter table default_catalog.default_database.t1 modify (\n"
+                        + "watermark for ts as ts - interval '1' second,\n"
+                        + "^watermark^ for f1 as now()\n"
+                        + ")")
+                .fails("Multiple WATERMARK statements is not supported yet.");
+    }
+
+    @Test
+    void testAlterTableModifyConstraint() {
         sql("alter table t1 modify constraint ct1 primary key(a, b) not enforced")
                 .ok(
                         "ALTER TABLE `T1` MODIFY (\n"
@@ -441,8 +459,10 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + ")");
         sql("alter table t1 modify unique(a, b)")
                 .ok("ALTER TABLE `T1` MODIFY (\n" + "  UNIQUE (`A`, `B`)\n" + ")");
+    }
 
-        // modify multiple columns/constraint/watermark
+    @Test
+    public void testAlterTableModifyMultipleColumn() {
         final String sql1 =
                 "alter table t1 modify (\n"
                         + "col_int int,\n"

@@ -18,20 +18,17 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlTableUtils;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * SqlNode to describe ALTER TABLE table_name ADD column/constraint/watermark clause.
@@ -52,11 +49,7 @@ import java.util.Optional;
  * );
  * }</pre>
  */
-public class SqlAlterTableAdd extends SqlAlterTable {
-
-    private final SqlNodeList addedColumns;
-    @Nullable private final SqlWatermark watermark;
-    private final List<SqlTableConstraint> constraint;
+public class SqlAlterTableAdd extends SqlAlterTableSchema {
 
     public SqlAlterTableAdd(
             SqlParserPos pos,
@@ -64,50 +57,15 @@ public class SqlAlterTableAdd extends SqlAlterTable {
             SqlNodeList addedColumns,
             @Nullable SqlWatermark sqlWatermark,
             List<SqlTableConstraint> constraint) {
-        super(pos, tableName, null);
-        this.addedColumns = addedColumns;
-        this.watermark = sqlWatermark;
-        this.constraint = constraint;
-    }
-
-    public SqlNodeList getColumns() {
-        return addedColumns;
-    }
-
-    public Optional<SqlWatermark> getWatermark() {
-        return Optional.ofNullable(watermark);
-    }
-
-    @Nonnull
-    @Override
-    public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(
-                getTableName(),
-                addedColumns,
-                watermark,
-                new SqlNodeList(constraint, SqlParserPos.ZERO));
+        super(pos, tableName, addedColumns, sqlWatermark, constraint);
     }
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparse(writer, leftPrec, rightPrec);
         writer.keyword("ADD");
-
-        SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
-        for (SqlNode column : addedColumns.getList()) {
-            printIndent(writer);
-            column.unparse(writer, leftPrec, rightPrec);
-        }
-        for (SqlTableConstraint constraint : constraint) {
-            printIndent(writer);
-            constraint.unparse(writer, leftPrec, rightPrec);
-        }
-        if (watermark != null) {
-            printIndent(writer);
-            watermark.unparse(writer, leftPrec, rightPrec);
-        }
-
-        writer.newlineAndIndent();
-        writer.endList(frame);
+        // unparse table schema
+        SqlTableUtils.unparseTableSchema(
+                writer, leftPrec, rightPrec, columnList, constraints, watermark);
     }
 }

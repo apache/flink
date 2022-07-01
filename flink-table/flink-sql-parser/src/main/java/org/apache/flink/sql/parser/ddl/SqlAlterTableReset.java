@@ -18,6 +18,8 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlTableUtils;
+
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
@@ -65,7 +67,7 @@ public class SqlAlterTableReset extends SqlAlterTable {
         writer.keyword("RESET");
         SqlWriter.Frame withFrame = writer.startList("(", ")");
         for (SqlNode property : propertyKeyList) {
-            printIndent(writer);
+            SqlTableUtils.printIndent(writer);
             property.unparse(writer, leftPrec, rightPrec);
         }
         writer.newlineAndIndent();

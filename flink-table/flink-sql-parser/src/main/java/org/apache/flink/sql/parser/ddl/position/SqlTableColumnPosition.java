@@ -99,6 +99,8 @@ public class SqlTableColumnPosition extends SqlCall {
         } else if (isAfterReferencedColumn()) {
             positionSpec.unparse(writer, leftPrec, rightPrec);
             referencedColumn.unparse(writer, leftPrec, rightPrec);
+        } else {
+            // default no refer other column
         }
     }
 }

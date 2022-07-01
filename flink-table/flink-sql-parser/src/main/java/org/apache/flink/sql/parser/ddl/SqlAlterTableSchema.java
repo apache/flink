@@ -18,54 +18,64 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.SqlTableUtils;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.util.ImmutableNullableList;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Optional;
 
-/**
- * SqlNode to describe ALTER TABLE table_name MODIFY column/constraint/watermark clause.
- *
- * <p>Example: DDL like the below for modify column/constraint/watermark.
- *
- * <pre>{@code
- * -- add single column
- * ALTER TABLE mytable MODIFY new_column STRING COMMENT 'new_column docs';
- *
- * -- modify multiple columns, constraint, and watermark
- * ALTER TABLE mytable MODIFY (
- *     log_ts STRING COMMENT 'log timestamp string' FIRST,
- *     ts AS TO_TIMESTAMP(log_ts) AFTER log_ts,
- *     col_meta int metadata from 'mk1' virtual AFTER col_b,
- *     PRIMARY KEY (id) NOT ENFORCED,
- *     WATERMARK FOR ts AS ts - INTERVAL '3' SECOND
- * );
- * }</pre>
- */
-public class SqlAlterTableModify extends SqlAlterTableSchema {
+/** Abstract class to describe statements which are used to alter table schema. */
+public abstract class SqlAlterTableSchema extends SqlAlterTable {
 
-    public SqlAlterTableModify(
+    protected final SqlNodeList columnList;
+    @Nullable protected final SqlWatermark watermark;
+    protected final List<SqlTableConstraint> constraints;
+
+    public SqlAlterTableSchema(
             SqlParserPos pos,
             SqlIdentifier tableName,
-            SqlNodeList modifiedColumns,
-            @Nullable SqlWatermark watermark,
+            SqlNodeList columnList,
+            @Nullable SqlWatermark sqlWatermark,
             List<SqlTableConstraint> constraints) {
-        super(pos, tableName, modifiedColumns, watermark, constraints);
+        super(pos, tableName);
+        this.columnList = columnList;
+        this.watermark = sqlWatermark;
+        this.constraints = constraints;
+    }
+
+    @Nonnull
+    @Override
+    public List<SqlNode> getOperandList() {
+        return ImmutableNullableList.of(
+                getTableName(),
+                columnList,
+                watermark,
+                new SqlNodeList(constraints, SqlParserPos.ZERO));
+    }
+
+    public SqlNodeList getColumns() {
+        return columnList;
+    }
+
+    public Optional<SqlWatermark> getWatermark() {
+        return Optional.ofNullable(watermark);
+    }
+
+    public List<SqlTableConstraint> getConstraints() {
+        return constraints;
     }
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("MODIFY");
-        // unparse table schema
-        SqlTableUtils.unparseTableSchema(
-                writer, leftPrec, rightPrec, columnList, constraints, watermark);
     }
 }
