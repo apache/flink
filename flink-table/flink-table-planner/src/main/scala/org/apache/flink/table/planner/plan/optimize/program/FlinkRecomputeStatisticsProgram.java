@@ -27,7 +27,6 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsStatisticReport;
@@ -53,6 +52,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_REPORT_STATISTICS_ENABLED;
 
@@ -183,36 +183,42 @@ public class FlinkRecomputeStatisticsProgram implements FlinkOptimizeProgram<Bat
             } else {
                 partitionList = partitionPushDownSpec.getPartitions();
             }
-            for (Map<String, String> partition : partitionList) {
-                Optional<TableStats> partitionStats =
-                        getPartitionStats(catalog, tablePath, partition);
-                if (!partitionStats.isPresent()) {
-                    // clear all information before
-                    newTableStat = null;
-                    break;
-                } else {
-                    newTableStat =
-                            newTableStat == null
-                                    ? partitionStats.get()
-                                    : newTableStat.merge(partitionStats.get());
-                }
-            }
+            return getPartitionStats(
+                            table.contextResolvedTable().getCatalog().get(),
+                            table.contextResolvedTable().getIdentifier().toObjectPath(),
+                            partitionList)
+                    .get();
         }
 
-        return newTableStat;
+        return TableStats.UNKNOWN;
     }
 
     private Optional<TableStats> getPartitionStats(
-            Catalog catalog, ObjectPath tablePath, Map<String, String> partition) {
+            Catalog catalog, ObjectPath tablePath, List<Map<String, String>> partition) {
         try {
-            CatalogPartitionSpec spec = new CatalogPartitionSpec(partition);
-            CatalogTableStatistics partitionStat = catalog.getPartitionStatistics(tablePath, spec);
-            CatalogColumnStatistics partitionColStat =
-                    catalog.getPartitionColumnStatistics(tablePath, spec);
-            TableStats stats =
-                    CatalogTableStatisticsConverter.convertToTableStats(
-                            partitionStat, partitionColStat);
-            return Optional.of(stats);
+
+            final List<CatalogPartitionSpec> partitionSpecs =
+                    partition.stream()
+                            .map(p -> new CatalogPartitionSpec(p))
+                            .collect(Collectors.toList());
+
+            final Optional<TableStats> rowCountMergedTableStats =
+                    catalog.getPartitionsStatistics(tablePath, partitionSpecs).stream()
+                            .map(p -> CatalogTableStatisticsConverter.convertToTableStats(p, null))
+                            .reduce((s1, s2) -> s1.merge(s2));
+
+            final Optional<TableStats> columnStatsMergedTableStats =
+                    catalog.getPartitionsColumnStatistics(tablePath, partitionSpecs).stream()
+                            .map(
+                                    p ->
+                                            CatalogTableStatisticsConverter.convertToTableStats(
+                                                    CatalogTableStatistics.EMPTY, p))
+                            .reduce((s1, s2) -> s1.merge(s2));
+
+            return Optional.of(
+                    new TableStats(
+                            rowCountMergedTableStats.get().getRowCount(),
+                            columnStatsMergedTableStats.get().getColumnStats()));
         } catch (PartitionNotExistException e) {
             return Optional.empty();
         }
