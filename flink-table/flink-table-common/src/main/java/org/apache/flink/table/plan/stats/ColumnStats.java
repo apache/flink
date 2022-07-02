@@ -211,6 +211,11 @@ public final class ColumnStats {
      * @return The merged column stats.
      */
     public ColumnStats merge(ColumnStats other) {
+
+        if (other == null) {
+            return this;
+        }
+
         Long ndv = combineIfNonNull(Long::sum, this.ndv, other.ndv);
         Long nullCount = combineIfNonNull(Long::sum, this.nullCount, other.nullCount);
         Double avgLen = combineIfNonNull((a1, a2) -> (a1 + a2) / 2, this.avgLen, other.avgLen);
