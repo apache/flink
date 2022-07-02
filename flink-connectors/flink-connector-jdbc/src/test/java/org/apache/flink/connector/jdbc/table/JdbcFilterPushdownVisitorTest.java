@@ -59,7 +59,6 @@ import static org.junit.Assert.assertEquals;
 /** Test for {@link JdbcFilterPushdownVisitor}. */
 public class JdbcFilterPushdownVisitorTest extends AbstractTestBase {
 
-    private final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
     public static final String DRIVER_CLASS = "org.apache.derby.jdbc.EmbeddedDriver";
     public static final String DB_URL = "jdbc:derby:memory:test";
     public static final String INPUT_TABLE = "jdbDynamicTableSource";
