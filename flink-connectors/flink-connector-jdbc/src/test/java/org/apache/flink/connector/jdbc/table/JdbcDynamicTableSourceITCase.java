@@ -317,10 +317,9 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         // test simple filter
         assertQueryReturns("SELECT * FROM FAKE_TABLE WHERE idx = 1", onlyRow1);
         // test TIMESTAMP filter
-        //        assertQueryReturns(
-        //                "SELECT * FROM FAKE_TABLE WHERE timestamp6_col = TO_TIMESTAMP('2020-01-01
-        // 15:35:00.123456 ')",
-        //                onlyRow1);
+        assertQueryReturns(
+                "SELECT * FROM FAKE_TABLE WHERE timestamp6_col = TO_TIMESTAMP('2020-01-01 15:35:00.123456')",
+                onlyRow1);
         // test the IN operator
         assertQueryReturns(
                 "SELECT * FROM "
