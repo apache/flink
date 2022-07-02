@@ -44,8 +44,6 @@ public class FileStateHandle implements StreamStateHandle {
     /** The size of the state in the file. */
     private final long stateSize;
 
-    private final PhysicalStateHandleID physicalID;
-
     /**
      * Creates a new file state for the given file path.
      *
@@ -55,7 +53,6 @@ public class FileStateHandle implements StreamStateHandle {
         checkArgument(stateSize >= -1);
         this.filePath = checkNotNull(filePath);
         this.stateSize = stateSize;
-        this.physicalID = new PhysicalStateHandleID(filePath.toUri().toString());
     }
 
     /**
@@ -79,7 +76,7 @@ public class FileStateHandle implements StreamStateHandle {
 
     @Override
     public PhysicalStateHandleID getStreamStateHandleID() {
-        return physicalID;
+        return new PhysicalStateHandleID(filePath.toUri().toString());
     }
 
     /**
