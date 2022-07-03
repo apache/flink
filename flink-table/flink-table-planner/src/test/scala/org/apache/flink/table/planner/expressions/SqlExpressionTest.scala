@@ -214,6 +214,13 @@ class SqlExpressionTest extends ExpressionTestBase {
   @Test
   def testTypeConversionFunctions(): Unit = {
     testSqlApi("CAST(2 AS DOUBLE)", "2.0")
+    testSqlApi(
+      "TO_TIMESTAMP('2020-01-01 15:35:00.123456', 'yyyy-MM-dd HH:mm:ss.SSSSSS')",
+      "2020-01-01 15:35:00.123456")
+    testSqlApi("TO_TIMESTAMP('2020-01-01 15:35:00.123456')", "2020-01-01 15:35:00.123456")
+    testSqlApi(
+      "TO_TIMESTAMP('2020-01-01 15:35:00.123456', 'yyyy-MM-dd HH:mm:ss.SSSS')",
+      "2020-01-01 15:35:00.1234")
   }
 
   @Test
