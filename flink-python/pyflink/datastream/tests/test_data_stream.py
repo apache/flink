@@ -32,7 +32,7 @@ from pyflink.datastream.functions import (AggregateFunction, CoMapFunction, CoFl
                                           MapFunction, FilterFunction, FlatMapFunction,
                                           KeyedCoProcessFunction, KeyedProcessFunction, KeySelector,
                                           ProcessFunction, ReduceFunction, CoProcessFunction,
-                                          BroadcastProcessFunction)
+                                          BroadcastProcessFunction, KeyedBroadcastProcessFunction)
 from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.state import (ValueStateDescriptor, ListStateDescriptor, MapStateDescriptor,
                                       ReducingStateDescriptor, ReducingState, AggregatingState,
@@ -986,6 +986,88 @@ class DataStreamTests(object):
 
         self.env.execute("test_co_broadcast_process")
         expected = ["0a", "0a", "1b", "1b", "a2", "a4", "b1", "b3", "b5"]
+        self.assert_equals_sorted(expected, self.test_sink.get_results())
+
+    def test_keyed_co_broadcast_process(self):
+        ds = self.env.from_collection(
+            [(1, '1603708211000'),
+             (2, '1603708212000'),
+             (3, '1603708213000'),
+             (4, '1603708214000')],
+            type_info=Types.ROW([Types.INT(), Types.STRING()]))  # type: DataStream
+        ds_broadcast = self.env.from_collection(
+            [(0, '1603708215000', 'a'),
+             (1, '1603708215000', 'b')],
+            type_info=Types.ROW([Types.INT(), Types.STRING(), Types.STRING()])
+        )  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+        ds = ds.assign_timestamps_and_watermarks(watermark_strategy)
+        ds_broadcast = ds_broadcast.assign_timestamps_and_watermarks(watermark_strategy)
+
+        def _create_string(s, t):
+            return 'value: {}, ts: {}'.format(s, t)
+
+        class MyKeyedBroadcastProcessFunction(KeyedBroadcastProcessFunction):
+            def __init__(self, map_state_desc):
+                self._map_state_desc = map_state_desc
+                self._cache = None
+
+            def open(self, runtime_context: RuntimeContext):
+                self._cache = defaultdict(list)
+
+            def process_element(
+                self, value: Tuple[int, str], ctx: KeyedBroadcastProcessFunction.ReadOnlyContext
+            ):
+                ro_broadcast_state = ctx.get_broadcast_state(self._map_state_desc)
+                key = value[0] % 2
+                if ro_broadcast_state.contains(key):
+                    if self._cache.get(key) is not None:
+                        for v in self._cache[key]:
+                            yield _create_string(ro_broadcast_state.get(key) + str(v[0]), v[1])
+                        self._cache[key].clear()
+                    yield _create_string(ro_broadcast_state.get(key) + str(value[0]), value[1])
+                else:
+                    self._cache[key].append(value)
+                ctx.timer_service().register_event_time_timer(ctx.timestamp() + 10000)
+
+            def process_broadcast_element(
+                self, value: Tuple[int, str, str], ctx: KeyedBroadcastProcessFunction.Context
+            ):
+                key = value[0]
+                yield _create_string(str(key) + value[2], ctx.timestamp())
+                broadcast_state = ctx.get_broadcast_state(self._map_state_desc)
+                broadcast_state.put(key, value[2])
+                if self._cache.get(key) is not None:
+                    for v in self._cache[key]:
+                        yield _create_string(value[2] + str(v[0]), v[1])
+                    self._cache[key].clear()
+
+            def on_timer(self, timestamp: int, ctx: KeyedBroadcastProcessFunction.OnTimerContext):
+                yield _create_string(ctx.get_current_key(), timestamp)
+
+        map_state_desc = MapStateDescriptor(
+            "mapping", key_type_info=Types.INT(), value_type_info=Types.STRING()
+        )
+        ds.key_by(lambda t: t[0]).connect(ds_broadcast.broadcast(map_state_desc)).process(
+            MyKeyedBroadcastProcessFunction(map_state_desc), output_type=Types.STRING()
+        ).add_sink(self.test_sink)
+
+        self.env.execute("test_keyed_co_broadcast_process")
+        expected = [
+            'value: 0a, ts: 1603708215000',
+            'value: 0a, ts: 1603708215000',
+            'value: 1, ts: 1603708221000',
+            'value: 1b, ts: 1603708215000',
+            'value: 1b, ts: 1603708215000',
+            'value: 2, ts: 1603708222000',
+            'value: 3, ts: 1603708223000',
+            'value: 4, ts: 1603708224000',
+            'value: a2, ts: 1603708212000',
+            'value: a4, ts: 1603708214000',
+            'value: b1, ts: 1603708211000',
+            'value: b3, ts: 1603708213000'
+        ]
         self.assert_equals_sorted(expected, self.test_sink.get_results())
 
 

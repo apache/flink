@@ -19,32 +19,33 @@ package org.apache.flink.streaming.runtime.translators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.operators.python.PythonBatchCoBroadcastProcessOperator;
-import org.apache.flink.streaming.api.operators.python.PythonCoProcessOperator;
-import org.apache.flink.streaming.api.transformations.python.PythonBroadcastStateTransformation;
+import org.apache.flink.streaming.api.operators.python.PythonBatchKeyedCoBroadcastProcessOperator;
+import org.apache.flink.streaming.api.operators.python.PythonKeyedCoProcessOperator;
+import org.apache.flink.streaming.api.transformations.python.PythonKeyedBroadcastStateTransformation;
 import org.apache.flink.streaming.runtime.translators.AbstractTwoInputTransformationTranslator;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 
 /**
  * A {@link org.apache.flink.streaming.api.graph.TransformationTranslator} that translates {@link
- * PythonBroadcastStateTransformation} into {@link PythonCoProcessOperator} or {@link
- * PythonBatchCoBroadcastProcessOperator}.
+ * PythonKeyedBroadcastStateTransformation} into {@link PythonKeyedCoProcessOperator} or {@link
+ * PythonBatchKeyedCoBroadcastProcessOperator}.
  */
 @Internal
-public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
+public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
         extends AbstractTwoInputTransformationTranslator<
-                IN1, IN2, OUT, PythonBroadcastStateTransformation<IN1, IN2, OUT>> {
+                Row, Row, OUT, PythonKeyedBroadcastStateTransformation<OUT>> {
 
     @Override
     protected Collection<Integer> translateForBatchInternal(
-            PythonBroadcastStateTransformation<IN1, IN2, OUT> transformation, Context context) {
+            PythonKeyedBroadcastStateTransformation<OUT> transformation, Context context) {
         Preconditions.checkNotNull(transformation);
         Preconditions.checkNotNull(context);
 
-        PythonBatchCoBroadcastProcessOperator<IN1, IN2, OUT> operator =
-                new PythonBatchCoBroadcastProcessOperator<>(
+        PythonKeyedCoProcessOperator<OUT> operator =
+                new PythonBatchKeyedCoBroadcastProcessOperator<>(
                         transformation.getConfiguration(),
                         transformation.getDataStreamPythonFunctionInfo(),
                         transformation.getRegularInput().getOutputType(),
@@ -56,20 +57,20 @@ public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
                 transformation.getRegularInput(),
                 transformation.getBroadcastInput(),
                 SimpleOperatorFactory.of(operator),
-                null,
-                null,
+                transformation.getStateKeyType(),
+                transformation.getKeySelector(),
                 null,
                 context);
     }
 
     @Override
     protected Collection<Integer> translateForStreamingInternal(
-            PythonBroadcastStateTransformation<IN1, IN2, OUT> transformation, Context context) {
+            PythonKeyedBroadcastStateTransformation<OUT> transformation, Context context) {
         Preconditions.checkNotNull(transformation);
         Preconditions.checkNotNull(context);
 
-        PythonCoProcessOperator<IN1, IN2, OUT> operator =
-                new PythonCoProcessOperator<>(
+        PythonKeyedCoProcessOperator<OUT> operator =
+                new PythonKeyedCoProcessOperator<>(
                         transformation.getConfiguration(),
                         transformation.getDataStreamPythonFunctionInfo(),
                         transformation.getRegularInput().getOutputType(),
@@ -81,8 +82,8 @@ public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
                 transformation.getRegularInput(),
                 transformation.getBroadcastInput(),
                 SimpleOperatorFactory.of(operator),
-                null,
-                null,
+                transformation.getStateKeyType(),
+                transformation.getKeySelector(),
                 null,
                 context);
     }

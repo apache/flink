@@ -17,7 +17,11 @@
 
 package org.apache.flink.python.util;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -39,8 +43,12 @@ import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.python.PythonBroadcastStateTransformation;
+import org.apache.flink.streaming.api.transformations.python.PythonKeyedBroadcastStateTransformation;
+import org.apache.flink.streaming.api.utils.ByteArrayWrapper;
+import org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.translators.python.PythonBroadcastStateTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.python.PythonKeyedBroadcastStateTransformationTranslator;
 import org.apache.flink.util.OutputTag;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
@@ -50,6 +58,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -247,7 +256,8 @@ public class PythonConfigUtil {
         } else if (transform instanceof AbstractMultipleInputTransformation) {
             return isPythonOperator(
                     ((AbstractMultipleInputTransformation<?>) transform).getOperatorFactory());
-        } else if (transform instanceof PythonBroadcastStateTransformation) {
+        } else if (transform instanceof PythonBroadcastStateTransformation
+                || transform instanceof PythonKeyedBroadcastStateTransformation) {
             return true;
         } else {
             return false;
@@ -335,6 +345,21 @@ public class PythonConfigUtil {
         }
     }
 
+    public static List<MapStateDescriptor<ByteArrayWrapper, byte[]>>
+            convertStateNamesToStateDescriptors(String[] names) {
+        List<MapStateDescriptor<ByteArrayWrapper, byte[]>> descriptors =
+                new ArrayList<>(names.length);
+        TypeSerializer<byte[]> byteArraySerializer =
+                PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO.createSerializer(
+                        new ExecutionConfig());
+        for (String name : names) {
+            descriptors.add(
+                    new MapStateDescriptor<>(
+                            name, ByteArrayWrapperSerializer.INSTANCE, byteArraySerializer));
+        }
+        return descriptors;
+    }
+
     @SuppressWarnings("rawtypes,unchecked")
     public static void registerPythonBroadcastTransformationTranslator() throws Exception {
         final Field translatorMapField =
@@ -352,6 +377,9 @@ public class PythonConfigUtil {
         underlyingMap.put(
                 PythonBroadcastStateTransformation.class,
                 new PythonBroadcastStateTransformationTranslator<>());
+        underlyingMap.put(
+                PythonKeyedBroadcastStateTransformation.class,
+                new PythonKeyedBroadcastStateTransformationTranslator<>());
     }
 
     @SuppressWarnings("rawtypes")

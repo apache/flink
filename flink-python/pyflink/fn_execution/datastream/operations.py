@@ -29,7 +29,9 @@ from pyflink.fn_execution.datastream.process_function import (
     InternalKeyedProcessFunctionContext,
     InternalProcessFunctionContext,
     InternalBroadcastProcessFunctionContext,
-    InternalReadOnlyBroadcastProcessFunctionContext,
+    InternalBroadcastProcessFunctionReadOnlyContext, InternalKeyedBroadcastProcessFunctionContext,
+    InternalKeyedBroadcastProcessFunctionReadOnlyContext,
+    InternalKeyedBroadcastProcessFunctionOnTimerContext,
 )
 from pyflink.fn_execution.datastream.runtime_context import StreamingRuntimeContext
 from pyflink.fn_execution.datastream.window.window_operator import WindowOperator
@@ -124,6 +126,7 @@ class StatefulOperation(Operation):
                 self.keyed_state_backend,
             ),
             keyed_state_backend=self.keyed_state_backend,
+            operator_state_store=self.operator_state_backend,
         )
 
     def finish(self):
@@ -234,13 +237,13 @@ def extract_stateless_function(
             broadcast_ctx = InternalBroadcastProcessFunctionContext(
                 NonKeyedTimerServiceImpl(), operator_state_store
             )
-            read_only_broadcast_ctx = InternalReadOnlyBroadcastProcessFunctionContext(
+            read_only_broadcast_ctx = InternalBroadcastProcessFunctionReadOnlyContext(
                 NonKeyedTimerServiceImpl(), operator_state_store
             )
 
             def wrapped_func(value):
                 # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK,
-                #   [isNormal, broadcastInput, normalInput]]
+                #   [isNormal, normalInput, broadcastInput]]
                 timestamp = value[0]
                 watermark = value[1]
                 broadcast_ctx.set_timestamp(timestamp)
@@ -268,7 +271,8 @@ def extract_stateless_function(
 
 
 def extract_stateful_function(
-    user_defined_function_proto, runtime_context: RuntimeContext, keyed_state_backend
+    user_defined_function_proto, runtime_context: RuntimeContext, keyed_state_backend,
+    operator_state_store
 ):
     from pyflink.fn_execution import flink_fn_execution_pb2
 
@@ -356,6 +360,53 @@ def extract_stateful_function(
 
         else:
             raise Exception("Unsupported func_type: " + str(func_type))
+
+    elif func_type == UserDefinedDataStreamFunction.KEYED_CO_BROADCAST_PROCESS:
+
+        timer_service = TimerServiceImpl(internal_timer_service)
+        ctx = InternalKeyedBroadcastProcessFunctionContext(timer_service, operator_state_store)
+        read_only_ctx = InternalKeyedBroadcastProcessFunctionReadOnlyContext(timer_service,
+                                                                             operator_state_store)
+        on_timer_ctx = InternalKeyedBroadcastProcessFunctionOnTimerContext(timer_service,
+                                                                           operator_state_store)
+        internal_timer_service.set_namespace_serializer(VoidNamespaceSerializer())
+
+        def open_func():
+            if hasattr(user_defined_func, "open"):
+                user_defined_func.open(runtime_context)
+
+        def close_func():
+            if hasattr(user_defined_func, "close"):
+                user_defined_func.close()
+
+        def on_event_time(timestamp: int, key, namespace):
+            keyed_state_backend.set_current_key(key)
+            return _on_timer(TimeDomain.EVENT_TIME, timestamp, key)
+
+        def on_processing_time(timestamp: int, key, namespace):
+            keyed_state_backend.set_current_key(key)
+            return _on_timer(TimeDomain.PROCESSING_TIME, timestamp, key)
+
+        def _on_timer(time_domain: TimeDomain, timestamp: int, key):
+            user_current_key = user_key_selector(key)
+
+            on_timer_ctx.set_timestamp(timestamp)
+            on_timer_ctx.set_current_key(user_current_key)
+            on_timer_ctx.set_time_domain(time_domain)
+
+            return user_defined_func.on_timer(timestamp, on_timer_ctx)
+
+        def process_element(normal_data, timestamp):
+            ctx.set_timestamp(timestamp)
+            read_only_ctx.set_timestamp(timestamp)
+
+            if normal_data[0]:
+                data = normal_data[1]
+                read_only_ctx.set_current_key(user_key_selector(data))
+                keyed_state_backend.set_current_key(state_key_selector(data))
+                return user_defined_func.process_element(input_selector(data), read_only_ctx)
+            else:
+                return user_defined_func.process_broadcast_element(normal_data[2], ctx)
 
     elif func_type == UserDefinedDataStreamFunction.WINDOW:
         window_operation_descriptor = (
