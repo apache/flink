@@ -50,7 +50,9 @@ __all__ = [
     'AllWindowFunction',
     'ProcessWindowFunction',
     'ProcessAllWindowFunction',
+    'BaseBroadcastProcessFunction',
     'BroadcastProcessFunction',
+    'KeyedBroadcastProcessFunction',
 ]
 
 
@@ -1275,14 +1277,14 @@ class InternalIterableProcessWindowFunction(InternalWindowFunction[Iterable[IN],
 
 class BaseBroadcastProcessFunction(Function):
     """
-    The base class containing the functionality available to all broadcast process function. These
-    include the :class:`BroadcastProcessFunction`.
+    The base class containing the functionality available to all broadcast process functions. These
+    include :class:`BroadcastProcessFunction` and :class:`KeyedBroadcastProcessFunction`.
     """
 
     class BaseContext(ABC):
         """
-        The base context available to all methods in a broadcast process function. This include
-        :class:`BroadcastProcessFunction`.
+        The base context available to all methods in a broadcast process function. This includes
+        :class:`BroadcastProcessFunction` and :class:`KeyedBroadcastProcessFunction`.
         """
 
         @abstractmethod
@@ -1306,8 +1308,9 @@ class BaseBroadcastProcessFunction(Function):
 
     class Context(BaseContext):
         """
-        A base :class`BaseContext` available to the broadcasted stream side of a
+        A :class:`BaseContext` available to the broadcasted stream side of a
         :class:`BroadcastConnectedStream`.
+
         Apart from the basic functionality of a :class:`BaseContext`, this also allows to get and
         update the elements stored in the :class:`BroadcastState`. In other words, it gives read/
         write access to the broadcast state.
@@ -1317,6 +1320,7 @@ class BaseBroadcastProcessFunction(Function):
         def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> BroadcastState:
             """
             Fetches the :class:`BroadcastState` with the specified name.
+
             :param state_descriptor: the :class:`MapStateDescriptor` of the state to be fetched.
             :return: The required :class:`BroadcastState`.
             """
@@ -1326,6 +1330,7 @@ class BaseBroadcastProcessFunction(Function):
         """
         A :class:`BaseContext` available to the non-broadcasted stream side of a
         :class:`BroadcastConnectedStream`.
+
         Apart from the basic functionality of a :class:`BaseContext`, this also allows to get
         read-only access to the elements stored in the broadcast state.
         """
@@ -1336,7 +1341,8 @@ class BaseBroadcastProcessFunction(Function):
         ) -> ReadOnlyBroadcastState:
             """
             Fetches a read-only view of the broadcast state with the specified name.
-            :param state_descriptor: the class:`MapStateDescriptor` of the state to be fetched.
+
+            :param state_descriptor: the :class:`MapStateDescriptor` of the state to be fetched.
             :return: The required read-only view of the broadcast state.
             """
             pass
@@ -1352,8 +1358,9 @@ class BroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[IN1, IN2, O
     method.
 
     The user has to implement two methods:
+
     * the :meth:`process_broadcast_element` which will be applied to each element in the broadcast
-    side
+      side
     * the :meth:`process_element` which will be applied to the non-broadcasted/keyed side.
 
     The :meth:`process_broadcast_element` takes as argument (among others) a context that allows it
@@ -1372,7 +1379,7 @@ class BroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[IN1, IN2, O
 
     class ReadOnlyContext(BaseBroadcastProcessFunction.ReadOnlyContext, ABC):
         """
-        A :class:`BaseBroadcastProcessFunction.Context` available to the non-keyed side of a
+        A :class:`BaseBroadcastProcessFunction.ReadOnlyContext` available to the non-keyed side of a
         :class:`BroadcastConnectedStream` (if any).
         """
         pass
@@ -1387,9 +1394,10 @@ class BroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[IN1, IN2, O
         of this method, do not store it.
 
         :param value: The stream element.
-        :param ctx: A :class:`ReadOnlyContext` that allows querying the timestamp of the element,
-            querying the current processing/event time and updating the broadcast state. The context
-            is only valid during the invocation of this method, do not store it.
+        :param ctx: A :class:`BroadcastProcessFunction.ReadOnlyContext` that allows querying the
+            timestamp of the element, querying the current processing/event time and updating the
+            broadcast state. The context is only valid during the invocation of this method, do not
+            store it.
         """
         pass
 
@@ -1399,14 +1407,52 @@ class BroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[IN1, IN2, O
         This method is called for each element in the :class:`BroadcastStream`.
         This function can output zero or more elements via :code:`yield` statement, query the
         current processing/event time, and also query and update the internal
-        :class:`BroadcastState`. These can be done through the provided :class:`Context`. The
-        context is only valid during the invocation of this method, do not store it.
+        :class:`state.BroadcastState`. These can be done through the provided
+        :class:`BroadcastProcessFunction.Context`. The context is only valid during the invocation
+        of this method, do not store it.
 
         :param value: The stream element.
-        :param ctx: A :class:`Context` that allows querying the timestamp of the element, querying
-            the current processing/event time and updating the broadcast state. The context is only
-            valid during the invocation of this method, do not store it.
+        :param ctx: A :class:`BroadcastProcessFunction.Context` that allows querying the timestamp
+            of the element, querying the current processing/event time and updating the broadcast
+            state. The context is only valid during the invocation of this method, do not store it.
         """
+        pass
+
+
+class KeyedBroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[KEY, IN1, IN2, OUT]):
+
+    class Context(BaseBroadcastProcessFunction.Context, ABC):
+        pass
+
+    class ReadOnlyContext(BaseBroadcastProcessFunction.ReadOnlyContext, ABC):
+
+        @abstractmethod
+        def timer_service(self) -> TimerService:
+            pass
+
+        @abstractmethod
+        def get_current_key(self) -> KEY:
+            pass
+
+    class OnTimerContext(ReadOnlyContext, ABC):
+
+        @abstractmethod
+        def time_domain(self) -> TimeDomain:
+            pass
+
+        @abstractmethod
+        def get_current_key(self) -> KEY:
+            pass
+
+    @abstractmethod
+    def process_element(self, value: IN1, ctx: ReadOnlyContext):
+        pass
+
+    @abstractmethod
+    def process_broadcast_element(self, value: IN2, ctx: Context):
+        pass
+
+    def on_timer(self, timestamp: int, ctx: OnTimerContext):
         pass
 
 

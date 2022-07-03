@@ -21,31 +21,37 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.transformations.AbstractBroadcastStateTransformation;
+import org.apache.flink.types.Row;
 
 import java.util.List;
 
 /**
- * A {@link Transformation} representing a Python Co-Broadcast-Process operation, which will be
- * translated into different operations by {@link
- * org.apache.flink.streaming.runtime.translators.python.PythonBroadcastStateTransformationTranslator}.
+ * A {@link Transformation} representing a Python Keyed-Co-Broadcast-Process operation, which will
+ * be translated into different operations by {@link
+ * org.apache.flink.streaming.runtime.translators.python.PythonKeyedBroadcastStateTransformationTranslator}.
  */
 @Internal
-public class PythonBroadcastStateTransformation<IN1, IN2, OUT>
-        extends AbstractBroadcastStateTransformation<IN1, IN2, OUT> {
+public class PythonKeyedBroadcastStateTransformation<OUT>
+        extends AbstractBroadcastStateTransformation<Row, Row, OUT> {
 
     private final Configuration configuration;
     private final DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo;
+    private final TypeInformation<Row> stateKeyType;
+    private final KeySelector<Row, Row> keySelector;
 
-    public PythonBroadcastStateTransformation(
+    public PythonKeyedBroadcastStateTransformation(
             String name,
             Configuration configuration,
             DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
-            Transformation<IN1> regularInput,
-            Transformation<IN2> broadcastInput,
+            Transformation<Row> regularInput,
+            Transformation<Row> broadcastInput,
             List<MapStateDescriptor<?, ?>> broadcastStateDescriptors,
+            TypeInformation<Row> keyType,
+            KeySelector<Row, Row> keySelector,
             TypeInformation<OUT> outTypeInfo,
             int parallelism) {
         super(
@@ -57,7 +63,9 @@ public class PythonBroadcastStateTransformation<IN1, IN2, OUT>
                 parallelism);
         this.configuration = configuration;
         this.dataStreamPythonFunctionInfo = dataStreamPythonFunctionInfo;
-        updateManagedMemoryStateBackendUseCase(false);
+        this.stateKeyType = keyType;
+        this.keySelector = keySelector;
+        updateManagedMemoryStateBackendUseCase(true);
     }
 
     public Configuration getConfiguration() {
@@ -66,5 +74,13 @@ public class PythonBroadcastStateTransformation<IN1, IN2, OUT>
 
     public DataStreamPythonFunctionInfo getDataStreamPythonFunctionInfo() {
         return dataStreamPythonFunctionInfo;
+    }
+
+    public TypeInformation<Row> getStateKeyType() {
+        return stateKeyType;
+    }
+
+    public KeySelector<Row, Row> getKeySelector() {
+        return keySelector;
     }
 }
