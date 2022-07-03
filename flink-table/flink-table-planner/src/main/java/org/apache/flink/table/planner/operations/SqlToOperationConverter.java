@@ -52,6 +52,7 @@ import org.apache.flink.sql.parser.ddl.SqlDropView;
 import org.apache.flink.sql.parser.ddl.SqlRemoveJar;
 import org.apache.flink.sql.parser.ddl.SqlReset;
 import org.apache.flink.sql.parser.ddl.SqlSet;
+import org.apache.flink.sql.parser.ddl.SqlStopJob;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
@@ -154,6 +155,7 @@ import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
+import org.apache.flink.table.operations.command.StopJobOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
@@ -374,6 +376,8 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertSqlQuery(validated));
         } else if (validated instanceof SqlAnalyzeTable) {
             return Optional.of(converter.convertAnalyzeTable((SqlAnalyzeTable) validated));
+        } else if (validated instanceof SqlStopJob) {
+            return Optional.of(converter.convertStopJob((SqlStopJob) validated));
         } else {
             return Optional.empty();
         }
@@ -1465,6 +1469,11 @@ public class SqlToOperationConverter {
                         "Unsupported partition value type: " + dataType.getLogicalType());
         }
         return new ValueLiteralExpression(value, dataType.notNull());
+    }
+
+    private Operation convertStopJob(SqlStopJob sqlStopJob) {
+        return new StopJobOperation(
+                sqlStopJob.getId(), sqlStopJob.isWithSavepoint(), sqlStopJob.isWithDrain());
     }
 
     private void validateTableConstraint(SqlTableConstraint constraint) {

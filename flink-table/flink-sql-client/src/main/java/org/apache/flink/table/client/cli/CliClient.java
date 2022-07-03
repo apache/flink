@@ -48,6 +48,7 @@ import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.command.StopJobOperation;
 import org.apache.flink.table.operations.ddl.AlterOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
@@ -468,6 +469,9 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof CreateTableASOperation) {
             // CTAS
             callInsert((CreateTableASOperation) operation);
+        } else if (operation instanceof StopJobOperation) {
+            // STOP JOB
+            callStopJob((StopJobOperation) operation);
         } else {
             // fallback to default implementation
             executeOperation(operation);
@@ -632,6 +636,23 @@ public class CliClient implements AutoCloseable {
             statementSetOperations = null;
         } else {
             throw new SqlExecutionException(MESSAGE_STATEMENT_SET_END_CALL_ERROR);
+        }
+    }
+
+    private void callStopJob(StopJobOperation stopJobOperation) {
+        Optional<String> savepoint =
+                executor.stopJob(
+                        sessionId,
+                        stopJobOperation.getJobId(),
+                        stopJobOperation.isWithSavepoint(),
+                        stopJobOperation.isWithDrain());
+        if (stopJobOperation.isWithSavepoint()) {
+            Preconditions.checkState(savepoint.isPresent());
+            printInfo(
+                    String.format(
+                            CliStrings.MESSAGE_STOP_JOB_WITH_SAVEPOINT_STATEMENT, savepoint.get()));
+        } else {
+            printInfo(CliStrings.MESSAGE_STOP_JOB_STATEMENT);
         }
     }
 

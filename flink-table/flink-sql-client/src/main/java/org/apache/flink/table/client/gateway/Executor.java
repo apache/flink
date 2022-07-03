@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** A gateway for communicating with Flink and other external systems. */
 public interface Executor {
@@ -143,4 +144,9 @@ public interface Executor {
 
     /** Remove the JAR resource from the classloader with specified session. */
     void removeJar(String sessionId, String jarPath);
+
+    /** Stops a job in the specified session. */
+    Optional<String> stopJob(
+            String sessionId, String jobId, boolean isWithSavepoint, boolean isWithDrain)
+            throws SqlExecutionException;
 }

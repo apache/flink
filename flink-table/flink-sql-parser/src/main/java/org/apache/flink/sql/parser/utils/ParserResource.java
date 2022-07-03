@@ -43,4 +43,7 @@ public interface ParserResource {
 
     @Resources.BaseMessage("CREATE FUNCTION USING JAR syntax is not applicable to {0} language.")
     Resources.ExInst<ParseException> createFunctionUsingJar(String language);
+
+    @Resources.BaseMessage("WITH DRAIN could only be used after WITH SAVEPOINT.")
+    Resources.ExInst<ParseException> withDrainOnlyUsedWithSavepoint();
 }
