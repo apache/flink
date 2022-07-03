@@ -17,27 +17,27 @@
 ################################################################################
 import os
 import tempfile
+import unittest
 
 from py4j.java_gateway import java_import
 
 from pyflink.common.watermark_strategy import WatermarkStrategy
-from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.functions import MapFunction
 from pyflink.datastream.connectors.file_system import FileSource
 from pyflink.datastream.formats.avro import Schema as AvroSchema
 from pyflink.datastream.formats.parquet import AvroParquetReaders
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
-from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
 
 
-class FileSourceParquetAvroFormatTests(PyFlinkTestCase):
+@unittest.skipIf(os.environ.get('HADOOP_CLASSPATH') is None,
+                 'Some Hadoop lib is needed for Parquet-Avro format tests')
+class FileSourceParquetAvroFormatTests(PyFlinkStreamingTestCase):
 
     def setUp(self):
         assert os.environ.get('HADOOP_CLASSPATH') is not None, 'Hadoop is needed for this test'
         super().setUp()
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
         self.test_sink = DataStreamTestSinkFunction()
         self._import_avro_classes()
 
@@ -237,7 +237,6 @@ class FileSourceParquetAvroFormatTests(PyFlinkTestCase):
         jvm = get_gateway().jvm
         classes = ['org.apache.avro.generic.GenericData']
         prefix = 'org.apache.flink.avro.shaded.'
-        # prefix = ''
         for cls in classes:
             java_import(jvm, prefix + cls)
 
