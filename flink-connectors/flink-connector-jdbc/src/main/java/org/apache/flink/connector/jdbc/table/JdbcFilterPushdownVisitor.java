@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.jdbc.table;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
@@ -52,6 +53,7 @@ import java.util.function.Supplier;
  * Visitor to walk a Expression AST. Produces a String that can be used to pushdown the filter,
  * return Optional.empty() if we cannot pushdown the filter.
  */
+@Public
 public class JdbcFilterPushdownVisitor extends ExpressionDefaultVisitor<Optional<String>> {
     /**
      * This Map should not be modifed by user code. Semantically it is equivalent to a {@code
