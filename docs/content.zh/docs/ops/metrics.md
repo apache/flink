@@ -1,11 +1,11 @@
 ---
-title: "指标"
+title: "Metrics"
 weight: 6
 type: docs
 aliases:
-  - /zh/ops/metrics.html
-  - /zh/apis/metrics.html
-  - /zh/monitoring/metrics.html
+  - /ops/metrics.html
+  - /apis/metrics.html
+  - /monitoring/metrics.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,7 +26,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# 指标
+# Metrics
 
 Flink exposes a metric system that allows gathering and exposing metrics to external systems.
 
@@ -955,7 +955,7 @@ Metrics related to data exchange between task executors using netty network comm
     </tr>
     <tr>
       <td>outputQueueSize</td>
-      <td>The real size of queued output buffers in bytes.</td>
+      <td>The real size of queued output buffers in bytes. </td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -1158,18 +1158,12 @@ Whether these metrics are reported depends on the [metrics.job.status.enable]({{
     <tr>
       <th rowspan="4"><strong>Job (only available on JobManager)</strong></th>
       <td>uptime</td>
-      <td>
-        The time that the job has been running without interruption.
-        <p>Returns -1 for completed jobs (in milliseconds).</p>
-      </td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <b>runningTime</b>.</td>
       <td>Gauge</td>
     </tr>
     <tr>
       <td>downtime</td>
-      <td>
-        For jobs currently in a failing/recovering situation, the time elapsed during this outage.
-        <p>Returns 0 for running jobs and -1 for completed jobs (in milliseconds).</p>
-      </td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <b>restartingTime</b>, <b>cancellingTime</b> <b>failingTime</b>.</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -1185,7 +1179,6 @@ Whether these metrics are reported depends on the [metrics.job.status.enable]({{
   </tbody>
 </table>
 
-{
 ### Checkpointing
 
 Note that for failed checkpoints, metrics are updated on a best efforts basis and may be not accurate.
@@ -1515,62 +1508,17 @@ Note that the metrics are only available via reporters.
 ### Connectors
 
 #### Kafka Connectors
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 15%">Scope</th>
-      <th class="text-left" style="width: 18%">Metrics</th>
-      <th class="text-left" style="width: 18%">User Variables</th>
-      <th class="text-left" style="width: 39%">Description</th>
-      <th class="text-left" style="width: 10%">Type</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th rowspan="1">Operator</th>
-      <td>commitsSucceeded</td>
-      <td>n/a</td>
-      <td>The total number of successful offset commits to Kafka, if offset committing is turned on and checkpointing is enabled.</td>
-      <td>Counter</td>
-    </tr>
-    <tr>
-       <th rowspan="1">Operator</th>
-       <td>commitsFailed</td>
-       <td>n/a</td>
-       <td>The total number of offset commit failures to Kafka, if offset committing is
-       turned on and checkpointing is enabled. Note that committing offsets back to Kafka
-       is only a means to expose consumer progress, so a commit failure does not affect
-       the integrity of Flink's checkpointed partition offsets.</td>
-       <td>Counter</td>
-    </tr>
-    <tr>
-       <th rowspan="1">Operator</th>
-       <td>committedOffsets</td>
-       <td>topic, partition</td>
-       <td>The last successfully committed offsets to Kafka, for each partition.
-       A particular partition's metric can be specified by topic name and partition id.</td>
-       <td>Gauge</td>
-    </tr>
-    <tr>
-      <th rowspan="1">Operator</th>
-      <td>currentOffsets</td>
-      <td>topic, partition</td>
-      <td>The consumer's current read offset, for each partition. A particular
-      partition's metric can be specified by topic name and partition id.</td>
-      <td>Gauge</td>
-    </tr>
-  </tbody>
-</table>
+Please refer to [Kafka monitoring]({{< ref "docs/connectors/datastream/kafka" >}}/#monitoring).
 
-#### Kinesis Connectors
+#### Kinesis 源
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 15%">Scope</th>
-      <th class="text-left" style="width: 18%">Metrics</th>
-      <th class="text-left" style="width: 18%">User Variables</th>
-      <th class="text-left" style="width: 39%">Description</th>
-      <th class="text-left" style="width: 10%">Type</th>
+      <th class="text-left" style="width: 15%">范围</th>
+      <th class="text-left" style="width: 18%">度量指标</th>
+      <th class="text-left" style="width: 18%">用户变量</th>
+      <th class="text-left" style="width: 39%">描述</th>
+      <th class="text-left" style="width: 10%">类型</th>
     </tr>
   </thead>
   <tbody>
@@ -1578,11 +1526,11 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>millisBehindLatest</td>
       <td>stream, shardId</td>
-      <td>The number of milliseconds the consumer is behind the head of the stream,
-      indicating how far behind current time the consumer is, for each Kinesis shard.
-      A particular shard's metric can be specified by stream name and shard id.
-      A value of 0 indicates record processing is caught up, and there are no new records
-      to process at this moment. A value of -1 indicates that there is no reported value for the metric, yet.
+      <td>消费者落后于流头部的毫秒数，
+	  对每个Kinesis分片，表示费者落后当前时间多久。
+	  可以通过流名称和分片id指定一个特定分片的度量值。
+	  值为0表示记录处理已完成，并且没有新记录在此时处理。
+	  值为-1表示尚未报告度量值。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1590,8 +1538,8 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>sleepTimeMillis</td>
       <td>stream, shardId</td>
-      <td>The number of milliseconds the consumer spends sleeping before fetching records from Kinesis.
-      A particular shard's metric can be specified by stream name and shard id.
+      <td>消费者在从Kinesis获取记录之前睡眠的毫秒数。
+      可以通过流名称和分片id指定特定碎片的度量。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1599,8 +1547,8 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>maxNumberOfRecordsPerFetch</td>
       <td>stream, shardId</td>
-      <td>The maximum number of records requested by the consumer in a single getRecords call to Kinesis. If ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS
-      is set to true, this value is adaptively calculated to maximize the 2 Mbps read limits from Kinesis.
+      <td>消费者在对Kinesis的单个getRecords调用中请求的最大记录数。如果ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS
+	  设置为true，自适应计算该值，以最大化来自Kinesis的2Mbps读取限制。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1608,7 +1556,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>numberOfAggregatedRecordsPerFetch</td>
       <td>stream, shardId</td>
-      <td>The number of aggregated Kinesis records fetched by the consumer in a single getRecords call to Kinesis.
+      <td>消费者在对Kinesis的单个getRecords调用中获取的聚合的Kinesis记录数。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1616,7 +1564,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>numberOfDeggregatedRecordsPerFetch</td>
       <td>stream, shardId</td>
-      <td>The number of deaggregated Kinesis records fetched by the consumer in a single getRecords call to Kinesis.
+      <td>消费者在对Kinesis的单个getRecords调用中获取的非聚合的Kinesis记录数。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1624,7 +1572,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>averageRecordSizeBytes</td>
       <td>stream, shardId</td>
-      <td>The average size of a Kinesis record in bytes, fetched by the consumer in a single getRecords call.
+      <td>以字节为单位的Kinesis记录的平均大小，由消费者在单个getRecords调用中获取。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1632,7 +1580,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>runLoopTimeNanos</td>
       <td>stream, shardId</td>
-      <td>The actual time taken, in nanoseconds, by the consumer in the run loop.
+      <td>消费者在运行循环中花费的实际时间（纳秒）。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1640,7 +1588,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>loopFrequencyHz</td>
       <td>stream, shardId</td>
-      <td>The number of calls to getRecords in one second. 
+      <td>一秒钟内调用getRecords的次数。 
       </td>
       <td>Gauge</td>
     </tr>
@@ -1648,8 +1596,44 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>bytesRequestedPerFetch</td>
       <td>stream, shardId</td>
-      <td>The bytes requested (2 Mbps / loopFrequencyHz) in a single call to getRecords.
+      <td>在对getRecords的单个调用中请求的字节数（2 Mbps / loopFrequencyHz）。
       </td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
+#### Kinesis 接收器
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">Scope</th>
+      <th class="text-left" style="width: 18%">Metrics</th>
+      <th class="text-left" style="width: 39%">Description</th>
+      <th class="text-left" style="width: 10%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>numRecordsOutErrors (已弃用, 请使用numRecordsSendErrors)</td>
+      <td>被拒绝的记录写入数。</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>numRecordsSendErrors</td>
+      <td>被拒绝的记录写入数。</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>CurrentSendTime</td>
+      <td>最后一批请求的1次往返所用的毫秒数。</td>
       <td>Gauge</td>
     </tr>
   </tbody>
@@ -1671,7 +1655,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>lookupCacheHitRate</td>
       <td>n/a</td>
-      <td>查找的缓存命中率。</td>
+      <td>Cache hit ratio for lookup.</td>
       <td>Gauge</td>
     </tr>
   </tbody>
