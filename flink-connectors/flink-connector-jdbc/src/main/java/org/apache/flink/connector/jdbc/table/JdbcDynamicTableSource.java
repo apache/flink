@@ -246,11 +246,6 @@ public class JdbcDynamicTableSource
         return Result.of(acceptedFilters, remainingFilters);
     }
 
-    /**
-     * This implementation is hacky and very specific to our existing use case but it is not very
-     * scalable. We should migrate it to use visitor pattern if we need to support more filter
-     * expression.
-     */
     private Optional<String> parseFilterToString(ResolvedExpression filter) {
         if (filter instanceof CallExpression) {
             CallExpression callExp = (CallExpression) filter;
