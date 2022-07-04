@@ -6,11 +6,11 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- org.apache.pulsar:bouncy-castle-bc:pkg:2.9.1
-- org.apache.pulsar:pulsar-client-admin-api:2.9.1
-- org.apache.pulsar:pulsar-client-all:2.9.1
-- org.apache.pulsar:pulsar-client-api:2.9.1
-- org.slf4j:jul-to-slf4j:1.7.25
+- org.apache.pulsar:bouncy-castle-bc:pkg:2.10.0
+- org.apache.pulsar:pulsar-client-admin-api:2.10.0
+- org.apache.pulsar:pulsar-client-all:2.10.0
+- org.apache.pulsar:pulsar-client-api:2.10.0
+- org.slf4j:jul-to-slf4j:1.7.32
 
 This project bundles the following dependencies under the Bouncy Castle license.
 See bundled license files for details.
