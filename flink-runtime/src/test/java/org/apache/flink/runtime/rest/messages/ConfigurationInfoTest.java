@@ -18,20 +18,19 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-/** Tests for the {@link ClusterConfigurationInfo}. */
-public class ClusterConfigurationInfoTest
-        extends RestResponseMarshallingTestBase<ClusterConfigurationInfo> {
+/** Tests for the {@link ConfigurationInfo}. */
+public class ConfigurationInfoTest extends RestResponseMarshallingTestBase<ConfigurationInfo> {
 
     @Override
-    protected Class<ClusterConfigurationInfo> getTestResponseClass() {
-        return ClusterConfigurationInfo.class;
+    protected Class<ConfigurationInfo> getTestResponseClass() {
+        return ConfigurationInfo.class;
     }
 
     @Override
-    protected ClusterConfigurationInfo getTestResponseInstance() {
-        final ClusterConfigurationInfo expected = new ClusterConfigurationInfo(2);
-        expected.add(new ClusterConfigurationInfoEntry("key1", "value1"));
-        expected.add(new ClusterConfigurationInfoEntry("key2", "value2"));
+    protected ConfigurationInfo getTestResponseInstance() {
+        final ConfigurationInfo expected = new ConfigurationInfo(2);
+        expected.add(new ConfigurationInfoEntry("key1", "value1"));
+        expected.add(new ConfigurationInfoEntry("key2", "value2"));
 
         return expected;
     }

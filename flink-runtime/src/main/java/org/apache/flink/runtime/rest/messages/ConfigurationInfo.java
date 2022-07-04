@@ -29,29 +29,26 @@ import java.util.Map;
  * Response of the {@link ClusterConfigHandler}, represented as a list of key-value pairs of the
  * cluster {@link Configuration}.
  */
-public class ClusterConfigurationInfo extends ArrayList<ClusterConfigurationInfoEntry>
-        implements ResponseBody {
+public class ConfigurationInfo extends ArrayList<ConfigurationInfoEntry> implements ResponseBody {
 
     private static final long serialVersionUID = -1170348873871206964L;
 
     // a default constructor is required for collection type marshalling
-    public ClusterConfigurationInfo() {}
+    public ConfigurationInfo() {}
 
-    public ClusterConfigurationInfo(int initialEntries) {
+    public ConfigurationInfo(int initialEntries) {
         super(initialEntries);
     }
 
-    public static ClusterConfigurationInfo from(Configuration config) {
-        final ClusterConfigurationInfo clusterConfig =
-                new ClusterConfigurationInfo(config.keySet().size());
+    public static ConfigurationInfo from(Configuration config) {
+        final ConfigurationInfo clusterConfig = new ConfigurationInfo(config.keySet().size());
         final Map<String, String> configurationWithHiddenSensitiveValues =
                 ConfigurationUtils.hideSensitiveValues(config.toMap());
 
         for (Map.Entry<String, String> keyValuePair :
                 configurationWithHiddenSensitiveValues.entrySet()) {
             clusterConfig.add(
-                    new ClusterConfigurationInfoEntry(
-                            keyValuePair.getKey(), keyValuePair.getValue()));
+                    new ConfigurationInfoEntry(keyValuePair.getKey(), keyValuePair.getValue()));
         }
 
         return clusterConfig;
