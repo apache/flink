@@ -519,6 +519,12 @@ class JobMasterTest {
         }
 
         @Override
+        public void releaseFreeSlotsOnTaskManager(ResourceID taskManagerId, Exception cause) {
+            throw new UnsupportedOperationException(
+                    "TestingSlotPool does not support this operation.");
+        }
+
+        @Override
         public Collection<SlotOffer> offerSlots(
                 TaskManagerLocation taskManagerLocation,
                 TaskManagerGateway taskManagerGateway,
