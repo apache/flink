@@ -193,7 +193,7 @@ public class OperationManager {
 
         private final Callable<ResultFetcher> resultSupplier;
 
-        private Future<?> invocation;
+        private volatile Future<?> invocation;
         private volatile ResultFetcher resultFetcher;
         private volatile SqlExecutionException operationError;
 
@@ -219,6 +219,9 @@ public class OperationManager {
         public void run() {
             try {
                 operationLock.acquire();
+                LOG.debug(
+                        String.format(
+                                "Operation %s acquires the operation lock.", operationHandle));
                 updateState(OperationStatus.PENDING);
                 Runnable work =
                         () -> {
@@ -230,19 +233,40 @@ public class OperationManager {
                                 processThrowable(t);
                             }
                         };
-                invocation =
-                        service.submit(
-                                new FutureTask<Void>(work, null) {
-                                    @Override
-                                    protected void done() {
-                                        // release the lock when execution finish.
-                                        operationLock.release();
-                                    }
-                                });
+                // Please be careful: the returned future by the ExecutorService will not wrap the
+                // done method.
+                FutureTask<Void> copiedTask =
+                        new FutureTask<Void>(work, null) {
+                            @Override
+                            protected void done() {
+                                LOG.debug(
+                                        String.format(
+                                                "Release the operation lock: %s when task completes.",
+                                                operationHandle));
+                                operationLock.release();
+                            }
+                        };
+                service.submit(copiedTask);
+                invocation = copiedTask;
+                // If it is canceled or closed, terminate the invocation.
+                OperationStatus current = status.get();
+                if (current == OperationStatus.CLOSED || current == OperationStatus.CANCELED) {
+                    LOG.debug(String.format("Manually close the operation %s.", operationHandle));
+                    closeResources();
+                }
             } catch (Throwable t) {
                 processThrowable(t);
                 throw new SqlGatewayException(
                         "Failed to submit the operation to the thread pool.", t);
+            } finally {
+                if (invocation == null) {
+                    // failed to submit to the thread pool and release the lock.
+                    LOG.debug(
+                            String.format(
+                                    "Release the operation lock: %s when failed to submit the operation to the pool.",
+                                    operationHandle));
+                    operationLock.release();
+                }
             }
         }
 
@@ -302,7 +326,9 @@ public class OperationManager {
 
         private void closeResources() {
             if (invocation != null && !invocation.isDone()) {
-                invocation.cancel(true);
+                boolean success = invocation.cancel(true);
+                LOG.debug(
+                        String.format("Cancel operation %s success: %s", operationHandle, success));
             }
 
             if (resultFetcher != null) {
@@ -314,9 +340,9 @@ public class OperationManager {
             String msg = String.format("Failed to execute the operation %s.", operationHandle);
             LOG.error(msg, t);
             operationError = new SqlExecutionException(msg, t);
+            // Update status should be placed at last. Because the client is able to fetch exception
+            // when status is error.
             updateState(OperationStatus.ERROR);
-            // release the lock when meeting error
-            operationLock.release();
         }
     }
 
@@ -341,11 +367,10 @@ public class OperationManager {
     }
 
     private void submitOperationInternal(OperationHandle handle, Operation operation) {
-        writeLock(
-                () -> {
-                    submittedOperations.put(handle, operation);
-                    operation.run();
-                });
+        // It means to acquire two locks if put the operation.run() and submittedOperations.put(...)
+        // in the writeLock block, which may introduce the deadlock here.
+        writeLock(() -> submittedOperations.put(handle, operation));
+        operation.run();
     }
 
     private void writeLock(Runnable runner) {

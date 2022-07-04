@@ -66,6 +66,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
+import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
 import static org.apache.flink.types.RowKind.DELETE;
 import static org.apache.flink.types.RowKind.INSERT;
 import static org.apache.flink.types.RowKind.UPDATE_AFTER;
@@ -367,7 +368,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                         service.getSession(sessionHandle).getOperationManager().getOperationCount()
                                 == 0,
                 Duration.ofSeconds(10),
-                "All operation should be closed.");
+                "All operations should be closed.");
 
         for (OperationManager.Operation op : operations) {
             assertEquals(OperationStatus.CLOSED, op.getOperationInfo().getStatus());
@@ -375,7 +376,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testSubmitOperationAndCloseOperationManagerInParallel() throws Exception {
+    public void testSubmitOperationAndCloseOperationManagerInParallel1() throws Exception {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
         OperationManager manager = service.getSession(sessionHandle).getOperationManager();
         int submitThreadsNum = 100;
@@ -395,6 +396,32 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         manager.close();
         latch.await();
         assertEquals(0, manager.getOperationCount());
+    }
+
+    @Test
+    public void testSubmitOperationAndCloseOperationManagerInParallel2() throws Exception {
+        int count = 3;
+        CountDownLatch startRunning = new CountDownLatch(1);
+        CountDownLatch terminateRunning = new CountDownLatch(1);
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+        for (int i = 0; i < count; i++) {
+            threadFactory
+                    .newThread(
+                            () ->
+                                    service.submitOperation(
+                                            sessionHandle,
+                                            OperationType.UNKNOWN,
+                                            () -> {
+                                                startRunning.countDown();
+                                                terminateRunning.await();
+                                                return null;
+                                            }))
+                    .start();
+        }
+        startRunning.await();
+        // close session should not be blocked
+        service.getSession(sessionHandle).getOperationManager().close();
+        terminateRunning.countDown();
     }
 
     @Test
@@ -432,7 +459,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFailedToSubmitOperationInParallel() throws Exception {
+    public void testReleaseLockWhenFailedToSubmitOperation() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         int maximumThreads = 500;
         List<SessionHandle> sessions = new ArrayList<>();
@@ -551,7 +578,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                         GenericRowData.ofKind(DELETE, 1, null, null),
                         GenericRowData.ofKind(UPDATE_AFTER, 2, null, 101));
         return new ResultSet(
-                ResultSet.ResultType.PAYLOAD,
+                PAYLOAD,
                 null,
                 ResolvedSchema.of(
                         Column.physical("id", DataTypes.BIGINT()),
@@ -592,7 +619,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                 if (resultSet.getNextToken() != null) {
                                     token = resultSet.getNextToken();
                                 }
-                                if (resultSet.getResultType() == ResultSet.ResultType.PAYLOAD) {
+                                if (resultSet.getResultType() == PAYLOAD) {
                                     actual.addAll(resultSet.getData());
                                 }
                             }
