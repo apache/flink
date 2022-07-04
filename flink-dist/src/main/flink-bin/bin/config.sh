@@ -66,6 +66,25 @@ findFlinkDistJar() {
     echo "$FLINK_DIST"
 }
 
+findSqlGatewayJar() {
+    local SQL_GATEWAY
+    SQL_GATEWAY="$(find "$FLINK_OPT_DIR" -name 'flink-sql-gateway*.jar')"
+    local SQL_GATEWAY_COUNT
+    SQL_GATEWAY_COUNT="$(echo "$SQL_GATEWAY" | wc -l)"
+
+    # If flink-sql-gateway*.jar cannot be resolved write error messages to stderr since stdout is stored
+    # as the classpath and exit function with empty classpath to force process failure
+    if [[ "$SQL_GATEWAY" == "" ]]; then
+        (>&2 echo "[ERROR] Flink distribution jar not found in $FLINK_OPT_DIR.")
+        exit 1
+    elif [[ "$SQL_GATEWAY_COUNT" -gt 1 ]]; then
+        (>&2 echo "[ERROR] Multiple flink-sql-gateway*.jar found in $FLINK_OPT_DIR. Please resolve.")
+        exit 1
+    fi
+
+    echo "$SQL_GATEWAY"
+}
+
 # These are used to mangle paths that are passed to java when using
 # cygwin. Cygwin paths are like linux paths, i.e. /path/to/somewhere
 # but the windows java version expects them in Windows Format, i.e. C:\bla\blub.

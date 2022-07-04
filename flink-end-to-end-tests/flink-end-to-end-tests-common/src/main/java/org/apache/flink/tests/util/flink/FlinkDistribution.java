@@ -106,6 +106,18 @@ final class FlinkDistribution {
                 bin.resolve("taskmanager.sh").toAbsolutePath().toString(), "start");
     }
 
+    public void startSQLGateway(String arg) throws IOException {
+        LOG.info("Starting Flink SQL Gateway.");
+        AutoClosableProcess.runBlocking(
+                bin.resolve("sql-gateway.sh").toAbsolutePath().toString(), "start", arg);
+    }
+
+    public void stopSQLGateway() throws IOException {
+        LOG.info("Stopping Flink SQL Gateway.");
+        AutoClosableProcess.runBlocking(
+                bin.resolve("sql-gateway.sh").toAbsolutePath().toString(), "stop");
+    }
+
     public void setRootLogLevel(Level logLevel) throws IOException {
         FileUtils.replace(
                 conf.resolve("log4j.properties"),
