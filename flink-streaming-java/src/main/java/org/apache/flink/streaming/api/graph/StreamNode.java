@@ -272,10 +272,6 @@ public class StreamNode {
         return typeSerializersIn;
     }
 
-    public TypeSerializer<?> getTypeSerializerIn(int index) {
-        return typeSerializersIn[index];
-    }
-
     public TypeSerializer<?> getTypeSerializerOut() {
         return typeSerializerOut;
     }
