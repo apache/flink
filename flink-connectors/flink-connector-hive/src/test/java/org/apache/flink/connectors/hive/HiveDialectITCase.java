@@ -732,59 +732,58 @@ public class HiveDialectITCase {
     }
 
     @Test
-    public void testTemporaryFunctionUDTFInitializeWithObjectInspector() throws Exception {
-        // create temp function
+    public void testTemporaryFunctionUDTF() throws Exception {
+        // function initialize with ObjectInspector
         tableEnv.executeSql(
                 String.format(
-                        "create temporary function temp_split as '%s'",
+                        "create temporary function temp_split_obj_inspector as '%s'",
                         HiveGenericUDTFTest.TestSplitUDTF.class.getName()));
-        String[] functions = tableEnv.listUserDefinedFunctions();
-        assertArrayEquals(new String[] {"temp_split"}, functions);
-        // call the function
-        tableEnv.executeSql("create table src(x string)");
-        tableEnv.executeSql("insert into src values ('a,b,c')").await();
-        assertEquals(
-                "[+I[a], +I[b], +I[c]]",
-                queryResult(tableEnv.sqlQuery("select temp_split(x) from src")).toString());
-        // switch DB and the temp function can still be used
-        tableEnv.executeSql("create database db1");
-        tableEnv.useDatabase("db1");
-        assertEquals(
-                "[+I[a], +I[b], +I[c]]",
-                queryResult(tableEnv.sqlQuery("select temp_split(x) from `default`.src"))
-                        .toString());
-        // drop the function
-        tableEnv.executeSql("drop temporary function temp_split");
-        functions = tableEnv.listUserDefinedFunctions();
-        assertEquals(0, functions.length);
-    }
-
-    @Test
-    public void testTemporaryFunctionUDTFInitializeWithStructObjectInspector() throws Exception {
-        // create temp function
+        // function initialize with StructObjectInspector
         tableEnv.executeSql(
                 String.format(
-                        "create temporary function temp_split as '%s'",
+                        "create temporary function temp_split_struct_obj_inspector as '%s'",
                         TestSplitUDTFInitializeWithStructObjectInspector.class.getName()));
         String[] functions = tableEnv.listUserDefinedFunctions();
-        assertArrayEquals(new String[] {"temp_split"}, functions);
+        assertThat(functions)
+                .isEqualTo(
+                        new String[] {
+                            "temp_split_obj_inspector", "temp_split_struct_obj_inspector"
+                        });
         // call the function
         tableEnv.executeSql("create table src(x string)");
         tableEnv.executeSql("insert into src values ('a,b,c')").await();
-        assertEquals(
-                "[+I[a], +I[b], +I[c]]",
-                queryResult(tableEnv.sqlQuery("select temp_split(x) from src")).toString());
+        assertThat(
+                        queryResult(
+                                        tableEnv.sqlQuery(
+                                                "select temp_split_obj_inspector(x) from src"))
+                                .toString())
+                .isEqualTo("[+I[a], +I[b], +I[c]]");
+        assertThat(
+                        queryResult(
+                                        tableEnv.sqlQuery(
+                                                "select temp_split_struct_obj_inspector(x) from src"))
+                                .toString())
+                .isEqualTo("[+I[a], +I[b], +I[c]]");
         // switch DB and the temp function can still be used
         tableEnv.executeSql("create database db1");
         tableEnv.useDatabase("db1");
-        assertEquals(
-                "[+I[a], +I[b], +I[c]]",
-                queryResult(tableEnv.sqlQuery("select temp_split(x) from `default`.src"))
-                        .toString());
+        assertThat(
+                        queryResult(
+                                        tableEnv.sqlQuery(
+                                                "select temp_split_obj_inspector(x) from `default`.src"))
+                                .toString())
+                .isEqualTo("[+I[a], +I[b], +I[c]]");
+        assertThat(
+                        queryResult(
+                                        tableEnv.sqlQuery(
+                                                "select temp_split_struct_obj_inspector(x) from `default`.src"))
+                                .toString())
+                .isEqualTo("[+I[a], +I[b], +I[c]]");
         // drop the function
-        tableEnv.executeSql("drop temporary function temp_split");
+        tableEnv.executeSql("drop temporary function temp_split_obj_inspector");
+        tableEnv.executeSql("drop temporary function temp_split_struct_obj_inspector");
         functions = tableEnv.listUserDefinedFunctions();
-        assertEquals(0, functions.length);
+        assertThat(functions.length).isEqualTo(0);
     }
 
     @Test
