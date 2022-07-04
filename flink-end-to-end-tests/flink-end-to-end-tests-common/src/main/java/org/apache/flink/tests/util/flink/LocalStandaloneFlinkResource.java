@@ -113,6 +113,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
     private void shutdownCluster() {
         try {
             distribution.stopFlinkCluster();
+            distribution.stopSQLGateway();
         } catch (IOException e) {
             LOG.warn("Error while shutting down Flink cluster.", e);
         }
@@ -181,6 +182,10 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
         }
 
         throw new RuntimeException("Cluster did not start in expected time-frame.");
+    }
+
+    public void startSQLGateway(String arg) throws IOException {
+        distribution.startSQLGateway(arg);
     }
 
     @Override
