@@ -29,11 +29,11 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.apache.flink.table.utils.python.PythonInputFormatTableOptions.BATCH_MODE;
-import static org.apache.flink.table.utils.python.PythonInputFormatTableOptions.INPUT_FILE_PATH;
+import static org.apache.flink.table.utils.python.PythonDynamicTableOptions.BATCH_MODE;
+import static org.apache.flink.table.utils.python.PythonDynamicTableOptions.INPUT_FILE_PATH;
 
 /** Table source factory for PythonInputFormatTableSource. */
-public class PythonInputFormatFactory implements DynamicTableSourceFactory {
+public class PythonDynamicTableFactory implements DynamicTableSourceFactory {
 
     public static final String IDENTIFIER = "python-input-format";
 
@@ -46,8 +46,7 @@ public class PythonInputFormatFactory implements DynamicTableSourceFactory {
         String inputFilePath = tableOptions.get(INPUT_FILE_PATH);
         ResolvedSchema schema = context.getCatalogTable().getResolvedSchema();
         boolean batched = tableOptions.get(BATCH_MODE);
-        return new PythonInputFormatTableSource(
-                inputFilePath, batched, schema.toPhysicalRowDataType());
+        return new PythonDynamicTableSource(inputFilePath, batched, schema.toPhysicalRowDataType());
     }
 
     @Override

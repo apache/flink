@@ -30,13 +30,12 @@ import org.apache.flink.table.types.DataType;
 import java.io.IOException;
 
 /** Implementation of {@link ScanTableSource} for python elements table. */
-public class PythonInputFormatTableSource implements ScanTableSource {
+public class PythonDynamicTableSource implements ScanTableSource {
     private final String filePath;
     private final boolean batched;
     private final DataType producedDataType;
 
-    public PythonInputFormatTableSource(
-            String filePath, boolean batched, DataType producedDataType) {
+    public PythonDynamicTableSource(String filePath, boolean batched, DataType producedDataType) {
         this.filePath = filePath;
         this.batched = batched;
         this.producedDataType = producedDataType;
@@ -44,12 +43,12 @@ public class PythonInputFormatTableSource implements ScanTableSource {
 
     @Override
     public DynamicTableSource copy() {
-        return new PythonInputFormatTableSource(filePath, batched, producedDataType);
+        return new PythonDynamicTableSource(filePath, batched, producedDataType);
     }
 
     @Override
     public String asSummaryString() {
-        return "PythonInputFormatTableSource";
+        return "Python Table Source";
     }
 
     @Override

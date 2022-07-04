@@ -76,9 +76,9 @@ import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
-import java.lang.reflect.Field;
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;

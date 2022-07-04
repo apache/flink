@@ -22,7 +22,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
 /** Options for PythonInputFormatTableSource. */
-public class PythonInputFormatTableOptions {
+public class PythonDynamicTableOptions {
 
     public static final ConfigOption<String> INPUT_FILE_PATH =
             ConfigOptions.key("file-path")

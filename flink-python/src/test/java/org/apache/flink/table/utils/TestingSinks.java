@@ -28,9 +28,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,15 +36,12 @@ import java.util.Map;
 /** Testing Sinks that collects test output data for validation. */
 public class TestingSinks {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(TestingSinks.class);
-
     /** TestAppendingSink for testing. */
     public static class TestAppendingSink implements DynamicTableSink {
         private final DataType rowDataType;
 
         public TestAppendingSink(DataType rowDataType) {
             this.rowDataType = rowDataType;
-            LOGGER.info("rowDataType: " + rowDataType);
         }
 
         @Override
@@ -86,7 +80,6 @@ public class TestingSinks {
         public void invoke(RowData value, Context context) {
             RowKind rowKind = value.getRowKind();
             Row data = (Row) converter.toExternal(value);
-            LOGGER.info("row data: " + data.toString());
             if (rowKind == RowKind.INSERT || rowKind == RowKind.UPDATE_AFTER) {
                 RowCollector.addValue(Tuple2.of(true, data));
             } else {

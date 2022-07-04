@@ -89,8 +89,8 @@ public final class PythonTableUtils {
     private PythonTableUtils() {}
 
     /**
-     * Create a table from {@link PythonInputFormatTableSource}PythonInputFormatTableSource that
-     * read data from input file with specific {@link DataType}.
+     * Create a table from {@link PythonDynamicTableSource}PythonInputFormatTableSource that read
+     * data from input file with specific {@link DataType}.
      *
      * @param tEnv The TableEnvironment to create table.
      * @param filePath the file path of the input data.
@@ -101,9 +101,9 @@ public final class PythonTableUtils {
     public static Table createTableFromElement(
             TableEnvironment tEnv, String filePath, DataType schema, boolean batched) {
         TableDescriptor.Builder builder =
-                TableDescriptor.forConnector(PythonInputFormatFactory.IDENTIFIER)
-                        .option(PythonInputFormatTableOptions.INPUT_FILE_PATH, filePath)
-                        .option(PythonInputFormatTableOptions.BATCH_MODE, batched)
+                TableDescriptor.forConnector(PythonDynamicTableFactory.IDENTIFIER)
+                        .option(PythonDynamicTableOptions.INPUT_FILE_PATH, filePath)
+                        .option(PythonDynamicTableOptions.BATCH_MODE, batched)
                         .schema(Schema.newBuilder().fromRowDataType(schema).build());
         return tEnv.from(builder.build());
     }
