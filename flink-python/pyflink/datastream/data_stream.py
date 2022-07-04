@@ -18,7 +18,6 @@
 import typing
 import uuid
 from enum import Enum
-from py4j.java_collections import ListConverter
 from typing import Callable, Union, List, cast, Optional, overload
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
@@ -1650,8 +1649,16 @@ class KeyedStream(DataStream):
         DataStream outputs of (possible) different types with each other. The DataStreams connected
         using this operator can be used with CoFunctions to apply joint transformations.
 
-        :param ds: The DataStream with which this stream will be connected.
-        :return: The ConnectedStreams.
+        If ds is a :class:`BroadcastStream`, creates a new :class:`BroadcastConnectedStream` by
+        connecting the current :class:`DataStream` with a :class:`BroadcastStream`. The latter can
+        be created using the :meth:`broadcast` method. The resulting stream can be further processed
+        using the :meth:`BroadcastConnectedStream.process` method.
+
+        :param ds: The DataStream or BroadcastStream with which this stream will be connected.
+        :return: The ConnectedStreams or BroadcastConnectedStream.
+
+        .. versionchanged:: 1.16.0
+            Support connect BroadcastStream
         """
         return super().connect(ds)
 
@@ -2415,6 +2422,7 @@ class BroadcastConnectedStream(object):
         self.broadcast_stream = broadcast_stream
         self.broadcast_state_descriptors = broadcast_state_descriptors
 
+    @overload
     def process(
         self,
         func: BroadcastProcessFunction,
@@ -2422,6 +2430,7 @@ class BroadcastConnectedStream(object):
     ) -> 'DataStream':
         pass
 
+    @overload
     def process(
         self,
         func: KeyedBroadcastProcessFunction,
@@ -2436,11 +2445,13 @@ class BroadcastConnectedStream(object):
     ) -> 'DataStream':
         """
         Assumes as inputs a :class:`BroadcastStream` and a :class:`DataStream` or
-        :class:`KeyedStream` and applies the given :class:`BroadcastProcessFunction` or on them,
-        thereby creating a transformed output stream.
+        :class:`KeyedStream` and applies the given :class:`BroadcastProcessFunction` or
+        :class:`KeyedBroadcastProcessFunction` on them, thereby creating a transformed output
+        stream.
 
         :param func: The :class:`BroadcastProcessFunction` that is called for each element in the
-            stream.
+            non-broadcasted :class:`DataStream`, or the :class:`KeyedBroadcastProcessFunction` that
+            is called for each element in the non-broadcasted :class:`KeyedStream`.
         :param output_type: The type of the output elements, should be
             :class:`common.TypeInformation` or list (implicit :class:`RowTypeInfo`) or None (
             implicit :meth:`Types.PICKLED_BYTE_ARRAY`).
