@@ -21,6 +21,7 @@ package org.apache.flink.runtime.blocklist;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 
@@ -191,9 +192,11 @@ class DefaultBlocklistHandlerTest {
         private final List<BlockedNode> notifiedNodes = new ArrayList<>();
 
         @Override
-        public void notifyNewBlockedNodes(Collection<BlockedNode> newNodes) {
+        public CompletableFuture<Acknowledge> notifyNewBlockedNodes(
+                Collection<BlockedNode> newNodes) {
             notifiedTimes++;
             notifiedNodes.addAll(newNodes);
+            return CompletableFuture.completedFuture(Acknowledge.get());
         }
     }
 
