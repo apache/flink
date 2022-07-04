@@ -45,7 +45,7 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSA
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_TYPE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_VERIFY_INITIAL_OFFSETS;
 
-/** The configure class for pulsar source. */
+/** The configuration class for pulsar source. */
 @PublicEvolving
 public class SourceConfiguration extends PulsarConfiguration {
     private static final long serialVersionUID = 8488507275800787580L;
