@@ -811,18 +811,6 @@ public class StreamGraph implements Pipeline {
         vertex.setSerializerOut(out);
     }
 
-    public void setSerializersFrom(Integer from, Integer to) {
-        StreamNode fromVertex = getStreamNode(from);
-        StreamNode toVertex = getStreamNode(to);
-
-        toVertex.setSerializersIn(fromVertex.getTypeSerializerOut());
-        toVertex.setSerializerOut(fromVertex.getTypeSerializerIn(0));
-    }
-
-    public <OUT> void setOutType(Integer vertexID, TypeInformation<OUT> outType) {
-        getStreamNode(vertexID).setSerializerOut(outType.createSerializer(executionConfig));
-    }
-
     public void setInputFormat(Integer vertexID, InputFormat<?, ?> inputFormat) {
         getStreamNode(vertexID).setInputFormat(inputFormat);
     }
