@@ -768,6 +768,10 @@ SUPPORTED_INSTALLATION_COMPONENTS=()
 get_all_supported_install_components
 
 INSTALLATION_COMPONENTS=()
+
+# whether remove the installed python environment.
+CLEAN_UP_FLAG=0
+
 # parse_opts
 USAGE="
 usage: $0 [options]
@@ -794,8 +798,9 @@ Examples:
   ./lint-python                 =>  exec all checks.
   ./lint-python -f              =>  reinstall environment with all components and exec all checks.
   ./lint-python -l              =>  list all checks supported.
+  ./lint-python -r              =>  clean up python environment.
 "
-while getopts "hfs:i:e:l" arg; do
+while getopts "hfs:i:e:lr" arg; do
     case "$arg" in
         h)
             printf "%s\\n" "$USAGE"
@@ -819,6 +824,10 @@ while getopts "hfs:i:e:l" arg; do
                 echo ${fun%%_check*}
             done
             exit 2
+            ;;
+        r)
+            printf "clean up python environment:\n"
+            CLEAN_UP_FLAG=1
             ;;
         ?)
             printf "ERROR: did not recognize option '%s', please try -h\\n" "$1"
@@ -853,4 +862,9 @@ pushd "$FLINK_PYTHON_DIR" &> /dev/null
 # exec all selected checks
 if [ $skip_checks -eq 0 ]; then
     check_stage
+fi
+
+if [[ ${CLEAN_UP_FLAG} -eq 1 ]]; then
+    rm -rf ${CONDA_HOME}
+    rm -rf ${STAGE_FILE}
 fi
