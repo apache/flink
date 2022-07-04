@@ -25,8 +25,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import java.util.Objects;
 
-/** A single key-value pair entry in the {@link ClusterConfigurationInfo} response. */
-public class ClusterConfigurationInfoEntry {
+/** A single key-value pair entry in the {@link ConfigurationInfo} response. */
+public class ConfigurationInfoEntry {
 
     public static final String FIELD_NAME_CONFIG_KEY = "key";
     public static final String FIELD_NAME_CONFIG_VALUE = "value";
@@ -38,7 +38,7 @@ public class ClusterConfigurationInfoEntry {
     private final String value;
 
     @JsonCreator
-    public ClusterConfigurationInfoEntry(
+    public ConfigurationInfoEntry(
             @JsonProperty(FIELD_NAME_CONFIG_KEY) String key,
             @JsonProperty(FIELD_NAME_CONFIG_VALUE) String value) {
         this.key = Preconditions.checkNotNull(key);
@@ -63,7 +63,7 @@ public class ClusterConfigurationInfoEntry {
             return false;
         }
 
-        ClusterConfigurationInfoEntry that = (ClusterConfigurationInfoEntry) o;
+        ConfigurationInfoEntry that = (ConfigurationInfoEntry) o;
         return key.equals(that.key) && value.equals(that.value);
     }
 

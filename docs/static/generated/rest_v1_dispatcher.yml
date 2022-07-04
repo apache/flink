@@ -272,7 +272,7 @@ paths:
                   empty:
                     type: boolean
                 items:
-                  $ref: '#/components/schemas/ClusterConfigurationInfoEntry'
+                  $ref: '#/components/schemas/ConfigurationInfoEntry'
   /jobmanager/logs:
     get:
       description: Returns the list of log files on the JobManager.
@@ -2137,19 +2137,19 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserAccumulator'
+    ConfigurationInfo:
+      type: array
+      properties:
+        empty:
+          type: boolean
+      items:
+        $ref: '#/components/schemas/ConfigurationInfoEntry'
     Type:
       type: string
       enum:
       - FULL
       - ON_CPU
       - OFF_CPU
-    ClusterConfigurationInfo:
-      type: array
-      properties:
-        empty:
-          type: boolean
-      items:
-        $ref: '#/components/schemas/ClusterConfigurationInfoEntry'
     UserAccumulator:
       type: object
       properties:
@@ -2372,7 +2372,7 @@ components:
           $ref: '#/components/schemas/JobID'
         status:
           $ref: '#/components/schemas/JobStatus'
-    ClusterConfigurationInfoEntry:
+    ConfigurationInfoEntry:
       type: object
       properties:
         key:
