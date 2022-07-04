@@ -90,7 +90,7 @@ class FileSourceParquetAvroFormatTests(PyFlinkStreamingTestCase):
             "type": "record",
             "name": "test",
             "fields": [
-                { 
+                {
                     "name": "suit",
                     "type": {
                         "type": "enum",
@@ -119,7 +119,7 @@ class FileSourceParquetAvroFormatTests(PyFlinkStreamingTestCase):
             "type": "record",
             "name": "test",
             "fields": [
-                { 
+                {
                     "name": "union",
                     "type": [ "int", "double", "null" ]
                 }
@@ -148,7 +148,7 @@ class FileSourceParquetAvroFormatTests(PyFlinkStreamingTestCase):
             "type": "record",
             "name": "test",
             "fields": [
-                { 
+                {
                     "name": "array",
                     "type": {
                         "type": "array",
@@ -191,7 +191,7 @@ class FileSourceParquetAvroFormatTests(PyFlinkStreamingTestCase):
             "type": "record",
             "name": "test",
             "fields": [
-                { 
+                {
                     "name": "map",
                     "type": {
                         "type": "map",
@@ -300,7 +300,7 @@ class FileSourceParquetAvroFormatTests(PyFlinkStreamingTestCase):
             .create(j_path.getFileSystem().create(
                 j_path,
                 jvm.org.apache.flink.core.fs.FileSystem.WriteMode.OVERWRITE
-        ))
+            ))
         for record in records:
             writer.addElement(record)
         writer.flush()
