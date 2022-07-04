@@ -716,7 +716,7 @@ FLAKE8_PATH=$ENV_HOME/bin/flake8
 SPHINX_PATH=$ENV_HOME/bin/sphinx-build
 
 # mypy path
-MYPY_PATH=${CONDA_HOME}/bin/mypy
+MYPY_PATH=$ENV_HOME/bin/mypy
 
 _OLD_PATH="$PATH"
 
