@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.blocklist;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 
 import org.slf4j.Logger;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -46,17 +46,17 @@ public class DefaultBlocklistHandler implements BlocklistHandler, AutoCloseable 
 
     private final Set<BlocklistListener> blocklistListeners = new HashSet<>();
 
-    private final Time timeoutCheckInterval;
+    private final Duration timeoutCheckInterval;
 
     private volatile ScheduledFuture<?> timeoutCheckFuture;
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
 
-    public DefaultBlocklistHandler(
+    DefaultBlocklistHandler(
             BlocklistTracker blocklistTracker,
             BlocklistContext blocklistContext,
             Function<ResourceID, String> taskManagerNodeIdRetriever,
-            Time timeoutCheckInterval,
+            Duration timeoutCheckInterval,
             ComponentMainThreadExecutor mainThreadExecutor,
             Logger log) {
         this.blocklistTracker = checkNotNull(blocklistTracker);
@@ -76,7 +76,7 @@ public class DefaultBlocklistHandler implements BlocklistHandler, AutoCloseable 
                             removeTimeoutNodes();
                             scheduleTimeoutCheck();
                         },
-                        timeoutCheckInterval.toMilliseconds(),
+                        timeoutCheckInterval.toMillis(),
                         TimeUnit.MILLISECONDS);
     }
 
@@ -174,6 +174,31 @@ public class DefaultBlocklistHandler implements BlocklistHandler, AutoCloseable 
     public void close() throws Exception {
         if (timeoutCheckFuture != null) {
             timeoutCheckFuture.cancel(false);
+        }
+    }
+
+    /** The factory to instantiate {@link DefaultBlocklistHandler}. */
+    public static class Factory implements BlocklistHandler.Factory {
+
+        private final Duration timeoutCheckInterval;
+
+        public Factory(Duration timeoutCheckInterval) {
+            this.timeoutCheckInterval = checkNotNull(timeoutCheckInterval);
+        }
+
+        @Override
+        public BlocklistHandler create(
+                BlocklistContext blocklistContext,
+                Function<ResourceID, String> taskManagerNodeIdRetriever,
+                ComponentMainThreadExecutor mainThreadExecutor,
+                Logger log) {
+            return new DefaultBlocklistHandler(
+                    new DefaultBlocklistTracker(),
+                    blocklistContext,
+                    taskManagerNodeIdRetriever,
+                    timeoutCheckInterval,
+                    mainThreadExecutor,
+                    log);
         }
     }
 }
