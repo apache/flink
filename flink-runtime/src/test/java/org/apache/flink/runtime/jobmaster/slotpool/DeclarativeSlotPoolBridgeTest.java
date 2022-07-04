@@ -46,6 +46,7 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -252,8 +253,10 @@ public class DeclarativeSlotPoolBridgeTest extends TestLogger {
                                         (slotOffers,
                                                 taskManagerLocation,
                                                 taskManagerGateway,
-                                                aLong) ->
-                                                registerSlotsCalledFuture.complete(null)));
+                                                aLong) -> {
+                                            registerSlotsCalledFuture.complete(null);
+                                            return new ArrayList<>(slotOffers);
+                                        }));
 
         try (DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
                 createDeclarativeSlotPoolBridge(

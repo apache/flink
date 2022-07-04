@@ -153,14 +153,13 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         }
 
         if (isJobRestarting) {
-            getDeclarativeSlotPool()
+            return getDeclarativeSlotPool()
                     .registerSlots(
                             offers,
                             taskManagerLocation,
                             taskManagerGateway,
                             getRelativeTimeMillis());
 
-            return offers;
         } else {
             return getDeclarativeSlotPool()
                     .offerSlots(

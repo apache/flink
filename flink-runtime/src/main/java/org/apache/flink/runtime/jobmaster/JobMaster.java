@@ -51,6 +51,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -302,7 +303,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                 highAvailabilityServices.getResourceManagerLeaderRetriever();
 
         this.slotPoolService =
-                checkNotNull(slotPoolServiceSchedulerFactory).createSlotPoolService(jid);
+                checkNotNull(slotPoolServiceSchedulerFactory)
+                        .createSlotPoolService(jid, new DefaultDeclarativeSlotPoolFactory());
 
         this.registeredTaskManagers = new HashMap<>(4);
         this.partitionTracker =
