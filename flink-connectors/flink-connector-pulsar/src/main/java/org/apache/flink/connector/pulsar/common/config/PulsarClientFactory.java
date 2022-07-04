@@ -153,8 +153,8 @@ public final class PulsarClientFactory {
     }
 
     /**
-     * PulsarAdmin shares almost the same configuration with PulsarClient, we use this
-     * creating method for creating PulsarAdmin instead of using {@link ClientConfigurationData}.
+     * PulsarAdmin shares almost the same configuration with PulsarClient, we use this creating
+     * method for creating PulsarAdmin instead of using {@link ClientConfigurationData}.
      */
     public static PulsarAdmin createAdmin(PulsarConfiguration configuration) {
         PulsarAdminBuilder builder = PulsarAdmin.builder();
