@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.blocklist.BlocklistListener;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -59,7 +60,8 @@ public interface JobMasterGateway
                 FencedRpcGateway<JobMasterId>,
                 KvStateLocationOracle,
                 KvStateRegistryGateway,
-                JobMasterOperatorEventGateway {
+                JobMasterOperatorEventGateway,
+                BlocklistListener {
 
     /**
      * Cancels the currently executed job.

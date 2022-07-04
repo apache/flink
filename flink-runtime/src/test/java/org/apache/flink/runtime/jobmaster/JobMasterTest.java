@@ -36,6 +36,8 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.blocklist.BlockedNode;
+import org.apache.flink.runtime.blocklist.DefaultBlocklistHandler;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
@@ -1883,6 +1885,82 @@ class JobMasterTest {
                                             .createTestingTaskExecutorGateway(),
                                     new LocalUnresolvedTaskManagerLocation()))
                     .hasSize(numberSlots);
+        }
+    }
+
+    @Test
+    void testBlockResourcesWillTriggerReleaseFreeSlots() throws Exception {
+        JobVertex jobVertex = new JobVertex("jobVertex");
+        jobVertex.setInvokableClass(NoOpInvokable.class);
+        jobVertex.setParallelism(2);
+        final JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(jobVertex);
+
+        final LocalUnresolvedTaskManagerLocation taskManagerLocation =
+                new LocalUnresolvedTaskManagerLocation();
+
+        final CompletableFuture<AllocationID> freedSlotFuture1 = new CompletableFuture<>();
+        final CompletableFuture<AllocationID> freedSlotFuture2 = new CompletableFuture<>();
+        final TestingTaskExecutorGateway testingTaskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setFreeSlotFunction(
+                                (allocationID, throwable) -> {
+                                    if (!freedSlotFuture1.isDone()) {
+                                        freedSlotFuture1.complete(allocationID);
+                                    } else if (!freedSlotFuture2.isDone()) {
+                                        freedSlotFuture2.complete(allocationID);
+                                    }
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .createTestingTaskExecutorGateway();
+
+        try (final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withConfiguration(configuration)
+                        .withHighAvailabilityServices(haServices)
+                        .withHeartbeatServices(heartbeatServices)
+                        .withBlocklistHandlerFactory(
+                                new DefaultBlocklistHandler.Factory(Duration.ofMillis((100L))))
+                        .createJobMaster()) {
+
+            jobMaster.start();
+
+            final JobMasterGateway jobMasterGateway =
+                    jobMaster.getSelfGateway(JobMasterGateway.class);
+
+            final Collection<SlotOffer> slotOffers =
+                    registerSlotsAtJobMaster(
+                            2,
+                            jobMasterGateway,
+                            jobGraph.getJobID(),
+                            testingTaskExecutorGateway,
+                            taskManagerLocation);
+
+            // check that we accepted the offered slot
+            assertThat(slotOffers).hasSize(2);
+
+            waitUntilAllExecutionsAreScheduledOrDeployed(jobMasterGateway);
+
+            // 1 slot reserved, 1 slot free
+            jobMasterGateway
+                    .updateTaskExecutionState(
+                            new TaskExecutionState(
+                                    getExecutions(jobMasterGateway)
+                                            .iterator()
+                                            .next()
+                                            .getAttemptId(),
+                                    ExecutionState.FINISHED))
+                    .get();
+
+            BlockedNode blockedNode =
+                    new BlockedNode(
+                            taskManagerLocation.getNodeId(),
+                            "Test cause",
+                            System.currentTimeMillis());
+
+            jobMasterGateway.notifyNewBlockedNodes(Collections.singleton(blockedNode)).get();
+
+            assertThat(freedSlotFuture1).isDone();
+            assertThat(freedSlotFuture2).isNotDone();
         }
     }
 

@@ -33,7 +33,7 @@ public class BlockedNode implements Serializable {
 
     private final long endTimestamp;
 
-    BlockedNode(String nodeId, String cause, long endTimestamp) {
+    public BlockedNode(String nodeId, String cause, long endTimestamp) {
         this.nodeId = checkNotNull(nodeId);
         this.cause = checkNotNull(cause);
         this.endTimestamp = endTimestamp;
