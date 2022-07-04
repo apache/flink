@@ -571,7 +571,7 @@ public interface Catalog {
      * @throws PartitionNotExistException if one partition does not exist
      * @throws CatalogException in case of any runtime exception
      */
-    List<CatalogTableStatistics> getPartitionsStatistics(
+    List<CatalogTableStatistics> getTableStatistics(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException, CatalogException;
 
@@ -597,7 +597,7 @@ public interface Catalog {
      * @throws PartitionNotExistException if one partition does not exist
      * @throws CatalogException in case of any runtime exception
      */
-    List<CatalogColumnStatistics> getPartitionsColumnStatistics(
+    List<CatalogColumnStatistics> getTableColumnStatistics(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException, CatalogException;
 
