@@ -35,7 +35,6 @@ import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
-import org.apache.flink.table.gateway.service.operation.Operation;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.session.SessionManager;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
@@ -61,7 +60,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
@@ -335,7 +336,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     public void testCancelAndCloseOperationInParallel() throws Exception {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
         int operationNum = 200;
-        List<Operation> operations = new ArrayList<>(operationNum);
+        List<OperationManager.Operation> operations = new ArrayList<>(operationNum);
         for (int i = 0; i < operationNum; i++) {
             boolean throwError = i % 2 == 0;
             OperationHandle operationHandle =
@@ -368,7 +369,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 Duration.ofSeconds(10),
                 "All operation should be closed.");
 
-        for (Operation op : operations) {
+        for (OperationManager.Operation op : operations) {
             assertEquals(OperationStatus.CLOSED, op.getOperationInfo().getStatus());
         }
     }
@@ -396,12 +397,98 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         assertEquals(0, manager.getOperationCount());
     }
 
+    @Test
+    public void testExecuteOperationInSequence() throws Exception {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+        AtomicReference<Integer> v = new AtomicReference<>(0);
+
+        int threadNum = 100;
+        List<OperationHandle> handles = new ArrayList<>();
+
+        for (int i = 0; i < threadNum; i++) {
+            handles.add(
+                    service.submitOperation(
+                            sessionHandle,
+                            OperationType.UNKNOWN,
+                            () -> {
+                                // If execute in parallel, the value of v may be overridden by
+                                // another thread
+                                int origin = v.get();
+                                v.set(origin + 1);
+                                return null;
+                            }));
+        }
+        for (OperationHandle handle : handles) {
+            CommonTestUtils.waitUtil(
+                    () ->
+                            service.getOperationInfo(sessionHandle, handle)
+                                    .getStatus()
+                                    .isTerminalStatus(),
+                    Duration.ofSeconds(10),
+                    "Failed to wait operation terminate");
+        }
+
+        assertEquals(threadNum, v.get());
+    }
+
+    @Test
+    public void testFailedToSubmitOperationInParallel() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        int maximumThreads = 500;
+        List<SessionHandle> sessions = new ArrayList<>();
+        List<OperationHandle> operations = new ArrayList<>();
+        for (int i = 0; i < maximumThreads; i++) {
+            SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+            sessions.add(sessionHandle);
+            operations.add(
+                    service.submitOperation(
+                            sessionHandle,
+                            OperationType.UNKNOWN,
+                            () -> {
+                                latch.await();
+                                return null;
+                            }));
+        }
+        // The queue is full and should reject
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+        assertThatThrownBy(
+                        () ->
+                                service.submitOperation(
+                                        sessionHandle,
+                                        OperationType.UNKNOWN,
+                                        () -> {
+                                            latch.await();
+                                            return null;
+                                        }))
+                .satisfies(anyCauseMatches(RejectedExecutionException.class));
+        latch.countDown();
+        // Wait the first operation finishes
+        CommonTestUtils.waitUtil(
+                () ->
+                        service.getOperationInfo(sessions.get(0), operations.get(0))
+                                .getStatus()
+                                .isTerminalStatus(),
+                Duration.ofSeconds(10),
+                "Should come to end soon.");
+        // Service is able to submit operation
+        CountDownLatch success = new CountDownLatch(1);
+        service.submitOperation(
+                sessionHandle,
+                OperationType.UNKNOWN,
+                () -> {
+                    success.countDown();
+                    return null;
+                });
+        CommonTestUtils.waitUtil(
+                () -> success.getCount() == 0, Duration.ofSeconds(10), "Should come to end.");
+    }
+
     // --------------------------------------------------------------------------------------------
     // Negative tests
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testFetchResultsFromCanceledOperation() throws Exception {
+    public void testFetchResultsFromCanceledOperation() {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 
         CountDownLatch latch = new CountDownLatch(1);

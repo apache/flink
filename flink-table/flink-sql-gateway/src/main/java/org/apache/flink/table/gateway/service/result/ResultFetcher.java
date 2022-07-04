@@ -93,8 +93,7 @@ public class ResultFetcher {
      * Fetch results from the result store. It tries to return the data cached in the buffer first.
      * If the buffer is empty, then fetch results from the {@link ResultStore}. It's possible
      * multiple threads try to fetch results in parallel. To keep the data integration, use the
-     * synchronized to allow only one thread can fetch the result at any time. TODO: we should
-     * forbid concurrently fetch results in the FLINK-28053.
+     * synchronized to allow only one thread can fetch the result at any time.
      */
     public synchronized ResultSet fetchResults(long token, int maxFetchSize) {
         if (maxFetchSize <= 0) {

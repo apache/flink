@@ -21,11 +21,14 @@ package org.apache.flink.table.gateway.service.operation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
+import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
+import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
+import org.apache.flink.util.CloseableIterator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,10 +37,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import static org.apache.flink.table.gateway.api.results.ResultSet.NOT_READY_RESULTS;
 
 /** Manager for the {@link Operation}. */
 @Internal
@@ -45,15 +54,24 @@ public class OperationManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(OperationManager.class);
 
+    /** The lock controls the visit of the {@link OperationManager}'s state. */
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
+
     private final Map<OperationHandle, Operation> submittedOperations;
     private final ExecutorService service;
+    /**
+     * Operation lock is used to control the execution among the {@link Operation}. The reason why
+     * using the lock to control the execution in sequence is the managers, e.g. CatalogManager are
+     * not thread safe.
+     */
+    private final Semaphore operationLock;
 
     private boolean isRunning;
 
     public OperationManager(ExecutorService service) {
         this.service = service;
         this.submittedOperations = new HashMap<>();
+        this.operationLock = new Semaphore(1);
         this.isRunning = true;
     }
 
@@ -163,6 +181,145 @@ public class OperationManager {
 
     // -------------------------------------------------------------------------------------------
 
+    /** Operation to manage the execution, results and so on. */
+    @VisibleForTesting
+    public class Operation {
+
+        private final OperationHandle operationHandle;
+
+        private final OperationType operationType;
+        private final boolean hasResults;
+        private final AtomicReference<OperationStatus> status;
+
+        private final Callable<ResultFetcher> resultSupplier;
+
+        private Future<?> invocation;
+        private volatile ResultFetcher resultFetcher;
+        private volatile SqlExecutionException operationError;
+
+        public Operation(
+                OperationHandle operationHandle,
+                OperationType operationType,
+                Callable<ResultFetcher> resultSupplier) {
+            this.operationHandle = operationHandle;
+            this.status = new AtomicReference<>(OperationStatus.INITIALIZED);
+            this.operationType = operationType;
+            this.hasResults = true;
+            this.resultSupplier = resultSupplier;
+        }
+
+        void runBefore() {
+            updateState(OperationStatus.RUNNING);
+        }
+
+        void runAfter() {
+            updateState(OperationStatus.FINISHED);
+        }
+
+        public void run() {
+            try {
+                operationLock.acquire();
+                updateState(OperationStatus.PENDING);
+                Runnable work =
+                        () -> {
+                            try {
+                                runBefore();
+                                resultFetcher = resultSupplier.call();
+                                runAfter();
+                            } catch (Throwable t) {
+                                processThrowable(t);
+                            }
+                        };
+                invocation =
+                        service.submit(
+                                new FutureTask<Void>(work, null) {
+                                    @Override
+                                    protected void done() {
+                                        // release the lock when execution finish.
+                                        operationLock.release();
+                                    }
+                                });
+            } catch (Throwable t) {
+                processThrowable(t);
+                throw new SqlGatewayException(
+                        "Failed to submit the operation to the thread pool.", t);
+            }
+        }
+
+        public void cancel() {
+            updateState(OperationStatus.CANCELED);
+            closeResources();
+        }
+
+        public void close() {
+            updateState(OperationStatus.CLOSED);
+            closeResources();
+        }
+
+        public ResultSet fetchResults(long token, int maxRows) {
+            OperationStatus currentStatus = status.get();
+
+            if (currentStatus == OperationStatus.ERROR) {
+                throw operationError;
+            } else if (currentStatus == OperationStatus.FINISHED) {
+                return resultFetcher.fetchResults(token, maxRows);
+            } else if (currentStatus == OperationStatus.RUNNING
+                    || currentStatus == OperationStatus.PENDING
+                    || currentStatus == OperationStatus.INITIALIZED) {
+                return NOT_READY_RESULTS;
+            } else {
+                throw new SqlGatewayException(
+                        String.format(
+                                "Can not fetch results from the %s in %s status.",
+                                operationHandle, currentStatus));
+            }
+        }
+
+        public OperationInfo getOperationInfo() {
+            return new OperationInfo(status.get(), operationType, hasResults);
+        }
+
+        private void updateState(OperationStatus toStatus) {
+            OperationStatus currentStatus;
+            do {
+                currentStatus = status.get();
+                boolean isValid = OperationStatus.isValidStatusTransition(currentStatus, toStatus);
+                if (!isValid) {
+                    String message =
+                            String.format(
+                                    "Failed to convert the Operation Status from %s to %s for %s.",
+                                    currentStatus, toStatus, operationHandle);
+                    LOG.error(message);
+                    throw new SqlGatewayException(message);
+                }
+            } while (!status.compareAndSet(currentStatus, toStatus));
+
+            LOG.debug(
+                    String.format(
+                            "Convert operation %s from %s to %s.",
+                            operationHandle, currentStatus, toStatus));
+        }
+
+        private void closeResources() {
+            if (invocation != null && !invocation.isDone()) {
+                invocation.cancel(true);
+            }
+
+            if (resultFetcher != null) {
+                resultFetcher.close();
+            }
+        }
+
+        private void processThrowable(Throwable t) {
+            String msg = String.format("Failed to execute the operation %s.", operationHandle);
+            LOG.error(msg, t);
+            operationError = new SqlExecutionException(msg, t);
+            updateState(OperationStatus.ERROR);
+            // release the lock when meeting error
+            operationLock.release();
+        }
+    }
+
     @VisibleForTesting
     public int getOperationCount() {
         return submittedOperations.size();
@@ -187,7 +344,7 @@ public class OperationManager {
         writeLock(
                 () -> {
                     submittedOperations.put(handle, operation);
-                    operation.run(service);
+                    operation.run();
                 });
     }
 
