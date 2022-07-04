@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDouble;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
+import org.apache.flink.table.catalog.stats.Date;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
@@ -379,5 +380,72 @@ public class HiveStatsUtil {
             long v = Long.parseLong(value);
             return v > 0 ? v : DEFAULT_UNKNOWN_STATS_VALUE;
         }
+    }
+
+    // Utilities for merge statistic
+    private static Double average(Double a, Long ac, Double b, Long bc) {
+        if (a == null || ac == null) {
+            return b;
+        }
+        if (b == null || bc == null) {
+            return a;
+        }
+        return ac + bc == 0 ? null : (a * ac + b * bc) / (ac + bc);
+    }
+
+    public static Long min(Long a, Long b) {
+        if (a == null || b == null) {
+            return a == null ? b : a;
+        }
+
+        return Math.min(a, b);
+    }
+
+    private static Double min(Double a, Double b) {
+        if (a == null || b == null) {
+            return a == null ? b : a;
+        }
+
+        return Math.min(a, b);
+    }
+
+    private static Date min(Date a, Date b) {
+        if (a == null || b == null) {
+            return a == null ? b : a;
+        }
+
+        return a.getDaysSinceEpoch() <= b.getDaysSinceEpoch() ? a : b;
+    }
+
+    public static Long max(Long a, Long b) {
+        if (a == null || b == null) {
+            return a == null ? b : a;
+        }
+
+        return Math.max(a, b);
+    }
+
+    private static Double max(Double a, Double b) {
+        if (a == null || b == null) {
+            return a == null ? b : a;
+        }
+
+        return Math.max(a, b);
+    }
+
+    private static Date max(Date a, Date b) {
+        if (a == null || b == null) {
+            return a == null ? b : a;
+        }
+
+        return a.getDaysSinceEpoch() >= b.getDaysSinceEpoch() ? a : b;
+    }
+
+    public static Long add(Long a, Long b) {
+        if (a == null || b == null) {
+            return a == null ? b : a;
+        }
+
+        return a + b;
     }
 }
