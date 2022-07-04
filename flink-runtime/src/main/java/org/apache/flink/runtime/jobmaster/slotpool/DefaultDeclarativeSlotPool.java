@@ -92,7 +92,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     private final Time rpcTimeout;
 
     private final JobID jobId;
-    private final AllocatedSlotPool slotPool;
+    protected final AllocatedSlotPool slotPool;
 
     private final Map<AllocationID, ResourceProfile> slotToRequirementProfileMappings;
 
@@ -233,7 +233,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
-    public void registerSlots(
+    public Collection<SlotOffer> registerSlots(
             Collection<? extends SlotOffer> slots,
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,
@@ -253,6 +253,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
                 taskManagerGateway,
                 currentTime,
                 this::matchWithOutstandingRequirementOrWildcard);
+        return new ArrayList<>(slots);
     }
 
     private Optional<ResourceProfile> matchWithOutstandingRequirementOrWildcard(

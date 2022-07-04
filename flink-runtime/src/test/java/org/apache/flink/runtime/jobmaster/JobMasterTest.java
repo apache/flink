@@ -74,6 +74,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotInfoWithUtilization;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
@@ -458,7 +459,8 @@ class JobMasterTest {
 
         @Nonnull
         @Override
-        public SlotPoolService createSlotPoolService(@Nonnull JobID jobId) {
+        public SlotPoolService createSlotPoolService(
+                @Nonnull JobID jobId, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
             return new TestingSlotPool(jobId, hasReceivedSlotOffers);
         }
     }
