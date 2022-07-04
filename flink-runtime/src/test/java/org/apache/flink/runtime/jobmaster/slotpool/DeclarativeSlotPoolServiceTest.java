@@ -43,6 +43,8 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.clock.SystemClock;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
@@ -303,6 +305,51 @@ class DeclarativeSlotPoolServiceTest {
 
             assertThat(releasedSlotsFor)
                     .containsExactlyInAnyOrderElementsOf(taskManagerResourceIds);
+        }
+    }
+
+    @Test
+    void testReleaseFreeSlotsOnTaskManager() throws Exception {
+        try (DeclarativeSlotPoolService slotPoolService = createDeclarativeSlotPoolService()) {
+            final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+            slotPoolService.registerTaskManager(taskManagerLocation.getResourceID());
+
+            final ResourceProfile resourceProfile =
+                    ResourceProfile.newBuilder().setCpuCores(1).build();
+
+            SlotOffer slotOffer1 = new SlotOffer(new AllocationID(), 0, resourceProfile);
+            SlotOffer slotOffer2 = new SlotOffer(new AllocationID(), 1, resourceProfile);
+
+            final DeclarativeSlotPool slotPool = slotPoolService.getDeclarativeSlotPool();
+            slotPool.setResourceRequirements(ResourceCounter.withResource(resourceProfile, 2));
+
+            final DefaultDeclarativeSlotPoolTest.FreeSlotConsumer freeSlotConsumer =
+                    new DefaultDeclarativeSlotPoolTest.FreeSlotConsumer();
+
+            final Collection<SlotOffer> slotOffers = Arrays.asList(slotOffer1, slotOffer2);
+
+            slotPoolService.offerSlots(
+                    taskManagerLocation,
+                    new RpcTaskManagerGateway(
+                            new TestingTaskExecutorGatewayBuilder()
+                                    .setFreeSlotFunction(freeSlotConsumer)
+                                    .createTestingTaskExecutorGateway(),
+                            jobMasterId),
+                    slotOffers);
+
+            // slot1 is reserved, slot2 is free.
+            slotPool.reserveFreeSlot(slotOffer1.getAllocationId(), resourceProfile);
+
+            slotPoolService.releaseFreeSlotsOnTaskManager(
+                    taskManagerLocation.getResourceID(), new FlinkException("Test cause"));
+
+            assertThat(slotPool.getFreeSlotsInformation()).isEmpty();
+            assertThat(
+                            Iterables.getOnlyElement(slotPool.getAllSlotsInformation())
+                                    .getAllocationId())
+                    .isEqualTo(slotOffer1.getAllocationId());
+            assertThat(Iterables.getOnlyElement(freeSlotConsumer.drainFreedSlots()))
+                    .isEqualTo(slotOffer2.getAllocationId());
         }
     }
 
