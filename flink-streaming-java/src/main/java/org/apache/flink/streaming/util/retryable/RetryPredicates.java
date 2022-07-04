@@ -34,7 +34,7 @@ public class RetryPredicates {
     public static final HasExceptionPredicate HAS_EXCEPTION_PREDICATE = new HasExceptionPredicate();
 
     /**
-     * Create a predicate on given exception type.
+     * Creates a predicate on given exception type.
      *
      * @param exceptionClass
      * @return predicate on exception type.

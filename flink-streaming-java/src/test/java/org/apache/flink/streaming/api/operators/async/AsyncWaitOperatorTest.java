@@ -1202,52 +1202,58 @@ public class AsyncWaitOperatorTest extends TestLogger {
     private void testProcessingTimeWithRetry(
             AsyncDataStream.OutputMode mode, RichAsyncFunction asyncFunction) throws Exception {
 
-        final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-                createTestHarnessWithRetry(
-                        asyncFunction, TIMEOUT, 6, mode, emptyResultFixedDelayRetryStrategy);
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
 
-        final long initialTime = 0L;
-        final Queue<Object> expectedOutput = new ArrayDeque<>();
-        final long startTime = 1;
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new AsyncWaitOperatorFactory<>(
+                                        asyncFunction,
+                                        TIMEOUT,
+                                        6,
+                                        mode,
+                                        emptyResultFixedDelayRetryStrategy))
+                        .build()) {
 
-        testHarness.open();
-        testHarness.setProcessingTime(startTime);
-        synchronized (testHarness.getCheckpointLock()) {
+            final long initialTime = 0L;
+            final Queue<Object> expectedOutput = new ArrayDeque<>();
+
             testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
             testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
             testHarness.processElement(new StreamRecord<>(3, initialTime + 3));
             testHarness.processElement(new StreamRecord<>(4, initialTime + 4));
             testHarness.processElement(new StreamRecord<>(5, initialTime + 5));
             testHarness.processElement(new StreamRecord<>(6, initialTime + 6));
-            testHarness.setProcessingTime(startTime + 10);
-            testHarness.setProcessingTime(startTime + 20);
-            testHarness.processElement(new StreamRecord<>(7, initialTime + 7));
-            testHarness.setProcessingTime(startTime + 30);
-            testHarness.processElement(new StreamRecord<>(8, initialTime + 8));
-            testHarness.setProcessingTime(startTime + 90);
-        }
 
-        expectedOutput.add(new StreamRecord<>(4, initialTime + 2));
-        expectedOutput.add(new StreamRecord<>(8, initialTime + 4));
-        expectedOutput.add(new StreamRecord<>(12, initialTime + 6));
-        expectedOutput.add(new StreamRecord<>(16, initialTime + 8));
+            ScheduledFuture<?> testTimer =
+                    testHarness
+                            .getTimerService()
+                            .registerTimer(
+                                    testHarness.getTimerService().getCurrentProcessingTime()
+                                            + TIMEOUT,
+                                    ts -> {});
 
-        synchronized (testHarness.getCheckpointLock()) {
-            testHarness.endInput();
-            testHarness.close();
-        }
+            expectedOutput.add(new StreamRecord<>(4, initialTime + 2));
+            expectedOutput.add(new StreamRecord<>(8, initialTime + 4));
+            expectedOutput.add(new StreamRecord<>(12, initialTime + 6));
 
-        if (mode == AsyncDataStream.OutputMode.ORDERED) {
-            TestHarnessUtil.assertOutputEquals(
-                    "ORDERED Output was not correct.", expectedOutput, testHarness.getOutput());
-        } else {
-            TestHarnessUtil.assertOutputEqualsSorted(
-                    "UNORDERED Output was not correct.",
-                    expectedOutput,
-                    testHarness.getOutput(),
-                    new StreamRecordComparator());
+            // wait until all timers have been processed
+            testTimer.get();
+
+            testHarness.processAll();
+            if (mode == AsyncDataStream.OutputMode.ORDERED) {
+                TestHarnessUtil.assertOutputEquals(
+                        "ORDERED Output was not correct.", expectedOutput, testHarness.getOutput());
+            } else {
+                TestHarnessUtil.assertOutputEqualsSorted(
+                        "UNORDERED Output was not correct.",
+                        expectedOutput,
+                        testHarness.getOutput(),
+                        new StreamRecordComparator());
+            }
         }
-        assertEquals(0, testHarness.getProcessingTimeService().getNumActiveTimers());
     }
 
     private static class CollectableFuturesAsyncFunction<IN> implements AsyncFunction<IN, IN> {

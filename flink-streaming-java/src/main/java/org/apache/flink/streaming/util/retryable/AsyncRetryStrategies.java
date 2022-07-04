@@ -50,17 +50,29 @@ public class AsyncRetryStrategies {
 
         @Override
         public AsyncRetryPredicate getRetryPredicate() {
-            return new AsyncRetryPredicate() {
-                @Override
-                public Optional<Predicate<Collection>> resultPredicate() {
-                    return Optional.empty();
-                }
+            return new RetryPredicate(null, null);
+        }
+    }
 
-                @Override
-                public Optional<Predicate<Throwable>> exceptionPredicate() {
-                    return Optional.empty();
-                }
-            };
+    private static class RetryPredicate<OUT> implements AsyncRetryPredicate<OUT> {
+        final Predicate<Collection<OUT>> resultPredicate;
+        final Predicate<Throwable> exceptionPredicate;
+
+        public RetryPredicate(
+                Predicate<Collection<OUT>> resultPredicate,
+                Predicate<Throwable> exceptionPredicate) {
+            this.resultPredicate = resultPredicate;
+            this.exceptionPredicate = exceptionPredicate;
+        }
+
+        @Override
+        public Optional<Predicate<Collection<OUT>>> resultPredicate() {
+            return Optional.ofNullable(resultPredicate);
+        }
+
+        @Override
+        public Optional<Predicate<Throwable>> exceptionPredicate() {
+            return Optional.ofNullable(exceptionPredicate);
         }
     }
 
@@ -90,23 +102,7 @@ public class AsyncRetryStrategies {
 
         @Override
         public AsyncRetryPredicate<OUT> getRetryPredicate() {
-            return new AsyncRetryPredicate<OUT>() {
-                @Override
-                public Optional<Predicate<Collection<OUT>>> resultPredicate() {
-                    if (null == resultPredicate) {
-                        return Optional.empty();
-                    }
-                    return Optional.of(resultPredicate);
-                }
-
-                @Override
-                public Optional<Predicate<Throwable>> exceptionPredicate() {
-                    if (null == exceptionPredicate) {
-                        return Optional.empty();
-                    }
-                    return Optional.of(exceptionPredicate);
-                }
-            };
+            return new RetryPredicate(resultPredicate, exceptionPredicate);
         }
 
         @Override
@@ -131,20 +127,20 @@ public class AsyncRetryStrategies {
             this.backoffTimeMillis = backoffTimeMillis;
         }
 
-        public FixedDelayRetryStrategyBuilder ifResult(
+        public FixedDelayRetryStrategyBuilder<OUT> ifResult(
                 @Nonnull Predicate<Collection<OUT>> resultRetryPredicate) {
             this.resultPredicate = resultRetryPredicate;
             return this;
         }
 
-        public FixedDelayRetryStrategyBuilder ifException(
+        public FixedDelayRetryStrategyBuilder<OUT> ifException(
                 @Nonnull Predicate<Throwable> exceptionRetryPredicate) {
             this.exceptionPredicate = exceptionRetryPredicate;
             return this;
         }
 
-        public FixedDelayRetryStrategy build() {
-            return new FixedDelayRetryStrategy(
+        public FixedDelayRetryStrategy<OUT> build() {
+            return new FixedDelayRetryStrategy<OUT>(
                     maxAttempts, backoffTimeMillis, resultPredicate, exceptionPredicate);
         }
     }
@@ -154,10 +150,7 @@ public class AsyncRetryStrategies {
             implements AsyncRetryStrategy<OUT> {
         private static final long serialVersionUID = 1L;
         private final int maxAttempts;
-
-        private final long initialDelay;
         private final long maxRetryDelay;
-
         private final double multiplier;
         private final Predicate<Collection<OUT>> resultPredicate;
         private final Predicate<Throwable> exceptionPredicate;
@@ -172,7 +165,6 @@ public class AsyncRetryStrategies {
                 Predicate<Collection<OUT>> resultPredicate,
                 Predicate<Throwable> exceptionPredicate) {
             this.maxAttempts = maxAttempts;
-            this.initialDelay = initialDelay;
             this.maxRetryDelay = maxRetryDelay;
             this.multiplier = multiplier;
             this.resultPredicate = resultPredicate;
@@ -187,6 +179,10 @@ public class AsyncRetryStrategies {
 
         @Override
         public long getBackoffTimeMillis(int currentAttempts) {
+            if (currentAttempts <= 1) {
+                // equivalent to initial delay
+                return lastRetryDelay;
+            }
             long backoff = Math.min((long) (lastRetryDelay * multiplier), maxRetryDelay);
             this.lastRetryDelay = backoff;
             return backoff;
@@ -194,23 +190,7 @@ public class AsyncRetryStrategies {
 
         @Override
         public AsyncRetryPredicate<OUT> getRetryPredicate() {
-            return new AsyncRetryPredicate<OUT>() {
-                @Override
-                public Optional<Predicate<Collection<OUT>>> resultPredicate() {
-                    if (null == resultPredicate) {
-                        return Optional.empty();
-                    }
-                    return Optional.of(resultPredicate);
-                }
-
-                @Override
-                public Optional<Predicate<Throwable>> exceptionPredicate() {
-                    if (null == exceptionPredicate) {
-                        return Optional.empty();
-                    }
-                    return Optional.of(exceptionPredicate);
-                }
-            };
+            return new RetryPredicate<OUT>(resultPredicate, exceptionPredicate);
         }
     }
 
@@ -235,20 +215,20 @@ public class AsyncRetryStrategies {
             this.multiplier = multiplier;
         }
 
-        public ExponentialBackoffDelayRetryStrategyBuilder ifResult(
+        public ExponentialBackoffDelayRetryStrategyBuilder<OUT> ifResult(
                 @Nonnull Predicate<Collection<OUT>> resultRetryPredicate) {
             this.resultPredicate = resultRetryPredicate;
             return this;
         }
 
-        public ExponentialBackoffDelayRetryStrategyBuilder ifException(
+        public ExponentialBackoffDelayRetryStrategyBuilder<OUT> ifException(
                 @Nonnull Predicate<Throwable> exceptionRetryPredicate) {
             this.exceptionPredicate = exceptionRetryPredicate;
             return this;
         }
 
-        public ExponentialBackoffDelayRetryStrategy build() {
-            return new ExponentialBackoffDelayRetryStrategy(
+        public ExponentialBackoffDelayRetryStrategy<OUT> build() {
+            return new ExponentialBackoffDelayRetryStrategy<OUT>(
                     maxAttempts,
                     initialDelay,
                     maxRetryDelay,
