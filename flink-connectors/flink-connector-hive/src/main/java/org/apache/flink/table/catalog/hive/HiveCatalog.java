@@ -117,6 +117,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -1726,7 +1727,7 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     @Override
-    public List<CatalogTableStatistics> getPartitionsStatistics(
+    public List<CatalogTableStatistics> getTableStatistics(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException, CatalogException {
 
@@ -1746,7 +1747,7 @@ public class HiveCatalog extends AbstractCatalog {
         Tuple2<Table, List<String>> partitionsNamesTuple2 = null;
 
         try {
-            partitionsNamesTuple2 = getPartitionsNames(tablePath, partitionSpecs);
+            partitionsNamesTuple2 = getTableAndPartitionsNames(tablePath, partitionSpecs);
 
             partitions.addAll(
                     client.getPartitionsByNames(
@@ -1764,7 +1765,10 @@ public class HiveCatalog extends AbstractCatalog {
         return Tuple2.of(partitions, partitionsNamesTuple2.f1);
     }
 
-    private Tuple2<Table, List<String>> getPartitionsNames(
+    /**
+     * @return Table and names of partitions.
+     */
+    private Tuple2<Table, List<String>> getTableAndPartitionsNames(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException {
 
@@ -1825,7 +1829,7 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     @Override
-    public List<CatalogColumnStatistics> getPartitionsColumnStatistics(
+    public List<CatalogColumnStatistics> getTableColumnStatistics(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException, CatalogException {
 
@@ -1833,16 +1837,24 @@ public class HiveCatalog extends AbstractCatalog {
 
         List<CatalogColumnStatistics> result = new ArrayList<>(partitionSpecs.size());
 
-        final Tuple2<Table, List<String>> partitionsTuple2 =
-                getPartitionsNames(tablePath, partitionSpecs);
+        final Tuple2<List<Partition>, List<String>> partitionsTuple2 =
+                getPartitions(tablePath, partitionSpecs);
 
         try {
+
+            final List<FieldSchema> distinctColumns =
+                    partitionsTuple2.f0.stream()
+                            .map(p -> p.getSd().getCols())
+                            .flatMap(Collection::stream)
+                            .distinct()
+                            .collect(Collectors.toList());
+
             Map<String, List<ColumnStatisticsObj>> partitionColumnStatistics =
                     client.getPartitionColumnStatistics(
-                            partitionsTuple2.f0.getDbName(),
-                            partitionsTuple2.f0.getTableName(),
+                            partitionsTuple2.f0.get(0).getDbName(),
+                            partitionsTuple2.f0.get(0).getTableName(),
                             partitionsTuple2.f1,
-                            getFieldNames(partitionsTuple2.f0.getSd().getCols()));
+                            getFieldNames(distinctColumns));
 
             for (String partitionName : partitionsTuple2.f1) {
                 List<ColumnStatisticsObj> columnStatisticsObjs =

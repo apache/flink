@@ -203,12 +203,12 @@ public class FlinkRecomputeStatisticsProgram implements FlinkOptimizeProgram<Bat
                             .collect(Collectors.toList());
 
             final Optional<TableStats> rowCountMergedTableStats =
-                    catalog.getPartitionsStatistics(tablePath, partitionSpecs).stream()
+                    catalog.getTableStatistics(tablePath, partitionSpecs).stream()
                             .map(p -> CatalogTableStatisticsConverter.convertToTableStats(p, null))
                             .reduce((s1, s2) -> s1.merge(s2));
 
             final Optional<TableStats> columnStatsMergedTableStats =
-                    catalog.getPartitionsColumnStatistics(tablePath, partitionSpecs).stream()
+                    catalog.getTableColumnStatistics(tablePath, partitionSpecs).stream()
                             .map(
                                     p ->
                                             CatalogTableStatisticsConverter.convertToTableStats(
