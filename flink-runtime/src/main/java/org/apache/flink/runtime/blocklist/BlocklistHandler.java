@@ -19,9 +19,13 @@
 package org.apache.flink.runtime.blocklist;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+
+import org.slf4j.Logger;
 
 import java.util.Collection;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * This class is responsible for managing all {@link BlockedNode}s and performing them on resources.
@@ -64,4 +68,23 @@ public interface BlocklistHandler {
      * @param blocklistListener the listener to deregister
      */
     void deregisterBlocklistListener(BlocklistListener blocklistListener);
+
+    /** Factory to instantiate {@link BlocklistHandler}. */
+    interface Factory {
+
+        /**
+         * Instantiates a {@link BlocklistHandler}.
+         *
+         * @param blocklistContext the blocklist context
+         * @param taskManagerNodeIdRetriever to map a task manager to the node it's located on
+         * @param mainThreadExecutor to schedule the timeout check
+         * @param log the logger
+         * @return an instantiated blocklist handler.
+         */
+        BlocklistHandler create(
+                BlocklistContext blocklistContext,
+                Function<ResourceID, String> taskManagerNodeIdRetriever,
+                ComponentMainThreadExecutor mainThreadExecutor,
+                Logger log);
+    }
 }
