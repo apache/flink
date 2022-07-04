@@ -434,10 +434,12 @@ string:
   - sql: INSTR(string1, string2)
     description:  返回 string2 在 string1 中第一次出现的位置。如果有任一参数为 `NULL`，则返回 `NULL`。
   - sql: LEFT(string, integer)
+    table: STRING.LEFT(INT)
     description: |
       返回字符串中最左边的长度为 integer 值的字符串。如果 integer 为负，则返回 `EMPTY` 字符串。如果有任一参数
       为 `NULL` 则返回 `NULL`。
   - sql: RIGHT(string, integer)
+    table: STRING.RIGHT(INT)
     description: |
       返回字符串中最右边的长度为 integer 值的字符串。如果 integer 为负，则返回 `EMPTY` 字符串。如果有任一参数
       为 `NULL` 则返回 `NULL`。

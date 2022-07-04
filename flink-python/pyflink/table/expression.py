@@ -1212,6 +1212,18 @@ class Expression(Generic[T]):
         """
         return _binary_op("encode")(self, charset)
 
+    def left(self, length: Union[int, 'Expression[int]']) -> 'Expression[str]':
+        """
+        Returns the leftmost integer characters from the input string.
+        """
+        return _binary_op("left")(self, length)
+
+    def right(self, length: Union[int, 'Expression[int]']) -> 'Expression[str]':
+        """
+        Returns the rightmost integer characters from the input string.
+        """
+        return _binary_op("right")(self, length)
+
     @property
     def ltrim(self) -> 'Expression[str]':
         """

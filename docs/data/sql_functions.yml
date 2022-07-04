@@ -341,8 +341,10 @@ string:
   - sql: INSTR(string1, string2)
     description:  Returns the position of the first occurrence of string2 in string1. Returns NULL if any of arguments is NULL.
   - sql: LEFT(string, integer)
+    table: STRING.LEFT(INT)
     description: Returns the leftmost integer characters from the string. Returns EMPTY String if integer is negative. Returns NULL if any argument is NULL.
   - sql: RIGHT(string, integer)
+    table: STRING.RIGHT(INT)
     description: Returns the rightmost integer characters from the string. Returns EMPTY String if integer is negative. Returns NULL if any argument is NULL.
   - sql: LOCATE(string1, string2[, integer])
     description: Returns the position of the first occurrence of string1 in string2 after position integer. Returns 0 if not found. Returns NULL if any of arguments is NULL.
