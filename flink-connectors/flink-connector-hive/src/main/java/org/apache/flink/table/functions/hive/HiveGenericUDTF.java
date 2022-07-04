@@ -154,8 +154,10 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction<
                 "Getting result type of HiveGenericUDTF with {}",
                 hiveFunctionWrapper.getUDFClassName());
         ObjectInspector[] argumentInspectors = HiveInspectors.getArgInspectors(hiveShim, arguments);
+        StandardStructObjectInspector standardStructObjectInspector =
+                getStandardStructObjectInspector(argumentInspectors);
         return HiveTypeUtil.toFlinkType(
-                hiveFunctionWrapper.createFunction().initialize(argumentInspectors));
+                hiveFunctionWrapper.createFunction().initialize(standardStructObjectInspector));
     }
 
     @Override
