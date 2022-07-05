@@ -19,6 +19,8 @@
 package org.apache.flink.core.testutils;
 
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 
 import javax.annotation.Nullable;
@@ -32,6 +34,7 @@ import java.util.function.Supplier;
  * @param <T> The {@link GenericContainer} that shall be managed.
  */
 public class TestContainerExtension<T extends GenericContainer<T>> implements CustomExtension {
+    private static final Logger LOG = LoggerFactory.getLogger(TestContainerExtension.class);
 
     @Nullable private T testContainer;
 
@@ -61,6 +64,8 @@ public class TestContainerExtension<T extends GenericContainer<T>> implements Cu
 
     @Override
     public void after(ExtensionContext context) throws Exception {
+        LOG.info("=====[Container logs]=====");
+        LOG.info(getTestContainer().getLogs());
         terminateTestContainer();
     }
 
