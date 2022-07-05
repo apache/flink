@@ -20,10 +20,13 @@ package org.apache.flink.runtime.blocklist;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +37,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Consumer;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link DefaultBlocklistHandler}. */
@@ -42,26 +49,34 @@ class DefaultBlocklistHandlerTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultBlocklistHandlerTest.class);
 
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
+
     @Test
     void testAddNewBlockedNodes() throws Exception {
         BlockedNode node1 = new BlockedNode("node1", "cause", Long.MAX_VALUE);
         BlockedNode node2 = new BlockedNode("node2", "cause", Long.MAX_VALUE);
 
-        TestBlocklistContext context = new TestBlocklistContext();
+        Collection<BlockedNode> allBlockedNodes = new ArrayList<>();
+        TestBlocklistContext context =
+                TestBlocklistContext.newBuilder()
+                        .setBlockResourcesConsumer(allBlockedNodes::addAll)
+                        .build();
         TestBlocklistListener listener = new TestBlocklistListener();
 
         try (DefaultBlocklistHandler handler = createDefaultBlocklistHandler(context)) {
             handler.registerBlocklistListener(listener);
             assertThat(listener.notifiedTimes).isEqualTo(0);
             assertThat(listener.notifiedNodes).isEmpty();
-            assertThat(context.allBlockedNodes).isEmpty();
+            assertThat(allBlockedNodes).isEmpty();
 
             // add node1, node2
             handler.addNewBlockedNodes(Arrays.asList(node1, node2));
             // check listener and context
             assertThat(listener.notifiedTimes).isEqualTo(1);
             assertThat(listener.notifiedNodes).containsExactlyInAnyOrder(node1, node2);
-            assertThat(context.allBlockedNodes).containsExactlyInAnyOrder(node1, node2);
+            assertThat(allBlockedNodes).containsExactlyInAnyOrder(node1, node2);
 
             // add node1, node2 again, should not notify listener
             handler.addNewBlockedNodes(Arrays.asList(node1, node2));
@@ -77,24 +92,40 @@ class DefaultBlocklistHandlerTest {
 
     @Test
     void testRemoveTimeoutNodes() throws Exception {
-        long currentTimestamp = System.currentTimeMillis();
-        BlockedNode node1 = new BlockedNode("node1", "cause", currentTimestamp + 1000L);
-        BlockedNode node2 = new BlockedNode("node2", "cause", currentTimestamp + 3000L);
+        final ComponentMainThreadExecutor mainThreadExecutor =
+                ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                        EXECUTOR_EXTENSION.getExecutor());
 
-        TestBlocklistContext context = new TestBlocklistContext();
-        try (DefaultBlocklistHandler handler = createDefaultBlocklistHandler(context)) {
+        final CompletableFuture<Collection<BlockedNode>> unblockResourcesFuture =
+                new CompletableFuture<>();
 
-            handler.addNewBlockedNodes(Arrays.asList(node1, node2));
-            assertThat(handler.getAllBlockedNodeIds()).hasSize(2);
-            assertThat(context.allUnblockedNodes).hasSize(0);
+        final TestBlocklistContext context =
+                TestBlocklistContext.newBuilder()
+                        .setUnblockResourcesConsumer(unblockResourcesFuture::complete)
+                        .build();
 
-            // wait node1 timeout
-            CommonTestUtils.waitUntilCondition(() -> handler.getAllBlockedNodeIds().size() == 1);
-            assertThat(context.allUnblockedNodes).containsExactly(node1);
-
-            // wait node2 timeout
-            CommonTestUtils.waitUntilCondition(() -> handler.getAllBlockedNodeIds().size() == 0);
-            assertThat(context.allUnblockedNodes).containsExactly(node1, node2);
+        try (DefaultBlocklistHandler handler =
+                createDefaultBlocklistHandler(context, mainThreadExecutor)) {
+            CompletableFuture.supplyAsync(
+                            () -> {
+                                BlockedNode blockedNode =
+                                        new BlockedNode(
+                                                "node",
+                                                "cause",
+                                                System.currentTimeMillis() + 1000L);
+                                handler.addNewBlockedNodes(Collections.singleton(blockedNode));
+                                assertThat(handler.getAllBlockedNodeIds()).hasSize(1);
+                                return blockedNode;
+                            },
+                            mainThreadExecutor)
+                    // wait for the timeout to occur
+                    .thenAcceptBoth(
+                            unblockResourcesFuture,
+                            (blockedNode, unblockResources) -> {
+                                assertThat(handler.getAllBlockedNodeIds()).isEmpty();
+                                assertThat(unblockResources).containsExactly(blockedNode);
+                            })
+                    .get();
         }
     }
 
@@ -135,10 +166,21 @@ class DefaultBlocklistHandlerTest {
             Map<ResourceID, String> taskManagerToNode) {
         return new DefaultBlocklistHandler(
                 new DefaultBlocklistTracker(),
-                new TestBlocklistContext(),
+                TestBlocklistContext.newBuilder().build(),
                 taskManagerToNode::get,
                 Time.milliseconds(100L),
                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                LOG);
+    }
+
+    private DefaultBlocklistHandler createDefaultBlocklistHandler(
+            BlocklistContext blocklistContext, ComponentMainThreadExecutor mainThreadExecutor) {
+        return new DefaultBlocklistHandler(
+                new DefaultBlocklistTracker(),
+                blocklistContext,
+                resourceID -> "node",
+                Time.milliseconds(100L),
+                mainThreadExecutor,
                 LOG);
     }
 
@@ -156,18 +198,51 @@ class DefaultBlocklistHandlerTest {
     }
 
     private static class TestBlocklistContext implements BlocklistContext {
-        private final List<BlockedNode> allBlockedNodes = new ArrayList<>();
+        private final Consumer<Collection<BlockedNode>> blockResourcesConsumer;
 
-        private final List<BlockedNode> allUnblockedNodes = new ArrayList<>();
+        private final Consumer<Collection<BlockedNode>> unblockResourcesConsumer;
+
+        private TestBlocklistContext(
+                Consumer<Collection<BlockedNode>> blockResourcesConsumer,
+                Consumer<Collection<BlockedNode>> unblockResourcesConsumer) {
+            this.blockResourcesConsumer = checkNotNull(blockResourcesConsumer);
+            this.unblockResourcesConsumer = checkNotNull(unblockResourcesConsumer);
+        }
 
         @Override
         public void blockResources(Collection<BlockedNode> blockedNodes) {
-            allBlockedNodes.addAll(blockedNodes);
+            blockResourcesConsumer.accept(blockedNodes);
         }
 
         @Override
         public void unblockResources(Collection<BlockedNode> unblockedNodes) {
-            allUnblockedNodes.addAll(unblockedNodes);
+            unblockResourcesConsumer.accept(unblockedNodes);
+        }
+
+        private static class Builder {
+            private Consumer<Collection<BlockedNode>> blockResourcesConsumer = ignored -> {};
+
+            private Consumer<Collection<BlockedNode>> unblockResourcesConsumer = ignored -> {};
+
+            public Builder setBlockResourcesConsumer(
+                    Consumer<Collection<BlockedNode>> blockResourcesConsumer) {
+                this.blockResourcesConsumer = blockResourcesConsumer;
+                return this;
+            }
+
+            public Builder setUnblockResourcesConsumer(
+                    Consumer<Collection<BlockedNode>> unblockResourcesConsumer) {
+                this.unblockResourcesConsumer = unblockResourcesConsumer;
+                return this;
+            }
+
+            public TestBlocklistContext build() {
+                return new TestBlocklistContext(blockResourcesConsumer, unblockResourcesConsumer);
+            }
+        }
+
+        static Builder newBuilder() {
+            return new Builder();
         }
     }
 }
