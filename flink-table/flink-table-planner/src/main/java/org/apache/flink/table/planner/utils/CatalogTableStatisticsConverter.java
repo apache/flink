@@ -35,7 +35,9 @@ import org.apache.flink.table.utils.DateTimeUtils;
 
 import java.sql.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Utility class for converting {@link CatalogTableStatistics} and {@link CatalogColumnStatistics}
@@ -59,6 +61,27 @@ public class CatalogTableStatisticsConverter {
             columnStatsMap = new HashMap<>();
         }
         return new TableStats(rowCount, columnStatsMap);
+    }
+
+    public static TableStats convertToAccumulatedTableStates(
+            List<CatalogTableStatistics> tableStatisticsList,
+            List<CatalogColumnStatistics> catalogColumnStatisticsList) {
+        final Optional<TableStats> rowCountMergedTableStats =
+                tableStatisticsList.stream()
+                        .map(p -> CatalogTableStatisticsConverter.convertToTableStats(p, null))
+                        .reduce((s1, s2) -> s1.merge(s2));
+
+        final Optional<TableStats> columnStatsMergedTableStats =
+                catalogColumnStatisticsList.stream()
+                        .map(
+                                p ->
+                                        CatalogTableStatisticsConverter.convertToTableStats(
+                                                CatalogTableStatistics.EMPTY, p))
+                        .reduce((s1, s2) -> s1.merge(s2));
+
+        return new TableStats(
+                rowCountMergedTableStats.get().getRowCount(),
+                columnStatsMergedTableStats.get().getColumnStats());
     }
 
     @VisibleForTesting
