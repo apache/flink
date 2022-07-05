@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 from pyflink.datastream.connectors.file_system import StreamFormat
-from pyflink.datastream.formats.avro import Schema
+from pyflink.datastream.formats.avro import AvroSchema
 from pyflink.java_gateway import get_gateway
 
 
@@ -29,7 +29,7 @@ class AvroParquetReaders(object):
     """
 
     @staticmethod
-    def for_generic_record(schema: 'Schema') -> 'StreamFormat':
+    def for_generic_record(schema: 'AvroSchema') -> 'StreamFormat':
         """
         Creates a new AvroParquetRecordFormat that reads the parquet file into Avro GenericRecords.
 
@@ -38,6 +38,17 @@ class AvroParquetReaders(object):
         schema. And while the Schema is stored in the Avro file header, Flink needs this schema
         during 'pre-flight' time when the data flow is set up and wired, which is before there is
         access to the files.
+
+        Example:
+        ::
+
+            >>> env = StreamExecutionEnvironment.get_execution_environment()
+            >>> schema = AvroSchema.parse_string(JSON_SCHEMA)
+            >>> source = FileSource.for_record_stream_format(
+            ...     AvroParquetReaders.for_generic_record(schema),
+            ...     FILE_PATH
+            ... ).build()
+            >>> ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "parquet-source")
 
         :param schema: the Avro Schema.
         :return: StreamFormat for reading Avro GenericRecords.

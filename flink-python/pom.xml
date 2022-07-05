@@ -151,16 +151,6 @@ under the License.
 			<version>${arrow.version}</version>
 		</dependency>
 
-		<!-- Format dependencies -->
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-avro</artifactId>
-			<version>${project.version}</version>
-			<optional>true</optional>
-			<scope>provided</scope>
-		</dependency>
-
 		<!-- test dependencies -->
 
 		<dependency>

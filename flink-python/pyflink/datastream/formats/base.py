@@ -15,12 +15,18 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from .avro import AvroSchema, AvroInputFormat
-from .parquet import AvroParquetReaders
+from typing import Union
+
+from py4j.java_gateway import JavaObject
+
+from pyflink.datastream.functions import JavaFunctionWrapper
 
 
-__all__ = [
-    'AvroInputFormat',
-    'AvroParquetReaders',
-    'AvroSchema'
-]
+class InputFormat(JavaFunctionWrapper):
+    """
+    The Python wrapper of Java InputFormat interface, which is the base interface for data sources
+    that produce records.
+    """
+
+    def __init__(self, source: Union[str, JavaObject]):
+        super().__init__(source)

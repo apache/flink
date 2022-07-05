@@ -62,6 +62,8 @@ Flink 支持读取 [Parquet](https://parquet.apache.org/) 文件并生成 {{< ja
 </dependency>
 ```
 
+{{< py_download_link "parquet" "flink-sql-parquet.jar" >}}
+
 此格式与新的 Source 兼容，可以同时在批和流模式下使用。
 因此，你可使用此格式处理以下两类数据：
 
@@ -133,7 +135,7 @@ final DataStream<RowData> stream =
 
 ## Avro Records
 
-Flink 支持三种方式来读取 Parquet 文件并创建 Avro records （PyFlink 只支持 generic record）：
+Flink 支持三种方式来读取 Parquet 文件并创建 Avro records （PyFlink 只支持 Generic record）：
 
 - [Generic record](https://avro.apache.org/docs/1.10.0/api/java/index.html)
 - [Specific record](https://avro.apache.org/docs/1.10.0/api/java/index.html)
@@ -194,7 +196,7 @@ final DataStream<GenericRecord> stream =
 {{< tab "Python" >}}
 ```python
 # 解析 avro schema
-schema = Schema.parse_string("""
+schema = AvroSchema.parse_string("""
 {
     "type": "record",
     "name": "User",

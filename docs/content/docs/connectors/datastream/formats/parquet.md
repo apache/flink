@@ -61,6 +61,8 @@ To read Avro records, you will need to add the `parquet-avro` dependency:
 </dependency>
 ```
 
+{{< py_download_link "parquet" "flink-sql-parquet.jar" >}}
+
 This format is compatible with the new Source that can be used in both batch and streaming execution modes.
 Thus, you can use this format for two kinds of data:
 
@@ -137,7 +139,7 @@ final DataStream<RowData> stream =
 
 ## Avro Records
 
-Flink supports producing three types of Avro records by reading Parquet files (Only generic record is supported in PyFlink):
+Flink supports producing three types of Avro records by reading Parquet files (Only Generic record is supported in PyFlink):
 
 - [Generic record](https://avro.apache.org/docs/1.10.0/api/java/index.html)
 - [Specific record](https://avro.apache.org/docs/1.10.0/api/java/index.html)
@@ -197,7 +199,7 @@ final DataStream<GenericRecord> stream =
 {{< tab "Python" >}}
 ```python
 # parsing avro schema
-schema = Schema.parse_string("""
+schema = AvroSchema.parse_string("""
 {
     "type": "record",
     "name": "User",

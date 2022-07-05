@@ -149,12 +149,18 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
 
     public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor() {
         return createRawTypeCoderInfoDescriptorProto(
-                runnerInputTypeInfo, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+                runnerInputTypeInfo,
+                FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE,
+                false,
+                getUserCodeClassloader());
     }
 
     public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor() {
         return createRawTypeCoderInfoDescriptorProto(
-                runnerOutputTypeInfo, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+                runnerOutputTypeInfo,
+                FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE,
+                false,
+                getUserCodeClassloader());
     }
 
     // ----------------------------------------------------------------------

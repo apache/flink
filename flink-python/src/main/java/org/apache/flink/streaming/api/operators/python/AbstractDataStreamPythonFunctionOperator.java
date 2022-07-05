@@ -152,7 +152,8 @@ public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
                     createRawTypeCoderInfoDescriptorProto(
                             getSideOutputTypeInfo(entry.getValue()),
                             FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE,
-                            false));
+                            false,
+                            getUserCodeClassloader()));
         }
         return descriptorMap;
     }

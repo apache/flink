@@ -1,0 +1,30 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}{{/*
+Generates the PyFlink download connector page.
+*/}}
+{{ $name := .Get 0 }}
+{{ $text := .Get 1 }}
+{{ $connectors := .Site.Data.sql_connectors }}
+{{ $connector := index $connectors $name }}
+
+<p>In order to use the {{ $connector.name }} {{ $connector.category }} in PyFlink jobs, the following
+dependencies are required: <a href="{{- partial "docs/interpolate" $connector.sql_url -}}">{{ $text }}</a>.
+See <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/python/dependency_management/#jar-dependencies">Python dependency management</a>
+for more details on how to use JARs in PyFlink.
+</p>
