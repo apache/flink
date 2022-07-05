@@ -81,6 +81,7 @@ public class DefaultBlocklistHandler implements BlocklistHandler, AutoCloseable 
     }
 
     private void removeTimeoutNodes() {
+        assertRunningInMainThread();
         Collection<BlockedNode> removedNodes =
                 blocklistTracker.removeTimeoutNodes(System.currentTimeMillis());
         if (!removedNodes.isEmpty()) {
