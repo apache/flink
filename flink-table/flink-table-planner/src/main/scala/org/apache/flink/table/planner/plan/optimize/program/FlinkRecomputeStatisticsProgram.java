@@ -27,7 +27,6 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
-import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsStatisticReport;
 import org.apache.flink.table.plan.stats.TableStats;
@@ -38,7 +37,6 @@ import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.plan.utils.DefaultRelShuttle;
-import org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.plan.RelOptTable;
@@ -55,7 +53,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_REPORT_STATISTICS_ENABLED;
-
+import static org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter.convertToAccumulatedTableStates;
 /**
  * A FlinkOptimizeProgram that recompute statistics after partition pruning and filter push down.
  *
@@ -202,23 +200,10 @@ public class FlinkRecomputeStatisticsProgram implements FlinkOptimizeProgram<Bat
                             .map(p -> new CatalogPartitionSpec(p))
                             .collect(Collectors.toList());
 
-            final Optional<TableStats> rowCountMergedTableStats =
-                    catalog.getTableStatistics(tablePath, partitionSpecs).stream()
-                            .map(p -> CatalogTableStatisticsConverter.convertToTableStats(p, null))
-                            .reduce((s1, s2) -> s1.merge(s2));
-
-            final Optional<TableStats> columnStatsMergedTableStats =
-                    catalog.getTableColumnStatistics(tablePath, partitionSpecs).stream()
-                            .map(
-                                    p ->
-                                            CatalogTableStatisticsConverter.convertToTableStats(
-                                                    CatalogTableStatistics.EMPTY, p))
-                            .reduce((s1, s2) -> s1.merge(s2));
-
             return Optional.of(
-                    new TableStats(
-                            rowCountMergedTableStats.get().getRowCount(),
-                            columnStatsMergedTableStats.get().getColumnStats()));
+                    convertToAccumulatedTableStates(
+                            catalog.getTableStatistics(tablePath, partitionSpecs),
+                            catalog.getTableColumnStatistics(tablePath, partitionSpecs)));
         } catch (PartitionNotExistException e) {
             return Optional.empty();
         }
