@@ -131,7 +131,7 @@ object NestedProjectionUtil {
    * the natural order of the name and output the path to the every leaf node. The paths are useful
    * for interface [[SupportsProjectionPushDown]] and test(debug).
    */
-  def convertToIndexArray(root: NestedSchema): Array[Array[Int]] = {
+  def updateLeafIndexAndConvertToIndexArray(root: NestedSchema): Array[Array[Int]] = {
     val allPaths = new JLinkedList[Array[Int]]()
     val path = new JLinkedList[Int]()
     root.columns.foldLeft(0) {

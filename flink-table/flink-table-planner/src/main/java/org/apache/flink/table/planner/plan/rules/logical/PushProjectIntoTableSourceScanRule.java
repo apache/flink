@@ -50,14 +50,12 @@ import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexShuttle;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -277,11 +275,15 @@ public class PushProjectIntoTableSourceScanRule
             projectedMetadataColumns.forEach(
                     metaColumn -> projectedSchema.columns().remove(metaColumn.name()));
 
-            physicalProjections = NestedProjectionUtil.convertToIndexArray(projectedSchema);
+            physicalProjections =
+                    NestedProjectionUtil.updateLeafIndexAndConvertToIndexArray(projectedSchema);
 
             projectedMetadataColumns.forEach(
                     metaColumn -> projectedSchema.columns().put(metaColumn.name(), metaColumn));
         } else {
+            // update leaf index first
+            NestedProjectionUtil.updateLeafIndexAndConvertToIndexArray(projectedSchema);
+            // but do no apply projection push down to physical fields
             physicalProjections =
                     IntStream.range(0, numPhysicalColumns)
                             .mapToObj(columnIndex -> new int[] {columnIndex})
@@ -339,70 +341,17 @@ public class PushProjectIntoTableSourceScanRule
     private List<RexNode> rewriteProjections(
             RelOptRuleCall call, TableSourceTable source, NestedSchema projectedSchema) {
         final LogicalProject project = call.rel(0);
-        List<RexNode> newProjects = project.getProjects();
+        List<RexNode> projects = project.getProjects();
 
-        if (supportsProjectionPushDown(source.tableSource())) {
+        if (supportsProjectionPushDown(source.tableSource())
+                || supportsMetadata(source.tableSource())) {
             // if support project push down, then all input ref will be rewritten includes metadata
             // columns.
-            newProjects =
-                    NestedProjectionUtil.rewrite(
-                            newProjects, projectedSchema, call.builder().getRexBuilder());
-        } else if (supportsMetadata(source.tableSource())) {
-            // supportsMetadataProjection only.
-            List<Column.MetadataColumn> metadataColumns =
-                    DynamicSourceUtils.extractMetadataColumns(
-                            source.contextResolvedTable().getResolvedSchema());
-            if (metadataColumns.size() > 0) {
-                Set<String> metaCols =
-                        metadataColumns.stream().map(m -> m.getName()).collect(Collectors.toSet());
-
-                MetadataOnlyProjectionRewriter rewriter =
-                        new MetadataOnlyProjectionRewriter(
-                                project.getInput().getRowType(), source.getRowType(), metaCols);
-
-                newProjects =
-                        newProjects.stream()
-                                .map(p -> p.accept(rewriter))
-                                .collect(Collectors.toList());
-            }
+            return NestedProjectionUtil.rewrite(
+                    projects, projectedSchema, call.builder().getRexBuilder());
         }
 
-        return newProjects;
-    }
-
-    private class MetadataOnlyProjectionRewriter extends RexShuttle {
-
-        private final RelDataType oldInputRowType;
-
-        private final RelDataType newInputRowType;
-
-        private final Set<String> metaCols;
-
-        public MetadataOnlyProjectionRewriter(
-                RelDataType oldInputRowType, RelDataType newInputRowType, Set<String> metaCols) {
-            this.oldInputRowType = oldInputRowType;
-            this.newInputRowType = newInputRowType;
-            this.metaCols = metaCols;
-        }
-
-        @Override
-        public RexNode visitInputRef(RexInputRef inputRef) {
-            int refIndex = inputRef.getIndex();
-            if (refIndex > oldInputRowType.getFieldCount() - 1) {
-                throw new TableException(
-                        "Illegal field ref:" + refIndex + " over input row:" + oldInputRowType);
-            }
-            String refName = oldInputRowType.getFieldNames().get(refIndex);
-            if (metaCols.contains(refName)) {
-                int newIndex = newInputRowType.getFieldNames().indexOf(refName);
-                if (newIndex == -1) {
-                    throw new TableException(
-                            "Illegal meta field:" + refName + " over input row:" + newInputRowType);
-                }
-                return new RexInputRef(newIndex, inputRef.getType());
-            }
-            return inputRef;
-        }
+        return projects;
     }
 
     // ---------------------------------------------------------------------------------------------
