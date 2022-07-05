@@ -123,4 +123,4 @@ grep -E "Job [A-Za-z0-9]+ reached terminal state FINISHED" $LOCAL_LOGS_PATH/jobm
 "${FLINK_PYTHON_DIR}/dev/lint-python.sh" -r
 
 # clean up apache-flink-libraries
-rm -rf ${FLINK_PYTHON_DIR}/apache-flink-libraries/dist/${PYFLINK_LIBRARIES_PACKAGE_FILE}"
+rm -rf "${FLINK_PYTHON_DIR}/apache-flink-libraries/dist/${PYFLINK_LIBRARIES_PACKAGE_FILE}"
