@@ -838,6 +838,14 @@ done
 
 # decides whether to skip check stage
 skip_checks=0
+
+if [[ ${CLEAN_UP_FLAG} -eq 1 ]]; then
+    rm -rf ${CONDA_HOME}
+    rm -rf ${STAGE_FILE}
+    rm -rf ${FLINK_PYTHON_DIR}/.tox
+    skip_checks=1
+fi
+
 if [ ! -z "$INSTALLATION_COMPONENTS" ]; then
     parse_component_args
     skip_checks=1
@@ -862,9 +870,4 @@ pushd "$FLINK_PYTHON_DIR" &> /dev/null
 # exec all selected checks
 if [ $skip_checks -eq 0 ]; then
     check_stage
-fi
-
-if [[ ${CLEAN_UP_FLAG} -eq 1 ]]; then
-    rm -rf ${CONDA_HOME}
-    rm -rf ${STAGE_FILE}
 fi
