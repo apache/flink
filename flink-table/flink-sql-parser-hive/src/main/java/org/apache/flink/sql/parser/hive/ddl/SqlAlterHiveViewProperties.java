@@ -18,7 +18,7 @@
 
 package org.apache.flink.sql.parser.hive.ddl;
 
-import org.apache.flink.sql.parser.SqlTableUtils;
+import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.SqlAlterViewProperties;
 
 import org.apache.calcite.sql.SqlIdentifier;
@@ -47,7 +47,7 @@ public class SqlAlterHiveViewProperties extends SqlAlterViewProperties {
         writer.keyword("SET TBLPROPERTIES");
         SqlWriter.Frame withFrame = writer.startList("(", ")");
         for (SqlNode property : getPropertyList()) {
-            SqlTableUtils.printIndent(writer);
+            SqlUnparseUtils.printIndent(writer);
             property.unparse(writer, leftPrec, rightPrec);
         }
         writer.newlineAndIndent();

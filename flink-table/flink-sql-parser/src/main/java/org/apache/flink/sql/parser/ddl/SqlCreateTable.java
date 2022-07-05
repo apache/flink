@@ -19,7 +19,7 @@
 package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.ExtendedSqlNode;
-import org.apache.flink.sql.parser.SqlTableUtils;
+import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlComputedColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
@@ -268,7 +268,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         }
         tableName.unparse(writer, leftPrec, rightPrec);
         if (columnList.size() > 0 || tableConstraints.size() > 0 || watermark != null) {
-            SqlTableUtils.unparseTableSchema(
+            SqlUnparseUtils.unparseTableSchema(
                     writer, leftPrec, rightPrec, columnList, tableConstraints, watermark);
         }
 
@@ -291,7 +291,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             writer.keyword("WITH");
             SqlWriter.Frame withFrame = writer.startList("(", ")");
             for (SqlNode property : propertyList) {
-                SqlTableUtils.printIndent(writer);
+                SqlUnparseUtils.printIndent(writer);
                 property.unparse(writer, leftPrec, rightPrec);
             }
             writer.newlineAndIndent();

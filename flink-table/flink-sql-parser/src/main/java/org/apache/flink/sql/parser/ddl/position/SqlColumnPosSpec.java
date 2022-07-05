@@ -24,8 +24,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 /** Enumeration of SQL column position specification. */
 public enum SqlColumnPosSpec {
     FIRST("FIRST"),
-    AFTER("AFTER"),
-    LAST("LAST");
+    AFTER("AFTER");
 
     private final String digest;
 

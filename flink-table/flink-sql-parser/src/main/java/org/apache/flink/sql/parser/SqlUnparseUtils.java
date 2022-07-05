@@ -27,10 +27,10 @@ import org.apache.calcite.sql.SqlWriter;
 
 import java.util.List;
 
-/** Utils methods for table DDLs. */
-public class SqlTableUtils {
+/** Utils to unparse DDLs. */
+public class SqlUnparseUtils {
 
-    private SqlTableUtils() {}
+    private SqlUnparseUtils() {}
 
     public static void unparseTableSchema(
             SqlWriter writer,

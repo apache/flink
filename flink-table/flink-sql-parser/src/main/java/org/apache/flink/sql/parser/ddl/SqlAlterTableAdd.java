@@ -18,7 +18,7 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.SqlTableUtils;
+import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 
 import org.apache.calcite.sql.SqlIdentifier;
@@ -55,9 +55,9 @@ public class SqlAlterTableAdd extends SqlAlterTableSchema {
             SqlParserPos pos,
             SqlIdentifier tableName,
             SqlNodeList addedColumns,
-            @Nullable SqlWatermark sqlWatermark,
-            List<SqlTableConstraint> constraint) {
-        super(pos, tableName, addedColumns, sqlWatermark, constraint);
+            List<SqlTableConstraint> constraint,
+            @Nullable SqlWatermark sqlWatermark) {
+        super(pos, tableName, addedColumns, constraint, sqlWatermark);
     }
 
     @Override
@@ -65,7 +65,7 @@ public class SqlAlterTableAdd extends SqlAlterTableSchema {
         super.unparse(writer, leftPrec, rightPrec);
         writer.keyword("ADD");
         // unparse table schema
-        SqlTableUtils.unparseTableSchema(
+        SqlUnparseUtils.unparseTableSchema(
                 writer, leftPrec, rightPrec, columnList, constraints, watermark);
     }
 }

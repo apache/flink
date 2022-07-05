@@ -652,8 +652,8 @@ SqlAlterTable SqlAlterTable() :
                         startPos.plus(getPos()),
                         tableIdentifier,
                         new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
-                        ctx.watermark,
-                        ctx.constraints);
+                        ctx.constraints,
+                        ctx.watermark);
         }
     |
         <MODIFY>
@@ -672,8 +672,8 @@ SqlAlterTable SqlAlterTable() :
                         startPos.plus(getPos()),
                         tableIdentifier,
                         new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
-                        ctx.watermark,
-                        ctx.constraints);
+                        ctx.constraints,
+                        ctx.watermark);
         }
 
     |
@@ -929,7 +929,7 @@ void AddOrModifyColumn(AlterTableContext context) :
             columnPos = new SqlTableColumnPosition(
                 getPos(),
                 column,
-                SqlColumnPosSpec.LAST.symbol(getPos()),
+                null,
                 referencedColumn);
         }
         context.columnPositions.add(columnPos);

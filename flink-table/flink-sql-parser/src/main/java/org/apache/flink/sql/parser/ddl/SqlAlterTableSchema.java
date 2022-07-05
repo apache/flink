@@ -23,7 +23,6 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
@@ -44,12 +43,12 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable {
             SqlParserPos pos,
             SqlIdentifier tableName,
             SqlNodeList columnList,
-            @Nullable SqlWatermark sqlWatermark,
-            List<SqlTableConstraint> constraints) {
+            List<SqlTableConstraint> constraints,
+            @Nullable SqlWatermark sqlWatermark) {
         super(pos, tableName);
         this.columnList = columnList;
-        this.watermark = sqlWatermark;
         this.constraints = constraints;
+        this.watermark = sqlWatermark;
     }
 
     @Nonnull
@@ -58,8 +57,8 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable {
         return ImmutableNullableList.of(
                 getTableName(),
                 columnList,
-                watermark,
-                new SqlNodeList(constraints, SqlParserPos.ZERO));
+                new SqlNodeList(constraints, SqlParserPos.ZERO),
+                watermark);
     }
 
     public SqlNodeList getColumns() {
@@ -72,10 +71,5 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable {
 
     public List<SqlTableConstraint> getConstraints() {
         return constraints;
-    }
-
-    @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
     }
 }

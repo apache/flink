@@ -18,7 +18,7 @@
 
 package org.apache.flink.sql.parser.hive.ddl;
 
-import org.apache.flink.sql.parser.SqlTableUtils;
+import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.SqlAddReplaceColumns;
 import org.apache.flink.sql.parser.hive.impl.ParseException;
 
@@ -79,7 +79,7 @@ public class SqlAlterHiveTableAddReplaceColumn extends SqlAddReplaceColumns {
         writer.keyword("COLUMNS");
         SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
         for (SqlNode column : origColumns) {
-            SqlTableUtils.printIndent(writer);
+            SqlUnparseUtils.printIndent(writer);
             column.unparse(writer, leftPrec, rightPrec);
         }
         writer.newlineAndIndent();

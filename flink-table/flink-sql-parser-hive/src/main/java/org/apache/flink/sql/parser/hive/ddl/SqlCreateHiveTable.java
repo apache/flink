@@ -18,7 +18,7 @@
 
 package org.apache.flink.sql.parser.hive.ddl;
 
-import org.apache.flink.sql.parser.SqlTableUtils;
+import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
@@ -191,7 +191,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
         SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
         unparseColumns(creationContext, origColList, writer, leftPrec, rightPrec);
         for (SqlTableConstraint tableConstraint : creationContext.constraints) {
-            SqlTableUtils.printIndent(writer);
+            SqlUnparseUtils.printIndent(writer);
             tableConstraint
                     .getConstraintNameIdentifier()
                     .ifPresent(
@@ -325,7 +325,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
             SqlNodeList propList, SqlWriter writer, int leftPrec, int rightPrec) {
         SqlWriter.Frame withFrame = writer.startList("(", ")");
         for (SqlNode property : propList) {
-            SqlTableUtils.printIndent(writer);
+            SqlUnparseUtils.printIndent(writer);
             property.unparse(writer, leftPrec, rightPrec);
         }
         writer.newlineAndIndent();
@@ -341,7 +341,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
         List<SqlHiveConstraintTrait> notNullTraits = context.notNullTraits;
         int traitIndex = 0;
         for (SqlNode node : columns) {
-            SqlTableUtils.printIndent(writer);
+            SqlUnparseUtils.printIndent(writer);
             SqlRegularColumn column = (SqlRegularColumn) node;
             column.getName().unparse(writer, leftPrec, rightPrec);
             writer.print(" ");

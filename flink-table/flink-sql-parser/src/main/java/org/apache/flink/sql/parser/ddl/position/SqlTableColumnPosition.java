@@ -43,13 +43,13 @@ public class SqlTableColumnPosition extends SqlCall {
             new SqlSpecialOperator("SqlTableColumnPosition", SqlKind.OTHER);
 
     private final SqlTableColumn column;
-    private final SqlLiteral positionSpec;
+    @Nullable private final SqlLiteral positionSpec;
     @Nullable private final SqlIdentifier referencedColumn;
 
     public SqlTableColumnPosition(
             SqlParserPos pos,
             SqlTableColumn column,
-            SqlLiteral positionSpec,
+            @Nullable SqlLiteral positionSpec,
             @Nullable SqlIdentifier referencedColumn) {
         super(pos);
         this.column = column;
@@ -58,11 +58,13 @@ public class SqlTableColumnPosition extends SqlCall {
     }
 
     public boolean isFirstColumn() {
-        return positionSpec.getValueAs(SqlColumnPosSpec.class) == SqlColumnPosSpec.FIRST;
+        return positionSpec != null
+                && positionSpec.getValueAs(SqlColumnPosSpec.class) == SqlColumnPosSpec.FIRST;
     }
 
     public boolean isAfterReferencedColumn() {
-        return positionSpec.getValueAs(SqlColumnPosSpec.class) == SqlColumnPosSpec.AFTER
+        return positionSpec != null
+                && positionSpec.getValueAs(SqlColumnPosSpec.class) == SqlColumnPosSpec.AFTER
                 && referencedColumn != null;
     }
 
