@@ -1853,6 +1853,10 @@ public class StreamExecutionEnvironment {
 
         SingleOutputStreamOperator<OUT> source =
                 addSource(monitoringFunction, sourceName, null, boundedness)
+                        // Set the parallelism and maximum parallelism of
+                        // ContinuousFileMonitoringFunction to 1 in
+                        // case reactive mode changes it. See FLINK-28274 for more information.
+                        .forceNonParallel()
                         .transform("Split Reader: " + sourceName, typeInfo, factory);
 
         return new DataStreamSource<>(source);
