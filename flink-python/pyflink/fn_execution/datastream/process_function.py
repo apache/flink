@@ -134,8 +134,8 @@ class InternalBroadcastProcessFunctionContext(InternalBaseBroadcastProcessFuncti
                                               BroadcastProcessFunction.Context):
 
     def __init__(self, timer_service: TimerService, operator_state_store: OperatorStateStore):
-        super(InternalBaseBroadcastProcessFunctionContext, self).__init__(
-            timer_service, operator_state_store
+        InternalBaseBroadcastProcessFunctionContext.__init__(
+            self, timer_service, operator_state_store
         )
 
     def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> BroadcastState:
@@ -146,8 +146,8 @@ class InternalBroadcastProcessFunctionReadOnlyContext(InternalBaseBroadcastProce
                                                       BroadcastProcessFunction.ReadOnlyContext):
 
     def __init__(self, timer_service: TimerService, operator_state_store: OperatorStateStore):
-        super(InternalBaseBroadcastProcessFunctionContext, self).__init__(
-            timer_service, operator_state_store
+        InternalBaseBroadcastProcessFunctionContext.__init__(
+            self, timer_service, operator_state_store
         )
 
     def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> ReadOnlyBroadcastState:
