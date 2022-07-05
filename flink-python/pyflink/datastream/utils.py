@@ -18,12 +18,20 @@
 import ast
 import datetime
 import pickle
+from abc import abstractmethod
 
 from pyflink.common import Row, RowKind
-from pyflink.common.typeinfo import (RowTypeInfo, TupleTypeInfo, Types,  BasicArrayTypeInfo,
+from pyflink.common.typeinfo import (RowTypeInfo, TupleTypeInfo, Types, BasicArrayTypeInfo,
                                      PrimitiveArrayTypeInfo, MapTypeInfo, ListTypeInfo,
-                                     ObjectArrayTypeInfo, ExternalTypeInfo)
+                                     ObjectArrayTypeInfo, ExternalTypeInfo, TypeInformation)
 from pyflink.java_gateway import get_gateway
+
+
+class ResultTypeQueryable(object):
+
+    @abstractmethod
+    def get_produced_type(self) -> TypeInformation:
+        pass
 
 
 def convert_to_python_obj(data, type_info):

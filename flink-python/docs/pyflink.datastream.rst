@@ -41,6 +41,12 @@ pyflink.datastream.connectors module
     :members:
     :undoc-members:
 
+pyflink.datastream.formats module
+------------------------------------
+.. automodule:: pyflink.datastream.formats
+    :members:
+    :undoc-members:
+
 pyflink.datastream.window module
 --------------------------------
 .. automodule:: pyflink.datastream.window

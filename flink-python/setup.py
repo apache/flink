@@ -273,6 +273,7 @@ try:
                 'pyflink.util',
                 'pyflink.datastream',
                 'pyflink.datastream.connectors',
+                'pyflink.datastream.formats',
                 'pyflink.common',
                 'pyflink.fn_execution',
                 'pyflink.fn_execution.beam',
