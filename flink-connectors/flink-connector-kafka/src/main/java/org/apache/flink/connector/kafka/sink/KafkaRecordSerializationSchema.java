@@ -49,6 +49,12 @@ public interface KafkaRecordSerializationSchema<T> extends Serializable {
             throws Exception {}
 
     /**
+     * Closes this kafka serialization schema and releases any system resources associated with it.
+     * If the stream is already closed then invoking this method has no effect.
+     */
+    default void close() throws Exception {}
+
+    /**
      * Serializes given element and returns it as a {@link ProducerRecord}.
      *
      * @param element element to be serialized

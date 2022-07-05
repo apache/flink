@@ -242,6 +242,7 @@ class KafkaWriter<IN>
                     checkState(currentProducer.isClosed());
                     currentProducer = null;
                 });
+        recordSerializer.close();
     }
 
     private void abortCurrentProducer() {
