@@ -89,8 +89,8 @@ public final class PythonTableUtils {
     private PythonTableUtils() {}
 
     /**
-     * Create a table from {@link PythonDynamicTableSource} that read
-     * data from input file with specific {@link DataType}.
+     * Create a table from {@link PythonDynamicTableSource} that read data from input file with
+     * specific {@link DataType}.
      *
      * @param tEnv The TableEnvironment to create table.
      * @param filePath the file path of the input data.
