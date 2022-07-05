@@ -170,7 +170,7 @@ public final class MiniClusterExtension
             throws ParameterResolutionException {
         Class<?> parameterType = parameterContext.getParameter().getType();
         if (parameterContext.isAnnotated(InjectClusterClient.class)
-                && parameterType.isAssignableFrom(ClusterClient.class)) {
+                && ClusterClient.class.isAssignableFrom(parameterType)) {
             return true;
         }
         return internalMiniClusterExtension.supportsParameter(parameterContext, extensionContext);
