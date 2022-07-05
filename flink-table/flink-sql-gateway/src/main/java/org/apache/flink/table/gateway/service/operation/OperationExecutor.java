@@ -104,12 +104,14 @@ public class OperationExecutor {
     private ResultFetcher callSetOperation(
             TableEnvironmentInternal tableEnv, OperationHandle handle, SetOperation setOp) {
         if (setOp.getKey().isPresent() && setOp.getValue().isPresent()) {
-            sessionContext.setConfig(setOp.getKey().get(), setOp.getValue().get());
+            // set a property
+            sessionContext.set(setOp.getKey().get().trim(), setOp.getValue().get().trim());
             return new ResultFetcher(
                     handle,
                     TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
                     drill(TableResultInternal.TABLE_RESULT_OK.collectInternal()));
         } else if (!setOp.getKey().isPresent() && !setOp.getValue().isPresent()) {
+            // show all properties
             Map<String, String> configMap = tableEnv.getConfig().getConfiguration().toMap();
             return new ResultFetcher(
                     handle,
@@ -124,7 +126,7 @@ public class OperationExecutor {
                                                             StringData.fromString(entry.getKey()),
                                                             StringData.fromString(
                                                                     entry.getValue())))
-                                   .map(RowData.class::cast)
+                                    .map(RowData.class::cast)
                                     .iterator()));
         } else {
             // Impossible
@@ -134,9 +136,11 @@ public class OperationExecutor {
 
     private ResultFetcher callResetOperation(OperationHandle handle, ResetOperation resetOp) {
         if (resetOp.getKey().isPresent()) {
-            sessionContext.resetConfig(resetOp.getKey().get());
+            // reset a property
+            sessionContext.reset(resetOp.getKey().get().trim());
         } else {
-            sessionContext.resetAllConfig();
+            // reset all properties
+            sessionContext.reset();
         }
         return new ResultFetcher(
                 handle,
@@ -159,7 +163,9 @@ public class OperationExecutor {
                                                 .orElseThrow(
                                                         () ->
                                                                 new SqlExecutionException(
-                                                                        "Can't get job client for the operation."))
+                                                                        String.format(
+                                                                                "Can't get job client for the operation %s.",
+                                                                                handle)))
                                                 .getJobID()
                                                 .toString()))));
     }

@@ -121,7 +121,7 @@ public class SessionContext {
         return sessionConf.toMap();
     }
 
-    public void setConfig(String key, String value) {
+    public void set(String key, String value) {
         try {
             // Test whether the key value will influence the creation of the Executor.
             createOperationExecutor(Configuration.fromMap(Collections.singletonMap(key, value)));
@@ -133,20 +133,19 @@ public class SessionContext {
         sessionConf.setString(key, value);
     }
 
-    public synchronized void resetConfig(String key) {
+    public synchronized void reset(String key) {
         Configuration configuration = defaultContext.getFlinkConfig();
         // If the key exist in default yaml, reset to default
-        if (configuration.containsKey(key)) {
-            String defaultValue =
-                    configuration.get(ConfigOptions.key(key).stringType().noDefaultValue());
-            setConfig(key, defaultValue);
+        ConfigOption<String> option = ConfigOptions.key(key).stringType().noDefaultValue();
+        if (configuration.contains(option)) {
+            String defaultValue = configuration.get(option);
+            set(key, defaultValue);
         } else {
-            ConfigOption<String> keyToDelete = ConfigOptions.key(key).stringType().noDefaultValue();
-            sessionConf.removeConfig(keyToDelete);
+            sessionConf.removeConfig(option);
         }
     }
 
-    public synchronized void resetAllConfig() {
+    public synchronized void reset() {
         for (String key : sessionConf.keySet()) {
             sessionConf.removeConfig(ConfigOptions.key(key).stringType().noDefaultValue());
         }

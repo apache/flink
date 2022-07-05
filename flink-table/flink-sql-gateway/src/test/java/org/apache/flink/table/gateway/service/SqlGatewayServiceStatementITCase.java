@@ -31,6 +31,7 @@ import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.gateway.service.utils.SqlScriptReader;
 import org.apache.flink.table.gateway.service.utils.TestSqlStatement;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 
@@ -59,7 +60,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -138,7 +138,13 @@ public class SqlGatewayServiceStatementITCase {
         assertThat(String.join("", runStatements(testSqlStatements))).isEqualTo(in);
     }
 
-    public List<String> runStatements(List<TestSqlStatement> statements) {
+    /**
+     * Returns printed results for each ran SQL statements.
+     *
+     * @param statements the SQL statements to run
+     * @return the stringified results
+     */
+    private List<String> runStatements(List<TestSqlStatement> statements) {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 
         List<String> output = new ArrayList<>();
@@ -206,6 +212,13 @@ public class SqlGatewayServiceStatementITCase {
         return root;
     }
 
+    /**
+     * Returns printed results for each ran SQL statements.
+     *
+     * @param sessionHandle the Session that run the statement
+     * @param statement the SQL statement to run
+     * @return the printed results in tableau style
+     */
     private String runSingleStatement(SessionHandle sessionHandle, String statement)
             throws Exception {
         OperationHandle operationHandle =
@@ -222,8 +235,10 @@ public class SqlGatewayServiceStatementITCase {
             return Tag.INFO.addTag("");
         }
 
-        if (statement.toLowerCase().startsWith("explain")
-                || statement.toLowerCase().startsWith("show create")) {
+        // The content in the result of the `explain` and `show create` statement is large, so it's
+        // more straightforward to just print the content without the table.
+        if (statement.toUpperCase().startsWith("EXPLAIN")
+                || statement.toUpperCase().startsWith("SHOW CREATE")) {
             ResultSet resultSet =
                     service.fetchResults(sessionHandle, operationHandle, 0, Integer.MAX_VALUE);
             return Tag.OK.addTag(
@@ -240,14 +255,14 @@ public class SqlGatewayServiceStatementITCase {
                     Configuration.fromMap(service.getSessionConfig(sessionHandle))
                             .get(RUNTIME_MODE)
                             .equals(STREAMING);
-            boolean isQuery = statement.toLowerCase().startsWith("select");
+            boolean isQuery = statement.toUpperCase().startsWith("SELECT");
 
             PrintStyle style =
                     PrintStyle.tableauWithDataInferredColumnWidths(
                             resultSet.getResultSchema(),
                             new RowDataToStringConverterImpl(
                                     resultSet.getResultSchema().toPhysicalRowDataType(),
-                                    ZoneId.of("Asia/Shanghai"),
+                                    DateTimeUtils.UTC_ZONE.toZoneId(),
                                     SqlGatewayServiceStatementITCase.class.getClassLoader(),
                                     false),
                             Integer.MAX_VALUE,
