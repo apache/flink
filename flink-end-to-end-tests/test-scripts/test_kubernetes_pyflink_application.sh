@@ -118,3 +118,9 @@ wait_rest_endpoint_up_k8s $jm_pod_name
 # instead of checking the result
 kubectl logs -f $jm_pod_name >$LOCAL_LOGS_PATH/jobmanager.log
 grep -E "Job [A-Za-z0-9]+ reached terminal state FINISHED" $LOCAL_LOGS_PATH/jobmanager.log
+
+# clean up python env
+"${FLINK_PYTHON_DIR}/dev/lint-python.sh" -r
+
+# clean up apache-flink-libraries
+rm -rf "${FLINK_PYTHON_DIR}/apache-flink-libraries/dist/${PYFLINK_LIBRARIES_PACKAGE_FILE}"
