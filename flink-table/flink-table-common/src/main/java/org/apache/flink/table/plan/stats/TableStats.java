@@ -81,7 +81,10 @@ public final class TableStats {
      */
     @Nonnull
     public TableStats merge(TableStats other) {
-        return new TableStats(mergeRowCount(other), mergeColumnStates(other));
+        long rowCount = mergeRowCount(other);
+        return rowCount == UNKNOWN.rowCount
+                ? UNKNOWN
+                : new TableStats(mergeRowCount(other), mergeColumnStates(other));
     }
 
     private long mergeRowCount(TableStats other) {
