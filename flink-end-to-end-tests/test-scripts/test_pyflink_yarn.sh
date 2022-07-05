@@ -75,3 +75,9 @@ docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     -pyexec venv.zip/.conda/bin/python \
     -py /tmp/python_job.py \
     pipeline.jars file:/tmp/PythonUdfSqlJobExample.jar"
+
+# clean up python env
+"${FLINK_PYTHON_DIR}/dev/lint-python.sh" -r
+
+# clean up apache-flink-libraries
+rm -rf "${FLINK_PYTHON_DIR}/apache-flink-libraries/dist/${PYFLINK_LIBRARIES_PACKAGE_FILE}"

@@ -271,3 +271,6 @@ if [[ "${EXPECTED_MSG[*]}" != "${SORTED_READ_MSG[*]}" ]]; then
     echo -e "ACTUAL: --${SORTED_READ_MSG[*]}--"
     exit 1
 fi
+
+# clean up python env
+"${FLINK_PYTHON_DIR}/dev/lint-python.sh" -r
