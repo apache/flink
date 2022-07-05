@@ -77,9 +77,9 @@ public class PbCodegenSimpleDeserializer implements PbCodegenDeserializer {
                             "Illegal type for protobuf enum, only char/vachar/int/bigint is supported");
                 }
                 break;
-             default:
-                 throw new PbCodegenException(
-                         "Unsupported protobuf simple type: " + fd.getJavaType());
+            default:
+                throw new PbCodegenException(
+                        "Unsupported protobuf simple type: " + fd.getJavaType());
         }
         return appender.code();
     }
