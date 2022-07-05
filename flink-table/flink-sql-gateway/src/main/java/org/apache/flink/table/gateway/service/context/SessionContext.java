@@ -135,7 +135,7 @@ public class SessionContext {
 
     public synchronized void resetConfig(String key) {
         Configuration configuration = defaultContext.getFlinkConfig();
-        // If the key exist in default yaml , reset to default
+        // If the key exist in default yaml, reset to default
         if (configuration.containsKey(key)) {
             String defaultValue =
                     configuration.get(ConfigOptions.key(key).stringType().noDefaultValue());

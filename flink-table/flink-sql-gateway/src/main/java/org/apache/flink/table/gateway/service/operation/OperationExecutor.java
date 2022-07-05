@@ -124,7 +124,7 @@ public class OperationExecutor {
                                                             StringData.fromString(entry.getKey()),
                                                             StringData.fromString(
                                                                     entry.getValue())))
-                                    .map(row -> (RowData) row)
+                                   .map(RowData.class::cast)
                                     .iterator()));
         } else {
             // Impossible
