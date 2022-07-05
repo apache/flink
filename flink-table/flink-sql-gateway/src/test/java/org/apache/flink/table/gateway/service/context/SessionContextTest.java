@@ -25,6 +25,7 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
 import org.apache.flink.table.gateway.service.utils.ThreadUtils;
 
+import org.junit.AfterClass;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -47,6 +48,11 @@ class SessionContextTest {
     @BeforeEach
     public void setup() {
         sessionContext = createSessionContext();
+    }
+
+    @AfterClass
+    public static void cleanUp() {
+        EXECUTOR_SERVICE.shutdown();
     }
 
     @Test

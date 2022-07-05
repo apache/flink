@@ -280,6 +280,8 @@ public final class MiniClusterExtension
                 MiniClusterClient.MiniClusterId.INSTANCE);
     }
 
+    // Utils
+
     public Configuration getClientConfiguration() {
         return internalMiniClusterExtension.getClientConfiguration();
     }

@@ -47,12 +47,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
+import static org.apache.flink.table.gateway.service.utils.Constants.SET_KEY;
+import static org.apache.flink.table.gateway.service.utils.Constants.SET_VALUE;
+
 /** An executor to execute the {@link Operation}. */
 public class OperationExecutor {
-
-    private static final String JOB_ID = "job id";
-    private static final String SET_KEY = "key";
-    private static final String SET_VALUE = "value";
 
     private final SessionContext sessionContext;
     private final Configuration executionConfig;
@@ -129,7 +129,7 @@ public class OperationExecutor {
                                     .map(RowData.class::cast)
                                     .iterator()));
         } else {
-            // Impossible
+            // impossible
             throw new SqlExecutionException("Illegal SetOperation: " + setOp.asSummaryString());
         }
     }
