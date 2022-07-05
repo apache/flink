@@ -25,6 +25,7 @@ import org.apache.flink.table.resource.ResourceManagerTest;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -50,17 +51,37 @@ public class FunctionITCase extends BatchTestBase {
         jarPath = jarFile.toURI().toString();
     }
 
+    @Before
+    @Override
+    public void before() {
+        // override TableEnvironment for every test to clear register jar in ResourceManager first
+        overrideTableEnv(null);
+        super.before();
+    }
+
     @Test
     public void testCreateTemporarySystemFunctionByUsingJar() {
-        String ddl =
+        String ddl1 =
                 String.format(
                         "CREATE TEMPORARY SYSTEM FUNCTION f10 AS '%s' USING JAR '%s'",
                         ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
-        tEnv().executeSql(ddl);
-        assertThat(Arrays.asList(tEnv().listFunctions())).contains("f10");
+        String ddl2 =
+                String.format(
+                        "CREATE TEMPORARY SYSTEM FUNCTION f11 AS '%s' USING JAR '%s'",
+                        ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
+        tEnv().executeSql(ddl1);
+        tEnv().executeSql(ddl2);
+
+        List<String> functions = Arrays.asList(tEnv().listFunctions());
+        assertThat(functions).contains("f10");
+        assertThat(functions).contains("f11");
 
         tEnv().executeSql("DROP TEMPORARY SYSTEM FUNCTION f10");
-        assertThat(Arrays.asList(tEnv().listFunctions())).doesNotContain("f10");
+        tEnv().executeSql("DROP TEMPORARY SYSTEM FUNCTION f11");
+
+        functions = Arrays.asList(tEnv().listFunctions());
+        assertThat(functions).doesNotContain("f10");
+        assertThat(functions).doesNotContain("f11");
     }
 
     @Test
@@ -97,9 +118,7 @@ public class FunctionITCase extends BatchTestBase {
                         ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
 
         String dropFunctionDDL = "drop temporary system function lowerUdf";
-        testUserDefinedFunctionByUsingJar(functionDDL);
-        // delete the function
-        tEnv().executeSql(dropFunctionDDL);
+        testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
     }
 
     @Test
@@ -110,9 +129,7 @@ public class FunctionITCase extends BatchTestBase {
                         ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
 
         String dropFunctionDDL = "drop function lowerUdf";
-        testUserDefinedFunctionByUsingJar(functionDDL);
-        // delete the function
-        tEnv().executeSql(dropFunctionDDL);
+        testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
     }
 
     @Test
@@ -123,12 +140,11 @@ public class FunctionITCase extends BatchTestBase {
                         ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
 
         String dropFunctionDDL = "drop temporary function lowerUdf";
-        testUserDefinedFunctionByUsingJar(functionDDL);
-        // delete the function
-        tEnv().executeSql(dropFunctionDDL);
+        testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
     }
 
-    private void testUserDefinedFunctionByUsingJar(String createFunctionDDL) throws Exception {
+    private void testUserDefinedFunctionByUsingJar(String createFunctionDDL, String dropFunctionDDL)
+            throws Exception {
         List<Row> sourceData =
                 Arrays.asList(
                         Row.of(1, "JARK"),
@@ -163,5 +179,7 @@ public class FunctionITCase extends BatchTestBase {
 
         tEnv().executeSql("drop table t1");
         tEnv().executeSql("drop table t2");
+        // delete the function
+        tEnv().executeSql(dropFunctionDDL);
     }
 }

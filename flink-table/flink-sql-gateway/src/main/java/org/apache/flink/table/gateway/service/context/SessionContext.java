@@ -21,7 +21,6 @@ package org.apache.flink.table.gateway.service.context;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableConfig;
@@ -44,7 +43,7 @@ import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
-import org.apache.flink.util.ClassLoaderUtil;
+import org.apache.flink.table.utils.ResourceUtils;
 import org.apache.flink.util.MutableURLClassLoader;
 
 import org.slf4j.Logger;
@@ -181,10 +180,8 @@ public class SessionContext {
         // Init classloader
         // --------------------------------------------------------------------------------------------------------------
 
-        // override to use SafetyNetWrapperClassLoader
-        configuration.set(CoreOptions.CHECK_LEAKED_CLASSLOADER, true);
         final MutableURLClassLoader userClassLoader =
-                ClassLoaderUtil.buildMutableURLClassLoader(
+                MutableURLClassLoader.newInstance(
                         new URL[0], SessionContext.class.getClassLoader(), configuration);
 
         // --------------------------------------------------------------------------------------------------------------
@@ -192,6 +189,9 @@ public class SessionContext {
         // --------------------------------------------------------------------------------------------------------------
 
         final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
+        // register pipeline.jars to resource manager
+        ResourceUtils.registerPipelineJars(configuration, resourceManager);
+
         final ModuleManager moduleManager = new ModuleManager();
 
         final EnvironmentSettings settings = EnvironmentSettings.fromConfiguration(configuration);
@@ -199,7 +199,7 @@ public class SessionContext {
         CatalogManager catalogManager =
                 CatalogManager.newBuilder()
                         // Currently, the classloader is only used by DataTypeFactory.
-                        .classLoaderSupplier(() -> resourceManager.getUserClassLoader())
+                        .classLoader(userClassLoader)
                         .config(configuration)
                         .defaultCatalog(
                                 settings.getBuiltInCatalogName(),

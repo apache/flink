@@ -72,6 +72,17 @@ class BatchTestBase extends BatchAbstractTestBase {
     "(?s)From line ([0-9]+),"
       + " column ([0-9]+) to line ([0-9]+), column ([0-9]+): (.*)")
 
+  def overrideTableEnv(classLoader: ClassLoader): Unit = {
+    settings = EnvironmentSettings.newInstance().inBatchMode().withClassLoader(classLoader).build()
+    testingTableEnv = TestingTableEnvironment
+      .create(settings, catalogManager = None, TableConfig.getDefault)
+    tEnv = testingTableEnv
+    planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+    env = planner.getExecEnv
+    env.getConfig.enableObjectReuse()
+    tableConfig = tEnv.getConfig
+  }
+
   @Before
   def before(): Unit = {
     BatchTestBase.configForMiniCluster(tableConfig)

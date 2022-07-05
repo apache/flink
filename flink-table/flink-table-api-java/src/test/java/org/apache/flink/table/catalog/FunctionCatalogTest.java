@@ -28,7 +28,7 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
-import org.apache.flink.table.utils.ResourceManagerMocks;
+import org.apache.flink.table.utils.ResourceUtils;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -89,7 +89,7 @@ class FunctionCatalogTest {
         functionCatalog =
                 new FunctionCatalog(
                         configuration,
-                        ResourceManagerMocks.createResourceManager(
+                        ResourceUtils.createResourceManager(
                                 new URL[0],
                                 FunctionCatalogTest.class.getClassLoader(),
                                 configuration),

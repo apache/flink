@@ -57,8 +57,6 @@ import org.apache.flink.util.CollectionUtil;
 
 import org.junit.Test;
 
-import java.net.URL;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -80,7 +78,6 @@ public class DependencyTest {
 
     public static final String CATALOG_TYPE_TEST = "DependencyTest";
 
-    private static final String TABLE_FACTORY_JAR_FILE = "table-factories-test-jar.jar";
     private static final List<String> INIT_SQL =
             Arrays.asList(
                     String.format(
@@ -151,12 +148,10 @@ public class DependencyTest {
     }
 
     private LocalExecutor createLocalExecutor() throws Exception {
-        // create executor with dependencies
-        final URL dependency = Paths.get("target", TABLE_FACTORY_JAR_FILE).toUri().toURL();
         // create default context
         DefaultContext defaultContext =
                 new DefaultContext(
-                        Collections.singletonList(dependency),
+                        Collections.emptyList(),
                         new Configuration(),
                         Collections.singletonList(new DefaultCLI()));
         LocalExecutor executor = new LocalExecutor(defaultContext);

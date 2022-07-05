@@ -33,11 +33,12 @@ import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
-import org.apache.flink.table.utils.ResourceManagerMocks;
+import org.apache.flink.table.utils.ResourceUtils;
 
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.RelTraitDef;
 
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
@@ -155,7 +156,11 @@ public class PlannerMocks {
         private boolean batchMode = false;
         private TableConfig tableConfig = TableConfig.getDefault();
         private CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
-        private ResourceManager resourceManager = ResourceManagerMocks.createEmptyResourceManager();
+        private ResourceManager resourceManager =
+                ResourceUtils.createResourceManager(
+                        new URL[0],
+                        Thread.currentThread().getContextClassLoader(),
+                        tableConfig.getConfiguration());
         private List<RelTraitDef> traitDefs = Collections.emptyList();
         private CalciteSchema rootSchema;
 

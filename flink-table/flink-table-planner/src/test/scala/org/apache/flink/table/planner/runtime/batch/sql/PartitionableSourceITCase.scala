@@ -19,15 +19,11 @@ package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.client.ClientUtils
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.{EnvironmentSettings, TableConfig}
-import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, ObjectPath}
-import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.factories.{TestValuesCatalog, TestValuesTableFactory}
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.utils.TestingTableEnvironment
 import org.apache.flink.util.UserClassLoaderJarTestUtils
 
 import org.junit.{Before, Test}
@@ -53,7 +49,8 @@ class PartitionableSourceITCase(val sourceFetchPartitions: Boolean, val useCatal
        |}
        |""".stripMargin
 
-  private def overrideTableEnv(): Unit = {
+  @Before
+  override def before(): Unit = {
     val tmpDir: File = TEMPORARY_FOLDER.newFolder()
     val udfJarFile: File =
       UserClassLoaderJarTestUtils.createJarFile(tmpDir, "flink-test-udf.jar", "TrimUDF", UDF_CLASS)
@@ -63,21 +60,8 @@ class PartitionableSourceITCase(val sourceFetchPartitions: Boolean, val useCatal
       util.Collections.emptyList(),
       getClass.getClassLoader,
       new Configuration())
-
-    settings = EnvironmentSettings.newInstance().inBatchMode().withClassLoader(cl).build()
-    testingTableEnv = TestingTableEnvironment
-      .create(settings, catalogManager = None, TableConfig.getDefault)
-    tEnv = testingTableEnv
-    planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
-    env = planner.getExecEnv
-    env.getConfig.enableObjectReuse()
-    tableConfig = tEnv.getConfig
-  }
-
-  @Before
-  override def before(): Unit = {
     // override TableEnvironment by a user defined classloader
-    overrideTableEnv()
+    overrideTableEnv(cl)
     super.before()
 
     env.setParallelism(1) // set sink parallelism to 1

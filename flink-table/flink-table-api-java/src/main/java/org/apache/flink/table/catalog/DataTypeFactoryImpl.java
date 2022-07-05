@@ -50,17 +50,17 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
 
     private final LogicalTypeResolver resolver = new LogicalTypeResolver();
 
-    private final Supplier<ClassLoader> classLoaderSupplier;
+    private final ClassLoader classLoader;
 
     private final Supplier<ExecutionConfig> executionConfig;
 
     DataTypeFactoryImpl(
-            Supplier<ClassLoader> classLoaderSupplier,
+            ClassLoader classLoader,
             ReadableConfig config,
             @Nullable ExecutionConfig executionConfig) {
-        this.classLoaderSupplier = classLoaderSupplier;
+        this.classLoader = classLoader;
         this.executionConfig =
-                createSerializerExecutionConfig(classLoaderSupplier.get(), config, executionConfig);
+                createSerializerExecutionConfig(classLoader, config, executionConfig);
     }
 
     @Override
@@ -108,8 +108,7 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
 
     @Override
     public LogicalType createLogicalType(String typeString) {
-        final LogicalType parsedType =
-                LogicalTypeParser.parse(typeString, classLoaderSupplier.get());
+        final LogicalType parsedType = LogicalTypeParser.parse(typeString, classLoader);
         return parsedType.accept(resolver);
     }
 

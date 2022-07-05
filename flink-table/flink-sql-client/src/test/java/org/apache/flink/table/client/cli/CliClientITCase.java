@@ -103,8 +103,8 @@ public class CliClientITCase extends AbstractTestBase {
                 UserClassLoaderJarTestUtils.createJarFile(
                         tempFolder.newFolder("test-jar"),
                         "test-classloader-udf.jar",
-                        UserDefinedFunctions.GENERATED_UDF_CLASS,
-                        UserDefinedFunctions.GENERATED_UDF_CODE);
+                        UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS,
+                        UserDefinedFunctions.GENERATED_LOWER_UDF_CODE);
         URL udfDependency = udfJar.toURI().toURL();
         historyPath = tempFolder.newFile("history").toPath();
 

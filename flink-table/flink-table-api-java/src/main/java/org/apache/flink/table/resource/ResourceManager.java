@@ -41,6 +41,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -54,7 +55,7 @@ public class ResourceManager implements Closeable {
 
     private final Path localResourceDir;
     private final Map<ResourceUri, URL> resourceInfos;
-    private MutableURLClassLoader userClassLoader;
+    private final MutableURLClassLoader userClassLoader;
 
     public ResourceManager(Configuration config, MutableURLClassLoader userClassLoader) {
         this.localResourceDir =
@@ -69,47 +70,67 @@ public class ResourceManager implements Closeable {
         return userClassLoader;
     }
 
-    public void updateUserClasLoader(MutableURLClassLoader userClassLoader) {
-        this.userClassLoader = userClassLoader;
+    public void registerResource(List<ResourceUri> resourceUris) throws IOException {
+        // Due to anyone of the resource in list maybe fail during register, so we should stage it
+        // before actual register to guarantee transaction process. If all the resource check
+        // successfully, register them in batch.
+        Map<ResourceUri, URL> stagingResourceLocalURLs = new HashMap<>();
+
+        for (ResourceUri resourceUri : resourceUris) {
+            // check whether the resource has been registered
+            if (resourceInfos.containsKey(resourceUri)) {
+                LOG.info(
+                        "Resource [{}] has been registered, overwriting of registered resource is not supported "
+                                + "in the current version, skipping.",
+                        resourceUri.getUri());
+                continue;
+            }
+
+            // here can check whether the resource path is valid
+            Path path = new Path(resourceUri.getUri());
+            // check resource firstly
+            checkResource(path);
+
+            URL localUrl;
+            // check resource scheme
+            String scheme = StringUtils.lowerCase(path.toUri().getScheme());
+            // download resource to local path firstly if in remote
+            if (scheme != null && !"file".equals(scheme)) {
+                localUrl = downloadResource(path);
+            } else {
+                localUrl = getURLFromPath(path);
+            }
+
+            // check the jar resource extra
+            if (ResourceType.JAR.equals(resourceUri.getResourceType())) {
+                JarUtils.checkJarFile(localUrl);
+            }
+
+            // add it to staging map
+            stagingResourceLocalURLs.put(resourceUri, localUrl);
+        }
+
+        // register resource in batch
+        stagingResourceLocalURLs.forEach(
+                (resourceUri, url) -> {
+                    // jar resource need add to classloader
+                    if (ResourceType.JAR.equals(resourceUri.getResourceType())) {
+                        userClassLoader.addURL(url);
+                        LOG.info("Added jar resource [{}] to class path.", url);
+                    }
+
+                    resourceInfos.put(resourceUri, url);
+                    LOG.info("Register resource [{}] successfully.", resourceUri.getUri());
+                });
     }
 
-    public void registerResource(ResourceUri resourceUri) throws IOException {
-        // check whether the resource has been registered
-        if (resourceInfos.containsKey(resourceUri)) {
-            LOG.info(
-                    "Resource [{}] has been registered, overwriting of registered resource is not supported "
-                            + "in the current version, skipping.",
-                    resourceUri.getUri());
-            return;
-        }
-
-        // here can check whether the resource path is valid
-        Path path = new Path(resourceUri.getUri());
-        // check resource firstly
-        checkResource(path);
-
-        URL localUrl;
-        // check resource scheme
-        String scheme = StringUtils.lowerCase(path.toUri().getScheme());
-        // download resource to local path firstly if in remote
-        if (scheme != null && !"file".equals(scheme)) {
-            localUrl = downloadResource(path);
-        } else {
-            localUrl = getURLFromPath(path);
-        }
-
-        // only need add jar resource to classloader
-        if (ResourceType.JAR.equals(resourceUri.getResourceType())) {
-            // check the Jar file firstly
-            JarUtils.checkJarFile(localUrl);
-
-            // add it to classloader
-            userClassLoader.addURL(localUrl);
-            LOG.info("Added jar resource [{}] to class path.", localUrl);
-        }
-
-        resourceInfos.put(resourceUri, localUrl);
-        LOG.info("Register resource [{}] successfully.", resourceUri.getUri());
+    /**
+     * The method is only used to SqlClient for supporting remove jar syntax. SqlClient must
+     * guarantee also remove the jar from userClassLoader because it is {@code
+     * ClientMutableURLClassLoader}.
+     */
+    public URL unregisterJarResource(ResourceUri resourceUri) {
+        return resourceInfos.remove(resourceUri);
     }
 
     public Map<ResourceUri, URL> getResources() {

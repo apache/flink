@@ -38,7 +38,7 @@ import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
 import org.apache.flink.table.types.AbstractDataType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
-import org.apache.flink.util.{ClassLoaderUtil, MutableURLClassLoader, Preconditions}
+import org.apache.flink.util.{MutableURLClassLoader, Preconditions}
 
 import java.net.URL
 import java.util.Optional
@@ -294,11 +294,8 @@ object StreamTableEnvironmentImpl {
       executionEnvironment: StreamExecutionEnvironment,
       settings: EnvironmentSettings): StreamTableEnvironmentImpl = {
     val userClassLoader: MutableURLClassLoader =
-      ClassLoaderUtil
-        .buildMutableURLClassLoader(
-          new Array[URL](0),
-          settings.getUserClassLoader,
-          settings.getConfiguration)
+      MutableURLClassLoader
+        .newInstance(new Array[URL](0), settings.getUserClassLoader, settings.getConfiguration)
 
     val executor = AbstractStreamTableEnvironmentImpl.lookupExecutor(
       userClassLoader,
@@ -311,7 +308,7 @@ object StreamTableEnvironmentImpl {
     val resourceManager = new ResourceManager(settings.getConfiguration, userClassLoader)
     val moduleManager = new ModuleManager
     val catalogManager = CatalogManager.newBuilder
-      .classLoaderSupplier(() => resourceManager.getUserClassLoader)
+      .classLoader(userClassLoader)
       .config(tableConfig)
       .defaultCatalog(
         settings.getBuiltInCatalogName,

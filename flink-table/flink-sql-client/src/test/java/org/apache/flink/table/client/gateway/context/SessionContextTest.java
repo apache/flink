@@ -62,8 +62,8 @@ public class SessionContextTest {
                 UserClassLoaderJarTestUtils.createJarFile(
                         tempFolder.newFolder("test-jar"),
                         "test-classloader-udf.jar",
-                        UserDefinedFunctions.GENERATED_UDF_CLASS,
-                        UserDefinedFunctions.GENERATED_UDF_CODE);
+                        UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS,
+                        UserDefinedFunctions.GENERATED_LOWER_UDF_CODE);
     }
 
     @Before
@@ -144,13 +144,14 @@ public class SessionContextTest {
 
     @Test
     public void testAddJarWithFullPath() throws IOException {
-        validateAddJar(udfJar.getPath());
+        validateAddJar(udfJar.getPath(), udfJar.getPath());
     }
 
     @Test
     public void testAddJarWithRelativePath() throws IOException {
-        validateAddJar(
-                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString());
+        String jarPath =
+                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString();
+        validateAddJar(jarPath, jarPath);
     }
 
     @Test
@@ -165,22 +166,15 @@ public class SessionContextTest {
     }
 
     @Test
-    public void testAddIllegalJarInConfig() {
-        Configuration innerConfig = (Configuration) sessionContext.getReadableConfig();
-        innerConfig.set(JARS, Collections.singletonList("/path/to/illegal.jar"));
-
-        validateAddJarWithException(udfJar.getPath(), "no protocol: /path/to/illegal.jar");
-    }
-
-    @Test
     public void testRemoveJarWithFullPath() {
-        validateRemoveJar(udfJar.getPath());
+        validateRemoveJar(udfJar.getPath(), udfJar.getPath());
     }
 
     @Test
     public void testRemoveJarWithRelativePath() throws IOException {
-        validateRemoveJar(
-                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString());
+        String jarPath =
+                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString();
+        validateRemoveJar(jarPath, jarPath);
     }
 
     @Test
@@ -224,19 +218,17 @@ public class SessionContextTest {
         return sessionContext.getExecutionContext().getTableEnvironment().getConfig();
     }
 
-    private void validateAddJar(String jarPath) throws IOException {
+    private void validateAddJar(String jarPath, String expectedJarPath) {
         sessionContext.addJar(jarPath);
-        assertThat(sessionContext.listJars()).containsExactly(udfJar.getPath());
-        assertThat(getConfiguration().get(JARS)).containsExactly(udfJar.toURI().toURL().toString());
+        assertThat(sessionContext.listJars()).containsExactly(expectedJarPath);
         // reset to the default
         sessionContext.reset();
-        assertThat(sessionContext.listJars()).containsExactly(udfJar.getPath());
-        assertThat(getConfiguration().get(JARS)).containsExactly(udfJar.toURI().toURL().toString());
+        assertThat(sessionContext.listJars()).containsExactly(expectedJarPath);
     }
 
-    private void validateRemoveJar(String jarPath) {
+    private void validateRemoveJar(String jarPath, String expectedJarPath) {
         sessionContext.addJar(jarPath);
-        assertThat(sessionContext.listJars()).containsExactly(udfJar.getPath());
+        assertThat(sessionContext.listJars()).containsExactly(expectedJarPath);
 
         sessionContext.removeJar(jarPath);
         assertThat(sessionContext.listJars()).isEmpty();

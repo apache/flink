@@ -19,16 +19,12 @@
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.jar.JarFile;
-
-import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 
 /**
  * Utilities for information with respect to class loaders, specifically class loaders for the
@@ -153,26 +149,6 @@ public final class ClassLoaderUtil {
         } catch (Exception e) {
             return false;
         }
-    }
-
-    /** Build MutableURLClassLoader from urls and configuration. */
-    public static MutableURLClassLoader buildMutableURLClassLoader(
-            URL[] urls, ClassLoader parent, Configuration configuration) {
-        final String[] alwaysParentFirstLoaderPatterns =
-                CoreOptions.getParentFirstLoaderPatterns(configuration);
-        final String classLoaderResolveOrder =
-                configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
-        FlinkUserCodeClassLoaders.ResolveOrder resolveOrder =
-                FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
-        final boolean checkClassloaderLeak =
-                configuration.getBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER);
-        return FlinkUserCodeClassLoaders.create(
-                resolveOrder,
-                urls,
-                parent,
-                alwaysParentFirstLoaderPatterns,
-                NOOP_EXCEPTION_HANDLER,
-                checkClassloaderLeak);
     }
 
     /** Private constructor to prevent instantiation. */

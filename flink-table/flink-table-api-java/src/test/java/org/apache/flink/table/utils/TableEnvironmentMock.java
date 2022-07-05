@@ -27,6 +27,8 @@ import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
 
+import java.net.URL;
+
 /** Mocking {@link TableEnvironment} for tests. */
 public class TableEnvironmentMock extends TableEnvironmentImpl {
 
@@ -74,7 +76,11 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
         final TableConfig tableConfig = TableConfig.getDefault();
         final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
         final ModuleManager moduleManager = new ModuleManager();
-        final ResourceManager resourceManager = ResourceManagerMocks.createEmptyResourceManager();
+        final ResourceManager resourceManager =
+                ResourceUtils.createResourceManager(
+                        new URL[0],
+                        Thread.currentThread().getContextClassLoader(),
+                        tableConfig.getConfiguration());
 
         return new TableEnvironmentMock(
                 catalogManager,

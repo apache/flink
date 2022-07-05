@@ -113,9 +113,6 @@ public class ExecutionContext {
 
         final Executor executor = lookupExecutor(streamExecEnv, classLoader);
 
-        // Updates the classloader of ResourceManager by the new classloader to solve
-        // ClassNotFound exception when call add jar syntax case
-        sessionState.resourceManager.updateUserClasLoader(classLoader);
         return createStreamTableEnvironment(
                 streamExecEnv,
                 settings,

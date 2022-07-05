@@ -19,12 +19,10 @@
 package org.apache.flink.table.resource;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.table.utils.ResourceUtils;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.FlinkUserCodeClassLoaders;
-import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.junit.BeforeClass;
@@ -38,10 +36,10 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 
-import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -74,7 +72,9 @@ public class ResourceManagerTest {
 
     @Test
     public void testRegisterResource() throws Exception {
-        ResourceManager resourceManager = createResourceManager(new URL[0]);
+        ResourceManager resourceManager =
+                ResourceUtils.createResourceManager(
+                        new URL[0], getClass().getClassLoader(), new Configuration());
         URLClassLoader userClassLoader = resourceManager.getUserClassLoader();
 
         // test class loading before register resource
@@ -83,15 +83,49 @@ public class ResourceManagerTest {
                 ClassNotFoundException.class,
                 () -> Class.forName(LOWER_UDF_CLASS, false, userClassLoader));
 
+        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, udfJar.getPath());
         // register the same jar repeatedly
-        resourceManager.registerResource(new ResourceUri(ResourceType.JAR, udfJar.getPath()));
-        resourceManager.registerResource(new ResourceUri(ResourceType.JAR, udfJar.getPath()));
+        resourceManager.registerResource(Arrays.asList(resourceUri, resourceUri));
 
         // assert resource infos
         Map<ResourceUri, URL> expected =
                 Collections.singletonMap(
-                        new ResourceUri(ResourceType.JAR, udfJar.getPath()),
-                        resourceManager.getURLFromPath(new Path(udfJar.getPath())));
+                        resourceUri, resourceManager.getURLFromPath(new Path(udfJar.getPath())));
+
+        assertEquals(expected, resourceManager.getResources());
+
+        // test load class
+        final Class<?> clazz1 = Class.forName(LOWER_UDF_CLASS, false, userClassLoader);
+        final Class<?> clazz2 = Class.forName(LOWER_UDF_CLASS, false, userClassLoader);
+
+        assertEquals(clazz1, clazz2);
+
+        resourceManager.close();
+    }
+
+    @Test
+    public void testRegisterResourceWithRelativePath() throws Exception {
+        ResourceManager resourceManager =
+                ResourceUtils.createResourceManager(
+                        new URL[0], getClass().getClassLoader(), new Configuration());
+        URLClassLoader userClassLoader = resourceManager.getUserClassLoader();
+
+        // test class loading before register resource
+        CommonTestUtils.assertThrows(
+                String.format("LowerUDF"),
+                ClassNotFoundException.class,
+                () -> Class.forName(LOWER_UDF_CLASS, false, userClassLoader));
+
+        String relativePath =
+                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString();
+        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, relativePath);
+        // register the same jar repeatedly
+        resourceManager.registerResource(Collections.singletonList(resourceUri));
+
+        // assert resource infos
+        Map<ResourceUri, URL> expected =
+                Collections.singletonMap(
+                        resourceUri, resourceManager.getURLFromPath(new Path(udfJar.getPath())));
 
         assertEquals(expected, resourceManager.getResources());
 
@@ -106,7 +140,9 @@ public class ResourceManagerTest {
 
     @Test
     public void testRegisterInvalidResource() throws Exception {
-        ResourceManager resourceManager = createResourceManager(new URL[0]);
+        ResourceManager resourceManager =
+                ResourceUtils.createResourceManager(
+                        new URL[0], getClass().getClassLoader(), new Configuration());
 
         // test register non-exist file
         final String fileUri =
@@ -116,7 +152,8 @@ public class ResourceManagerTest {
                 String.format("Resource [%s] not found.", fileUri),
                 FileNotFoundException.class,
                 () -> {
-                    resourceManager.registerResource(new ResourceUri(ResourceType.FILE, fileUri));
+                    resourceManager.registerResource(
+                            Collections.singletonList(new ResourceUri(ResourceType.FILE, fileUri)));
                     return null;
                 });
 
@@ -129,7 +166,8 @@ public class ResourceManagerTest {
                         jarUri),
                 IOException.class,
                 () -> {
-                    resourceManager.registerResource(new ResourceUri(ResourceType.JAR, jarUri));
+                    resourceManager.registerResource(
+                            Collections.singletonList(new ResourceUri(ResourceType.JAR, jarUri)));
                     return null;
                 });
 
@@ -139,7 +177,9 @@ public class ResourceManagerTest {
     @Test
     public void testDownloadResource() throws Exception {
         Path srcPath = new Path(udfJar.getPath());
-        ResourceManager resourceManager = createResourceManager(new URL[0]);
+        ResourceManager resourceManager =
+                ResourceUtils.createResourceManager(
+                        new URL[0], getClass().getClassLoader(), new Configuration());
 
         // test download resource to local path
         URL localUrl = resourceManager.downloadResource(srcPath);
@@ -150,33 +190,5 @@ public class ResourceManagerTest {
         assertArrayEquals(expected, actual);
 
         resourceManager.close();
-    }
-
-    private ResourceManager createResourceManager(URL[] urls) {
-        Configuration configuration = new Configuration();
-        MutableURLClassLoader mutableURLClassLoader =
-                createClassLoader(configuration, urls, getClass().getClassLoader());
-        return new ResourceManager(configuration, mutableURLClassLoader);
-    }
-
-    private MutableURLClassLoader createClassLoader(
-            Configuration configuration, URL[] urls, ClassLoader parentClassLoader) {
-        final String[] alwaysParentFirstLoaderPatterns =
-                CoreOptions.getParentFirstLoaderPatterns(configuration);
-
-        // According to the specified class load order，child-first or parent-first
-        // child-first: load from this classloader firstly, if not found, then from parent
-        // parent-first: load from parent firstly, if not found, then from this classloader
-        final String classLoaderResolveOrder =
-                configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
-        FlinkUserCodeClassLoaders.ResolveOrder resolveOrder =
-                FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
-        return FlinkUserCodeClassLoaders.create(
-                resolveOrder,
-                urls,
-                parentClassLoader,
-                alwaysParentFirstLoaderPatterns,
-                NOOP_EXCEPTION_HANDLER,
-                true);
     }
 }

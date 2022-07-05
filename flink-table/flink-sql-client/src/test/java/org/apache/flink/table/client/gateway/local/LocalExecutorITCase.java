@@ -104,8 +104,8 @@ public class LocalExecutorITCase extends TestLogger {
                 UserClassLoaderJarTestUtils.createJarFile(
                         tempFolder.newFolder("test-jar"),
                         "test-classloader-udf.jar",
-                        UserDefinedFunctions.GENERATED_UDF_CLASS,
-                        UserDefinedFunctions.GENERATED_UDF_CODE);
+                        UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS,
+                        UserDefinedFunctions.GENERATED_LOWER_UDF_CODE);
         udfDependency = udfJar.toURI().toURL();
     }
 

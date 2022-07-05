@@ -681,19 +681,14 @@ public final class FunctionCatalog {
     }
 
     private void registerFunctionResource(String functionName, List<ResourceUri> resourceUris) {
-        if (!resourceUris.isEmpty()) {
-            resourceUris.forEach(
-                    resourceUri -> {
-                        try {
-                            resourceManager.registerResource(resourceUri);
-                        } catch (IOException e) {
-                            throw new ValidationException(
-                                    String.format(
-                                            "Failed to register resource '%s' of function '%s'.",
-                                            resourceUri, functionName),
-                                    e);
-                        }
-                    });
+        try {
+            resourceManager.registerResource(resourceUris);
+        } catch (IOException e) {
+            throw new ValidationException(
+                    String.format(
+                            "Failed to register resource '%s' of function '%s'.",
+                            resourceUris, functionName),
+                    e);
         }
     }
 

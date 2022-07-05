@@ -53,7 +53,6 @@ import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.ClassLoaderUtil;
 import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
 
@@ -96,7 +95,7 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     public static StreamTableEnvironment create(
             StreamExecutionEnvironment executionEnvironment, EnvironmentSettings settings) {
         final MutableURLClassLoader userClassLoader =
-                ClassLoaderUtil.buildMutableURLClassLoader(
+                MutableURLClassLoader.newInstance(
                         new URL[0], settings.getUserClassLoader(), settings.getConfiguration());
         final Executor executor = lookupExecutor(userClassLoader, executionEnvironment);
 
@@ -110,7 +109,7 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
 
         final CatalogManager catalogManager =
                 CatalogManager.newBuilder()
-                        .classLoaderSupplier(() -> resourceManager.getUserClassLoader())
+                        .classLoader(userClassLoader)
                         .config(tableConfig)
                         .defaultCatalog(
                                 settings.getBuiltInCatalogName(),

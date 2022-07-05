@@ -430,9 +430,7 @@ public class FunctionITCase extends StreamingTestBase {
                         ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
 
         String dropFunctionDDL = "drop temporary system function lowerUdf";
-        testUserDefinedFunctionByUsingJar(functionDDL);
-        // delete the function
-        tEnv().executeSql(dropFunctionDDL);
+        testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
     }
 
     @Test
@@ -443,9 +441,7 @@ public class FunctionITCase extends StreamingTestBase {
                         ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
 
         String dropFunctionDDL = "drop function lowerUdf";
-        testUserDefinedFunctionByUsingJar(functionDDL);
-        // delete the function
-        tEnv().executeSql(dropFunctionDDL);
+        testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
     }
 
     @Test
@@ -456,9 +452,7 @@ public class FunctionITCase extends StreamingTestBase {
                         ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
 
         String dropFunctionDDL = "drop temporary function lowerUdf";
-        testUserDefinedFunctionByUsingJar(functionDDL);
-        // delete the function
-        tEnv().executeSql(dropFunctionDDL);
+        testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
     }
 
     @Test
@@ -511,7 +505,8 @@ public class FunctionITCase extends StreamingTestBase {
         tEnv().executeSql("drop table t2");
     }
 
-    private void testUserDefinedFunctionByUsingJar(String createFunctionDDL) throws Exception {
+    private void testUserDefinedFunctionByUsingJar(String createFunctionDDL, String dropFunctionDDL)
+            throws Exception {
         List<Row> sourceData =
                 Arrays.asList(
                         Row.of(1, "JARK"),
@@ -546,6 +541,8 @@ public class FunctionITCase extends StreamingTestBase {
 
         tEnv().executeSql("drop table t1");
         tEnv().executeSql("drop table t2");
+        // delete the function
+        tEnv().executeSql(dropFunctionDDL);
     }
 
     @Test

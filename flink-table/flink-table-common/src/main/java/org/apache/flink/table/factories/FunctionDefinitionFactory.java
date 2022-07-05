@@ -46,7 +46,7 @@ public interface FunctionDefinitionFactory {
      * @param name name of the {@link CatalogFunction}
      * @param catalogFunction the catalog function
      * @param userClassLoader the class loader is used to load user defined function's class
-     * @return
+     * @return a {@link FunctionDefinition}
      */
     default FunctionDefinition createFunctionDefinition(
             String name, CatalogFunction catalogFunction, ClassLoader userClassLoader) {
