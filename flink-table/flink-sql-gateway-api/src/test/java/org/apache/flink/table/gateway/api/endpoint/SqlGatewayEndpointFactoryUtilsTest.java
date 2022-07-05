@@ -55,7 +55,7 @@ public class SqlGatewayEndpointFactoryUtilsTest {
     }
 
     @Test
-    public void testCreateEndpointWithDupliateIdentifier() {
+    public void testCreateEndpointWithDuplicateIdentifier() {
         Map<String, String> config = getDefaultConfig();
         config.put("sql-gateway.endpoint.type", "mocked;mocked");
         validateException(

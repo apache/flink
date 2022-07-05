@@ -20,7 +20,6 @@ package org.apache.flink.table.gateway.api.utils;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactory;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils;
@@ -41,12 +40,14 @@ public class MockedSqlGatewayEndpointFactory implements SqlGatewayEndpointFactor
 
     @Override
     public SqlGatewayEndpoint createSqlGatewayEndpoint(Context context) {
-        ReadableConfig config = context.getConfiguration();
-        SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpointFactoryHelper(this, context)
-                .validate();
+        SqlGatewayEndpointFactoryUtils.EndpointFactoryHelper helper =
+                SqlGatewayEndpointFactoryUtils.createEndpointFactoryHelper(this, context);
+        helper.validate();
 
         return new MockedSqlGatewayEndpoint(
-                config.get(HOST), config.get(PORT), config.getOptional(DESCRIPTION).orElse(null));
+                helper.getOptions().get(HOST),
+                helper.getOptions().get(PORT),
+                helper.getOptions().getOptional(DESCRIPTION).orElse(null));
     }
 
     @Override

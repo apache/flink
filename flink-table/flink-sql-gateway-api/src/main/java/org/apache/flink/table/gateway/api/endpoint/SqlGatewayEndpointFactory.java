@@ -46,14 +46,18 @@ public interface SqlGatewayEndpointFactory extends Factory {
         /** Get the service to execute the request. */
         SqlGatewayService getSqlGatewayService();
 
-        /** Gives read-only access to the configuration of the Endpoint. */
-        ReadableConfig getConfiguration();
+        /** Gives read-only access to the configuration of the current session. */
+        ReadableConfig getFlinkConfiguration();
 
         /**
-         * Returns the options with which the endpoint is created.
+         * Returns the options with which the endpoint is created. All options that are prefixed
+         * with the endpoint identifier are included in the map.
+         *
+         * <p>All the keys in the endpoint options are pruned with the prefix. For example, the
+         * option {@code sql-gateway.endpoint.rest.host}'s key is {@code host} in the map.
          *
          * <p>An implementation should perform validation of these options.
          */
-        Map<String, String> getOptions();
+        Map<String, String> getEndpointOptions();
     }
 }

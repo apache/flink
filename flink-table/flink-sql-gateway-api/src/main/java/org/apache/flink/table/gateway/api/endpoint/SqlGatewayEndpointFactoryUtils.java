@@ -35,6 +35,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.table.factories.FactoryUtil.PROPERTY_VERSION;
+
 /** Util to discover the {@link SqlGatewayEndpoint}. */
 @PublicEvolving
 public class SqlGatewayEndpointFactoryUtils {
@@ -71,13 +73,16 @@ public class SqlGatewayEndpointFactoryUtils {
                             Thread.currentThread().getContextClassLoader(),
                             SqlGatewayEndpointFactory.class,
                             identifier);
-            Configuration endpointConfig =
+
+            Map<String, String> endpointConfig =
                     new DelegatingConfiguration(
-                            configuration,
-                            String.format("%s.%s.", GATEWAY_ENDPOINT_PREFIX, identifier));
+                                    configuration,
+                                    String.format("%s.%s.", GATEWAY_ENDPOINT_PREFIX, identifier))
+                            .toMap();
             endpoints.add(
                     factory.createSqlGatewayEndpoint(
-                            new DefaultSqlGatewayEndpointFactoryContext(service, endpointConfig)));
+                            new DefaultEndpointFactoryContext(
+                                    service, configuration, endpointConfig)));
         }
         return endpoints;
     }
@@ -87,9 +92,9 @@ public class SqlGatewayEndpointFactoryUtils {
      *
      * <p>Note: This utility checks for left-over options in the final step.
      */
-    public static SqlGatewayEndpointFactoryHelper createSqlGatewayEndpointFactoryHelper(
+    public static EndpointFactoryHelper createEndpointFactoryHelper(
             SqlGatewayEndpointFactory endpointFactory, SqlGatewayEndpointFactory.Context context) {
-        return new SqlGatewayEndpointFactoryHelper(endpointFactory, context.getOptions());
+        return new EndpointFactoryHelper(endpointFactory, context.getEndpointOptions());
     }
 
     // ----------------------------------------------------------------------------------------
@@ -97,28 +102,31 @@ public class SqlGatewayEndpointFactoryUtils {
     /**
      * Helper utility for validating all options for a {@link SqlGatewayEndpointFactory}.
      *
-     * @see #createSqlGatewayEndpointFactoryHelper(SqlGatewayEndpointFactory,
+     * @see #createEndpointFactoryHelper(SqlGatewayEndpointFactory,
      *     SqlGatewayEndpointFactory.Context)
      */
-    public static class SqlGatewayEndpointFactoryHelper
-            extends FactoryHelper<SqlGatewayEndpointFactory> {
+    public static class EndpointFactoryHelper extends FactoryHelper<SqlGatewayEndpointFactory> {
 
-        private SqlGatewayEndpointFactoryHelper(
+        private EndpointFactoryHelper(
                 SqlGatewayEndpointFactory factory, Map<String, String> configOptions) {
-            super(factory, configOptions);
+            super(factory, configOptions, PROPERTY_VERSION, SQL_GATEWAY_ENDPOINT_TYPE);
         }
     }
 
-    private static class DefaultSqlGatewayEndpointFactoryContext
+    private static class DefaultEndpointFactoryContext
             implements SqlGatewayEndpointFactory.Context {
 
         private final SqlGatewayService service;
-        private final Configuration configuration;
+        private final Configuration flinkConfiguration;
+        private final Map<String, String> endpointConfig;
 
-        public DefaultSqlGatewayEndpointFactoryContext(
-                SqlGatewayService service, Configuration configuration) {
+        public DefaultEndpointFactoryContext(
+                SqlGatewayService service,
+                Configuration flinkConfiguration,
+                Map<String, String> endpointConfig) {
             this.service = service;
-            this.configuration = configuration;
+            this.flinkConfiguration = flinkConfiguration;
+            this.endpointConfig = endpointConfig;
         }
 
         @Override
@@ -127,13 +135,13 @@ public class SqlGatewayEndpointFactoryUtils {
         }
 
         @Override
-        public ReadableConfig getConfiguration() {
-            return configuration;
+        public ReadableConfig getFlinkConfiguration() {
+            return flinkConfiguration;
         }
 
         @Override
-        public Map<String, String> getOptions() {
-            return configuration.toMap();
+        public Map<String, String> getEndpointOptions() {
+            return endpointConfig;
         }
     }
 
