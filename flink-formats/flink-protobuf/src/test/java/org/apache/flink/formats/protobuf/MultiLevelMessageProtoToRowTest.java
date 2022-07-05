@@ -18,12 +18,8 @@
 
 package org.apache.flink.formats.protobuf;
 
-import org.apache.flink.formats.protobuf.deserialize.PbRowDataDeserializationSchema;
 import org.apache.flink.formats.protobuf.testproto.MultipleLevelMessageTest;
-import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
@@ -34,13 +30,6 @@ import static org.junit.Assert.assertFalse;
 public class MultiLevelMessageProtoToRowTest {
     @Test
     public void testMessage() throws Exception {
-        RowType rowType = PbToRowTypeUtil.generateRowType(MultipleLevelMessageTest.getDescriptor());
-        PbFormatConfig formatConfig =
-                new PbFormatConfig(MultipleLevelMessageTest.class.getName(), false, false, "");
-        PbRowDataDeserializationSchema deserializationSchema =
-                new PbRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), formatConfig);
-
         MultipleLevelMessageTest.InnerMessageTest1.InnerMessageTest2 innerMessageTest2 =
                 MultipleLevelMessageTest.InnerMessageTest1.InnerMessageTest2.newBuilder()
                         .setA(1)
@@ -54,8 +43,9 @@ public class MultiLevelMessageProtoToRowTest {
         MultipleLevelMessageTest multipleLevelMessageTest =
                 MultipleLevelMessageTest.newBuilder().setD(innerMessageTest).setA(1).build();
 
-        RowData row = deserializationSchema.deserialize(multipleLevelMessageTest.toByteArray());
-        row = ProtobufTestHelper.validateRow(row, rowType);
+        RowData row =
+                ProtobufTestHelper.pbBytesToRow(
+                        MultipleLevelMessageTest.class, multipleLevelMessageTest.toByteArray());
 
         assertEquals(4, row.getArity());
         RowData subRow = (RowData) row.getRow(3, 2);

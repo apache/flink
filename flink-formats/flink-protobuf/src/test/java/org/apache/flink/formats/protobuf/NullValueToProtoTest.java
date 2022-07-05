@@ -46,14 +46,14 @@ public class NullValueToProtoTest {
                                 mapOf(
                                         StringData.fromString("key"),
                                         null,
-                                        null,
+                                        StringData.fromString(""),
                                         StringData.fromString("value"))),
                         // int32
-                        new GenericMapData(mapOf(null, 1, 1, null)),
+                        new GenericMapData(mapOf(0, 1, 1, null)),
                         // int64
-                        new GenericMapData(mapOf(null, 1L, 1L, null)),
+                        new GenericMapData(mapOf(0L, 1L, 1L, null)),
                         // boolean
-                        new GenericMapData(mapOf(null, true, true, null)),
+                        new GenericMapData(mapOf(false, true, true, null)),
                         // float
                         new GenericMapData(mapOf(StringData.fromString("key"), null)),
                         // double
@@ -83,10 +83,11 @@ public class NullValueToProtoTest {
                         // bytes, cannot be null
                         new GenericArrayData(new Object[] {null}));
         byte[] bytes =
-                ProtobufTestHelper.rowToPbBytesWithoutValidation(
+                ProtobufTestHelper.rowToPbBytes(
                         row,
                         NullTest.class,
-                        new PbFormatConfig(NullTest.class.getName(), false, false, ""));
+                        new PbFormatConfig(NullTest.class.getName(), false, false, ""),
+                        false);
         NullTest nullTest = NullTest.parseFrom(bytes);
         // string map
         assertEquals(2, nullTest.getStringMapCount());
@@ -130,26 +131,35 @@ public class NullValueToProtoTest {
         assertEquals(1, nullTest.getBytesMapCount());
         assertEquals(ByteString.EMPTY, nullTest.getBytesMapMap().get("key"));
 
+        // string array
         assertEquals(1, nullTest.getStringArrayCount());
         assertEquals("", nullTest.getStringArrayList().get(0));
+        // int array
         assertEquals(1, nullTest.getIntArrayCount());
         assertEquals(Integer.valueOf(0), nullTest.getIntArrayList().get(0));
+        // long array
         assertEquals(1, nullTest.getLongArrayCount());
         assertEquals(Long.valueOf(0L), nullTest.getLongArrayList().get(0));
+        // float array
         assertEquals(1, nullTest.getFloatArrayCount());
         assertEquals(Float.valueOf(0), nullTest.getFloatArrayList().get(0));
+        // double array
         assertEquals(1, nullTest.getDoubleArrayCount());
         assertEquals(Double.valueOf(0), nullTest.getDoubleArrayList().get(0));
+        // boolean array
         assertEquals(1, nullTest.getBooleanArrayCount());
         assertEquals(Boolean.FALSE, nullTest.getBooleanArrayList().get(0));
+        // enum array
         assertEquals(1, nullTest.getEnumArrayCount());
         assertEquals(NullTest.Corpus.UNIVERSAL, nullTest.getEnumArrayList().get(0));
+        // message array
         assertEquals(1, nullTest.getMessageArrayCount());
         assertEquals(
                 NullTest.InnerMessageTest.getDefaultInstance(),
                 nullTest.getMessageArrayList().get(0));
+        // bytes array
         assertEquals(1, nullTest.getBytesArrayCount());
-        //		assertEquals(ByteString.EMPTY, nullTest.getBytesArrayList().get(0));
+        assertEquals(ByteString.EMPTY, nullTest.getBytesArrayList().get(0));
     }
 
     @Test
@@ -201,7 +211,8 @@ public class NullValueToProtoTest {
                 ProtobufTestHelper.rowToPbBytes(
                         row,
                         NullTest.class,
-                        new PbFormatConfig(NullTest.class.getName(), false, false, "NULL"));
+                        new PbFormatConfig(NullTest.class.getName(), false, false, "NULL"),
+                        false);
         NullTest nullTest = NullTest.parseFrom(bytes);
         assertEquals("NULL", nullTest.getStringMapMap().get("key"));
     }

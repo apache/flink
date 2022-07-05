@@ -18,13 +18,9 @@
 
 package org.apache.flink.formats.protobuf;
 
-import org.apache.flink.formats.protobuf.deserialize.PbRowDataDeserializationSchema;
 import org.apache.flink.formats.protobuf.testproto.MapTest;
-import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.RowType;
 
 import com.google.protobuf.ByteString;
 import org.junit.Test;
@@ -36,12 +32,6 @@ import static org.junit.Assert.assertEquals;
 public class MapProtoToRowTest {
     @Test
     public void testMessage() throws Exception {
-        RowType rowType = PbToRowTypeUtil.generateRowType(MapTest.getDescriptor());
-        PbFormatConfig formatConfig = new PbFormatConfig(MapTest.class.getName(), false, false, "");
-        PbRowDataDeserializationSchema deserializationSchema =
-                new PbRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), formatConfig);
-
         MapTest.InnerMessageTest innerMessageTest =
                 MapTest.InnerMessageTest.newBuilder().setA(1).setB(2).build();
         MapTest mapTest =
@@ -52,9 +42,7 @@ public class MapProtoToRowTest {
                         .putMap2("f", innerMessageTest)
                         .putMap3("e", ByteString.copyFrom(new byte[] {1, 2, 3}))
                         .build();
-
-        RowData row = deserializationSchema.deserialize(mapTest.toByteArray());
-        row = ProtobufTestHelper.validateRow(row, rowType);
+        RowData row = ProtobufTestHelper.pbBytesToRow(MapTest.class, mapTest.toByteArray());
 
         MapData map1 = row.getMap(1);
         assertEquals("a", map1.keyArray().getString(0).toString());

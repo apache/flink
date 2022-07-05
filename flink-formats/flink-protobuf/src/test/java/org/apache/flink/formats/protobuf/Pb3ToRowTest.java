@@ -18,14 +18,10 @@
 
 package org.apache.flink.formats.protobuf;
 
-import org.apache.flink.formats.protobuf.deserialize.PbRowDataDeserializationSchema;
 import org.apache.flink.formats.protobuf.testproto.Pb3Test;
 import org.apache.flink.formats.protobuf.testproto.Pb3Test.Corpus;
-import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.RowType;
 
 import com.google.protobuf.ByteString;
 import org.junit.Test;
@@ -40,12 +36,6 @@ import static org.junit.Assert.assertFalse;
 public class Pb3ToRowTest {
     @Test
     public void testDeserialization() throws Exception {
-        RowType rowType = PbToRowTypeUtil.generateRowType(Pb3Test.getDescriptor());
-        PbFormatConfig formatConfig = new PbFormatConfig(Pb3Test.class.getName(), false, false, "");
-        PbRowDataDeserializationSchema deserializationSchema =
-                new PbRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), formatConfig);
-
         Pb3Test.InnerMessageTest innerMessageTest =
                 Pb3Test.InnerMessageTest.newBuilder().setA(1).setB(2).build();
         Pb3Test mapTest =
@@ -64,8 +54,7 @@ public class Pb3ToRowTest {
                         .putMap2("f", innerMessageTest)
                         .build();
 
-        RowData row = deserializationSchema.deserialize(mapTest.toByteArray());
-        row = ProtobufTestHelper.validateRow(row, rowType);
+        RowData row = ProtobufTestHelper.pbBytesToRow(Pb3Test.class, mapTest.toByteArray());
 
         assertEquals(1, row.getInt(0));
         assertEquals(2L, row.getLong(1));
@@ -100,16 +89,8 @@ public class Pb3ToRowTest {
 
     @Test
     public void testReadDefaultValues() throws Exception {
-        RowType rowType = PbToRowTypeUtil.generateRowType(Pb3Test.getDescriptor());
-        PbFormatConfig formatConfig = new PbFormatConfig(Pb3Test.class.getName(), false, false, "");
-        PbRowDataDeserializationSchema deserializationSchema =
-                new PbRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), formatConfig);
-
-        Pb3Test mapTest = Pb3Test.newBuilder().build();
-
-        RowData row = deserializationSchema.deserialize(mapTest.toByteArray());
-        row = ProtobufTestHelper.validateRow(row, rowType);
+        Pb3Test pb3Test = Pb3Test.newBuilder().build();
+        RowData row = ProtobufTestHelper.pbBytesToRow(Pb3Test.class, pb3Test.toByteArray());
 
         assertFalse(row.isNullAt(0));
         assertFalse(row.isNullAt(1));

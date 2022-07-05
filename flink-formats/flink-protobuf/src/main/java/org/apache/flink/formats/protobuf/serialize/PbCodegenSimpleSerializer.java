@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.protobuf.serialize;
 
+import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
@@ -41,7 +42,7 @@ public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
     }
 
     @Override
-    public String codegen(String resultVar, String flinkObjectCode, int indent) {
+    public String codegen(String resultVar, String flinkObjectCode, int indent) throws PbCodegenException {
         // the real value of flinkObjectCode may be String, Integer,
         // Long, Double, Float, Boolean, byte[].
         // The type of flinkObject is simple data type of flink, and flinkObject must not be null.
@@ -113,7 +114,7 @@ public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
                 appender.appendLine(resultVar + " = ByteString.copyFrom(" + flinkObjectCode + ")");
                 return appender.code();
             default:
-                throw new IllegalArgumentException("Unsupported data type in schema: " + type);
+                throw new PbCodegenException("Unsupported data type in schema: " + type);
         }
     }
 }

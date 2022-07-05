@@ -18,13 +18,9 @@
 
 package org.apache.flink.formats.protobuf;
 
-import org.apache.flink.formats.protobuf.deserialize.PbRowDataDeserializationSchema;
 import org.apache.flink.formats.protobuf.testproto.RepeatedMessageTest;
-import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
@@ -34,13 +30,6 @@ import static org.junit.Assert.assertEquals;
 public class RepeatedMessageProtoToRowTest {
     @Test
     public void testRepeatedMessage() throws Exception {
-        RowType rowType = PbToRowTypeUtil.generateRowType(RepeatedMessageTest.getDescriptor());
-        PbFormatConfig formatConfig =
-                new PbFormatConfig(RepeatedMessageTest.class.getName(), false, false, "");
-        PbRowDataDeserializationSchema deserializationSchema =
-                new PbRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), formatConfig);
-
         RepeatedMessageTest.InnerMessageTest innerMessageTest =
                 RepeatedMessageTest.InnerMessageTest.newBuilder().setA(1).setB(2L).build();
 
@@ -53,8 +42,9 @@ public class RepeatedMessageProtoToRowTest {
                         .addD(innerMessageTest1)
                         .build();
 
-        RowData row = deserializationSchema.deserialize(repeatedMessageTest.toByteArray());
-        row = ProtobufTestHelper.validateRow(row, rowType);
+        RowData row =
+                ProtobufTestHelper.pbBytesToRow(
+                        RepeatedMessageTest.class, repeatedMessageTest.toByteArray());
 
         ArrayData objs = row.getArray(0);
         RowData subRow = objs.getRow(0, 2);

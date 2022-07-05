@@ -41,7 +41,7 @@ import org.junit.Test;
  */
 public class MetaNoOuterNoMultiProtoToRowTest {
     @Test
-    public void testSimple() {
+    public void testSimple() throws Exception {
         RowType rowType =
                 PbToRowTypeUtil.generateRowType(
                         TestSimpleNoouterNomulti.SimpleTestNoouterNomulti.getDescriptor());
@@ -51,14 +51,15 @@ public class MetaNoOuterNoMultiProtoToRowTest {
                         false,
                         false,
                         "");
-        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig);
+        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig)
+                .open(null);
 
-        new PbRowDataSerializationSchema(rowType, formatConfig);
+        new PbRowDataSerializationSchema(rowType, formatConfig).open(null);
         // validation success
     }
 
     @Test
-    public void testOuterClassName() {
+    public void testOuterClassName() throws Exception {
         RowType rowType =
                 PbToRowTypeUtil.generateRowType(
                         TestSimpleNoouterNomulti.SimpleTestNoouterNomulti.getDescriptor());
@@ -68,9 +69,9 @@ public class MetaNoOuterNoMultiProtoToRowTest {
                         false,
                         false,
                         "");
-        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig);
-        System.out.println(TestSimpleNoouterNomulti.SimpleTestNoouterNomulti.class.getName());
-        new PbRowDataSerializationSchema(rowType, formatConfig);
+        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig)
+                .open(null);
+        new PbRowDataSerializationSchema(rowType, formatConfig).open(null);
         // validation success
     }
 }

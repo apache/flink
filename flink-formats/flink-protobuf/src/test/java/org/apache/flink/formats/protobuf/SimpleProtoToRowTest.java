@@ -18,12 +18,8 @@
 
 package org.apache.flink.formats.protobuf;
 
-import org.apache.flink.formats.protobuf.deserialize.PbRowDataDeserializationSchema;
 import org.apache.flink.formats.protobuf.testproto.SimpleTest;
-import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.RowType;
 
 import com.google.protobuf.ByteString;
 import org.junit.Test;
@@ -37,13 +33,6 @@ import static org.junit.Assert.assertTrue;
 public class SimpleProtoToRowTest {
     @Test
     public void testSimple() throws Exception {
-        RowType rowType = PbToRowTypeUtil.generateRowType(SimpleTest.getDescriptor());
-        PbFormatConfig formatConfig =
-                new PbFormatConfig(SimpleTest.class.getName(), false, false, "");
-        PbRowDataDeserializationSchema deserializationSchema =
-                new PbRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), formatConfig);
-
         SimpleTest simple =
                 SimpleTest.newBuilder()
                         .setA(1)
@@ -57,8 +46,7 @@ public class SimpleProtoToRowTest {
                         .setFAbc7D(1) // test fieldNameToJsonName
                         .build();
 
-        RowData row = deserializationSchema.deserialize(simple.toByteArray());
-        row = ProtobufTestHelper.validateRow(row, rowType);
+        RowData row = ProtobufTestHelper.pbBytesToRow(SimpleTest.class, simple.toByteArray());
 
         assertEquals(9, row.getArity());
         assertEquals(1, row.getInt(0));
@@ -74,13 +62,6 @@ public class SimpleProtoToRowTest {
 
     @Test
     public void testNotExistsValueIgnoringDefault() throws Exception {
-        RowType rowType = PbToRowTypeUtil.generateRowType(SimpleTest.getDescriptor());
-        PbFormatConfig formatConfig =
-                new PbFormatConfig(SimpleTest.class.getName(), false, false, "");
-        PbRowDataDeserializationSchema deserializationSchema =
-                new PbRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), formatConfig);
-
         SimpleTest simple =
                 SimpleTest.newBuilder()
                         .setB(2L)
@@ -90,8 +71,7 @@ public class SimpleProtoToRowTest {
                         .setF("haha")
                         .build();
 
-        RowData row = deserializationSchema.deserialize(simple.toByteArray());
-        row = ProtobufTestHelper.validateRow(row, rowType);
+        RowData row = ProtobufTestHelper.pbBytesToRow(SimpleTest.class, simple.toByteArray());
 
         assertTrue(row.isNullAt(0));
         assertFalse(row.isNullAt(1));
@@ -99,17 +79,14 @@ public class SimpleProtoToRowTest {
 
     @Test
     public void testDefaultValues() throws Exception {
-        RowType rowType = PbToRowTypeUtil.generateRowType(SimpleTest.getDescriptor());
-        PbFormatConfig formatConfig =
-                new PbFormatConfig(SimpleTest.class.getName(), false, true, "");
-        PbRowDataDeserializationSchema deserializationSchema =
-                new PbRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), formatConfig);
-
         SimpleTest simple = SimpleTest.newBuilder().build();
 
-        RowData row = deserializationSchema.deserialize(simple.toByteArray());
-        row = ProtobufTestHelper.validateRow(row, rowType);
+        RowData row =
+                ProtobufTestHelper.pbBytesToRow(
+                        SimpleTest.class,
+                        simple.toByteArray(),
+                        new PbFormatConfig(SimpleTest.class.getName(), false, true, ""),
+                        false);
 
         assertFalse(row.isNullAt(0));
         assertFalse(row.isNullAt(1));
@@ -131,18 +108,8 @@ public class SimpleProtoToRowTest {
 
     @Test
     public void testIntEnum() throws Exception {
-        RowType rowType = PbToRowTypeUtil.generateRowType(SimpleTest.getDescriptor(), true);
-        PbFormatConfig formatConfig =
-                new PbFormatConfig(SimpleTest.class.getName(), false, false, "");
-        PbRowDataDeserializationSchema deserializationSchema =
-                new PbRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), formatConfig);
-
         SimpleTest simple = SimpleTest.newBuilder().setH(SimpleTest.Corpus.IMAGES).build();
-
-        RowData row = deserializationSchema.deserialize(simple.toByteArray());
-        row = ProtobufTestHelper.validateRow(row, rowType);
-
+        RowData row = ProtobufTestHelper.pbBytesToRow(SimpleTest.class, simple.toByteArray(), true);
         assertEquals(2, row.getInt(7));
     }
 }

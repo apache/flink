@@ -18,13 +18,9 @@
 
 package org.apache.flink.formats.protobuf;
 
-import org.apache.flink.formats.protobuf.deserialize.PbRowDataDeserializationSchema;
 import org.apache.flink.formats.protobuf.testproto.RepeatedTest;
-import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
@@ -34,17 +30,8 @@ import static org.junit.Assert.assertEquals;
 public class RepeatedProtoToRowTest {
     @Test
     public void testRepeated() throws Exception {
-        RowType rowType = PbToRowTypeUtil.generateRowType(RepeatedTest.getDescriptor());
-        PbFormatConfig formatConfig =
-                new PbFormatConfig(RepeatedTest.class.getName(), false, false, "");
-        PbRowDataDeserializationSchema deserializationSchema =
-                new PbRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), formatConfig);
-
         RepeatedTest simple = RepeatedTest.newBuilder().setA(1).addB(1).addB(2).build();
-
-        RowData row = deserializationSchema.deserialize(simple.toByteArray());
-        row = ProtobufTestHelper.validateRow(row, rowType);
+        RowData row = ProtobufTestHelper.pbBytesToRow(RepeatedTest.class, simple.toByteArray());
 
         assertEquals(6, row.getArity());
         assertEquals(1, row.getInt(0));

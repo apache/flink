@@ -43,13 +43,14 @@ import org.junit.Test;
  */
 public class MetaOuterMultiTest {
     @Test
-    public void testSimple() {
+    public void testSimple() throws Exception {
         RowType rowType = PbToRowTypeUtil.generateRowType(SimpleTestOuterMulti.getDescriptor());
         PbFormatConfig formatConfig =
                 new PbFormatConfig(SimpleTestOuterMulti.class.getName(), false, false, "");
-        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig);
+        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig)
+                .open(null);
 
-        new PbRowDataSerializationSchema(rowType, formatConfig);
+        new PbRowDataSerializationSchema(rowType, formatConfig).open(null);
         // validation success
     }
 }
