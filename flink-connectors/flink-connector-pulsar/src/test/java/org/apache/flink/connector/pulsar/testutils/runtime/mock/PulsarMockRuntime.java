@@ -87,8 +87,8 @@ public class PulsarMockRuntime implements PulsarRuntime {
         configuration.setActiveConsumerFailoverDelayTimeMillis(0);
         configuration.setDefaultRetentionTimeInMinutes(7);
         configuration.setDefaultNumberOfNamespaceBundles(1);
-        configuration.setZookeeperServers("localhost:2181");
-        configuration.setConfigurationStoreServers("localhost:3181");
+        configuration.setMetadataStoreUrl("memory:local");
+        configuration.setConfigurationMetadataStoreUrl("memory:local");
 
         configuration.setAuthenticationEnabled(false);
         configuration.setAuthorizationEnabled(false);
@@ -101,6 +101,8 @@ public class PulsarMockRuntime implements PulsarRuntime {
         configuration.setWebServicePort(Optional.of(0));
 
         // Enable transactions.
+        configuration.setSystemTopicEnabled(true);
+        configuration.setBrokerDeduplicationEnabled(true);
         configuration.setTransactionCoordinatorEnabled(true);
         configuration.setTransactionMetadataStoreProviderClassName(
                 "org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider");
