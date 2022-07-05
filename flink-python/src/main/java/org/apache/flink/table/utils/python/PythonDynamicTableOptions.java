@@ -21,7 +21,7 @@ package org.apache.flink.table.utils.python;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
-/** Options for PythonInputFormatTableSource. */
+/** Options for PythonDynamicTableSource. */
 public class PythonDynamicTableOptions {
 
     public static final ConfigOption<String> INPUT_FILE_PATH =

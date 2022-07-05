@@ -89,7 +89,7 @@ public final class PythonTableUtils {
     private PythonTableUtils() {}
 
     /**
-     * Create a table from {@link PythonDynamicTableSource}PythonInputFormatTableSource that read
+     * Create a table from {@link PythonDynamicTableSource} that read
      * data from input file with specific {@link DataType}.
      *
      * @param tEnv The TableEnvironment to create table.
@@ -110,7 +110,7 @@ public final class PythonTableUtils {
 
     /**
      * Wrap the unpickled python data with an InputFormat. It will be passed to
-     * PythonInputFormatTableSource later.
+     * PythonDynamicTableSource later.
      *
      * @param data The unpickled python data.
      * @param dataType The python data type.

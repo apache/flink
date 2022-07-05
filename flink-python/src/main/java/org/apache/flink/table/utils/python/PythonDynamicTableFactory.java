@@ -32,7 +32,7 @@ import java.util.Set;
 import static org.apache.flink.table.utils.python.PythonDynamicTableOptions.BATCH_MODE;
 import static org.apache.flink.table.utils.python.PythonDynamicTableOptions.INPUT_FILE_PATH;
 
-/** Table source factory for PythonInputFormatTableSource. */
+/** Table source factory for PythonDynamicTableSource. */
 public class PythonDynamicTableFactory implements DynamicTableSourceFactory {
 
     public static final String IDENTIFIER = "python-input-format";
