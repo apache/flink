@@ -18,12 +18,12 @@
 
 package org.apache.flink.formats.protobuf.serialize;
 
-import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.deserialize.ProtoToRowConverter;
+import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.data.ArrayData;
@@ -86,7 +86,8 @@ public class RowToProtoConverter {
             PbCodegenSerializer codegenSer =
                     PbCodegenSerializeFactory.getPbCodegenTopRowSer(
                             descriptor, rowType, formatContext);
-            String genCode = codegenSer.codegen("message", "rowData", codegenAppender.currentIndent());
+            String genCode =
+                    codegenSer.codegen("message", "rowData", codegenAppender.currentIndent());
             codegenAppender.appendSegment(genCode);
             codegenAppender.appendLine("return message");
             codegenAppender.end("}");

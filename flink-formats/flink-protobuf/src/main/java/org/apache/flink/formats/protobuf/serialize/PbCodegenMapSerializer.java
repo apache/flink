@@ -18,12 +18,12 @@
 
 package org.apache.flink.formats.protobuf.serialize;
 
-import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
-import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.formats.protobuf.PbFormatContext;
+import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
+import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 
@@ -43,7 +43,8 @@ public class PbCodegenMapSerializer implements PbCodegenSerializer {
     }
 
     @Override
-    public String codegen(String resultVar, String flinkObjectCode, int indent) throws PbCodegenException {
+    public String codegen(String resultVar, String flinkObjectCode, int indent)
+            throws PbCodegenException {
         // The type of flinkObjectCode is a MapData of flink,
         // it should be converted to map of protobuf as resultVariable.
         PbCodegenVarId varUid = PbCodegenVarId.getInstance();
@@ -95,13 +96,25 @@ public class PbCodegenMapSerializer implements PbCodegenSerializer {
         // process key
         String convertFlinkKeyArrayElementToPbCode =
                 PbCodegenUtils.convertFlinkArrayElementToPbWithDefaultValueCode(
-                        flinkKeyArrDataVar, iVar, keyPbVar, keyFd, keyType, formatContext, appender.currentIndent());
+                        flinkKeyArrDataVar,
+                        iVar,
+                        keyPbVar,
+                        keyFd,
+                        keyType,
+                        formatContext,
+                        appender.currentIndent());
         appender.appendSegment(convertFlinkKeyArrayElementToPbCode);
 
         // process value
         String convertFlinkValueArrayElementToPbCode =
                 PbCodegenUtils.convertFlinkArrayElementToPbWithDefaultValueCode(
-                        flinkValueArrDataVar, iVar, valuePbVar, valueFd, valueType, formatContext, appender.currentIndent());
+                        flinkValueArrDataVar,
+                        iVar,
+                        valuePbVar,
+                        valueFd,
+                        valueType,
+                        formatContext,
+                        appender.currentIndent());
         appender.appendSegment(convertFlinkValueArrayElementToPbCode);
 
         appender.appendLine(pbMapVar + ".put(" + keyPbVar + ", " + valuePbVar + ")");

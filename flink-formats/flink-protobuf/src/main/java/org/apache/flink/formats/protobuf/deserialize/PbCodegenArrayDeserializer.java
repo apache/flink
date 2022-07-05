@@ -18,11 +18,11 @@
 
 package org.apache.flink.formats.protobuf.deserialize;
 
-import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
-import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbFormatContext;
+import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
+import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import com.google.protobuf.Descriptors;
@@ -43,10 +43,11 @@ public class PbCodegenArrayDeserializer implements PbCodegenDeserializer {
     }
 
     @Override
-    public String codegen(String resultVar, String pbObjectCode) throws PbCodegenException {
+    public String codegen(String resultVar, String pbObjectCode, int indent)
+            throws PbCodegenException {
         // The type of pbObjectCode represents a general List object,
         // it should be converted to ArrayData of flink internal type as resultVariable.
-        PbCodegenAppender appender = new PbCodegenAppender();
+        PbCodegenAppender appender = new PbCodegenAppender(indent);
         PbCodegenVarId varUid = PbCodegenVarId.getInstance();
         int uid = varUid.getAndIncrement();
         String protoTypeStr =
@@ -60,7 +61,7 @@ public class PbCodegenArrayDeserializer implements PbCodegenDeserializer {
         appender.appendLine("List<" + protoTypeStr + "> " + listPbVar + "=" + pbObjectCode);
         appender.appendLine(
                 "Object[] " + flinkArrVar + "= new " + "Object[" + listPbVar + ".size()]");
-        appender.appendSegment(
+        appender.begin(
                 "for(int " + iVar + "=0;" + iVar + " < " + listPbVar + ".size(); " + iVar + "++){");
         appender.appendLine("Object " + flinkArrEleVar + " = null");
         appender.appendLine(
@@ -76,10 +77,10 @@ public class PbCodegenArrayDeserializer implements PbCodegenDeserializer {
                         + ")");
         PbCodegenDeserializer codegenDes =
                 PbCodegenDeserializeFactory.getPbCodegenDes(fd, elementType, formatContext);
-        String code = codegenDes.codegen(flinkArrEleVar, subPbObjVar);
+        String code = codegenDes.codegen(flinkArrEleVar, subPbObjVar, appender.currentIndent());
         appender.appendSegment(code);
         appender.appendLine(flinkArrVar + "[" + iVar + "]=" + flinkArrEleVar + "");
-        appender.appendSegment("}");
+        appender.end("}");
         appender.appendLine(resultVar + " = new GenericArrayData(" + flinkArrVar + ")");
         return appender.code();
     }

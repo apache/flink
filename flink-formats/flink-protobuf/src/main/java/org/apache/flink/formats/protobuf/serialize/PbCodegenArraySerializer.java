@@ -18,11 +18,11 @@
 
 package org.apache.flink.formats.protobuf.serialize;
 
-import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
-import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbFormatContext;
+import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
+import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import com.google.protobuf.Descriptors;
@@ -43,7 +43,8 @@ public class PbCodegenArraySerializer implements PbCodegenSerializer {
     }
 
     @Override
-    public String codegen(String resultVar, String flinkObjectCode, int indent) throws PbCodegenException {
+    public String codegen(String resultVar, String flinkObjectCode, int indent)
+            throws PbCodegenException {
         // The type of flinkObjectCode is a ArrayData of flink,
         // it should be converted to array of protobuf as resultVariable.
         PbCodegenVarId varUid = PbCodegenVarId.getInstance();
@@ -70,7 +71,13 @@ public class PbCodegenArraySerializer implements PbCodegenSerializer {
                         + "++){");
         String convertFlinkArrayElementToPbCode =
                 PbCodegenUtils.convertFlinkArrayElementToPbWithDefaultValueCode(
-                        flinkArrayDataVar, iVar, pbElementVar, fd, elementType, formatContext, appender.currentIndent());
+                        flinkArrayDataVar,
+                        iVar,
+                        pbElementVar,
+                        fd,
+                        elementType,
+                        formatContext,
+                        appender.currentIndent());
         appender.appendSegment(convertFlinkArrayElementToPbCode);
         // add pb element to result list
         appender.appendLine(pbListVar + ".add( " + pbElementVar + ")");

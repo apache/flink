@@ -18,11 +18,11 @@
 
 package org.apache.flink.formats.protobuf.serialize;
 
-import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
-import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbFormatContext;
+import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
+import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -44,7 +44,8 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
     }
 
     @Override
-    public String codegen(String resultVar, String flinkObjectCode, int indent) throws PbCodegenException {
+    public String codegen(String resultVar, String flinkObjectCode, int indent)
+            throws PbCodegenException {
         // The type of flinkObjectCode is a RowData of flink,
         // it should be converted to object of protobuf as resultVariable.
         PbCodegenVarId varUid = PbCodegenVarId.getInstance();
@@ -90,7 +91,8 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
                     PbCodegenUtils.flinkContainerElementCode(flinkRowDataVar, index + "", subType);
             PbCodegenSerializer codegen =
                     PbCodegenSerializeFactory.getPbCodegenSer(elementFd, subType, formatContext);
-            String code = codegen.codegen(elementPbVar, flinkRowElementCode, appender.currentIndent());
+            String code =
+                    codegen.codegen(elementPbVar, flinkRowElementCode, appender.currentIndent());
             appender.appendSegment(code);
             if (subType.getTypeRoot() == LogicalTypeRoot.ARRAY) {
                 appender.appendLine(

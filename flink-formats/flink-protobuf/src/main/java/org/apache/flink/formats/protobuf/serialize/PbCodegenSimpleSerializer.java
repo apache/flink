@@ -18,9 +18,9 @@
 
 package org.apache.flink.formats.protobuf.serialize;
 
+import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
-import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 

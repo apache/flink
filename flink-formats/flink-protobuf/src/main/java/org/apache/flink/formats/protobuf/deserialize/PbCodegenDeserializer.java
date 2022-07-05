@@ -35,5 +35,5 @@ public interface PbCodegenDeserializer {
      *     literal name directly to access the input. {@code pbObject} should be a protobuf object
      * @return The java code generated
      */
-    String codegen(String resultVar, String pbObjectCode) throws PbCodegenException;
+    String codegen(String resultVar, String pbObjectCode, int indent) throws PbCodegenException;
 }

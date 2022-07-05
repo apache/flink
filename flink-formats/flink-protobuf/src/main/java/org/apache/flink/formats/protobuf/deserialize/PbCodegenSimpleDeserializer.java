@@ -19,6 +19,7 @@
 package org.apache.flink.formats.protobuf.deserialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenException;
+import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
@@ -35,46 +36,51 @@ public class PbCodegenSimpleDeserializer implements PbCodegenDeserializer {
     }
 
     @Override
-    public String codegen(String resultVar, String pbObjectCode) throws PbCodegenException {
+    public String codegen(String resultVar, String pbObjectCode, int indent)
+            throws PbCodegenException {
         // the type of pbObjectCode must not be primitive type,
         // it should convert to internal flink row type like StringData.
-        StringBuilder sb = new StringBuilder();
+        PbCodegenAppender appender = new PbCodegenAppender(indent);
         switch (fd.getJavaType()) {
             case INT:
             case LONG:
             case FLOAT:
             case DOUBLE:
             case BOOLEAN:
-                sb.append(resultVar + " = " + pbObjectCode + ";");
+                appender.appendLine(resultVar + " = " + pbObjectCode);
                 break;
             case BYTE_STRING:
-                sb.append(resultVar + " = " + pbObjectCode + ".toByteArray();");
+                appender.appendLine(resultVar + " = " + pbObjectCode + ".toByteArray()");
                 break;
             case STRING:
-                sb.append(
+                appender.appendLine(
                         resultVar
                                 + " = BinaryStringData.fromString("
                                 + pbObjectCode
-                                + ".toString());");
+                                + ".toString())");
+                break;
             case ENUM:
                 if (logicalType.getTypeRoot() == LogicalTypeRoot.CHAR
                         || logicalType.getTypeRoot() == LogicalTypeRoot.VARCHAR) {
-                    sb.append(
+                    appender.appendLine(
                             resultVar
                                     + " = BinaryStringData.fromString("
                                     + pbObjectCode
-                                    + ".toString());");
+                                    + ".toString())");
                 } else if (logicalType.getTypeRoot() == LogicalTypeRoot.TINYINT
                         || logicalType.getTypeRoot() == LogicalTypeRoot.SMALLINT
                         || logicalType.getTypeRoot() == LogicalTypeRoot.INTEGER
                         || logicalType.getTypeRoot() == LogicalTypeRoot.BIGINT) {
-                    sb.append(resultVar + " = " + pbObjectCode + ".getNumber();");
+                    appender.appendLine(resultVar + " = " + pbObjectCode + ".getNumber()");
                 } else {
                     throw new PbCodegenException(
                             "Illegal type for protobuf enum, only char/vachar/int/bigint is supported");
                 }
                 break;
+             default:
+                 throw new PbCodegenException(
+                         "Unsupported protobuf simple type: " + fd.getJavaType());
         }
-        return sb.toString();
+        return appender.code();
     }
 }

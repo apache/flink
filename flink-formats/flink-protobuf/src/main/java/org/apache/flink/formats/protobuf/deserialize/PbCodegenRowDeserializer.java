@@ -18,10 +18,10 @@
 
 package org.apache.flink.formats.protobuf.deserialize;
 
-import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
-import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbFormatContext;
+import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
+import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -43,10 +43,11 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
     }
 
     @Override
-    public String codegen(String resultVar, String pbObjectCode) throws PbCodegenException {
+    public String codegen(String resultVar, String pbObjectCode, int indent)
+            throws PbCodegenException {
         // The type of pbObjectCode is a general pb object,
         // it should be converted to RowData of flink internal type as resultVariable
-        PbCodegenAppender appender = new PbCodegenAppender();
+        PbCodegenAppender appender = new PbCodegenAppender(indent);
         PbCodegenVarId varUid = PbCodegenVarId.getInstance();
         int uid = varUid.getAndIncrement();
         String pbMessageVar = "message" + uid;
@@ -77,7 +78,7 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
                                 pbMessageVar,
                                 strongCamelFieldName,
                                 PbFormatUtils.isRepeatedType(subType));
-                appender.appendSegment("if(" + isMessageElementNonEmptyCode + "){");
+                appender.begin("if(" + isMessageElementNonEmptyCode + "){");
             }
             String pbGetMessageElementCode =
                     pbGetMessageElementCode(
@@ -85,10 +86,12 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
                             strongCamelFieldName,
                             elementFd,
                             PbFormatUtils.isArrayType(subType));
-            String code = codegen.codegen(flinkRowEleVar, pbGetMessageElementCode);
+            String code =
+                    codegen.codegen(
+                            flinkRowEleVar, pbGetMessageElementCode, appender.currentIndent());
             appender.appendSegment(code);
             if (!formatContext.getPbFormatConfig().isReadDefaultValues()) {
-                appender.appendSegment("}");
+                appender.end("}");
             }
             appender.appendLine(
                     flinkRowDataVar + ".setField(" + index + ", " + flinkRowEleVar + ")");

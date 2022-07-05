@@ -18,11 +18,11 @@
 
 package org.apache.flink.formats.protobuf.deserialize;
 
-import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatContext;
+import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.data.ArrayData;
@@ -39,7 +39,9 @@ import com.google.protobuf.Descriptors.FileDescriptor.Syntax;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -106,13 +108,14 @@ public class ProtoToRowConverter {
             PbCodegenDeserializer codegenDes =
                     PbCodegenDeserializeFactory.getPbCodegenTopRowDes(
                             descriptor, rowType, pbFormatContext);
-            String genCode = codegenDes.codegen("rowData", "message");
+            String genCode = codegenDes.codegen("rowData", "message", 0);
             codegenAppender.appendSegment(genCode);
             codegenAppender.appendLine("return rowData");
             codegenAppender.appendSegment("}");
             codegenAppender.appendSegment("}");
 
             String printCode = codegenAppender.printWithLineNumber();
+            Files.write(new File("/tmp/printCode").toPath(), printCode.getBytes());
             LOG.debug("Protobuf decode codegen: \n" + printCode);
             Class generatedClass =
                     PbCodegenUtils.compileClass(
