@@ -339,6 +339,7 @@ string:
     table: STRING1.encode(STRING2)
     description: Encodes the string1 into a BINARY using the provided string2 character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.
   - sql: INSTR(string1, string2)
+    table: STRING1.instr(STRING2)
     description:  Returns the position of the first occurrence of string2 in string1. Returns NULL if any of arguments is NULL.
   - sql: LEFT(string, integer)
     table: STRING.LEFT(INT)
@@ -347,6 +348,7 @@ string:
     table: STRING.RIGHT(INT)
     description: Returns the rightmost integer characters from the string. Returns EMPTY String if integer is negative. Returns NULL if any argument is NULL.
   - sql: LOCATE(string1, string2[, integer])
+    table: STRING1.locate(STRING2[, INTEGER])
     description: Returns the position of the first occurrence of string1 in string2 after position integer. Returns 0 if not found. Returns NULL if any of arguments is NULL.
   - sql: PARSE_URL(string1, string2[, string3])
     description: |

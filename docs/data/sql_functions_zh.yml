@@ -432,6 +432,7 @@ string:
       使用提供的字符集（'US-ASCII'，'ISO-8859-1'，'UTF-8'，'UTF-16BE'，'UTF-16LE'，'UTF-16'）编码。
       如果任一参数为空，则结果也将为空。
   - sql: INSTR(string1, string2)
+    table: STRING1.instr(STRING2)
     description:  返回 string2 在 string1 中第一次出现的位置。如果有任一参数为 `NULL`，则返回 `NULL`。
   - sql: LEFT(string, integer)
     table: STRING.LEFT(INT)
@@ -444,6 +445,7 @@ string:
       返回字符串中最右边的长度为 integer 值的字符串。如果 integer 为负，则返回 `EMPTY` 字符串。如果有任一参数
       为 `NULL` 则返回 `NULL`。
   - sql: LOCATE(string1, string2[, integer])
+    table: STRING1.locate(STRING2[, INTEGER])
     description: |
       返回 string2 中 string1 在位置 integer 之后第一次出现的位置。未找到返回 0。如果有任一参数为 `NULL` 则返回 `NULL`。
   - sql: PARSE_URL(string1, string2[, string3])

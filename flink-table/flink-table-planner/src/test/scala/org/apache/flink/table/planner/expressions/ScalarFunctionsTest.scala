@@ -137,9 +137,9 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
     testSqlApi("locate('testx', 'xxxtest')", "0")
 
-    testSqlApi("locate('aa',  'aaads')", "1")
+    testAllApis("aa".locate("aaads"), "LOCATE('aa', 'aaads')", "1")
 
-    testSqlApi("locate('aa', 'aaads', 2)", "2")
+    testAllApis("aa".locate("aaads", 2), "LOCATE('aa', 'aaads', 2)", "2")
   }
 
   @Test
@@ -216,7 +216,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
     testSqlApi("instr('Tech on the net', 'e', -3, 2)", "2")
 
-    testSqlApi("instr('myteststring', 'st')", "5")
+    testAllApis("myteststring".instr("st"), "instr('myteststring', 'st')", "5")
 
     testSqlApi(
       "instr(cast (null AS VARCHAR), 'e')",
