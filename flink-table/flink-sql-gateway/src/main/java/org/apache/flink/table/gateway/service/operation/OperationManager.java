@@ -54,8 +54,8 @@ public class OperationManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(OperationManager.class);
 
-    /** The lock controls the visit of the {@link OperationManager}'s state. */
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    /** The lock that controls the visit of the {@link OperationManager}'s state. */
+    private final ReadWriteLock stateLock = new ReentrantReadWriteLock();
 
     private final Map<OperationHandle, Operation> submittedOperations;
     private final ExecutorService service;
@@ -166,7 +166,7 @@ public class OperationManager {
 
     /** Closes the {@link OperationManager} and all operations. */
     public void close() {
-        lock.writeLock().lock();
+        stateLock.writeLock().lock();
         try {
             isRunning = false;
             for (Operation operation : submittedOperations.values()) {
@@ -174,7 +174,7 @@ public class OperationManager {
             }
             submittedOperations.clear();
         } finally {
-            lock.writeLock().unlock();
+            stateLock.writeLock().unlock();
         }
         LOG.debug("Closes the Operation Manager.");
     }
@@ -251,7 +251,10 @@ public class OperationManager {
                 // If it is canceled or closed, terminate the invocation.
                 OperationStatus current = status.get();
                 if (current == OperationStatus.CLOSED || current == OperationStatus.CANCELED) {
-                    LOG.debug(String.format("Manually close the operation %s.", operationHandle));
+                    LOG.debug(
+                            String.format(
+                                    "The current status is %s after updating the operation %s status to %s. Close the resources.",
+                                    current, operationHandle, OperationStatus.PENDING));
                     closeResources();
                 }
             } catch (Throwable t) {
@@ -263,7 +266,7 @@ public class OperationManager {
                     // failed to submit to the thread pool and release the lock.
                     LOG.debug(
                             String.format(
-                                    "Release the operation lock: %s when failed to submit the operation to the pool.",
+                                    "Operation %s releases the operation lock when failed to submit the operation to the pool.",
                                     operationHandle));
                     operationLock.release();
                 }
@@ -326,9 +329,8 @@ public class OperationManager {
 
         private void closeResources() {
             if (invocation != null && !invocation.isDone()) {
-                boolean success = invocation.cancel(true);
-                LOG.debug(
-                        String.format("Cancel operation %s success: %s", operationHandle, success));
+                invocation.cancel(true);
+                LOG.debug(String.format("Cancel the operation %s.", operationHandle));
             }
 
             if (resultFetcher != null) {
@@ -374,26 +376,26 @@ public class OperationManager {
     }
 
     private void writeLock(Runnable runner) {
-        lock.writeLock().lock();
+        stateLock.writeLock().lock();
         try {
             if (!isRunning) {
                 throw new SqlGatewayException("The OperationManager is closed.");
             }
             runner.run();
         } finally {
-            lock.writeLock().unlock();
+            stateLock.writeLock().unlock();
         }
     }
 
     private <T> T readLock(Supplier<T> supplier) {
-        lock.readLock().lock();
+        stateLock.readLock().lock();
         try {
             if (!isRunning) {
                 throw new SqlGatewayException("The OperationManager is closed.");
             }
             return supplier.get();
         } finally {
-            lock.readLock().unlock();
+            stateLock.readLock().unlock();
         }
     }
 }
