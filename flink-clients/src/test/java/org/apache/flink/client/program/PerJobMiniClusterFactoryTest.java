@@ -105,6 +105,10 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
                         .submitJob(getCancellableJobGraph(), ClassLoader.getSystemClassLoader())
                         .get();
 
+        while (jobClient.getJobStatus().get() != JobStatus.RUNNING) {
+            Thread.sleep(50);
+        }
+
         assertThrows(
                 "is not a streaming job.",
                 ExecutionException.class,
