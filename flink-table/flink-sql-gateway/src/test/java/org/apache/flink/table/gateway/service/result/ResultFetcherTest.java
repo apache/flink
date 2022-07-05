@@ -178,20 +178,8 @@ public class ResultFetcherTest extends TestLogger {
                 () -> fetcher.getResultStore().getBufferedRecordSize() > 0,
                 Duration.ofSeconds(10),
                 "Failed to wait the buffer has data.");
-        List<RowData> firstFetch = fetcher.fetchResults(0, Integer.MAX_VALUE).getData();
-        for (int i = 0; i < fetchThreadNum; i++) {
-            threadFactory
-                    .newThread(
-                            () -> {
-                                ResultSet resultSet = fetcher.fetchResults(0, Integer.MAX_VALUE);
-
-                                if (!firstFetch.equals(resultSet.getData())) {
-                                    isEqual.set(false);
-                                }
-                                latch.countDown();
-                            })
-                    .start();
-        }
+        checkFetchResultInParallel(fetcher);
+    }
 
     @Test
     public void testFetchResultFromDummyStoreInParallel() throws Exception {
@@ -216,7 +204,8 @@ public class ResultFetcherTest extends TestLogger {
 
         long testToken = token;
         AtomicReference<Boolean> meetEnd = new AtomicReference<>(false);
-        new Thread(
+        threadFactory
+                .newThread(
                         () -> {
                             // Should meet EOS in the end.
                             long nextToken = testToken;
@@ -351,7 +340,8 @@ public class ResultFetcherTest extends TestLogger {
 
         List<RowData> firstFetch = fetcher.fetchResults(0, Integer.MAX_VALUE).getData();
         for (int i = 0; i < fetchThreadNum; i++) {
-            new Thread(
+            threadFactory
+                    .newThread(
                             () -> {
                                 ResultSet resultSet = fetcher.fetchResults(0, Integer.MAX_VALUE);
 
