@@ -21,16 +21,21 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.utils.CallContextMock;
 
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCount;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFMin;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver2;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFSum;
 import org.junit.Test;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -50,7 +55,7 @@ public class HiveGenericUDAFTest {
         udf.accumulate(acc, 3L);
         udf.accumulate(acc, 1L);
 
-        udf.merge(acc, Arrays.asList());
+        udf.merge(acc, Collections.emptyList());
 
         assertThat(udf.getValue(acc)).isEqualTo(1L);
     }
@@ -69,7 +74,7 @@ public class HiveGenericUDAFTest {
         udf.accumulate(acc, 0.3d);
         udf.accumulate(acc, 5.3d);
 
-        udf.merge(acc, Arrays.asList());
+        udf.merge(acc, Collections.emptyList());
 
         assertThat(udf.getValue(acc)).isEqualTo(6.1d);
 
@@ -85,7 +90,7 @@ public class HiveGenericUDAFTest {
         udf.accumulate(acc, BigDecimal.valueOf(3.222));
         udf.accumulate(acc, BigDecimal.valueOf(5.333));
 
-        udf.merge(acc, Arrays.asList());
+        udf.merge(acc, Collections.emptyList());
 
         assertThat(udf.getValue(acc)).isEqualTo(BigDecimal.valueOf(18.666));
     }
@@ -104,22 +109,29 @@ public class HiveGenericUDAFTest {
         udf.accumulate(acc, 0.3d);
         udf.accumulate(acc, 5.3d);
 
-        udf.merge(acc, Arrays.asList());
+        udf.merge(acc, Collections.emptyList());
 
         assertThat(udf.getValue(acc)).isEqualTo(3L);
     }
 
     private static HiveGenericUDAF init(
-            Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
-        HiveFunctionWrapper<GenericUDAFResolver2> wrapper =
-                new HiveFunctionWrapper(hiveUdfClass.getName());
+            Class<?> hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
+        HiveFunctionWrapper<GenericUDAFResolver> wrapper =
+                new HiveFunctionWrapper<>(hiveUdfClass.getName());
+
+        CallContextMock callContext = new CallContextMock();
+        callContext.argumentDataTypes = Arrays.asList(argTypes);
+        callContext.argumentValues =
+                Arrays.stream(constantArgs).map(Optional::ofNullable).collect(Collectors.toList());
+        callContext.argumentLiterals =
+                Arrays.stream(constantArgs).map(Objects::nonNull).collect(Collectors.toList());
 
         HiveGenericUDAF udf =
                 new HiveGenericUDAF(
                         wrapper, HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()));
 
-        udf.setArgumentTypesAndConstants(constantArgs, argTypes);
-        udf.getHiveResultType(constantArgs, argTypes);
+        udf.setArguments(callContext);
+        udf.inferReturnType();
 
         udf.open(null);
 

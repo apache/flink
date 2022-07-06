@@ -18,13 +18,11 @@
 
 package org.apache.flink.table.catalog.hive.factories;
 
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.connectors.hive.HiveTableFactory;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
-import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.functions.hive.HiveFunctionWrapper;
@@ -35,7 +33,6 @@ import org.apache.flink.table.functions.hive.HiveSimpleUDF;
 
 import org.apache.hadoop.hive.ql.exec.UDAF;
 import org.apache.hadoop.hive.ql.exec.UDF;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver2;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
@@ -76,7 +73,7 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
      */
     public FunctionDefinition createFunctionDefinitionFromHiveFunction(
             String name, String functionClassName) {
-        Class clazz;
+        Class<?> clazz;
         try {
             clazz = Thread.currentThread().getContextClassLoader().loadClass(functionClassName);
 
@@ -100,31 +97,21 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
             return new HiveGenericUDTF(new HiveFunctionWrapper<>(functionClassName), hiveShim);
         } else if (GenericUDAFResolver2.class.isAssignableFrom(clazz)
                 || UDAF.class.isAssignableFrom(clazz)) {
-            HiveGenericUDAF udaf;
 
             if (GenericUDAFResolver2.class.isAssignableFrom(clazz)) {
                 LOG.info(
                         "Transforming Hive function '{}' into a HiveGenericUDAF without UDAF bridging",
                         name);
-
-                udaf =
-                        new HiveGenericUDAF(
-                                new HiveFunctionWrapper<>(functionClassName), false, hiveShim);
+                return new HiveGenericUDAF(
+                        new HiveFunctionWrapper<>(functionClassName), false, hiveShim);
             } else {
                 LOG.info(
                         "Transforming Hive function '{}' into a HiveGenericUDAF with UDAF bridging",
                         name);
 
-                udaf =
-                        new HiveGenericUDAF(
-                                new HiveFunctionWrapper<>(functionClassName), true, hiveShim);
+                return new HiveGenericUDAF(
+                        new HiveFunctionWrapper<>(functionClassName), true, hiveShim);
             }
-
-            return new AggregateFunctionDefinition(
-                    name,
-                    udaf,
-                    GenericTypeInfo.of(Object.class),
-                    GenericTypeInfo.of(GenericUDAFEvaluator.AggregationBuffer.class));
         } else {
             throw new IllegalArgumentException(
                     String.format(

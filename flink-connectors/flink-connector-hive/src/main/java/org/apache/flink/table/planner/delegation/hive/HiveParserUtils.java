@@ -45,11 +45,9 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserUnparseTran
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
-import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
-import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import org.antlr.runtime.CommonToken;
@@ -58,6 +56,7 @@ import org.antlr.runtime.tree.Tree;
 import org.antlr.runtime.tree.TreeVisitor;
 import org.antlr.runtime.tree.TreeVisitorAction;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
@@ -90,6 +89,7 @@ import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlNameMatchers;
 import org.apache.calcite.sql.validate.SqlUserDefinedTableFunction;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
@@ -622,11 +622,11 @@ public class HiveParserUtils {
             // this happens for temp functions
             SqlOperator sqlOperator =
                     getSqlOperator(aggName, opTable, SqlFunctionCategory.USER_DEFINED_FUNCTION);
-            if (sqlOperator instanceof HiveAggSqlFunction) {
+            if (sqlOperator instanceof BridgingSqlAggFunction
+                    && ((BridgingSqlAggFunction) sqlOperator).getDefinition()
+                            instanceof HiveGenericUDAF) {
                 HiveGenericUDAF hiveGenericUDAF =
-                        (HiveGenericUDAF)
-                                ((HiveAggSqlFunction) sqlOperator)
-                                        .makeFunction(new Object[0], new LogicalType[0]);
+                        (HiveGenericUDAF) ((BridgingSqlAggFunction) sqlOperator).getDefinition();
                 result =
                         hiveGenericUDAF.createEvaluator(
                                 originalParameterTypeInfos.toArray(new ObjectInspector[0]));
@@ -923,7 +923,7 @@ public class HiveParserUtils {
         HiveParserOperatorBinding operatorBinding =
                 new HiveParserOperatorBinding(dataTypeFactory, sqlOperator, types, operands);
         if (sqlOperator instanceof BridgingSqlFunction
-                || sqlOperator instanceof HiveAggSqlFunction) {
+                || sqlOperator instanceof BridgingSqlAggFunction) {
             SqlReturnTypeInference returnTypeInference = sqlOperator.getReturnTypeInference();
             return returnTypeInference.inferReturnType(operatorBinding);
         } else {
@@ -1533,11 +1533,40 @@ public class HiveParserUtils {
                     res[i] =
                             getOperandLiteralValue(
                                     i,
-                                    ClassLogicalTypeConverter.getDefaultExternalClassForType(
-                                            FlinkTypeFactory.toLogicalType(getOperandType(i))));
+                                    FlinkTypeFactory.toLogicalType(getOperandType(i))
+                                            .getDefaultConversion());
                 }
             }
             return res;
+        }
+    }
+
+    /** A bit both of HiveParserOperatorBinding and AggCallBinding . */
+    private static class HiveParserAggOperatorBinding extends HiveParserOperatorBinding {
+
+        private final int groupCount;
+        private final boolean filter;
+
+        protected HiveParserAggOperatorBinding(
+                RelDataTypeFactory typeFactory,
+                SqlOperator operator,
+                List<RelDataType> types,
+                List<RexNode> operands,
+                int groupCount,
+                boolean filter) {
+            super(typeFactory, operator, types, operands);
+            this.groupCount = groupCount;
+            this.filter = filter;
+        }
+
+        @Override
+        public int getGroupCount() {
+            return groupCount;
+        }
+
+        @Override
+        public boolean hasFilter() {
+            return filter;
         }
     }
 
@@ -1560,11 +1589,12 @@ public class HiveParserUtils {
         List<Integer> argIndices = new ArrayList<>();
         RelDataTypeFactory typeFactory = cluster.getTypeFactory();
         List<RelDataType> calciteArgTypes = new ArrayList<>();
+        List<RexNode> operands = new ArrayList<>();
         for (ExprNodeDesc expr : aggInfo.getAggParams()) {
             RexNode paramRex = converter.convert(expr).accept(funcConverter);
             Integer argIndex = Preconditions.checkNotNull(rexNodeToPos.get(paramRex.toString()));
             argIndices.add(argIndex);
-
+            operands.add(paramRex);
             // TODO: does arg need type cast?
             calciteArgTypes.add(HiveParserUtils.toRelDataType(expr.getTypeInfo(), typeFactory));
         }
@@ -1581,7 +1611,7 @@ public class HiveParserUtils {
         if (aggInfo.isAllColumns() && argIndices.isEmpty()) {
             type = aggFnRetType;
         }
-        return AggregateCall.create(
+        return createAggregateCall(
                 (SqlAggFunction) funcConverter.convertOperator(aggFunc),
                 aggInfo.isDistinct(),
                 false,
@@ -1592,7 +1622,8 @@ public class HiveParserUtils {
                 groupCount,
                 input,
                 type,
-                aggInfo.getAlias());
+                aggInfo.getAlias(),
+                operands);
     }
 
     private static String getText(HiveParserASTNode tree) {
@@ -1600,5 +1631,43 @@ public class HiveParserUtils {
             return tree.getText();
         }
         return getText((HiveParserASTNode) tree.getChild(tree.getChildCount() - 1));
+    }
+
+    /**
+     * Counterpart of org.apache.calcite.rel.core.AggregateCall#create. It uses
+     * HiveParserOperatorBinding as SqlOperatorBinding to create AggregateCall instead, which
+     * enables to get literal value for operand.
+     */
+    private static AggregateCall createAggregateCall(
+            SqlAggFunction aggFunction,
+            boolean distinct,
+            boolean approximate,
+            boolean ignoreNulls,
+            List<Integer> argList,
+            int filterArg,
+            RelCollation collation,
+            int groupCount,
+            RelNode input,
+            RelDataType type,
+            String name,
+            List<RexNode> operands) {
+        if (type == null) {
+            final RelDataTypeFactory typeFactory = input.getCluster().getTypeFactory();
+            final List<RelDataType> types = SqlTypeUtil.projectTypes(input.getRowType(), argList);
+            final HiveParserOperatorBinding callBinding =
+                    new HiveParserAggOperatorBinding(
+                            typeFactory, aggFunction, types, operands, groupCount, filterArg >= 0);
+            type = aggFunction.inferReturnType(callBinding);
+        }
+        return AggregateCall.create(
+                aggFunction,
+                distinct,
+                approximate,
+                ignoreNulls,
+                argList,
+                filterArg,
+                collation,
+                type,
+                name);
     }
 }
