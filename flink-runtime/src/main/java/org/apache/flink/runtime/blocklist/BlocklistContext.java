@@ -33,7 +33,7 @@ public interface BlocklistContext {
     /**
      * Unblock resources on the nodes.
      *
-     * @param unBlockedNodes the nodes to unblock resources
+     * @param unblockedNodes the nodes to unblock resources
      */
-    void unblockResources(Collection<BlockedNode> unBlockedNodes);
+    void unblockResources(Collection<BlockedNode> unblockedNodes);
 }

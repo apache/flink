@@ -86,15 +86,15 @@ class DefaultBlocklistHandlerTest {
 
             handler.addNewBlockedNodes(Arrays.asList(node1, node2));
             assertThat(handler.getAllBlockedNodeIds()).hasSize(2);
-            assertThat(context.allUnBlockedNodes).hasSize(0);
+            assertThat(context.allUnblockedNodes).hasSize(0);
 
             // wait node1 timeout
             CommonTestUtils.waitUntilCondition(() -> handler.getAllBlockedNodeIds().size() == 1);
-            assertThat(context.allUnBlockedNodes).containsExactly(node1);
+            assertThat(context.allUnblockedNodes).containsExactly(node1);
 
             // wait node2 timeout
             CommonTestUtils.waitUntilCondition(() -> handler.getAllBlockedNodeIds().size() == 0);
-            assertThat(context.allUnBlockedNodes).containsExactly(node1, node2);
+            assertThat(context.allUnblockedNodes).containsExactly(node1, node2);
         }
     }
 
@@ -158,7 +158,7 @@ class DefaultBlocklistHandlerTest {
     private static class TestBlocklistContext implements BlocklistContext {
         private final List<BlockedNode> allBlockedNodes = new ArrayList<>();
 
-        private final List<BlockedNode> allUnBlockedNodes = new ArrayList<>();
+        private final List<BlockedNode> allUnblockedNodes = new ArrayList<>();
 
         @Override
         public void blockResources(Collection<BlockedNode> blockedNodes) {
@@ -166,8 +166,8 @@ class DefaultBlocklistHandlerTest {
         }
 
         @Override
-        public void unblockResources(Collection<BlockedNode> unBlockedNodes) {
-            allUnBlockedNodes.addAll(unBlockedNodes);
+        public void unblockResources(Collection<BlockedNode> unblockedNodes) {
+            allUnblockedNodes.addAll(unblockedNodes);
         }
     }
 }
