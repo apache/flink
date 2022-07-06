@@ -38,7 +38,7 @@ public interface DelegationTokenManager {
      * Creates a re-occurring task which obtains new tokens and automatically distributes them to
      * task managers.
      */
-    void start() throws Exception;
+    void start(DelegationTokenListener delegationTokenListener) throws Exception;
 
     /** Stops re-occurring token obtain task. */
     void stop();

@@ -18,31 +18,14 @@
 
 package org.apache.flink.runtime.security.token;
 
-import org.apache.hadoop.security.Credentials;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+/**
+ * Listener for delegation tokens state changes in the {@link DelegationTokenManager}.
+ *
+ * <p>By registering it in the manager one can receive callbacks when events are happening related
+ * to delegation tokens.
+ */
+public interface DelegationTokenListener {
 
-/** {@link DelegationTokenManager} implementation which does nothing. */
-public class NoOpDelegationTokenManager implements DelegationTokenManager {
-
-    private static final Logger LOG = LoggerFactory.getLogger(NoOpDelegationTokenManager.class);
-
-    public NoOpDelegationTokenManager() {
-        LOG.debug("NoOpDelegationTokenManager");
-    }
-
-    @Override
-    public void obtainDelegationTokens(Credentials credentials) {
-        LOG.debug("obtainDelegationTokens");
-    }
-
-    @Override
-    public void start(DelegationTokenListener delegationTokenListener) {
-        LOG.debug("start");
-    }
-
-    @Override
-    public void stop() {
-        LOG.debug("stop");
-    }
+    /** Callback function when new delegation tokens obtained. */
+    void onNewTokensObtained(byte[] tokens) throws Exception;
 }
