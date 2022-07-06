@@ -59,7 +59,9 @@ class DataGenTableSourceFactoryTest {
                     Column.physical("f0", DataTypes.STRING()),
                     Column.physical("f1", DataTypes.BIGINT()),
                     Column.physical("f2", DataTypes.BIGINT()),
-                    Column.physical("f3", DataTypes.TIMESTAMP()));
+                    Column.physical("f3", DataTypes.TIMESTAMP()),
+                    Column.physical("f4", DataTypes.BINARY(2)),
+                    Column.physical("f5", DataTypes.VARBINARY(4)));
 
     @Test
     void testDataTypeCoverage() throws Exception {
@@ -94,7 +96,10 @@ class DataGenTableSourceFactoryTest {
                                                 "c",
                                                 DataTypes.ROW(
                                                         DataTypes.FIELD(
-                                                                "d", DataTypes.TIMESTAMP()))))));
+                                                                "d", DataTypes.TIMESTAMP()))))),
+                        Column.physical("f21", DataTypes.BINARY(2)),
+                        Column.physical("f22", DataTypes.BYTES()),
+                        Column.physical("f23", DataTypes.VARBINARY(4)));
 
         DescriptorProperties descriptor = new DescriptorProperties();
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
@@ -165,6 +170,20 @@ class DataGenTableSourceFactoryTest {
                 DataGenConnectorOptionsUtil.FIELDS + ".f3." + DataGenConnectorOptionsUtil.MAX_PAST,
                 "5s");
 
+        descriptor.putString(
+                DataGenConnectorOptionsUtil.FIELDS + ".f4." + DataGenConnectorOptionsUtil.KIND,
+                DataGenConnectorOptionsUtil.RANDOM);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f4." + DataGenConnectorOptionsUtil.LENGTH,
+                2);
+        descriptor.putString(
+                DataGenConnectorOptionsUtil.FIELDS + ".f5." + DataGenConnectorOptionsUtil.KIND,
+                DataGenConnectorOptionsUtil.SEQUENCE);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f5." + DataGenConnectorOptionsUtil.START, 1);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f5." + DataGenConnectorOptionsUtil.END, 11);
+
         final long begin = System.currentTimeMillis();
         List<RowData> results = runGenerator(SCHEMA, descriptor);
         final long end = System.currentTimeMillis();
@@ -176,6 +195,10 @@ class DataGenTableSourceFactoryTest {
             assertThat(row.getLong(1)).isBetween(10L, 100L);
             assertThat(row.getLong(2)).isEqualTo(i + 50);
             assertThat(row.getTimestamp(3, 3).getMillisecond()).isBetween(begin - 5000, end);
+            assertThat(row.getBinary(4).length).isEqualTo(2);
+            // f5 is sequence bytes produced in sequence long [1, 11]
+            assertThat(row.getBinary(5).length).isEqualTo(8);
+            assertThat(row.getBinary(5)[row.getBinary(5).length - 1]).isEqualTo((byte) (i + 1));
         }
     }
 
