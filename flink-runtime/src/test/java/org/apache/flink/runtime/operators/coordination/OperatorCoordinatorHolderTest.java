@@ -27,6 +27,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.EventReceivingTasks.EventWithSubtask;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -36,6 +37,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -441,6 +443,26 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         // The checkpoint would be finally confirmed.
         assertTrue(checkpointResult.isCompletedExceptionally());
     }
+
+    @Test
+    public void testFailJobWhenExceptionThrownFromStartingOperatorCoordinatorHolder()
+            throws Exception {
+        Function<OperatorCoordinator.Context, OperatorCoordinator> coordinatorProvider =
+                context ->
+                        new TestingOperatorCoordinator(context) {
+                            @Override
+                            public void start() {
+                                throw new RuntimeException("Artificial Exception");
+                            }
+                        };
+        final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
+        final OperatorCoordinatorHolder holder =
+                createCoordinatorHolder(tasks, coordinatorProvider);
+
+        assertNotNull(globalFailure);
+        globalFailure = null;
+    }
+
 
     // ------------------------------------------------------------------------
     //   test actions
