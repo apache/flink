@@ -119,6 +119,12 @@ class StreamFormat(object):
         return StreamFormat(j_stream_format)
 
 
+class BulkFormat(object):
+
+    def __init__(self, j_bulk_format):
+        self._j_bulk_format = j_bulk_format
+
+
 class FileSourceBuilder(object):
     """
     The builder for the :class:`~pyflink.datastream.connectors.FileSource`, to configure the
@@ -264,6 +270,14 @@ class FileSource(Source):
         j_paths = to_jarray(JPath, [JPath(p) for p in paths])
         return FileSourceBuilder(
             JFileSource.forRecordStreamFormat(stream_format._j_stream_format, j_paths))
+
+    @staticmethod
+    def for_bulk_file_format(bulk_format: BulkFormat, *paths: str) -> FileSourceBuilder:
+        JPath = get_gateway().jvm.org.apache.flink.core.fs.Path
+        JFileSource = get_gateway().jvm.org.apache.flink.connector.file.src.FileSource
+        j_paths = to_jarray(JPath, [JPath(p) for p in paths])
+        return FileSourceBuilder(
+            JFileSource.forBulkFileFormat(bulk_format._j_bulk_format, j_paths))
 
 
 # ---- FileSink ----
