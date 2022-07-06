@@ -28,7 +28,7 @@ package org.apache.flink.util;
  */
 public class DockerImageVersions {
 
-    public static final String KAFKA = "confluentinc/cp-kafka:6.2.2";
+    public static final String KAFKA = "confluentinc/cp-kafka:7.2.2";
 
     public static final String RABBITMQ = "rabbitmq:3.9.8-management-alpine";
 

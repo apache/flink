@@ -33,7 +33,7 @@ under the License.
 
 	<properties>
 		<kafka.version>3.2.3</kafka.version>
-		<confluent.version>6.2.2</confluent.version>
+		<confluent.version>7.2.2</confluent.version>
 	</properties>
 
 	<repositories>
