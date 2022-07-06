@@ -48,7 +48,7 @@ public class SqlGatewayEndpointFactoryUtilsTest {
                 createSqlGatewayEndpoint(
                         new MockedSqlGatewayService(), Configuration.fromMap(config));
         MockedSqlGatewayEndpoint expectedMocked =
-                new MockedSqlGatewayEndpoint("localhost", 9999, null);
+                new MockedSqlGatewayEndpoint("localhost", 9999, "Hello World.");
         assertEquals(
                 new HashSet<>(Arrays.asList(expectedMocked, FakeSqlGatewayEndpoint.INSTANCE)),
                 new HashSet<>(actual));

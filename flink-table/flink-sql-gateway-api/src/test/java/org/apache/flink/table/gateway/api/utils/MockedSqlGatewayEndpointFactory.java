@@ -47,7 +47,7 @@ public class MockedSqlGatewayEndpointFactory implements SqlGatewayEndpointFactor
         return new MockedSqlGatewayEndpoint(
                 helper.getOptions().get(HOST),
                 helper.getOptions().get(PORT),
-                helper.getOptions().getOptional(DESCRIPTION).orElse(null));
+                helper.getOptions().get(DESCRIPTION));
     }
 
     @Override
