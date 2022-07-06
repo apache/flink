@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util.flink;
+package org.apache.flink.test.util;
 
 import org.apache.flink.util.Preconditions;
 

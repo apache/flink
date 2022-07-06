@@ -17,12 +17,12 @@
 
 package org.apache.flink.tests.scala;
 
+import org.apache.flink.test.util.JobSubmission;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.JarLocation;
-import org.apache.flink.tests.util.flink.JobSubmission;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 

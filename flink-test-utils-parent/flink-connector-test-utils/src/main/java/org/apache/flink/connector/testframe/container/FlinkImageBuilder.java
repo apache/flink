@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util.flink.container;
+package org.apache.flink.connector.testframe.container;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.tests.util.util.FileUtils;
+import org.apache.flink.test.util.FileUtils;
 
 import com.github.dockerjava.api.exception.NotFoundException;
 import org.slf4j.Logger;

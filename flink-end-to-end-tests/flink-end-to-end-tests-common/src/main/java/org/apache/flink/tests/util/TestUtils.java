@@ -18,7 +18,7 @@
 
 package org.apache.flink.tests.util;
 
-import org.apache.flink.tests.util.parameters.ParameterProperty;
+import org.apache.flink.test.parameters.ParameterProperty;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;

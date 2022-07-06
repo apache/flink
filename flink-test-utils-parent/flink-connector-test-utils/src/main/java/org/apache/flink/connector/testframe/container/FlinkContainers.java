@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util.flink.container;
+package org.apache.flink.connector.testframe.container;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.deployment.StandaloneClusterId;
@@ -30,8 +30,8 @@ import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWith
 import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.tests.util.flink.JobSubmission;
-import org.apache.flink.tests.util.flink.SQLJobSubmission;
+import org.apache.flink.test.util.JobSubmission;
+import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;

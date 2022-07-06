@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util.util;
+package org.apache.flink.test.util;
 
-import org.apache.flink.tests.util.parameters.ParameterProperty;
+import org.apache.flink.test.parameters.ParameterProperty;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

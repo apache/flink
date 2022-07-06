@@ -18,6 +18,8 @@
 
 package org.apache.flink.tests.util.flink;
 
+import org.apache.flink.test.util.JobSubmission;
+import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.util.AutoCloseableAsync;
 
 import java.io.IOException;
