@@ -16,11 +16,11 @@
 # limitations under the License.
 ################################################################################
 from .avro import AvroSchema, AvroInputFormat
-from .parquet import AvroParquetReaders
-
+from .parquet import AvroParquetReaders, ParquetColumnarRowInputFormat
 
 __all__ = [
     'AvroInputFormat',
     'AvroParquetReaders',
-    'AvroSchema'
+    'AvroSchema',
+    'ParquetColumnarRowInputFormat'
 ]

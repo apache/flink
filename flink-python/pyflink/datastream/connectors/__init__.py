@@ -22,7 +22,7 @@ from pyflink.datastream.connectors.file_system import (FileEnumeratorProvider, F
                                                        BucketAssigner, FileSourceBuilder,
                                                        FileSplitAssignerProvider, OutputFileConfig,
                                                        RollingPolicy,
-                                                       StreamFormat, StreamingFileSink)
+                                                       StreamFormat, StreamingFileSink, BulkFormat)
 from pyflink.datastream.connectors.jdbc import JdbcSink, JdbcConnectionOptions, JdbcExecutionOptions
 from pyflink.datastream.connectors.kafka import (FlinkKafkaConsumer, FlinkKafkaProducer, Semantic,
                                                  KafkaSource)
@@ -70,6 +70,7 @@ __all__ = [
     'RollingPolicy',
     'StartCursor',
     'StopCursor',
+    'BulkFormat',
     'StreamFormat',
     'StreamingFileSink',
     'FlinkKinesisConsumer',

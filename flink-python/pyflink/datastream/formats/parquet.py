@@ -15,9 +15,11 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.datastream.connectors.file_system import StreamFormat
+from pyflink.common import Configuration
+from pyflink.datastream.connectors.file_system import StreamFormat, BulkFormat
 from pyflink.datastream.formats.avro import AvroSchema
 from pyflink.java_gateway import get_gateway
+from pyflink.table.types import RowType, _to_java_data_type
 
 
 class AvroParquetReaders(object):
@@ -46,7 +48,7 @@ class AvroParquetReaders(object):
             >>> schema = AvroSchema.parse_string(JSON_SCHEMA)
             >>> source = FileSource.for_record_stream_format(
             ...     AvroParquetReaders.for_generic_record(schema),
-            ...     FILE_PATH
+            ...     PARQUET_FILE_PATH
             ... ).build()
             >>> ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "parquet-source")
 
@@ -56,3 +58,49 @@ class AvroParquetReaders(object):
         jvm = get_gateway().jvm
         JAvroParquetReaders = jvm.org.apache.flink.formats.parquet.avro.AvroParquetReaders
         return StreamFormat(JAvroParquetReaders.forGenericRecord(schema._j_schema))
+
+
+class ParquetColumnarRowInputFormat(BulkFormat):
+    """
+    A ParquetVectorizedInputFormat to provide :class:`RowData` iterator. Using ColumnarRowData to
+    provide a row view of column batch. Only **primitive** types are supported for a column,
+    composite types such as array, map are not supported.
+
+    Example:
+    ::
+
+        >>> row_type = DataTypes.ROW([
+        ...     DataTypes.FIELD('a', DataTypes.INT()),
+        ...     DataTypes.FIELD('b', DataTypes.STRING()),
+        ... ])
+        >>> source = FileSource.for_bulk_file_format(ParquetColumnarRowInputFormat(
+        ...     hadoop_config=Configuration(),
+        ...     row_type=row_type,
+        ...     batch_size=500,
+        ...     is_utc_timestamp=True,
+        ...     is_case_sensitive=True,
+        ... ), PARQUET_FILE_PATH).build()
+        >>> ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "parquet-source")
+
+    .. versionadded:: 1.16.0
+    """
+
+    def __init__(self, hadoop_config: Configuration, row_type: RowType, batch_size: int,
+                 is_utc_timestamp: bool, is_case_sensitive: bool):
+        jvm = get_gateway().jvm
+        j_row_type = _to_java_data_type(row_type).getLogicalType()
+        produced_type_info = jvm.org.apache.flink.table.runtime.typeutils. \
+            InternalTypeInfo.of(j_row_type)
+        j_parquet_columnar_format = jvm.org.apache.flink.formats.parquet. \
+            ParquetColumnarRowInputFormat(self._create_hadoop_configuration(hadoop_config),
+                                          j_row_type, produced_type_info, batch_size,
+                                          is_utc_timestamp, is_case_sensitive)
+        super().__init__(j_parquet_columnar_format)
+
+    @staticmethod
+    def _create_hadoop_configuration(config: Configuration):
+        jvm = get_gateway().jvm
+        hadoop_config = jvm.org.apache.hadoop.conf.Configuration()
+        for k, v in config.to_dict().items():
+            hadoop_config.set(k, v)
+        return hadoop_config

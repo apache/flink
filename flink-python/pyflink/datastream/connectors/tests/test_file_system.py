@@ -22,14 +22,56 @@ from typing import Tuple, List
 
 from py4j.java_gateway import java_import, JavaObject
 
+from pyflink.common import Configuration
 from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream.functions import MapFunction
 from pyflink.datastream.connectors.file_system import FileSource
 from pyflink.datastream.formats.avro import AvroSchema, AvroInputFormat
-from pyflink.datastream.formats.parquet import AvroParquetReaders
+from pyflink.datastream.formats.parquet import AvroParquetReaders, ParquetColumnarRowInputFormat
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
+from pyflink.table.types import RowType, DataTypes
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
+
+
+@unittest.skipIf(os.environ.get('HADOOP_CLASSPATH') is None,
+                 'Some Hadoop lib is needed for Parquet Columnar format tests')
+class FileSourceParquetColumnarFormatTests(PyFlinkStreamingTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.test_sink = DataStreamTestSinkFunction()
+        _import_avro_classes()
+
+    def test_parquet_columnar_basic(self):
+        parquet_file_name = tempfile.mktemp(suffix='.parquet', dir=self.tempdir)
+        schema, records = _create_basic_avro_schema_and_records()
+        FileSourceParquetAvroFormatTests._create_parquet_avro_file(
+            parquet_file_name, schema, records)
+        row_type = DataTypes.ROW([
+            DataTypes.FIELD('null', DataTypes.STRING()),  # DataTypes.NULL cannot be serialized
+            DataTypes.FIELD('boolean', DataTypes.BOOLEAN()),
+            DataTypes.FIELD('int', DataTypes.INT()),
+            DataTypes.FIELD('long', DataTypes.BIGINT()),
+            DataTypes.FIELD('float', DataTypes.FLOAT()),
+            DataTypes.FIELD('double', DataTypes.DOUBLE()),
+            DataTypes.FIELD('string', DataTypes.STRING()),
+            DataTypes.FIELD('unknown', DataTypes.STRING())
+        ])
+        self._build_parquet_columnar_job(row_type, parquet_file_name)
+        self.env.execute('test_parquet_columnar_basic')
+        results = self.test_sink.get_results(True, False)
+        _check_basic_avro_schema_results(self, results)
+        self.assertIsNone(results[0]['unknown'])
+        self.assertIsNone(results[1]['unknown'])
+
+    def _build_parquet_columnar_job(self, row_type: RowType, parquet_file_name: str):
+        source = FileSource.for_bulk_file_format(
+            ParquetColumnarRowInputFormat(Configuration(), row_type, 10, True, True),
+            parquet_file_name
+        ).build()
+        ds = self.env.from_source(source, WatermarkStrategy.no_watermarks(), 'parquet-source')
+        ds.map(PassThroughMapFunction()).add_sink(self.test_sink)
 
 
 @unittest.skipIf(os.environ.get('HADOOP_CLASSPATH') is None,
@@ -41,52 +83,52 @@ class FileSourceParquetAvroFormatTests(PyFlinkStreamingTestCase):
         self.test_sink = DataStreamTestSinkFunction()
         _import_avro_classes()
 
-    def test_avro_parquet_basic(self):
+    def test_parquet_avro_basic(self):
         parquet_file_name = tempfile.mktemp(suffix='.parquet', dir=self.tempdir)
         schema, records = _create_basic_avro_schema_and_records()
-        self._create_avro_parquet_file(parquet_file_name, schema, records)
-        self._build_avro_parquet_job(schema, parquet_file_name)
-        self.env.execute("test_avro_parquet_basic")
+        self._create_parquet_avro_file(parquet_file_name, schema, records)
+        self._build_parquet_avro_job(schema, parquet_file_name)
+        self.env.execute("test_parquet_avro_basic")
         results = self.test_sink.get_results(True, False)
         _check_basic_avro_schema_results(self, results)
 
-    def test_avro_parquet_enum(self):
+    def test_parquet_avro_enum(self):
         parquet_file_name = tempfile.mktemp(suffix='.parquet', dir=self.tempdir)
         schema, records = _create_enum_avro_schema_and_records()
-        self._create_avro_parquet_file(parquet_file_name, schema, records)
-        self._build_avro_parquet_job(schema, parquet_file_name)
-        self.env.execute("test_avro_record_enum")
+        self._create_parquet_avro_file(parquet_file_name, schema, records)
+        self._build_parquet_avro_job(schema, parquet_file_name)
+        self.env.execute("test_parquet_avro_enum")
         results = self.test_sink.get_results(True, False)
         _check_enum_avro_schema_results(self, results)
 
-    def test_avro_parquet_union(self):
+    def test_parquet_avro_union(self):
         parquet_file_name = tempfile.mktemp(suffix='.parquet', dir=self.tempdir)
         schema, records = _create_union_avro_schema_and_records()
-        self._create_avro_parquet_file(parquet_file_name, schema, records)
-        self._build_avro_parquet_job(schema, parquet_file_name)
-        self.env.execute("test_avro_record_union")
+        self._create_parquet_avro_file(parquet_file_name, schema, records)
+        self._build_parquet_avro_job(schema, parquet_file_name)
+        self.env.execute("test_parquet_avro_union")
         results = self.test_sink.get_results(True, False)
         _check_union_avro_schema_results(self, results)
 
-    def test_avro_parquet_array(self):
+    def test_parquet_avro_array(self):
         parquet_file_name = tempfile.mktemp(suffix='.parquet', dir=self.tempdir)
         schema, records = _create_array_avro_schema_and_records()
-        self._create_avro_parquet_file(parquet_file_name, schema, records)
-        self._build_avro_parquet_job(schema, parquet_file_name)
-        self.env.execute("test_avro_record_array")
+        self._create_parquet_avro_file(parquet_file_name, schema, records)
+        self._build_parquet_avro_job(schema, parquet_file_name)
+        self.env.execute("test_parquet_avro_array")
         results = self.test_sink.get_results(True, False)
         _check_array_avro_schema_results(self, results)
 
-    def test_avro_parquet_map(self):
+    def test_parquet_avro_map(self):
         parquet_file_name = tempfile.mktemp(suffix='.parquet', dir=self.tempdir)
         schema, records = _create_map_avro_schema_and_records()
-        self._create_avro_parquet_file(parquet_file_name, schema, records)
-        self._build_avro_parquet_job(schema, parquet_file_name)
-        self.env.execute("test_avro_record_map")
+        self._create_parquet_avro_file(parquet_file_name, schema, records)
+        self._build_parquet_avro_job(schema, parquet_file_name)
+        self.env.execute("test_parquet_avro_map")
         results = self.test_sink.get_results(True, False)
         _check_map_avro_schema_results(self, results)
 
-    def _build_avro_parquet_job(self, record_schema, parquet_file_name):
+    def _build_parquet_avro_job(self, record_schema, parquet_file_name):
         ds = self.env.from_source(
             FileSource.for_record_stream_format(
                 AvroParquetReaders.for_generic_record(record_schema),
@@ -98,7 +140,7 @@ class FileSourceParquetAvroFormatTests(PyFlinkStreamingTestCase):
         ds.map(PassThroughMapFunction()).add_sink(self.test_sink)
 
     @staticmethod
-    def _create_avro_parquet_file(file_path: str, schema: AvroSchema, records: list):
+    def _create_parquet_avro_file(file_path: str, schema: AvroSchema, records: list):
         jvm = get_gateway().jvm
         j_path = jvm.org.apache.flink.core.fs.Path(file_path)
         writer = jvm.org.apache.flink.formats.parquet.avro.AvroParquetWriters \

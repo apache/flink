@@ -63,12 +63,16 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
 import org.apache.flink.table.runtime.typeutils.ExternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -211,6 +215,15 @@ public class PythonTypeUtils {
                         userClassLoader);
             }
 
+            if (typeInformation instanceof InternalTypeInfo) {
+                LogicalTypeRoot logicalTypeRoot =
+                        ((InternalTypeInfo<?>) typeInformation).toLogicalType().getTypeRoot();
+                if (logicalTypeRoot.equals(LogicalTypeRoot.ROW)) {
+                    return buildRowDataTypeProto(
+                            (InternalTypeInfo<?>) typeInformation, userClassLoader);
+                }
+            }
+
             if (typeInformation
                     .getClass()
                     .getCanonicalName()
@@ -317,6 +330,34 @@ public class PythonTypeUtils {
 
             return FlinkFnApi.TypeInfo.newBuilder()
                     .setTypeName(getTypeName(rowTypeInfo))
+                    .setRowTypeInfo(rowTypeInfoBuilder.build())
+                    .build();
+        }
+
+        private static FlinkFnApi.TypeInfo buildRowDataTypeProto(
+                InternalTypeInfo<?> internalTypeInfo, ClassLoader userClassLoader) {
+            RowType rowType = internalTypeInfo.toRowType();
+            FlinkFnApi.TypeInfo.RowTypeInfo.Builder rowTypeInfoBuilder =
+                    FlinkFnApi.TypeInfo.RowTypeInfo.newBuilder();
+
+            int arity = rowType.getFieldCount();
+            for (int index = 0; index < arity; index++) {
+                rowTypeInfoBuilder.addFields(
+                        FlinkFnApi.TypeInfo.RowTypeInfo.Field.newBuilder()
+                                .setFieldName(rowType.getFieldNames().get(index))
+                                .setFieldType(
+                                        toTypeInfoProto(
+                                                ExternalTypeInfo.of(
+                                                        TypeConversions.fromLogicalToDataType(
+                                                                rowType.getFields()
+                                                                        .get(index)
+                                                                        .getType())),
+                                                userClassLoader))
+                                .build());
+            }
+
+            return FlinkFnApi.TypeInfo.newBuilder()
+                    .setTypeName(FlinkFnApi.TypeInfo.TypeName.ROW)
                     .setRowTypeInfo(rowTypeInfoBuilder.build())
                     .build();
         }
@@ -624,6 +665,19 @@ public class PythonTypeUtils {
                             typeInfoSerializerConverter(
                                     LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
                                             ((ExternalTypeInfo<?>) typeInformation).getDataType()));
+                }
+
+                if (typeInformation instanceof InternalTypeInfo) {
+                    LogicalTypeRoot logicalTypeRoot =
+                            ((InternalTypeInfo<?>) typeInformation)
+                                    .getDataType()
+                                    .getLogicalType()
+                                    .getTypeRoot();
+                    if (logicalTypeRoot.equals(LogicalTypeRoot.ROW)) {
+                        return org.apache.flink.table.runtime.typeutils.PythonTypeUtils
+                                .toInternalSerializer(
+                                        ((InternalTypeInfo<?>) typeInformation).toRowType());
+                    }
                 }
 
                 if (typeInformation

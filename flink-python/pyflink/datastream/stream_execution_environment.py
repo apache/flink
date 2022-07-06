@@ -34,7 +34,6 @@ from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.connectors import Source
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
-from pyflink.datastream.formats.base import InputFormat
 from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.state_backend import _from_j_state_backend, StateBackend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
@@ -835,7 +834,7 @@ class StreamExecutionEnvironment(object):
 
         return StreamExecutionEnvironment(j_stream_exection_environment)
 
-    def create_input(self, input_format: InputFormat, type_info: Optional[TypeInformation] = None):
+    def create_input(self, input_format, type_info: Optional[TypeInformation] = None):
         """
         Create an input data stream with InputFormat.
 
