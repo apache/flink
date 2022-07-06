@@ -21,12 +21,12 @@ package org.apache.flink.tests.util.kafka;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.connector.kafka.testutils.KafkaUtil;
+import org.apache.flink.connector.testframe.container.FlinkContainers;
+import org.apache.flink.connector.testframe.container.FlinkContainersSettings;
+import org.apache.flink.connector.testframe.container.TestcontainersSettings;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
+import org.apache.flink.test.util.JobSubmission;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.flink.JobSubmission;
-import org.apache.flink.tests.util.flink.container.FlinkContainers;
-import org.apache.flink.tests.util.flink.container.FlinkContainersSettings;
-import org.apache.flink.tests.util.flink.container.TestcontainersSettings;
 import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.TestLoggerExtension;
 

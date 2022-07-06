@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util.flink.container;
+package org.apache.flink.connector.testframe.container;
 
 /** Exception indicating errors when building Flink image. */
 public class ImageBuildException extends Exception {

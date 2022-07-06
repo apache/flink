@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util.flink.container;
+package org.apache.flink.connector.testframe.container;
 
 import org.slf4j.Logger;
 import org.testcontainers.containers.GenericContainer;

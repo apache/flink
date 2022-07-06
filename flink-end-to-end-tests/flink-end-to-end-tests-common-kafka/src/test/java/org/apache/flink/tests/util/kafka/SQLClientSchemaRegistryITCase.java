@@ -19,10 +19,10 @@
 package org.apache.flink.tests.util.kafka;
 
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.connector.testframe.container.FlinkContainers;
+import org.apache.flink.connector.testframe.container.TestcontainersSettings;
+import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.flink.SQLJobSubmission;
-import org.apache.flink.tests.util.flink.container.FlinkContainers;
-import org.apache.flink.tests.util.flink.container.TestcontainersSettings;
 import org.apache.flink.tests.util.kafka.containers.SchemaRegistryContainer;
 import org.apache.flink.util.DockerImageVersions;
 

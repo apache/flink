@@ -21,11 +21,11 @@ package org.apache.flink.connector.kinesis.table.test;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.connector.aws.testutils.AWSServicesTestUtils;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
+import org.apache.flink.connector.testframe.container.FlinkContainers;
+import org.apache.flink.connector.testframe.container.TestcontainersSettings;
 import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
+import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.flink.SQLJobSubmission;
-import org.apache.flink.tests.util.flink.container.FlinkContainers;
-import org.apache.flink.tests.util.flink.container.TestcontainersSettings;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;

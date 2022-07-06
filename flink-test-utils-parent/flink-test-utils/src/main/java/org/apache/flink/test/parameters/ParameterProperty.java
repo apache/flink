@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util.parameters;
+package org.apache.flink.test.parameters;
 
 import java.util.Optional;
 import java.util.function.Function;
