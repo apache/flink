@@ -19,7 +19,7 @@
 package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.connector.source.lookup.LookupFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.AsyncLookupFunctionProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
@@ -38,7 +38,8 @@ import org.apache.flink.types.Row;
  * LookupTableSource} the output type can simply be a {@link Row} or {@link RowData} in which case
  * the input and output types are derived from the table's schema with default conversion.
  *
- * @deprecated Please use {@link LookupFunctionProvider} to implement asynchronous lookup table.
+ * @deprecated Please use {@link AsyncLookupFunctionProvider} to implement asynchronous lookup
+ *     table.
  */
 @PublicEvolving
 @Deprecated

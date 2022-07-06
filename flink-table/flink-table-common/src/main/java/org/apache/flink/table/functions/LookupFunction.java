@@ -37,17 +37,23 @@ public abstract class LookupFunction extends TableFunction<RowData> {
     /**
      * Synchronously lookup rows matching the lookup keys.
      *
-     * @param keyRow - A {@link RowData} that wraps keys to lookup.
+     * @param keyRow - A {@link RowData} that wraps lookup keys.
      * @return A collection of all matching rows in the lookup table.
      */
     public abstract Collection<RowData> lookup(RowData keyRow) throws IOException;
 
     /** Invoke {@link #lookup} and handle exceptions. */
     public final void eval(Object... keys) {
+        GenericRowData keyRow = GenericRowData.of(keys);
         try {
-            lookup(GenericRowData.of(keys)).forEach(this::collect);
+            Collection<RowData> lookup = lookup(keyRow);
+            if (lookup == null) {
+                return;
+            }
+            lookup.forEach(this::collect);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to lookup values with given key", e);
+            throw new RuntimeException(
+                    String.format("Failed to lookup values with given key row '%s'", keyRow), e);
         }
     }
 }

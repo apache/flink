@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 
@@ -37,18 +38,24 @@ public abstract class AsyncLookupFunction extends AsyncTableFunction<RowData> {
     /**
      * Asynchronously lookup rows matching the lookup keys.
      *
-     * @param keyRow - A {@link RowData} that wraps keys to lookup.
+     * @param keyRow - A {@link RowData} that wraps lookup keys.
      * @return A collection of all matching rows in the lookup table.
      */
     public abstract CompletableFuture<Collection<RowData>> asyncLookup(RowData keyRow);
 
     /** Invokes {@link #asyncLookup} and chains futures. */
     public final void eval(CompletableFuture<Collection<RowData>> future, Object... keys) {
-        asyncLookup(GenericRowData.of(keys))
+        GenericRowData keyRow = GenericRowData.of(keys);
+        asyncLookup(keyRow)
                 .whenCompleteAsync(
                         (result, exception) -> {
                             if (exception != null) {
-                                future.completeExceptionally(exception);
+                                future.completeExceptionally(
+                                        new TableException(
+                                                String.format(
+                                                        "Failed to asynchronously lookup entries with key '%s'",
+                                                        keyRow),
+                                                exception));
                                 return;
                             }
                             future.complete(result);

@@ -26,9 +26,11 @@ import org.apache.flink.table.functions.LookupFunction;
 @PublicEvolving
 public interface LookupFunctionProvider extends LookupTableSource.LookupRuntimeProvider {
 
+    /** Helper function for creating a static provider. */
     static LookupFunctionProvider of(LookupFunction lookupFunction) {
         return () -> lookupFunction;
     }
 
+    /** Creates an {@link LookupFunction} instance. */
     LookupFunction createLookupFunction();
 }
