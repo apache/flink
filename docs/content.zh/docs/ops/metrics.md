@@ -3,9 +3,9 @@ title: "Metrics"
 weight: 6
 type: docs
 aliases:
-  - /ops/metrics.html
-  - /apis/metrics.html
-  - /monitoring/metrics.html
+  - /zh/ops/metrics.html
+  - /zh/apis/metrics.html
+  - /zh/monitoring/metrics.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -1571,7 +1571,7 @@ Please refer to [Kafka monitoring]({{< ref "docs/connectors/datastream/kafka" >}
   <thead>
     <tr>
       <th class="text-left" style="width: 15%">范围</th>
-      <th class="text-left" style="width: 18%">度量指标</th>
+      <th class="text-left" style="width: 18%">指标</th>
       <th class="text-left" style="width: 18%">用户变量</th>
       <th class="text-left" style="width: 39%">描述</th>
       <th class="text-left" style="width: 10%">类型</th>
@@ -1584,9 +1584,9 @@ Please refer to [Kafka monitoring]({{< ref "docs/connectors/datastream/kafka" >}
       <td>stream, shardId</td>
       <td>消费者落后于流头部的毫秒数，
 	  对每个Kinesis分片，表示费者落后当前时间多久。
-	  可以通过流名称和分片id指定一个特定分片的度量值。
+	  可以通过流名称和分片id指定一个特定分片的指标值。
 	  值为0表示记录处理已完成，并且没有新记录在此时处理。
-	  值为-1表示尚未报告度量值。
+	  值为-1表示尚未报告指标值。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1595,7 +1595,7 @@ Please refer to [Kafka monitoring]({{< ref "docs/connectors/datastream/kafka" >}
       <td>sleepTimeMillis</td>
       <td>stream, shardId</td>
       <td>消费者在从Kinesis获取记录之前睡眠的毫秒数。
-      可以通过流名称和分片id指定特定碎片的度量。
+      可以通过流名称和分片id指定特定分片的指标值。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1664,7 +1664,7 @@ Please refer to [Kafka monitoring]({{< ref "docs/connectors/datastream/kafka" >}
   <thead>
     <tr>
       <th class="text-left" style="width: 15%">范围</th>
-      <th class="text-left" style="width: 18%">度量指标</th>
+      <th class="text-left" style="width: 18%">指标</th>
       <th class="text-left" style="width: 39%">描述</th>
       <th class="text-left" style="width: 10%">类型</th>
     </tr>

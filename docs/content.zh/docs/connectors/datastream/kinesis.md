@@ -1,19 +1,28 @@
 ---
-标题: Kinesis
-权重: 5
-类型: docs
-别名:
-  - /dev/connectors/kinesis.html
-  - /apis/streaming/connectors/kinesis.html
+title: Kinesis
+weight: 5
+type: docs
+aliases:
+  - /zh/dev/connectors/kinesis.html
+  - /zh/apis/streaming/connectors/kinesis.html
 ---
 <!--
-根据一个或多个贡献者许可协议授权给Apache软件基金会(ASF)。有关版权拥有权的更多信息，请参阅与本作品一起发布的通知文件。
-ASF根据Apache许可2.0版(“许可”)将此文件授权给您;除非符合许可，否则您不能使用此文件。您可从下面的链接获得许可的完整拷贝
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
 
   http://www.apache.org/licenses/LICENSE-2.0
 
-除非适用法律要求或经书面同意，否则按照许可协议发布的软件是按“现状”发布的，没有任何明示或暗示的保证或条件。有关许可项下
-管理许可和限制的特定语言，请参阅许可。
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
 -->
 
 # 亚马逊 Kinesis 数据流 SQL 连接器
