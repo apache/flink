@@ -777,21 +777,16 @@ Flink also provides a sink to collect DataStream results for testing and debuggi
 {{< tabs "125e228e-13b5-4c77-93a7-c0f436fcdd2f" >}}
 {{< tab "Java" >}}
 ```java
-import org.apache.flink.streaming.experimental.DataStreamUtils;
-
 DataStream<Tuple2<String, Integer>> myResult = ...;
-Iterator<Tuple2<String, Integer>> myOutput = DataStreamUtils.collect(myResult);
+Iterator<Tuple2<String, Integer>> myOutput = myResult.collectAsync();
 ```
 
 {{< /tab >}}
 {{< tab "Scala" >}}
 
 ```scala
-import org.apache.flink.streaming.experimental.DataStreamUtils
-import scala.collection.JavaConverters.asScalaIteratorConverter
-
 val myResult: DataStream[(String, Int)] = ...
-val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.javaStream).asScala
+val myOutput: Iterator[(String, Int)] = myResult.collectAsync()
 ```
 {{< /tab >}}
 {{< /tabs >}}
