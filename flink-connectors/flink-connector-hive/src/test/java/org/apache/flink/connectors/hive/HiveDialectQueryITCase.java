@@ -361,6 +361,23 @@ public class HiveDialectQueryITCase {
         }
     }
 
+    @Test
+    public void testCurrentDatabase() {
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select current_database()").collect());
+        assertThat(result.toString()).isEqualTo("[+I[default]]");
+        tableEnv.executeSql("create database db1");
+        tableEnv.executeSql("use db1");
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select current_database()").collect());
+        assertThat(result.toString()).isEqualTo("[+I[db1]]");
+        // switch to default database for following test use default database
+        tableEnv.executeSql("use default");
+        tableEnv.executeSql("drop database db1");
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {

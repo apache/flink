@@ -1385,6 +1385,7 @@ public final class BuiltInFunctionDefinitions {
     // --------------------------------------------------------------------------------------------
     // Catalog functions
     // --------------------------------------------------------------------------------------------
+
     public static final BuiltInFunctionDefinition CURRENT_DATABASE =
             BuiltInFunctionDefinition.newBuilder()
                     .name("currentDatabase")

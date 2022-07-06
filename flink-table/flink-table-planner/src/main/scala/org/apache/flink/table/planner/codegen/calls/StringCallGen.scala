@@ -234,8 +234,8 @@ object StringCallGen {
         methodGen(BuiltInMethods.CONVERT_TZ)
 
       case CURRENT_DATABASE =>
-        val timestamp = ctx.addReusableQueryLevelCurrentDatabase()
-        generateNonNullField(returnType, timestamp)
+        val currentDatabase = ctx.addReusableQueryLevelCurrentDatabase()
+        generateNonNullField(returnType, currentDatabase)
 
       case _ => null
     }

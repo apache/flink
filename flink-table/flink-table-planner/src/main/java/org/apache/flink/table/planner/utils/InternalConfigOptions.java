@@ -53,11 +53,12 @@ public final class InternalConfigOptions {
                                     + " temporal functions has query-start semantics.");
 
     public static final ConfigOption<String> TABLE_QUERY_CURRENT_DATABASE =
-            key("__table.query-start.current_database__")
+            key("__table.query-start.current-database__")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "The config used to save the current database at query start.");
+                            "The config used to save the current database at query start."
+                                    + " Currently, it's only used for the function CURRENT_DATABASE.");
 
     @Experimental
     public static final ConfigOption<Boolean> TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED =

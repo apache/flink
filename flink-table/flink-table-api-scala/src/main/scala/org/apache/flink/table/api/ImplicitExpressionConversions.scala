@@ -462,9 +462,7 @@ trait ImplicitExpressionConversions {
     Expressions.currentWatermark(rowtimeAttribute)
   }
 
-  /**
-   * Return the current database, the return type of this expression is [[DataTypes.STRING()]].
-   */
+  /** Return the current database, the return type of this expression is [[DataTypes.STRING()]]. */
   def currentDatabase(): Expression = Expressions.currentDatabase()
 
   /**
