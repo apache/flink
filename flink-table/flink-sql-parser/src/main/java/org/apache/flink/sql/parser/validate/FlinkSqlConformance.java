@@ -48,7 +48,13 @@ public enum FlinkSqlConformance implements SqlConformance {
 
     @Override
     public boolean isGroupByOrdinal() {
-        return false;
+        switch (this) {
+            case DEFAULT:
+            case HIVE:
+                return true;
+            default:
+                return false;
+        }
     }
 
     @Override
