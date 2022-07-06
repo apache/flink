@@ -19,8 +19,11 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
@@ -53,8 +56,14 @@ public class TestingSinks {
         public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
             final DataStructureConverter converter =
                     context.createDataStructureConverter(rowDataType);
-            return (DataStreamSinkProvider)
-                    (providerContext, dataStream) -> dataStream.addSink(new RowSink(converter));
+            return new DataStreamSinkProvider() {
+
+                @Override
+                public DataStreamSink<?> consumeDataStream(
+                        ProviderContext providerContext, DataStream<RowData> dataStream) {
+                    return dataStream.addSink(new RowSink(converter));
+                }
+            };
         }
 
         @Override
