@@ -60,7 +60,8 @@ public class SqlGatewayEndpointFactoryUtilsTest {
         config.put("sql-gateway.endpoint.type", "mocked;mocked");
         validateException(
                 config,
-                "Get the duplicate endpoint identifier: mocked. Please keep the specified endpoint identifier unique.");
+                "Get the duplicate endpoint identifier 'mocked' for the option 'sql-gateway.endpoint.type'. "
+                        + "Please keep the specified endpoint identifier unique.");
     }
 
     @Test

@@ -152,8 +152,9 @@ public class SqlGatewayEndpointFactoryUtils {
             if (uniqueIdentifiers.contains(identifier)) {
                 throw new ValidationException(
                         String.format(
-                                "Get the duplicate endpoint identifier: %s. Please keep the specified endpoint identifier unique.",
-                                identifier));
+                                "Get the duplicate endpoint identifier '%s' for the option '%s'. "
+                                        + "Please keep the specified endpoint identifier unique.",
+                                identifier, SQL_GATEWAY_ENDPOINT_TYPE.key()));
             }
             uniqueIdentifiers.add(identifier);
         }
