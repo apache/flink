@@ -48,7 +48,10 @@ def normalize_table_function_result(it):
             return [value]
 
     if it is None:
-        return []
+        def func():
+            for i in []:
+                yield i
+        return func()
 
     if isinstance(it, (list, range, Generator)):
         def func():
@@ -57,7 +60,9 @@ def normalize_table_function_result(it):
 
         return func()
     else:
-        return [normalize_one_row(it)]
+        def func():
+            yield normalize_one_row(it)
+        return func()
 
 
 def normalize_pandas_result(it):
@@ -301,6 +306,14 @@ def create_scalar_operation_from_proto(proto, one_arg_optimization=False,
     scalar_operation = ScalarFunctionOperation(
         serialized_fn, one_arg_optimization, one_result_optimization)
     return scalar_operation
+
+
+def create_table_operation_from_proto(proto):
+    from pyflink.fn_execution.table.operations import TableFunctionOperation
+
+    serialized_fn = parse_function_proto(proto)
+    table_operation = TableFunctionOperation(serialized_fn)
+    return table_operation
 
 
 def create_serialized_scalar_operation_from_proto(proto, one_arg_optimization=False,

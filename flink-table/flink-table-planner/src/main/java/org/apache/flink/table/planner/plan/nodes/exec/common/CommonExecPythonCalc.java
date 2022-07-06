@@ -66,8 +66,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
-    public static final String FIELD_NAME_PROJECTION = "projection";
-
     private static final String PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.scalar."
                     + "PythonScalarFunctionOperator";

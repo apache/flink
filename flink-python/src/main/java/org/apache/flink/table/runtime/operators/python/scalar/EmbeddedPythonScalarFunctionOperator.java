@@ -21,12 +21,8 @@ package org.apache.flink.table.runtime.operators.python.scalar;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.python.AbstractEmbeddedPythonFunctionOperator;
 import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -35,14 +31,11 @@ import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
-import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowDataWrappingCollector;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.runtime.operators.python.AbstractEmbeddedStatelessFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Arrays;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
 import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
@@ -50,40 +43,17 @@ import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
 /** The Python {@link ScalarFunction} operator in embedded Python environment. */
 @Internal
 public class EmbeddedPythonScalarFunctionOperator
-        extends AbstractEmbeddedPythonFunctionOperator<RowData>
-        implements OneInputStreamOperator<RowData, RowData>, BoundedOneInput {
+        extends AbstractEmbeddedStatelessFunctionOperator {
 
     private static final long serialVersionUID = 1L;
 
     /** The Python {@link ScalarFunction}s to be executed. */
     private final PythonFunctionInfo[] scalarFunctions;
 
-    /** The offsets of user-defined function inputs. */
-    private final int[] udfInputOffsets;
-
-    /** The input logical type. */
-    protected final RowType inputType;
-
-    /** The user-defined function input logical type. */
-    protected final RowType udfInputType;
-
-    /** The user-defined function output logical type. */
-    protected final RowType udfOutputType;
-
     private GeneratedProjection forwardedFieldGeneratedProjection;
-
-    /** The GenericRowData reused holding the execution result of python udf. */
-    private GenericRowData reuseResultRowData;
-
-    /** The collector used to collect records. */
-    private transient StreamRecordRowDataWrappingCollector rowDataWrapper;
 
     /** The Projection which projects the forwarded fields from the input row. */
     private transient Projection<RowData, BinaryRowData> forwardedFieldProjection;
-
-    private transient PythonTypeUtils.DataConverter[] userDefinedFunctionInputConverters;
-    private transient Object[] userDefinedFunctionInputArgs;
-    private transient PythonTypeUtils.DataConverter[] userDefinedFunctionOutputConverters;
 
     /** Whether there is only one input argument. */
     private transient boolean isOneArg;
@@ -98,11 +68,7 @@ public class EmbeddedPythonScalarFunctionOperator
             RowType udfInputType,
             RowType udfOutputType,
             int[] udfInputOffsets) {
-        super(config);
-        this.inputType = Preconditions.checkNotNull(inputType);
-        this.udfInputType = Preconditions.checkNotNull(udfInputType);
-        this.udfOutputType = Preconditions.checkNotNull(udfOutputType);
-        this.udfInputOffsets = Preconditions.checkNotNull(udfInputOffsets);
+        super(config, inputType, udfInputType, udfOutputType, udfInputOffsets);
         this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
     }
 
@@ -125,24 +91,6 @@ public class EmbeddedPythonScalarFunctionOperator
         isOneArg = udfInputOffsets.length == 1;
         isOneFieldResult = udfOutputType.getFieldCount() == 1;
         super.open();
-        rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
-        reuseResultRowData = new GenericRowData(udfOutputType.getFieldCount());
-        RowType userDefinedFunctionInputType =
-                new RowType(
-                        Arrays.stream(udfInputOffsets)
-                                .mapToObj(i -> inputType.getFields().get(i))
-                                .collect(Collectors.toList()));
-        userDefinedFunctionInputConverters =
-                userDefinedFunctionInputType.getFields().stream()
-                        .map(RowType.RowField::getType)
-                        .map(PythonTypeUtils::toDataConverter)
-                        .toArray(PythonTypeUtils.DataConverter[]::new);
-        userDefinedFunctionInputArgs = new Object[udfInputOffsets.length];
-        userDefinedFunctionOutputConverters =
-                udfOutputType.getFields().stream()
-                        .map(RowType.RowField::getType)
-                        .map(PythonTypeUtils::toDataConverter)
-                        .toArray(PythonTypeUtils.DataConverter[]::new);
 
         if (forwardedFieldGeneratedProjection != null) {
             forwardedFieldProjection =
