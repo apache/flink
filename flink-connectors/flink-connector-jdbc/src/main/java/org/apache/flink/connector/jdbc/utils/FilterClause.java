@@ -45,7 +45,9 @@ public enum FilterClause {
 
     LIKE(list -> String.format("%s LIKE %s", list.get(0), list.get(1)), 2),
 
-    NOT(list -> String.format("!(%s)", list.get(0)), 1);
+    NOT(list -> String.format("!(%s)", list.get(0)), 1),
+
+    CAST(list -> String.format("CAST(%s AS %s)", list.get(0), list.get(1)), 2);
 
     public final Function<List<String>, String> formatter;
     public final int argsNum;

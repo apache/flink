@@ -108,7 +108,10 @@ public class FilterExpressionConverter implements ExpressionVisitor<Optional<Str
 
     @Override
     public Optional<String> visit(TypeLiteralExpression typeLiteral) {
-        return Optional.empty();
+        // Some Build-in Function like CAST need to call this method.
+        // Need to convert Flink Table Api type to jdbc database type.
+        // Different jdbc database has different type mapping, such as Oracle, Mysql and so on
+        return convertTypeLiteral(typeLiteral);
     }
 
     @Override
@@ -119,11 +122,15 @@ public class FilterExpressionConverter implements ExpressionVisitor<Optional<Str
     private Optional<String> convertValueLiteral(ValueLiteralExpression expression) {
         return expression
                 .getValueAs(expression.getOutputDataType().getLogicalType().getDefaultConversion())
-                .map(JdbcValueFormatter::formatObject);
+                .map(JdbcValueFormatter::format);
     }
 
     private Optional<String> convertFieldReference(FieldReferenceExpression expression) {
         return Optional.of(quoteIdentifier(expression.getName()));
+    }
+
+    private Optional<String> convertTypeLiteral(TypeLiteralExpression expression) {
+        return Optional.empty();
     }
 
     private String quoteIdentifier(String identifier) {

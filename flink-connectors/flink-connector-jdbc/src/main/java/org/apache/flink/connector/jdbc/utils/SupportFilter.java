@@ -54,6 +54,7 @@ public class SupportFilter {
         FILTERS.put(BuiltInFunctionDefinitions.OR, OR);
         FILTERS.put(BuiltInFunctionDefinitions.LIKE, LIKE);
         FILTERS.put(BuiltInFunctionDefinitions.NOT, NOT);
+        //        FILTERS.put(BuiltInFunctionDefinitions.CAST, CAST);
     }
 
     private SupportFilter() {}

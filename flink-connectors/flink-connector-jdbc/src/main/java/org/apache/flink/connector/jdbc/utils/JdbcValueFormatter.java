@@ -21,32 +21,25 @@ package org.apache.flink.connector.jdbc.utils;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Array;
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.OffsetDateTime;
-import java.time.OffsetTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TimeZone;
 
 /** JDBC value formatter. */
 public class JdbcValueFormatter {
     private static final DateTimeFormatter DATE_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter DATE_TIME_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS");
+    private static final DateTimeFormatter TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSSSSS");
 
-    private static final Map<Character, String> escapeMapping;
+    private static final Map<Character, String> ESCAPE_MAPPING;
 
     static {
         Map<Character, String> map = new HashMap<>();
@@ -59,14 +52,8 @@ public class JdbcValueFormatter {
         map.put('\0', "\\0");
         map.put('\'', "\\'");
         map.put('`', "\\`");
-        escapeMapping = Collections.unmodifiableMap(map);
+        ESCAPE_MAPPING = Collections.unmodifiableMap(map);
     }
-
-    private static final ThreadLocal<SimpleDateFormat> dateFormat =
-            ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd"));
-
-    private static final ThreadLocal<SimpleDateFormat> dateTimeFormat =
-            ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"));
 
     private JdbcValueFormatter() {}
 
@@ -102,27 +89,6 @@ public class JdbcValueFormatter {
         return myBoolean ? "1" : "0";
     }
 
-    private static String formatDate(Date date, TimeZone timeZone) {
-        SimpleDateFormat formatter = getDateFormat();
-        formatter.setTimeZone(timeZone);
-        return formatter.format(date);
-    }
-
-    private static String formatTime(Time time, TimeZone timeZone) {
-        return TIME_FORMATTER.format(
-                Instant.ofEpochMilli(time.getTime()).atZone(timeZone.toZoneId()).toLocalTime());
-    }
-
-    private static String formatTimestamp(Timestamp time, TimeZone timeZone) {
-        SimpleDateFormat formatter = getDateTimeFormat();
-        formatter.setTimeZone(timeZone);
-        StringBuilder formatted = new StringBuilder(formatter.format(time));
-        if (time != null && time.getNanos() % 1000000 > 0) {
-            formatted.append('.').append(time.getNanos());
-        }
-        return formatted.toString();
-    }
-
     private static String formatBigInteger(BigInteger x) {
         return x.toString();
     }
@@ -139,18 +105,8 @@ public class JdbcValueFormatter {
         return TIME_FORMATTER.format(x);
     }
 
-    private static String formatOffsetTime(OffsetTime x) {
-        return DateTimeFormatter.ISO_OFFSET_TIME.format(x);
-    }
-
-    private static String formatOffsetDateTime(OffsetDateTime x, TimeZone timeZone) {
-        return DATE_TIME_FORMATTER.withZone(timeZone.toZoneId()).format(x);
-    }
-
-    public static String formatObject(Object x) {
-        TimeZone timeZone = getTimeZone();
-
-        String value = formatObject(x, timeZone, timeZone);
+    public static String format(Object x) {
+        String value = formatObject(x);
 
         if (value == null) {
             return null;
@@ -159,7 +115,7 @@ public class JdbcValueFormatter {
         }
     }
 
-    private static String formatObject(Object x, TimeZone dateTimeZone, TimeZone dateTimeTimeZone) {
+    private static String formatObject(Object x) {
         if (x instanceof String) {
             return formatString((String) x);
         } else if (x instanceof BigDecimal) {
@@ -174,22 +130,12 @@ public class JdbcValueFormatter {
             return formatFloat((Float) x);
         } else if (x instanceof Double) {
             return formatDouble((Double) x);
-        } else if (x instanceof Date) {
-            return formatDate((Date) x, dateTimeZone);
         } else if (x instanceof LocalDate) {
             return formatLocalDate((LocalDate) x);
-        } else if (x instanceof Time) {
-            return formatTime((Time) x, dateTimeTimeZone);
         } else if (x instanceof LocalTime) {
             return formatLocalTime((LocalTime) x);
-        } else if (x instanceof OffsetTime) {
-            return formatOffsetTime((OffsetTime) x);
-        } else if (x instanceof Timestamp) {
-            return formatTimestamp((Timestamp) x, dateTimeTimeZone);
         } else if (x instanceof LocalDateTime) {
             return formatLocalDateTime((LocalDateTime) x);
-        } else if (x instanceof OffsetDateTime) {
-            return formatOffsetDateTime((OffsetDateTime) x, dateTimeTimeZone);
         } else if (x instanceof Boolean) {
             return formatBoolean((Boolean) x);
         } else if (x instanceof BigInteger) {
@@ -209,18 +155,6 @@ public class JdbcValueFormatter {
                 && !o.getClass().isArray();
     }
 
-    private static SimpleDateFormat getDateFormat() {
-        return dateFormat.get();
-    }
-
-    private static SimpleDateFormat getDateTimeFormat() {
-        return dateTimeFormat.get();
-    }
-
-    private static TimeZone getTimeZone() {
-        return TimeZone.getDefault();
-    }
-
     private static String escape(String s) {
         if (s == null) {
             return "\\N";
@@ -231,7 +165,7 @@ public class JdbcValueFormatter {
         for (int i = 0; i < s.length(); i++) {
             char ch = s.charAt(i);
 
-            String escaped = escapeMapping.get(ch);
+            String escaped = ESCAPE_MAPPING.get(ch);
             if (escaped != null) {
                 sb.append(escaped);
             } else {
