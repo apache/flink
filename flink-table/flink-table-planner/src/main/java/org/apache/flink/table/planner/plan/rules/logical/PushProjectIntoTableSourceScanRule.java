@@ -113,7 +113,13 @@ public class PushProjectIntoTableSourceScanRule
                 return false;
             }
 
-            return ((SupportsReadingMetadata) source).supportsMetadataProjection();
+            if (((SupportsReadingMetadata) source).supportsMetadataProjection()) {
+                final ResolvedSchema schema =
+                        sourceTable.contextResolvedTable().getResolvedSchema();
+                List<Column.MetadataColumn> metadataColumnList =
+                        DynamicSourceUtils.extractMetadataColumns(schema);
+                return metadataColumnList != null && metadataColumnList.size() > 0;
+            }
         }
 
         return false;
@@ -142,8 +148,11 @@ public class PushProjectIntoTableSourceScanRule
                         getProjections(project, scan),
                         typeFactory.buildRelNodeRowType(producedType));
         if (!supportsNestedProjection) {
+            int index = 0;
             for (NestedColumn column : projectedSchema.columns().values()) {
                 column.markLeaf();
+                // update leaf index on top-level projection
+                column.setIndexOfLeafInNewSchema(index++);
             }
         }
 
@@ -274,20 +283,18 @@ public class PushProjectIntoTableSourceScanRule
         if (supportsProjectionPushDown(source.tableSource())) {
             projectedMetadataColumns.forEach(
                     metaColumn -> projectedSchema.columns().remove(metaColumn.name()));
-
+            // update leaf index due to schema changes
+            NestedProjectionUtil.updateLeafIndex(projectedSchema);
             physicalProjections =
-                    NestedProjectionUtil.updateLeafIndexAndConvertToIndexArray(projectedSchema);
+                    NestedProjectionUtil.getPhysicalProjectionArray(
+                            projectedSchema, true, numPhysicalColumns);
 
             projectedMetadataColumns.forEach(
                     metaColumn -> projectedSchema.columns().put(metaColumn.name(), metaColumn));
         } else {
-            // update leaf index first
-            NestedProjectionUtil.updateLeafIndexAndConvertToIndexArray(projectedSchema);
-            // but do no apply projection push down to physical fields
             physicalProjections =
-                    IntStream.range(0, numPhysicalColumns)
-                            .mapToObj(columnIndex -> new int[] {columnIndex})
-                            .toArray(int[][]::new);
+                    NestedProjectionUtil.getPhysicalProjectionArray(
+                            projectedSchema, false, numPhysicalColumns);
         }
 
         final int[][] projectedFields =

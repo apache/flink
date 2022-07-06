@@ -107,7 +107,7 @@ object NestedProjectionUtil {
     for (expr <- exprs) {
       expr.accept(visitor)
     }
-    schema
+    updateLeafIndex(schema)
   }
 
   /**
@@ -128,50 +128,77 @@ object NestedProjectionUtil {
 
   /**
    * It will label the index of the leaf node in the new schema with the insert order rather than
-   * the natural order of the name and output the path to the every leaf node. The paths are useful
-   * for interface [[SupportsProjectionPushDown]] and test(debug).
+   * the natural order of the name.
    */
-  def updateLeafIndexAndConvertToIndexArray(root: NestedSchema): Array[Array[Int]] = {
-    val allPaths = new JLinkedList[Array[Int]]()
+  def updateLeafIndex(root: NestedSchema): NestedSchema = {
     val path = new JLinkedList[Int]()
     root.columns.foldLeft(0) {
       case (newIndex, (_, column)) =>
-        traverse(column, newIndex, path, allPaths)
+        traverse(column, newIndex, path, Option.empty, true)
     }
-    allPaths.toArray(new Array[Array[Int]](0))
-  }
-
-  def createNestedColumnLeaf(
-      name: String,
-      indexInOriginSchema: Int,
-      originFieldType: RelDataType): NestedColumn = {
-    new NestedColumn(name, indexInOriginSchema, originFieldType, isLeaf = true)
+    root
   }
 
   private def traverse(
       parent: NestedColumn,
       index: Int,
       path: JList[Int],
-      allPaths: JList[Array[Int]]): Int = {
+      allPaths: Option[JList[Array[Int]]],
+      updateIndex: Boolean): Int = {
     val tail = path.size()
     // push self
     path.add(parent.indexInOriginSchema)
     val newIndex = if (parent.isLeaf) {
       // leaf node
-      parent.indexOfLeafInNewSchema = index
-      // ignore root node
-      allPaths.add(path.asScala.toArray)
+      if (updateIndex) {
+        parent.indexOfLeafInNewSchema = index
+      } else {
+        assert(parent.indexOfLeafInNewSchema == index)
+      }
+      if (allPaths.isDefined) {
+        // ignore root node
+        allPaths.get.add(path.asScala.toArray)
+      }
       index + 1
     } else {
       // iterate children
       parent.children.values().foldLeft(index) {
         case (index, child) =>
-          traverse(child, index, path, allPaths)
+          traverse(child, index, path, allPaths, updateIndex)
       }
     }
     // pop self
     path.remove(tail)
     newIndex
+  }
+
+  private def getPhysicalProjectionArray(root: NestedSchema): Array[Array[Int]] = {
+    val allPaths = new JLinkedList[Array[Int]]()
+    val path = new JLinkedList[Int]()
+    root.columns.foldLeft(0) {
+      case (newIndex, (_, column)) =>
+        traverse(column, newIndex, path, Option(allPaths), false)
+    }
+
+    allPaths.toArray(new Array[Array[Int]](0))
+  }
+
+  /**
+   * Preparing the physical projection array for push down. <p> If supportsProjectionPushDown, then
+   * it will output the path to the every leaf node according its insertion order rather than
+   * natural order of the name. <p> Else output path will be generated based on numPhysicalColumns
+   * sequentially. <p> The paths are useful for interface [[SupportsProjectionPushDown]] and
+   * test(debug).
+   */
+  def getPhysicalProjectionArray(
+      root: NestedSchema,
+      supportsProjectionPushDown: Boolean = true,
+      numPhysicalColumns: Int = 0): Array[Array[Int]] = {
+    if (supportsProjectionPushDown) {
+      getPhysicalProjectionArray(root)
+    } else {
+      0.until(numPhysicalColumns).map(Array(_)).toArray
+    }
   }
 }
 

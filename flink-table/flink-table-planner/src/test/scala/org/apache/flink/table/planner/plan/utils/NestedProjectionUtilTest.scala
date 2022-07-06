@@ -40,7 +40,7 @@ class NestedProjectionUtilTest extends RexNodeTestBase {
   def testExtractRefInputFields(): Unit = {
     val (exprs, rowType) = buildExprs()
     val nestedFields = NestedProjectionUtil.build(exprs, rowType)
-    val actual = NestedProjectionUtil.updateLeafIndexAndConvertToIndexArray(nestedFields)
+    val actual = NestedProjectionUtil.getPhysicalProjectionArray(nestedFields)
     val expected = Array(Array(2), Array(3), Array(1))
 
     assertArray(actual, expected)
@@ -51,7 +51,7 @@ class NestedProjectionUtilTest extends RexNodeTestBase {
     val (rexProgram, rowType) = buildExprsWithNesting()
 
     val nestedFields = NestedProjectionUtil.build(rexProgram, rowType)
-    val actual = NestedProjectionUtil.updateLeafIndexAndConvertToIndexArray(nestedFields)
+    val actual = NestedProjectionUtil.getPhysicalProjectionArray(nestedFields)
     val expected = Array(Array(1, 1), Array(0))
 
     assertArray(actual, expected)
@@ -62,7 +62,7 @@ class NestedProjectionUtilTest extends RexNodeTestBase {
     val (rexProgram, rowType) = buildExprsWithDeepNesting()
 
     val nestedFields = NestedProjectionUtil.build(rexProgram, rowType)
-    val actual = NestedProjectionUtil.updateLeafIndexAndConvertToIndexArray(nestedFields)
+    val actual = NestedProjectionUtil.getPhysicalProjectionArray(nestedFields)
     val expected = Array(
       Array(1, 1),
       Array(0),
@@ -95,7 +95,7 @@ class NestedProjectionUtilTest extends RexNodeTestBase {
           "AND($t7, $t9)")))
 
     val nestedField = NestedProjectionUtil.build(exprs, rexProgram.getInputRowType)
-    val paths = NestedProjectionUtil.updateLeafIndexAndConvertToIndexArray(nestedField)
+    val paths = NestedProjectionUtil.getPhysicalProjectionArray(nestedField)
     val orderedPaths = Array(
       Array(0),
       Array(1),
@@ -133,7 +133,7 @@ class NestedProjectionUtilTest extends RexNodeTestBase {
         )))
 
     val nestedField = NestedProjectionUtil.build(exprs, rowType)
-    val paths = NestedProjectionUtil.updateLeafIndexAndConvertToIndexArray(nestedField)
+    val paths = NestedProjectionUtil.getPhysicalProjectionArray(nestedField)
     val orderedPaths = Array(
       Array(1, 1),
       Array(0)
@@ -186,7 +186,7 @@ class NestedProjectionUtilTest extends RexNodeTestBase {
         "ITEM(ITEM($3.inner.deep_array, $3.outer).deep_map, _UTF-16LE'item')"
       )))
     val nestedFields = NestedProjectionUtil.build(exprs, rowType)
-    val paths = NestedProjectionUtil.updateLeafIndexAndConvertToIndexArray(nestedFields)
+    val paths = NestedProjectionUtil.getPhysicalProjectionArray(nestedFields)
     val orderedPaths = Array(
       Array(1, 1),
       Array(0),
