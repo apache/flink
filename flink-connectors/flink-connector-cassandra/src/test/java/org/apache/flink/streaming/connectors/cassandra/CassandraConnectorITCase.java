@@ -144,8 +144,9 @@ public class CassandraConnectorITCase
                                 new SocketOptions()
                                         // multiply default timeout by 3
                                         .setConnectTimeoutMillis(15000)
-                                        // double default timeout
-                                        .setReadTimeoutMillis(24000))
+                                        // x3 default timeout and higher than
+                                        // raised request_timeout_in_ms at the cluster level
+                                        .setReadTimeoutMillis(36000))
                         .withoutJMXReporting()
                         .withoutMetrics()
                         .build();
@@ -280,13 +281,13 @@ public class CassandraConnectorITCase
             String patchedConfiguration =
                     configuration
                             .replaceAll(
-                                    "request_timeout_in_ms: [0-9]+", "request_timeout_in_ms: 30000")
+                                    "request_timeout_in_ms: [0-9]+", "request_timeout_in_ms: 30000") // x3
                             .replaceAll(
                                     "read_request_timeout_in_ms: [0-9]+",
-                                    "read_request_timeout_in_ms: 15000")
+                                    "read_request_timeout_in_ms: 15000") // x3
                             .replaceAll(
                                     "write_request_timeout_in_ms: [0-9]+",
-                                    "write_request_timeout_in_ms: 6000");
+                                    "write_request_timeout_in_ms: 6000"); // x3
             CASSANDRA_CONTAINER.copyFileToContainer(
                     Transferable.of(patchedConfiguration.getBytes(StandardCharsets.UTF_8)),
                     "/etc/cassandra/cassandra.yaml");
