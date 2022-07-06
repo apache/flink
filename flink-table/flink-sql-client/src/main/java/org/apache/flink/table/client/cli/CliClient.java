@@ -275,7 +275,7 @@ public class CliClient implements AutoCloseable {
         // print welcome
         terminal.writer().append(CliStrings.MESSAGE_WELCOME);
 
-        LineReader lineReader = createLineReader(terminal);
+        LineReader lineReader = createLineReader(terminal, true);
         getAndExecuteStatements(lineReader, ExecutionMode.INTERACTIVE_EXECUTION);
     }
 
@@ -348,7 +348,7 @@ public class CliClient implements AutoCloseable {
                 new ByteArrayInputStream(SqlMultiLineParser.formatSqlFile(content).getBytes());
         Terminal dumbTerminal = TerminalUtils.createDumbTerminal(inputStream, outputStream);
         try {
-            LineReader lineReader = createLineReader(dumbTerminal);
+            LineReader lineReader = createLineReader(dumbTerminal, false);
             return getAndExecuteStatements(lineReader, mode);
         } catch (Throwable e) {
             printExecutionException(e);
@@ -678,15 +678,19 @@ public class CliClient implements AutoCloseable {
         }
     }
 
-    private LineReader createLineReader(Terminal terminal) {
+    private LineReader createLineReader(Terminal terminal, boolean enableSqlCompleter) {
         // initialize line lineReader
-        LineReader lineReader =
+        LineReaderBuilder builder =
                 LineReaderBuilder.builder()
                         .terminal(terminal)
                         .appName(CliStrings.CLI_NAME)
-                        .parser(parser)
-                        .completer(new SqlCompleter(sessionId, executor))
-                        .build();
+                        .parser(parser);
+
+        if (enableSqlCompleter) {
+            builder.completer(new SqlCompleter(sessionId, executor));
+        }
+        LineReader lineReader = builder.build();
+
         // this option is disabled for now for correct backslash escaping
         // a "SELECT '\'" query should return a string with a backslash
         lineReader.option(LineReader.Option.DISABLE_EVENT_EXPANSION, true);
