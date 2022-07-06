@@ -1011,6 +1011,9 @@ class DataStreamTests(object):
         class MyKeyedBroadcastProcessFunction(KeyedBroadcastProcessFunction):
             def __init__(self, map_state_desc):
                 self._map_state_desc = map_state_desc
+                self._cache = None
+
+            def open(self, runtime_context: RuntimeContext):
                 self._cache = defaultdict(list)
 
             def process_element(
@@ -1021,11 +1024,9 @@ class DataStreamTests(object):
                 if ro_broadcast_state.contains(key):
                     if self._cache.get(key) is not None:
                         for v in self._cache[key]:
-                            yield _create_string(ro_broadcast_state.get(key) + str(v[0]),
-                                                 v[1])
+                            yield _create_string(ro_broadcast_state.get(key) + str(v[0]), v[1])
                         self._cache[key].clear()
-                    yield _create_string(ro_broadcast_state.get(key) + str(value[0]),
-                                         ctx.timestamp())
+                    yield _create_string(ro_broadcast_state.get(key) + str(value[0]), value[1])
                 else:
                     self._cache[key].append(value)
                 ctx.timer_service().register_event_time_timer(ctx.timestamp() + 10000)

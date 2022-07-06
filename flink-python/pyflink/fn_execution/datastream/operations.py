@@ -404,7 +404,7 @@ def extract_stateful_function(
                 data = normal_data[1]
                 read_only_ctx.set_current_key(user_key_selector(data))
                 keyed_state_backend.set_current_key(state_key_selector(data))
-                return user_defined_func.process_element(data, read_only_ctx)
+                return user_defined_func.process_element(input_selector(data), read_only_ctx)
             else:
                 return user_defined_func.process_broadcast_element(normal_data[2], ctx)
 
