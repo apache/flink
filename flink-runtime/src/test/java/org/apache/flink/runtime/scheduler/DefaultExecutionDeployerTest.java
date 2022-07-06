@@ -108,7 +108,7 @@ class DefaultExecutionDeployerTest {
     void testDeployTasks() throws Exception {
         final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
         final ExecutionGraph executionGraph = createExecutionGraph(jobGraph);
-        final ExecutionDeployer executionDeployer = createExecutionDeployer(executionGraph);
+        final ExecutionDeployer executionDeployer = createExecutionDeployer();
 
         deployTasks(executionDeployer, executionGraph);
 
@@ -120,7 +120,7 @@ class DefaultExecutionDeployerTest {
     void testDeployTasksOnlyIfAllSlotRequestsAreFulfilled() throws Exception {
         final JobGraph jobGraph = singleJobVertexJobGraph(4);
         final ExecutionGraph executionGraph = createExecutionGraph(jobGraph);
-        final ExecutionDeployer executionDeployer = createExecutionDeployer(executionGraph);
+        final ExecutionDeployer executionDeployer = createExecutionDeployer();
 
         testExecutionSlotAllocator.disableAutoCompletePendingRequests();
 
@@ -143,7 +143,7 @@ class DefaultExecutionDeployerTest {
         testExecutionOperations.enableFailDeploy();
 
         final ExecutionGraph executionGraph = createExecutionGraph(jobGraph);
-        final ExecutionDeployer executionDeployer = createExecutionDeployer(executionGraph);
+        final ExecutionDeployer executionDeployer = createExecutionDeployer();
         deployTasks(executionDeployer, executionGraph);
 
         assertThat(testExecutionOperations.getFailedExecutions())
@@ -157,7 +157,7 @@ class DefaultExecutionDeployerTest {
         testExecutionSlotAllocator.disableAutoCompletePendingRequests();
 
         final ExecutionGraph executionGraph = createExecutionGraph(jobGraph);
-        final ExecutionDeployer executionDeployer = createExecutionDeployer(executionGraph);
+        final ExecutionDeployer executionDeployer = createExecutionDeployer();
         deployTasks(executionDeployer, executionGraph);
 
         assertThat(testExecutionSlotAllocator.getPendingRequests()).hasSize(2);
@@ -175,7 +175,7 @@ class DefaultExecutionDeployerTest {
         testExecutionSlotAllocator.disableAutoCompletePendingRequests();
 
         final ExecutionGraph executionGraph = createExecutionGraph(jobGraph);
-        final ExecutionDeployer executionDeployer = createExecutionDeployer(executionGraph);
+        final ExecutionDeployer executionDeployer = createExecutionDeployer();
         deployTasks(executionDeployer, executionGraph);
 
         final ExecutionAttemptID attemptId = getAnyExecution(executionGraph).getAttemptId();
@@ -193,7 +193,7 @@ class DefaultExecutionDeployerTest {
         testExecutionSlotAllocator.disableAutoCompletePendingRequests();
 
         final ExecutionGraph executionGraph = createExecutionGraph(jobGraph);
-        final ExecutionDeployer executionDeployer = createExecutionDeployer(executionGraph);
+        final ExecutionDeployer executionDeployer = createExecutionDeployer();
         deployTasks(executionDeployer, executionGraph);
 
         final ExecutionAttemptID attemptId = getAnyExecution(executionGraph).getAttemptId();
@@ -208,7 +208,7 @@ class DefaultExecutionDeployerTest {
     void testDeployOnlyIfVertexIsCreated() throws Exception {
         final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
         final ExecutionGraph executionGraph = createExecutionGraph(jobGraph);
-        final ExecutionDeployer executionDeployer = createExecutionDeployer(executionGraph);
+        final ExecutionDeployer executionDeployer = createExecutionDeployer();
 
         // deploy once to transition the tasks out from CREATED state
         deployTasks(executionDeployer, executionGraph);
@@ -233,7 +233,7 @@ class DefaultExecutionDeployerTest {
 
         final JobGraph jobGraph = nonParallelSourceSinkJobGraph();
         final ExecutionGraph executionGraph = createExecutionGraph(jobGraph);
-        final ExecutionDeployer executionDeployer = createExecutionDeployer(executionGraph);
+        final ExecutionDeployer executionDeployer = createExecutionDeployer();
 
         deployTasks(executionDeployer, executionGraph);
 
@@ -251,7 +251,7 @@ class DefaultExecutionDeployerTest {
 
         final JobGraph jobGraph = nonParallelSourceSinkJobGraph();
         final ExecutionGraph executionGraph = createExecutionGraph(jobGraph);
-        final ExecutionDeployer executionDeployer = createExecutionDeployer(executionGraph);
+        final ExecutionDeployer executionDeployer = createExecutionDeployer();
 
         deployTasks(executionDeployer, executionGraph);
 
@@ -267,7 +267,7 @@ class DefaultExecutionDeployerTest {
 
         final JobGraph jobGraph = nonParallelSourceSinkJobGraph();
         final ExecutionGraph executionGraph = createExecutionGraph(jobGraph);
-        final ExecutionDeployer executionDeployer = createExecutionDeployer(executionGraph);
+        final ExecutionDeployer executionDeployer = createExecutionDeployer();
 
         deployTasks(executionDeployer, executionGraph);
 
@@ -289,7 +289,7 @@ class DefaultExecutionDeployerTest {
 
             final JobGraph jobGraph = nonParallelSourceSinkJobGraph();
             final ExecutionGraph executionGraph = createExecutionGraph(jobGraph);
-            final ExecutionDeployer executionDeployer = createExecutionDeployer(executionGraph);
+            final ExecutionDeployer executionDeployer = createExecutionDeployer();
 
             deployTasks(executionDeployer, executionGraph);
 
@@ -339,7 +339,7 @@ class DefaultExecutionDeployerTest {
         return executionGraph;
     }
 
-    private ExecutionDeployer createExecutionDeployer(ExecutionGraph executionGraph) {
+    private ExecutionDeployer createExecutionDeployer() {
         return new DefaultExecutionDeployer.Factory()
                 .createInstance(
                         LoggerFactory.getLogger(DefaultExecutionDeployer.class),
@@ -347,7 +347,6 @@ class DefaultExecutionDeployerTest {
                         testExecutionOperations,
                         executionVertexVersioner,
                         partitionRegistrationTimeout,
-                        id -> executionGraph.getRegisteredExecutions().get(id),
                         (ignored1, ignored2) -> {},
                         mainThreadExecutor);
     }

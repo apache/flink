@@ -39,7 +39,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -65,8 +64,6 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
 
     private final Time partitionRegistrationTimeout;
 
-    private final Function<ExecutionAttemptID, Execution> executionRetriever;
-
     private final BiConsumer<ExecutionVertexID, AllocationID> allocationReservationFunc;
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
@@ -77,7 +74,6 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
             final ExecutionOperations executionOperations,
             final ExecutionVertexVersioner executionVertexVersioner,
             final Time partitionRegistrationTimeout,
-            final Function<ExecutionAttemptID, Execution> executionRetriever,
             final BiConsumer<ExecutionVertexID, AllocationID> allocationReservationFunc,
             final ComponentMainThreadExecutor mainThreadExecutor) {
 
@@ -86,7 +82,6 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
         this.executionOperations = checkNotNull(executionOperations);
         this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
         this.partitionRegistrationTimeout = checkNotNull(partitionRegistrationTimeout);
-        this.executionRetriever = checkNotNull(executionRetriever);
         this.allocationReservationFunc = checkNotNull(allocationReservationFunc);
         this.mainThreadExecutor = checkNotNull(mainThreadExecutor);
     }
@@ -103,7 +98,8 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
                 allocateSlotsFor(executionsToDeploy);
 
         final List<ExecutionDeploymentHandle> deploymentHandles =
-                createDeploymentHandles(requiredVersionByVertex, executionSlotAssignments);
+                createDeploymentHandles(
+                        executionsToDeploy, requiredVersionByVertex, executionSlotAssignments);
 
         waitForAllSlotsAndDeploy(deploymentHandles);
     }
@@ -132,22 +128,25 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
     }
 
     private List<ExecutionDeploymentHandle> createDeploymentHandles(
+            final List<Execution> executionsToDeploy,
             final Map<ExecutionVertexID, ExecutionVertexVersion> requiredVersionByVertex,
             final List<ExecutionSlotAssignment> executionSlotAssignments) {
 
-        return executionSlotAssignments.stream()
-                .map(
-                        executionSlotAssignment -> {
-                            final Execution execution =
-                                    getExecutionOrThrow(
-                                            executionSlotAssignment.getExecutionAttemptId());
-                            final ExecutionVertexID executionVertexId =
-                                    execution.getVertex().getID();
-                            return new ExecutionDeploymentHandle(
-                                    executionSlotAssignment,
-                                    requiredVersionByVertex.get(executionVertexId));
-                        })
-                .collect(Collectors.toList());
+        final List<ExecutionDeploymentHandle> deploymentHandles =
+                new ArrayList<>(executionsToDeploy.size());
+        for (int i = 0; i < executionsToDeploy.size(); i++) {
+            final Execution execution = executionsToDeploy.get(i);
+            final ExecutionSlotAssignment assignment = executionSlotAssignments.get(i);
+            checkState(execution.getAttemptId().equals(assignment.getExecutionAttemptId()));
+
+            final ExecutionVertexID executionVertexId = execution.getVertex().getID();
+            final ExecutionDeploymentHandle deploymentHandle =
+                    new ExecutionDeploymentHandle(
+                            execution, assignment, requiredVersionByVertex.get(executionVertexId));
+            deploymentHandles.add(deploymentHandle);
+        }
+
+        return deploymentHandles;
     }
 
     private void waitForAllSlotsAndDeploy(final List<ExecutionDeploymentHandle> deploymentHandles) {
@@ -169,8 +168,7 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
                                     (ignore, throwable) -> {
                                         if (throwable != null) {
                                             handleTaskDeploymentFailure(
-                                                    deploymentHandle.getExecutionAttemptId(),
-                                                    throwable);
+                                                    deploymentHandle.getExecution(), throwable);
                                         }
                                         return null;
                                     });
@@ -208,11 +206,9 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
         return (logicalSlot, throwable) -> {
             final ExecutionVertexVersion requiredVertexVersion =
                     deploymentHandle.getRequiredVertexVersion();
-            final Optional<Execution> optionalExecution =
-                    getExecution(deploymentHandle.getExecutionAttemptId());
+            final Execution execution = deploymentHandle.getExecution();
 
-            if (!optionalExecution.isPresent()
-                    || optionalExecution.get().getState() != ExecutionState.SCHEDULED
+            if (execution.getState() != ExecutionState.SCHEDULED
                     || executionVertexVersioner.isModified(requiredVertexVersion)) {
                 if (throwable == null) {
                     log.debug(
@@ -231,7 +227,6 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
                 throw new CompletionException(maybeWrapWithNoResourceAvailableException(throwable));
             }
 
-            final Execution execution = optionalExecution.get();
             if (!execution.tryAssignResource(logicalSlot)) {
                 throw new IllegalStateException(
                         "Could not assign resource "
@@ -277,8 +272,7 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
             // a null logicalSlot means the slot assignment is skipped, in which case
             // the produced partition registration process can be skipped as well
             if (logicalSlot != null) {
-                final Execution execution =
-                        getExecutionOrThrow(deploymentHandle.getExecutionAttemptId());
+                final Execution execution = deploymentHandle.getExecution();
                 final CompletableFuture<Void> partitionRegistrationFuture =
                         execution.registerProducedPartitions(logicalSlot.getTaskManagerLocation());
 
@@ -299,11 +293,9 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
         return (ignored, throwable) -> {
             final ExecutionVertexVersion requiredVertexVersion =
                     deploymentHandle.getRequiredVertexVersion();
-            final Optional<Execution> optionalExecution =
-                    getExecution(deploymentHandle.getExecutionAttemptId());
+            final Execution execution = deploymentHandle.getExecution();
 
-            if (!optionalExecution.isPresent()
-                    || optionalExecution.get().getState() != ExecutionState.SCHEDULED
+            if (execution.getState() != ExecutionState.SCHEDULED
                     || executionVertexVersioner.isModified(requiredVertexVersion)) {
                 if (throwable == null) {
                     log.debug(
@@ -314,11 +306,10 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
                 return null;
             }
 
-            final Execution execution = optionalExecution.get();
             if (throwable == null) {
                 deployTaskSafe(execution);
             } else {
-                handleTaskDeploymentFailure(execution.getAttemptId(), throwable);
+                handleTaskDeploymentFailure(execution, throwable);
             }
             return null;
         };
@@ -328,40 +319,37 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
         try {
             executionOperations.deploy(execution);
         } catch (Throwable e) {
-            handleTaskDeploymentFailure(execution.getAttemptId(), e);
+            handleTaskDeploymentFailure(execution, e);
         }
     }
 
-    private void handleTaskDeploymentFailure(
-            final ExecutionAttemptID executionAttemptId, final Throwable error) {
-
-        final Execution execution = getExecutionOrThrow(executionAttemptId);
+    private void handleTaskDeploymentFailure(final Execution execution, final Throwable error) {
         executionOperations.markFailed(execution, error);
     }
 
-    private Execution getExecutionOrThrow(ExecutionAttemptID executionAttemptId) {
-        return getExecution(executionAttemptId).get();
-    }
-
-    private Optional<Execution> getExecution(ExecutionAttemptID executionAttemptId) {
-        return Optional.ofNullable(executionRetriever.apply(executionAttemptId));
-    }
-
     private static class ExecutionDeploymentHandle {
+
+        private final Execution execution;
 
         private final ExecutionSlotAssignment executionSlotAssignment;
 
         private final ExecutionVertexVersion requiredVertexVersion;
 
         ExecutionDeploymentHandle(
-                ExecutionSlotAssignment executionSlotAssignment,
+                final Execution execution,
+                final ExecutionSlotAssignment executionSlotAssignment,
                 final ExecutionVertexVersion requiredVertexVersion) {
+            this.execution = checkNotNull(execution);
             this.executionSlotAssignment = checkNotNull(executionSlotAssignment);
             this.requiredVertexVersion = checkNotNull(requiredVertexVersion);
         }
 
+        Execution getExecution() {
+            return execution;
+        }
+
         ExecutionAttemptID getExecutionAttemptId() {
-            return executionSlotAssignment.getExecutionAttemptId();
+            return execution.getAttemptId();
         }
 
         CompletableFuture<LogicalSlot> getLogicalSlotFuture() {
@@ -383,7 +371,6 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
                 ExecutionOperations executionOperations,
                 ExecutionVertexVersioner executionVertexVersioner,
                 Time partitionRegistrationTimeout,
-                Function<ExecutionAttemptID, Execution> executionRetriever,
                 BiConsumer<ExecutionVertexID, AllocationID> allocationReservationFunc,
                 ComponentMainThreadExecutor mainThreadExecutor) {
             return new DefaultExecutionDeployer(
@@ -392,7 +379,6 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
                     executionOperations,
                     executionVertexVersioner,
                     partitionRegistrationTimeout,
-                    executionRetriever,
                     allocationReservationFunc,
                     mainThreadExecutor);
         }

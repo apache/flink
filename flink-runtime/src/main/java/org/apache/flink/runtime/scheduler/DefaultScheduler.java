@@ -189,7 +189,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                         executionOperations,
                         executionVertexVersioner,
                         rpcTimeout,
-                        id -> getExecutionGraph().getRegisteredExecutions().get(id),
                         this::startReserveAllocation,
                         mainThreadExecutor);
     }
