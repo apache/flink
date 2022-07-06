@@ -14,3 +14,4 @@
 # limitations under the License.
 
 org.apache.flink.runtime.security.token.HadoopFSDelegationTokenProvider
+org.apache.flink.runtime.security.token.HBaseDelegationTokenProvider
