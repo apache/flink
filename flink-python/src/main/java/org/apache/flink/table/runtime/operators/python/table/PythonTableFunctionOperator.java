@@ -59,7 +59,7 @@ public class PythonTableFunctionOperator
     private final PythonFunctionInfo tableFunction;
 
     /** The correlate join type. */
-    protected final FlinkJoinType joinType;
+    private final FlinkJoinType joinType;
 
     private final GeneratedProjection udtfInputGeneratedProjection;
 

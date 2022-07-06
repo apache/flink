@@ -15,7 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import sys
 import unittest
+
+import pytest
 
 from pyflink.table import DataTypes
 from pyflink.table.udf import TableFunction, udtf, ScalarFunction, udf
@@ -129,15 +132,19 @@ class PyFlinkBatchUserDefinedFunctionTests(UserDefinedTableFunctionTests,
     pass
 
 
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
+class PyFlinkEmbeddedThreadTests(UserDefinedTableFunctionTests, PyFlinkStreamTableTestCase):
+    def setUp(self):
+        super(PyFlinkEmbeddedThreadTests, self).setUp()
+        self.t_env.get_config().set("python.execution-mode", "thread")
+
+
 class MultiEmit(TableFunction, unittest.TestCase):
 
     def open(self, function_context):
-        mg = function_context.get_metric_group()
-        self.counter = mg.add_group("key", "value").counter("my_counter")
         self.counter_sum = 0
 
     def eval(self, x, y):
-        self.counter.inc(y)
         self.counter_sum += y
         for i in range(y):
             yield x, i

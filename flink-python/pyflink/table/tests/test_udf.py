@@ -341,7 +341,7 @@ class UserDefinedFunctionTests(object):
 
         @udf(result_type=DataTypes.ARRAY(DataTypes.BIGINT()))
         def array_func(array_param):
-            assert array_param == [[1, 2, 3]], \
+            assert array_param == [[1, 2, 3]] or array_param == ((1, 2, 3),), \
                 'array_param is wrong value %s !' % array_param
             return array_param[0]
 
@@ -500,7 +500,7 @@ class UserDefinedFunctionTests(object):
             return timestamp_param
 
         def array_func(array_param):
-            assert array_param == [[1, 2, 3]], \
+            assert array_param == [[1, 2, 3]] or array_param == ((1, 2, 3),), \
                 'array_param is wrong value %s !' % array_param
             return array_param[0]
 
