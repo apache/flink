@@ -349,6 +349,8 @@ public class PushProjectIntoTableSourceScanRule
                             newProjects, projectedSchema, call.builder().getRexBuilder());
         } else if (supportsMetadata(source.tableSource())) {
             // supportsMetadataProjection only.
+            // Note: why not reuse the NestedProjectionUtil to rewrite metadata projection? because
+            // it only works for sources which support projection push down.
             List<Column.MetadataColumn> metadataColumns =
                     DynamicSourceUtils.extractMetadataColumns(
                             source.contextResolvedTable().getResolvedSchema());
