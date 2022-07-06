@@ -57,6 +57,11 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
     public HiveFunctionWrapper(String className, UDFType serializableInstance) {
         this(className);
         Preconditions.checkArgument(
+                serializableInstance.getClass().getName().equals(className),
+                String.format(
+                        "Expect the UDF is instance of %s, but is instance of %s.",
+                        className, serializableInstance.getClass().getName()));
+        Preconditions.checkArgument(
                 serializableInstance instanceof Serializable,
                 String.format(
                         "The UDF %s should be an instance of Serializable.",

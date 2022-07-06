@@ -516,7 +516,8 @@ public class HiveParserDDLSemanticAnalyzer {
         if (isTemporaryFunction && FunctionUtils.isQualifiedFunctionName(functionName)) {
             // hive's temporary function is more like flink's temp system function, e.g. doesn't
             // belong to a catalog/db
-            throw new ValidationException("The name of the temporary macro can't contain `.`.");
+            throw new ValidationException(
+                    "Temporary function cannot be created with a qualified name.");
         }
 
         if (isTemporaryFunction) {
@@ -536,7 +537,10 @@ public class HiveParserDDLSemanticAnalyzer {
     private Operation convertCreateMacro(HiveParserASTNode ast) throws SemanticException {
         String macroName = ast.getChild(0).getText();
         if (FunctionUtils.isQualifiedFunctionName(macroName)) {
-            throw new SemanticException("The name of the temporary macro can't contain `.`.");
+            throw new SemanticException(
+                    String.format(
+                            "CREATE TEMPORARY MACRO doesn't allow \".\" character in the macro name, but the name is \"%s\".",
+                            macroName));
         }
 
         // macro use table's columns as argument, so get the corresponding column
@@ -628,7 +632,10 @@ public class HiveParserDDLSemanticAnalyzer {
     private Operation convertDropMacro(HiveParserASTNode ast) throws SemanticException {
         String macroName = ast.getChild(0).getText();
         if (FunctionUtils.isQualifiedFunctionName(macroName)) {
-            throw new SemanticException("The name of the temporary macro can't contain `.`.");
+            throw new SemanticException(
+                    String.format(
+                            "DROP TEMPORARY MACRO doesn't allow \".\" character in the macro name, but the name is \"%s\".",
+                            macroName));
         }
 
         boolean ifExists = (ast.getFirstChildWithType(HiveASTParser.TOK_IFEXISTS) != null);
