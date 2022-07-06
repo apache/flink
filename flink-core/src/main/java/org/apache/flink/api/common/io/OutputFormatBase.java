@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.io;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.Executors;
@@ -47,7 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * @param <OUT> Type of the elements to write.
  */
-@PublicEvolving
+@Experimental
 public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
     private static final Logger LOG = LoggerFactory.getLogger(OutputFormatBase.class);
 
