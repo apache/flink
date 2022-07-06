@@ -109,7 +109,7 @@ public class SqlGatewayEndpointFactoryUtils {
 
         private EndpointFactoryHelper(
                 SqlGatewayEndpointFactory factory, Map<String, String> configOptions) {
-            super(factory, configOptions, PROPERTY_VERSION, SQL_GATEWAY_ENDPOINT_TYPE);
+            super(factory, configOptions, PROPERTY_VERSION);
         }
     }
 
