@@ -30,12 +30,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * CassandraOutputFormatBase is the common abstract class for writing into Apache Cassandra using
@@ -67,31 +63,26 @@ abstract class CassandraOutputFormatBase<OUT, V> extends OutputFormatBase<OUT, V
 
     /** Opens a Session to Cassandra . */
     @Override
-    public void open(int taskNumber, int numTasks) {
+    protected void postOpen() {
         this.session = cluster.connect();
-        super.open(taskNumber, numTasks);
     }
 
     /** Closes all resources used by Cassandra connection. */
     @Override
-    public void close() throws IOException {
+    protected void postClose() {
         try {
-            super.close();
-        } finally {
-            try {
-                if (session != null) {
-                    session.close();
-                }
-            } catch (Exception e) {
-                LOG.error("Error while closing session.", e);
+            if (session != null) {
+                session.close();
             }
-            try {
-                if (cluster != null) {
-                    cluster.close();
-                }
-            } catch (Exception e) {
-                LOG.error("Error while closing cluster.", e);
+        } catch (Exception e) {
+            LOG.error("Error while closing session.", e);
+        }
+        try {
+            if (cluster != null) {
+                cluster.close();
             }
+        } catch (Exception e) {
+            LOG.error("Error while closing cluster.", e);
         }
     }
 

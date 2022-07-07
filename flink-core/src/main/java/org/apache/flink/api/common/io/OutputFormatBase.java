@@ -70,12 +70,9 @@ public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
         this.maxConcurrentRequestsTimeout = maxConcurrentRequestsTimeout;
     }
 
-    /**
-     * Open the format and initializes the flush system. Implementers must call {@code
-     * super.open()}.
-     */
+    /** Open the format and initializes the flush system. */
     @Override
-    public void open(int taskNumber, int numTasks) {
+    public final void open(int taskNumber, int numTasks) {
         throwable = new AtomicReference<>();
         this.semaphore = new Semaphore(maxConcurrentRequests);
         this.callback =
@@ -92,7 +89,14 @@ public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
                         semaphore.release();
                     }
                 };
+        postOpen();
     }
+
+    /**
+     * Initialize the OutputFormat. This method is called at the end of {@link
+     * OutputFormatBase#open(int, int)}.
+     */
+    protected void postOpen() {}
 
     private void flush() throws IOException {
         tryAcquire(maxConcurrentRequests);
@@ -145,16 +149,20 @@ public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
         }
     }
 
-    /**
-     * Close the format waiting for pending writes and reports errors. Implementers must call {@code
-     * super.close()}.
-     */
+    /** Close the format waiting for pending writes and reports errors. */
     @Override
-    public void close() throws IOException {
+    public final void close() throws IOException {
         checkAsyncErrors();
         flush();
         checkAsyncErrors();
+        postClose();
     }
+
+    /**
+     * Tear down the OutputFormat. This method is called at the end of {@link
+     * OutputFormatBase#close()}.
+     */
+    protected void postClose() {}
 
     @VisibleForTesting
     int getAvailablePermits() {

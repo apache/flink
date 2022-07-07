@@ -52,8 +52,8 @@ abstract class CassandraColumnarOutputFormatBase<OUT>
     }
 
     @Override
-    public void open(int taskNumber, int numTasks) {
-        super.open(taskNumber, numTasks);
+    protected void postOpen() {
+        super.postOpen();
         this.prepared = session.prepare(insertQuery);
     }
 

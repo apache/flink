@@ -25,7 +25,6 @@ import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
 import com.google.common.util.concurrent.ListenableFuture;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletionStage;
 
@@ -68,14 +67,10 @@ public class CassandraPojoOutputFormat<OUT> extends CassandraOutputFormatBase<OU
         this.outputClass = outputClass;
     }
 
-    /**
-     * Opens a Session to Cassandra and initializes the prepared statement.
-     *
-     * @param taskNumber The number of the parallel instance.
-     */
+    /** Opens a Session to Cassandra and initializes the prepared statement. */
     @Override
-    public void open(int taskNumber, int numTasks) {
-        super.open(taskNumber, numTasks);
+    protected void postOpen() {
+        super.postOpen();
         MappingManager mappingManager = new MappingManager(session);
         this.mapper = mappingManager.mapper(outputClass);
         if (mapperOptions != null) {
@@ -94,11 +89,8 @@ public class CassandraPojoOutputFormat<OUT> extends CassandraOutputFormatBase<OU
 
     /** Closes all resources used. */
     @Override
-    public void close() throws IOException {
-        try {
-            super.close();
-        } finally {
-            mapper = null;
-        }
+    protected void postClose() {
+        super.postClose();
+        mapper = null;
     }
 }
