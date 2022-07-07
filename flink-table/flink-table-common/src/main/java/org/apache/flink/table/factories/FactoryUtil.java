@@ -876,7 +876,9 @@ public final class FactoryUtil {
     // Helper classes
     // --------------------------------------------------------------------------------------------
 
-    private static class FactoryHelper<F extends Factory> {
+    /** Base helper utility for validating all options for a {@link Factory}. */
+    @PublicEvolving
+    public static class FactoryHelper<F extends Factory> {
 
         protected final F factory;
 
@@ -886,7 +888,7 @@ public final class FactoryUtil {
 
         protected final Set<String> deprecatedOptionKeys;
 
-        FactoryHelper(
+        public FactoryHelper(
                 F factory, Map<String, String> configuration, ConfigOption<?>... implicitOptions) {
             this.factory = factory;
             this.allOptions = Configuration.fromMap(configuration);
