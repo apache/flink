@@ -137,8 +137,7 @@ public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
     /**
      * Send the actual record for writing.
      *
-     * @return Implementers must return a CompletionStage which has a valid {@link
-     *     CompletionStage#toCompletableFuture()} implementation.
+     * @return a CompletionStage that represents the writing task.
      */
     protected abstract CompletionStage<V> send(OUT record);
 
