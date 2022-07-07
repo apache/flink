@@ -29,11 +29,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
-import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHandler;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
@@ -45,7 +42,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
-import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
 import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
@@ -53,8 +49,6 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.topology.Vertex;
-import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
@@ -76,7 +70,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** The future default scheduler. */
 public class DefaultScheduler extends SchedulerBase implements SchedulerOperations {
@@ -85,13 +81,13 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private final ClassLoader userCodeLoader;
 
-    private final ExecutionSlotAllocator executionSlotAllocator;
+    protected final ExecutionSlotAllocator executionSlotAllocator;
 
     private final ExecutionFailureHandler executionFailureHandler;
 
     private final ScheduledExecutor delayExecutor;
 
-    protected final SchedulingStrategy schedulingStrategy;
+    private final SchedulingStrategy schedulingStrategy;
 
     private final ExecutionOperations executionOperations;
 
@@ -106,7 +102,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     // anymore. The reserved allocation information is needed for local recovery.
     private final Map<ExecutionVertexID, AllocationID> reservedAllocationByExecutionVertex;
 
-    private final ExecutionDeployer executionDeployer;
+    protected final ExecutionDeployer executionDeployer;
 
     protected DefaultScheduler(
             final Logger log,
@@ -204,10 +200,9 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     @Override
     protected void cancelAllPendingSlotRequestsInternal() {
-        IterableUtils.toStream(getSchedulingTopology().getVertices())
-                .map(Vertex::getId)
-                .map(this::getCurrentExecutionIdOfVertex)
-                .forEach(executionSlotAllocator::cancel);
+        getSchedulingTopology()
+                .getVertices()
+                .forEach(ev -> cancelAllPendingSlotRequestsForVertex(ev.getId()));
     }
 
     @Override
@@ -220,47 +215,46 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     }
 
     @Override
-    protected void updateTaskExecutionStateInternal(
-            final ExecutionVertexID executionVertexId,
-            final TaskExecutionStateTransition taskExecutionState) {
+    protected void onTaskFinished(final Execution execution) {
+        checkState(execution.getState() == ExecutionState.FINISHED);
 
+        final ExecutionVertexID executionVertexId = execution.getVertex().getID();
         // once a task finishes, it will release the assigned allocation/slot and no longer
         // needs it. Therefore, it should stop reserving the slot so that other tasks are
         // possible to use the slot. Ideally, the `stopReserveAllocation` should happen
         // along with the release slot process. However, that process is hidden in the depth
         // of the ExecutionGraph, so we currently do it in DefaultScheduler after that process
         // is done.
-        if (taskExecutionState.getExecutionState() == ExecutionState.FINISHED) {
-            stopReserveAllocation(executionVertexId);
-        }
+        stopReserveAllocation(executionVertexId);
 
-        schedulingStrategy.onExecutionStateChange(
-                executionVertexId, taskExecutionState.getExecutionState());
-        maybeHandleTaskFailure(taskExecutionState, getCurrentExecutionOfVertex(executionVertexId));
+        schedulingStrategy.onExecutionStateChange(executionVertexId, ExecutionState.FINISHED);
     }
 
-    private void maybeHandleTaskFailure(
-            final TaskExecutionStateTransition taskExecutionState, final Execution execution) {
+    @Override
+    protected void onTaskFailed(final Execution execution) {
+        checkState(execution.getState() == ExecutionState.FAILED);
+        checkState(execution.getFailureInfo().isPresent());
 
-        if (taskExecutionState.getExecutionState() == ExecutionState.FAILED) {
-            final Throwable error = taskExecutionState.getError(userCodeLoader);
-            handleTaskFailure(execution, error);
-        }
-    }
-
-    private void handleTaskFailure(
-            final Execution failedExecution, @Nullable final Throwable error) {
-        Throwable revisedError =
+        final Throwable error =
+                execution.getFailureInfo().get().getException().deserializeError(userCodeLoader);
+        handleTaskFailure(
+                execution,
                 maybeTranslateToCachedIntermediateDataSetException(
-                        error, failedExecution.getVertex().getID());
-        final long timestamp = System.currentTimeMillis();
-        setGlobalFailureCause(revisedError, timestamp);
-        notifyCoordinatorsAboutTaskFailure(failedExecution.getVertex().getID(), revisedError);
+                        error, execution.getVertex().getID()));
+    }
 
-        final FailureHandlingResult failureHandlingResult =
-                executionFailureHandler.getFailureHandlingResult(
-                        failedExecution, revisedError, timestamp);
-        maybeRestartTasks(failureHandlingResult);
+    protected void handleTaskFailure(
+            final Execution failedExecution, @Nullable final Throwable error) {
+        maybeRestartTasks(recordTaskFailure(failedExecution, error));
+    }
+
+    protected FailureHandlingResult recordTaskFailure(
+            final Execution failedExecution, @Nullable final Throwable error) {
+        final long timestamp = System.currentTimeMillis();
+        setGlobalFailureCause(error, timestamp);
+        notifyCoordinatorsAboutTaskFailure(failedExecution, error);
+
+        return executionFailureHandler.getFailureHandlingResult(failedExecution, error, timestamp);
     }
 
     private Throwable maybeTranslateToCachedIntermediateDataSetException(
@@ -286,10 +280,9 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     }
 
     private void notifyCoordinatorsAboutTaskFailure(
-            final ExecutionVertexID executionVertexId, @Nullable final Throwable error) {
-        final ExecutionJobVertex jobVertex =
-                getExecutionJobVertex(executionVertexId.getJobVertexId());
-        final int subtaskIndex = executionVertexId.getSubtaskIndex();
+            final Execution execution, @Nullable final Throwable error) {
+        final ExecutionJobVertex jobVertex = execution.getVertex().getJobVertex();
+        final int subtaskIndex = execution.getParallelSubtaskIndex();
 
         jobVertex.getOperatorCoordinators().forEach(c -> c.subtaskFailed(subtaskIndex, error));
     }
@@ -324,13 +317,24 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                                 .values());
         final boolean globalRecovery = failureHandlingResult.isGlobalFailure();
 
+        if (globalRecovery) {
+            log.info(
+                    "{} tasks will be restarted to recover from a global failure.",
+                    verticesToRestart.size());
+        } else {
+            checkArgument(failureHandlingResult.getFailedExecution().isPresent());
+            log.info(
+                    "{} tasks will be restarted to recover the failed task {}.",
+                    verticesToRestart.size(),
+                    failureHandlingResult.getFailedExecution().get().getAttemptId());
+        }
+
         addVerticesToRestartPending(verticesToRestart);
 
         final CompletableFuture<?> cancelFuture = cancelTasksAsync(verticesToRestart);
 
         final FailureHandlingResultSnapshot failureHandlingResultSnapshot =
-                FailureHandlingResultSnapshot.create(
-                        failureHandlingResult, id -> getExecutionVertex(id).getCurrentExecutions());
+                createFailureHandlingResultSnapshot(failureHandlingResult);
         delayExecutor.schedule(
                 () ->
                         FutureUtils.assertNoException(
@@ -343,6 +347,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                                         getMainThreadExecutor())),
                 failureHandlingResult.getRestartDelayMS(),
                 TimeUnit.MILLISECONDS);
+    }
+
+    protected FailureHandlingResultSnapshot createFailureHandlingResultSnapshot(
+            final FailureHandlingResult failureHandlingResult) {
+        return FailureHandlingResultSnapshot.create(
+                failureHandlingResult, id -> getExecutionVertex(id).getCurrentExecutions());
     }
 
     private void addVerticesToRestartPending(final Set<ExecutionVertexID> verticesToRestart) {
@@ -380,9 +390,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     private CompletableFuture<?> cancelTasksAsync(final Set<ExecutionVertexID> verticesToRestart) {
         // clean up all the related pending requests to avoid that immediately returned slot
         // is used to fulfill the pending requests of these tasks
-        verticesToRestart.stream()
-                .map(this::getCurrentExecutionIdOfVertex)
-                .forEach(executionSlotAllocator::cancel);
+        cancelAllPendingSlotRequestsForVertices(verticesToRestart);
 
         final List<CompletableFuture<?>> cancelFutures =
                 verticesToRestart.stream()
@@ -393,15 +401,27 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     }
 
     private CompletableFuture<?> cancelExecutionVertex(final ExecutionVertexID executionVertexId) {
-        final ExecutionVertex vertex = getExecutionVertex(executionVertexId);
-
-        notifyCoordinatorOfCancellation(vertex);
-
-        return executionOperations.cancel(vertex.getCurrentExecutionAttempt());
+        return FutureUtils.combineAll(
+                getExecutionVertex(executionVertexId).getCurrentExecutions().stream()
+                        .map(this::cancelExecution)
+                        .collect(Collectors.toList()));
     }
 
-    private ExecutionAttemptID getCurrentExecutionIdOfVertex(ExecutionVertexID executionVertexId) {
-        return getCurrentExecutionOfVertex(executionVertexId).getAttemptId();
+    protected CompletableFuture<?> cancelExecution(final Execution execution) {
+        notifyCoordinatorOfCancellation(execution);
+        return executionOperations.cancel(execution);
+    }
+
+    private void cancelAllPendingSlotRequestsForVertices(
+            final Set<ExecutionVertexID> executionVertices) {
+        executionVertices.forEach(this::cancelAllPendingSlotRequestsForVertex);
+    }
+
+    protected void cancelAllPendingSlotRequestsForVertex(
+            final ExecutionVertexID executionVertexId) {
+        getExecutionVertex(executionVertexId)
+                .getCurrentExecutions()
+                .forEach(e -> executionSlotAllocator.cancel(e.getAttemptId()));
     }
 
     private Execution getCurrentExecutionOfVertex(ExecutionVertexID executionVertexId) {
@@ -445,23 +465,18 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         }
     }
 
-    private void notifyCoordinatorOfCancellation(ExecutionVertex vertex) {
+    private void notifyCoordinatorOfCancellation(Execution execution) {
         // this method makes a best effort to filter out duplicate notifications, meaning cases
-        // where
-        // the coordinator was already notified for that specific task
+        // where the coordinator was already notified for that specific task
         // we don't notify if the task is already FAILED, CANCELLING, or CANCELED
-
-        final ExecutionState currentState = vertex.getExecutionState();
+        final ExecutionState currentState = execution.getState();
         if (currentState == ExecutionState.FAILED
                 || currentState == ExecutionState.CANCELING
                 || currentState == ExecutionState.CANCELED) {
             return;
         }
 
-        for (OperatorCoordinatorHolder coordinator :
-                vertex.getJobVertex().getOperatorCoordinators()) {
-            coordinator.subtaskFailed(vertex.getParallelSubtaskIndex(), null);
-        }
+        notifyCoordinatorsAboutTaskFailure(execution, null);
     }
 
     private class DefaultExecutionSlotAllocationContext implements ExecutionSlotAllocationContext {

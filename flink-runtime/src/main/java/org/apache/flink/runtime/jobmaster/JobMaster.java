@@ -385,7 +385,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         initializationTimestamp,
                         getMainThreadExecutor(),
                         fatalErrorHandler,
-                        jobStatusListener);
+                        jobStatusListener,
+                        blocklistHandler::addNewBlockedNodes);
 
         return scheduler;
     }

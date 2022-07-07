@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blocklist.BlocklistOperations;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -72,7 +73,8 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
             long initializationTimestamp,
             final ComponentMainThreadExecutor mainThreadExecutor,
             final FatalErrorHandler fatalErrorHandler,
-            final JobStatusListener jobStatusListener)
+            final JobStatusListener jobStatusListener,
+            final BlocklistOperations blocklistOperations)
             throws Exception {
 
         final SlotPool slotPool =

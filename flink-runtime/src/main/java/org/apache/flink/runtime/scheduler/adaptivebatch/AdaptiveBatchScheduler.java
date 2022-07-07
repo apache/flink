@@ -26,10 +26,10 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
-import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.jobgraph.JobEdge;
@@ -51,7 +51,6 @@ import org.apache.flink.runtime.scheduler.SchedulerOperations;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptivebatch.forwardgroup.ForwardGroup;
 import org.apache.flink.runtime.scheduler.adaptivebatch.forwardgroup.ForwardGroupComputeUtil;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -145,23 +144,20 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements Schedule
     }
 
     @Override
-    public void startSchedulingInternal() {
+    protected void startSchedulingInternal() {
         initializeVerticesIfPossible();
 
         super.startSchedulingInternal();
     }
 
     @Override
-    protected void updateTaskExecutionStateInternal(
-            final ExecutionVertexID executionVertexId,
-            final TaskExecutionStateTransition taskExecutionState) {
-
+    protected void onTaskFinished(final Execution execution) {
         initializeVerticesIfPossible();
 
-        super.updateTaskExecutionStateInternal(executionVertexId, taskExecutionState);
+        super.onTaskFinished(execution);
     }
 
-    private void initializeVerticesIfPossible() {
+    void initializeVerticesIfPossible() {
         final List<ExecutionJobVertex> newlyInitializedJobVertices = new ArrayList<>();
         try {
             final long createTimestamp = System.currentTimeMillis();
