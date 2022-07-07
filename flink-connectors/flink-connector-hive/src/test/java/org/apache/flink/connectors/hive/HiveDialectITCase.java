@@ -59,6 +59,7 @@ import org.apache.hadoop.hive.ql.io.RCFileOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
+import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCount;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
 import org.apache.hadoop.hive.serde.serdeConstants;
@@ -851,6 +852,52 @@ public class HiveDialectITCase {
                                 .collect());
         assertThat(partitions).hasSize(1);
         assertThat(partitions.toString()).contains("dt=2020-04-30 01:02:03/country=china");
+    }
+
+    @Test
+    public void testMacro() throws Exception {
+        tableEnv.executeSql("create temporary macro string_len (x string) length(x)");
+        tableEnv.executeSql("create temporary macro string_len_plus(x string) length(x) + 1");
+        tableEnv.executeSql("create table macro_test (x string)");
+        tableEnv.executeSql("insert into table macro_test values ('bb'), ('a'), ('cc')").await();
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select string_len(x), string_len_plus(x) from macro_test")
+                                .collect());
+        assertThat(result.toString()).isEqualTo("[+I[2, 3], +I[1, 2], +I[2, 3]]");
+        // drop macro
+        tableEnv.executeSql("drop temporary macro string_len_plus");
+        // create macro
+        tableEnv.executeSql("create temporary macro string_len_plus(x string) length(x) + 2");
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select string_len(x), string_len_plus(x) from macro_test")
+                                .collect());
+        assertThat(result.toString()).isEqualTo("[+I[2, 4], +I[1, 3], +I[2, 4]]");
+        String badMacroName = "db.string_len";
+        // should fail when create macro whose name contains "."
+        assertThatThrownBy(
+                        () ->
+                                tableEnv.executeSql(
+                                        String.format(
+                                                "create temporary macro `%s` (x string) length(x)",
+                                                badMacroName)))
+                .hasRootCauseInstanceOf(SemanticException.class)
+                .hasRootCauseMessage(
+                        String.format(
+                                "CREATE TEMPORARY MACRO doesn't allow \".\" character in the macro name, but the name is \"%s\".",
+                                badMacroName));
+        // should fail when drop macro whose name contains "."
+        assertThatThrownBy(
+                        () ->
+                                tableEnv.executeSql(
+                                        String.format("drop temporary macro `%s`", badMacroName)))
+                .hasRootCauseInstanceOf(SemanticException.class)
+                .hasRootCauseMessage(
+                        "DROP TEMPORARY MACRO doesn't allow \".\" character in the macro name, but the name is \"%s\".",
+                        badMacroName);
     }
 
     @Test
