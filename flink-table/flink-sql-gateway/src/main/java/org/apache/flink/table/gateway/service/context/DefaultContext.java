@@ -39,7 +39,6 @@ import org.slf4j.LoggerFactory;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -135,13 +134,13 @@ public class DefaultContext {
 
     // -------------------------------------------------------------------------------------------
 
-    public static DefaultContext load(Map<String, String> config) {
+    public static DefaultContext load(Configuration dynamicConfig) {
         // 1. find the configuration directory
         String flinkConfigDir = CliFrontend.getConfigurationDirectoryFromEnv();
 
         // 2. load the global configuration
         Configuration configuration = GlobalConfiguration.loadConfiguration(flinkConfigDir);
-        configuration.addAll(Configuration.fromMap(config));
+        configuration.addAll(dynamicConfig);
 
         // 3. load the custom command lines
         List<CustomCommandLine> commandLines =
