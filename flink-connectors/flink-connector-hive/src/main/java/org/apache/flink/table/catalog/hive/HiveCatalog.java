@@ -71,9 +71,17 @@ import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFacto
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveStatsUtil;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticDataBuilder;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDouble;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.catalog.stats.Date;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.expressions.Expression;
@@ -117,6 +125,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1724,7 +1733,7 @@ public class HiveCatalog extends AbstractCatalog {
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException, CatalogException {
 
-        List<Partition> partitions = null;
+        List<Partition> partitions = new ArrayList<>(partitionSpecs.size());
         Tuple2<Table, List<String>> partitionsNamesTuple2 = null;
 
         try {
@@ -1853,7 +1862,10 @@ public class HiveCatalog extends AbstractCatalog {
             result.add(
                     buildPartitionedByColumnSatistics(
                             tablePath,
-                            partitionsTuple3.f0.getPartitionKeys().get(0).getName(),
+                            partitionsTuple3
+                                    .f0
+                                    .getPartitionKeys()
+                                    .get(partitionsTuple3.f0.getPartitionKeys().size() - 1),
                             partitionsTuple3.f2));
         } catch (TException e) {
             throw new CatalogException(
@@ -1867,40 +1879,89 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     private CatalogColumnStatistics buildPartitionedByColumnSatistics(
-            ObjectPath tablePath, String partitionedByColumnName, List<String> partitionNames) {
+            ObjectPath tablePath, FieldSchema partitionedByColumn, List<String> partitionNames) {
 
         Long nullCount = null;
-        Long min = null;
-        Long max = null;
         Long ndv = HiveStatsUtil.max(0L, Long.valueOf(partitionNames.size()));
 
+        CatalogColumnStatisticDataBuilder<? extends CatalogColumnStatisticsDataBase> builder = null;
+
+        final CatalogColumnStatisticsDataLong.Builder longBuilder =
+                CatalogColumnStatisticsDataLong.builder();
+        longBuilder.ndv(ndv);
+        final CatalogColumnStatisticsDataDate.Builder dateBuilder =
+                CatalogColumnStatisticsDataDate.builder();
+        dateBuilder.ndv(ndv);
+        final CatalogColumnStatisticsDataDouble.Builder doubleBuilder =
+                CatalogColumnStatisticsDataDouble.builder();
+        doubleBuilder.ndv(ndv);
+        final CatalogColumnStatisticsDataString.Builder stringBuilder =
+                CatalogColumnStatisticsDataString.builder();
+        stringBuilder.ndv(ndv);
+        final CatalogColumnStatisticsDataBoolean.Builder booleanBuilder =
+                CatalogColumnStatisticsDataBoolean.builder();
+        final CatalogColumnStatisticsDataBinary.Builder binaryBuilder =
+                CatalogColumnStatisticsDataBinary.builder();
+
         for (String partitionName : partitionNames) {
-            if (partitionName.equals(HIVE_DEFAULT_PARTITION)) {
+            String[] partName = partitionName.split(Path.SEPARATOR);
+            String[] partVal = partName[partName.length - 1].split("=");
+            String value = partVal[1];
+            if (value.equals(HIVE_DEFAULT_PARTITION)) {
                 try {
                     nullCount =
                             getPartitionStatistics(
                                             tablePath,
                                             new CatalogPartitionSpec(
                                                     Collections.singletonMap(
-                                                            partitionedByColumnName,
+                                                            partitionedByColumn.getName(),
                                                             HIVE_DEFAULT_PARTITION)))
                                     .getRowCount();
                 } catch (Exception e) {
                     LOG.info(
                             "Fail to get getPartitionColumnStatistics for partition {}={}",
-                            partitionedByColumnName,
+                            partitionedByColumn.getName(),
                             HIVE_DEFAULT_PARTITION);
                 }
             } else {
-                Long pv = Long.valueOf(partitionName);
-                min = HiveStatsUtil.min(min, pv);
-                max = HiveStatsUtil.max(max, pv);
+                final String type = partitionedByColumn.getType();
+                if ("int".equalsIgnoreCase(type)) {
+                    Long v = Long.valueOf(value);
+                    longBuilder.max(v);
+                    longBuilder.min(v);
+                    builder = longBuilder;
+                } else if ("double".equalsIgnoreCase(type)) {
+                    Double v = Double.valueOf(value);
+                    doubleBuilder.max(v);
+                    doubleBuilder.min(v);
+                    builder = doubleBuilder;
+                } else if ("date".equalsIgnoreCase(type)) {
+                    Date date = new Date(LocalDate.parse(value).toEpochDay());
+                    dateBuilder.max(date);
+                    dateBuilder.min(date);
+                    builder = dateBuilder;
+                } else if ("boolean".equalsIgnoreCase(type)) {
+                    if (Boolean.valueOf(value)) {
+                        booleanBuilder.increasTrueCount(1L);
+                    } else {
+                        booleanBuilder.increaseFalseCount(1L);
+                    }
+                    builder = booleanBuilder;
+                } else if ("string".equalsIgnoreCase(type)) {
+                    stringBuilder.maxLength(Long.valueOf(value.length()));
+                    stringBuilder.accumulateAvgLength(Long.valueOf(value.length()));
+                    builder = stringBuilder;
+                } else if ("binary".equalsIgnoreCase(type)) {
+                    binaryBuilder.maxLength(Long.valueOf(value.length()));
+                    binaryBuilder.accumulateAvgLength(Long.valueOf(value.length()));
+                    builder = binaryBuilder;
+                } else {
+                    throw new RuntimeException("Cannot handle partition keys of type " + type);
+                }
             }
         }
         return new CatalogColumnStatistics(
-                Collections.singletonMap(
-                        partitionedByColumnName,
-                        new CatalogColumnStatisticsDataLong(min, max, ndv, nullCount)));
+                Collections.singletonMap(partitionedByColumn.getName(), builder.build()));
     }
 
     @Override
