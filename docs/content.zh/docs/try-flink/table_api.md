@@ -28,6 +28,9 @@ under the License.
 
 # 基于 Table API 实现实时报表
 
+Apache Flink 提供了 Table API 作为统一的关系型 API 用于批处理和流处理，即，查询任务在无边界的实时流或有边界的批处理数据集上以相同的语义执行，并产生相同的结果。
+Flink中的Table API 通常用于简化数据分析、数据管道和 ETL 应用程序的定义。
+
 Apache Flink offers a Table API as a unified, relational API for batch and stream processing, i.e., queries are executed with the same semantics on unbounded, real-time streams or bounded, batch data sets and produce the same results.
 The Table API in Flink is commonly used to ease the definition of data analytics, data pipelining, and ETL applications.
 
