@@ -443,8 +443,6 @@ public class AsyncWaitOperator<IN, OUT>
                     // do not complete this results if delayed retry triggered
                     return;
                 }
-                // remove this delegator from incomplete set after retry being done
-                inFlightDelayRetryHandlers.remove(this);
             }
             resultHandler.complete(results);
         }
@@ -460,8 +458,6 @@ public class AsyncWaitOperator<IN, OUT>
                     // do not complete if delayed retry triggered
                     return;
                 }
-                // remove this delegator from incomplete set after retry being done
-                inFlightDelayRetryHandlers.remove(this);
             }
             resultHandler.completeExceptionally(error);
         }
@@ -487,20 +483,21 @@ public class AsyncWaitOperator<IN, OUT>
                             // timer thread will finally dispatch the task to mailbox executor,
                             // and it can only be submitted once for one attempt.
                             mailboxExecutor.submit(
-                                    () -> trySubmitRetryInMailboxOrComplete(this, results, error),
+                                    () -> submitRetryInMailbox(this),
                                     "delayed retry or give up retry");
                             return true;
                         }
                     }
                 }
             }
+            // remove this delegator from incomplete set after retry being done
+            mailboxExecutor.submit(
+                    () -> inFlightDelayRetryHandlers.remove(this),
+                    "clean up delayed retry handler");
             return false;
         }
 
-        private void trySubmitRetryInMailboxOrComplete(
-                RetryableResultHandlerDelegator resultHandlerDelegator,
-                Collection<OUT> results,
-                Throwable error) {
+        private void submitRetryInMailbox(RetryableResultHandlerDelegator resultHandlerDelegator) {
             inFlightDelayRetryHandlers.add(resultHandlerDelegator);
             final long delayedRetry =
                     backoffTimeMillis + getProcessingTimeService().getCurrentProcessingTime();
