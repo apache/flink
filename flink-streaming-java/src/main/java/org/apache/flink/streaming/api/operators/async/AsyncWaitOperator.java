@@ -162,11 +162,8 @@ public class AsyncWaitOperator<IN, OUT>
                 // construct from utility class
                 asyncRetryStrategy != NO_RETRY_STRATEGY
                         // construct from api
-                        || (asyncRetryStrategy.getRetryPredicate().resultPredicate().isPresent()
-                                && asyncRetryStrategy
-                                        .getRetryPredicate()
-                                        .exceptionPredicate()
-                                        .isPresent());
+                        || asyncRetryStrategy.getRetryPredicate().resultPredicate().isPresent()
+                        || asyncRetryStrategy.getRetryPredicate().exceptionPredicate().isPresent();
 
         this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
 
