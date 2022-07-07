@@ -83,4 +83,51 @@ public class CatalogColumnStatisticsDataBinary extends CatalogColumnStatisticsDa
                 + avgLength
                 + '}';
     }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /** {@link CatalogColumnStatisticsDataBinary} builder static inner class. */
+    public static final class Builder
+            implements CatalogColumnStatisticDataBuilder<CatalogColumnStatisticsDataBinary> {
+        private Long nullCount;
+        private Map<String, String> properties;
+        private Long maxLength;
+        private Double avgLength;
+
+        private Long count = 0L;
+
+        private Builder() {}
+
+        public Builder nullCount(Long nullCount) {
+            this.nullCount = nullCount;
+            return this;
+        }
+
+        public Builder properties(Map<String, String> properties) {
+            this.properties = properties;
+            return this;
+        }
+
+        public Builder maxLength(Long maxLength) {
+            this.maxLength = StatisticDataUtils.max(this.maxLength, maxLength);
+            return this;
+        }
+
+        public Builder accumulateAvgLength(Long newLength) {
+            this.avgLength =
+                    StatisticDataUtils.acculmulateAverage(
+                            this.avgLength, this.count, newLength, 1L);
+
+            this.count++;
+            return this;
+        }
+
+        @Override
+        public CatalogColumnStatisticsDataBinary build() {
+            return new CatalogColumnStatisticsDataBinary(
+                    maxLength, avgLength, nullCount, properties);
+        }
+    }
 }

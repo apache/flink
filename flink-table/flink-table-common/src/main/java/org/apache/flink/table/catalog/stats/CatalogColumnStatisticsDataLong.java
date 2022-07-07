@@ -95,4 +95,50 @@ public class CatalogColumnStatisticsDataLong extends CatalogColumnStatisticsData
                 + ndv
                 + '}';
     }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /** {@link CatalogColumnStatisticsDataLong} builder static inner class. */
+    public static final class Builder
+            implements CatalogColumnStatisticDataBuilder<CatalogColumnStatisticsDataLong> {
+        private Long nullCount;
+        private Map<String, String> properties;
+        private Long min;
+        private Long max;
+        private Long ndv;
+
+        private Builder() {}
+
+        public Builder nullCount(Long nullCount) {
+            this.nullCount = nullCount;
+            return this;
+        }
+
+        public Builder properties(Map<String, String> properties) {
+            this.properties = properties;
+            return this;
+        }
+
+        public Builder min(Long min) {
+            this.min = StatisticDataUtils.min(this.min, min);
+            return this;
+        }
+
+        public Builder max(Long max) {
+            this.max = StatisticDataUtils.max(this.max, max);
+            return this;
+        }
+
+        public Builder ndv(Long ndv) {
+            this.ndv = ndv;
+            return this;
+        }
+
+        @Override
+        public CatalogColumnStatisticsDataLong build() {
+            return new CatalogColumnStatisticsDataLong(min, max, ndv, nullCount, properties);
+        }
+    }
 }
