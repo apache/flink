@@ -545,6 +545,19 @@ trait ImplicitExpressionConversions {
     Expressions.timestampDiff(timePointUnit, timePoint1, timePoint2)
   }
 
+  /**
+   * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+   * "yyyy-MM-dd HH:mm:ss" format.
+   */
+  def fromUnixtime(unixtime: Expression): Expression = Expressions.fromUnixtime(unixtime)
+
+  /**
+   * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+   * given format.
+   */
+  def fromUnixtime(unixtime: Expression, format: Expression): Expression =
+    Expressions.fromUnixtime(unixtime, format)
+
   /** Creates an array of literals. */
   def array(head: Expression, tail: Expression*): Expression = {
     Expressions.array(head, tail: _*)

@@ -339,6 +339,17 @@ def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2) -> 
                        time_point1, time_point2)
 
 
+def from_unixtime(unixtime, format=None) -> Expression:
+    """
+    Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string the given
+    format. The default format is "yyyy-MM-dd HH:mm:ss".
+    """
+    if format is None:
+        return _unary_op("fromUnixtime", unixtime)
+    else:
+        return _binary_op("fromUnixtime", unixtime, format)
+
+
 def array(head, *tail) -> Expression:
     """
     Creates an array of literals.
