@@ -83,6 +83,10 @@ public class SourceConfiguration extends PulsarConfiguration {
         return messageQueueCapacity;
     }
 
+    /**
+     * We would override the interval into a negative number when we set the connector with bounded
+     * stop cursor.
+     */
     public boolean isEnablePartitionDiscovery() {
         return getPartitionDiscoveryIntervalMs() > 0;
     }
