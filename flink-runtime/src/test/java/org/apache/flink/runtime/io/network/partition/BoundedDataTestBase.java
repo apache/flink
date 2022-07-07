@@ -190,11 +190,17 @@ public abstract class BoundedDataTestBase {
                     BufferBuilderTestUtils.buildBufferWithAscendingInts(
                             BUFFER_SIZE, numIntsInBuffer, nextValue);
             if (compressionEnabled) {
-                bd.writeBuffer(COMPRESSOR.compressToIntermediateBuffer(buffer));
+                Buffer compressedBuffer = COMPRESSOR.compressToIntermediateBuffer(buffer);
+                bd.writeBuffer(compressedBuffer);
+                // recycle intermediate buffer.
+                if (compressedBuffer != buffer) {
+                    compressedBuffer.recycleBuffer();
+                }
             } else {
                 bd.writeBuffer(buffer);
             }
             numBuffers++;
+            buffer.recycleBuffer();
         }
 
         return numBuffers;
@@ -206,13 +212,17 @@ public abstract class BoundedDataTestBase {
         int nextValue = 0;
         int numBuffers = 0;
 
+        int numIntsInBuffer;
         while ((b = reader.nextBuffer()) != null) {
-            final int numIntsInBuffer = b.getSize() / 4;
             if (compressionEnabled && b.isCompressed()) {
                 Buffer decompressedBuffer = DECOMPRESSOR.decompressToIntermediateBuffer(b);
+                numIntsInBuffer = decompressedBuffer.getSize() / 4;
                 BufferBuilderTestUtils.validateBufferWithAscendingInts(
                         decompressedBuffer, numIntsInBuffer, nextValue);
+                // recycle intermediate buffer.
+                decompressedBuffer.recycleBuffer();
             } else {
+                numIntsInBuffer = b.getSize() / 4;
                 BufferBuilderTestUtils.validateBufferWithAscendingInts(
                         b, numIntsInBuffer, nextValue);
             }
