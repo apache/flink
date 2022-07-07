@@ -61,7 +61,8 @@ class DefaultResourceAllocationStrategyTest {
         final ResourceAllocationResult result =
                 STRATEGY.tryFulfillRequirements(
                         Collections.singletonMap(jobId, requirements),
-                        taskManagerResourceInfoProvider);
+                        taskManagerResourceInfoProvider,
+                        resourceID -> false);
         assertThat(result.getUnfulfillableJobs()).isEmpty();
         assertThat(result.getAllocationsOnPendingResources()).isEmpty();
         assertThat(result.getPendingTaskManagersToAllocate()).isEmpty();
@@ -97,7 +98,8 @@ class DefaultResourceAllocationStrategyTest {
         final ResourceAllocationResult result =
                 STRATEGY.tryFulfillRequirements(
                         Collections.singletonMap(jobId, requirements),
-                        taskManagerResourceInfoProvider);
+                        taskManagerResourceInfoProvider,
+                        resourceID -> false);
         assertThat(result.getUnfulfillableJobs()).isEmpty();
         assertThat(result.getAllocationsOnRegisteredResources()).isEmpty();
         assertThat(result.getPendingTaskManagersToAllocate()).hasSize(1);
@@ -146,8 +148,37 @@ class DefaultResourceAllocationStrategyTest {
         final ResourceAllocationResult result =
                 STRATEGY.tryFulfillRequirements(
                         Collections.singletonMap(jobId, requirements),
-                        taskManagerResourceInfoProvider);
+                        taskManagerResourceInfoProvider,
+                        resourceID -> false);
         assertThat(result.getUnfulfillableJobs()).containsExactly(jobId);
         assertThat(result.getPendingTaskManagersToAllocate()).isEmpty();
+    }
+
+    /** Tests that blocked task manager cannot fulfill requirements. */
+    @Test
+    void testBlockedTaskManagerCannotFulfillRequirements() {
+        final TaskManagerInfo registeredTaskManager =
+                new TestingTaskManagerInfo(
+                        DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS),
+                        DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS),
+                        DEFAULT_SLOT_RESOURCE);
+        final JobID jobId = new JobID();
+        final List<ResourceRequirement> requirements = new ArrayList<>();
+        final TaskManagerResourceInfoProvider taskManagerResourceInfoProvider =
+                TestingTaskManagerResourceInfoProvider.newBuilder()
+                        .setRegisteredTaskManagersSupplier(
+                                () -> Collections.singleton(registeredTaskManager))
+                        .build();
+        requirements.add(ResourceRequirement.create(ResourceProfile.UNKNOWN, 2 * NUM_OF_SLOTS));
+
+        final ResourceAllocationResult result =
+                STRATEGY.tryFulfillRequirements(
+                        Collections.singletonMap(jobId, requirements),
+                        taskManagerResourceInfoProvider,
+                        registeredTaskManager.getTaskExecutorConnection().getResourceID()::equals);
+
+        assertThat(result.getUnfulfillableJobs()).isEmpty();
+        assertThat(result.getAllocationsOnRegisteredResources()).isEmpty();
+        assertThat(result.getPendingTaskManagersToAllocate()).hasSize(2);
     }
 }

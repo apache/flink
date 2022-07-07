@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -110,7 +111,8 @@ public class TestingSlotManager implements SlotManager {
     public void start(
             ResourceManagerId newResourceManagerId,
             Executor newMainThreadExecutor,
-            ResourceActions newResourceActions) {}
+            ResourceActions newResourceActions,
+            BlockedTaskManagerChecker newBlockedTaskManagerChecker) {}
 
     @Override
     public void suspend() {}
