@@ -21,24 +21,16 @@ package org.apache.flink.api.common.io;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.concurrent.Executors;
 
 import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.FutureCallback;
-import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.Futures;
-import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.ListenableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -121,17 +113,21 @@ public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
     public final void writeRecord(OUT record) throws IOException {
         checkAsyncErrors();
         tryAcquire(1);
-        final CompletionStage<V> result;
+        final CompletionStage<V> completionStage;
         try {
-            result = send(record);
+            completionStage = send(record);
         } catch (Throwable e) {
             semaphore.release();
             throw e;
         }
-        Futures.addCallback(
-                completableFutureToListenableFuture(result.toCompletableFuture()),
-                callback,
-                Executors.directExecutor());
+        completionStage.whenComplete(
+                (result, throwable) -> {
+                    if (throwable == null) {
+                        callback.onSuccess(result);
+                    } else {
+                        callback.onFailure(throwable);
+                    }
+                });
     }
 
     /**
@@ -171,41 +167,5 @@ public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
     @VisibleForTesting
     int getAcquiredPermits() {
         return maxConcurrentRequests - semaphore.availablePermits();
-    }
-
-    private static <T> ListenableFuture<T> completableFutureToListenableFuture(
-            CompletableFuture<T> completableFuture) {
-        return new ListenableFuture<T>() {
-            @Override
-            public boolean cancel(boolean b) {
-                return completableFuture.cancel(b);
-            }
-
-            @Override
-            public boolean isCancelled() {
-                return completableFuture.isCancelled();
-            }
-
-            @Override
-            public boolean isDone() {
-                return completableFuture.isDone();
-            }
-
-            @Override
-            public T get() throws InterruptedException, ExecutionException {
-                return completableFuture.get();
-            }
-
-            @Override
-            public T get(long timeout, TimeUnit unit)
-                    throws InterruptedException, ExecutionException, TimeoutException {
-                return completableFuture.get(timeout, unit);
-            }
-
-            @Override
-            public void addListener(Runnable listener, Executor executor) {
-                completableFuture.whenComplete((result, error) -> listener.run());
-            }
-        };
     }
 }
