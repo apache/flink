@@ -452,9 +452,11 @@ Resuming from both savepoints and checkpoints is supported:
 
 **Disabling Changelog**
 
-Resuming only from [savepoints]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}})
-is supported. Resuming from [checkpoints]({{<  ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
-is planned in the future versions.
+Resuming from both savepoints and checkpoints is supported:
+- given an existing changelog job
+- take either a [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) or a [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
+- alter configuration (disable Changelog)
+- resume from the taken snapshot
 
 ### Limitations
  - At most one concurrent checkpoint
