@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 
 import java.util.Collection;
@@ -37,10 +38,12 @@ public interface ResourceAllocationStrategy {
      * @param missingResources resource requirements that are not yet fulfilled, indexed by jobId
      * @param taskManagerResourceInfoProvider provide the registered/pending resources of the
      *     current cluster
+     * @param blockedTaskManagerChecker blocked task manager checker
      * @return a {@link ResourceAllocationResult} based on the current status, which contains
      *     whether the requirements can be fulfilled and the actions to take
      */
     ResourceAllocationResult tryFulfillRequirements(
             Map<JobID, Collection<ResourceRequirement>> missingResources,
-            TaskManagerResourceInfoProvider taskManagerResourceInfoProvider);
+            TaskManagerResourceInfoProvider taskManagerResourceInfoProvider,
+            BlockedTaskManagerChecker blockedTaskManagerChecker);
 }

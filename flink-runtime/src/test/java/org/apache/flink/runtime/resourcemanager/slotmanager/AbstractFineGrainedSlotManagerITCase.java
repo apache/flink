@@ -205,6 +205,48 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
     }
 
     /**
+     * Tests that blocked slots cannot be used to fulfill requirements, will trigger the new
+     * resource allocation.
+     */
+    @Test
+    void testRequirementDeclarationWithBlockedSlotsTriggersWorkerAllocation() throws Exception {
+        final ResourceRequirements resourceRequirements = createResourceRequirementsForSingleSlot();
+
+        final CompletableFuture<WorkerResourceSpec> allocateResourceFuture =
+                new CompletableFuture<>();
+
+        final ResourceID blockedTaskManager = ResourceID.generate();
+        final TaskExecutorGateway taskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+        final TaskExecutorConnection taskManagerConnection =
+                new TaskExecutorConnection(blockedTaskManager, taskExecutorGateway);
+
+        new Context() {
+            {
+                setBlockedTaskManagerChecker(blockedTaskManager::equals);
+                resourceActionsBuilder.setAllocateResourceConsumer(
+                        allocateResourceFuture::complete);
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () -> {
+                                        getSlotManager()
+                                                .registerTaskManager(
+                                                        taskManagerConnection,
+                                                        new SlotReport(),
+                                                        DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                        DEFAULT_SLOT_RESOURCE_PROFILE);
+                                        getSlotManager()
+                                                .processResourceRequirements(resourceRequirements);
+                                    });
+
+                            assertFutureCompleteAndReturn(allocateResourceFuture);
+                        });
+            }
+        };
+    }
+
+    /**
      * Tests that duplicate resource requirement declaration do not result in additional slots being
      * allocated after a pending slot request has been fulfilled but not yet freed.
      */

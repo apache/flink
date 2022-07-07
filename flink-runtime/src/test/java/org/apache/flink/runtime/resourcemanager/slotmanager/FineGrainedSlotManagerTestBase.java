@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -146,6 +147,7 @@ abstract class FineGrainedSlotManagerTestBase {
                 new DefaultSlotStatusSyncer(Time.seconds(10L));
         private SlotManagerMetricGroup slotManagerMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
+        private BlockedTaskManagerChecker blockedTaskManagerChecker = resourceID -> false;
         private final ScheduledExecutor scheduledExecutor =
                 new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
         private final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
@@ -184,6 +186,11 @@ abstract class FineGrainedSlotManagerTestBase {
             this.slotManagerMetricGroup = slotManagerMetricGroup;
         }
 
+        public void setBlockedTaskManagerChecker(
+                BlockedTaskManagerChecker blockedTaskManagerChecker) {
+            this.blockedTaskManagerChecker = blockedTaskManagerChecker;
+        }
+
         void runInMainThread(Runnable runnable) {
             mainThreadExecutor.execute(runnable);
         }
@@ -214,7 +221,8 @@ abstract class FineGrainedSlotManagerTestBase {
                             slotManager.start(
                                     resourceManagerId,
                                     mainThreadExecutor,
-                                    resourceActionsBuilder.build()));
+                                    resourceActionsBuilder.build(),
+                                    blockedTaskManagerChecker));
 
             testMethod.run();
 

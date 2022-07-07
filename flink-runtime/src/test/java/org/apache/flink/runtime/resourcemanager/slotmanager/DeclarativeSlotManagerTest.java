@@ -48,6 +48,7 @@ import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -200,6 +201,49 @@ class DeclarativeSlotManagerTest {
 
         try (SlotManager slotManager =
                 createSlotManager(resourceManagerId, resourceManagerActions)) {
+
+            slotManager.processResourceRequirements(resourceRequirements);
+
+            allocateResourceFuture.get();
+        }
+    }
+
+    /**
+     * Tests that blocked slots cannot be used to fulfill requirements, will trigger the new
+     * resource allocation.
+     */
+    @Test
+    void testRequirementDeclarationWithBlockedSlotsTriggersWorkerAllocation() throws Exception {
+        final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
+        final ResourceRequirements resourceRequirements = createResourceRequirementsForSingleSlot();
+
+        CompletableFuture<WorkerResourceSpec> allocateResourceFuture = new CompletableFuture<>();
+        ResourceActions resourceManagerActions =
+                new TestingResourceActionsBuilder()
+                        .setAllocateResourceConsumer(allocateResourceFuture::complete)
+                        .build();
+
+        final ResourceID blockedTaskManager = ResourceID.generate();
+
+        try (SlotManager slotManager =
+                createDeclarativeSlotManagerBuilder()
+                        .buildAndStart(
+                                resourceManagerId,
+                                Executors.directExecutor(),
+                                resourceManagerActions,
+                                blockedTaskManager::equals)) {
+
+            final TaskExecutorGateway taskExecutorGateway =
+                    new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+            final TaskExecutorConnection taskManagerConnection =
+                    new TaskExecutorConnection(blockedTaskManager, taskExecutorGateway);
+
+            final SlotID slotId = new SlotID(blockedTaskManager, 0);
+            final SlotReport slotReport = new SlotReport(createFreeSlotStatus(slotId));
+
+            // register blocked TM
+            slotManager.registerTaskManager(
+                    taskManagerConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             slotManager.processResourceRequirements(resourceRequirements);
 
@@ -607,12 +651,12 @@ class DeclarativeSlotManagerTest {
 
         final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
 
-        try (DeclarativeSlotManager slotManager = createDeclarativeSlotManagerBuilder().build()) {
-
-            slotManager.start(
-                    ResourceManagerId.generate(),
-                    mainThreadExecutor,
-                    new TestingResourceActionsBuilder().build());
+        try (DeclarativeSlotManager slotManager =
+                createDeclarativeSlotManagerBuilder()
+                        .buildAndStart(
+                                ResourceManagerId.generate(),
+                                mainThreadExecutor,
+                                new TestingResourceActionsBuilder().build())) {
 
             CompletableFuture.runAsync(
                             () ->
@@ -742,12 +786,11 @@ class DeclarativeSlotManagerTest {
         final ScheduledExecutor mainThreadExecutor = new ManuallyTriggeredScheduledExecutor();
 
         try (final DeclarativeSlotManager slotManager =
-                createDeclarativeSlotManagerBuilder(mainThreadExecutor).build()) {
-
-            slotManager.start(
-                    ResourceManagerId.generate(),
-                    mainThreadExecutor,
-                    new TestingResourceActionsBuilder().build());
+                createDeclarativeSlotManagerBuilder(mainThreadExecutor)
+                        .buildAndStart(
+                                ResourceManagerId.generate(),
+                                mainThreadExecutor,
+                                new TestingResourceActionsBuilder().build())) {
 
             slotManager.registerTaskManager(
                     taskExecutorConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
