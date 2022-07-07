@@ -24,17 +24,12 @@ from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream.connectors.kafka import KafkaSource, KafkaTopicPartition, \
     KafkaOffsetsInitializer, KafkaOffsetResetStrategy
-from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.java_gateway import get_gateway
-from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
 from pyflink.util.java_utils import to_jarray, is_instance_of
 
 
-class KafkaSourceTest(PyFlinkTestCase):
-
-    def setUp(self):
-        super().setUp()
-        self.env = StreamExecutionEnvironment.get_execution_environment()
+class KafkaSourceTest(PyFlinkStreamingTestCase):
 
     def test_compiling(self):
         source = KafkaSource.builder() \
