@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from abc import ABC, abstractmethod
 
 from pyflink.datastream.connectors.elasticsearch import Elasticsearch7SinkBuilder, \
     FlushBackoffType, ElasticsearchEmitter
@@ -24,7 +23,6 @@ from pyflink.common import typeinfo, Duration, WatermarkStrategy, ConfigOptions
 from pyflink.common.serialization import JsonRowDeserializationSchema, \
     JsonRowSerializationSchema, Encoder, SimpleStringSchema
 from pyflink.common.typeinfo import Types
-from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors import FlinkKafkaConsumer, FlinkKafkaProducer, JdbcSink, \
     JdbcConnectionOptions, JdbcExecutionOptions, StreamingFileSink, \
     OutputFileConfig, FileSource, StreamFormat, FileEnumeratorProvider, FileSplitAssignerProvider, \
@@ -36,41 +34,11 @@ from pyflink.datastream.connectors.cassandra import CassandraSink, MapperOptions
 from pyflink.datastream.connectors.kinesis import PartitionKeyGenerator
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
-from pyflink.testing.test_case_utils import PyFlinkTestCase, _load_specific_flink_module_jars, \
-    invoke_java_object_method
+from pyflink.testing.test_case_utils import invoke_java_object_method, PyFlinkStreamingTestCase
 from pyflink.util.java_utils import load_java_class, get_field_value, is_instance_of
 
 
-class ConnectorTestBase(PyFlinkTestCase, ABC):
-
-    @classmethod
-    @abstractmethod
-    def _get_jars_relative_path(cls):
-        """
-        Return the relative path of connector, such as `/flink-connectors/flink-sql-connector-jdbc`.
-        """
-        pass
-
-    def setUp(self) -> None:
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        # Cache current ContextClassLoader, we will replace it with a temporary URLClassLoader to
-        # load specific connector jars with given module path to do dependency isolation. And We
-        # will change the ClassLoader back to the cached ContextClassLoader after the test case
-        # finished.
-        self._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
-        _load_specific_flink_module_jars(self._get_jars_relative_path())
-
-    def tearDown(self):
-        # Change the ClassLoader back to the cached ContextClassLoader after the test case finished.
-        if self._cxt_clz_loader is not None:
-            get_gateway().jvm.Thread.currentThread().setContextClassLoader(self._cxt_clz_loader)
-
-
-class FlinkElasticsearch7Test(ConnectorTestBase):
-
-    @classmethod
-    def _get_jars_relative_path(cls):
-        return '/flink-connectors/flink-sql-connector-elasticsearch7'
+class FlinkElasticsearch7Test(PyFlinkStreamingTestCase):
 
     def test_es_sink(self):
         ds = self.env.from_collection(
@@ -180,15 +148,7 @@ class FlinkElasticsearch7Test(ConnectorTestBase):
         ds.sink_to(es_dynamic_index_sink).name('es dynamic index sink')
 
 
-class FlinkKafkaTest(ConnectorTestBase):
-
-    @classmethod
-    def _get_jars_relative_path(cls):
-        return '/flink-connectors/flink-sql-connector-kafka'
-
-    def setUp(self) -> None:
-        super().setUp()
-        self.env.set_parallelism(2)
+class FlinkKafkaTest(PyFlinkStreamingTestCase):
 
     def test_kafka_connector_universal(self):
         self.kafka_connector_assertion(FlinkKafkaConsumer, FlinkKafkaProducer)
@@ -240,11 +200,7 @@ class FlinkKafkaTest(ConnectorTestBase):
                                          'writeTimestampToKafka'))
 
 
-class FlinkJdbcSinkTest(ConnectorTestBase):
-
-    @classmethod
-    def _get_jars_relative_path(cls):
-        return '/flink-connectors/flink-connector-jdbc'
+class FlinkJdbcSinkTest(PyFlinkStreamingTestCase):
 
     def test_jdbc_sink(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
@@ -284,11 +240,7 @@ class FlinkJdbcSinkTest(ConnectorTestBase):
                          exec_options.get_max_retries())
 
 
-class FlinkPulsarTest(ConnectorTestBase):
-
-    @classmethod
-    def _get_jars_relative_path(cls):
-        return '/flink-connectors/flink-sql-connector-pulsar'
+class FlinkPulsarTest(PyFlinkStreamingTestCase):
 
     def test_pulsar_source(self):
         TEST_OPTION_NAME = 'pulsar.source.enableAutoAcknowledgeMessage'
@@ -476,11 +428,7 @@ class FlinkPulsarTest(ConnectorTestBase):
             .build()
 
 
-class RMQTest(ConnectorTestBase):
-
-    @classmethod
-    def _get_jars_relative_path(cls):
-        return '/flink-connectors/flink-sql-connector-rabbitmq'
+class RMQTest(PyFlinkStreamingTestCase):
 
     def test_rabbitmq_connectors(self):
         connection_config = RMQConnectionConfig.Builder() \
@@ -507,15 +455,14 @@ class RMQTest(ConnectorTestBase):
             get_field_value(rmq_sink.get_java_function(), 'queueName'), 'sink_queue')
 
 
-class ConnectorTests(PyFlinkTestCase):
+class ConnectorTests(PyFlinkStreamingTestCase):
 
     def setUp(self) -> None:
-        self.env = StreamExecutionEnvironment.get_execution_environment()
+        super(ConnectorTests, self).setUp()
         self.test_sink = DataStreamTestSinkFunction()
-        _load_specific_flink_module_jars('/flink-connectors/flink-connector-files')
-        _load_specific_flink_module_jars('/flink-connectors/flink-connector-sink-common')
 
     def tearDown(self) -> None:
+        super(ConnectorTests, self).tearDown()
         self.test_sink.clear()
 
     def test_stream_file_sink(self):
@@ -638,10 +585,7 @@ class ConnectorTests(PyFlinkTestCase):
         self.assertEqual(10, to_field.get(seq_source.get_java_function()))
 
 
-class FlinkKinesisTest(ConnectorTestBase):
-    @classmethod
-    def _get_jars_relative_path(cls):
-        return '/flink-connectors/flink-sql-connector-kinesis'
+class FlinkKinesisTest(PyFlinkStreamingTestCase):
 
     def test_kinesis_source(self):
         consumer_config = {
@@ -693,8 +637,6 @@ class FlinkKinesisTest(ConnectorTestBase):
             get_field_value(kinesis_streams_sink.get_java_function(), 'streamName'), 'stream-1')
 
     def test_kinesis_firehose_sink(self):
-        _load_specific_flink_module_jars('/flink-connectors/'
-                                         'flink-sql-connector-aws-kinesis-firehose')
 
         sink_properties = {
             'aws.region': 'eu-west-1',
@@ -729,10 +671,7 @@ class FlinkKinesisTest(ConnectorTestBase):
             'stream-1')
 
 
-class CassandraSinkTest(ConnectorTestBase):
-    @classmethod
-    def _get_jars_relative_path(cls):
-        return '/flink-connectors/flink-connector-cassandra'
+class CassandraSinkTest(PyFlinkStreamingTestCase):
 
     def test_cassandra_sink(self):
         type_info = Types.ROW([Types.STRING(), Types.INT()])
