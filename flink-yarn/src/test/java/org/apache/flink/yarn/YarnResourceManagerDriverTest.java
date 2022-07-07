@@ -61,12 +61,15 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -349,6 +352,50 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                             verifyFutureCompleted(addContainerRequestFutures.get(0));
                             verifyFutureCompleted(removeContainerRequestFuture);
                             verifyFutureCompleted(startContainerAsyncFuture);
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testUpdateBlocklist() throws Exception {
+        new Context() {
+            {
+                final Set<String> yarnReceivedBlocklist = new HashSet<>();
+                testingYarnAMRMClientAsyncBuilder.setUpdateBlocklistConsumer(
+                        (additions, removals) -> {
+                            if (additions != null) {
+                                yarnReceivedBlocklist.addAll(additions);
+                            }
+
+                            if (removals != null) {
+                                yarnReceivedBlocklist.removeAll(removals);
+                            }
+                        });
+
+                final Set<String> blockedNodes = new HashSet<>();
+                setBlockedNodeRetriever(() -> blockedNodes);
+                runTest(
+                        () -> {
+                            blockedNodes.addAll(Arrays.asList("node1", "node2", "node3"));
+                            runInMainThread(
+                                            () ->
+                                                    getDriver()
+                                                            .requestResource(
+                                                                    TASK_EXECUTOR_PROCESS_SPEC))
+                                    .get();
+                            assertThat(yarnReceivedBlocklist)
+                                    .containsExactlyInAnyOrder("node1", "node2", "node3");
+
+                            blockedNodes.remove("node1");
+                            runInMainThread(
+                                            () ->
+                                                    getDriver()
+                                                            .requestResource(
+                                                                    TASK_EXECUTOR_PROCESS_SPEC))
+                                    .get();
+                            assertThat(yarnReceivedBlocklist)
+                                    .containsExactlyInAnyOrder("node2", "node3");
                         });
             }
         };

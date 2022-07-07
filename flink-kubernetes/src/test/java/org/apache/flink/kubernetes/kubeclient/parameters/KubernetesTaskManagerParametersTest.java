@@ -99,7 +99,8 @@ class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
                         DYNAMIC_PROPERTIES,
                         JVM_MEM_OPTS_ENV,
                         containeredTaskManagerParameters,
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptySet());
     }
 
     @Test

@@ -32,12 +32,17 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
+import io.fabric8.kubernetes.api.model.NodeAffinity;
+import io.fabric8.kubernetes.api.model.NodeAffinityBuilder;
+import io.fabric8.kubernetes.api.model.NodeSelectorRequirement;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.API_VERSION;
@@ -107,11 +112,40 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                                 .collect(Collectors.toList()))
                 .endSpec();
 
+        // Add node affinity.
+        // https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity
+        Set<String> blockedNodes = kubernetesTaskManagerParameters.getBlockedNodes();
+        if (!blockedNodes.isEmpty()) {
+            basicPodBuilder
+                    .editOrNewSpec()
+                    .editOrNewAffinity()
+                    .withNodeAffinity(
+                            generateNodeAffinity(
+                                    kubernetesTaskManagerParameters.getNodeNameLabel(),
+                                    blockedNodes))
+                    .endAffinity()
+                    .endSpec();
+        }
+
         final Container basicMainContainer = decorateMainContainer(flinkPod.getMainContainer());
 
         return new FlinkPod.Builder(flinkPod)
                 .withPod(basicPodBuilder.build())
                 .withMainContainer(basicMainContainer)
+                .build();
+    }
+
+    private NodeAffinity generateNodeAffinity(String labelKey, Set<String> blockedNodes) {
+        NodeSelectorRequirement nodeSelectorRequirement =
+                new NodeSelectorRequirement(labelKey, "NotIn", new ArrayList<>(blockedNodes));
+
+        NodeAffinityBuilder nodeAffinityBuilder = new NodeAffinityBuilder();
+        return nodeAffinityBuilder
+                .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .addNewNodeSelectorTerm()
+                .addToMatchExpressions(nodeSelectorRequirement)
+                .endNodeSelectorTerm()
+                .endRequiredDuringSchedulingIgnoredDuringExecution()
                 .build();
     }
 
