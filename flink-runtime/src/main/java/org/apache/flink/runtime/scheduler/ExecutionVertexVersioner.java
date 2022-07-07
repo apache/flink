@@ -83,6 +83,15 @@ public class ExecutionVertexVersioner {
                 .collect(Collectors.toSet());
     }
 
+    public Map<ExecutionVertexID, ExecutionVertexVersion> getExecutionVertexVersions(
+            Collection<ExecutionVertexID> executionVertexIds) {
+        return executionVertexIds.stream()
+                .map(id -> new ExecutionVertexVersion(id, getCurrentVersion(id)))
+                .collect(
+                        Collectors.toMap(
+                                ExecutionVertexVersion::getExecutionVertexId, Function.identity()));
+    }
+
     ExecutionVertexVersion getExecutionVertexVersion(ExecutionVertexID executionVertexId) {
         final long currentVersion = getCurrentVersion(executionVertexId);
         return new ExecutionVertexVersion(executionVertexId, currentVersion);
