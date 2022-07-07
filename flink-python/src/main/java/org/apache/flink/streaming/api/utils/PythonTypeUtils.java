@@ -219,7 +219,8 @@ public class PythonTypeUtils {
                 LogicalTypeRoot logicalTypeRoot =
                         ((InternalTypeInfo<?>) typeInformation).toLogicalType().getTypeRoot();
                 if (logicalTypeRoot.equals(LogicalTypeRoot.ROW)) {
-                    return buildRowDataTypeProto((InternalTypeInfo<?>) typeInformation);
+                    return buildRowDataTypeProto(
+                            (InternalTypeInfo<?>) typeInformation, userClassLoader);
                 }
             }
 
@@ -334,7 +335,7 @@ public class PythonTypeUtils {
         }
 
         private static FlinkFnApi.TypeInfo buildRowDataTypeProto(
-                InternalTypeInfo<?> internalTypeInfo) {
+                InternalTypeInfo<?> internalTypeInfo, ClassLoader userClassLoader) {
             RowType rowType = internalTypeInfo.toRowType();
             FlinkFnApi.TypeInfo.RowTypeInfo.Builder rowTypeInfoBuilder =
                     FlinkFnApi.TypeInfo.RowTypeInfo.newBuilder();
@@ -350,7 +351,8 @@ public class PythonTypeUtils {
                                                         TypeConversions.fromLogicalToDataType(
                                                                 rowType.getFields()
                                                                         .get(index)
-                                                                        .getType()))))
+                                                                        .getType())),
+                                                userClassLoader))
                                 .build());
             }
 

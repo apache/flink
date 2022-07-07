@@ -48,7 +48,7 @@ class AvroParquetReaders(object):
             >>> schema = AvroSchema.parse_string(JSON_SCHEMA)
             >>> source = FileSource.for_record_stream_format(
             ...     AvroParquetReaders.for_generic_record(schema),
-            ...     FILE_PATH
+            ...     PARQUET_FILE_PATH
             ... ).build()
             >>> ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "parquet-source")
 
@@ -61,6 +61,29 @@ class AvroParquetReaders(object):
 
 
 class ParquetColumnarRowInputFormat(BulkFormat):
+    """
+    A ParquetVectorizedInputFormat to provide :class:`RowData` iterator. Using ColumnarRowData to
+    provide a row view of column batch. Only **primitive** types are supported for a column,
+    composite types such as array, map are not supported.
+
+    Example:
+    ::
+
+        >>> row_type = DataTypes.ROW([
+        ...     DataTypes.FIELD('a', DataTypes.INT()),
+        ...     DataTypes.FIELD('b', DataTypes.STRING()),
+        ... ])
+        >>> source = FileSource.for_bulk_file_format(ParquetColumnarRowInputFormat(
+        ...     hadoop_config=Configuration(),
+        ...     row_type=row_type,
+        ...     batch_size=500,
+        ...     is_utc_timestamp=True,
+        ...     is_case_sensitive=True,
+        ... ), PARQUET_FILE_PATH).build()
+        >>> ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "parquet-source")
+
+    .. versionadded:: 1.16.0
+    """
 
     def __init__(self, hadoop_config: Configuration, row_type: RowType, batch_size: int,
                  is_utc_timestamp: bool, is_case_sensitive: bool):

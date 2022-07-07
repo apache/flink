@@ -113,25 +113,47 @@ FileSource.forRecordStreamFormat(StreamFormat,Path...)
 第二个布尔类型参数用来指定在进行 Parquet 字段映射时，是否要区分大小写。
 这里不需要水印策略，因为记录中不包含事件时间戳。
 
+{{< tabs "RowData" >}}
+{{< tab "Java" >}}
 ```java
 final LogicalType[] fieldTypes =
         new LogicalType[] {
-        new DoubleType(), new IntType(), new VarCharType()
-        };
+                new DoubleType(), new IntType(), new VarCharType()};
+final RowType rowType = RowType.of(fieldTypes, new String[] {"f7", "f4", "f99"});
 
 final ParquetColumnarRowInputFormat<FileSourceSplit> format =
         new ParquetColumnarRowInputFormat<>(
-        new Configuration(),
-        RowType.of(fieldTypes, new String[] {"f7", "f4", "f99"}),
-        500,
-        false,
-        true);
+                new Configuration(),
+                rowType,
+                InternalTypeInfo.of(rowType),
+                500,
+                false,
+                true);
 final FileSource<RowData> source =
         FileSource.forBulkFileFormat(format,  /* Flink Path */)
-        .build();
+                .build();
 final DataStream<RowData> stream =
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('f7', DataTypes.DOUBLE()),
+    DataTypes.FIELD('f4', DataTypes.INT()),
+    DataTypes.FIELD('f99', DataTypes.VARCHAR()),
+])
+source = FileSource.for_bulk_file_format(ParquetColumnarRowInputFormat(
+    hadoop_config=Configuration(),
+    row_type=row_type,
+    batch_size=500,
+    is_utc_timestamp=False,
+    is_case_sensitive=True,
+), PARQUET_FILE_PATH).build()
+ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "file-source")
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ## Avro Records
 

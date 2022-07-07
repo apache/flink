@@ -117,25 +117,47 @@ Flink will read records in batches of 500 records. The first boolean parameter s
 The second boolean instructs the application that the projected Parquet fields names are case-sensitive.
 There is no watermark strategy defined as records do not contain event timestamps.
 
+{{< tabs "RowData" >}}
+{{< tab "Java" >}}
 ```java
 final LogicalType[] fieldTypes =
-  new LogicalType[] {
-  new DoubleType(), new IntType(), new VarCharType()
-  };
+        new LogicalType[] {
+                new DoubleType(), new IntType(), new VarCharType()};
+final RowType rowType = RowType.of(fieldTypes, new String[] {"f7", "f4", "f99"});
 
 final ParquetColumnarRowInputFormat<FileSourceSplit> format =
-  new ParquetColumnarRowInputFormat<>(
-  new Configuration(),
-  RowType.of(fieldTypes, new String[] {"f7", "f4", "f99"}),
-  500,
-  false,
-  true);
+        new ParquetColumnarRowInputFormat<>(
+                new Configuration(),
+                rowType,
+                InternalTypeInfo.of(rowType),
+                500,
+                false,
+                true);
 final FileSource<RowData> source =
-  FileSource.forBulkFileFormat(format,  /* Flink Path */)
-  .build();
+        FileSource.forBulkFileFormat(format,  /* Flink Path */)
+                .build();
 final DataStream<RowData> stream =
-  env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
+        env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('f7', DataTypes.DOUBLE()),
+    DataTypes.FIELD('f4', DataTypes.INT()),
+    DataTypes.FIELD('f99', DataTypes.VARCHAR()),
+])
+source = FileSource.for_bulk_file_format(ParquetColumnarRowInputFormat(
+    hadoop_config=Configuration(),
+    row_type=row_type,
+    batch_size=500,
+    is_utc_timestamp=False,
+    is_case_sensitive=True,
+), PARQUET_FILE_PATH).build()
+ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "file-source")
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ## Avro Records
 
