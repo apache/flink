@@ -30,12 +30,25 @@ import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtil
 /**
  * A stop cursor that initialize the position to the latest message id. The offsets initialization
  * are taken care of by the {@code PulsarPartitionSplitReaderBase} instead of by the {@code
- * PulsarSourceEnumerator}.
+ * PulsarSourceEnumerator}. We would include the latest message available in Pulsar by default.
  */
 public class LatestMessageStopCursor implements StopCursor {
     private static final long serialVersionUID = 1702059838323965723L;
 
     private MessageId messageId;
+
+    /**
+     * Set this to false would include the latest available message when the flink pipeline start.
+     */
+    private final boolean exclusive;
+
+    public LatestMessageStopCursor() {
+        this.exclusive = false;
+    }
+
+    public LatestMessageStopCursor(boolean exclusive) {
+        this.exclusive = exclusive;
+    }
 
     @Override
     public void open(PulsarAdmin admin, TopicPartition partition) {
@@ -48,6 +61,10 @@ public class LatestMessageStopCursor implements StopCursor {
     @Override
     public boolean shouldStop(Message<?> message) {
         MessageId id = message.getMessageId();
-        return id.compareTo(messageId) >= 0;
+        if (exclusive) {
+            return id.compareTo(messageId) > 0;
+        } else {
+            return id.compareTo(messageId) >= 0;
+        }
     }
 }

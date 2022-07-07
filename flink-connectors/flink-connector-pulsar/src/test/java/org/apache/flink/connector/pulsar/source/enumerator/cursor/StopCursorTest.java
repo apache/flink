@@ -48,7 +48,7 @@ import static org.apache.flink.connector.pulsar.source.reader.deserializer.Pulsa
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test different implementation of StopCursor. */
-public class StopCursorTest extends PulsarTestSuiteBase {
+class StopCursorTest extends PulsarTestSuiteBase {
 
     @Test
     void publishTimeStopCursor() throws IOException {
