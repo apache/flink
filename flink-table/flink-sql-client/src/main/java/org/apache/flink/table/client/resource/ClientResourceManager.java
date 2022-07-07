@@ -16,25 +16,34 @@
  *  limitations under the License.
  */
 
-package org.apache.flink.table.utils;
+package org.apache.flink.table.client.resource;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.table.resource.ResourceType;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.MutableURLClassLoader;
 
 import java.net.URL;
 
-/** Utilities for register resource. */
-public class ResourceUtils {
+/**
+ * This is only used by SqlClient, which expose {@code removeURL} method to support {@code REMOVE
+ * JAR} clause.
+ */
+@Internal
+public class ClientResourceManager extends ResourceManager {
 
-    /** The tool method to create {@link ResourceManager}. */
-    public static ResourceManager createResourceManager(
-            URL[] urls, ClassLoader parent, Configuration configuration) {
-        MutableURLClassLoader mutableURLClassLoader =
-                MutableURLClassLoader.newInstance(urls, parent, configuration);
-        return new ResourceManager(configuration, mutableURLClassLoader);
+    public ClientResourceManager(Configuration config, MutableURLClassLoader userClassLoader) {
+        super(config, userClassLoader);
     }
 
-    /** Private constructor to prevent instantiation. */
-    private ResourceUtils() {}
+    /**
+     * The method is only used to SqlClient for supporting remove jar syntax. SqlClient must
+     * guarantee also remove the jar from userClassLoader because it is {@code
+     * ClientMutableURLClassLoader}.
+     */
+    public URL unregisterJarResource(String jarPath) {
+        return resourceInfos.remove(new ResourceUri(ResourceType.JAR, jarPath));
+    }
 }

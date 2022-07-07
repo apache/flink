@@ -53,9 +53,12 @@ public class ResourceManager implements Closeable {
 
     private static final Logger LOG = LoggerFactory.getLogger(ResourceManager.class);
 
+    private static final String JAR_SUFFIX = "jar";
+    private static final String FILE_SCHEME = "file";
+
     private final Path localResourceDir;
-    private final Map<ResourceUri, URL> resourceInfos;
-    private final MutableURLClassLoader userClassLoader;
+    protected final Map<ResourceUri, URL> resourceInfos;
+    protected final MutableURLClassLoader userClassLoader;
 
     public ResourceManager(Configuration config, MutableURLClassLoader userClassLoader) {
         this.localResourceDir =
@@ -70,15 +73,19 @@ public class ResourceManager implements Closeable {
         return userClassLoader;
     }
 
-    public void registerResource(List<ResourceUri> resourceUris) throws IOException {
-        // Due to anyone of the resource in list maybe fail during register, so we should stage it
-        // before actual register to guarantee transaction process. If all the resource check
-        // successfully, register them in batch.
-        Map<ResourceUri, URL> stagingResourceLocalURLs = new HashMap<>();
+    /**
+     * Due to anyone of the resource in list maybe fail during register, so we should stage it
+     * before actual register to guarantee transaction process. If all the resources are avaliable,
+     * register them into the {@link ResourceManager}.
+     */
+    public void registerJarResource(List<ResourceUri> resourceUris) throws IOException {
+        // check jar resource before register
+        checkJarResource(resourceUris);
 
+        Map<ResourceUri, URL> stagingResourceLocalURLs = new HashMap<>();
         for (ResourceUri resourceUri : resourceUris) {
             // check whether the resource has been registered
-            if (resourceInfos.containsKey(resourceUri)) {
+            if (resourceInfos.containsKey(resourceUri) && resourceInfos.get(resourceUri) != null) {
                 LOG.info(
                         "Resource [{}] has been registered, overwriting of registered resource is not supported "
                                 + "in the current version, skipping.",
@@ -88,23 +95,21 @@ public class ResourceManager implements Closeable {
 
             // here can check whether the resource path is valid
             Path path = new Path(resourceUri.getUri());
-            // check resource firstly
-            checkResource(path);
-
             URL localUrl;
             // check resource scheme
             String scheme = StringUtils.lowerCase(path.toUri().getScheme());
             // download resource to local path firstly if in remote
-            if (scheme != null && !"file".equals(scheme)) {
+            if (scheme != null && !FILE_SCHEME.equals(scheme)) {
                 localUrl = downloadResource(path);
             } else {
                 localUrl = getURLFromPath(path);
+                // if the local jar resource is a relative path, here convert it to absolute path
+                // before register
+                resourceUri = new ResourceUri(ResourceType.JAR, localUrl.getPath());
             }
 
-            // check the jar resource extra
-            if (ResourceType.JAR.equals(resourceUri.getResourceType())) {
-                JarUtils.checkJarFile(localUrl);
-            }
+            // check the local jar file extra
+            JarUtils.checkJarFile(localUrl);
 
             // add it to staging map
             stagingResourceLocalURLs.put(resourceUri, localUrl);
@@ -114,23 +119,12 @@ public class ResourceManager implements Closeable {
         stagingResourceLocalURLs.forEach(
                 (resourceUri, url) -> {
                     // jar resource need add to classloader
-                    if (ResourceType.JAR.equals(resourceUri.getResourceType())) {
-                        userClassLoader.addURL(url);
-                        LOG.info("Added jar resource [{}] to class path.", url);
-                    }
+                    userClassLoader.addURL(url);
+                    LOG.info("Added jar resource [{}] to class path.", url);
 
                     resourceInfos.put(resourceUri, url);
                     LOG.info("Register resource [{}] successfully.", resourceUri.getUri());
                 });
-    }
-
-    /**
-     * The method is only used to SqlClient for supporting remove jar syntax. SqlClient must
-     * guarantee also remove the jar from userClassLoader because it is {@code
-     * ClientMutableURLClassLoader}.
-     */
-    public URL unregisterJarResource(ResourceUri resourceUri) {
-        return resourceInfos.remove(resourceUri);
     }
 
     public Map<ResourceUri, URL> getResources() {
@@ -144,19 +138,44 @@ public class ResourceManager implements Closeable {
                 .collect(Collectors.toSet());
     }
 
-    private void checkResource(Path path) throws IOException {
-        FileSystem fs = path.getFileSystem();
-        // check resource exists firstly
-        if (!fs.exists(path)) {
-            throw new FileNotFoundException(String.format("Resource [%s] not found.", path));
-        }
-
-        // register directory is not allowed for resource
-        if (fs.getFileStatus(path).isDir()) {
+    private void checkJarResource(List<ResourceUri> resourceUris) throws IOException {
+        // only support register jar resource
+        if (resourceUris.stream()
+                .anyMatch(resourceUri -> !ResourceType.JAR.equals(resourceUri.getResourceType()))) {
             throw new IOException(
                     String.format(
-                            "The resource [%s] is a directory, however, the directory is not allowed for registering resource.",
-                            path));
+                            "Only support to register jar resource, resource info:\n %s.",
+                            resourceUris.stream()
+                                    .map(ResourceUri::getUri)
+                                    .collect(Collectors.joining(",\n"))));
+        }
+
+        for (ResourceUri resourceUri : resourceUris) {
+            // here can check whether the resource path is valid
+            Path path = new Path(resourceUri.getUri());
+            // file name should end with .jar suffix
+            String fileExtension = Files.getFileExtension(path.getName());
+            if (!fileExtension.toLowerCase().endsWith(JAR_SUFFIX)) {
+                throw new IOException(
+                        String.format(
+                                "The registering jar resource [%s] must ends with '.jar' suffix.",
+                                path));
+            }
+
+            FileSystem fs = FileSystem.getUnguardedFileSystem(path.toUri());
+            // check resource exists firstly
+            if (!fs.exists(path)) {
+                throw new FileNotFoundException(
+                        String.format("Jar resource [%s] not found.", path));
+            }
+
+            // register directory is not allowed for resource
+            if (fs.getFileStatus(path).isDir()) {
+                throw new IOException(
+                        String.format(
+                                "The registering jar resource [%s] is a directory, however directory is not allowed to register.",
+                                path));
+            }
         }
     }
 
@@ -209,14 +228,32 @@ public class ResourceManager implements Closeable {
 
     @Override
     public void close() throws IOException {
-        // close classloader
-        userClassLoader.close();
         // clear the map
         resourceInfos.clear();
+
+        Exception exception = null;
+        // close classloader
+        try {
+            userClassLoader.close();
+        } catch (Exception e) {
+            LOG.debug("Error while closing user classloader.", e);
+            exception = e;
+        }
         // delete the local resource
-        FileSystem fileSystem = localResourceDir.getFileSystem();
-        if (fileSystem.exists(localResourceDir)) {
-            fileSystem.delete(localResourceDir, true);
+        FileSystem fileSystem = FileSystem.getLocalFileSystem();
+        try {
+            if (fileSystem.exists(localResourceDir)) {
+                fileSystem.delete(localResourceDir, true);
+            }
+        } catch (Exception e) {
+            LOG.debug(String.format("Error while delete directory [%s].", localResourceDir), e);
+            if (exception != null) {
+                exception = e;
+            }
+        }
+
+        if (exception != null) {
+            throw new IOException("Error while closing ResourceManager.", exception);
         }
     }
 }

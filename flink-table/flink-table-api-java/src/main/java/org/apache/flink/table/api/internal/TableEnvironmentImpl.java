@@ -172,6 +172,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -801,16 +802,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         final String defaultJobName = "insert-into_" + String.join(",", sinkIdentifierNames);
 
         // Merge user jars to table configuration
-        if (!resourceManager.getJarResourceURLs().isEmpty()) {
-            ConfigUtils.mergeCollectionsToConfig(
-                    tableConfig.getConfiguration(),
-                    PipelineOptions.JARS,
-                    resourceManager.getJarResourceURLs().stream()
-                            .map(URL::toString)
-                            .collect(Collectors.toSet()),
-                    String::toString,
-                    String::toString);
-        }
+        mergePipelineJarsToConfig(
+                resourceManager.getJarResourceURLs(), tableConfig.getConfiguration());
 
         // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
@@ -845,16 +838,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         final String defaultJobName = "collect";
 
         // Merge user jars to table configuration
-        if (!resourceManager.getJarResourceURLs().isEmpty()) {
-            ConfigUtils.mergeCollectionsToConfig(
-                    tableConfig.getConfiguration(),
-                    PipelineOptions.JARS,
-                    resourceManager.getJarResourceURLs().stream()
-                            .map(URL::toString)
-                            .collect(Collectors.toSet()),
-                    String::toString,
-                    String::toString);
-        }
+        mergePipelineJarsToConfig(
+                resourceManager.getJarResourceURLs(), tableConfig.getConfiguration());
 
         // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
@@ -1883,6 +1868,17 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             throw e;
         } catch (Exception e) {
             throw new TableException(getDDLOpExecuteErrorMsg(operation.asSummaryString()), e);
+        }
+    }
+
+    private static void mergePipelineJarsToConfig(Set<URL> jarUrls, Configuration configuration) {
+        if (!jarUrls.isEmpty()) {
+            ConfigUtils.mergeCollectionsToConfig(
+                    configuration,
+                    PipelineOptions.JARS,
+                    jarUrls.stream().map(URL::toString).collect(Collectors.toSet()),
+                    String::toString,
+                    String::toString);
         }
     }
 

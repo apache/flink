@@ -32,11 +32,10 @@ import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.resource.ClientResourceManager;
 import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
-import org.apache.flink.table.utils.ResourceUtils;
 import org.apache.flink.util.ClientMutableURLClassLoader;
 import org.apache.flink.util.JarUtils;
 import org.apache.flink.util.MutableURLClassLoader;
@@ -70,7 +69,7 @@ public class SessionContext {
     private final Configuration sessionConfiguration;
 
     private final SessionState sessionState;
-    private ClientMutableURLClassLoader classLoader;
+    private final ClientMutableURLClassLoader classLoader;
     private ExecutionContext executionContext;
 
     private SessionContext(
@@ -213,9 +212,8 @@ public class SessionContext {
         // Init session state
         // --------------------------------------------------------------------------------------------------------------
 
-        final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
-        // register pipeline.jars to resource manager
-        ResourceUtils.registerPipelineJars(configuration, resourceManager);
+        final ClientResourceManager resourceManager =
+                new ClientResourceManager(configuration, userClassLoader);
 
         final ModuleManager moduleManager = new ModuleManager();
 
@@ -257,24 +255,23 @@ public class SessionContext {
     public void addJar(String jarPath) {
         checkJarPath(jarPath, "SQL Client only supports to add local jars.");
         try {
-            sessionState.resourceManager.registerResource(
+            sessionState.resourceManager.registerJarResource(
                     Collections.singletonList(new ResourceUri(ResourceType.JAR, jarPath)));
         } catch (IOException e) {
-            LOG.warn(String.format("Could not register the specified jar.", jarPath), e);
+            LOG.warn(String.format("Could not register the specified jar [%s].", jarPath), e);
         }
     }
 
     public void removeJar(String jarPath) {
-        checkJarPath(jarPath, "SQL Client only supports to remove local jars.");
+        // if is relative path, convert to absolut path
+        URL jarURL = checkJarPath(jarPath, "SQL Client only supports to remove local jars.");
         // remove jar from resource manager
-        URL jarURL =
-                sessionState.resourceManager.unregisterJarResource(
-                        new ResourceUri(ResourceType.JAR, jarPath));
+        jarURL = sessionState.resourceManager.unregisterJarResource(jarURL.getPath());
         if (jarURL == null) {
             LOG.warn(
                     String.format(
-                            "Could not remove the specified jar because the jar path [%s] is not found in classloader.",
-                            jarURL));
+                            "Could not remove the specified jar because the jar path [%s] hadn't registered to classloader.",
+                            jarPath));
             return;
         }
         // remove jar from classloader
@@ -283,6 +280,7 @@ public class SessionContext {
 
     public List<String> listJars() {
         return sessionState.resourceManager.getResources().keySet().stream()
+                .filter(resourceUri -> ResourceType.JAR.equals(resourceUri.getResourceType()))
                 .map(ResourceUri::getUri)
                 .collect(Collectors.toList());
     }
@@ -296,13 +294,13 @@ public class SessionContext {
 
         public final CatalogManager catalogManager;
         public final ModuleManager moduleManager;
-        public final ResourceManager resourceManager;
+        public final ClientResourceManager resourceManager;
         public final FunctionCatalog functionCatalog;
 
         public SessionState(
                 CatalogManager catalogManager,
                 ModuleManager moduleManager,
-                ResourceManager resourceManager,
+                ClientResourceManager resourceManager,
                 FunctionCatalog functionCatalog) {
             this.catalogManager = catalogManager;
             this.moduleManager = moduleManager;

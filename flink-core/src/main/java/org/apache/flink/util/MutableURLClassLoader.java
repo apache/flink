@@ -36,8 +36,8 @@ public abstract class MutableURLClassLoader extends URLClassLoader {
     }
 
     /**
-     * Creates a new instance of MutableURLClassLoader subclass for the specified URLs, parent class
-     * loader and configuration.
+     * Creates a new instance of MutableURLClassLoader for the specified URLs, parent class loader
+     * and configuration.
      */
     public static MutableURLClassLoader newInstance(
             final URL[] urls, final ClassLoader parent, final Configuration configuration) {

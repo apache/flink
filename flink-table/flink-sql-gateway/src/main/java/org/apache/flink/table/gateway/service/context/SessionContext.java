@@ -26,6 +26,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -43,7 +44,6 @@ import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
-import org.apache.flink.table.utils.ResourceUtils;
 import org.apache.flink.util.MutableURLClassLoader;
 
 import org.slf4j.Logger;
@@ -54,6 +54,8 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collections;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -175,6 +177,8 @@ public class SessionContext {
 
         Configuration configuration = defaultContext.getFlinkConfig().clone();
         configuration.addAll(sessionConf);
+        // every session configure the specific local resource download directory
+        setResourceDownloadTmpDir(sessionConf, sessionId);
 
         // --------------------------------------------------------------------------------------------------------------
         // Init classloader
@@ -189,8 +193,6 @@ public class SessionContext {
         // --------------------------------------------------------------------------------------------------------------
 
         final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
-        // register pipeline.jars to resource manager
-        ResourceUtils.registerPipelineJars(configuration, resourceManager);
 
         final ModuleManager moduleManager = new ModuleManager();
 
@@ -312,6 +314,17 @@ public class SessionContext {
         // to execute existing StreamGraph.
         // This requires StreamExecutionEnvironment to have a full flink configuration.
         return new StreamExecutionEnvironment(new Configuration(sessionConf), userClassloader);
+    }
+
+    private static void setResourceDownloadTmpDir(
+            Configuration configuration, SessionHandle sessionId) {
+        Path path =
+                Paths.get(
+                        configuration.get(TableConfigOptions.RESOURCE_DOWNLOAD_DIR),
+                        String.format("sql-gateway-%s", sessionId));
+        // override resource download temp directory
+        configuration.set(
+                TableConfigOptions.RESOURCE_DOWNLOAD_DIR, path.toAbsolutePath().toString());
     }
 
     // --------------------------------------------------------------------------------------------

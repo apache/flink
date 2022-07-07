@@ -16,15 +16,17 @@
  *  limitations under the License.
  */
 
-package org.apache.flink.util;
+package org.apache.flink.table.client.util;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.util.ClientMutableURLClassLoader;
+import org.apache.flink.util.MutableURLClassLoader;
+import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.net.URL;
@@ -41,20 +43,18 @@ import static org.junit.Assert.assertTrue;
 /** Tests for classloading and class loader utilities. */
 public class ClientMutableURLClassLoaderTest {
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private static File tempDir;
 
     private static File userJar;
 
-    @BeforeClass
+    @BeforeAll
     public static void prepare() throws Exception {
         Map<String, String> classNameCodes = new HashMap<>();
         classNameCodes.put(GENERATED_LOWER_UDF_CLASS, GENERATED_LOWER_UDF_CODE);
         classNameCodes.put(GENERATED_UPPER_UDF_CLASS, GENERATED_UPPER_UDF_CODE);
         userJar =
                 UserClassLoaderJarTestUtils.createJarFile(
-                        temporaryFolder.newFolder("test-jar"),
-                        "test-classloader.jar",
-                        classNameCodes);
+                        tempDir, "test-classloader.jar", classNameCodes);
     }
 
     @Test

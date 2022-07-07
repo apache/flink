@@ -31,7 +31,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -85,7 +84,7 @@ public class ResourceManagerTest {
 
         ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, udfJar.getPath());
         // register the same jar repeatedly
-        resourceManager.registerResource(Arrays.asList(resourceUri, resourceUri));
+        resourceManager.registerJarResource(Arrays.asList(resourceUri, resourceUri));
 
         // assert resource infos
         Map<ResourceUri, URL> expected =
@@ -116,16 +115,22 @@ public class ResourceManagerTest {
                 ClassNotFoundException.class,
                 () -> Class.forName(LOWER_UDF_CLASS, false, userClassLoader));
 
-        String relativePath =
-                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString();
-        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, relativePath);
+        ResourceUri resourceUri =
+                new ResourceUri(
+                        ResourceType.JAR,
+                        new File(".")
+                                .getCanonicalFile()
+                                .toPath()
+                                .relativize(udfJar.toPath())
+                                .toString());
         // register the same jar repeatedly
-        resourceManager.registerResource(Collections.singletonList(resourceUri));
+        resourceManager.registerJarResource(Collections.singletonList(resourceUri));
 
         // assert resource infos
         Map<ResourceUri, URL> expected =
                 Collections.singletonMap(
-                        resourceUri, resourceManager.getURLFromPath(new Path(udfJar.getPath())));
+                        new ResourceUri(ResourceType.JAR, udfJar.getPath()),
+                        resourceManager.getURLFromPath(new Path(udfJar.getPath())));
 
         assertEquals(expected, resourceManager.getResources());
 
@@ -145,28 +150,42 @@ public class ResourceManagerTest {
                         new URL[0], getClass().getClassLoader(), new Configuration());
 
         // test register non-exist file
-        final String fileUri =
-                temporaryFolder.getRoot().getPath() + Path.SEPARATOR + "test-non-exist-file";
+        final String fileUri = temporaryFolder.getRoot().getPath() + Path.SEPARATOR + "test-file";
 
         CommonTestUtils.assertThrows(
-                String.format("Resource [%s] not found.", fileUri),
-                FileNotFoundException.class,
+                String.format(
+                        "Only support to register jar resource, resource info:\n" + " %s.",
+                        fileUri),
+                IOException.class,
                 () -> {
-                    resourceManager.registerResource(
+                    resourceManager.registerJarResource(
                             Collections.singletonList(new ResourceUri(ResourceType.FILE, fileUri)));
                     return null;
                 });
 
         // test register directory for jar resource
-        final String jarUri = temporaryFolder.newFolder("test-jar-dir").getPath();
+        final String jarDir = temporaryFolder.newFolder("test-jar-dir").getPath();
 
         CommonTestUtils.assertThrows(
                 String.format(
-                        "The resource [%s] is a directory, however, the directory is not allowed for registering resource.",
+                        "The registering jar resource [%s] must ends with '.jar' suffix.", jarDir),
+                IOException.class,
+                () -> {
+                    resourceManager.registerJarResource(
+                            Collections.singletonList(new ResourceUri(ResourceType.JAR, jarDir)));
+                    return null;
+                });
+
+        // test register directory for jar resource
+        final String jarUri = temporaryFolder.newFolder("test-jar.jar").getPath();
+
+        CommonTestUtils.assertThrows(
+                String.format(
+                        "The registering jar resource [%s] is a directory, however directory is not allowed to register.",
                         jarUri),
                 IOException.class,
                 () -> {
-                    resourceManager.registerResource(
+                    resourceManager.registerJarResource(
                             Collections.singletonList(new ResourceUri(ResourceType.JAR, jarUri)));
                     return null;
                 });

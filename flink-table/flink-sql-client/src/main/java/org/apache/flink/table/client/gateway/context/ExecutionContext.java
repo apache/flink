@@ -65,7 +65,6 @@ public class ExecutionContext {
         this.flinkConfig = flinkConfig;
         this.sessionState = sessionState;
         this.classLoader = classLoader;
-
         this.tableEnv = createTableEnvironment();
     }
 
@@ -120,7 +119,8 @@ public class ExecutionContext {
                 sessionState.catalogManager,
                 sessionState.moduleManager,
                 sessionState.resourceManager,
-                sessionState.functionCatalog);
+                sessionState.functionCatalog,
+                classLoader);
     }
 
     private static StreamTableEnvironment createStreamTableEnvironment(
@@ -130,7 +130,8 @@ public class ExecutionContext {
             CatalogManager catalogManager,
             ModuleManager moduleManager,
             ResourceManager resourceManager,
-            FunctionCatalog functionCatalog) {
+            FunctionCatalog functionCatalog,
+            ClassLoader userClassLoader) {
 
         TableConfig tableConfig = TableConfig.getDefault();
         tableConfig.setRootConfiguration(executor.getConfiguration());
@@ -140,7 +141,7 @@ public class ExecutionContext {
                 PlannerFactoryUtil.createPlanner(
                         executor,
                         tableConfig,
-                        resourceManager.getUserClassLoader(),
+                        userClassLoader,
                         moduleManager,
                         catalogManager,
                         functionCatalog);

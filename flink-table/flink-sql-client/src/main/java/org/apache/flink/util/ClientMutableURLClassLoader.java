@@ -18,6 +18,8 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
 import org.slf4j.Logger;
@@ -32,7 +34,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * This class loader extands {@link MutableURLClassLoader}, upon the {@code addURL} method, it also
+ * This class loader extends {@link MutableURLClassLoader}, upon the {@code addURL} method, it also
  * exposes a {@code removeURL} method which used to remove unnecessary jar from current classloader
  * path. This class loader wraps a {@link MutableURLClassLoader} and an old classloader list, the
  * class load is delegated to the inner {@link MutableURLClassLoader}.
@@ -46,6 +48,8 @@ import java.util.stream.Stream;
  * <p>Note: This classloader is not guaranteed to actually remove class or resource, any classes or
  * resources in the removed jar that are already loaded, are still accessible.
  */
+@Experimental
+@Internal
 public class ClientMutableURLClassLoader extends MutableURLClassLoader {
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientMutableURLClassLoader.class);
@@ -105,11 +109,34 @@ public class ClientMutableURLClassLoader extends MutableURLClassLoader {
 
     @Override
     public void close() throws IOException {
-        // close current classloader
-        currentClassLoader.close();
+        IOException exception = null;
+        try {
+            // close current classloader
+            currentClassLoader.close();
+        } catch (IOException e) {
+            LOG.debug("Error while closing class loader in ClientMutableURLClassLoader.", e);
+            exception = e;
+        }
+
         // close other classloader in the list
         for (MutableURLClassLoader classLoader : oldClassLoaders) {
-            classLoader.close();
+            try {
+                classLoader.close();
+            } catch (IOException e) {
+                LOG.debug(
+                        "Error while closing older class loader in ClientMutableURLClassLoader.",
+                        e);
+                if (exception == null) {
+                    exception = e;
+                }
+            }
+        }
+
+        // clear the list
+        oldClassLoaders.clear();
+
+        if (exception != null) {
+            throw new IOException("Error while closing ClientMutableURLClassLoader.", exception);
         }
     }
 }

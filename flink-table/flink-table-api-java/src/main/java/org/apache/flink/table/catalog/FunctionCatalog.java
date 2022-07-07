@@ -41,6 +41,7 @@ import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.Preconditions;
 
@@ -649,9 +650,9 @@ public final class FunctionCatalog {
             }
             // Skip validation if it's not a UserDefinedFunction.
         } else if (function.getFunctionLanguage() == FunctionLanguage.JAVA) {
-            // If the resource of UDF used is not empty, register it to classloader before
+            // If the jar resource of UDF used is not empty, register it to classloader before
             // validate.
-            registerFunctionResource(name, function.getFunctionResources());
+            registerFunctionJarResource(name, function.getFunctionResources());
 
             UserDefinedFunctionHelper.validateClass(
                     (Class<? extends UserDefinedFunction>)
@@ -668,9 +669,9 @@ public final class FunctionCatalog {
             // directly.
             return ((InlineCatalogFunction) function).getDefinition();
         }
-        // If the resource of UDF used is not empty, register it to classloader before
+        // If the jar resource of UDF used is not empty, register it to classloader before
         // validate.
-        registerFunctionResource(name, function.getFunctionResources());
+        registerFunctionJarResource(name, function.getFunctionResources());
 
         return UserDefinedFunctionHelper.instantiateFunction(
                 resourceManager.getUserClassLoader(),
@@ -680,19 +681,27 @@ public final class FunctionCatalog {
                 function);
     }
 
-    private void registerFunctionResource(String functionName, List<ResourceUri> resourceUris) {
+    private void registerFunctionJarResource(String functionName, List<ResourceUri> resourceUris) {
         try {
-            resourceManager.registerResource(resourceUris);
+            List<ResourceUri> jarResources =
+                    resourceUris.stream()
+                            .filter(
+                                    resourceUri ->
+                                            ResourceType.JAR.equals(resourceUri.getResourceType()))
+                            .collect(Collectors.toList());
+            if (!jarResources.isEmpty()) {
+                resourceManager.registerJarResource(resourceUris);
+            }
         } catch (IOException e) {
-            throw new ValidationException(
+            throw new TableException(
                     String.format(
-                            "Failed to register resource '%s' of function '%s'.",
+                            "Failed to register jar resource '%s' of function '%s'.",
                             resourceUris, functionName),
                     e);
         }
     }
 
-    /** The CatalogFunction which holds a instantiated UDF. */
+    /** The CatalogFunction which holds an instantiated UDF. */
     public static class InlineCatalogFunction implements CatalogFunction {
 
         private final FunctionDefinition definition;

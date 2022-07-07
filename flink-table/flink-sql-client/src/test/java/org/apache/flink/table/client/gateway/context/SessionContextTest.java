@@ -144,14 +144,13 @@ public class SessionContextTest {
 
     @Test
     public void testAddJarWithFullPath() throws IOException {
-        validateAddJar(udfJar.getPath(), udfJar.getPath());
+        validateAddJar(udfJar.getPath());
     }
 
     @Test
     public void testAddJarWithRelativePath() throws IOException {
-        String jarPath =
-                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString();
-        validateAddJar(jarPath, jarPath);
+        validateAddJar(
+                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString());
     }
 
     @Test
@@ -167,14 +166,13 @@ public class SessionContextTest {
 
     @Test
     public void testRemoveJarWithFullPath() {
-        validateRemoveJar(udfJar.getPath(), udfJar.getPath());
+        validateRemoveJar(udfJar.getPath());
     }
 
     @Test
     public void testRemoveJarWithRelativePath() throws IOException {
-        String jarPath =
-                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString();
-        validateRemoveJar(jarPath, jarPath);
+        validateRemoveJar(
+                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString());
     }
 
     @Test
@@ -218,17 +216,17 @@ public class SessionContextTest {
         return sessionContext.getExecutionContext().getTableEnvironment().getConfig();
     }
 
-    private void validateAddJar(String jarPath, String expectedJarPath) {
+    private void validateAddJar(String jarPath) {
         sessionContext.addJar(jarPath);
-        assertThat(sessionContext.listJars()).containsExactly(expectedJarPath);
+        assertThat(sessionContext.listJars()).containsExactly(udfJar.getPath());
         // reset to the default
         sessionContext.reset();
-        assertThat(sessionContext.listJars()).containsExactly(expectedJarPath);
+        assertThat(sessionContext.listJars()).containsExactly(udfJar.getPath());
     }
 
-    private void validateRemoveJar(String jarPath, String expectedJarPath) {
+    private void validateRemoveJar(String jarPath) {
         sessionContext.addJar(jarPath);
-        assertThat(sessionContext.listJars()).containsExactly(expectedJarPath);
+        assertThat(sessionContext.listJars()).containsExactly(udfJar.getPath());
 
         sessionContext.removeJar(jarPath);
         assertThat(sessionContext.listJars()).isEmpty();
