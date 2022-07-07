@@ -80,7 +80,7 @@ public class SqlGatewayServiceExtension implements BeforeAllCallback, AfterAllCa
             map.put(ENV_FLINK_CONF_DIR, confFolder.getAbsolutePath());
             CommonTestUtils.setEnv(map);
 
-            sessionManager = new SessionManager(DefaultContext.load(new HashMap<>()));
+            sessionManager = new SessionManager(DefaultContext.load(new Configuration()));
         } finally {
             CommonTestUtils.setEnv(originalEnv);
         }
