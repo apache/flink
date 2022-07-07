@@ -67,7 +67,7 @@ Flink 的 POJO 字段选择也适用于从 Avro schema 生成的 POJO 类。但�
 在PyFlink中要读取 Avro 文件需要先定义 Avro schema，产生的 DataStream 元素为原生的 Python 对象。例如：
 
 ```python
-schema = Schema.parse_string("""
+schema = AvroSchema.parse_string("""
 {
     "type": "record",
     "name": "User",

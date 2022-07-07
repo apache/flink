@@ -66,7 +66,7 @@ Specifying a field in Avro like this `{"name": "type_double_test", "type": "doub
 For PyFlink, an Avro schema should be defined to read from Avro files, and the DataStream element will be a vanilla Python object. For example:
 
 ```python
-schema = Schema.parse_string("""
+schema = AvroSchema.parse_string("""
 {
     "type": "record",
     "name": "User",

@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 from pyflink.datastream.connectors.file_system import StreamFormat
-from pyflink.datastream.formats.avro import Schema
+from pyflink.datastream.formats.avro import AvroSchema
 from pyflink.java_gateway import get_gateway
 
 
@@ -29,7 +29,7 @@ class AvroParquetReaders(object):
     """
 
     @staticmethod
-    def for_generic_record(schema: 'Schema') -> 'StreamFormat':
+    def for_generic_record(schema: 'AvroSchema') -> 'StreamFormat':
         """
         Creates a new AvroParquetRecordFormat that reads the parquet file into Avro GenericRecords.
 
@@ -43,7 +43,7 @@ class AvroParquetReaders(object):
         ::
 
             >>> env = StreamExecutionEnvironment.get_execution_environment()
-            >>> schema = Schema.parse_string(JSON_SCHEMA)
+            >>> schema = AvroSchema.parse_string(JSON_SCHEMA)
             >>> source = FileSource.for_record_stream_format(
             ...     AvroParquetReaders.for_generic_record(schema),
             ...     FILE_PATH

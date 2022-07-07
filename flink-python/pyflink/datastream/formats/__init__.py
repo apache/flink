@@ -15,12 +15,12 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from .avro import Schema, AvroInputFormat
+from .avro import AvroSchema, AvroInputFormat
 from .parquet import AvroParquetReaders
 
 
 __all__ = [
     'AvroInputFormat',
     'AvroParquetReaders',
-    'Schema'
+    'AvroSchema'
 ]

@@ -199,7 +199,7 @@ final DataStream<GenericRecord> stream =
 {{< tab "Python" >}}
 ```python
 # parsing avro schema
-schema = Schema.parse_string("""
+schema = AvroSchema.parse_string("""
 {
     "type": "record",
     "name": "User",

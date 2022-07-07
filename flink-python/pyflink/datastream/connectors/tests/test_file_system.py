@@ -25,7 +25,7 @@ from py4j.java_gateway import java_import, JavaObject
 from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream.functions import MapFunction
 from pyflink.datastream.connectors.file_system import FileSource
-from pyflink.datastream.formats.avro import Schema as AvroSchema, AvroInputFormat
+from pyflink.datastream.formats.avro import AvroSchema, AvroInputFormat
 from pyflink.datastream.formats.parquet import AvroParquetReaders
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
