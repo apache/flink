@@ -449,6 +449,7 @@ string:
     description: |
       返回 string2 中 string1 在位置 integer 之后第一次出现的位置。未找到返回 0。如果有任一参数为 `NULL` 则返回 `NULL`。
   - sql: PARSE_URL(string1, string2[, string3])
+    table: STRING1.parseUrl(STRING2[, STRING3])
     description: |
       从 URL 返回指定的部分。string2 的有效值包括“HOST”，“PATH”，“QUERY”，“REF”，“PROTOCOL”，“AUTHORITY”，“FILE”和“USERINFO”。
       如果有任一参数为 `NULL`，则返回 `NULL`。例如

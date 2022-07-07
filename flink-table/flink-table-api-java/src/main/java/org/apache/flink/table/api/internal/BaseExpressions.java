@@ -129,6 +129,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_DESC;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVERLAY;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PARSE_URL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PLUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.POSITION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.POWER;
@@ -1076,6 +1077,26 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType locate(InType str, InType pos) {
         return toApiSpecificExpression(
                 unresolvedCall(LOCATE, toExpr(), objectToExpression(str), objectToExpression(pos)));
+    }
+
+    /**
+     * Parse url and return various parameter of the URL. If accept any null arguments, return null.
+     */
+    public OutType parseUrl(InType partToExtract) {
+        return toApiSpecificExpression(
+                unresolvedCall(PARSE_URL, toExpr(), objectToExpression(partToExtract)));
+    }
+
+    /**
+     * Parse url and return various parameter of the URL. If accept any null arguments, return null.
+     */
+    public OutType parseUrl(InType partToExtract, InType key) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        PARSE_URL,
+                        toExpr(),
+                        objectToExpression(partToExtract),
+                        objectToExpression(key)));
     }
 
     /** Returns a string that removes the left whitespaces from the given string. */
