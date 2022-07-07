@@ -51,6 +51,7 @@ A driver dependency is also required to connect to a specified database. Here ar
 | Oracle      | `com.oracle.database.jdbc` |        `ojdbc8`        | [Download](https://mvnrepository.com/artifact/com.oracle.database.jdbc/ojdbc8) |
 | PostgreSQL  |  `org.postgresql`  |      `postgresql`      | [Download](https://jdbc.postgresql.org/download.html) |
 | Derby       | `org.apache.derby` |        `derby`         | [Download](http://db.apache.org/derby/derby_downloads.html) |
+| MariaDB     | `org.mariadb.jdbc` | `mariadb-java-client`  | [Download](https://repo1.maven.org/maven2/org/mariadb/jdbc/mariadb-java-client/) | |
 
 
 JDBC connector and drivers are not part of Flink's binary distribution. See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration" >}}).
@@ -333,7 +334,7 @@ As there is no standard syntax for upsert, the following table describes the dat
     </thead>
     <tbody>
         <tr>
-            <td>MySQL</td>
+            <td>MySQL / MariaDB</td>
             <td>INSERT .. ON DUPLICATE KEY UPDATE ..</td>
         </tr>
         <tr>
@@ -538,7 +539,7 @@ SELECT * FROM given_database.test_table2;
 
 Data Type Mapping
 ----------------
-Flink supports connect to several databases which uses dialect like MySQL, Oracle, PostgreSQL, Derby. The Derby dialect usually used for testing purpose. The field data type mappings from relational databases data types to Flink SQL data types are listed in the following table, the mapping table can help define JDBC table in Flink easily.
+Flink supports connect to several databases which uses dialect like MySQL, Oracle, PostgreSQL, Derby, MariaDB. The Derby dialect usually used for testing purpose. The field data type mappings from relational databases data types to Flink SQL data types are listed in the following table, the mapping table can help define JDBC table in Flink easily.
 
 <table class="table table-bordered">
     <thead>

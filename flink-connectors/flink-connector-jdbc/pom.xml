@@ -165,6 +165,19 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- MariaDB tests -->
+		<dependency>
+			<groupId>org.mariadb.jdbc</groupId>
+			<artifactId>mariadb-java-client</artifactId>
+			<version>3.0.3</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>mariadb</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- ArchUit test dependencies -->
 
 		<dependency>

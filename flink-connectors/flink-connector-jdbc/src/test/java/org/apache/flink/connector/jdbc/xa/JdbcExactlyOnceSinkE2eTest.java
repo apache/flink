@@ -54,10 +54,12 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.mariadb.jdbc.MariaDbDataSource;
 import org.postgresql.xa.PGXADataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.JdbcDatabaseContainer;
+import org.testcontainers.containers.MariaDBContainer;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 
@@ -147,7 +149,9 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                 // MYSQL: check for issues with errors on closing connections.
                 new MySqlJdbcExactlyOnceSinkTestEnv(4),
                 // ORACLE - default tests.
-                new OracleJdbcExactlyOnceSinkTestEnv(4)
+                new OracleJdbcExactlyOnceSinkTestEnv(4),
+                // MariaDB - default tests.
+                new MariaDBJdbcExactlyOnceSinkTestEnv(4)
                 // MSSQL - not testing: XA transactions need to be enabled via GUI (plus EULA).
                 // DB2 - not testing: requires auth configuration (plus EULA).
                 // MARIADB - not testing: XA rollback doesn't recognize recovered transactions.
@@ -865,6 +869,229 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                     return xaDataSource;
                 } catch (SQLException ex) {
                     throw new RuntimeException(ex);
+                }
+            }
+        }
+    }
+
+    private static class MariaDBJdbcExactlyOnceSinkTestEnv implements JdbcExactlyOnceSinkTestEnv {
+        private final int parallelism;
+        private final JdbcDatabaseContainer<?> db;
+
+        public MariaDBJdbcExactlyOnceSinkTestEnv(int parallelism) {
+            this.parallelism = parallelism;
+            this.db = new MariaDBXaDb();
+        }
+
+        @Override
+        public void start() {
+            db.start();
+        }
+
+        @Override
+        public void stop() {
+            db.stop();
+        }
+
+        @Override
+        public JdbcDatabaseContainer<?> getContainer() {
+            return db;
+        }
+
+        @Override
+        public SerializableSupplier<XADataSource> getDataSourceSupplier() {
+            return new MariaDBXaDataSourceFactory(
+                    db.getJdbcUrl(), db.getUsername(), db.getPassword());
+        }
+
+        @Override
+        public int getParallelism() {
+            return parallelism;
+        }
+
+        @Override
+        public String toString() {
+            return db + ", parallelism=" + parallelism;
+        }
+
+        private static class MariaDBXaDataSourceFactory
+                implements SerializableSupplier<XADataSource> {
+            private final String jdbcUrl;
+            private final String username;
+            private final String password;
+
+            public MariaDBXaDataSourceFactory(String jdbcUrl, String username, String password) {
+                this.jdbcUrl = jdbcUrl;
+                this.username = username;
+                this.password = password;
+            }
+
+            @Override
+            public XADataSource get() {
+                MariaDbDataSource mariaDbDataSource = new MariaDbDataSource();
+                try {
+                    mariaDbDataSource.setUrl(jdbcUrl);
+                    mariaDbDataSource.setUser(username);
+                    mariaDbDataSource.setPassword(password);
+                    return mariaDbDataSource;
+                } catch (SQLException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        }
+
+        private static final class MariaDBXaDb
+                extends MariaDBContainer<MariaDBJdbcExactlyOnceSinkTestEnv.MariaDBXaDb> {
+            private static final String IMAGE_NAME = "mariadb:10.3.6";
+            private volatile InnoDbStatusLogger innoDbStatusLogger;
+
+            @Override
+            public String toString() {
+                return IMAGE_NAME;
+            }
+
+            public MariaDBXaDb() {
+                super(IMAGE_NAME);
+            }
+
+            @Override
+            public void start() {
+                super.start();
+                long lockWaitTimeout = (CHECKPOINT_TIMEOUT_MS + TASK_CANCELLATION_TIMEOUT_MS) * 2;
+                try (Connection connection =
+                        DriverManager.getConnection(getJdbcUrl(), "root", getPassword())) {
+                    prepareDb(connection, lockWaitTimeout);
+                } catch (SQLException e) {
+                    ExceptionUtils.rethrow(e);
+                }
+                this.innoDbStatusLogger =
+                        new InnoDbStatusLogger(
+                                getJdbcUrl(), "root", getPassword(), lockWaitTimeout / 2);
+                innoDbStatusLogger.start();
+            }
+
+            @Override
+            public void stop() {
+                try {
+                    innoDbStatusLogger.stop();
+                } catch (Exception e) {
+                    ExceptionUtils.rethrow(e);
+                } finally {
+                    super.stop();
+                }
+            }
+
+            private void prepareDb(Connection connection, long lockWaitTimeout)
+                    throws SQLException {
+                try (Statement st = connection.createStatement()) {
+                    // st.execute("GRANT XA_RECOVER_ADMIN ON *.* TO '" + getUsername() + "'@'%'");
+                    // st.execute("FLUSH PRIVILEGES");
+                    st.execute("SET GLOBAL innodb_lock_wait_timeout = " + lockWaitTimeout);
+                }
+            }
+        }
+
+        private static class InnoDbStatusLogger {
+            private static final Logger LOG =
+                    LoggerFactory.getLogger(
+                            MySqlJdbcExactlyOnceSinkTestEnv.InnoDbStatusLogger.class);
+            private final Thread thread;
+            private volatile boolean running;
+
+            private InnoDbStatusLogger(String url, String user, String password, long intervalMs) {
+                running = true;
+                thread =
+                        new Thread(
+                                () -> {
+                                    LOG.info("Logging InnoDB status every {}ms", intervalMs);
+                                    try (Connection connection =
+                                            DriverManager.getConnection(url, user, password)) {
+                                        while (running) {
+                                            Thread.sleep(intervalMs);
+                                            queryAndLog(connection);
+                                        }
+                                    } catch (Exception e) {
+                                        LOG.warn("failed", e);
+                                    } finally {
+                                        LOG.info("Logging InnoDB status stopped");
+                                    }
+                                });
+            }
+
+            public void start() {
+                thread.start();
+            }
+
+            public void stop() throws InterruptedException {
+                running = false;
+                thread.join();
+            }
+
+            private void queryAndLog(Connection connection) throws SQLException {
+                try (Statement st = connection.createStatement()) {
+                    showBlockedTrx(st);
+                    showAllTrx(st);
+                    showEngineStatus(st);
+                    showRecoveredTrx(st);
+                    // additional query: show full processlist \G; -- only shows live
+                }
+            }
+
+            private void showRecoveredTrx(Statement st) throws SQLException {
+                try (ResultSet rs = st.executeQuery("xa recover convert xid ")) {
+                    while (rs.next()) {
+                        LOG.debug(
+                                "recovered trx: {} {} {} {}",
+                                rs.getString(1),
+                                rs.getString(2),
+                                rs.getString(3),
+                                rs.getString(4));
+                    }
+                }
+            }
+
+            private void showEngineStatus(Statement st) throws SQLException {
+                LOG.debug("Engine status");
+                try (ResultSet rs = st.executeQuery("show engine innodb status")) {
+                    while (rs.next()) {
+                        LOG.debug(rs.getString(3));
+                    }
+                }
+            }
+
+            private void showAllTrx(Statement st) throws SQLException {
+                LOG.debug("All TRX");
+                try (ResultSet rs =
+                        st.executeQuery("select * from information_schema.innodb_trx")) {
+                    while (rs.next()) {
+                        LOG.debug(
+                                "trx_id: {}, trx_state: {}, trx_started: {}, trx_requested_lock_id: {}, trx_wait_started: {}, trx_mysql_thread_id: {},",
+                                rs.getString("trx_id"),
+                                rs.getString("trx_state"),
+                                rs.getString("trx_started"),
+                                rs.getString("trx_requested_lock_id"),
+                                rs.getString("trx_wait_started"),
+                                rs.getString("trx_mysql_thread_id") /* 0 for recovered*/);
+                    }
+                }
+            }
+
+            private void showBlockedTrx(Statement st) throws SQLException {
+                LOG.debug("Blocked TRX");
+                try (ResultSet rs =
+                        st.executeQuery(
+                                " SELECT waiting_trx_id, waiting_pid, waiting_query, blocking_trx_id, blocking_pid, blocking_query "
+                                        + "FROM sys.innodb_lock_waits; ")) {
+                    while (rs.next()) {
+                        LOG.debug(
+                                "waiting_trx_id: {}, waiting_pid: {}, waiting_query: {}, blocking_trx_id: {}, blocking_pid: {}, blocking_query: {}",
+                                rs.getString(1),
+                                rs.getString(2),
+                                rs.getString(3),
+                                rs.getString(4),
+                                rs.getString(5),
+                                rs.getString(6));
+                    }
                 }
             }
         }

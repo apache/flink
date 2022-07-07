@@ -16,22 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc.dialect.mysql;
+package org.apache.flink.connector.jdbc.dialect.mariadb;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialectFactory;
 
-/** Factory for {@link MySqlDialect}. */
+/** Factory for {@link MariaDBDialect}. */
 @Internal
-public class MySqlDialectFactory implements JdbcDialectFactory {
+public class MariaDBDialectFactory implements JdbcDialectFactory {
     @Override
     public boolean acceptsURL(String url) {
-        return (url.startsWith("jdbc:mysql:") || url.startsWith("jdbc:mariadb:"));
+        return url.startsWith("jdbc:mariadb:");
     }
 
     @Override
     public JdbcDialect create() {
-        return new MySqlDialect();
+        return new MariaDBDialect();
     }
 }

@@ -117,6 +117,22 @@ public class JdbcDataTypeTest {
                 createTestItem("oracle", "TIMESTAMP(3)"),
                 createTestItem("oracle", "TIMESTAMP WITHOUT TIME ZONE"),
                 createTestItem("oracle", "VARBINARY"),
+                createTestItem("mariadb", "CHAR"),
+                createTestItem("mariadb", "VARCHAR"),
+                createTestItem("mariadb", "BOOLEAN"),
+                createTestItem("mariadb", "TINYINT"),
+                createTestItem("mariadb", "SMALLINT"),
+                createTestItem("mariadb", "INTEGER"),
+                createTestItem("mariadb", "BIGINT"),
+                createTestItem("mariadb", "FLOAT"),
+                createTestItem("mariadb", "DOUBLE"),
+                createTestItem("mariadb", "DECIMAL(10, 4)"),
+                createTestItem("mariadb", "DECIMAL(38, 18)"),
+                createTestItem("mariadb", "DATE"),
+                createTestItem("mariadb", "TIME"),
+                createTestItem("mariadb", "TIMESTAMP(3)"),
+                createTestItem("mariadb", "TIMESTAMP WITHOUT TIME ZONE"),
+                createTestItem("mariadb", "VARBINARY"),
 
                 // Unsupported types throws errors.
                 createTestItem(
@@ -166,7 +182,21 @@ public class JdbcDataTypeTest {
                 createTestItem(
                         "oracle",
                         "VARBINARY(10)",
-                        "The Oracle dialect doesn't support type: VARBINARY(10)."));
+                        "The Oracle dialect doesn't support type: VARBINARY(10)."),
+                createTestItem(
+                        "mariadb", "BINARY", "The MySQL dialect doesn't support type: BINARY(1)."),
+                createTestItem(
+                        "mariadb",
+                        "VARBINARY(10)",
+                        "The MySQL dialect doesn't support type: VARBINARY(10)."),
+                createTestItem(
+                        "mariadb",
+                        "TIMESTAMP(9) WITHOUT TIME ZONE",
+                        "The precision of field 'f0' is out of the TIMESTAMP precision range [0, 6] supported by MySQL dialect."),
+                createTestItem(
+                        "mariadb",
+                        "TIMESTAMP_LTZ(3)",
+                        "The MySQL dialect doesn't support type: TIMESTAMP_LTZ(3)."));
     }
 
     private static TestItem createTestItem(Object... args) {

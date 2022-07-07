@@ -16,22 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc.dialect.mysql;
+package org.apache.flink.connector.jdbc.internal.converter;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
-import org.apache.flink.connector.jdbc.dialect.JdbcDialectFactory;
+import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter;
+import org.apache.flink.table.types.logical.RowType;
 
-/** Factory for {@link MySqlDialect}. */
-@Internal
-public class MySqlDialectFactory implements JdbcDialectFactory {
+/**
+ * Runtime converter that responsible to convert between JDBC object and Flink internal object for
+ * MariaDB.
+ */
+public class MariaDBRowConverter extends AbstractJdbcRowConverter {
+
+    private static final long serialVersionUID = 1L;
+
     @Override
-    public boolean acceptsURL(String url) {
-        return (url.startsWith("jdbc:mysql:") || url.startsWith("jdbc:mariadb:"));
+    public String converterName() {
+        return "MariaDB";
     }
 
-    @Override
-    public JdbcDialect create() {
-        return new MySqlDialect();
+    public MariaDBRowConverter(RowType rowType) {
+        super(rowType);
     }
 }

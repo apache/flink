@@ -53,7 +53,8 @@ JDBC 连接器不是二进制发行版的一部分，请查阅[这里]({{< ref "
 | MySQL       |       `mysql`      | `mysql-connector-java` | [下载](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) |
 | Oracle      | `com.oracle.database.jdbc` |        `ojdbc8`        | [下载](https://mvnrepository.com/artifact/com.oracle.database.jdbc/ojdbc8)
 | PostgreSQL  |  `org.postgresql`  |      `postgresql`      | [下载](https://jdbc.postgresql.org/download.html) |
-| Derby       | `org.apache.derby` |        `derby`         | [下载](http://db.apache.org/derby/derby_downloads.html) | |
+| Derby       | `org.apache.derby` |        `derby`         | [下载](http://db.apache.org/derby/derby_downloads.html) |
+| MariaDB     | `org.mariadb.jdbc` | `mariadb-java-client`  | [下载](https://repo1.maven.org/maven2/org/mariadb/jdbc/mariadb-java-client/) | |
 
 当前，JDBC 连接器和驱动不在 Flink 二进制发布包中，请参阅[这里]({{< ref "docs/dev/configuration" >}})了解在集群上执行时何连接它们。
 
@@ -327,7 +328,7 @@ lookup cache 的主要目的是用于提高时态表关联 JDBC 连接器的性�
     </thead>
     <tbody>
         <tr>
-            <td>MySQL</td>
+            <td>MySQL / MariaDB</td>
             <td>INSERT .. ON DUPLICATE KEY UPDATE ..</td>
         </tr>
         <tr>
@@ -544,7 +545,7 @@ SELECT * FROM given_database.test_table2;
 
 数据类型映射
 ----------------
-Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、Oracle、PostgreSQL、Derby 等。其中，Derby 通常是用于测试目的。下表列出了从关系数据库数据类型到 Flink SQL 数据类型的类型映射，映射表可以使得在 Flink 中定义 JDBC 表更加简单。
+Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、Oracle、PostgreSQL、Derby、MariaDB 等。其中，Derby 通常是用于测试目的。下表列出了从关系数据库数据类型到 Flink SQL 数据类型的类型映射，映射表可以使得在 Flink 中定义 JDBC 表更加简单。
 
 <table class="table table-bordered">
     <thead>
