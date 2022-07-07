@@ -88,41 +88,7 @@ abstract class CassandraOutputFormatBase<OUT, V> extends OutputFormatBase<OUT, V
 
     protected static <T> CompletableFuture<T> listenableFutureToCompletableFuture(
             final ListenableFuture<T> listenableFuture) {
-        CompletableFuture<T> completable =
-                new CompletableFuture<T>() {
-
-                    @Override
-                    public boolean cancel(boolean mayInterruptIfRunning) {
-                        // propagate cancel to the listenable future
-                        boolean canceledListenableFuture =
-                                listenableFuture.cancel(mayInterruptIfRunning);
-                        final boolean canceledCompletableFuture =
-                                super.cancel(mayInterruptIfRunning);
-                        return canceledListenableFuture && canceledCompletableFuture;
-                    }
-
-                    @Override
-                    public boolean isCancelled() {
-                        return listenableFuture.isCancelled();
-                    }
-
-                    @Override
-                    public boolean isDone() {
-                        return listenableFuture.isDone();
-                    }
-
-                    @Override
-                    public T get() throws InterruptedException, ExecutionException {
-                        return listenableFuture.get();
-                    }
-
-                    @Override
-                    public T get(long timeout, TimeUnit unit)
-                            throws InterruptedException, ExecutionException, TimeoutException {
-                        return listenableFuture.get();
-                    }
-                };
-
+        CompletableFuture<T> completable = new CompletableFuture<T>();
         Futures.addCallback(
                 listenableFuture,
                 new FutureCallback<T>() {
