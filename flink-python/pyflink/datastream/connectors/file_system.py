@@ -120,6 +120,20 @@ class StreamFormat(object):
 
 
 class BulkFormat(object):
+    """
+    The BulkFormat reads and decodes batches of records at a time. Examples of bulk formats are
+    formats like ORC or Parquet.
+
+    Internally in the file source, the readers pass batches of records from the reading threads
+    (that perform the typically blocking I/O operations) to the async mailbox threads that do the
+    streaming and batch data processing. Passing records in batches (rather than one-at-a-time) much
+    reduce the thread-to-thread handover overhead.
+
+    For the BulkFormat, one batch (as returned by ``BulkFormat.Reader#readBatch()``) is handed over
+    as one.
+
+    .. versionadded:: 1.16.0
+    """
 
     def __init__(self, j_bulk_format):
         self._j_bulk_format = j_bulk_format

@@ -834,8 +834,7 @@ class StreamExecutionEnvironment(object):
 
         return StreamExecutionEnvironment(j_stream_exection_environment)
 
-    def create_input(self, input_format: 'InputFormat',
-                     type_info: Optional[TypeInformation] = None):
+    def create_input(self, input_format, type_info: Optional[TypeInformation] = None):
         """
         Create an input data stream with InputFormat.
 
