@@ -24,7 +24,10 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.flink.annotation.Experimental;
+
 /** Utility class for sinks. */
+@Experimental
 public class SinkUtils implements Serializable {
 
     /**
