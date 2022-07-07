@@ -35,6 +35,9 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogTestUtil;
 import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
@@ -61,9 +64,12 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IDENTIFIER;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
@@ -238,6 +244,84 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         checkEquals(
                 catalogColumnStatistics,
                 catalog.getPartitionColumnStatistics(path1, partitionSpec));
+    }
+
+    private ResolvedSchema createSchemaForStatistics() {
+        return new ResolvedSchema(
+                Arrays.asList(
+                        Column.physical("first", DataTypes.STRING()),
+                        Column.physical("four", DataTypes.BOOLEAN()),
+                        Column.physical("five", DataTypes.DOUBLE()),
+                        Column.physical("second", DataTypes.DATE()),
+                        Column.physical("third", DataTypes.INT())),
+                Collections.emptyList(),
+                null);
+    }
+
+    @Test
+    public void testGetTableAndColumnStatistics() throws Exception {
+
+        // create a test table
+        catalog.createDatabase(db1, createDb(), false);
+        final ResolvedSchema resolvedSchema = createSchemaForStatistics();
+        final CatalogTable origin =
+                CatalogTable.of(
+                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                        TEST_COMMENT,
+                        createPartitionKeys(),
+                        getBatchTableProperties());
+        CatalogTable catalogTable = new ResolvedCatalogTable(origin, resolvedSchema);
+
+        catalog.createTable(path1, catalogTable, false);
+
+        int second = 29;
+        final int partitionFileSize = 20;
+        final String partitionName = "third";
+
+        List<Map<String, String>> partitionSpecs = new ArrayList<>();
+        Map<String, String> partitionSpec = null;
+
+        while (second-- > 10) {
+            int third = 20;
+            while (third-- > 0) {
+                partitionSpec = new HashMap<String, String>();
+                partitionSpec.put("second", "2010-04-" + second + " 00:00:00");
+                partitionSpec.put(partitionName, Integer.toString(third));
+                createPartition(partitionSpec);
+                partitionSpecs.add(partitionSpec);
+            }
+        }
+
+        final List<CatalogPartitionSpec> catalogPartitionSpecList =
+                partitionSpecs.stream()
+                        .map(p -> new CatalogPartitionSpec(p))
+                        .collect(Collectors.toList());
+
+        final List<CatalogTableStatistics> partitionStatistics =
+                catalog.getTableStatistics(path1, catalogPartitionSpecList);
+        assertThat(partitionStatistics.size()).isEqualTo(partitionSpecs.size());
+
+        final List<CatalogColumnStatistics> tableColumnStatistics =
+                catalog.getTableColumnStatistics(path1, catalogPartitionSpecList);
+
+        assertThat(tableColumnStatistics.size()).isEqualTo(catalogPartitionSpecList.size() + 1);
+
+        final CatalogColumnStatistics catalogColumnStatistics =
+                tableColumnStatistics.get(tableColumnStatistics.size() - 1);
+        CatalogColumnStatisticsDataLong columnStatisticsDataLong =
+                (CatalogColumnStatisticsDataLong)
+                        catalogColumnStatistics.getColumnStatisticsData().get(partitionName);
+
+        assertThat(columnStatisticsDataLong.getNdv()).isEqualTo(catalogPartitionSpecList.size());
+        assertThat(columnStatisticsDataLong.getMin()).isEqualTo(0);
+        assertThat(columnStatisticsDataLong.getMax()).isEqualTo(partitionFileSize - 1);
+
+        final List<CatalogPartitionSpec> catalogPartitionSpecs = catalog.listPartitions(path1);
+    }
+
+    private void createPartition(Map<String, String> partitionSpec) throws Exception {
+        catalog.createPartition(
+                path1, new CatalogPartitionSpec(partitionSpec), createPartition(), true);
     }
 
     @Test
