@@ -50,6 +50,7 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -156,7 +157,12 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     protected void initialize() throws ResourceManagerException {
         try {
-            resourceManagerDriver.initialize(this, new GatewayMainThreadExecutor(), ioExecutor);
+            // TODO: pass the blocked node retriever
+            resourceManagerDriver.initialize(
+                    this,
+                    new GatewayMainThreadExecutor(),
+                    ioExecutor,
+                    () -> Collections.emptySet());
         } catch (Exception e) {
             throw new ResourceManagerException("Cannot initialize resource provider.", e);
         }

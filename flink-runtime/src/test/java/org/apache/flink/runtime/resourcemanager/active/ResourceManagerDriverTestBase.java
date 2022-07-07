@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blocklist.BlockedNodeRetriever;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
@@ -164,9 +165,14 @@ public abstract class ResourceManagerDriverTestBase<WorkerType extends ResourceI
 
         private ResourceManagerDriver<WorkerType> driver;
         private ScheduledExecutor mainThreadExecutor;
+        private BlockedNodeRetriever blockedNodeRetriever = () -> Collections.emptySet();
 
         protected ResourceManagerDriver<WorkerType> getDriver() {
             return driver;
+        }
+
+        public void setBlockedNodeRetriever(BlockedNodeRetriever blockedNodeRetriever) {
+            this.blockedNodeRetriever = blockedNodeRetriever;
         }
 
         protected final void runTest(RunnableWithException testMethod) throws Exception {
@@ -178,7 +184,8 @@ public abstract class ResourceManagerDriverTestBase<WorkerType extends ResourceI
             driver.initialize(
                     resourceEventHandlerBuilder.build(),
                     mainThreadExecutor,
-                    ForkJoinPool.commonPool());
+                    ForkJoinPool.commonPool(),
+                    blockedNodeRetriever);
 
             testMethod.run();
         }
