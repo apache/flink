@@ -566,7 +566,9 @@ public interface Catalog {
      * Get a list of statistics of given partitions.
      *
      * @param tablePath path of the table
-     * @param partitionSpecs partition specs of partitions
+     * @param partitionSpecs partition specs of partitions that will be used to filter out all other
+     *     unrelated statistics, i.e. the statistics fetch will be limited within the given
+     *     partitions
      * @return list of statistics of given partitions
      * @throws PartitionNotExistException if one partition does not exist
      * @throws CatalogException in case of any runtime exception
@@ -592,7 +594,9 @@ public interface Catalog {
      * Get a list of column statistics for given partitions.
      *
      * @param tablePath path of the table
-     * @param partitionSpecs partition specs of partitions
+     * @param partitionSpecs partition specs of partitions that will be used to filter out all other
+     *     unrelated statistics, i.e. the statistics fetch will be limited within the given
+     *     partitions
      * @return list of column statistics for given partitions
      * @throws PartitionNotExistException if one partition does not exist
      * @throws CatalogException in case of any runtime exception
