@@ -250,7 +250,7 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
         }
 
         public int getIndex() {
-            checkNotNull(buffer);
+            checkNotNull(buffer, "Is error, cannot get index.");
             return index;
         }
     }
@@ -391,6 +391,7 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
         }
     }
 
+    /** Factory of {@link HsSubpartitionFileReader}. */
     public static class Factory implements HsSubpartitionFileReader.Factory {
         public static final Factory INSTANCE = new Factory();
 

@@ -141,14 +141,13 @@ class HsResultPartitionReadSchedulerTest {
 
         assertThat(reader.readBuffers).hasSize(BUFFER_POOL_SIZE);
         assertThat(bufferPool.getAvailableBuffers()).isZero();
-        CompletableFuture<Void> triggerRun = new CompletableFuture<>();
 
         readScheduler.recycle(reader.readBuffers.poll());
-        reader.setPrepareForSchedulingRunnable(() -> triggerRun.complete(null));
+        readScheduler.recycle(reader.readBuffers.poll());
 
         // recycle buffer will push new runnable to ioExecutor.
         ioExecutor.trigger();
-        assertThat(triggerRun).isCompleted();
+        assertThat(reader.readBuffers).hasSize(BUFFER_POOL_SIZE);
     }
 
     /** Test all not used buffers will be released after run method finish. */
@@ -352,7 +351,7 @@ class HsResultPartitionReadSchedulerTest {
 
         private int priority;
 
-        public TestingHsSubpartitionFileReader() {
+        private TestingHsSubpartitionFileReader() {
             this.readBuffers = new ArrayDeque<>();
         }
 

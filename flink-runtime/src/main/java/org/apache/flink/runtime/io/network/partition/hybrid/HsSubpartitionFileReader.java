@@ -51,7 +51,7 @@ public interface HsSubpartitionFileReader extends Comparable<HsSubpartitionFileR
      */
     void fail(Throwable failureCause);
 
-    /** Factory to create {@link HsSubpartitionFileReader} */
+    /** Factory to create {@link HsSubpartitionFileReader}. */
     interface Factory {
         HsSubpartitionFileReader createFileReader(
                 int subpartitionId,
