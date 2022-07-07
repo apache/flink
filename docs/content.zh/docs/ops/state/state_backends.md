@@ -455,7 +455,11 @@ env.enable_changelog_statebackend(true)
 
 **关闭 Changelog**
 
-仅支持从 [savepoints]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) 恢复。从 [checkpoints]({{<  ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}}) 恢复计划在未来版本中支持。
+支持从 savepoint 或 checkpoint 恢复：
+- 给定一个开启 Changelog 的作业
+- 创建一个 [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) 或一个 [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
+- 更改配置（关闭 Changelog）
+- 从创建的 snapshot 恢复
 
 <a name="limitations"></a>
 
