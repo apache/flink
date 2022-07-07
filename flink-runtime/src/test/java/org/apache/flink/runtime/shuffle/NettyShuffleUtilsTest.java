@@ -174,7 +174,9 @@ public class NettyShuffleUtilsTest extends TestLogger {
                         shuffleDescriptor.getResultPartitionID().getPartitionId(),
                         resultPartitionType,
                         numSubpartitions,
-                        0);
+                        0,
+                        false,
+                        true);
         ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor =
                 new ResultPartitionDeploymentDescriptor(partitionDescriptor, shuffleDescriptor, 1);
 
