@@ -958,7 +958,12 @@ public class AsyncWaitOperatorTest extends TestLogger {
             AsyncDataStream.OutputMode outputMode, AsyncRetryStrategy asyncRetryStrategy)
             throws Exception {
         OneInputStreamOperatorTestHarness<Integer, Integer> harness =
-                createTestHarness(new UserExceptionAsyncFunction(), TIMEOUT, 2, outputMode);
+                createTestHarnessWithRetry(
+                        new UserExceptionAsyncFunction(),
+                        TIMEOUT,
+                        2,
+                        outputMode,
+                        asyncRetryStrategy);
 
         harness.getEnvironment().setExpectedExternalFailureCause(Throwable.class);
         harness.open();
@@ -968,6 +973,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
         }
 
         synchronized (harness.getCheckpointLock()) {
+            harness.endInput();
             harness.close();
         }
 

@@ -162,8 +162,8 @@ public class AsyncWaitOperator<IN, OUT>
                 // construct from utility class
                 asyncRetryStrategy != NO_RETRY_STRATEGY
                         // construct from api
-                        || (!asyncRetryStrategy.getRetryPredicate().resultPredicate().isPresent()
-                                && !asyncRetryStrategy
+                        || (asyncRetryStrategy.getRetryPredicate().resultPredicate().isPresent()
+                                && asyncRetryStrategy
                                         .getRetryPredicate()
                                         .exceptionPredicate()
                                         .isPresent());
@@ -343,8 +343,7 @@ public class AsyncWaitOperator<IN, OUT>
             this.delayedRetryAvailable.set(false);
             if (inFlightDelayRetryHandlers.size() > 0) {
                 for (RetryableResultHandlerDelegator delegator : inFlightDelayRetryHandlers) {
-                    assert delegator.resultHandler.inputRecord.isRecord();
-                    assert delegator.retryInFlight.get() && delegator.delayedRetryTimer != null;
+                    assert delegator.delayedRetryTimer != null;
                     // reset retry in-flight and cancel delayed retry timer
                     if (delegator.retryInFlight.compareAndSet(true, false)
                             && delegator.delayedRetryTimer.cancel(true)) {
@@ -393,12 +392,29 @@ public class AsyncWaitOperator<IN, OUT>
         }
     }
 
+    /**
+     * Besides doRetry, the cleanup work will be done after retry fired, includes reset retry
+     * in-flight flag and remove retry handler from the incomplete retry handlers.
+     */
+    private void doRetryWithCleanup(RetryableResultHandlerDelegator resultHandlerDelegator)
+            throws Exception {
+        doRetry(resultHandlerDelegator);
+
+        // reset retryInFlight for next possible retry
+        resultHandlerDelegator.retryInFlight.set(false);
+        // remove from incomplete retry handlers
+        inFlightDelayRetryHandlers.remove(resultHandlerDelegator);
+    }
+
+    /** Increments number of attempts and fire the attempt. */
     private void doRetry(RetryableResultHandlerDelegator resultHandlerDelegator) throws Exception {
         // increment current attempt number
         resultHandlerDelegator.currentAttempts++;
 
         // fire a new attempt
-        userFunction.asyncInvoke(resultHandlerDelegator.getInputRecord(), resultHandlerDelegator);
+        userFunction.asyncInvoke(
+                resultHandlerDelegator.resultHandler.inputRecord.getValue(),
+                resultHandlerDelegator);
     }
 
     /** A delegator holds the real {@link ResultHandler} to handle retries. */
@@ -412,11 +428,12 @@ public class AsyncWaitOperator<IN, OUT>
         /** start from 1, when this entry created, the first attempt will happen. */
         private int currentAttempts = 1;
 
-        private long backoffTimeMillis;
-
-        // flag indicates a retry is in-flight, will reject new retry request if true
+        /**
+         * A guard similar to ResultHandler.complete to prevent repeated complete calls from
+         * ill-written AsyncFunction. This flag indicates a retry is in-flight, will reject new
+         * retry request if true. And wil be reset to false after the retry fired.
+         */
         private final AtomicBoolean retryInFlight = new AtomicBoolean(false);
-        private final AtomicBoolean retryDone = new AtomicBoolean(false);
 
         public RetryableResultHandlerDelegator(
                 StreamRecord<IN> inputRecord,
@@ -434,80 +451,81 @@ public class AsyncWaitOperator<IN, OUT>
         public void complete(Collection<OUT> results) {
             Preconditions.checkNotNull(
                     results, "Results must not be null, use empty collection to emit nothing");
-            if (retryEnabled) {
+            if (retryEnabled
+                    && delayedRetryAvailable.get()
+                    && resultHandler.inputRecord.isRecord()) {
                 // ignore repeated call(s)
                 if (!retryInFlight.compareAndSet(false, true)) {
                     return;
                 }
-                if (!resultHandler.completed.get() && ifRetryOrCompleted(results, null)) {
-                    // do not complete this results if delayed retry triggered
-                    return;
+
+                processRetryInMailBox(results, null);
+            } else {
+                resultHandler.complete(results);
+            }
+        }
+
+        private void processRetryInMailBox(Collection<OUT> results, Throwable error) {
+            mailboxExecutor.submit(
+                    () -> processRetry(this, results, error), "delayed retry or complete");
+        }
+
+        private void processRetry(
+                RetryableResultHandlerDelegator resultHandlerDelegator,
+                Collection<OUT> results,
+                Throwable error) {
+            boolean satisfy = false;
+            if (null != results && null != retryResultPredicate) {
+                satisfy = (satisfy || retryResultPredicate.test(results));
+            }
+            if (null != error && null != retryExceptionPredicate) {
+                satisfy = (satisfy || retryExceptionPredicate.test(error));
+            }
+            if (satisfy) {
+                if (asyncRetryStrategy.canRetry(currentAttempts)) {
+                    long nextBackoffTimeMillis =
+                            asyncRetryStrategy.getBackoffTimeMillis(currentAttempts);
+                    if (delayedRetryAvailable.get()) {
+                        final long delayedRetry =
+                                nextBackoffTimeMillis
+                                        + getProcessingTimeService().getCurrentProcessingTime();
+
+                        // timer thread will finally dispatch the task to mailbox executor,
+                        // and it can only be submitted once for one attempt.
+                        delayedRetryTimer =
+                                processingTimeService.registerTimer(
+                                        delayedRetry,
+                                        timestamp -> doRetryWithCleanup(resultHandlerDelegator));
+
+                        // add to incomplete retry handlers, will remove it after retry fired
+                        inFlightDelayRetryHandlers.add(resultHandlerDelegator);
+
+                        return;
+                    }
                 }
             }
-            resultHandler.complete(results);
+            // retry unsatisfied, complete it
+            if (null != results) {
+                resultHandlerDelegator.resultHandler.complete(results);
+            } else {
+                resultHandlerDelegator.resultHandler.completeExceptionally(error);
+            }
         }
 
         @Override
         public void completeExceptionally(Throwable error) {
-            if (retryEnabled) {
+            if (retryEnabled
+                    && delayedRetryAvailable.get()
+                    && resultHandler.inputRecord.isRecord()) {
                 // ignore repeated call(s)
                 if (!retryInFlight.compareAndSet(false, true)) {
                     return;
                 }
-                if (!resultHandler.completed.get() && ifRetryOrCompleted(null, error)) {
-                    // do not complete if delayed retry triggered
-                    return;
-                }
+
+                processRetryInMailBox(null, error);
+            } else {
+                resultHandler.completeExceptionally(error);
             }
-            resultHandler.completeExceptionally(error);
-        }
-
-        private boolean ifRetryOrCompleted(Collection<OUT> results, Throwable error) {
-            if (delayedRetryAvailable.get() && resultHandler.inputRecord.isRecord()) {
-                boolean satisfy = false;
-                if (null != results && null != retryResultPredicate) {
-                    satisfy = (satisfy || retryResultPredicate.test(results));
-                }
-                if (null != error && null != retryExceptionPredicate) {
-                    satisfy = (satisfy || retryExceptionPredicate.test(error));
-                }
-                if (satisfy) {
-                    if (asyncRetryStrategy.canRetry(currentAttempts)) {
-                        long nextBackoffTimeMillis =
-                                asyncRetryStrategy.getBackoffTimeMillis(currentAttempts);
-                        backoffTimeMillis = nextBackoffTimeMillis;
-
-                        // reset retry in-flight for next possible retry
-                        if (delayedRetryAvailable.get()
-                                && retryInFlight.compareAndSet(false, true)) {
-                            // timer thread will finally dispatch the task to mailbox executor,
-                            // and it can only be submitted once for one attempt.
-                            mailboxExecutor.submit(
-                                    () -> submitRetryInMailbox(this),
-                                    "delayed retry or give up retry");
-                            return true;
-                        }
-                    }
-                }
-            }
-            // remove this delegator from incomplete set after retry being done
-            mailboxExecutor.submit(
-                    () -> inFlightDelayRetryHandlers.remove(this),
-                    "clean up delayed retry handler");
-            return false;
-        }
-
-        private void submitRetryInMailbox(RetryableResultHandlerDelegator resultHandlerDelegator) {
-            inFlightDelayRetryHandlers.add(resultHandlerDelegator);
-            final long delayedRetry =
-                    backoffTimeMillis + getProcessingTimeService().getCurrentProcessingTime();
-            delayedRetryTimer =
-                    processingTimeService.registerTimer(
-                            delayedRetry, timestamp -> doRetry(resultHandlerDelegator));
-        }
-
-        private IN getInputRecord() {
-            return resultHandler.inputRecord.getValue();
         }
     }
 
