@@ -30,13 +30,14 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.Random;
@@ -51,15 +52,14 @@ import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.verifyErro
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for the serialization and deserialization of the various {@link NettyMessage} sub-classes
  * sent from server side to client side.
  */
-public class NettyMessageClientSideSerializationTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class NettyMessageClientSideSerializationTest {
 
     private static final int BUFFER_SIZE = 1024;
 
@@ -78,8 +78,8 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
 
     private InputChannelID inputChannelId;
 
-    @Before
-    public void setup() throws IOException, InterruptedException {
+    @BeforeEach
+    void setup() throws IOException, InterruptedException {
         networkBufferPool = new NetworkBufferPool(8, BUFFER_SIZE);
         inputGate = createSingleInputGate(1, networkBufferPool);
         RemoteInputChannel inputChannel =
@@ -100,8 +100,8 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
         inputChannelId = inputChannel.getInputChannelId();
     }
 
-    @After
-    public void tearDown() throws IOException {
+    @AfterEach
+    void tearDown() throws IOException {
         if (inputGate != null) {
             inputGate.close();
         }
@@ -117,43 +117,43 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
     }
 
     @Test
-    public void testErrorResponseWithoutErrorMessage() {
+    void testErrorResponseWithoutErrorMessage() {
         testErrorResponse(new ErrorResponse(new IllegalStateException(), inputChannelId));
     }
 
     @Test
-    public void testErrorResponseWithErrorMessage() {
+    void testErrorResponseWithErrorMessage() {
         testErrorResponse(
                 new ErrorResponse(
                         new IllegalStateException("Illegal illegal illegal"), inputChannelId));
     }
 
     @Test
-    public void testErrorResponseWithFatalError() {
+    void testErrorResponseWithFatalError() {
         testErrorResponse(new ErrorResponse(new IllegalStateException("Illegal illegal illegal")));
     }
 
     @Test
-    public void testOrdinaryBufferResponse() {
+    void testOrdinaryBufferResponse() {
         testBufferResponse(false, false);
     }
 
     @Test
-    public void testBufferResponseWithReadOnlySlice() {
+    void testBufferResponseWithReadOnlySlice() {
         testBufferResponse(true, false);
     }
 
     @Test
-    public void testCompressedBufferResponse() {
+    void testCompressedBufferResponse() {
         testBufferResponse(false, true);
     }
 
     @Test
-    public void testBacklogAnnouncement() {
+    void testBacklogAnnouncement() {
         BacklogAnnouncement expected = new BacklogAnnouncement(1024, inputChannelId);
         BacklogAnnouncement actual = encodeAndDecode(expected, channel);
-        assertEquals(expected.backlog, actual.backlog);
-        assertEquals(expected.receiverId, actual.receiverId);
+        assertThat(actual.backlog).isEqualTo(expected.backlog);
+        assertThat(actual.receiverId).isEqualTo(expected.receiverId);
     }
 
     private void testErrorResponse(ErrorResponse expect) {
@@ -189,22 +189,22 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
                         random.nextInt(Integer.MAX_VALUE));
         BufferResponse actual = encodeAndDecode(expected, channel);
 
-        assertTrue(buffer.isRecycled());
-        assertTrue(testBuffer.isRecycled());
-        assertNotNull(
-                "The request input channel should always have available buffers in this test.",
-                actual.getBuffer());
+        assertThat(buffer.isRecycled()).isTrue();
+        assertThat(testBuffer.isRecycled()).isTrue();
+        assertThat(actual.getBuffer())
+                .as("The request input channel should always have available buffers in this test.")
+                .isNotNull();
 
         Buffer decodedBuffer = actual.getBuffer();
         if (testCompressedBuffer) {
-            assertTrue(actual.isCompressed);
+            assertThat(actual.isCompressed).isTrue();
             decodedBuffer = decompress(decodedBuffer);
         }
 
         verifyBufferResponseHeader(expected, actual);
-        assertEquals(BUFFER_SIZE, decodedBuffer.readableBytes());
+        assertThat(decodedBuffer.readableBytes()).isEqualTo(BUFFER_SIZE);
         for (int i = 0; i < BUFFER_SIZE; i += 8) {
-            assertEquals(i, decodedBuffer.asByteBuf().readLong());
+            assertThat(decodedBuffer.asByteBuf().readLong()).isEqualTo(i);
         }
 
         // Release the received message.
@@ -213,7 +213,7 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
             decodedBuffer.recycleBuffer();
         }
 
-        assertTrue(actual.getBuffer().isRecycled());
+        assertThat(actual.getBuffer().isRecycled()).isTrue();
     }
 
     private Buffer decompress(Buffer buffer) {
