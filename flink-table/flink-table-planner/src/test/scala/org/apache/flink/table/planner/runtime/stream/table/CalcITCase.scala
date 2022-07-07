@@ -25,7 +25,6 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink, UserDefinedFunctionTestUtils}
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.utils.LegacyRowResource
@@ -40,7 +39,6 @@ import java.util
 
 import scala.annotation.varargs
 import scala.collection.{mutable, Seq}
-import scala.collection.convert.ImplicitConversions.`iterator asScala`
 
 @RunWith(classOf[Parameterized])
 class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
@@ -669,10 +667,10 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         .toTable(tEnv)
         .limit(1)
         .select(currentDatabase())
-        .execute()
-        .collect()
-        .toList
-    assertEquals(Seq(row(tEnv.getCurrentDatabase)), result1)
+    val sink1 = new TestingAppendSink
+    result1.toAppendStream[Row].addSink(sink1)
+    env.execute()
+    assertEquals(List(tEnv.getCurrentDatabase), sink1.getAppendResults.sorted)
 
     // switch to another database
     tEnv
@@ -688,10 +686,10 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .toTable(tEnv)
       .limit(1)
       .select(currentDatabase())
-      .execute()
-      .collect()
-      .toList
-    assertEquals(Seq(row(tEnv.getCurrentDatabase)), result2)
+    val sink2 = new TestingAppendSink
+    result2.toAppendStream[Row].addSink(sink2)
+    env.execute()
+    assertEquals(List(tEnv.getCurrentDatabase), sink2.getAppendResults.sorted)
   }
 }
 
