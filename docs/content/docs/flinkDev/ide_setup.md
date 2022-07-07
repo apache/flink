@@ -149,6 +149,12 @@ It is recommended to automatically format your code by applying the following se
 8. Under "Formatting Actions", select "Optimize imports" and "Reformat file".
 9. Under "File Path Inclusions", add an entry for `.*\.java` and `.*\.scala` to avoid formatting other file types.
 
+For IntelliJ IDEA version > 2021.2:
+
+6. Go to "Settings" → "Tools" → "Actions on Save".
+7. Under "Formatting Actions", select "Optimize imports" and "Reformat file".
+8. From the "All file types list" next to "Reformat code", select Java and Scala.
+
 You can also format the whole project (both Java and Scala) via Maven by using `mvn spotless:apply`.
 
 #### Checkstyle For Java
