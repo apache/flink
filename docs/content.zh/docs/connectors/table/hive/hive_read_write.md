@@ -173,7 +173,7 @@ Multi-thread is used to split hive's partitions. You can use `table.exec.hive.lo
 ### Read Partition With Subdirectory
 
 In some case, you may create an external table referring another table, but the partition columns is a subset of the referred table.
-For example, you have a partitioned table `fact_tz` with partition `day`/`hour`:
+For example, you have a partitioned table `fact_tz` with partition `day` and `hour`:
 
 ```sql
 CREATE TABLE fact_tz(x int) PARTITIONED BY (day STRING, hour STRING);
@@ -182,13 +182,19 @@ CREATE TABLE fact_tz(x int) PARTITIONED BY (day STRING, hour STRING);
 And you have an external table `fact_daily` referring to table `fact_tz` with a coarse-grained partition `day`:
 
 ```sql
-create external table fact_daily(x int) PARTITIONED BY (ds STRING) location 'fact_tz_localtion' ;
+CREATE EXTERNAL TABLE fact_daily(x int) PARTITIONED BY (ds STRING) LOCATION '/path/to/fact_tz';
 ```
 
-Then when reading the external table, there will be sub-directories in the partition directory of the external table.
+Then when reading the external table `fact_daily`, there will be sub-directories (`hour=1` to `hour=24`) in the partition directory of the table.
 
-You can configure `table.exec.hive.read-partition-with-subdirectory.enabled` to allow Flink to read the sub-directories or skip them directly.
-The default value is true, it will read the sub-directories. Otherwise, it will throw the exception "not a file: xxx" when the partition directory contains any sub-directory.
+By default, you can add partition with sub-directories to the external table. Flink SQL can recursively scan all sub-directories and fetch all the data from all sub-directories.
+
+```sql
+ALTER TABLE fact_daily ADD PARTITION (ds='2022-07-07') location '/path/to/fact_tz/ds=2022-07-07';
+```
+
+You can set job configuration `table.exec.hive.read-partition-with-subdirectory.enabled` (`true` by default) to `false` to disallow Flink to read the sub-directories.
+If the configuration is `false` and the directory does not contain files, rather consists of sub directories Flink blows up with the exception: `java.io.IOException: Not a file: /path/to/data/*`.
 
 ## Temporal Table Join
 
