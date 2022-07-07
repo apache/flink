@@ -68,4 +68,56 @@ public class CatalogColumnStatisticsDataString extends CatalogColumnStatisticsDa
         return new CatalogColumnStatisticsDataString(
                 maxLength, avgLength, ndv, getNullCount(), new HashMap<>(getProperties()));
     }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /** {@link CatalogColumnStatisticsDataString} builder static inner class. */
+    public static final class Builder
+            implements CatalogColumnStatisticDataBuilder<CatalogColumnStatisticsDataString> {
+        private Long nullCount;
+        private Map<String, String> properties;
+        private Long maxLength;
+        private Double avgLength;
+        private Long count = 0L;
+        private Long ndv;
+
+        private Builder() {}
+
+        public Builder nullCount(Long nullCount) {
+            this.nullCount = nullCount;
+            return this;
+        }
+
+        public Builder properties(Map<String, String> properties) {
+            this.properties = properties;
+            return this;
+        }
+
+        public Builder maxLength(Long maxLength) {
+            this.maxLength = StatisticDataUtils.max(this.maxLength, maxLength);
+            return this;
+        }
+
+        public Builder accumulateAvgLength(Long newLength) {
+            this.avgLength =
+                    StatisticDataUtils.acculmulateAverage(
+                            this.avgLength, this.count, newLength, 1L);
+
+            this.count++;
+            return this;
+        }
+
+        public Builder ndv(Long ndv) {
+            this.ndv = ndv;
+            return this;
+        }
+
+        @Override
+        public CatalogColumnStatisticsDataString build() {
+            return new CatalogColumnStatisticsDataString(
+                    maxLength, avgLength, ndv, nullCount, properties);
+        }
+    }
 }

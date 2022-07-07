@@ -63,4 +63,50 @@ public class CatalogColumnStatisticsDataDouble extends CatalogColumnStatisticsDa
         return new CatalogColumnStatisticsDataDouble(
                 min, max, ndv, getNullCount(), new HashMap<>(getProperties()));
     }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /** {@link CatalogColumnStatisticsDataDouble} builder static inner class. */
+    public static final class Builder
+            implements CatalogColumnStatisticDataBuilder<CatalogColumnStatisticsDataDouble> {
+        private Long nullCount;
+        private Map<String, String> properties;
+        private Double min;
+        private Double max;
+        private Long ndv;
+
+        private Builder() {}
+
+        public Builder nullCount(Long nullCount) {
+            this.nullCount = nullCount;
+            return this;
+        }
+
+        public Builder properties(Map<String, String> properties) {
+            this.properties = properties;
+            return this;
+        }
+
+        public Builder min(Double min) {
+            this.min = StatisticDataUtils.min(this.min, min);
+            return this;
+        }
+
+        public Builder max(Double max) {
+            this.max = StatisticDataUtils.max(this.max, max);
+            return this;
+        }
+
+        public Builder ndv(Long ndv) {
+            this.ndv = ndv;
+            return this;
+        }
+
+        @Override
+        public CatalogColumnStatisticsDataDouble build() {
+            return new CatalogColumnStatisticsDataDouble(min, max, ndv, nullCount, properties);
+        }
+    }
 }

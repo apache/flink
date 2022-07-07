@@ -63,4 +63,59 @@ public class CatalogColumnStatisticsDataDate extends CatalogColumnStatisticsData
         return new CatalogColumnStatisticsDataDate(
                 min, max, ndv, getNullCount(), new HashMap<>(getProperties()));
     }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /** {@link CatalogColumnStatisticsDataDate} builder static inner class. */
+    public static final class Builder
+            implements CatalogColumnStatisticDataBuilder<CatalogColumnStatisticsDataDate> {
+        private Long nullCount;
+        private Map<String, String> properties;
+        private Date min;
+        private Date max;
+        private Long ndv;
+
+        private Builder() {}
+
+        public Builder nullCount(Long nullCount) {
+            this.nullCount = nullCount;
+            return this;
+        }
+
+        public Builder properties(Map<String, String> properties) {
+            this.properties = properties;
+            return this;
+        }
+
+        public Builder min(Date min) {
+            if (this.min == null || min == null) {
+                this.min = this.min == null ? min : this.min;
+            } else {
+                this.min = this.min.getDaysSinceEpoch() <= min.getDaysSinceEpoch() ? this.min : min;
+            }
+
+            return this;
+        }
+
+        public Builder max(Date max) {
+            if (this.max == null || max == null) {
+                this.max = this.max == null ? max : this.max;
+            } else {
+                this.max = this.max.getDaysSinceEpoch() >= max.getDaysSinceEpoch() ? this.max : max;
+            }
+            return this;
+        }
+
+        public Builder ndv(Long ndv) {
+            this.ndv = ndv;
+            return this;
+        }
+
+        @Override
+        public CatalogColumnStatisticsDataDate build() {
+            return new CatalogColumnStatisticsDataDate(min, max, ndv, nullCount, properties);
+        }
+    }
 }
