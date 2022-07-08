@@ -122,7 +122,10 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('truncate(a, 3)', str(expr1.truncate(3)))
 
         # string functions
+        self.assertEqual('substring(a, b)', str(expr1.substring(expr2)))
         self.assertEqual('substring(a, b, 3)', str(expr1.substring(expr2, 3)))
+        self.assertEqual('substr(a, b)', str(expr1.substr(expr2)))
+        self.assertEqual('substr(a, b, 3)', str(expr1.substr(expr2, 3)))
         self.assertEqual("trim(true, false, ' ', a)", str(expr1.trim_leading()))
         self.assertEqual("trim(false, true, ' ', a)", str(expr1.trim_trailing()))
         self.assertEqual("trim(true, true, ' ', a)", str(expr1.trim()))
@@ -137,6 +140,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('lpad(a, 4, b)', str(expr1.lpad(4, expr2)))
         self.assertEqual('rpad(a, 4, b)', str(expr1.rpad(4, expr2)))
         self.assertEqual('overlay(a, b, 6, 2)', str(expr1.overlay(expr2, 6, 2)))
+        self.assertEqual("regexp(a, b)", str(expr1.regexp(expr2)))
         self.assertEqual("regexpReplace(a, b, 'abc')", str(expr1.regexp_replace(expr2, 'abc')))
         self.assertEqual('regexpExtract(a, b, 3)', str(expr1.regexp_extract(expr2, 3)))
         self.assertEqual('fromBase64(a)', str(expr1.from_base64))

@@ -448,6 +448,7 @@ string:
       还可以通过提供关键词 string3 作为第三个参数来提取 QUERY 中特定键的值。例如
       `parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1')` 返回 `'v1'`。
   - sql: REGEXP(string1, string2)
+    table: STRING1.regexp(STRING2)
     description: |
       如果 string1 的任何（可能为空）子字符串与 Java 正则表达式 string2 匹配，则返回 TRUE，否则返回 FALSE。
       如果有任一参数为 `NULL`，则返回 `NULL`。
@@ -461,7 +462,8 @@ string:
     description: |
       使用分隔符将 string1 拆分为键值对后返回一个 map。string2 是 pair 分隔符，默认为 ','。string3 是键值分隔符，默认为 '='。
       pair 分隔符与键值分隔符均为正则表达式，当使用特殊字符作为分隔符时请提前进行转义，例如 `<([{\^-=$!|]})?*+.>`。
-  - sql: SUBSTR(string[, integer1[, integer2]])
+  - sql: SUBSTR(string, integer1[, integer2])
+    table: STRING.substr(INTEGER1[, INTEGER2])
     description: 返回字符串的子字符串，从位置 integer1 开始，长度为 integer2（默认到末尾）。
 
 temporal:

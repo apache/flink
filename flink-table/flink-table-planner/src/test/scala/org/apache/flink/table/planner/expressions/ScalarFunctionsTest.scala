@@ -716,7 +716,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   def testSubString(): Unit = {
     Array("substring", "substr").foreach {
       substr =>
-        testSqlApi(s"$substr(f0, 2, 3)", "his")
+        testAllApis('f0.substr(2, 3), s"$substr(f0, 2, 3)", "his")
+        testAllApis('f0.substr(2), s"$substr(f0, 2)", "his is a test String.")
         testSqlApi(s"$substr(f0, 2, 100)", "his is a test String.")
         testSqlApi(s"$substr(f0, 100, 10)", "")
         testSqlApi(s"$substr(f0, 2, -1)", "NULL")
@@ -972,7 +973,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testRegexp(): Unit = {
-    testSqlApi("regexp('100-200', '(\\d+)')", "TRUE")
+    testAllApis("100-200".regexp("(\\d+)"), "regexp('100-200', '(\\d+)')", "TRUE")
     testSqlApi("regexp('abc-def', '(\\d+)')", "FALSE")
     testSqlApi("regexp(f35, 'a')", "TRUE")
     testSqlApi("regexp(f40, '(\\d+)')", "NULL")

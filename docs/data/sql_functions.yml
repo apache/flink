@@ -352,6 +352,7 @@ string:
 
       E.g., parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1') returns 'v1'. 
   - sql: REGEXP(string1, string2)
+    table: STRING1.regexp(STRING2)
     description: Returns TRUE if any (possibly empty) substring of string1 matches the Java regular expression string2, otherwise FALSE. Returns NULL if any of arguments is NULL.
   - sql: REVERSE(string)
     description: Returns the reversed string. Returns NULL if string is NULL.
@@ -361,7 +362,8 @@ string:
     description: |
       Returns a map after splitting the string1 into key/value pairs using delimiters. string2 is the pair delimiter, default is ','. And string3 is the key-value delimiter, default is '='.
       Both pair delimiter and key-value delimiter are treated as regular expressions. So special characters (e.g. `<([{\^-=$!|]})?*+.>`) need to be properly escaped before using as a delimiter literally.
-  - sql: SUBSTR(string[, integer1[, integer2]])
+  - sql: SUBSTR(string, integer1[, integer2])
+    table: STRING.substr(INTEGER1[, INTEGER2])
     description: Returns a substring of string starting from position integer1 with length integer2 (to the end by default).
 
 temporal:
