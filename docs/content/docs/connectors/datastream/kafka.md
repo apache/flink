@@ -116,8 +116,8 @@ KafkaSource.builder()
     .setStartingOffsets(OffsetsInitializer.committedOffsets())
     // Start from committed offset, also use EARLIEST as reset strategy if committed offset doesn't exist
     .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
-    // Start from the first record whose timestamp is greater than or equals a timestamp
-    .setStartingOffsets(OffsetsInitializer.timestamp(1592323200L))
+    // Start from the first record whose timestamp is greater than or equals a timestamp (milliseconds)
+    .setStartingOffsets(OffsetsInitializer.timestamp(1657256176000L))
     // Start from earliest offset
     .setStartingOffsets(OffsetsInitializer.earliest())
     // Start from latest offset
