@@ -194,7 +194,7 @@ class BufferReaderWriterUtilTest {
         // reset the channel's position to read.
         fc.position(0);
         BufferReaderWriterUtil.positionToNextBuffer(fc, byteBuffersWithHeader[0]);
-        long expectedPosition = BufferReaderWriterUtil.HEADER_LENGTH + 1024;
+        long expectedPosition = totalBytes / 2;
         assertThat(fc.position()).isEqualTo(expectedPosition);
     }
 
@@ -240,7 +240,7 @@ class BufferReaderWriterUtilTest {
         for (int i = 0; i < numBuffers; i++) {
             buffers[2 * i] = BufferReaderWriterUtil.allocatedHeaderBuffer();
             Buffer buffer = createTestBuffer();
-            BufferReaderWriterUtil.setByteChannelBufferHeader(buffer, buffers[i]);
+            BufferReaderWriterUtil.setByteChannelBufferHeader(buffer, buffers[2 * i]);
             buffers[2 * i + 1] = buffer.getNioBufferReadable();
         }
         return buffers;
