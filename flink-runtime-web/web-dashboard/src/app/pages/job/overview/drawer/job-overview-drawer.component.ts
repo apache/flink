@@ -17,11 +17,17 @@
  */
 
 import { animate, style, transition, trigger } from '@angular/animations';
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Inject, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { combineLatest, Subject } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
 
+import { RouterTab } from '@flink-runtime-web/core/module-config';
+import {
+  JOB_OVERVIEW_MODULE_CONFIG,
+  JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
+  JobOverviewModuleConfig
+} from '@flink-runtime-web/pages/job/overview/job-overview.config';
 import { JobChartService } from '@flink-runtime-web/share/customize/job-chart/job-chart.service';
 
 import { JobLocalService } from '../../job-local.service';
@@ -49,20 +55,11 @@ import { JobLocalService } from '../../job-local.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
-  public readonly listOfNavigation = [
-    { title: 'Detail', path: 'detail' },
-    { title: 'SubTasks', path: 'subtasks' },
-    { title: 'TaskManagers', path: 'taskmanagers' },
-    { title: 'Watermarks', path: 'watermarks' },
-    { title: 'Accumulators', path: 'accumulators' },
-    { title: 'BackPressure', path: 'backpressure' },
-    { title: 'Metrics', path: 'metrics' },
-    { title: 'FlameGraph', path: 'flamegraph' }
-  ];
+  public readonly listOfNavigation: RouterTab[] = [];
 
   public fullScreen = false;
 
-  private cachePath = this.listOfNavigation[0].path;
+  private cachePath: string;
 
   private readonly destroy$ = new Subject<void>();
 
@@ -70,8 +67,12 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
     private readonly activatedRoute: ActivatedRoute,
     private readonly router: Router,
     private readonly jobLocalService: JobLocalService,
-    private readonly jobChartService: JobChartService
-  ) {}
+    private readonly jobChartService: JobChartService,
+    @Inject(JOB_OVERVIEW_MODULE_CONFIG) readonly moduleConfig: JobOverviewModuleConfig
+  ) {
+    this.listOfNavigation = moduleConfig.routerTabs || JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.routerTabs;
+    this.cachePath = this.listOfNavigation[0]?.path;
+  }
 
   public ngOnInit(): void {
     const nodeId$ = this.activatedRoute.params.pipe(map(item => item.vertexId));

@@ -19,20 +19,20 @@
 import { InjectionToken } from '@angular/core';
 
 import { ModuleConfig } from '@flink-runtime-web/core/module-config';
-import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
 
-type routerKeys = 'jobManager';
+export type JobModuleConfig = Pick<ModuleConfig, 'routerTabs'>;
 
-export type JobManagerModuleConfig = Omit<ModuleConfig<routerKeys>, 'customComponents' | 'routerTabs'>;
-
-export const JOB_MANAGER_MODULE_DEFAULT_CONFIG: Required<JobManagerModuleConfig> = {
-  editorOptions: flinkEditorOptions,
-  routerFactories: {
-    jobManager: (jobManagerName: string) => [jobManagerName]
-  }
+export const JOB_MODULE_DEFAULT_CONFIG: Required<JobModuleConfig> = {
+  routerTabs: [
+    { title: 'Overview', path: 'overview' },
+    { title: 'Exceptions', path: 'exceptions' },
+    { title: 'TimeLine', path: 'timeline' },
+    { title: 'Checkpoints', path: 'checkpoints' },
+    { title: 'Configuration', path: 'configuration' }
+  ]
 };
 
-export const JOB_MANAGER_MODULE_CONFIG = new InjectionToken<JobManagerModuleConfig>('job-manager-module-config', {
+export const JOB_MODULE_CONFIG = new InjectionToken<JobModuleConfig>('job-module-config', {
   providedIn: 'root',
-  factory: () => JOB_MANAGER_MODULE_DEFAULT_CONFIG
+  factory: () => JOB_MODULE_DEFAULT_CONFIG
 });

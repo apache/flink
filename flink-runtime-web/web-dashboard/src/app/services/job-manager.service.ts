@@ -27,7 +27,8 @@ import {
   JobMetric,
   MetricMap,
   JobManagerLogDetail,
-  JobManagerConfig
+  ClusterConfiguration,
+  EnvironmentInfo
 } from '@flink-runtime-web/interfaces';
 
 import { ConfigService } from './config.service';
@@ -38,8 +39,12 @@ import { ConfigService } from './config.service';
 export class JobManagerService {
   constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
 
-  public loadConfig(): Observable<JobManagerConfig[]> {
-    return this.httpClient.get<JobManagerConfig[]>(`${this.configService.BASE_URL}/jobmanager/config`);
+  public loadConfig(): Observable<ClusterConfiguration[]> {
+    return this.httpClient.get<ClusterConfiguration[]>(`${this.configService.BASE_URL}/jobmanager/config`);
+  }
+
+  public loadEnvironment(): Observable<EnvironmentInfo> {
+    return this.httpClient.get<EnvironmentInfo>(`${this.configService.BASE_URL}/jobmanager/environment`);
   }
 
   public loadLogs(): Observable<string> {
@@ -101,5 +106,15 @@ export class JobManagerService {
         return result;
       })
     );
+  }
+
+  public loadHistoryServerConfig(jobId: string): Observable<ClusterConfiguration[]> {
+    return this.httpClient.get<ClusterConfiguration[]>(
+      `${this.configService.BASE_URL}/jobs/${jobId}/jobmanager/config`
+    );
+  }
+
+  public loadHistoryServerEnvironment(jobId: string): Observable<EnvironmentInfo> {
+    return this.httpClient.get<EnvironmentInfo>(`${this.configService.BASE_URL}/jobs/${jobId}/jobmanager/environment`);
   }
 }

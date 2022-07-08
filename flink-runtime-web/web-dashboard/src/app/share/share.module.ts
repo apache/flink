@@ -18,6 +18,7 @@
 
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
+import { RouterModule } from '@angular/router';
 
 import { AddonModule } from '@flink-runtime-web/share/common/addon/addon.module';
 import { DagreModule } from '@flink-runtime-web/share/common/dagre/dagre.module';
@@ -26,6 +27,7 @@ import { EditorModule } from '@flink-runtime-web/share/common/editor/editor.modu
 import { FileReadDirective } from '@flink-runtime-web/share/common/file-read/file-read.directive';
 import { NavigationComponent } from '@flink-runtime-web/share/common/navigation/navigation.component';
 import { ResizeComponent } from '@flink-runtime-web/share/common/resize/resize.component';
+import { JobStatusComponent } from '@flink-runtime-web/share/common/status/job-status.component';
 import { BackpressureBadgeComponent } from '@flink-runtime-web/share/customize/backpressure-badge/backpressure-badge.component';
 import { CheckpointBadgeComponent } from '@flink-runtime-web/share/customize/checkpoint-badge/checkpoint-badge.component';
 import { JobBadgeComponent } from '@flink-runtime-web/share/customize/job-badge/job-badge.component';
@@ -36,12 +38,17 @@ import { PipeModule } from '@flink-runtime-web/share/pipes/pipe.module';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzMessageModule } from 'ng-zorro-antd/message';
+import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
+import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
+import { ConfigurationCardsComponent } from './common/configuration-cards/configuration-cards.component';
+import { TableDisplayComponent } from './common/configuration-cards/table-display/table-display.component';
 import { FlameGraphComponent } from './customize/flame-graph/flame-graph.component';
 
 @NgModule({
@@ -59,7 +66,11 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     NzTabsModule,
     NzIconModule,
     EditorModule,
-    DynamicModule
+    DynamicModule,
+    RouterModule,
+    NzSkeletonModule,
+    NzEmptyModule,
+    NzPopconfirmModule
   ],
   declarations: [
     JobBadgeComponent,
@@ -71,7 +82,10 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     JobChartComponent,
     CheckpointBadgeComponent,
     BackpressureBadgeComponent,
-    FlameGraphComponent
+    FlameGraphComponent,
+    JobStatusComponent,
+    TableDisplayComponent,
+    ConfigurationCardsComponent
   ],
   exports: [
     JobListComponent,
@@ -88,7 +102,10 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     JobChartComponent,
     CheckpointBadgeComponent,
     BackpressureBadgeComponent,
-    FlameGraphComponent
+    FlameGraphComponent,
+    JobStatusComponent,
+    TableDisplayComponent,
+    ConfigurationCardsComponent
   ]
 })
 export class ShareModule {}

@@ -16,23 +16,27 @@
  * limitations under the License.
  */
 
-import { InjectionToken } from '@angular/core';
+@import "theme";
 
-import { ModuleConfig } from '@flink-runtime-web/core/module-config';
-import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
-
-type routerKeys = 'jobManager';
-
-export type JobManagerModuleConfig = Omit<ModuleConfig<routerKeys>, 'customComponents' | 'routerTabs'>;
-
-export const JOB_MANAGER_MODULE_DEFAULT_CONFIG: Required<JobManagerModuleConfig> = {
-  editorOptions: flinkEditorOptions,
-  routerFactories: {
-    jobManager: (jobManagerName: string) => [jobManagerName]
+:host {
+  nz-card {
+    margin: @margin-lg;
   }
-};
 
-export const JOB_MANAGER_MODULE_CONFIG = new InjectionToken<JobManagerModuleConfig>('job-manager-module-config', {
-  providedIn: 'root',
-  factory: () => JOB_MANAGER_MODULE_DEFAULT_CONFIG
-});
+  td {
+    font-size: @font-size-sm;
+  }
+
+  .empty {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+  }
+
+  ::ng-deep {
+    .ant-collapse > .ant-collapse-item > .ant-collapse-header {
+      padding: 0 @padding-md;
+    }
+  }
+}

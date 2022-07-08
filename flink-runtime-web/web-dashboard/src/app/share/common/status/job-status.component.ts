@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, Input, OnDestroy, OnInit } from '@angular/core';
 import { merge, Subject } from 'rxjs';
 import { distinctUntilKeyChanged, takeUntil, tap } from 'rxjs/operators';
 
+import { RouterTab } from '@flink-runtime-web/core/module-config';
 import { JobDetailCorrect } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
+import { JOB_MODULE_CONFIG, JOB_MODULE_DEFAULT_CONFIG, JobModuleConfig } from '@flink-runtime-web/pages/job/job.config';
 import { JobService, StatusService } from '@flink-runtime-web/services';
-
-import { JobLocalService } from '../job-local.service';
 
 @Component({
   selector: 'flink-job-status',
@@ -35,40 +36,23 @@ export class JobStatusComponent implements OnInit, OnDestroy {
   @Input() public isLoading = true;
   public statusTips: string;
   public jobDetail: JobDetailCorrect;
-  public readonly listOfNavigation = [
-    {
-      path: 'overview',
-      title: 'Overview'
-    },
-    {
-      path: 'exceptions',
-      title: 'Exceptions'
-    },
-    {
-      path: 'timeline',
-      title: 'TimeLine'
-    },
-    {
-      path: 'checkpoints',
-      title: 'Checkpoints'
-    },
-    {
-      path: 'configuration',
-      title: 'Configuration'
-    }
-  ];
+  public readonly listOfNavigation: RouterTab[];
+  private readonly checkpointIndexOfNavigation: number;
 
   public webCancelEnabled = this.statusService.configuration.features['web-cancel'];
 
-  private checkpointIndexOfNavigation = this.checkpointIndexOfNav();
   private destroy$ = new Subject<void>();
 
   constructor(
     private readonly jobService: JobService,
     private readonly jobLocalService: JobLocalService,
     public readonly statusService: StatusService,
-    private readonly cdr: ChangeDetectorRef
-  ) {}
+    private readonly cdr: ChangeDetectorRef,
+    @Inject(JOB_MODULE_CONFIG) readonly moduleConfig: JobModuleConfig
+  ) {
+    this.listOfNavigation = moduleConfig.routerTabs || JOB_MODULE_DEFAULT_CONFIG.routerTabs;
+    this.checkpointIndexOfNavigation = this.checkpointIndexOfNav();
+  }
 
   public ngOnInit(): void {
     const updateList$ = this.jobLocalService.jobDetailChanges().pipe(tap(data => this.handleJobDetailChanged(data)));
