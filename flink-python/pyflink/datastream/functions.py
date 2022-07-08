@@ -1078,6 +1078,12 @@ class PassThroughWindowFunction(WindowFunction[IN, IN, KEY, W]):
         yield from inputs
 
 
+class PassThroughAllWindowFunction(AllWindowFunction[IN, IN, W]):
+
+    def apply(self, window: W, inputs: Iterable[IN]) -> Iterable[IN]:
+        yield from inputs
+
+
 class InternalWindowFunction(Function, Generic[IN, OUT, KEY, W]):
 
     class InternalWindowContext(ABC):
@@ -1128,6 +1134,28 @@ class InternalSingleValueWindowFunction(InternalWindowFunction[IN, OUT, KEY, W])
                 context: InternalWindowFunction.InternalWindowContext,
                 input_data: IN) -> Iterable[OUT]:
         return self._wrapped_function.apply(key, window, [input_data])
+
+    def clear(self, window: W, context: InternalWindowFunction.InternalWindowContext):
+        pass
+
+
+class InternalSingleValueAllWindowFunction(InternalWindowFunction[IN, OUT, int, W]):
+
+    def __init__(self, wrapped_function: AllWindowFunction):
+        self._wrapped_function = wrapped_function
+
+    def open(self, runtime_context: RuntimeContext):
+        self._wrapped_function.open(runtime_context)
+
+    def close(self):
+        self._wrapped_function.close()
+
+    def process(self,
+                key: int,
+                window: W,
+                context: InternalWindowFunction.InternalWindowContext,
+                input_data: IN) -> Iterable[OUT]:
+        return self._wrapped_function.apply(window, [input_data])
 
     def clear(self, window: W, context: InternalWindowFunction.InternalWindowContext):
         pass
@@ -1240,6 +1268,34 @@ class InternalSingleValueProcessWindowFunction(InternalWindowFunction[IN, OUT, K
         self._internal_context._window = window
         self._internal_context._underlying = context
         return self._wrapped_function.process(key, self._internal_context, [input_data])
+
+    def clear(self, window: W, context: InternalWindowFunction.InternalWindowContext):
+        self._internal_context._window = window
+        self._internal_context._underlying = context
+        self._wrapped_function.clear(self._internal_context)
+
+
+class InternalSingleValueProcessAllWindowFunction(InternalWindowFunction[IN, OUT, int, W]):
+
+    def __init__(self, wrapped_function: ProcessAllWindowFunction):
+        self._wrapped_function = wrapped_function
+        self._internal_context = \
+            InternalProcessAllWindowContext()  # type: InternalProcessAllWindowContext
+
+    def open(self, runtime_context: RuntimeContext):
+        self._wrapped_function.open(runtime_context)
+
+    def close(self):
+        self._wrapped_function.close()
+
+    def process(self,
+                key: int,
+                window: W,
+                context: InternalWindowFunction.InternalWindowContext,
+                input_data: IN) -> Iterable[OUT]:
+        self._internal_context._window = window
+        self._internal_context._underlying = context
+        return self._wrapped_function.process(self._internal_context, [input_data])
 
     def clear(self, window: W, context: InternalWindowFunction.InternalWindowContext):
         self._internal_context._window = window
