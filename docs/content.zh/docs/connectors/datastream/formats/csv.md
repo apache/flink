@@ -38,6 +38,8 @@ To use the CSV format you need to add the Flink CSV dependency to your project:
 </dependency>
 ```
 
+For PyFlink users, you could use it directly in your jobs.
+
 Flink supports reading CSV files using `CsvReaderFormat`. The reader utilizes Jackson library and allows passing the corresponding configuration for the CSV schema and parsing options.
 
 `CsvReaderFormat` can be initialized and used like this:
@@ -113,6 +115,22 @@ CsvReaderFormat<ComplexPojo> csvFormat =
                         .build(),
                 TypeInformation.of(ComplexPojo.class));
 ```
+
+For PyFlink users, a csv schema can be defined by manually adding columns, and the output type of the csv source will be a Row with each column mapped to a field.
+```python
+schema = CsvSchema.builder() \
+    .add_number_column('id', number_type=DataTypes.BIGINT()) \
+    .add_array_column('array', separator='#', element_type=DataTypes.INT()) \
+    .set_column_separator(',') \
+    .build()
+
+source = FileSource.for_record_stream_format(
+    CsvReaderFormat.for_schema(schema), CSV_FILE_PATH).build()
+
+# the type of record will be Types.ROW_NAMED(['id', 'array'], [Types.LONG(), Types.LIST(Types.INT())])
+ds = env.from_source(source, WatermarkStrategy.no_watermarks(), 'csv-source')
+```
+
 The corresponding CSV file:
 ```
 0,1#2#3
