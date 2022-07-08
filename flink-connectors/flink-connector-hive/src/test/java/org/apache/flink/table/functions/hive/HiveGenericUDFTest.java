@@ -334,9 +334,8 @@ public class HiveGenericUDFTest {
     }
 
     private static HiveGenericUDF init(
-            Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) {
-        HiveGenericUDF udf =
-                new HiveGenericUDF(new HiveFunctionWrapper(hiveUdfClass.getName()), hiveShim);
+            Class<?> hiveUdfClass, Object[] constantArgs, DataType[] argTypes) {
+        HiveGenericUDF udf = new HiveGenericUDF(new HiveFunctionWrapper<>(hiveUdfClass), hiveShim);
 
         CallContextMock callContext = new CallContextMock();
         callContext.argumentDataTypes = Arrays.asList(argTypes);

@@ -214,9 +214,8 @@ public class HiveSimpleUDFTest {
         assertThat(udf.eval(5, testInputs, testInputs)).isEqualTo(11);
     }
 
-    protected static HiveSimpleUDF init(Class hiveUdfClass, DataType[] argTypes) {
-        HiveSimpleUDF udf =
-                new HiveSimpleUDF(new HiveFunctionWrapper(hiveUdfClass.getName()), hiveShim);
+    protected static HiveSimpleUDF init(Class<?> hiveUdfClass, DataType[] argTypes) {
+        HiveSimpleUDF udf = new HiveSimpleUDF(new HiveFunctionWrapper<>(hiveUdfClass), hiveShim);
 
         // Hive UDF won't have literal args
         CallContextMock callContext = new CallContextMock();

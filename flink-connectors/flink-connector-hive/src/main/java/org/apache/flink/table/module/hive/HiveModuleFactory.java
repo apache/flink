@@ -63,6 +63,6 @@ public class HiveModuleFactory implements ModuleFactory {
                         .getOptional(HIVE_VERSION)
                         .orElseGet(HiveShimLoader::getHiveVersion);
 
-        return new HiveModule(hiveVersion);
+        return new HiveModule(hiveVersion, context.getClassLoader());
     }
 }

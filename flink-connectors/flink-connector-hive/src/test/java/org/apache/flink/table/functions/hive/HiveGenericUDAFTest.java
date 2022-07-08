@@ -116,8 +116,7 @@ public class HiveGenericUDAFTest {
 
     private static HiveGenericUDAF init(
             Class<?> hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
-        HiveFunctionWrapper<GenericUDAFResolver> wrapper =
-                new HiveFunctionWrapper<>(hiveUdfClass.getName());
+        HiveFunctionWrapper<GenericUDAFResolver> wrapper = new HiveFunctionWrapper<>(hiveUdfClass);
 
         CallContextMock callContext = new CallContextMock();
         callContext.argumentDataTypes = Arrays.asList(argTypes);

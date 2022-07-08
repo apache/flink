@@ -82,15 +82,6 @@ public class ExecutionContext {
         this.tableEnv = createTableEnvironment();
     }
 
-    /**
-     * Executes the given supplier using the execution context's classloader as thread classloader.
-     */
-    public <R> R wrapClassLoader(Supplier<R> supplier) {
-        try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
-            return supplier.get();
-        }
-    }
-
     public StreamTableEnvironment getTableEnvironment() {
         return tableEnv;
     }

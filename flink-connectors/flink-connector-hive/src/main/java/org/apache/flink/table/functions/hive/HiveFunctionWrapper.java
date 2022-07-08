@@ -21,9 +21,13 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.hadoop.hive.ql.exec.SerializationUtilities;
 import org.apache.hadoop.hive.ql.exec.UDF;
+import org.apache.hive.com.esotericsoftware.kryo.Kryo;
+import org.apache.hive.com.esotericsoftware.kryo.io.Input;
+import org.apache.hive.com.esotericsoftware.kryo.io.Output;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 
 /**
@@ -37,30 +41,30 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
 
     public static final long serialVersionUID = 393313529306818205L;
 
-    private final String className;
-    // a field to hold the string serialized for the UDF.
+    private final Class<UDFType> functionClz;
+    // a field to hold the bytes serialized for the UDF.
     // we sometimes need to hold it in case of some serializable UDF will contain
     // additional information such as Hive's GenericUDFMacro and if we construct the UDF directly by
     // getUDFClass#newInstance, the information will be missed.
-    private String udfSerializedString;
+    private byte[] udfSerializedBytes;
 
     private transient UDFType instance = null;
 
-    public HiveFunctionWrapper(String className) {
-        this.className = className;
+    public HiveFunctionWrapper(Class<?> functionClz) {
+        this.functionClz = (Class<UDFType>) functionClz;
     }
 
     /**
      * Create a HiveFunctionWrapper with a UDF instance. In this constructor, the instance will be
      * serialized to string and held on in the HiveFunctionWrapper.
      */
-    public HiveFunctionWrapper(String className, UDFType serializableInstance) {
-        this(className);
+    public HiveFunctionWrapper(Class<?> functionClz, UDFType serializableInstance) {
+        this(functionClz);
         Preconditions.checkArgument(
-                serializableInstance.getClass().getName().equals(className),
+                serializableInstance.getClass().getName().equals(getUDFClassName()),
                 String.format(
                         "Expect the UDF is instance of %s, but is instance of %s.",
-                        className, serializableInstance.getClass().getName()));
+                        getUDFClassName(), serializableInstance.getClass().getName()));
         Preconditions.checkArgument(
                 serializableInstance instanceof Serializable,
                 String.format(
@@ -68,8 +72,7 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
                         serializableInstance.getClass().getName()));
         // we need to use the SerializationUtilities#serializeObject to serialize UDF for the UDF
         // may not be serialized by Java serializer
-        this.udfSerializedString =
-                SerializationUtilities.serializeObject((Serializable) serializableInstance);
+        this.udfSerializedBytes = serializeObjectToKryo((Serializable) serializableInstance);
     }
 
     /**
@@ -78,7 +81,7 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
      * @return a Hive function instance
      */
     public UDFType createFunction() {
-        if (udfSerializedString != null) {
+        if (udfSerializedBytes != null) {
             // deserialize the string to udf instance
             return deserializeUDF();
         } else if (instance != null) {
@@ -86,10 +89,11 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
         } else {
             UDFType func;
             try {
-                func = getUDFClass().newInstance();
-            } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+                func = functionClz.newInstance();
+            } catch (InstantiationException | IllegalAccessException e) {
                 throw new FlinkHiveUDFException(
-                        String.format("Failed to create function from %s", className), e);
+                        String.format("Failed to create function from %s", functionClz.getName()),
+                        e);
             }
 
             if (!(func instanceof UDF)) {
@@ -107,18 +111,12 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
      *
      * @return class name of the Hive function
      */
-    public String getClassName() {
-        return className;
+    public String getUDFClassName() {
+        return functionClz.getName();
     }
 
-    /**
-     * Get class of the Hive function.
-     *
-     * @return class of the Hive function
-     * @throws ClassNotFoundException thrown when the class is not found in classpath
-     */
-    public Class<UDFType> getUDFClass() throws ClassNotFoundException {
-        return (Class<UDFType>) Thread.currentThread().getContextClassLoader().loadClass(className);
+    public Class<UDFType> getUDFClass() {
+        return functionClz;
     }
 
     /**
@@ -127,13 +125,26 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
      * @return the UDF deserialized
      */
     private UDFType deserializeUDF() {
-        try {
-            return (UDFType)
-                    SerializationUtilities.deserializeObject(
-                            udfSerializedString, (Class<Serializable>) getUDFClass());
-        } catch (ClassNotFoundException e) {
-            throw new FlinkHiveUDFException(
-                    String.format("Failed to deserialize function %s.", className), e);
-        }
+        return (UDFType)
+                deserializeObjectFromKryo(udfSerializedBytes, (Class<Serializable>) getUDFClass());
+    }
+
+    private static byte[] serializeObjectToKryo(Serializable object) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Output output = new Output(baos);
+        Kryo kryo = new Kryo();
+        kryo.writeObject(output, object);
+        output.close();
+        return baos.toByteArray();
+    }
+
+    private static <T extends Serializable> T deserializeObjectFromKryo(
+            byte[] bytes, Class<T> clazz) {
+        Input inp = new Input(new ByteArrayInputStream(bytes));
+        Kryo kryo = new Kryo();
+        kryo.setClassLoader(clazz.getClassLoader());
+        T func = kryo.readObject(inp, clazz);
+        inp.close();
+        return func;
     }
 }

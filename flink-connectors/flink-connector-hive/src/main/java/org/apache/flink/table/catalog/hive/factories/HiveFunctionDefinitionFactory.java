@@ -21,9 +21,11 @@ package org.apache.flink.table.catalog.hive.factories;
 import org.apache.flink.connectors.hive.HiveTableFactory;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.functions.hive.HiveFunctionWrapper;
 import org.apache.flink.table.functions.hive.HiveGenericUDAF;
@@ -54,17 +56,39 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 
     @Override
     public FunctionDefinition createFunctionDefinition(
-            String name, CatalogFunction catalogFunction) {
-        if (catalogFunction.isGeneric()) {
-            return createFunctionDefinitionFromFlinkFunction(name, catalogFunction);
+            String name, CatalogFunction catalogFunction, Context context) {
+        if (isFlinkFunction(catalogFunction, context.getClassLoader())) {
+            return createFunctionDefinitionFromFlinkFunction(name, catalogFunction, context);
         }
-        return createFunctionDefinitionFromHiveFunction(name, catalogFunction.getClassName());
+        return createFunctionDefinitionFromHiveFunction(
+                name, catalogFunction.getClassName(), context);
     }
 
     public FunctionDefinition createFunctionDefinitionFromFlinkFunction(
-            String name, CatalogFunction catalogFunction) {
+            String name, CatalogFunction catalogFunction, Context context) {
         return UserDefinedFunctionHelper.instantiateFunction(
-                Thread.currentThread().getContextClassLoader(), null, name, catalogFunction);
+                context.getClassLoader(), null, name, catalogFunction);
+    }
+
+    /**
+     * Distinguish if the function is a generic function.
+     *
+     * @return whether the function is a generic function
+     */
+    private boolean isFlinkFunction(CatalogFunction catalogFunction, ClassLoader classLoader) {
+        if (catalogFunction.getFunctionLanguage() == FunctionLanguage.PYTHON) {
+            return true;
+        }
+        try {
+            Class<?> c = Class.forName(catalogFunction.getClassName(), true, classLoader);
+            if (UserDefinedFunction.class.isAssignableFrom(c)) {
+                return true;
+            }
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(
+                    String.format("Can't resolve udf class %s", catalogFunction.getClassName()), e);
+        }
+        return false;
     }
 
     /**
@@ -72,10 +96,10 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
      * org.apache.flink.table.module.hive.HiveModule}.
      */
     public FunctionDefinition createFunctionDefinitionFromHiveFunction(
-            String name, String functionClassName) {
-        Class<?> clazz;
+            String name, String functionClassName, Context context) {
+        Class<?> functionClz;
         try {
-            clazz = Thread.currentThread().getContextClassLoader().loadClass(functionClassName);
+            functionClz = context.getClassLoader().loadClass(functionClassName);
 
             LOG.info("Successfully loaded Hive udf '{}' with class '{}'", name, functionClassName);
         } catch (ClassNotFoundException e) {
@@ -84,33 +108,31 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
                     e);
         }
 
-        if (UDF.class.isAssignableFrom(clazz)) {
+        if (UDF.class.isAssignableFrom(functionClz)) {
             LOG.info("Transforming Hive function '{}' into a HiveSimpleUDF", name);
 
-            return new HiveSimpleUDF(new HiveFunctionWrapper<>(functionClassName), hiveShim);
-        } else if (GenericUDF.class.isAssignableFrom(clazz)) {
+            return new HiveSimpleUDF(new HiveFunctionWrapper<>(functionClz), hiveShim);
+        } else if (GenericUDF.class.isAssignableFrom(functionClz)) {
             LOG.info("Transforming Hive function '{}' into a HiveGenericUDF", name);
 
-            return new HiveGenericUDF(new HiveFunctionWrapper<>(functionClassName), hiveShim);
-        } else if (GenericUDTF.class.isAssignableFrom(clazz)) {
+            return new HiveGenericUDF(new HiveFunctionWrapper<>(functionClz), hiveShim);
+        } else if (GenericUDTF.class.isAssignableFrom(functionClz)) {
             LOG.info("Transforming Hive function '{}' into a HiveGenericUDTF", name);
-            return new HiveGenericUDTF(new HiveFunctionWrapper<>(functionClassName), hiveShim);
-        } else if (GenericUDAFResolver2.class.isAssignableFrom(clazz)
-                || UDAF.class.isAssignableFrom(clazz)) {
+            return new HiveGenericUDTF(new HiveFunctionWrapper<>(functionClz), hiveShim);
+        } else if (GenericUDAFResolver2.class.isAssignableFrom(functionClz)
+                || UDAF.class.isAssignableFrom(functionClz)) {
 
-            if (GenericUDAFResolver2.class.isAssignableFrom(clazz)) {
+            if (GenericUDAFResolver2.class.isAssignableFrom(functionClz)) {
                 LOG.info(
                         "Transforming Hive function '{}' into a HiveGenericUDAF without UDAF bridging",
                         name);
-                return new HiveGenericUDAF(
-                        new HiveFunctionWrapper<>(functionClassName), false, hiveShim);
+                return new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClz), false, hiveShim);
             } else {
                 LOG.info(
                         "Transforming Hive function '{}' into a HiveGenericUDAF with UDAF bridging",
                         name);
 
-                return new HiveGenericUDAF(
-                        new HiveFunctionWrapper<>(functionClassName), true, hiveShim);
+                return new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClz), true, hiveShim);
             }
         } else {
             throw new IllegalArgumentException(
