@@ -464,8 +464,7 @@ public class CassandraConnectorITCase
     protected void verifyResultsIdealCircumstances(
             CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
-        ResultSet result =
-                session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
+        ResultSet result = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         ArrayList<Integer> list = new ArrayList<>();
         for (int x = 1; x <= 60; x++) {
             list.add(x);
@@ -483,8 +482,7 @@ public class CassandraConnectorITCase
     protected void verifyResultsDataPersistenceUponMissedNotify(
             CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
-        ResultSet result =
-                session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
+        ResultSet result = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         ArrayList<Integer> list = new ArrayList<>();
         for (int x = 1; x <= 60; x++) {
             list.add(x);
@@ -502,8 +500,7 @@ public class CassandraConnectorITCase
     protected void verifyResultsDataDiscardingUponRestore(
             CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
-        ResultSet result =
-                session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
+        ResultSet result = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         ArrayList<Integer> list = new ArrayList<>();
         for (int x = 1; x <= 20; x++) {
             list.add(x);
@@ -537,8 +534,7 @@ public class CassandraConnectorITCase
         }
 
         ArrayList<Integer> actual = new ArrayList<>();
-        ResultSet result =
-                session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
+        ResultSet result = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
 
         for (com.datastax.driver.core.Row s : result) {
             actual.add(s.getInt(TUPLE_COUNTER_FIELD));
@@ -617,8 +613,7 @@ public class CassandraConnectorITCase
             sink.close();
         }
 
-        ResultSet rs =
-                session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         assertThat(rs.all()).hasSize(20);
     }
 
@@ -636,8 +631,7 @@ public class CassandraConnectorITCase
             sink.close();
         }
 
-        ResultSet rs =
-                session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         assertThat(rs.all()).hasSize(20);
     }
 
@@ -647,8 +641,7 @@ public class CassandraConnectorITCase
                 annotatePojoWithTable(KEYSPACE, TABLE_NAME_PREFIX + tableID);
         writePojos(annotatedPojoClass, null);
 
-        ResultSet rs =
-                session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         assertThat(rs.all()).hasSize(20);
     }
 
@@ -657,8 +650,7 @@ public class CassandraConnectorITCase
         final Class<? extends Pojo> annotatedPojoClass =
                 annotatePojoWithTable("", TABLE_NAME_PREFIX + tableID);
         writePojos(annotatedPojoClass, KEYSPACE);
-        ResultSet rs =
-                session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         assertThat(rs.all()).hasSize(20);
     }
 
@@ -699,8 +691,7 @@ public class CassandraConnectorITCase
 
         tEnv.sqlQuery("select * from testFlinkTable").executeInsert("cassandraTable").await();
 
-        ResultSet rs =
-                session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
 
         // validate that all input was correctly written to Cassandra
         List<Row> input = new ArrayList<>(rowCollection);
@@ -735,8 +726,7 @@ public class CassandraConnectorITCase
                 annotatePojoWithTable(KEYSPACE, TABLE_NAME_PREFIX + tableID);
 
         final List<? extends Pojo> pojos = writePojosWithOutputFormat(annotatedPojoClass);
-        ResultSet rs =
-                session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         assertThat(rs.all()).hasSize(20);
 
         final List<? extends Pojo> result = readPojosWithInputFormat(annotatedPojoClass);
@@ -807,8 +797,7 @@ public class CassandraConnectorITCase
             sink.close();
         }
 
-        ResultSet rs =
-                session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         List<com.datastax.driver.core.Row> rows = rs.all();
         assertThat(rows).hasSize(rowCollection.size());
     }
@@ -862,8 +851,7 @@ public class CassandraConnectorITCase
             sink.close();
         }
 
-        ResultSet rs =
-                session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         List<com.datastax.driver.core.Row> rows = rs.all();
         assertThat(rows).hasSize(scalaTupleCollection.size());
 
@@ -903,8 +891,7 @@ public class CassandraConnectorITCase
             sink.close();
         }
 
-        ResultSet rs =
-                session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         List<com.datastax.driver.core.Row> rows = rs.all();
         assertThat(rows).hasSize(1);
         // Since nulls are ignored, we should be reading one complete record
