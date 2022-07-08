@@ -486,13 +486,11 @@ public class NetworkBufferPoolTest extends TestLogger {
 
         final OneShotLatch isRunning = new OneShotLatch();
         CheckedThread asyncRequest =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws IOException {
-                        isRunning.trigger();
-                        globalPool.requestUnpooledMemorySegments(10);
-                    }
-                };
+                new CheckedThread(
+                        () -> {
+                            isRunning.trigger();
+                            globalPool.requestUnpooledMemorySegments(10);
+                        });
         asyncRequest.start();
 
         // We want the destroy call inside the blocking part of the
@@ -526,13 +524,11 @@ public class NetworkBufferPoolTest extends TestLogger {
 
         final OneShotLatch isRunning = new OneShotLatch();
         CheckedThread asyncRequest =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws IOException {
-                        isRunning.trigger();
-                        globalPool.requestUnpooledMemorySegments(10);
-                    }
-                };
+                new CheckedThread(
+                        () -> {
+                            isRunning.trigger();
+                            globalPool.requestUnpooledMemorySegments(10);
+                        });
         asyncRequest.start();
 
         // We want the destroy call inside the blocking part of the
@@ -578,12 +574,8 @@ public class NetworkBufferPoolTest extends TestLogger {
         assertEquals(0, globalPool.getNumberOfAvailableMemorySegments());
 
         CheckedThread asyncRequest =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        globalPool.requestUnpooledMemorySegments(numberOfSegmentsToRequest);
-                    }
-                };
+                new CheckedThread(
+                        () -> globalPool.requestUnpooledMemorySegments(numberOfSegmentsToRequest));
 
         asyncRequest.start();
 

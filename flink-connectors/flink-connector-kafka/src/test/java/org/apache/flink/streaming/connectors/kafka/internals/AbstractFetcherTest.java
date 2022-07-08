@@ -153,13 +153,8 @@ public class AbstractFetcherTest {
 
         // ----- run the fetcher -----
 
-        final CheckedThread checkedThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        fetcher.runFetchLoop();
-                    }
-                };
+        final CheckedThread checkedThread = new CheckedThread(() -> fetcher.runFetchLoop());
+
         checkedThread.start();
 
         // wait until state iteration begins before adding discovered partitions

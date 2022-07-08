@@ -206,15 +206,12 @@ public class CheckpointStateOutputStreamTest extends TestLogger {
         final OneShotLatch sync = new OneShotLatch();
 
         final CheckedThread thread =
-                new CheckedThread() {
-
-                    @Override
-                    public void go() throws Exception {
-                        sync.trigger();
-                        // that call should now block, because it accesses the position
-                        closeAndGetResult(checkpointStream);
-                    }
-                };
+                new CheckedThread(
+                        () -> {
+                            sync.trigger();
+                            // that call should now block, because it accesses the position
+                            closeAndGetResult(checkpointStream);
+                        });
         thread.start();
 
         sync.await();

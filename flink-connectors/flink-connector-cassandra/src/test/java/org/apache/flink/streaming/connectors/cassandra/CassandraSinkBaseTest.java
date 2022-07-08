@@ -173,13 +173,12 @@ public class CassandraSinkBaseTest {
 
             final CountDownLatch latch = new CountDownLatch(1);
             Thread t =
-                    new CheckedThread("Flink-CassandraSinkBaseTest") {
-                        @Override
-                        public void go() throws Exception {
-                            testHarness.snapshot(123L, 123L);
-                            latch.countDown();
-                        }
-                    };
+                    new CheckedThread(
+                            () -> {
+                                testHarness.snapshot(123L, 123L);
+                                latch.countDown();
+                            },
+                            "Flink-CassandraSinkBaseTest");
             t.start();
             while (t.getState() != Thread.State.TIMED_WAITING) {
                 Thread.sleep(5);
@@ -207,13 +206,12 @@ public class CassandraSinkBaseTest {
 
             final CountDownLatch latch = new CountDownLatch(1);
             Thread t =
-                    new CheckedThread("Flink-CassandraSinkBaseTest") {
-                        @Override
-                        public void go() throws Exception {
-                            testHarness.close();
-                            latch.countDown();
-                        }
-                    };
+                    new CheckedThread(
+                            () -> {
+                                testHarness.close();
+                                latch.countDown();
+                            },
+                            "Flink-CassandraSinkBaseTest");
             t.start();
             while (t.getState() != Thread.State.TIMED_WAITING) {
                 Thread.sleep(5);

@@ -168,7 +168,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
         InputGate receiverGate = createInputGate(senderLocation);
 
         SerializingLongReceiver receiver =
-                new SerializingLongReceiver(receiverGate, channels * partitionIds.length);
+                SerializingLongReceiver.create(receiverGate, channels * partitionIds.length);
 
         receiver.start();
         return receiver;

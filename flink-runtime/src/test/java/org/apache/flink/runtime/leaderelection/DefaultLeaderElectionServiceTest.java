@@ -282,12 +282,7 @@ public class DefaultLeaderElectionServiceTest extends TestLogger {
                         testingLeaderElectionDriverFactory.getCurrentLeaderDriver());
 
         final CheckedThread isLeaderThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() {
-                        currentLeaderDriver.isLeader();
-                    }
-                };
+                new CheckedThread(() -> currentLeaderDriver.isLeader());
         isLeaderThread.start();
 
         leaderElectionService.stop();

@@ -122,18 +122,16 @@ public class FlinkSecurityManagerTest extends TestLogger {
         } catch (UserSystemExitException ignored) {
         }
         CheckedThread thread =
-                new CheckedThread() {
-                    @Override
-                    public void go() {
-                        try {
-                            flinkSecurityManager.checkExit(TEST_EXIT_CODE);
-                            fail();
-                        } catch (UserSystemExitException ignored) {
-                        } catch (Throwable t) {
-                            fail();
-                        }
-                    }
-                };
+                new CheckedThread(
+                        () -> {
+                            try {
+                                flinkSecurityManager.checkExit(TEST_EXIT_CODE);
+                                fail();
+                            } catch (UserSystemExitException ignored) {
+                            } catch (Throwable t) {
+                                fail();
+                            }
+                        });
         thread.start();
         thread.sync();
     }

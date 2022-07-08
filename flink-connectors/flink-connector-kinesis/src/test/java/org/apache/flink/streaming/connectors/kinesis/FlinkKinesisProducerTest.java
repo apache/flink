@@ -189,14 +189,12 @@ public class FlinkKinesisProducerTest extends TestLogger {
         producer.getPendingRecordFutures().get(0).set(result);
 
         CheckedThread snapshotThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        // this should block at first, since there are still two pending records
-                        // that needs to be flushed
-                        testHarness.snapshot(123L, 123L);
-                    }
-                };
+                new CheckedThread(
+                        () -> {
+                            // this should block at first, since there are still two pending records
+                            // that needs to be flushed
+                            testHarness.snapshot(123L, 123L);
+                        });
         snapshotThread.start();
 
         // let the 2nd message fail with an async exception
@@ -230,15 +228,14 @@ public class FlinkKinesisProducerTest extends TestLogger {
 
         // start a thread to perform checkpointing
         CheckedThread snapshotThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        // this should block until all records are flushed;
-                        // if the snapshot implementation returns before pending records are
-                        // flushed,
-                        testHarness.snapshot(123L, 123L);
-                    }
-                };
+                new CheckedThread(
+                        () -> {
+                            // this should block until all records are flushed;
+                            // if the snapshot implementation returns before pending records are
+                            // flushed,
+                            testHarness.snapshot(123L, 123L);
+                        });
+
         snapshotThread.start();
 
         // before proceeding, make sure that flushing has started and that the snapshot is still
@@ -294,12 +291,7 @@ public class FlinkKinesisProducerTest extends TestLogger {
         when(result.isSuccessful()).thenReturn(true);
 
         CheckedThread msg1 =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        testHarness.processElement(new StreamRecord<>("msg-1"));
-                    }
-                };
+                new CheckedThread(() -> testHarness.processElement(new StreamRecord<>("msg-1")));
         msg1.start();
         msg1.trySync(deadline.timeLeftIfAny().toMillis());
         assertThat(msg1.isAlive()).as("Flush triggered before reaching queue limit").isFalse();
@@ -308,26 +300,19 @@ public class FlinkKinesisProducerTest extends TestLogger {
         producer.getPendingRecordFutures().get(0).set(result);
 
         CheckedThread msg2 =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        testHarness.processElement(new StreamRecord<>("msg-2"));
-                    }
-                };
+                new CheckedThread(() -> testHarness.processElement(new StreamRecord<>("msg-2")));
         msg2.start();
         msg2.trySync(deadline.timeLeftIfAny().toMillis());
         assertThat(msg2.isAlive()).as("Flush triggered before reaching queue limit").isFalse();
 
         CheckedThread moreElementsThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        // this should block until msg-2 is consumed
-                        testHarness.processElement(new StreamRecord<>("msg-3"));
-                        // this should block until msg-3 is consumed
-                        testHarness.processElement(new StreamRecord<>("msg-4"));
-                    }
-                };
+                new CheckedThread(
+                        () -> {
+                            // this should block until msg-2 is consumed
+                            testHarness.processElement(new StreamRecord<>("msg-3"));
+                            // this should block until msg-3 is consumed
+                            testHarness.processElement(new StreamRecord<>("msg-4"));
+                        });
         moreElementsThread.start();
 
         assertThat(moreElementsThread.isAlive())

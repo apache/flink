@@ -297,14 +297,12 @@ class HsResultPartitionReadSchedulerTest {
         factory.allReaders.add(reader);
 
         CheckedThread releaseThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        readBufferStart.get();
-                        readScheduler.release();
-                        schedulerReleasedFinish.complete(null);
-                    }
-                };
+                new CheckedThread(
+                        () -> {
+                            readBufferStart.get();
+                            readScheduler.release();
+                            schedulerReleasedFinish.complete(null);
+                        });
         releaseThread.start();
 
         readScheduler.registerNewSubpartition(0, subpartitionViewOperation);

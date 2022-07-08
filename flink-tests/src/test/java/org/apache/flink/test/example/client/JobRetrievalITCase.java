@@ -94,12 +94,9 @@ public class JobRetrievalITCase extends TestLogger {
         client.submitJob(jobGraph).get();
 
         final CheckedThread resumingThread =
-                new CheckedThread("Flink-Job-Retriever") {
-                    @Override
-                    public void go() throws Exception {
-                        assertNotNull(client.requestJobResult(jobId).get());
-                    }
-                };
+                new CheckedThread(
+                        () -> assertNotNull(client.requestJobResult(jobId).get()),
+                        "Flink-Job-Retriever");
 
         // wait until the job is running
         while (client.listJobs().get().isEmpty()) {

@@ -60,18 +60,16 @@ public class TransformationTest extends TestLogger {
         final List<List<Integer>> idLists = Collections.synchronizedList(new ArrayList<>());
         for (int x = 0; x < numThreads; x++) {
             threads.add(
-                    new CheckedThread() {
-                        @Override
-                        public void go() throws Exception {
-                            startLatch.await();
+                    new CheckedThread(
+                            () -> {
+                                startLatch.await();
 
-                            final List<Integer> ids = new ArrayList<>();
-                            for (int c = 0; c < numIdsPerThread; c++) {
-                                ids.add(Transformation.getNewNodeId());
-                            }
-                            idLists.add(ids);
-                        }
-                    });
+                                final List<Integer> ids = new ArrayList<>();
+                                for (int c = 0; c < numIdsPerThread; c++) {
+                                    ids.add(Transformation.getNewNodeId());
+                                }
+                                idLists.add(ids);
+                            }));
         }
         threads.forEach(Thread::start);
 

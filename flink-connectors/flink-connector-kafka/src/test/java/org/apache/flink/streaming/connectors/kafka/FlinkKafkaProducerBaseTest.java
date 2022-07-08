@@ -245,14 +245,12 @@ public class FlinkKafkaProducerBaseTest {
         producer.getPendingCallbacks().get(0).onCompletion(null, null);
 
         CheckedThread snapshotThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        // this should block at first, since there are still two pending records
-                        // that needs to be flushed
-                        testHarness.snapshot(123L, 123L);
-                    }
-                };
+                new CheckedThread(
+                        () -> {
+                            // this should block at first, since there are still two pending records
+                            // that needs to be flushed
+                            testHarness.snapshot(123L, 123L);
+                        });
         snapshotThread.start();
 
         // let the 2nd message fail with an async exception
@@ -305,15 +303,13 @@ public class FlinkKafkaProducerBaseTest {
 
         // start a thread to perform checkpointing
         CheckedThread snapshotThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        // this should block until all records are flushed;
-                        // if the snapshot implementation returns before pending records are
-                        // flushed,
-                        testHarness.snapshot(123L, 123L);
-                    }
-                };
+                new CheckedThread(
+                        () -> {
+                            // this should block until all records are flushed;
+                            // if the snapshot implementation returns before pending records are
+                            // flushed,
+                            testHarness.snapshot(123L, 123L);
+                        });
         snapshotThread.start();
 
         // before proceeding, make sure that flushing has started and that the snapshot is still

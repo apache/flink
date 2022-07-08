@@ -120,7 +120,7 @@ public class StreamNetworkThroughputBenchmark {
                     new RecordWriterBuilder().setTimeout(flushTimeout);
             setChannelSelector(recordWriterBuilder, broadcastMode);
             writerThreads[writer] =
-                    new LongRecordWriterThread(
+                    LongRecordWriterThread.create(
                             recordWriterBuilder.build(resultPartitionWriter), broadcastMode);
             writerThreads[writer].start();
         }

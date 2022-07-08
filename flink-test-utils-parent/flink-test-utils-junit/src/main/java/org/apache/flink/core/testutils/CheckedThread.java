@@ -18,26 +18,37 @@
 
 package org.apache.flink.core.testutils;
 
+import java.util.concurrent.TimeoutException;
+
 /**
  * A thread that additionally catches exceptions and offers a joining method that re-throws the
  * exceptions.
  *
- * <p>Rather than overriding {@link Thread#run()} (or supplying a {@link Runnable}), one needs to
- * extends this class and implement the {@link #go()} method. That method may throw exceptions.
+ * <p>This class needs to supply a {@link ThrowingRunnable} that may throw exceptions.
  *
- * <p>Exception from the {@link #go()} method are caught and re-thrown when joining this thread via
- * the {@link #sync()} method.
+ * <p>Exception from the {@link #runnable} are caught and re-thrown when joining this thread via the
+ * {@link #sync()} method.
  */
-public abstract class CheckedThread extends Thread {
+public class CheckedThread extends Thread {
 
     /** The error thrown from the main work method. */
     private volatile Throwable error;
 
+    /**
+     * This field takes the role of {@link Runnable} in {@link Thread}, but should propagate
+     * exceptions. The exceptions thrown by this field will be re-thrown in the {@link #sync()}
+     * method.
+     */
+    private final ThrowingRunnable<Exception> runnable;
+
     // ------------------------------------------------------------------------
 
     /** Unnamed checked thread. */
-    public CheckedThread() {
-        super();
+    public CheckedThread(ThrowingRunnable<Exception> runnable) {
+        if (runnable == null) {
+            throw new NullPointerException("runnable must be not-null for CheckedThread.");
+        }
+        this.runnable = runnable;
     }
 
     /**
@@ -46,25 +57,21 @@ public abstract class CheckedThread extends Thread {
      * @param name the name of the new thread
      * @see Thread#Thread(String)
      */
-    public CheckedThread(final String name) {
+    public CheckedThread(ThrowingRunnable<Exception> runnable, final String name) {
         super(name);
+        if (runnable == null) {
+            throw new NullPointerException("runnable must be not-null for CheckedThread.");
+        }
+        this.runnable = runnable;
     }
-
-    /**
-     * This method needs to be overwritten to contain the main work logic. It takes the role of
-     * {@link Thread#run()}, but should propagate exceptions.
-     *
-     * @throws Exception The exceptions thrown here will be re-thrown in the {@link #sync()} method.
-     */
-    public abstract void go() throws Exception;
 
     // ------------------------------------------------------------------------
 
-    /** This method is final - thread work should go into the {@link #go()} method instead. */
+    /** This method is final - thread work should go into the {@link #runnable} field instead. */
     @Override
     public final void run() {
         try {
-            go();
+            runnable.run();
         } catch (Throwable t) {
             error = t;
         }
@@ -75,7 +82,7 @@ public abstract class CheckedThread extends Thread {
      * execution.
      *
      * <p>This method blocks like {@link #join()}, but performs an additional check for exceptions
-     * thrown from the {@link #go()} method.
+     * thrown from the {@link #runnable}.
      */
     public void sync() throws Exception {
         sync(0);
@@ -86,7 +93,7 @@ public abstract class CheckedThread extends Thread {
      * the execution. In case of timeout an {@link Exception} is thrown.
      *
      * <p>This method blocks like {@link #join()}, but performs an additional check for exceptions
-     * thrown from the {@link #go()} method.
+     * thrown from the {@link #runnable}.
      */
     public void sync(long timeout) throws Exception {
         trySync(timeout);
@@ -98,7 +105,7 @@ public abstract class CheckedThread extends Thread {
      * the execution.
      *
      * <p>This method blocks like {@link #join()}, but performs an additional check for exceptions
-     * thrown from the {@link #go()} method.
+     * thrown from the {@link #runnable}.
      */
     public void trySync(long timeout) throws Exception {
         join(timeout);
@@ -120,7 +127,7 @@ public abstract class CheckedThread extends Thread {
 
     private void checkFinished() throws Exception {
         if (getState() != State.TERMINATED) {
-            throw new Exception(
+            throw new TimeoutException(
                     String.format(
                             "%s[name = %s] has not finished!",
                             this.getClass().getSimpleName(), getName()));

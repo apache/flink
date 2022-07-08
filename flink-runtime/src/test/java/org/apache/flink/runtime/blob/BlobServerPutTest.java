@@ -88,20 +88,9 @@ public class BlobServerPutTest extends TestLogger {
 
     /** Checked thread that calls {@link BlobServer#getStorageLocation(JobID, BlobKey)}. */
     public static class ContentAddressableGetStorageLocation extends CheckedThread {
-        private final BlobServer server;
-        private final JobID jobId;
-        private final BlobKey key;
-
         ContentAddressableGetStorageLocation(
                 BlobServer server, @Nullable JobID jobId, BlobKey key) {
-            this.server = server;
-            this.jobId = jobId;
-            this.key = key;
-        }
-
-        @Override
-        public void go() throws Exception {
-            server.getStorageLocation(jobId, key);
+            super(() -> server.getStorageLocation(jobId, key));
         }
     }
 

@@ -407,12 +407,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         setupConsumer(consumer, false, listState, true, 0, 1);
 
         final CheckedThread runThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        consumer.run(new TestSourceContext<>());
-                    }
-                };
+                new CheckedThread(() -> consumer.run(new TestSourceContext<>()));
         runThread.start();
         fetcher.waitUntilRun();
 
@@ -520,12 +515,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         setupConsumer(consumer, false, listState, true, 0, 1);
 
         final CheckedThread runThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        consumer.run(new TestSourceContext<>());
-                    }
-                };
+                new CheckedThread(() -> consumer.run(new TestSourceContext<>()));
         runThread.start();
         fetcher.waitUntilRun();
 
