@@ -32,8 +32,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
-import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
@@ -208,7 +208,7 @@ public class DefaultSchedulerCheckpointCoordinatorTest extends TestLogger {
                         .setJobCheckpointingSettings(checkpointingSettings)
                         .build();
 
-        return new SchedulerTestingUtils.DefaultSchedulerBuilder(
+        return new DefaultSchedulerBuilder(
                         jobGraph,
                         ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                         EXECUTOR_RESOURCE.getExecutor())

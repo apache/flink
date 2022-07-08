@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
@@ -74,7 +75,7 @@ public class ExecutionVertexTest extends TestLogger {
         final JobGraph jobGraph =
                 JobGraphTestUtils.streamingJobGraph(producerJobVertex, consumerJobVertex);
         final SchedulerBase scheduler =
-                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 jobGraph,
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                                 EXECUTOR_RESOURCE.getExecutor())
@@ -122,7 +123,7 @@ public class ExecutionVertexTest extends TestLogger {
         // make sure that retrieving the last (al)location is independent from the history size
         configuration.set(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE, 1);
         final SchedulerBase scheduler =
-                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 jobGraph,
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                                 EXECUTOR_RESOURCE.getExecutor())

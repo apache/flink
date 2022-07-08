@@ -80,7 +80,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements Schedule
 
     private final Map<JobVertexID, ForwardGroup> forwardGroupsByJobVertexId;
 
-    AdaptiveBatchScheduler(
+    public AdaptiveBatchScheduler(
             final Logger log,
             final JobGraph jobGraph,
             final Executor ioExecutor,
