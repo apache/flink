@@ -310,7 +310,7 @@ There are two different styles of watermark generation: *periodic* and
 A periodic generator usually observes the incoming events via `onEvent()`
 and then emits a watermark when the framework calls `onPeriodicEmit()`.
 
-A puncutated generator will look at events in `onEvent()` and wait for special
+A punctuated  generator will look at events in `onEvent()` and wait for special
 *marker events* or *punctuations* that carry watermark information in the
 stream. When it sees one of these events it emits a watermark immediately.
 Usually, punctuated generators don't emit a watermark from `onPeriodicEmit()`.
