@@ -136,7 +136,7 @@ public class ClientMutableURLClassLoader extends MutableURLClassLoader {
         oldClassLoaders.clear();
 
         if (exception != null) {
-            throw new IOException("Error while closing ClientMutableURLClassLoader.", exception);
+            throw exception;
         }
     }
 }

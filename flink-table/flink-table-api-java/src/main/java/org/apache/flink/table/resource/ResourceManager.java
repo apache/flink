@@ -231,11 +231,11 @@ public class ResourceManager implements Closeable {
         // clear the map
         resourceInfos.clear();
 
-        Exception exception = null;
+        IOException exception = null;
         // close classloader
         try {
             userClassLoader.close();
-        } catch (Exception e) {
+        } catch (IOException e) {
             LOG.debug("Error while closing user classloader.", e);
             exception = e;
         }
@@ -245,7 +245,7 @@ public class ResourceManager implements Closeable {
             if (fileSystem.exists(localResourceDir)) {
                 fileSystem.delete(localResourceDir, true);
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             LOG.debug(String.format("Error while delete directory [%s].", localResourceDir), e);
             if (exception == null) {
                 exception = e;
@@ -253,7 +253,7 @@ public class ResourceManager implements Closeable {
         }
 
         if (exception != null) {
-            throw new IOException("Error while closing ResourceManager.", exception);
+            throw exception;
         }
     }
 }

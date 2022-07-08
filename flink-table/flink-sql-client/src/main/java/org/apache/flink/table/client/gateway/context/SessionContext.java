@@ -263,7 +263,7 @@ public class SessionContext {
     }
 
     public void removeJar(String jarPath) {
-        // if is relative path, convert to absolut path
+        // if is relative path, convert to absolute path
         URL jarURL = checkJarPath(jarPath, "SQL Client only supports to remove local jars.");
         // remove jar from resource manager
         jarURL = sessionState.resourceManager.unregisterJarResource(jarURL.getPath());
