@@ -52,7 +52,7 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
                 throw new IOException(
                         "Could not serialize "
                                 + i
-                                + "th argument of method "
+                                + "the argument of method "
                                 + methodName
                                 + ". This indicates that the argument type "
                                 + args.getClass().getName()
@@ -177,7 +177,7 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
                         throw new IOException(
                                 "Could not serialize "
                                         + i
-                                        + "th argument of method "
+                                        + "the argument of method "
                                         + methodName
                                         + ". This indicates that the argument type "
                                         + args.getClass().getName()
@@ -207,7 +207,7 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
                     throw new IOException(
                             "Could not deserialize "
                                     + i
-                                    + "th parameter type of method "
+                                    + "the parameter type of method "
                                     + incompleteMethod
                                     + '.',
                             e);
@@ -220,7 +220,7 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
                             new ClassNotFoundException(
                                     "Could not deserialize "
                                             + i
-                                            + "th "
+                                            + "the "
                                             + "parameter type of method "
                                             + incompleteMethod
                                             + ". This indicates that the parameter "
@@ -242,7 +242,7 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
                         throw new IOException(
                                 "Could not deserialize "
                                         + i
-                                        + "th argument of method "
+                                        + "the argument of method "
                                         + incompleteMethod
                                         + '.',
                                 e);
@@ -257,7 +257,7 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
                                 new ClassNotFoundException(
                                         "Could not deserialize "
                                                 + i
-                                                + "th "
+                                                + "the "
                                                 + "argument of method "
                                                 + incompleteMethod
                                                 + ". This indicates that the argument "
