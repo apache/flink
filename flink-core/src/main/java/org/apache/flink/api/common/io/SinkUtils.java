@@ -18,13 +18,13 @@
 
 package org.apache.flink.api.common.io;
 
+import org.apache.flink.annotation.Experimental;
+
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
-import org.apache.flink.annotation.Experimental;
 
 /** Utility class for sinks. */
 @Experimental
