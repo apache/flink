@@ -20,6 +20,8 @@ package org.apache.flink.connector.jdbc.dialect;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
@@ -28,11 +30,25 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
+import static org.apache.flink.connector.jdbc.dialect.FilterClause.AND;
+import static org.apache.flink.connector.jdbc.dialect.FilterClause.EQ;
+import static org.apache.flink.connector.jdbc.dialect.FilterClause.GT;
+import static org.apache.flink.connector.jdbc.dialect.FilterClause.GT_EQ;
+import static org.apache.flink.connector.jdbc.dialect.FilterClause.IS_NOT_NULL;
+import static org.apache.flink.connector.jdbc.dialect.FilterClause.IS_NULL;
+import static org.apache.flink.connector.jdbc.dialect.FilterClause.LIKE;
+import static org.apache.flink.connector.jdbc.dialect.FilterClause.LT;
+import static org.apache.flink.connector.jdbc.dialect.FilterClause.LT_EQ;
+import static org.apache.flink.connector.jdbc.dialect.FilterClause.NOT;
+import static org.apache.flink.connector.jdbc.dialect.FilterClause.NOT_EQ;
+import static org.apache.flink.connector.jdbc.dialect.FilterClause.OR;
 
 /**
  * Base class for {@link JdbcDialect JdbcDialects} that implements basic data type validation and
@@ -44,6 +60,23 @@ import static java.lang.String.format;
  */
 @PublicEvolving
 public abstract class AbstractDialect implements JdbcDialect {
+
+    static Map<FunctionDefinition, FilterClause> supportFilters = new HashMap<>();
+
+    static {
+        supportFilters.put(BuiltInFunctionDefinitions.EQUALS, EQ);
+        supportFilters.put(BuiltInFunctionDefinitions.NOT_EQUALS, NOT_EQ);
+        supportFilters.put(BuiltInFunctionDefinitions.GREATER_THAN, GT);
+        supportFilters.put(BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL, GT_EQ);
+        supportFilters.put(BuiltInFunctionDefinitions.LESS_THAN, LT);
+        supportFilters.put(BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL, LT_EQ);
+        supportFilters.put(BuiltInFunctionDefinitions.IS_NULL, IS_NULL);
+        supportFilters.put(BuiltInFunctionDefinitions.IS_NOT_NULL, IS_NOT_NULL);
+        supportFilters.put(BuiltInFunctionDefinitions.AND, AND);
+        supportFilters.put(BuiltInFunctionDefinitions.OR, OR);
+        supportFilters.put(BuiltInFunctionDefinitions.LIKE, LIKE);
+        supportFilters.put(BuiltInFunctionDefinitions.NOT, NOT);
+    }
 
     @Override
     public void validate(RowType rowType) throws ValidationException {
@@ -102,6 +135,11 @@ public abstract class AbstractDialect implements JdbcDialect {
                 }
             }
         }
+    }
+
+    @Override
+    public FilterClause getFilterClause(FunctionDefinition function) {
+        return supportFilters.get(function);
     }
 
     /**

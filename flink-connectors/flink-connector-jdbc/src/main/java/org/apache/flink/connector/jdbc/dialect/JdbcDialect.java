@@ -21,6 +21,7 @@ package org.apache.flink.connector.jdbc.dialect;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.io.Serializable;
@@ -57,6 +58,14 @@ public interface JdbcDialect extends Serializable {
      * @return the limit clause.
      */
     String getLimitClause(long limit);
+
+    /**
+     * Get filter clause to push down to the database.
+     *
+     * @param function of Flink build-in
+     * @return the filter clause.
+     */
+    FilterClause getFilterClause(FunctionDefinition function);
 
     /**
      * Check if this dialect instance support a specific data type in table schema.

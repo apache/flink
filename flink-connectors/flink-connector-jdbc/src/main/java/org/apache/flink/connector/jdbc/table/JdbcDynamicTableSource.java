@@ -19,12 +19,12 @@
 package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.jdbc.converter.FilterExpressionConverter;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.connector.jdbc.split.JdbcNumericBetweenParametersProvider;
-import org.apache.flink.connector.jdbc.utils.FilterExpressionConverter;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -211,7 +211,7 @@ public class JdbcDynamicTableSource
 
     @Override
     public Result applyFilters(List<ResolvedExpression> filters) {
-        FilterExpressionConverter converter = new FilterExpressionConverter();
+        FilterExpressionConverter converter = new FilterExpressionConverter(options.getDialect());
         this.filter = converter.convert(filters);
         return Result.of(converter.getAcceptedFilters(), converter.getRemainingFilters());
     }

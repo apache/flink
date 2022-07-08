@@ -16,8 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc.utils;
+package org.apache.flink.connector.jdbc.converter;
 
+import org.apache.flink.connector.jdbc.dialect.FilterClause;
+import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
+import org.apache.flink.connector.jdbc.utils.JdbcValueFormatter;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionVisitor;
@@ -39,8 +42,10 @@ public class FilterExpressionConverter implements ExpressionVisitor<Optional<Str
 
     List<ResolvedExpression> acceptedFilters;
     List<ResolvedExpression> remainingFilters;
+    JdbcDialect dialect;
 
-    public FilterExpressionConverter() {
+    public FilterExpressionConverter(JdbcDialect dialect) {
+        this.dialect = dialect;
         this.acceptedFilters = new ArrayList<>();
         this.remainingFilters = new ArrayList<>();
     }
@@ -75,11 +80,10 @@ public class FilterExpressionConverter implements ExpressionVisitor<Optional<Str
     @Override
     public Optional<String> visit(CallExpression call) {
         FunctionDefinition function = call.getFunctionDefinition();
-        if (!SupportFilter.contain(function)) {
+        FilterClause filterClause = dialect.getFilterClause(function);
+        if (filterClause == null) {
             return Optional.empty();
         }
-
-        FilterClause clause = SupportFilter.getFilterClause(function);
 
         List<String> args =
                 call.getResolvedChildren().stream()
@@ -88,9 +92,8 @@ public class FilterExpressionConverter implements ExpressionVisitor<Optional<Str
                         .map(Optional::get)
                         .collect(Collectors.toList());
 
-        if (args.size() == clause.argsNum) {
-            String filterClause = clause.formatter.apply(args);
-            return Optional.of(String.join("", "(", filterClause, ")"));
+        if (args.size() == filterClause.getArgsNum()) {
+            return Optional.of(String.join("", "(", filterClause.apply(args), ")"));
         } else {
             return Optional.empty();
         }
