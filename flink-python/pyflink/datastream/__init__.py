@@ -190,6 +190,22 @@ Classes to define source & sink:
     - :class:`connectors.RMQSink`:
       A Sink for publishing data into RabbitMQ.
 
+Classes to support source & sink with different formats:
+
+    - :class:`formats.AvroSchema`:
+      A schema definition following Avro specification.
+    - :class:`formats.AvroInputFormat`:
+      An InputFormat to read avro files.
+    - :class:`formats.AvroParquetReaders`:
+      A StreamFormat to read parquet files into Avro record, which will be represented as vanilla
+      Python objects in PyFlink.
+    - :class:`formats.CsvSchema`:
+      A schema definition following CSV specification.
+    - :class:`formats.CsvReaderFormat`:
+      A StreamFormat to read csv files into Row data.
+    - :class:`formats.ParquetColumnarRowInputFormat`:
+      A BulkFormat to read columnar parquet files into Row data in a batch-processing fashion.
+
 Other important classes:
 
     - :class:`TimeCharacteristic`:

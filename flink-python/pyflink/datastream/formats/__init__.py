@@ -16,11 +16,15 @@
 # limitations under the License.
 ################################################################################
 from .avro import AvroSchema, AvroInputFormat
+from .csv import CsvSchema, CsvSchemaBuilder, CsvReaderFormat
 from .parquet import AvroParquetReaders, ParquetColumnarRowInputFormat
 
 __all__ = [
     'AvroInputFormat',
     'AvroParquetReaders',
     'AvroSchema',
+    'CsvReaderFormat',
+    'CsvSchema',
+    'CsvSchemaBuilder',
     'ParquetColumnarRowInputFormat'
 ]

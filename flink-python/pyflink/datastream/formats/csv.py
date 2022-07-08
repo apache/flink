@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import Union, Optional, cast
+from typing import Optional, cast
 
 from py4j.java_gateway import get_java_class
 from pyflink.datastream.connectors import StreamFormat
@@ -268,20 +268,20 @@ class CsvReaderFormat(StreamFormat):
     Example:
     ::
 
-        >>> schema = CsvSchema.builder() \
-        ...     .add_number_column('id', number_type=DataTypes.INT()) \
-        ...     .add_string_column('name') \
-        ...     .add_array_column('list', ',', element_type=DataTypes.STRING()) \
-        ...     .set_column_separator('|') \
-        ...     .set_escape_char('\\\\') \
-        ...     .set_use_header() \
-        ...     .set_strict_headers() \
+        >>> schema = CsvSchema.builder() \\
+        ...     .add_number_column('id', number_type=DataTypes.INT()) \\
+        ...     .add_string_column('name') \\
+        ...     .add_array_column('list', ',', element_type=DataTypes.STRING()) \\
+        ...     .set_column_separator('|') \\
+        ...     .set_escape_char('\\\\') \\
+        ...     .set_use_header() \\
+        ...     .set_strict_headers() \\
         ...     .build()
         >>> source = FileSource.for_record_stream_format(
         ...     CsvReaderFormat.for_schema(schema), CSV_FILE_PATH).build()
         >>> ds = env.from_source(source, WatermarkStrategy.no_watermarks(), 'csv-source')
         >>> # the type of records is Types.ROW_NAMED(['id', 'name', 'list'],
-        ... #   [Types.INT(), Types.STRING(), Types.LIST(Types.STRING())])
+        >>> #   [Types.INT(), Types.STRING(), Types.LIST(Types.STRING())])
 
     .. versionadded:: 1.16.0
     """
@@ -295,13 +295,12 @@ class CsvReaderFormat(StreamFormat):
         Builds a :class:`CsvReaderFormat` using `CsvSchema`.
         """
         jvm = get_gateway().jvm
+        jackson = jvm.org.apache.flink.shaded.jackson2.com.fasterxml.jackson
         constructor = get_java_class(jvm.org.apache.flink.formats.csv.CsvReaderFormat) \
             .getDeclaredConstructor(
             to_jarray(jvm.Class, [
-                get_java_class(jvm.org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat
-                               .csv.CsvMapper),
-                get_java_class(jvm.org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat
-                               .csv.CsvSchema),
+                get_java_class(jackson.dataformat.csv.CsvMapper),
+                get_java_class(jackson.dataformat.csv.CsvSchema),
                 get_java_class(jvm.Class),
                 get_java_class(jvm.org.apache.flink.formats.common.Converter),
                 get_java_class(jvm.org.apache.flink.api.common.typeinfo.TypeInformation),
@@ -311,11 +310,9 @@ class CsvReaderFormat(StreamFormat):
         constructor.setAccessible(True)
         j_csv_format = constructor.newInstance(
             to_jarray(jvm.Object, [
-                jvm.org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv
-                      .CsvMapper(),
+                jackson.dataformat.csv.CsvMapper(),
                 schema._j_schema,
-                get_java_class(jvm.org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind
-                               .JsonNode),
+                get_java_class(jackson.databind.JsonNode),
                 jvm.org.apache.flink.formats.csv.CsvToRowDataConverters(False).createRowConverter(
                     _to_java_data_type(schema._data_type).getLogicalType(), True),
                 jvm.org.apache.flink.table.runtime.typeutils.InternalTypeInfo.of(
