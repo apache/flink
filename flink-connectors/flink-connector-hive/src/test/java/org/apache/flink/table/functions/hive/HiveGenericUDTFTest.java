@@ -148,8 +148,8 @@ public class HiveGenericUDTFTest {
     }
 
     private static HiveGenericUDTF init(
-            Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
-        HiveFunctionWrapper<GenericUDTF> wrapper = new HiveFunctionWrapper(hiveUdfClass.getName());
+            Class<?> hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
+        HiveFunctionWrapper<GenericUDTF> wrapper = new HiveFunctionWrapper<>(hiveUdfClass);
 
         CallContextMock callContext = new CallContextMock();
         callContext.argumentDataTypes = Arrays.asList(argTypes);

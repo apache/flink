@@ -47,13 +47,13 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
     public HiveGenericUDF(HiveFunctionWrapper<GenericUDF> hiveFunctionWrapper, HiveShim hiveShim) {
         super(hiveFunctionWrapper);
         this.hiveShim = hiveShim;
-        LOG.info("Creating HiveGenericUDF from '{}'", hiveFunctionWrapper.getClassName());
+        LOG.info("Creating HiveGenericUDF from '{}'", hiveFunctionWrapper.getUDFClassName());
     }
 
     @Override
     public void openInternal() {
 
-        LOG.info("Open HiveGenericUDF as {}", hiveFunctionWrapper.getClassName());
+        LOG.info("Open HiveGenericUDF as {}", hiveFunctionWrapper.getUDFClassName());
 
         function = createFunction();
 
@@ -96,7 +96,7 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
     public DataType inferReturnType() throws UDFArgumentException {
         LOG.info(
                 "Getting result type of HiveGenericUDF from {}",
-                hiveFunctionWrapper.getClassName());
+                hiveFunctionWrapper.getUDFClassName());
         ObjectInspector[] argumentInspectors = HiveInspectors.getArgInspectors(hiveShim, arguments);
 
         ObjectInspector resultObjectInspector =

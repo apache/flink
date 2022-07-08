@@ -200,6 +200,7 @@ public class HiveParserDDLSemanticAnalyzer {
     private final HiveParserDMLHelper dmlHelper;
     private final FrameworkConfig frameworkConfig;
     private final RelOptCluster cluster;
+    private final ClassLoader classLoader;
 
     static {
         TokenToTypeName.put(HiveASTParser.TOK_BOOLEAN, serdeConstants.BOOLEAN_TYPE_NAME);
@@ -262,7 +263,8 @@ public class HiveParserDDLSemanticAnalyzer {
             HiveParserContext context,
             HiveParserDMLHelper dmlHelper,
             FrameworkConfig frameworkConfig,
-            RelOptCluster cluster)
+            RelOptCluster cluster,
+            ClassLoader classLoader)
             throws SemanticException {
         this.queryState = queryState;
         this.conf = queryState.getConf();
@@ -276,6 +278,7 @@ public class HiveParserDDLSemanticAnalyzer {
         this.dmlHelper = dmlHelper;
         this.frameworkConfig = frameworkConfig;
         this.cluster = cluster;
+        this.classLoader = classLoader;
         reservedPartitionValues = new HashSet<>();
         // Partition can't have this name
         reservedPartitionValues.add(HiveConf.getVar(conf, HiveConf.ConfVars.DEFAULTPARTITIONNAME));
@@ -524,7 +527,8 @@ public class HiveParserDDLSemanticAnalyzer {
             FunctionDefinition funcDefinition =
                     funcDefFactory.createFunctionDefinition(
                             functionName,
-                            new CatalogFunctionImpl(className, FunctionLanguage.JAVA));
+                            new CatalogFunctionImpl(className, FunctionLanguage.JAVA),
+                            () -> classLoader);
             return new CreateTempSystemFunctionOperation(functionName, false, funcDefinition);
         } else {
             ObjectIdentifier identifier = parseObjectIdentifier(functionName);
@@ -558,8 +562,7 @@ public class HiveParserDDLSemanticAnalyzer {
 
         FunctionDefinition macroDefinition =
                 new HiveGenericUDF(
-                        new HiveFunctionWrapper<>(GenericUDFMacro.class.getName(), macro),
-                        hiveShim);
+                        new HiveFunctionWrapper<>(GenericUDFMacro.class, macro), hiveShim);
         // hive's marco is more like flink's temp system function
         return new CreateTempSystemFunctionOperation(macroName, false, macroDefinition);
     }

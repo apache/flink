@@ -578,10 +578,15 @@ public final class FunctionCatalog {
                 FunctionDefinition fd;
                 if (catalog.getFunctionDefinitionFactory().isPresent()
                         && catalogFunction.getFunctionLanguage() != FunctionLanguage.PYTHON) {
+                    registerFunctionJarResources(
+                            oi.asSummaryString(), catalogFunction.getFunctionResources());
                     fd =
                             catalog.getFunctionDefinitionFactory()
                                     .get()
-                                    .createFunctionDefinition(oi.getObjectName(), catalogFunction);
+                                    .createFunctionDefinition(
+                                            oi.getObjectName(),
+                                            catalogFunction,
+                                            resourceManager::getUserClassLoader);
                 } else {
                     fd = getFunctionDefinition(oi.asSummaryString(), catalogFunction);
                 }
