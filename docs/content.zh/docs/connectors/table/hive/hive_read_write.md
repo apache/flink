@@ -25,32 +25,23 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Hive Read & Write
+# Hive 读 & 写
 
-Using the `HiveCatalog`, Apache Flink can be used for unified `BATCH` and `STREAM` processing of Apache 
-Hive Tables. This means Flink can be used as a more performant alternative to Hive’s batch engine,
-or to continuously read and write data into and out of Hive tables to power real-time data
-warehousing applications. 
+通过使用 `HiveCatalog`，Apache Flink 可以对 Apache Hive 表做统一的批和流处理。这意味着 Flink 可以成为 Hive 批处理引擎的一个性能更好的选择，或者连续读写 Hive 表中的数据以支持实时数据仓库应用。
 
-## Reading
+## 读
 
-Flink supports reading data from Hive in both `BATCH` and `STREAMING` modes. When run as a `BATCH`
-application, Flink will execute its query over the state of the table at the point in time when the
-query is executed. `STREAMING` reads will continuously monitor the table and incrementally fetch
-new data as it is made available. Flink will read tables as bounded by default.
+Flink 支持以批和流两种模式从 Hive 表中读取数据。批读的时候，Flink 会基于执行查询时表的状态进行查询。流读时将持续监控表，并在表中新数据可用时进行增量获取，默认情况下，Flink 将以批模式读取数据。
 
-`STREAMING` reads support consuming both partitioned and non-partitioned tables. 
-For partitioned tables, Flink will monitor the generation of new partitions, and read
-them incrementally when available. For non-partitioned tables, Flink will monitor the generation
-of new files in the folder and read new files incrementally.
+流读支持消费分区表和非分区表。对于分区表，Flink 会监控新分区的生成，并且在数据可用的情况下增量获取数据。对于非分区表，Flink 将监控文件夹中新文件的生成，并增量地读取新文件。
 
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
-        <th class="text-left" style="width: 15%">Default</th>
-        <th class="text-left" style="width: 10%">Type</th>
-        <th class="text-left" style="width: 55%">Description</th>
+        <th class="text-left" style="width: 20%">键</th>
+        <th class="text-left" style="width: 15%">默认值</th>
+        <th class="text-left" style="width: 10%">类型</th>
+        <th class="text-left" style="width: 55%">描述</th>
     </tr>
   </thead>
   <tbody>
@@ -58,41 +49,39 @@ of new files in the folder and read new files incrementally.
         <td><h5>streaming-source.enable</h5></td>
         <td style="word-wrap: break-word;">false</td>
         <td>Boolean</td>
-        <td>Enable streaming source or not. NOTES: Please make sure that each partition/file should be written atomically, otherwise the reader may get incomplete data.</td>
+        <td>是否启动流读。注意：请确保每个分区/文件都应该原子地写入，否则读取不到完整的数据。</td>
     </tr>
     <tr>
         <td><h5>streaming-source.partition.include</h5></td>
         <td style="word-wrap: break-word;">all</td>
         <td>String</td>
-        <td>Option to set the partitions to read, the supported option are `all` and `latest`, the `all` means read all partitions; the `latest` means read latest partition in order of 'streaming-source.partition.order', the `latest` only works` when the streaming hive source table used as temporal table. By default the option is `all`.
-            Flink supports temporal join the latest hive partition by enabling 'streaming-source.enable' and setting 'streaming-source.partition.include' to 'latest', at the same time, user can assign the partition compare order and data update interval by configuring following partition-related options.  
+        <td>选择读取的分区，可选项为 `all` 和 `latest`，`all` 读取所有分区；`latest` 读取按照 'streaming-source.partition.order' 排序后的最新分区，`latest` 仅在流模式的 Hive 源表作为时态表时有效。默认的选项是 `all`。在开启 'streaming-source.enable' 并设置 'streaming-source.partition.include' 为 'latest' 时，Flink 支持 temporal join 最新的 Hive 分区，同时，用户可以通过配置分区相关的选项来配置分区比较顺序和数据更新时间间隔。 
         </td>
     </tr>     
     <tr>
         <td><h5>streaming-source.monitor-interval</h5></td>
         <td style="word-wrap: break-word;">None</td>
         <td>Duration</td>
-        <td>Time interval for consecutively monitoring partition/file.
-            Notes: The default interval for hive streaming reading is '1 min', the default interval for hive streaming temporal join is '60 min', this is because there's one framework limitation that every TM will visit the Hive metaStore in current hive streaming temporal join implementation which may produce pressure to metaStore, this will improve in the future.</td>
+        <td>连续监控分区/文件的时间间隔。
+            注意: 默认情况下，流式读 Hive 的间隔为 '1 min'，但流读 Hive 的 temporal join 的默认时间间隔是 '60 min'，这是因为当前流读 Hive 的 temporal join 实现上有一个框架限制，即每个 TM 都要访问 Hive metastore，这可能会对 metastore 产生压力，这个问题将在未来得到改善。</td>
     </tr>
     <tr>
         <td><h5>streaming-source.partition-order</h5></td>
         <td style="word-wrap: break-word;">partition-name</td>
         <td>String</td>
-        <td>The partition order of streaming source, support create-time, partition-time and partition-name. create-time compares partition/file creation time, this is not the partition create time in Hive metaStore, but the folder/file modification time in filesystem, if the partition folder somehow gets updated, e.g. add new file into folder, it can affect how the data is consumed. partition-time compares the time extracted from partition name. partition-name compares partition name's alphabetical order. For non-partition table, this value should always be 'create-time'. By default the value is partition-name. The option is equality with deprecated option 'streaming-source.consume-order'.</td>
+        <td>streaming source 分区排序，支持 create-time， partition-time 和 partition-name。 create-time 比较分区/文件创建时间， 这不是 Hive metastore 中创建分区的时间，而是文件夹/文件在文件系统的修改时间，如果分区文件夹以某种方式更新，比如添加在文件夹里新增了一个文件，它会影响到数据的使用。partition-time 从分区名称中抽取时间进行比较。partition-name 会比较分区名称的字典顺序。对于非分区的表，总是会比较 'create-time'。对于分区表默认值是 'partition-name'。该选项与已经弃用的 'streaming-source.consume-order' 的选项相同</td>
     </tr>
     <tr>
         <td><h5>streaming-source.consume-start-offset</h5></td>
         <td style="word-wrap: break-word;">None</td>
         <td>String</td>
-        <td>Start offset for streaming consuming. How to parse and compare offsets depends on your order. For create-time and partition-time, should be a timestamp string (yyyy-[m]m-[d]d [hh:mm:ss]). For partition-time, will use partition time extractor to extract time from partition.
-         For partition-name, is the partition name string (e.g. pt_year=2020/pt_mon=10/pt_day=01).</td>
+        <td>流模式起始消费偏移量。如何解析和比较偏移量取决于你指定的顺序。对于 create-time 和 partition-time，会比较时间戳 (yyyy-[m]m-[d]d [hh:mm:ss])。对于 partition-time，将使用分区时间提取器从分区名字中提取的时间。
+         对于 partition-name，是字符串类型的分区名称(比如 pt_year=2020/pt_mon=10/pt_day=01)。</td>
     </tr>
   </tbody>
 </table>
 
-[SQL Hints]({{< ref "docs/dev/table/sql/queries/hints" >}}) can be used to apply configurations to a Hive table
-without changing its definition in the Hive metastore.
+[SQL Hints]({{< ref "docs/dev/table/sql/queries/hints" >}}) 可以在不改变 Hive metastore 的情况下配置 Hive table 的属性。
 
 ```sql
 
@@ -102,52 +91,47 @@ FROM hive_table
 
 ```
 
-**Notes**
+**注意**
 
-- Monitor strategy is to scan all directories/files currently in the location path. Many partitions may cause performance degradation.
-- Streaming reads for non-partitioned tables requires that each file be written atomically into the target directory.
-- Streaming reading for partitioned tables requires that each partition should be added atomically in the view of hive metastore. If not, new data added to an existing partition will be consumed.
-- Streaming reads do not support watermark grammar in Flink DDL. These tables cannot be used for window operators.
+- 监控策略是扫描当前位置路径中的所有目录/文件，分区太多可能导致性能下降。
+- 流读非分区表时要求每个文件应原子地写入目标目录。
+- 流读分区表要求每个分区应该被原子地添加进 Hive metastore 中。如果不是的话，只有添加到现有分区的新数据会被消费。 
+- 流读 Hive 表不支持 Flink DDL 的 watermark 语法。这些表不能被用于窗口算子。
 
-### Reading Hive Views
+### 读取 Hive Views
 
-Flink is able to read from Hive defined views, but some limitations apply:
+Flink 能够读取 Hive 中已经定义的视图。但是也有一些限制：
 
-1) The Hive catalog must be set as the current catalog before you can query the view. 
-This can be done by either `tableEnv.useCatalog(...)` in Table API or `USE CATALOG ...` in SQL Client.
+1) Hive catalog 必须设置成当前的 catalog 才能查询视图。在 Table API 中使用 `tableEnv.useCatalog(...)`，或者在 SQL 客户端使用 `USE CATALOG ...` 来改变当前 catalog。
 
-2) Hive and Flink SQL have different syntax, e.g. different reserved keywords and literals.
-Make sure the view’s query is compatible with Flink grammar.
+2) Hive 和 Flink SQL 的语法不同, 比如不同的关键字和字面值。请确保对视图的查询语法与 Flink 语法兼容。
 
-### Vectorized Optimization upon Read
+### 读取时的向量化优化
 
-Flink will automatically used vectorized reads of Hive tables when the following conditions are met:
+当满足以下条件时，Flink 会自动对 Hive 表进行向量化读取:
 
-- Format: ORC or Parquet.
-- Columns without complex data type, like hive types: List, Map, Struct, Union.
+- 格式：ORC 或者 Parquet。
+- 没有复杂类型的列，比如 Hive 列类型：List、Map、Struct、Union。
 
-This feature is enabled by default. 
-It may be disabled with the following configuration. 
+该特性默认开启，可以使用以下配置禁用它。
 
 ```bash
 table.exec.hive.fallback-mapred-reader=true
 ```
 
-### Source Parallelism Inference
+### Source 并发推断
 
-By default, Flink will infer the optimal parallelism for its Hive readers 
-based on the number of files, and number of blocks in each file.
+默认情况下，Flink 会基于文件的数量，以及每个文件中块的数量推断出读取 Hive 的最佳并行度。
 
-Flink allows you to flexibly configure the policy of parallelism inference. You can configure the
-following parameters in `TableConfig` (note that these parameters affect all sources of the job):
+Flink 允许你灵活的配置并发推断策略。你可以在 `TableConfig` 中配置以下参数(注意这些参数会影响当前作业的所有 source)：
 
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
-        <th class="text-left" style="width: 15%">Default</th>
-        <th class="text-left" style="width: 10%">Type</th>
-        <th class="text-left" style="width: 55%">Description</th>
+        <th class="text-left" style="width: 20%">键</th>
+        <th class="text-left" style="width: 15%">默认值</th>
+        <th class="text-left" style="width: 10%">类型</th>
+        <th class="text-left" style="width: 55%">描述</th>
     </tr>
   </thead>
   <tbody>
@@ -155,71 +139,71 @@ following parameters in `TableConfig` (note that these parameters affect all sou
         <td><h5>table.exec.hive.infer-source-parallelism</h5></td>
         <td style="word-wrap: break-word;">true</td>
         <td>Boolean</td>
-        <td>If is true, source parallelism is inferred according to splits number. If is false, parallelism of source are set by config.</td>
+        <td>如果是 true，会根据 split 的数量推断 source 的并发度。如果是 false，source 的并发度由配置决定。</td>
     </tr>
     <tr>
         <td><h5>table.exec.hive.infer-source-parallelism.max</h5></td>
         <td style="word-wrap: break-word;">1000</td>
         <td>Integer</td>
-        <td>Sets max infer parallelism for source operator.</td>
+        <td>设置 source operator 推断的最大并发度。</td>
     </tr>
   </tbody>
 </table>
 
-### Load Partition Splits
+### 加载分区切片
 
-Multi-thread is used to split hive's partitions. You can use `table.exec.hive.load-partition-splits.thread-num` to configure the thread number. The default value is 3 and the configured value should be bigger than 0.
+Flink 使用多个线程并发将 Hive 分区切分成多个 split 进行读取。你可以使用 `table.exec.hive.load-partition-splits.thread-num` 去配置线程数。默认值是3，你配置的值应该大于0。
 
-### Read Partition With Subdirectory
+### 读取带有子目录的分区
 
-In some case, you may create an external table referring another table, but the partition columns is a subset of the referred table.
-For example, you have a partitioned table `fact_tz` with partition `day` and `hour`:
+在某些情况下，你或许会创建一个引用其他表的外部表，但是该表的分区列是另一张表分区字段的子集。
+比如，你创建了一个分区表 `fact_tz`，分区字段是 `day` 和 `hour`：
 
 ```sql
 CREATE TABLE fact_tz(x int) PARTITIONED BY (day STRING, hour STRING);
 ```
 
-And you have an external table `fact_daily` referring to table `fact_tz` with a coarse-grained partition `day`:
+然后你基于 `fact_tz` 表创建了一个外部表 `fact_daily`，并使用了一个粗粒度的分区字段 `day`：
 
 ```sql
 CREATE EXTERNAL TABLE fact_daily(x int) PARTITIONED BY (ds STRING) LOCATION '/path/to/fact_tz';
 ```
 
-Then when reading the external table `fact_daily`, there will be sub-directories (`hour=1` to `hour=24`) in the partition directory of the table.
+当读取外部表 `fact_daily` 时，该表的分区目录下存在子目录(`hour=1` 到 `hour=24`)。
 
-By default, you can add partition with sub-directories to the external table. Flink SQL can recursively scan all sub-directories and fetch all the data from all sub-directories.
+默认情况下，可以将带有子目录的分区添加到外部表中。Flink SQL 会递归扫描所有的子目录，并获取所有子目录中数据。
 
 ```sql
 ALTER TABLE fact_daily ADD PARTITION (ds='2022-07-07') location '/path/to/fact_tz/ds=2022-07-07';
 ```
 
-You can set job configuration `table.exec.hive.read-partition-with-subdirectory.enabled` (`true` by default) to `false` to disallow Flink to read the sub-directories.
-If the configuration is `false` and the directory does not contain files, rather consists of sub directories Flink blows up with the exception: `java.io.IOException: Not a file: /path/to/data/*`.
+你可以设置作业属性 `table.exec.hive.read-partition-with-subdirectory.enabled` (默认为 `true`) 为 `false` 以禁止 Flink 读取子目录。
+如果你设置成 `false` 并且分区目录下不包含任何子目录，Flink 会抛出 `java.io.IOException: Not a file: /path/to/data/*` 异常。
 
-## Temporal Table Join
+## 时态表 Join
 
-You can use a Hive table as a temporal table, and then a stream can correlate the Hive table by temporal join. 
-Please see [temporal join]({{< ref "docs/dev/table/sql/queries/joins" >}}#temporal-joins) for more information about the temporal join.
+你可以使用 Hive 表作为时态表，然后一个数据流就可以使用 temporal join 关联 Hive 表。
+请参照 [temporal join]({{< ref "docs/dev/table/sql/queries/joins" >}}#temporal-joins) 获取更多关于 temporal join 的信息。
 
-Flink supports processing-time temporal join Hive Table, the processing-time temporal join always joins the latest version of temporal table.
-Flink supports temporal join both partitioned table and Hive non-partitioned table, for partitioned table, Flink supports tracking the latest partition of Hive table automatically.
+Flink 支持 processing-time temporal join Hive 表，processing-time temporal join 总是关联最新版本的时态表。
+Flink 支持 temporal join Hive 的分区表和非分区表，对于分区表，Flink 支持自动跟踪 Hive 表的最新分区。
 
-**NOTE**: Flink does not support event-time temporal join Hive table yet.
+**注意**: Flink 还不支持 event-time temporal join Hive 表。
 
-### Temporal Join The Latest Partition
+### Temporal Join 最新的分区
 
-For a partitioned table which is changing over time, we can read it out as an unbounded stream, the partition can be acted as a version of the temporal table if every partition contains complete data of a version,
-the version of temporal table keeps the data of the partition.
+对于随时变化的分区表，我们可以把它看作是一个无界流进行读取，如果每个分区包含完整数据，则分区可以作为时态表的一个版本，时态表的版本保存分区的数据。
  
-Flink supports tracking the latest partition (version) of temporal table automatically in processing time temporal join, the latest partition (version) is defined by 'streaming-source.partition-order' option,
-This is the most common user cases that use Hive table as dimension table in a Flink stream application job.
+Flink 支持在使用 processing time temporal join 时自动追踪最新的分区（版本），通过 `streaming-source.partition-order` 定义最新的分区（版本）。
+用户最常使用的案例就是在 Flink 流作业中使用 Hive 表作为维度表。
 
-**NOTE:** This feature is only supported in Flink `STREAMING` Mode.
+**注意:** 该特性仅支持 Flink 流模式。
 
-The following demo shows a classical business pipeline, the dimension table comes from Hive and it's updated once every day by a batch pipeline job or a Flink job, the kafka stream comes from real time online business data or log and need to join with the dimension table to enrich stream. 
+下面的案例演示了经典的业务 pipeline，使用 Hive 中的表作为维度表，它们由每天一次的批任务或者 Flink 任务来更新。
+Kafka 数据流来自实时在线业务数据或者日志，该流需要关联维度表以丰富数据流。
 
 ```sql
--- Assume the data in hive table is updated per day, every day contains the latest and complete dimension data
+-- 假设 Hive 表中的数据每天更新, 每天包含最新和完整的维度数据
 SET table.sql-dialect=hive;
 CREATE TABLE dimension_table (
   product_id STRING,
@@ -236,7 +220,7 @@ CREATE TABLE dimension_table (
   'streaming-source.enable' = 'true',
   'streaming-source.partition.include' = 'latest',
   'streaming-source.monitor-interval' = '12 h',
-  'streaming-source.partition-order' = 'partition-name',  -- option with default value, can be ignored.
+  'streaming-source.partition-order' = 'partition-name',  -- 有默认的配置项，可以不填。
 
   -- using partition file create-time order to load the latest partition every 12h
   'streaming-source.enable' = 'true',
@@ -263,8 +247,7 @@ CREATE TABLE orders_table (
 ) WITH (...);
 
 
--- streaming sql, kafka temporal join a hive dimension table. Flink will automatically reload data from the
--- configured latest partition in the interval of 'streaming-source.monitor-interval'.
+-- streaming sql, kafka temporal join Hive 维度表. Flink 将在 'streaming-source.monitor-interval' 的间隔内自动加载最新分区的数据。
 
 SELECT * FROM orders_table AS o 
 JOIN dimension_table FOR SYSTEM_TIME AS OF o.proctime AS dim
@@ -272,21 +255,21 @@ ON o.product_id = dim.product_id;
 
 ```
 
-### Temporal Join The Latest Table
+### Temporal Join 最新的表
  
-For a Hive table, we can read it out as a bounded stream. In this case, the Hive table can only track its latest version at the time when we query.
-The latest version of table keep all data of the Hive table. 
+对于 Hive 表，我们可以把它看作是一个无界流进行读取，在这个案例中，当我们查询时只能去追踪最新的版本。
+最新版本的表保留了 Hive 表的所有数据。
 
-When performing the temporal join the latest Hive table, the Hive table will be cached in Slot memory and each record from the stream is joined against the table by key to decide whether a match is found. 
-Using the latest Hive table as a temporal table does not require any additional configuration. Optionally, you can configure the TTL of the Hive table cache with the following property. After the cache expires, the Hive table will be scanned again to load the latest data.
+当 temporal join 最新的 Hive 表，Hive 表会缓存到 Slot 内存中，并且数据流中的每条记录通过 key 去关联表找到对应的匹配项。
+使用最新的 Hive 表作为时态表不需要额外的配置。作为可选项，您可以使用以下配置项配置 Hive 表缓存的 TTL。当缓存失效，Hive 表会重新扫描并加载最新的数据。
 
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
-        <th class="text-left" style="width: 15%">Default</th>
-        <th class="text-left" style="width: 10%">Type</th>
-        <th class="text-left" style="width: 55%">Description</th>
+        <th class="text-left" style="width: 20%">键</th>
+        <th class="text-left" style="width: 15%">默认值</th>
+        <th class="text-left" style="width: 10%">类型</th>
+        <th class="text-left" style="width: 55%">描述</th>
     </tr>
   </thead>
   <tbody>
@@ -294,16 +277,16 @@ Using the latest Hive table as a temporal table does not require any additional 
         <td><h5>lookup.join.cache.ttl</h5></td>
         <td style="word-wrap: break-word;">60 min</td>
         <td>Duration</td>
-        <td>The cache TTL (e.g. 10min) for the build table in lookup join. By default the TTL is 60 minutes. NOTES: The option only works when lookup bounded hive table source, if you're using streaming hive source as temporal table, please use 'streaming-source.monitor-interval' to configure the interval of data update.
+        <td>在 lookup join 时构建表缓存的 TTL (例如 10min)。默认的 TTL 是60分钟。注意: 该选项仅在 lookup 表为有界的 Hive 表时有效，如果你使用流式的 Hive 表作为时态表，请使用 'streaming-source.monitor-interval' 去配置数据更新的间隔。
        </td>
     </tr>
   </tbody>
 </table>
 
-The following demo shows load all data of hive table as a temporal table.
+下面的案例演示加载 Hive 表的所有数据作为时态表。
 
 ```sql
--- Assume the data in hive table is overwrite by batch pipeline.
+-- 假设 Hive 表中的数据被批处理 pipeline 覆盖。
 SET table.sql-dialect=hive;
 CREATE TABLE dimension_table (
   product_id STRING,
@@ -316,8 +299,8 @@ CREATE TABLE dimension_table (
   update_user STRING,
   ...
 ) TBLPROPERTIES (
-  'streaming-source.enable' = 'false',           -- option with default value, can be ignored.
-  'streaming-source.partition.include' = 'all',  -- option with default value, can be ignored.
+  'streaming-source.enable' = 'false',           -- 有默认的配置项，可以不填。
+  'streaming-source.partition.include' = 'all',  -- 有默认的配置项，可以不填。
   'lookup.join.cache.ttl' = '12 h'
 );
 
@@ -331,55 +314,49 @@ CREATE TABLE orders_table (
 ) WITH (...);
 
 
--- streaming sql, kafka join a hive dimension table. Flink will reload all data from dimension_table after cache ttl is expired.
+-- streaming sql, kafka join Hive 维度表. 当缓存失效时 Flink 会加载维度表的所有数据。
 
 SELECT * FROM orders_table AS o 
 JOIN dimension_table FOR SYSTEM_TIME AS OF o.proctime AS dim
 ON o.product_id = dim.product_id;
 
 ```
-Note: 
+注意: 
 
-1. Each joining subtask needs to keep its own cache of the Hive table. Please make sure the Hive table can fit into the memory of a TM task slot.
-2. It is encouraged to set a relatively large value both for `streaming-source.monitor-interval`(latest partition as temporal table) or `lookup.join.cache.ttl`(all partitions as temporal table). Otherwise, Jobs are prone to performance issues as the table needs to be updated and reloaded too frequently.
-3. Currently we simply load the whole Hive table whenever the cache needs refreshing. There's no way to differentiate
-new data from the old.
+1. 每个参与 join 的 subtask 需要在他们的缓存中保留 Hive 表。请确保 Hive 表可以放到 TM task slot 中。
+2. 建议把这两个选项配置成较大的值 `streaming-source.monitor-interval`(最新的分区作为时态表) 和 `lookup.join.cache.ttl`(所有的分区作为时态表)。否则，任务会频繁更新和加载表，容易出现性能问题。
+3. 目前，缓存刷新的时候会重新加载整个 Hive 表，所以没有办法区分数据是新数据还是旧数据。
 
-## Writing
+## 写
 
-Flink supports writing data from Hive in both `BATCH` and `STREAMING` modes. When run as a `BATCH`
-application, Flink will write to a Hive table only making those records visible when the Job finishes.
-`BATCH` writes support both appending to and overwriting existing tables.
+Flink 支持批和流两种模式往 Hive 中写入数据，当作为批程序，只有当作业完成时，Flink 写入 Hive 表的数据才能被看见。批模式写入支持追加到现有的表或者覆盖现有的表。
 
 ```sql
-# ------ INSERT INTO will append to the table or partition, keeping the existing data intact ------ 
+# ------ INSERT INTO 将追加到表或者分区，保证数据的完整性 ------ 
 Flink SQL> INSERT INTO mytable SELECT 'Tom', 25;
 
-# ------ INSERT OVERWRITE will overwrite any existing data in the table or partition ------ 
+# ------ INSERT OVERWRITE 将覆盖表或者分区中所有已经存在的数据 ------ 
 Flink SQL> INSERT OVERWRITE mytable SELECT 'Tom', 25;
 ```
 
-Data can also be inserted into particular partitions. 
+还可以将数据插入到特定的分区中。
 
 ```sql
-# ------ Insert with static partition ------ 
+# ------ 插入静态分区 ------ 
 Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1', my_date='2019-08-08') SELECT 'Tom', 25;
 
-# ------ Insert with dynamic partition ------ 
+# ------ 插入动态分区 ------ 
 Flink SQL> INSERT OVERWRITE myparttable SELECT 'Tom', 25, 'type_1', '2019-08-08';
 
-# ------ Insert with static(my_type) and dynamic(my_date) partition ------ 
+# ------ 插入静态(my_type)和动态(my_date)分区 ------ 
 Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1') SELECT 'Tom', 25, '2019-08-08';
 ```
 
-`STREAMING` writes continuously adding new data to Hive, committing records - making them 
-visible - incrementally. Users control when/how to trigger commits with several properties. Insert
-overwrite is not supported for streaming write.
+流写会不断的往 Hive 中添加新数据，提交记录使它们可见。用户可以通过几个属性控制如何触发提交。流写不支持 `Insert overwrite` 。
 
-The below examples show how the streaming sink can be used to write a streaming query to write data from Kafka into a Hive table with partition-commit,
-and runs a batch query to read that data back out. 
+下面的案例演示如何流式地从 Kafka 写入 Hive 表并执行分区提交，然后运行一个批处理查询将数据读出来。
 
-Please see the [streaming sink]({{< ref "docs/connectors/table/filesystem" >}}#streaming-sink) for a full list of available configurations.
+请参阅 [streaming sink]({{< ref "docs/connectors/table/filesystem" >}}#streaming-sink) 获取可用配置的完整列表。
 
 ```sql
 
@@ -399,7 +376,7 @@ CREATE TABLE kafka_table (
   user_id STRING,
   order_amount DOUBLE,
   log_ts TIMESTAMP(3),
-  WATERMARK FOR log_ts AS log_ts - INTERVAL '5' SECOND -- Define watermark on TIMESTAMP column
+  WATERMARK FOR log_ts AS log_ts - INTERVAL '5' SECOND -- 在 TIMESTAMP 列声明 watermark。
 ) WITH (...);
 
 -- streaming sql, insert into hive table
@@ -412,7 +389,7 @@ SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
 
 ```
 
-If the watermark is defined on TIMESTAMP_LTZ column and used `partition-time` to commit, the `sink.partition-commit.watermark-time-zone` is required to set to the session time zone, otherwise the partition committed may happen after a few hours.  
+如果在 TIMESTAMP_LTZ 列定义了 watermark 并且使用 `partition-time` 提交，需要对 `sink.partition-commit.watermark-time-zone` 设置会话时区，否则分区提交会发生在几个小时后。
 ```sql
 
 SET table.sql-dialect=hive;
@@ -423,7 +400,7 @@ CREATE TABLE hive_table (
   'partition.time-extractor.timestamp-pattern'='$dt $hr:00:00',
   'sink.partition-commit.trigger'='partition-time',
   'sink.partition-commit.delay'='1 h',
-  'sink.partition-commit.watermark-time-zone'='Asia/Shanghai', -- Assume user configured time zone is 'Asia/Shanghai'
+  'sink.partition-commit.watermark-time-zone'='Asia/Shanghai', -- 假设用户配置的时区是 'Asia/Shanghai'。
   'sink.partition-commit.policy.kind'='metastore,success-file'
 );
 
@@ -433,7 +410,7 @@ CREATE TABLE kafka_table (
   order_amount DOUBLE,
   ts BIGINT, -- time in epoch milliseconds
   ts_ltz AS TO_TIMESTAMP_LTZ(ts, 3),
-  WATERMARK FOR ts_ltz AS ts_ltz - INTERVAL '5' SECOND -- Define watermark on TIMESTAMP_LTZ column
+  WATERMARK FOR ts_ltz AS ts_ltz - INTERVAL '5' SECOND -- 在 TIMESTAMP_LTZ 列声明 watermark。
 ) WITH (...);
 
 -- streaming sql, insert into hive table
@@ -446,20 +423,18 @@ SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
 
 ```
 
-By default, for streaming writes, Flink only supports renaming committers, meaning the S3 filesystem
-cannot support exactly-once streaming writes.
-Exactly-once writes to S3 can be achieved by configuring the following parameter to false.
-This will instruct the sink to use Flink's native writers but only works for
-parquet and orc file types.
-This configuration is set in the `TableConfig` and will affect all sinks of the job.
+默认情况下，对于流，Flink 仅支持重命名 committers，对于 S3 文件系统不支持流写的 exactly-once 语义。
+通过将以下参数设置为 false，可以实现 exactly-once 写入 S3。
+这会调用 Flink 原生的 writer ，但是仅针对 parquet 和 orc 文件类型有效。
+这个配置项可以在 `TableConfig` 中配置，该配置项对作业的所有 sink 都生效。
 
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
-        <th class="text-left" style="width: 15%">Default</th>
-        <th class="text-left" style="width: 10%">Type</th>
-        <th class="text-left" style="width: 55%">Description</th>
+        <th class="text-left" style="width: 20%">键</th>
+        <th class="text-left" style="width: 15%">默认值</th>
+        <th class="text-left" style="width: 10%">类型</th>
+        <th class="text-left" style="width: 55%">描述</th>
     </tr>
   </thead>
   <tbody>
@@ -467,15 +442,15 @@ This configuration is set in the `TableConfig` and will affect all sinks of the 
         <td><h5>table.exec.hive.fallback-mapred-writer</h5></td>
         <td style="word-wrap: break-word;">true</td>
         <td>Boolean</td>
-        <td>If it is false, using flink native writer to write parquet and orc files; if it is true, using hadoop mapred record writer to write parquet and orc files.</td>
+        <td>如果是 false，使用 Flink 原生的 writer 去写 parquet 和 orc 文件；如果是 true，使用 hadoop mapred record writer 去写 parquet 和 orc 文件。</td>
     </tr>
   </tbody>
 </table>
 
 
-## Formats
+## 格式
 
-Flink's Hive integration has been tested against the following file formats:
+Flink 对 Hive 的集成已经在如下的文件格式进行了测试：
 
 - Text
 - CSV
