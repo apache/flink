@@ -114,8 +114,8 @@ KafkaSource.builder()
     .setStartingOffsets(OffsetsInitializer.committedOffsets())
     // 从消费组提交的位点开始消费，如果提交位点不存在，使用最早位点
     .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
-    // 从时间戳大于等于指定时间的数据开始消费
-    .setStartingOffsets(OffsetsInitializer.timestamp(1592323200L))
+    // 从时间戳大于等于指定时间戳（毫秒）的数据开始消费
+    .setStartingOffsets(OffsetsInitializer.timestamp(1657256176000L))
     // 从最早位点开始消费
     .setStartingOffsets(OffsetsInitializer.earliest())
     // 从最末尾位点开始消费
