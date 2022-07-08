@@ -41,10 +41,10 @@ import { JobCheckpointsComponent } from './checkpoints/job-checkpoints.component
 import { JobCheckpointsSubtaskComponent } from './checkpoints/subtask/job-checkpoints-subtask.component';
 import { JobConfigurationComponent } from './configuration/job-configuration.component';
 import { JobExceptionsComponent } from './exceptions/job-exceptions.component';
+import { JobDetailComponent } from './job-detail/job-detail.component';
 import { JobLocalService } from './job-local.service';
 import { JobRoutingModule } from './job-routing.module';
 import { JobComponent } from './job.component';
-import { JobStatusComponent } from './status/job-status.component';
 import { JobTimelineComponent } from './timeline/job-timeline.component';
 
 @NgModule({
@@ -70,13 +70,13 @@ import { JobTimelineComponent } from './timeline/job-timeline.component';
   ],
   declarations: [
     JobComponent,
-    JobStatusComponent,
     JobExceptionsComponent,
     JobConfigurationComponent,
     JobCheckpointsComponent,
     JobCheckpointsDetailComponent,
     JobCheckpointsSubtaskComponent,
-    JobTimelineComponent
+    JobTimelineComponent,
+    JobDetailComponent
   ],
   providers: [JobLocalService]
 })

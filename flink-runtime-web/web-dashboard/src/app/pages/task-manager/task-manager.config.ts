@@ -23,7 +23,7 @@ import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/edito
 
 type routerKeys = 'taskManager';
 
-export type TaskManagerModuleConfig = Omit<ModuleConfig<routerKeys>, 'customComponents'>;
+export type TaskManagerModuleConfig = Omit<ModuleConfig<routerKeys>, 'customComponents' | 'routerTabs'>;
 
 export const TASK_MANAGER_MODULE_DEFAULT_CONFIG: Required<TaskManagerModuleConfig> = {
   editorOptions: flinkEditorOptions,

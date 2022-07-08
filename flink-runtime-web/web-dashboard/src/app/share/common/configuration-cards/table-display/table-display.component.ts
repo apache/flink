@@ -16,23 +16,20 @@
  * limitations under the License.
  */
 
-import { InjectionToken } from '@angular/core';
+import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
 
-import { ModuleConfig } from '@flink-runtime-web/core/module-config';
-import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
+import { ClusterConfiguration } from '@flink-runtime-web/interfaces';
 
-type routerKeys = 'jobManager';
+@Component({
+  selector: 'flink-table-display',
+  templateUrl: './table-display.component.html',
+  styleUrls: ['./table-display.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class TableDisplayComponent {
+  @Input() listOfData: Array<{ key: string; value: string }> = [];
 
-export type JobManagerModuleConfig = Omit<ModuleConfig<routerKeys>, 'customComponents' | 'routerTabs'>;
+  readonly trackByKey = (_: number, node: ClusterConfiguration): string => node.key;
 
-export const JOB_MANAGER_MODULE_DEFAULT_CONFIG: Required<JobManagerModuleConfig> = {
-  editorOptions: flinkEditorOptions,
-  routerFactories: {
-    jobManager: (jobManagerName: string) => [jobManagerName]
-  }
-};
-
-export const JOB_MANAGER_MODULE_CONFIG = new InjectionToken<JobManagerModuleConfig>('job-manager-module-config', {
-  providedIn: 'root',
-  factory: () => JOB_MANAGER_MODULE_DEFAULT_CONFIG
-});
+  constructor() {}
+}

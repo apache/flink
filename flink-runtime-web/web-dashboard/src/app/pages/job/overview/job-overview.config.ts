@@ -38,6 +38,16 @@ export type JobOverviewModuleConfig = Omit<
 >;
 
 export const JOB_OVERVIEW_MODULE_DEFAULT_CONFIG: Required<JobOverviewModuleConfig> = {
+  routerTabs: [
+    { title: 'Detail', path: 'detail' },
+    { title: 'SubTasks', path: 'subtasks' },
+    { title: 'TaskManagers', path: 'taskmanagers' },
+    { title: 'Watermarks', path: 'watermarks' },
+    { title: 'Accumulators', path: 'accumulators' },
+    { title: 'BackPressure', path: 'backpressure' },
+    { title: 'Metrics', path: 'metrics' },
+    { title: 'FlameGraph', path: 'flamegraph' }
+  ],
   customComponents: {
     taskManagerActionComponent: TaskmanagersTableActionComponent,
     subtaskActionComponent: SubtasksTableActionComponent,
@@ -47,7 +57,7 @@ export const JOB_OVERVIEW_MODULE_DEFAULT_CONFIG: Required<JobOverviewModuleConfi
   }
 };
 
-export const JOB_OVERVIEW_MODULE_CONFIG = new InjectionToken<JobOverviewModuleConfig>('job-manager-module-config', {
+export const JOB_OVERVIEW_MODULE_CONFIG = new InjectionToken<JobOverviewModuleConfig>('job-overview-module-config', {
   providedIn: 'root',
   factory: () => JOB_OVERVIEW_MODULE_DEFAULT_CONFIG
 });

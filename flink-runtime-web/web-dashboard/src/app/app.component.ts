@@ -35,6 +35,7 @@ export class AppComponent {
     fromEvent(window, 'online').pipe(map(() => true))
   ).pipe(startWith(true));
 
+  historyServerEnv = this.statusService.configuration.features['web-history'];
   webSubmitEnabled = this.statusService.configuration.features['web-submit'];
 
   showMessage(): void {

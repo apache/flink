@@ -16,7 +16,8 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { forkJoin, of, Subject } from 'rxjs';
 import { catchError, takeUntil } from 'rxjs/operators';
 
@@ -24,32 +25,36 @@ import { ClusterConfiguration, EnvironmentInfo } from '@flink-runtime-web/interf
 import { JobManagerService } from '@flink-runtime-web/services';
 
 @Component({
-  selector: 'flink-job-manager-configuration',
-  templateUrl: './job-manager-configuration.component.html',
-  styleUrls: ['./job-manager-configuration.component.less'],
+  selector: 'flink-cluster-config',
+  templateUrl: './cluster-config.component.html',
+  styleUrls: ['./cluster-config.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class JobManagerConfigurationComponent implements OnInit, OnDestroy {
-  listOfConfig: ClusterConfiguration[] = [];
+export class ClusterConfigComponent implements OnInit, OnDestroy {
+  jobId: string;
+  configurations: ClusterConfiguration[] = [];
   environmentInfo?: EnvironmentInfo;
   loading = true;
   private destroy$ = new Subject<void>();
 
-  readonly trackByConfig = (_: number, value: ClusterConfiguration): string => {
-    return value.key;
-  };
-
-  constructor(private readonly jobManagerService: JobManagerService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private activatedRoute: ActivatedRoute,
+    private jobManagerService: JobManagerService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
+    this.jobId = this.activatedRoute.parent!.snapshot.params.jid;
     forkJoin([
-      this.jobManagerService.loadConfig().pipe(catchError(() => of([] as ClusterConfiguration[]))),
-      this.jobManagerService.loadEnvironment().pipe(catchError(() => of(undefined)))
+      this.jobManagerService
+        .loadHistoryServerConfig(this.jobId)
+        .pipe(catchError(() => of([] as ClusterConfiguration[]))),
+      this.jobManagerService.loadHistoryServerEnvironment(this.jobId).pipe(catchError(() => of(undefined)))
     ])
       .pipe(takeUntil(this.destroy$))
       .subscribe(([config, env]) => {
         this.loading = false;
-        this.listOfConfig = config.sort((pre, next) => (pre.key > next.key ? 1 : -1));
+        this.configurations = config.sort((pre, next) => (pre.key > next.key ? 1 : -1));
         this.environmentInfo = env;
         this.cdr.markForCheck();
       });

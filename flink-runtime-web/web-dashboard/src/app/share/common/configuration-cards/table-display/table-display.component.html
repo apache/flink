@@ -16,8 +16,23 @@
   ~ limitations under the License.
   -->
 
-<flink-configuration-cards
-  [configurations]="listOfConfig"
-  [environmentInfo]="environmentInfo"
-  [loading]="loading"
-></flink-configuration-cards>
+<nz-table
+  [nzData]="listOfData"
+  [nzSize]="'small'"
+  [nzFrontPagination]="false"
+  [nzShowPagination]="false"
+  [nzVirtualItemSize]="36"
+  [nzVirtualMaxBufferPx]="300"
+  [nzVirtualMinBufferPx]="300"
+  [nzVirtualForTrackBy]="trackByKey"
+  [nzScroll]="{ y: '200px' }"
+>
+  <tbody>
+    <tr *ngFor="let config of listOfData">
+      <td>
+        <strong>{{ config.key }}</strong>
+      </td>
+      <td class="td-value" [attr.title]="config.value">{{ config.value }}</td>
+    </tr>
+  </tbody>
+</nz-table>
