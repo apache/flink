@@ -38,9 +38,7 @@ import java.util.regex.Pattern;
  * </ol>
  *
  * <p>The KafkaSubscriber provides a unified interface for the Kafka source to support all these
- * three types of subscribing mode. {@link
- * org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumerator} only supports adding
- * new splits and not removing splits in split discovery.
+ * three types of subscribing mode.
  */
 @PublicEvolving
 public interface KafkaSubscriber extends Serializable {

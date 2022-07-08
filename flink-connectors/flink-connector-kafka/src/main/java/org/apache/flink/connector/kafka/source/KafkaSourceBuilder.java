@@ -185,14 +185,14 @@ public class KafkaSourceBuilder<OUT> {
     }
 
     /**
-     * Set the Kafka subscriber to use to discover new splits.
+     * Set a custom Kafka subscriber to use to discover new splits.
      *
      * @param kafkaSubscriber the {@link KafkaSubscriber} to use for split discovery.
      * @return this KafkaSourceBuilder.
      */
     public KafkaSourceBuilder<OUT> setKafkaSubscriber(KafkaSubscriber kafkaSubscriber) {
-        ensureSubscriberIsNull("subscriber");
-        this.subscriber = kafkaSubscriber;
+        ensureSubscriberIsNull("custom");
+        this.subscriber = checkNotNull(kafkaSubscriber);
         return this;
     }
 
