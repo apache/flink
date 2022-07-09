@@ -314,7 +314,6 @@ See the [History Server Docs]({{< ref "docs/deployment/advanced/historyserver" >
 ### Pipeline
 
 {{< generated/pipeline_configuration >}}
-{{< generated/stream_pipeline_configuration >}}
 
 ### Checkpointing
 
