@@ -18,15 +18,13 @@
 
 package org.apache.flink.testutils.junit.extensions.parameterized;
 
-import org.junit.runners.Parameterized;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * The annotation is used to replace {@link Parameterized.Parameters} for Junit 5 parameterized
+ * The annotation is used to replace Parameterized.Parameters(Junit4) for Junit 5 parameterized
  * tests.
  */
 @Retention(RetentionPolicy.RUNTIME)

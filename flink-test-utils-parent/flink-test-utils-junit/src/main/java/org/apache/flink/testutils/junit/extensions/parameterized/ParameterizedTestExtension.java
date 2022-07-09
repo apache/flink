@@ -29,7 +29,6 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import org.junit.platform.commons.support.AnnotationSupport;
 import org.junit.platform.commons.support.HierarchyTraversalMode;
-import org.junit.runners.Parameterized;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -42,8 +41,8 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- * This extension is used to implement parameterized tests for Junit 5 to replace {@link
- * Parameterized}.
+ * This extension is used to implement parameterized tests for Junit 5 to replace Parameterized in
+ * Junit4.
  *
  * <p>When use this extension, all tests must be annotated by {@link TestTemplate}.
  */
@@ -53,6 +52,7 @@ public class ParameterizedTestExtension implements TestTemplateInvocationContext
             ExtensionContext.Namespace.create("parameterized");
     private static final String PARAMETERS_STORE_KEY = "parameters";
     private static final String PARAMETER_FIELD_STORE_KEY_PREFIX = "parameterField_";
+    private static final String INDEX_TEMPLATE = "{index}";
 
     @Override
     public boolean supportsTestTemplate(ExtensionContext context) {
@@ -76,13 +76,14 @@ public class ParameterizedTestExtension implements TestTemplateInvocationContext
             throw new IllegalStateException("Multiple parameter providers are found");
         }
 
+        Method parameterProvider = parameterProviders.get(0);
         // Get potential test name
-        String testNameTemplate = parameterProviders.get(0).getAnnotation(Parameters.class).name();
+        String testNameTemplate = parameterProvider.getAnnotation(Parameters.class).name();
 
         // Get parameter values
         final Object parameterValues;
         try {
-            parameterValues = parameterProviders.get(0).invoke(null);
+            parameterValues = parameterProvider.invoke(null);
             context.getStore(NAMESPACE).put(PARAMETERS_STORE_KEY, parameterValues);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to invoke parameter provider", e);
@@ -116,7 +117,7 @@ public class ParameterizedTestExtension implements TestTemplateInvocationContext
         throw new IllegalStateException(
                 String.format(
                         "Return type of @Parameters annotated method \"%s\" should be either Object[][] or Collection",
-                        parameterProviders.get(0)));
+                        parameterProvider));
     }
 
     private static class FieldInjectingInvocationContext implements TestTemplateInvocationContext {
@@ -131,7 +132,7 @@ public class ParameterizedTestExtension implements TestTemplateInvocationContext
 
         @Override
         public String getDisplayName(int invocationIndex) {
-            if (testNameTemplate.equals("{index}")) {
+            if (INDEX_TEMPLATE.equals(testNameTemplate)) {
                 return TestTemplateInvocationContext.super.getDisplayName(invocationIndex);
             } else {
                 return MessageFormat.format(testNameTemplate, parameterValues);
@@ -175,7 +176,7 @@ public class ParameterizedTestExtension implements TestTemplateInvocationContext
 
         @Override
         public String getDisplayName(int invocationIndex) {
-            if (testNameTemplate.equals("{index}")) {
+            if (INDEX_TEMPLATE.equals(testNameTemplate)) {
                 return TestTemplateInvocationContext.super.getDisplayName(invocationIndex);
             } else {
                 return MessageFormat.format(testNameTemplate, parameterValues);

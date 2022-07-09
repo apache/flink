@@ -22,18 +22,17 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.FileAttribute;
 
-/** The utils contains some methods same as {@link org.junit.rules.TemporaryFolder}. */
+/** The utils contains some methods same as org.junit.rules.TemporaryFolder in Junit4. */
 public class TempDirUtils {
     private static final String TMP_PREFIX = "junit";
 
     public static File newFolder(Path path) throws IOException {
         Path tempPath;
         if (path != null) {
-            tempPath = Files.createTempDirectory(path, TMP_PREFIX, new FileAttribute[0]);
+            tempPath = Files.createTempDirectory(path, TMP_PREFIX);
         } else {
-            tempPath = Files.createTempDirectory(TMP_PREFIX, new FileAttribute[0]);
+            tempPath = Files.createTempDirectory(TMP_PREFIX);
         }
         return tempPath.toFile();
     }
@@ -54,7 +53,8 @@ public class TempDirUtils {
         File root = base.toFile();
         for (String path : paths) {
             if (new File(path).isAbsolute()) {
-                throw new IOException("folder path \'" + path + "\' is not a relative path");
+                throw new IOException(
+                        String.format("folder path '%s' is not a relative path", path));
             }
         }
 
@@ -69,18 +69,20 @@ public class TempDirUtils {
             if (!lastMkdirsCallSuccessful && !file.isDirectory()) {
                 if (file.exists()) {
                     throw new IOException(
-                            "a file with the path \'" + relativePath.getPath() + "\' exists");
+                            String.format(
+                                    "a file with the path '%s' exists", relativePath.getPath()));
                 } else {
                     throw new IOException(
-                            "could not create a folder with the path \'"
-                                    + relativePath.getPath()
-                                    + "\'");
+                            String.format(
+                                    "could not create a folder with the path: '%s'",
+                                    relativePath.getPath()));
                 }
             }
         }
         if (!lastMkdirsCallSuccessful) {
             throw new IOException(
-                    "a folder with the path \'" + relativePath.getPath() + "\' already exists");
+                    String.format(
+                            "a folder with the path '%s' already exists", relativePath.getPath()));
         }
         return file;
     }
@@ -89,7 +91,9 @@ public class TempDirUtils {
         File file = new File(folder.toFile(), fileName);
         if (!file.createNewFile()) {
             throw new IOException(
-                    "a file with the name \'" + fileName + "\' already exists in the test folder");
+                    String.format(
+                            "a file with the name '%s' already exists in the test folder",
+                            fileName));
         }
         return file;
     }
