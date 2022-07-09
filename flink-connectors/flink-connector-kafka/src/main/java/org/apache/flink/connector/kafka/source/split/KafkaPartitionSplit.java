@@ -79,7 +79,7 @@ public class KafkaPartitionSplit implements SourceSplit {
     }
 
     public Optional<Long> getStoppingOffset() {
-        return stoppingOffset > 0
+        return stoppingOffset >= 0
                         || stoppingOffset == LATEST_OFFSET
                         || stoppingOffset == COMMITTED_OFFSET
                 ? Optional.of(stoppingOffset)
