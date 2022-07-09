@@ -111,7 +111,7 @@ public class SubtaskCheckpointCoordinatorTest {
         }
 
         MockWriter writer = new MockWriter();
-        SubtaskCheckpointCoordinator coordinator = coordinator(unalignedCheckpointEnabled, writer);
+        SubtaskCheckpointCoordinator coordinator = coordinator(writer);
         CheckpointStorageLocationReference locationReference =
                 CheckpointStorageLocationReference.getDefault();
         coordinator.initInputsCheckpoint(
@@ -730,8 +730,7 @@ public class SubtaskCheckpointCoordinatorTest {
         public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {}
     }
 
-    private static SubtaskCheckpointCoordinator coordinator(
-            boolean unalignedCheckpointEnabled, ChannelStateWriter channelStateWriter)
+    private static SubtaskCheckpointCoordinator coordinator(ChannelStateWriter channelStateWriter)
             throws IOException {
         return new SubtaskCheckpointCoordinatorImpl(
                 new TestCheckpointStorageWorkerView(100),
