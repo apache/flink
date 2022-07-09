@@ -2203,3 +2203,81 @@ SqlNode TryCastFunctionCall() :
         return operator.createCall(s.end(this), args);
     }
 }
+
+/**
+* Parses a partition key/value,
+* e.g. p or p = '10'.
+*/
+SqlPair PartitionKeyValuePair():
+{
+    SqlIdentifier key;
+    SqlNode value = null;
+    SqlParserPos pos;
+}
+{
+    key = SimpleIdentifier() { pos = getPos(); }
+    [
+        LOOKAHEAD(1)
+        <EQ> value = Literal()
+    ]
+    {
+           return new SqlPair(key, value, pos);
+    }
+}
+
+/**
+* Parses a partition specifications statement,
+* e.g. ANALYZE TABLE tbl1 partition(col1='val1', col2='val2') xxx
+* or
+* ANALYZE TABLE tbl1 partition(col1, col2) xxx.
+*/
+void ExtendedPartitionSpecCommaList(SqlNodeList list) :
+{
+    SqlPair keyValuePair;
+}
+{
+    <LPAREN>
+    keyValuePair = PartitionKeyValuePair()
+    {
+       list.add(keyValuePair);
+    }
+    (
+        <COMMA> keyValuePair = PartitionKeyValuePair()
+        {
+            list.add(keyValuePair);
+        }
+    )*
+    <RPAREN>
+}
+
+/** Parses an ANALYZE TABLE statement. */
+SqlNode SqlAnalyzeTable():
+{
+       Span s;
+       SqlIdentifier tableName;
+       SqlNodeList partitionSpec = null;
+       SqlNodeList columns = null;
+       boolean allColumns = false;
+}
+{
+    <ANALYZE> <TABLE> { s = span(); }
+    tableName = CompoundIdentifier()
+    [
+        <PARTITION> {
+            partitionSpec = new SqlNodeList(getPos());
+            ExtendedPartitionSpecCommaList(partitionSpec);
+        }
+    ]
+
+    <COMPUTE> <STATISTICS> [
+        (
+           LOOKAHEAD(2) <FOR> <COLUMNS> { columns = ParenthesizedSimpleIdentifierList(); }
+        |
+           LOOKAHEAD(3) <FOR> <ALL> <COLUMNS> { allColumns = true; }
+        )
+    ]
+
+    {
+        return new SqlAnalyzeTable(s.end(this), tableName, partitionSpec, columns, allColumns);
+    }
+}
