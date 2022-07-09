@@ -73,6 +73,7 @@ public class KafkaPartitionSplitReaderTest {
     private static final int NUM_SUBTASKS = 3;
     private static final String TOPIC1 = "topic1";
     private static final String TOPIC2 = "topic2";
+    private static final String TOPIC3 = "topic3";
 
     private static Map<Integer, Map<String, KafkaPartitionSplit>> splitsByOwners;
     private static Map<TopicPartition, Long> earliestOffsets;
@@ -84,6 +85,7 @@ public class KafkaPartitionSplitReaderTest {
         KafkaSourceTestEnv.setup();
         KafkaSourceTestEnv.setupTopic(TOPIC1, true, true, KafkaSourceTestEnv::getRecordsForTopic);
         KafkaSourceTestEnv.setupTopic(TOPIC2, true, true, KafkaSourceTestEnv::getRecordsForTopic);
+        KafkaSourceTestEnv.createTestTopic(TOPIC3);
         splitsByOwners =
                 KafkaSourceTestEnv.getSplitsByOwners(Arrays.asList(TOPIC1, TOPIC2), NUM_SUBTASKS);
         earliestOffsets =
@@ -245,11 +247,18 @@ public class KafkaPartitionSplitReaderTest {
                         new TopicPartition(TOPIC2, 0),
                         KafkaPartitionSplit.LATEST_OFFSET,
                         KafkaPartitionSplit.LATEST_OFFSET);
-        reader.handleSplitsChanges(new SplitsAddition<>(Arrays.asList(normalSplit, emptySplit)));
+        final KafkaPartitionSplit emptySplitWithZeroStoppingOffset =
+                new KafkaPartitionSplit(new TopicPartition(TOPIC3, 0), 0, 0);
+
+        reader.handleSplitsChanges(
+                new SplitsAddition<>(
+                        Arrays.asList(normalSplit, emptySplit, emptySplitWithZeroStoppingOffset)));
 
         // Fetch and check empty splits is added to finished splits
         RecordsWithSplitIds<ConsumerRecord<byte[], byte[]>> recordsWithSplitIds = reader.fetch();
         assertThat(recordsWithSplitIds.finishedSplits()).contains(emptySplit.splitId());
+        assertThat(recordsWithSplitIds.finishedSplits())
+                .contains(emptySplitWithZeroStoppingOffset.splitId());
 
         // Assign another valid split to avoid consumer.poll() blocking
         final KafkaPartitionSplit anotherNormalSplit =
