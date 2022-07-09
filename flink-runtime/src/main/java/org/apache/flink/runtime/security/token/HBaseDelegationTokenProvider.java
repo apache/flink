@@ -48,11 +48,11 @@ public class HBaseDelegationTokenProvider implements DelegationTokenProvider {
 
     @Override
     public void init(Configuration configuration) throws Exception {
-        getHBaseConfiguration(configuration);
+        hbaseConf = getHBaseConfiguration(configuration);
     }
 
-    private void getHBaseConfiguration(Configuration conf) {
-        hbaseConf = null;
+    private org.apache.hadoop.conf.Configuration getHBaseConfiguration(Configuration conf) {
+        org.apache.hadoop.conf.Configuration hbaseConf = null;
         try {
             org.apache.hadoop.conf.Configuration hadoopConf =
                     HadoopUtils.getHadoopConfiguration(conf);
@@ -66,14 +66,15 @@ public class HBaseDelegationTokenProvider implements DelegationTokenProvider {
             // ----
 
         } catch (InvocationTargetException
-                 | NoSuchMethodException
-                 | IllegalAccessException
-                 | ClassNotFoundException e) {
+                | NoSuchMethodException
+                | IllegalAccessException
+                | ClassNotFoundException e) {
             LOG.info(
                     "HBase is not available (not packaged with this application): {} : \"{}\".",
                     e.getClass().getSimpleName(),
                     e.getMessage());
         }
+        return hbaseConf;
     }
 
     @Override
@@ -142,10 +143,10 @@ public class HBaseDelegationTokenProvider implements DelegationTokenProvider {
                 LOG.info("Added HBase Kerberos security token to credentials.");
             }
         } catch (ClassNotFoundException
-                 | NoSuchMethodException
-                 | IllegalAccessException
-                 | InvocationTargetException
-                 | IOException e) {
+                | NoSuchMethodException
+                | IllegalAccessException
+                | InvocationTargetException
+                | IOException e) {
             LOG.info(
                     "HBase is not available (failed to obtain delegation tokens): {} : \"{}\".",
                     e.getClass().getSimpleName(),
