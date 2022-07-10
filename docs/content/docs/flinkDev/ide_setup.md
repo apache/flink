@@ -62,7 +62,7 @@ git config blame.ignoreRevsFile .git-blame-ignore-revs
 ## IntelliJ IDEA
 
 The following guide has been written for [IntelliJ IDEA](https://www.jetbrains.com/idea/download/)
-2020.3. Some details might differ in other versions. Please make sure to follow all steps
+2021.2. Some details might differ in other versions. Please make sure to follow all steps
 accurately.
 
 ### Importing Flink
@@ -144,16 +144,15 @@ It is recommended to automatically format your code by applying the following se
 3. Change the code style to "Android Open Source Project (AOSP) style".
 4. Go to "Settings" → Editor → Code Style → Scala.
 5. Change the "Formatter" to "scalafmt".
+6. Go to "Settings" → "Tools" → "Actions on Save".
+7. Under "Formatting Actions", select "Optimize imports" and "Reformat file".
+8. From the "All file types list" next to "Reformat code", select Java and Scala.
+
+For earlier IntelliJ IDEA versions:
 6. Go to "Settings" → "Other Settings" → "Save Actions".
 7. Under "General", enable your preferred settings for when to format the code, e.g. "Activate save actions on save".
 8. Under "Formatting Actions", select "Optimize imports" and "Reformat file".
 9. Under "File Path Inclusions", add an entry for `.*\.java` and `.*\.scala` to avoid formatting other file types.
-
-For IntelliJ IDEA version > 2021.2:
-
-6. Go to "Settings" → "Tools" → "Actions on Save".
-7. Under "Formatting Actions", select "Optimize imports" and "Reformat file".
-8. From the "All file types list" next to "Reformat code", select Java and Scala.
 
 You can also format the whole project (both Java and Scala) via Maven by using `mvn spotless:apply`.
 
