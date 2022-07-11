@@ -352,7 +352,7 @@ Flink SQL> INSERT OVERWRITE myparttable SELECT 'Tom', 25, 'type_1', '2019-08-08'
 Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1') SELECT 'Tom', 25, '2019-08-08';
 ```
 
-`STREAMING` 模式会不断的往 Hive 中添加新数据，逐步提交记录使它们可见。用户可以通过几个属性控制如何触发提交。Insert overwrite 不支持 streaming write。
+流写会不断的往 Hive 中添加新数据，提交记录使它们可见。用户可以通过几个属性控制如何触发提交。流写不支持 `Insert overwrite` 。
 
 下面的案例演示编写 streaming 查询并使用 streaming sink 写入 Hive table 执行分区提交。并运行批处理将查询的数据读出来。
 
