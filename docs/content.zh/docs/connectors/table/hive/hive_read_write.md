@@ -139,7 +139,7 @@ Flink 允许你灵活的配置 parallelism inference 策略。你可以在 `Tabl
         <td><h5>table.exec.hive.infer-source-parallelism</h5></td>
         <td style="word-wrap: break-word;">true</td>
         <td>Boolean</td>
-        <td>如果是 true，会根据拆分数推断 source parallelism。如果是 false，source parallelism 由配置决定。</td>
+        <td>如果是 true，会根据 split 的数量推断 source 的并发度。如果是 false，source 的并发度 由配置决定。</td>
     </tr>
     <tr>
         <td><h5>table.exec.hive.infer-source-parallelism.max</h5></td>
