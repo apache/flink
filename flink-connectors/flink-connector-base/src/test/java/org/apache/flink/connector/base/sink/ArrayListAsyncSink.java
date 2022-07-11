@@ -20,6 +20,8 @@ package org.apache.flink.connector.base.sink;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriterStateSerializer;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
+import org.apache.flink.connector.base.sink.writer.strategy.AIMDScalingStrategy;
+import org.apache.flink.connector.base.sink.writer.strategy.CongestionControlRateLimitingStrategy;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.DataInputStream;
@@ -27,6 +29,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -61,11 +64,21 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
                 getElementConverter(),
                 context,
                 getMaxBatchSize(),
-                getMaxInFlightRequests(),
                 getMaxBufferedRequests(),
                 getMaxBatchSizeInBytes(),
                 getMaxTimeInBufferMS(),
-                getMaxRecordSizeInBytes()) {
+                getMaxRecordSizeInBytes(),
+                Collections.emptyList(),
+                CongestionControlRateLimitingStrategy.builder()
+                        .setInitialMaxInFlightMessages(getMaxBatchSize() * getMaxInFlightRequests())
+                        .setMaxInFlightRequests(getMaxInFlightRequests())
+                        .setAimdScalingStrategy(
+                                AIMDScalingStrategy.builder()
+                                        .setIncreaseRate(getMaxBatchSize())
+                                        .setRateThreshold(
+                                                getMaxBatchSize() * getMaxInFlightRequests())
+                                        .build())
+                        .build()) {
 
             @Override
             protected void submitRequestEntries(
