@@ -96,7 +96,7 @@ FROM hive_table
 - 监控策略是扫描当前位置路径中的所有目录/文件，分区太多可能导致性能下降。
 - 流读非分区表时要求每个文件应原子地写入目标目录。
 - 流读分区表要求每个分区应该被原子地添加进 Hive metastore 中。如果不是的话，只有添加到现有分区的新数据会被消费。 
-- Streaming 读取不支持Flink DDL的水位线语法。这些表不能被用于 window operators。
+- 流读 Hive 表不支持Flink DDL 的 watermark 语法。这些表不能被用于窗口算子。
 
 ### 读取 Hive Views
 
