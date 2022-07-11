@@ -494,7 +494,7 @@ public final class MinWithRetractAggFunctionTest {
 
     /** Test base for {@link MinWithRetractAggFunction}. */
     public abstract static class MinWithRetractAggFunctionTestBase<T>
-            extends AggFunctionTestBase<T, MinWithRetractAccumulator<T>> {
+            extends AggFunctionTestBase<T, T, MinWithRetractAccumulator<T>> {
 
         @Override
         protected Class<?> getAccClass() {
