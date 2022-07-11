@@ -48,7 +48,7 @@ public final class DecimalData implements Comparable<DecimalData> {
     static final int MAX_INT_DIGITS = 9;
 
     /** Maximum number of decimal digits a Long can represent. (1e18 < Long.MaxValue < 1e19) */
-    static final int MAX_LONG_DIGITS = 18;
+    public static final int MAX_LONG_DIGITS = 18;
 
     static final long[] POW10 = new long[MAX_COMPACT_PRECISION + 1];
 
