@@ -111,7 +111,7 @@ Flink 能够读取 Hive 中已经定义的视图。但是也有一些限制：
 当满足以下条件时，Flink会自动对Hive table进行向量化读取:
 
 - 格式：ORC 或者 Parquet。
-- 没有复杂类型的列，像hive类型：List，Map，Struct，Union。
+- 没有复杂类型的列，比如 Hive 列类型：List，Map，Struct，Union。
 
 该特性默认开启， 可以使用以下配置禁用它。
 
