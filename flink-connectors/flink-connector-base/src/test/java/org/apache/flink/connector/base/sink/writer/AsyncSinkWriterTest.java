@@ -19,6 +19,9 @@ package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
+import org.apache.flink.connector.base.sink.writer.strategy.AIMDScalingStrategy;
+import org.apache.flink.connector.base.sink.writer.strategy.CongestionControlRateLimitingStrategy;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -1023,12 +1026,25 @@ public class AsyncSinkWriterTest {
             super(
                     (elem, ctx) -> Integer.parseInt(elem),
                     context,
-                    maxBatchSize,
-                    maxInFlightRequests,
-                    maxBufferedRequests,
-                    maxBatchSizeInBytes,
-                    maxTimeInBufferMS,
-                    maxRecordSizeInBytes,
+                    AsyncSinkWriterConfiguration.builder()
+                            .setMaxBatchSize(maxBatchSize)
+                            .setMaxBatchSizeInBytes(maxBatchSizeInBytes)
+                            .setMaxInFlightRequests(maxInFlightRequests)
+                            .setMaxBufferedRequests(maxBufferedRequests)
+                            .setMaxTimeInBufferMS(maxTimeInBufferMS)
+                            .setMaxRecordSizeInBytes(maxRecordSizeInBytes)
+                            .setRateLimitingStrategy(
+                                    CongestionControlRateLimitingStrategy.builder()
+                                            .setInitialMaxInFlightMessages(
+                                                    maxBatchSize * maxInFlightRequests)
+                                            .setMaxInFlightRequests(maxInFlightRequests)
+                                            .setScalingStrategy(
+                                                    AIMDScalingStrategy.builder(
+                                                                    maxBatchSize
+                                                                            * maxInFlightRequests)
+                                                            .build())
+                                            .build())
+                            .build(),
                     bufferedState);
             this.simulateFailures = simulateFailures;
             this.delay = delay;
