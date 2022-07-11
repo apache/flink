@@ -224,6 +224,7 @@ class TableSourceITCase extends BatchTestBase {
          |  `f` FLOAT,
          |  `g` DOUBLE,
          |  `h` DECIMAL(5, 2),
+         |  `x` DECIMAL(30, 10),
          |  `i` VARCHAR(5),
          |  `j` CHAR(5),
          |  `k` DATE,
@@ -253,6 +254,7 @@ class TableSourceITCase extends BatchTestBase {
           "-1.123",
           "-1.123",
           "5.10",
+          "1234567891012345.1000000000",
           1,
           1,
           "1969-01-01",
@@ -272,6 +274,7 @@ class TableSourceITCase extends BatchTestBase {
           "3.4",
           "3.4",
           "6.10",
+          "61234567891012345.1000000000",
           12,
           12,
           "1970-09-30",
@@ -291,6 +294,7 @@ class TableSourceITCase extends BatchTestBase {
           "0.12",
           "0.12",
           "7.10",
+          "71234567891012345.1000000000",
           123,
           123,
           "1990-12-24",
@@ -310,6 +314,7 @@ class TableSourceITCase extends BatchTestBase {
           "1.2345",
           "1.2345",
           "8.12",
+          "812345678910123451.0123456789",
           1234,
           1234,
           "2020-05-01",
@@ -321,7 +326,7 @@ class TableSourceITCase extends BatchTestBase {
           "{null=3}"
         ),
         row(null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-          null, null, null)
+          null, null, null, null)
       )
     )
   }
