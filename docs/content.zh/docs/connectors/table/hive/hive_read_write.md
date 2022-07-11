@@ -260,7 +260,7 @@ ON o.product_id = dim.product_id;
 最新版本的表保留了Hive table 的所有数据。
 
 当执行 temporal join 最新的 Hive table，Hive table 会缓存到 Slot 内存中，并且 stream 中的每条记录通过 key 去关联表找到对应的匹配项。
-使用最新的 Hive table 作为 temporal table 不需要额外的配置。可选项，您可以使用以下属性配置 Hive table 缓存的 TTL。当缓存失效，Hive table 会重新扫描并加载最新的数据。
+使用最新的 Hive table 作为 temporal table 不需要额外的配置。作为可选项，您可以使用以下配置项配置 Hive 表 缓存的 TTL。当缓存失效，Hive table 会重新扫描并加载最新的数据。
 
 <table class="table table-bordered">
   <thead>
