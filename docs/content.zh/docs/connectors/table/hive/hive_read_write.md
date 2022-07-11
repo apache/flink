@@ -123,7 +123,7 @@ table.exec.hive.fallback-mapred-reader=true
 
 默认情况下，Flink 会基于文件的数量，以及每个文件中块的数量推断出读取 Hive 的最佳并行度。
 
-Flink 允许你灵活的配置 parallelism inference 策略。你可以在`TableConfig`中配置以下参数(注意这些参数会影响当前 job 的所有source)：
+Flink 允许你灵活的配置 parallelism inference 策略。你可以在 `TableConfig` 中配置以下参数(注意这些参数会影响当前作业的所有 source )：
 
 <table class="table table-bordered">
   <thead>
