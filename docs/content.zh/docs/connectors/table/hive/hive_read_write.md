@@ -38,7 +38,7 @@ Flink支持`BATCH`和`STREAM`两种模式从 Hive table 中读取数据。当作
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 20%">键</th>
         <th class="text-left" style="width: 15%">默认值</th>
         <th class="text-left" style="width: 10%">类型</th>
         <th class="text-left" style="width: 55%">描述</th>
