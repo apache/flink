@@ -27,11 +27,11 @@ under the License.
 
 # Hive 读 & 写
 
-通过使用 `HiveCatalog`，Apache Flink 可以对Apache Hive 表做统一的批和流处理。这意味着 Flink 可以成为 Hive 批处理引擎的一个性能更好的选择，或者连续读写 Hive table 中的数据以支持为实时数据仓库应用。
+通过使用 `HiveCatalog`，Apache Flink 可以对 Apache Hive 表做统一的批和流处理。这意味着 Flink 可以成为 Hive 批处理引擎的一个性能更好的选择，或者连续读写 Hive 表中的数据以支持为实时数据仓库应用。
 
 ## 读
 
-Flink支持以批和流两种模式从 Hive 表中读取数据。批读的时候，Flink 会基于执行查询时表的状态进行查询。流读时将持续监视表，并在表中新数据可用时进行增量获取，默认情况下，Flink 将以批模式读取数据。
+Flink 支持以批和流两种模式从 Hive 表中读取数据。批读的时候，Flink 会基于执行查询时表的状态进行查询。流读时将持续监控表，并在表中新数据可用时进行增量获取，默认情况下，Flink 将以批模式读取数据。
 
 流读支持消费分区表和非分区表。对于分区表，Flink 会监控新分区的生成，并且在数据可用的情况下增量获取数据。对于非分区表，Flink 将监控文件夹中新文件的生成，并增量地读取新文件。
 
@@ -55,7 +55,7 @@ Flink支持以批和流两种模式从 Hive 表中读取数据。批读的时候
         <td><h5>streaming-source.partition.include</h5></td>
         <td style="word-wrap: break-word;">all</td>
         <td>String</td>
-        <td>选择读取的分区，可选项为 `all` 和 `latest`，`all` 读取所有分区；`latest` 读取按照 'streaming-source.partition.order' 排序后的最新分区，`latest` 仅在 streaming 模式的 hive source table 作为 temporal table 时有效。默认的选项是`all`。在开启 'streaming-source.enable' 并设置 'streaming-source.partition.include' 为 'latest' 时，Flink 支持 temporal join 最新的hive分区，同时，用户可以通过配置分区相关的选项来分配分区比较顺序和数据更新时间间隔。 
+        <td>选择读取的分区，可选项为 `all` 和 `latest`，`all` 读取所有分区；`latest` 读取按照 'streaming-source.partition.order' 排序后的最新分区，`latest` 仅在 streaming 模式的 hive source table 作为时态表时有效。默认的选项是`all`。在开启 'streaming-source.enable' 并设置 'streaming-source.partition.include' 为 'latest' 时，Flink 支持 temporal join 最新的hive分区，同时，用户可以通过配置分区相关的选项来分配分区比较顺序和数据更新时间间隔。 
         </td>
     </tr>     
     <tr>
@@ -102,7 +102,7 @@ FROM hive_table
 
 Flink 能够读取 Hive 中已经定义的视图。但是也有一些限制：
 
-1) Hive catalog 必须设置成当前的 catalog 才能查询视图。在Table API中使用 `tableEnv.useCatalog(...)`，或者在SQL客户端使用`USE CATALOG ...`来改变当前catalog。
+1) Hive catalog 必须设置成当前的 catalog 才能查询视图。在 Table API 中使用 `tableEnv.useCatalog(...)`，或者在 SQL 客户端使用`USE CATALOG ...`来改变当前catalog。
 
 2) Hive 和 Flink SQL 的语法不同, 比如不同的关键字和字面值。确保查询视图与 Flink 语法兼容。
 
@@ -119,11 +119,11 @@ Flink 能够读取 Hive 中已经定义的视图。但是也有一些限制：
 table.exec.hive.fallback-mapred-reader=true
 ```
 
-### Source 并发 推断
+### Source 并发推断
 
 默认情况下，Flink 会基于文件的数量，以及每个文件中块的数量推断出读取 Hive 的最佳并行度。
 
-Flink 允许你灵活的配置 parallelism inference 策略。你可以在 `TableConfig` 中配置以下参数(注意这些参数会影响当前作业的所有 source )：
+Flink 允许你灵活的配置并发推断策略。你可以在 `TableConfig` 中配置以下参数(注意这些参数会影响当前作业的所有 source )：
 
 <table class="table table-bordered">
   <thead>
@@ -139,7 +139,7 @@ Flink 允许你灵活的配置 parallelism inference 策略。你可以在 `Tabl
         <td><h5>table.exec.hive.infer-source-parallelism</h5></td>
         <td style="word-wrap: break-word;">true</td>
         <td>Boolean</td>
-        <td>如果是 true，会根据 split 的数量推断 source 的并发度。如果是 false，source 的并发度 由配置决定。</td>
+        <td>如果是 true，会根据 split 的数量推断 source 的并发度。如果是 false，source 的并发度由配置决定。</td>
     </tr>
     <tr>
         <td><h5>table.exec.hive.infer-source-parallelism.max</h5></td>
@@ -154,45 +154,45 @@ Flink 允许你灵活的配置 parallelism inference 策略。你可以在 `Tabl
 
 Flink 使用多个线程并发将 Hive 分区切分成多个 split 进行读取。你可以使用 `table.exec.hive.load-partition-splits.thread-num` 去配置线程数。默认值是3，你配置的值应该大于0。
 
-### Read Partition With Subdirectory
+### 读取带有子目录的分区
 
-In some case, you may create an external table referring another table, but the partition columns is a subset of the referred table.
-For example, you have a partitioned table `fact_tz` with partition `day` and `hour`:
+在某些情况下，你可以创建一个引用其他表的外部表，但是该表的分区列是另一张表分区字段的子集。
+比如，你创建了一个分区表 `fact_tz` ，分区字段是 `day` 和 `hour` ：
 
 ```sql
 CREATE TABLE fact_tz(x int) PARTITIONED BY (day STRING, hour STRING);
 ```
 
-And you have an external table `fact_daily` referring to table `fact_tz` with a coarse-grained partition `day`:
+当你使用 `fact_tz` 表创建了一个外部表 `fact_daily` ，并使用了一个粗粒度的分区字段 `day`：
 
 ```sql
 CREATE EXTERNAL TABLE fact_daily(x int) PARTITIONED BY (ds STRING) LOCATION '/path/to/fact_tz';
 ```
 
-Then when reading the external table `fact_daily`, there will be sub-directories (`hour=1` to `hour=24`) in the partition directory of the table.
+当读取外部表 `fact_daily` 时，该表的分区目录下存在子目录(`hour=1` 到 `hour=24`)。
 
-By default, you can add partition with sub-directories to the external table. Flink SQL can recursively scan all sub-directories and fetch all the data from all sub-directories.
+默认情况下，可以将带有子目录的分区添加到外部表中。Flink SQL 会递归扫描所有的子目录，并获取所有子目录中数据。
 
 ```sql
 ALTER TABLE fact_daily ADD PARTITION (ds='2022-07-07') location '/path/to/fact_tz/ds=2022-07-07';
 ```
 
-You can set job configuration `table.exec.hive.read-partition-with-subdirectory.enabled` (`true` by default) to `false` to disallow Flink to read the sub-directories.
-If the configuration is `false` and the directory does not contain files, rather consists of sub directories Flink blows up with the exception: `java.io.IOException: Not a file: /path/to/data/*`.
+你可以设置作业属性 `table.exec.hive.read-partition-with-subdirectory.enabled` (默认时 `true` ) 为 `false` 以禁止 Flink 读取子目录。
+如果你设置成 `false` 并且分区目录下不包含文件，而是由子目录组成，Flink 会抛出 `java.io.IOException: Not a file: /path/to/data/*` 异常。
 
-## Temporal Table Join
+## 时态表 Join
 
-你可以使用 Hive 表作为 temporal table，然后一个数据流就可以使用 temporal join 关联 Hive 表。
+你可以使用 Hive 表作为时态表，然后一个数据流就可以使用 temporal join 关联 Hive 表。
 请参照 [temporal join]({{< ref "docs/dev/table/sql/queries/joins" >}}#temporal-joins) 获取更多关于 temporal join 的信息。
 
-Flink 支持 processing-time temporal join Hive Table，processing-time temporal join 总是关联最新版本的 temporal table。
+Flink 支持 processing-time temporal join Hive 表，processing-time temporal join 总是关联最新版本的时态表。
 Flink 支持 temporal join Hive 的分区表和非分区表，对于分区表，Flink 支持自动跟踪 Hive 表的最新分区。
 
 **注意**: Flink 还不支持 event-time temporal join Hive 表。
 
-### Temporal Join The Latest Partition
+### Temporal Join 最新的分区
 
-对于随时变化的分区表，我们可以把它看作是一个无界流进行读取，如果每个分区包含完整数据，则分区可以作为时态表 的一个版本，时态表的版本保存分区的数据。
+对于随时变化的分区表，我们可以把它看作是一个无界流进行读取，如果每个分区包含完整数据，则分区可以作为时态表的一个版本，时态表的版本保存分区的数据。
  
 Flink 支持在使用 processing time temporal join 时自动追踪最新的分区（版本），通过 `streaming-source.partition-order` 定义最新的分区（版本）。
 用户最常使用的案例就是在 Flink 流作业中使用 Hive 表作为维度表。
@@ -261,7 +261,7 @@ ON o.product_id = dim.product_id;
 最新版本的表保留了Hive 表的所有数据。
 
 当 temporal join 最新的 Hive 表，Hive 表 会缓存到 Slot 内存中，并且 数据流中的每条记录通过 key 去关联表找到对应的匹配项。
-使用最新的 Hive table 作为 temporal table 不需要额外的配置。作为可选项，您可以使用以下配置项配置 Hive 表 缓存的 TTL。当缓存失效，Hive table 会重新扫描并加载最新的数据。
+使用最新的 Hive table 作为时态表不需要额外的配置。作为可选项，您可以使用以下配置项配置 Hive 表 缓存的 TTL。当缓存失效，Hive table 会重新扫描并加载最新的数据。
 
 <table class="table table-bordered">
   <thead>
@@ -277,13 +277,13 @@ ON o.product_id = dim.product_id;
         <td><h5>lookup.join.cache.ttl</h5></td>
         <td style="word-wrap: break-word;">60 min</td>
         <td>Duration</td>
-        <td>在 lookup join 时构建表缓存的 TTL (例如 10min)。默认的 TTL 是60分钟。注意: 该选项仅在 lookup 表为有界的 Hive 表时有效，如果你使用流式的 Hive 表 作为 temporal table，请使用 'streaming-source.monitor-interval' 去配置数据更新的间隔。
+        <td>在 lookup join 时构建表缓存的 TTL (例如 10min)。默认的 TTL 是60分钟。注意: 该选项仅在 lookup 表为有界的 Hive 表时有效，如果你使用流式的 Hive 表 作为时态表，请使用 'streaming-source.monitor-interval' 去配置数据更新的间隔。
        </td>
     </tr>
   </tbody>
 </table>
 
-下面的案例演示加载 Hive table 的所有数据作为 temporal table。
+下面的案例演示加载 Hive table 的所有数据作为时态表。
 
 ```sql
 -- 假设 Hive table 中的数据被批处理 pipeline 覆盖。
@@ -323,8 +323,8 @@ ON o.product_id = dim.product_id;
 ```
 注意: 
 
-1. 每个参与 join 的 subtask 需要在他们的缓存中保留 Hive 表。请确保 Hive table 可以放到 TM task slot 中。
-2. 建议把这两个选项配置成较大的值`streaming-source.monitor-interval`(最新的分区作为 temporal table) 和 `lookup.join.cache.ttl`(所有的分区作为 temporal table)。否则，任务会频繁更新和加载表，容易出现性能问题。
+1. 每个参与 join 的 subtask 需要在他们的缓存中保留 Hive 表。请确保 Hive 表可以放到 TM task slot 中。
+2. 建议把这两个选项配置成较大的值`streaming-source.monitor-interval`(最新的分区作为时态表) 和 `lookup.join.cache.ttl`(所有的分区作为时态表)。否则，任务会频繁更新和加载表，容易出现性能问题。
 3. 目前，缓存刷新的时候会重新加载整个Hive 表，使用没有办法区分数据是新数据还是旧数据。
 
 ## 写
