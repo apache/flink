@@ -195,7 +195,7 @@ Flink 支持 temporal join Hive 的分区表和非分区表，对于分区表，
 对于随时变化的分区表，我们可以把它看作是一个无界流进行读取，如果每个分区包含完整数据，则分区可以作为时态表 的一个版本，时态表的版本保存分区的数据。
  
 Flink 支持在使用 processing time temporal join 时自动追踪最新的分区（版本），通过 `streaming-source.partition-order` 定义最新的分区（版本）。
-用户最常使用的案例就是在 Flink stream 应用作业中使用 Hive table 作为维度表。
+用户最常使用的案例就是在 Flink 流作业中使用 Hive 表作为维度表。
 
 **注意:** 该特性仅支持 Flink `STREAMING` 模式。
 
