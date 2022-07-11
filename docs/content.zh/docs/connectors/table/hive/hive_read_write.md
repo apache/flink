@@ -63,7 +63,7 @@ Flink支持`BATCH`和`STREAM`两种模式从 Hive table 中读取数据。当作
         <td style="word-wrap: break-word;">None</td>
         <td>Duration</td>
         <td>连续监控分区/文件的时间间隔。
-            注意: 默认情况下，streaming 模式读取数据的间隔为 '1 min'，Hive streaming 模式默认 temporal join 的时间是是 '60 min'，这是因为在当前的Hive streaming temporal join 实现上，有一个框架限制，即每个TM都要访问 Hive metaStore，这可能会对metaStore产生压力，这个问题将在未来得到改善。</td>
+            注意: 默认情况下，流式读 Hive 的间隔为 '1 min'，但流读 Hive 的 temporal join 的默认时间间隔是 '60 min'，这是因为当前流读 Hive 的 temporal join 实现上有一个框架限制，即每个TM都要访问 Hive metaStore，这可能会对metaStore产生压力，这个问题将在未来得到改善。</td>
     </tr>
     <tr>
         <td><h5>streaming-source.partition-order</h5></td>
