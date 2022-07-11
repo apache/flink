@@ -30,6 +30,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
@@ -89,19 +91,26 @@ abstract class CassandraOutputFormatBase<OUT, V> extends OutputFormatBase<OUT, V
     protected static <T> CompletableFuture<T> listenableFutureToCompletableFuture(
             final ListenableFuture<T> listenableFuture) {
         CompletableFuture<T> completable = new CompletableFuture<T>();
-        Futures.addCallback(
-                listenableFuture,
-                new FutureCallback<T>() {
-                    @Override
-                    public void onSuccess(T result) {
-                        completable.complete(result);
-                    }
-
-                    @Override
-                    public void onFailure(Throwable t) {
-                        completable.completeExceptionally(t);
-                    }
-                });
+        Futures.addCallback(listenableFuture, new CompletableFutureCallback<>(completable));
         return completable;
+    }
+
+    private static class CompletableFutureCallback<T> implements FutureCallback<T> {
+
+        CompletableFuture<T> completableFuture;
+
+        public CompletableFutureCallback(CompletableFuture<T> completableFuture) {
+            this.completableFuture = completableFuture;
+        }
+
+        @Override
+        public void onSuccess(@Nullable T result) {
+            completableFuture.complete(result);
+        }
+
+        @Override
+        public void onFailure(Throwable throwable) {
+            completableFuture.completeExceptionally(throwable);
+        }
     }
 }
