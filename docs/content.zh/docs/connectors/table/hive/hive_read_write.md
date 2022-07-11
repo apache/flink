@@ -354,7 +354,7 @@ Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1') SELECT 'Tom
 
 流写会不断的往 Hive 中添加新数据，提交记录使它们可见。用户可以通过几个属性控制如何触发提交。流写不支持 `Insert overwrite` 。
 
-下面的案例演示编写 streaming 查询并使用 streaming sink 写入 Hive table 执行分区提交。并运行批处理将查询的数据读出来。
+下面的案例演示如何流式地 从 Kafka 写入 Hive 表并执行分区提交，然后运行一个批处理查询将数据读出来。
 
 请参阅 [streaming sink]({{< ref "docs/connectors/table/filesystem" >}}#streaming-sink) 获取可用配置的完整列表。
 
