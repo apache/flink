@@ -25,6 +25,7 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.StateChangelogOptionsInternal;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -167,7 +168,11 @@ public class SavepointEnvironment implements Environment {
 
     @Override
     public Configuration getJobConfiguration() {
-        throw new UnsupportedOperationException(ERROR_MSG);
+        Configuration jobConfiguration = new Configuration();
+        // This means leaving this stateBackend unwrapped.
+        jobConfiguration.setBoolean(
+                StateChangelogOptionsInternal.ENABLE_CHANGE_LOG_FOR_APPLICATION, false);
+        return jobConfiguration;
     }
 
     @Override

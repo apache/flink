@@ -252,6 +252,8 @@ public class StreamingJobGraphGenerator {
                             + "This indicates that non-serializable types (like custom serializers) were registered");
         }
 
+        jobGraph.setChangelogStateBackendEnabled(streamGraph.isChangelogStateBackendEnabled());
+
         addVertexIndexPrefixInVertexName();
 
         setVertexDescription();
@@ -928,7 +930,6 @@ public class StreamingJobGraphGenerator {
         final CheckpointConfig checkpointCfg = streamGraph.getCheckpointConfig();
 
         config.setStateBackend(streamGraph.getStateBackend());
-        config.setChangelogStateBackendEnabled(streamGraph.isChangelogStateBackendEnabled());
         config.setCheckpointStorage(streamGraph.getCheckpointStorage());
         config.setSavepointDir(streamGraph.getSavepointDirectory());
         config.setGraphContainingLoops(streamGraph.isIterative());
