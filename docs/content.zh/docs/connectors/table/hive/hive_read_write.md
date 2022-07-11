@@ -128,7 +128,7 @@ Flink 允许你灵活的配置 parallelism inference 策略。你可以在 `Tabl
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 20%">键</th>
         <th class="text-left" style="width: 15%">默认值</th>
         <th class="text-left" style="width: 10%">类型</th>
         <th class="text-left" style="width: 55%">描述</th>
@@ -145,7 +145,7 @@ Flink 允许你灵活的配置 parallelism inference 策略。你可以在 `Tabl
         <td><h5>table.exec.hive.infer-source-parallelism.max</h5></td>
         <td style="word-wrap: break-word;">1000</td>
         <td>Integer</td>
-        <td>设置 source operator 推断的最大 parallelism。</td>
+        <td>设置 source operator 推断的最大并发度。</td>
     </tr>
   </tbody>
 </table>
