@@ -179,11 +179,13 @@ public class StateBackendTestUtils {
 
                 @Override
                 public void dispose() {
+                    super.dispose();
                     delegatedKeyedStateBackend.dispose();
                 }
 
                 @Override
                 public void close() throws IOException {
+                    super.close();
                     delegatedKeyedStateBackend.close();
                 }
             };
