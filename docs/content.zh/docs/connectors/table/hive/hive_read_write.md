@@ -182,7 +182,7 @@ If the configuration is `false` and the directory does not contain files, rather
 
 ## Temporal Table Join
 
-你可以使用 Hive table 作为 temporal table，然后 stream 就可以使用 temporal join 关联 Hive table。
+你可以使用 Hive 表作为 temporal table，然后一个数据流就可以使用 temporal join 关联 Hive 表。
 请参照 [temporal join]({{< ref "docs/dev/table/sql/queries/joins" >}}#temporal-joins) 获取更多关于 temporal join 的信息。
 
 Flink 支持 processing-time temporal join Hive Table，processing-time temporal join 总是关联最新版本的 temporal table。
