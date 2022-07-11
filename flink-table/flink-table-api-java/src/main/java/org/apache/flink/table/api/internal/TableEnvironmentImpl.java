@@ -132,6 +132,7 @@ import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
 import org.apache.flink.table.operations.ddl.AlterViewOperation;
 import org.apache.flink.table.operations.ddl.AlterViewPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
+import org.apache.flink.table.operations.ddl.AnalyzeTableOperation;
 import org.apache.flink.table.operations.ddl.CompilePlanOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
@@ -1364,6 +1365,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             true,
                             compileAndExecutePlanOperation.getOperation());
             return (TableResultInternal) compiledPlan.execute();
+        } else if (operation instanceof AnalyzeTableOperation) {
+            if (isStreamingMode) {
+                throw new TableException("ANALYZE TABLE is not supported for streaming mode now");
+            }
+            try {
+                return AnalyzeTableUtil.analyzeTable(this, (AnalyzeTableOperation) operation);
+            } catch (Exception e) {
+                throw new TableException("Failed to execute ANALYZE TABLE command", e);
+            }
         } else if (operation instanceof NopOperation) {
             return TableResultImpl.TABLE_RESULT_OK;
         } else {
