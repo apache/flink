@@ -104,7 +104,7 @@ Flink 能够读取 Hive 中已经定义的视图。但是也有一些限制：
 
 1) Hive catalog 必须设置成当前的 catalog 才能查询视图。在Table API中使用 `tableEnv.useCatalog(...)`，或者在SQL客户端使用`USE CATALOG ...`来改变当前catalog。
 
-2) Hive 和Flink SQL 的语法不同, 比如不同的关键字和字面值。确保查询视图与Flink语法兼容。
+2) Hive 和 Flink SQL 的语法不同, 比如不同的关键字和字面值。确保查询视图与 Flink 语法兼容。
 
 ### 读取时的矢量优化
 
