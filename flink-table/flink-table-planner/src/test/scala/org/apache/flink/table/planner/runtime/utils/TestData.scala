@@ -1016,12 +1016,21 @@ object TestData {
     val longs = List(Long.MaxValue, Long.MinValue, 0L, 1234L, null)
     val floats = List(-1.123f, 3.4f, 0.12f, 1.2345f, null)
     val doubles = List(-1.123d, 3.4d, 0.12d, 1.2345d, null)
-    val decimals = List(
+    // DECIMAL(5, 2)
+    val decimals52 = List(
       new JBigDecimal("5.1"),
       new JBigDecimal("6.1"),
       new JBigDecimal("7.1"),
       new JBigDecimal("8.123"),
       null)
+    // DECIMAL(30, 10)
+    val decimals3010 = List(
+      new JBigDecimal("1234567891012345.1"),
+      new JBigDecimal("61234567891012345.1"),
+      new JBigDecimal("71234567891012345.1"),
+      new JBigDecimal("812345678910123451.0123456789"),
+      null
+    )
     val varchars = List("1", "12", "123", "1234", null)
     val chars = List("1", "12", "123", "1234", null)
     val dates = List(
@@ -1072,7 +1081,8 @@ object TestData {
         longs(i),
         floats(i),
         doubles(i),
-        decimals(i),
+        decimals52(i),
+        decimals3010(i),
         varchars(i),
         chars(i),
         dates(i),
