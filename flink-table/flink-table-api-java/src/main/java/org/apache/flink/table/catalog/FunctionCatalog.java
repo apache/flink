@@ -582,10 +582,7 @@ public final class FunctionCatalog {
                     fd =
                             catalog.getFunctionDefinitionFactory()
                                     .get()
-                                    .createFunctionDefinition(
-                                            oi.getObjectName(),
-                                            catalogFunction,
-                                            resourceManager.getUserClassLoader());
+                                    .createFunctionDefinition(oi.getObjectName(), catalogFunction);
                 } else {
                     fd = getFunctionDefinition(oi.asSummaryString(), catalogFunction);
                 }

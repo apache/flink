@@ -21,7 +21,6 @@ package org.apache.flink.table.factories;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.util.CollectionUtil;
 
 /** A factory to create {@link FunctionDefinition}. */
 @PublicEvolving
@@ -35,29 +34,4 @@ public interface FunctionDefinitionFactory {
      * @return a {@link FunctionDefinition}
      */
     FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction);
-
-    /**
-     * Creates a {@link FunctionDefinition} from given {@link CatalogFunction}. If the {@link
-     * CatalogFunction} is created by user defined resource, the user of {@link
-     * FunctionDefinitionFactory} needs to override this method explicitly. The implementation logic
-     * needs to use the user classloader to load custom classes instead of the thread context
-     * classloader.
-     *
-     * @param name name of the {@link CatalogFunction}
-     * @param catalogFunction the catalog function
-     * @param userClassLoader the class loader is used to load user defined function's class
-     * @return a {@link FunctionDefinition}
-     */
-    default FunctionDefinition createFunctionDefinition(
-            String name, CatalogFunction catalogFunction, ClassLoader userClassLoader) {
-        if (!CollectionUtil.isNullOrEmpty(catalogFunction.getFunctionResources())) {
-            throw new UnsupportedOperationException(
-                    String.format(
-                            "%s need to override default createFunctionDefinition for "
-                                    + "loading user defined function class",
-                            this.getClass().getSimpleName()));
-        } else {
-            return createFunctionDefinition(name, catalogFunction);
-        }
-    }
 }
