@@ -277,7 +277,7 @@ ON o.product_id = dim.product_id;
         <td><h5>lookup.join.cache.ttl</h5></td>
         <td style="word-wrap: break-word;">60 min</td>
         <td>Duration</td>
-        <td>在 lookup join 时构建表缓存的 TTL (例如 10min)。默认的 TTL 是60分钟。注意: 该选项仅在查找有边界的 hive table source 时有效，如果你使用 streaming hive source 作为 temporal table，请使用 'streaming-source.monitor-interval' 去配置数据更新的间隔。
+        <td>在 lookup join 时构建表缓存的 TTL (例如 10min)。默认的 TTL 是60分钟。注意: 该选项仅在 lookup 表为有界的 Hive 表时有效，如果你使用流式的 Hive 表 作为 temporal table，请使用 'streaming-source.monitor-interval' 去配置数据更新的间隔。
        </td>
     </tr>
   </tbody>
