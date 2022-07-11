@@ -176,6 +176,18 @@ public class StateBackendTestUtils {
                                     checkpointId, timestamp, streamFactory, checkpointOptions);
                     return snapshotResultFunction.apply(snapshotResultRunnableFuture);
                 }
+
+                @Override
+                public void dispose() {
+                    super.dispose();
+                    delegatedKeyedStateBackend.dispose();
+                }
+
+                @Override
+                public void close() throws IOException {
+                    super.close();
+                    delegatedKeyedStateBackend.close();
+                }
             };
         }
 
