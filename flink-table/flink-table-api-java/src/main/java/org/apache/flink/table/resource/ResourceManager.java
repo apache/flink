@@ -246,9 +246,9 @@ public class ResourceManager implements Closeable {
             if (fileSystem.exists(localResourceDir)) {
                 fileSystem.delete(localResourceDir, true);
             }
-        } catch (IOException ex) {
-            LOG.debug(String.format("Error while delete directory [%s].", localResourceDir), ex);
-            ExceptionUtils.firstOrSuppressed(ex, exception);
+        } catch (IOException ioe) {
+            LOG.debug(String.format("Error while delete directory [%s].", localResourceDir), ioe);
+            exception = ExceptionUtils.firstOrSuppressed(ioe, exception);
         }
 
         if (exception != null) {

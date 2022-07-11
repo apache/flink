@@ -122,11 +122,11 @@ public class ClientMutableURLClassLoader extends MutableURLClassLoader {
         for (MutableURLClassLoader classLoader : oldClassLoaders) {
             try {
                 classLoader.close();
-            } catch (IOException ex) {
+            } catch (IOException ioe) {
                 LOG.debug(
                         "Error while closing older class loader in ClientMutableURLClassLoader.",
-                        ex);
-                ExceptionUtils.firstOrSuppressed(ex, exception);
+                        ioe);
+                exception = ExceptionUtils.firstOrSuppressed(ioe, exception);
             }
         }
 
