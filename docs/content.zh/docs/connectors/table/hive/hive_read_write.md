@@ -430,7 +430,7 @@ SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 20%">键</th>
         <th class="text-left" style="width: 15%">默认值</th>
         <th class="text-left" style="width: 10%">类型</th>
         <th class="text-left" style="width: 55%">描述</th>
