@@ -449,7 +449,7 @@ SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
 
 ## 格式
 
-Flink操作Hive集成并且测试通过的文件格式如下：
+Flink对 Hive 的集成已经在如下的文件格式进行了测试
 
 - Text
 - CSV
