@@ -27,7 +27,7 @@ under the License.
 
 # Hive 读 & 写
 
-使用 `HiveCatalog`，Apache Hive table 可以使用 Apache Flink 做统一的`BATCH`和`STREAM`处理。这意味着 Flink 可以成为 Hive 批处理引擎性能更好的选择，或者连续读写 Hive table 中的数据，为数据仓库应用提供实时数据。 
+通过使用 `HiveCatalog`，Apache Flink 可以对Apache Hive 表做统一的批和流处理。这意味着 Flink 可以成为 Hive 批处理引擎的一个性能更好的选择，或者连续读写 Hive table 中的数据以支持为实时数据仓库应用。
 
 ## 读
 
