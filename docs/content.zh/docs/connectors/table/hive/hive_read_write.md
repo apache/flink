@@ -425,7 +425,7 @@ SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
 
 默认情况下，对于 streaming writes，Flink 仅支持重命名 committers，对于S3文件系统不支持 streaming writes 的 exactly-once 语义。
 通过将以下参数设置为false，可以实现 exactly-once 写入S3。
-这会调用 Flink 原生的 writer ，但是仅针对 parquet 和 orc 文件类型。
+这会调用 Flink 原生的 writer ，但是仅针对 parquet 和 orc 文件类型有效。
 在`TableConfig`中配置，会影响作业的所有 sink。
 
 <table class="table table-bordered">
