@@ -100,7 +100,7 @@ FROM hive_table
 
 ### 读取 Hive Views
 
-Flink 能够读取Hive中已经定义的视图。但是也有一些限制：
+Flink 能够读取 Hive 中已经定义的视图。但是也有一些限制：
 
 1) Hive catalog 必须设置成当前的 catalog 才能查询视图。在Table API中使用 `tableEnv.useCatalog(...)`，或者在SQL客户端使用`USE CATALOG ...`来改变当前catalog。
 
