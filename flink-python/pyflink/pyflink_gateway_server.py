@@ -215,7 +215,6 @@ def construct_test_classpath():
     test_jar_patterns = [
         "flink-runtime/target/flink-runtime*tests.jar",
         "flink-streaming-java/target/flink-streaming-java*tests.jar",
-        "flink-formats/flink-csv/target/flink-csv*.jar",
         "flink-formats/flink-sql-avro/target/flink-sql-avro*.jar",
         "flink-formats/flink-sql-parquet/target/flink-sql-parquet*.jar",
         "flink-formats/flink-json/target/flink-json*.jar",

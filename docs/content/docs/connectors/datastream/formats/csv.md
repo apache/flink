@@ -38,7 +38,7 @@ To use the CSV format you need to add the Flink CSV dependency to your project:
 </dependency>
 ```
 
-{{< py_download_link "csv" "flink-sql-csv.jar" >}}
+For PyFlink users, CSV support is built-in.
 
 Flink supports reading CSV files using `CsvReaderFormat`. The reader utilizes Jackson library and allows passing the corresponding configuration for the CSV schema and parsing options.
 
