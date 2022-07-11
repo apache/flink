@@ -197,7 +197,7 @@ Flink 支持 temporal join Hive 的分区表和非分区表，对于分区表，
 Flink 支持在使用 processing time temporal join 时自动追踪最新的分区（版本），通过 `streaming-source.partition-order` 定义最新的分区（版本）。
 用户最常使用的案例就是在 Flink 流作业中使用 Hive 表作为维度表。
 
-**注意:** 该特性仅支持 Flink `STREAMING` 模式。
+**注意:** 该特性仅支持 Flink 流模式。
 
 下面的案例演示了经典的业务 pipeline，使用 Hive 中的表作为维度表，它们由每天一次的批任务或者 Flink 任务来更新。使用 Hive 中每天批处理或者 Flink 任务更新的表作为维度表，kafka stream 来自实时在线业务数据或者日志，需要关联维度表丰富流。
 
