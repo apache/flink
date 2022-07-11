@@ -152,7 +152,7 @@ Flink 允许你灵活的配置 parallelism inference 策略。你可以在 `Tabl
 
 ### 加载分区切片
 
-多线程用于分割 hive 分区。你可以使用 `table.exec.hive.load-partition-splits.thread-num` 去配置线程数。默认值是3，你配置的值应该大于0。
+Flink 使用多个线程并发将 Hive 分区切分成多个 split 进行读取。你可以使用 `table.exec.hive.load-partition-splits.thread-num` 去配置线程数。默认值是3，你配置的值应该大于0。
 
 ### Read Partition With Subdirectory
 
