@@ -325,7 +325,7 @@ ON o.product_id = dim.product_id;
 
 1. 每个参加连接的 subtask 需要在他们的缓存中保留 Hive table。请确保 Hive table 可以放到 TM task slot 中。
 2. 建议把这两个选项配置成较大的值`streaming-source.monitor-interval`(最新的分区作为 temporal table) 和 `lookup.join.cache.ttl`(所有的分区作为 temporal table)。否则，任务会频繁更新和加载表，容易出现性能问题。
-3. 目前，当缓存刷新时会重新加载整个Hive 表，没有办法区分新数据来自旧数据。
+3. 目前，缓存刷新的时候会重新加载整个Hive 表，使用没有办法区分数据是新数据还是旧数据。
 
 ## 写
 
