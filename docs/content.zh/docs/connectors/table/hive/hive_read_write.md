@@ -33,7 +33,7 @@ under the License.
 
 Flink支持`BATCH`和`STREAM`两种模式从 Hive table 中读取数据。当作为`BATCH`程序运行时，Flink 会获取在执行查询的那一时刻表的状态。`STREAMING` 读操作将持续监视表，并在表可用时增量地获取新数据，默认情况下，Flink 将读取有界的表。
 
-`STREAMING` 读取支持消费分区表和非分区表。对于分区表，Flink 会监视新分区的生成，并且在数据可用的情况下增量获取数据。对于非分区表，Flink 将监控文件夹中新文件的生成，并增量地读取新文件。
+流读支持消费分区表和非分区表。对于分区表，Flink 会监控新分区的生成，并且在数据可用的情况下增量获取数据。对于非分区表，Flink 将监控文件夹中新文件的生成，并增量地读取新文件。
 
 <table class="table table-bordered">
   <thead>
