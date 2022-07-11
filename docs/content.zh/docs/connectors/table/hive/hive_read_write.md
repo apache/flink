@@ -257,7 +257,7 @@ ON o.product_id = dim.product_id;
 
 ### Temporal Join The Latest Table
  
-对于 Hive table，我们可以把它读成一个无界流，在这个案例中，当我们查询时只能去追踪最新的版本。
+对于 Hive 表，我们可以把它读成一个无界流，在这个案例中，当我们查询时只能去追踪最新的版本。
 最新版本的表保留了Hive table 的所有数据。
 
 当执行 temporal join 最新的 Hive table，Hive table 会缓存到 Slot 内存中，并且 stream 中的每条记录通过 key 去关联表找到对应的匹配项。
