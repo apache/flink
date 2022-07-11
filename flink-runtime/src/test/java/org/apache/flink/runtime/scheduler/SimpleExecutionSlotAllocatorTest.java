@@ -226,6 +226,12 @@ class SimpleExecutionSlotAllocatorTest {
                 .isEqualTo(context.getSlotProvider().getRequests().keySet());
     }
 
+    @Test
+    void testSlotProviderBatchSlotRequestTimeoutCheckIsEnabled() {
+        final AllocationContext context = new AllocationContext();
+        assertThat(context.getSlotProvider().isBatchSlotRequestTimeoutCheckEnabled()).isTrue();
+    }
+
     private static class AllocationContext {
         private final TestingPhysicalSlotProvider slotProvider;
         private final boolean slotWillBeOccupiedIndefinitely;
