@@ -119,7 +119,7 @@ Flink 能够读取 Hive 中已经定义的视图。但是也有一些限制：
 table.exec.hive.fallback-mapred-reader=true
 ```
 
-### Source Parallelism Inference
+### Source 并发 推断
 
 默认情况下，Flink会基于文件的数量，以及每个文件中块的数量推断出读取Hive的最佳并行度。
 
