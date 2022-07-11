@@ -49,7 +49,7 @@ Flink支持`BATCH`和`STREAM`两种模式从 Hive table 中读取数据。当作
         <td><h5>streaming-source.enable</h5></td>
         <td style="word-wrap: break-word;">false</td>
         <td>Boolean</td>
-        <td>是否启动 streaming 模式的源。注意：请确保每个分区/文件都应该原子地写入，否则读取不到完整的数据。</td>
+        <td>是否启动流读。注意：请确保每个分区/文件都应该原子地写入，否则读取不到完整的数据。</td>
     </tr>
     <tr>
         <td><h5>streaming-source.partition.include</h5></td>
