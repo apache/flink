@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.JarUtils;
 import org.apache.flink.util.MutableURLClassLoader;
@@ -245,11 +246,9 @@ public class ResourceManager implements Closeable {
             if (fileSystem.exists(localResourceDir)) {
                 fileSystem.delete(localResourceDir, true);
             }
-        } catch (IOException e) {
-            LOG.debug(String.format("Error while delete directory [%s].", localResourceDir), e);
-            if (exception == null) {
-                exception = e;
-            }
+        } catch (IOException ex) {
+            LOG.debug(String.format("Error while delete directory [%s].", localResourceDir), ex);
+            ExceptionUtils.firstOrSuppressed(ex, exception);
         }
 
         if (exception != null) {

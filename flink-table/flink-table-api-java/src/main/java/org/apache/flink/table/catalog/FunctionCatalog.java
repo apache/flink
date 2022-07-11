@@ -41,7 +41,6 @@ import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
-import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.Preconditions;
 
@@ -683,13 +682,7 @@ public final class FunctionCatalog {
 
     private void registerFunctionJarResource(String functionName, List<ResourceUri> resourceUris) {
         try {
-            List<ResourceUri> jarResources =
-                    resourceUris.stream()
-                            .filter(
-                                    resourceUri ->
-                                            ResourceType.JAR.equals(resourceUri.getResourceType()))
-                            .collect(Collectors.toList());
-            if (!jarResources.isEmpty()) {
+            if (!resourceUris.isEmpty()) {
                 resourceManager.registerJarResource(resourceUris);
             }
         } catch (IOException e) {
