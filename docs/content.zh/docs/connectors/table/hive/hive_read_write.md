@@ -329,7 +329,7 @@ ON o.product_id = dim.product_id;
 
 ## 写
 
-Flink支持`BATCH`和`STREAMING`两种模式往Hive中写入数据，当作为`BATCH`程序，只有当作业完成时，Flink 写入 Hive table 中的数据才能被看见。`BATCH` 模式写入支持追加到现有的表或者覆盖现有的表。
+Flink支持批和流`两种模式往 Hive 中写入数据，当作为批程序，只有当作业完成时，Flink 写入 Hive 表中的数据才能被看见。批模式写入支持追加到现有的表或者覆盖现有的表。
 
 ```sql
 # ------ INSERT INTO 将追加到表或者分区，保证数据的完整性 ------ 
