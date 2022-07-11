@@ -255,9 +255,9 @@ ON o.product_id = dim.product_id;
 
 ```
 
-### Temporal Join The Latest Table
+### Temporal Join 最新的表
  
-对于 Hive 表，我们可以把它读成一个无界流，在这个案例中，当我们查询时只能去追踪最新的版本。
+对于 Hive 表，我们可以把它看作是一个无界流进行读取，在这个案例中，当我们查询时只能去追踪最新的版本。
 最新版本的表保留了Hive 表的所有数据。
 
 当 temporal join 最新的 Hive 表，Hive 表 会缓存到 Slot 内存中，并且 数据流中的每条记录通过 key 去关联表找到对应的匹配项。
@@ -266,7 +266,7 @@ ON o.product_id = dim.product_id;
 <table class="table table-bordered">
   <thead>
     <tr>
-        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 20%">键</th>
         <th class="text-left" style="width: 15%">默认值</th>
         <th class="text-left" style="width: 10%">类型</th>
         <th class="text-left" style="width: 55%">描述</th>
@@ -283,7 +283,7 @@ ON o.product_id = dim.product_id;
   </tbody>
 </table>
 
-下面的案例演示加载 Hive table 的所有数据作为时态表。
+下面的案例演示加载 Hive 表的所有数据作为时态表。
 
 ```sql
 -- 假设 Hive table 中的数据被批处理 pipeline 覆盖。
@@ -329,7 +329,7 @@ ON o.product_id = dim.product_id;
 
 ## 写
 
-Flink支持批和流`两种模式往 Hive 中写入数据，当作为批程序，只有当作业完成时，Flink 写入 Hive 表中的数据才能被看见。批模式写入支持追加到现有的表或者覆盖现有的表。
+Flink支持批和流两种模式往 Hive 中写入数据，当作为批程序，只有当作业完成时，Flink 写入 Hive 表的数据才能被看见。批模式写入支持追加到现有的表或者覆盖现有的表。
 
 ```sql
 # ------ INSERT INTO 将追加到表或者分区，保证数据的完整性 ------ 
@@ -450,7 +450,7 @@ SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
 
 ## 格式
 
-Flink对 Hive 的集成已经在如下的文件格式进行了测试
+Flink对 Hive 的集成已经在如下的文件格式进行了测试：
 
 - Text
 - CSV
