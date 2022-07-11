@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.table.api.config.TableConfigOptions
+import org.apache.flink.table.catalog.ObjectPath
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
