@@ -188,7 +188,7 @@ If the configuration is `false` and the directory does not contain files, rather
 Flink 支持 processing-time temporal join Hive Table，processing-time temporal join 总是关联最新版本的 temporal table。
 Flink 支持 temporal join Hive 的分区表和非分区表，对于分区表，Flink 支持自动跟踪 Hive 表的最新分区。
 
-**注意**: Flink 还没有支持 event-time temporal join Hive table。
+**注意**: Flink 还不支持 event-time temporal join Hive 表。
 
 ### Temporal Join The Latest Partition
 
