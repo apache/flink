@@ -40,8 +40,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
-/** Test for {@link KerberosLoginProvider}. */
-public class KerberosLoginProviderTest {
+/**
+ * Test for {@link KerberosLoginProvider}.
+ *
+ * <p>This class is an ITCase because the mocking breaks the {@link UserGroupInformation} class for
+ * other tests.
+ */
+public class KerberosLoginProviderITCase {
 
     @Test
     public void isLoginPossibleMustReturnFalseByDefault() throws IOException {
