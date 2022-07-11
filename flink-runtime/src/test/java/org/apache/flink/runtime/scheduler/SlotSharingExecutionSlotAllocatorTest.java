@@ -448,6 +448,12 @@ class SlotSharingExecutionSlotAllocatorTest {
                 .containsExactlyInAnyOrder(resourceProfile1, resourceProfile2);
     }
 
+    @Test
+    void testSlotProviderBatchSlotRequestTimeoutCheckIsDisabled() {
+        final AllocationContext context = AllocationContext.newBuilder().build();
+        assertThat(context.getSlotProvider().isBatchSlotRequestTimeoutCheckEnabled()).isFalse();
+    }
+
     private static List<ExecutionVertexID> getAssignIds(
             Collection<ExecutionSlotAssignment> assignments) {
         return assignments.stream()
