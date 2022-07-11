@@ -95,7 +95,7 @@ FROM hive_table
 
 - 监控策略是扫描当前位置路径中的所有目录/文件，分区太多可能导致性能下降。
 - Streaming 读取非分区表，要求每个文件应原子地写入目标目录。
-- Streaming 读取分区表，要求原子地在 Hive metastore 视图中添加分区。如果没有，添加到现有分区的新数据将被消费。 
+- 流读分区表要求每个分区应该被原子地添加进 Hive metastore 中。如果不是的话，只有添加到现有分区的新数据会被消费。 
 - Streaming 读取不支持Flink DDL的水位线语法。这些表不能被用于 window operators。
 
 ### 读取 Hive Views
