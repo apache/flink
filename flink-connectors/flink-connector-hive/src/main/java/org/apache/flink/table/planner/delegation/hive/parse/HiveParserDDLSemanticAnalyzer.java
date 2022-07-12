@@ -103,6 +103,8 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserRowResolver
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserStorageFormat;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
+import org.apache.flink.table.resource.ResourceType;
+import org.apache.flink.table.resource.ResourceUri;
 
 import org.antlr.runtime.tree.CommonTree;
 import org.apache.calcite.plan.RelOptCluster;
@@ -177,6 +179,7 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCA
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.NotNullConstraint;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.PrimaryKey;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.getColumns;
+import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.stripQuotes;
 
 /**
  * Ported hive's org.apache.hadoop.hive.ql.parse.DDLSemanticAnalyzer, and also incorporated
@@ -507,7 +510,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
     }
 
-    private Operation convertCreateFunction(HiveParserASTNode ast) {
+    private Operation convertCreateFunction(HiveParserASTNode ast) throws SemanticException {
         // ^(TOK_CREATEFUNCTION identifier StringLiteral ({isTempFunction}? => TOK_TEMPORARY))
         String functionName = ast.getChild(0).getText().toLowerCase();
         boolean isTemporaryFunction =
@@ -523,18 +526,61 @@ public class HiveParserDDLSemanticAnalyzer {
                     "Temporary function cannot be created with a qualified name.");
         }
 
+        // find any referenced resources
+        List<ResourceUri> resources = getResourceList(ast);
+
         if (isTemporaryFunction) {
             FunctionDefinition funcDefinition =
                     funcDefFactory.createFunctionDefinition(
                             functionName,
-                            new CatalogFunctionImpl(className, FunctionLanguage.JAVA),
+                            new CatalogFunctionImpl(className, FunctionLanguage.JAVA, resources),
                             () -> classLoader);
             return new CreateTempSystemFunctionOperation(functionName, false, funcDefinition);
         } else {
             ObjectIdentifier identifier = parseObjectIdentifier(functionName);
             CatalogFunction catalogFunction =
-                    new CatalogFunctionImpl(className, FunctionLanguage.JAVA);
+                    new CatalogFunctionImpl(className, FunctionLanguage.JAVA, resources);
             return new CreateCatalogFunctionOperation(identifier, catalogFunction, false, false);
+        }
+    }
+
+    private List<ResourceUri> getResourceList(HiveParserASTNode ast) throws SemanticException {
+        List<ResourceUri> resources = new ArrayList<>();
+        HiveParserASTNode resourcesNode =
+                (HiveParserASTNode) ast.getFirstChildWithType(HiveASTParser.TOK_RESOURCE_LIST);
+        if (resourcesNode != null) {
+            for (int idx = 0; idx < resourcesNode.getChildCount(); idx++) {
+                // ^(TOK_RESOURCE_URI $resType $resPath)
+                HiveParserASTNode resNode = (HiveParserASTNode) resourcesNode.getChild(idx);
+                if (resNode.getToken().getType() != HiveASTParser.TOK_RESOURCE_URI) {
+                    throw new SemanticException(
+                            "Expected token type TOK_RESOURCE_URI but found " + resNode.getToken());
+                }
+                if (resNode.getChildCount() != 2) {
+                    throw new SemanticException(
+                            "Expected 2 child nodes of TOK_RESOURCE_URI but found "
+                                    + resNode.getChildCount());
+                }
+                HiveParserASTNode resTypeNode = (HiveParserASTNode) resNode.getChild(0);
+                HiveParserASTNode resUriNode = (HiveParserASTNode) resNode.getChild(1);
+                ResourceType resourceType = getResourceType(resTypeNode);
+                resources.add(new ResourceUri(resourceType, stripQuotes(resUriNode.getText())));
+            }
+        }
+
+        return resources;
+    }
+
+    private ResourceType getResourceType(HiveParserASTNode token) throws SemanticException {
+        switch (token.getType()) {
+            case HiveASTParser.TOK_JAR:
+                return ResourceType.JAR;
+            case HiveASTParser.TOK_FILE:
+                return ResourceType.FILE;
+            case HiveASTParser.TOK_ARCHIVE:
+                return ResourceType.ARCHIVE;
+            default:
+                throw new SemanticException("Unexpected token " + token);
         }
     }
 
@@ -1651,9 +1697,9 @@ public class HiveParserDDLSemanticAnalyzer {
             String key = partVal.getChild(0).getText();
             String val = null;
             if (partVal.getChildCount() == 3) {
-                val = HiveParserBaseSemanticAnalyzer.stripQuotes(partVal.getChild(2).getText());
+                val = stripQuotes(partVal.getChild(2).getText());
             } else if (partVal.getChildCount() == 2) {
-                val = HiveParserBaseSemanticAnalyzer.stripQuotes(partVal.getChild(1).getText());
+                val = stripQuotes(partVal.getChild(1).getText());
             }
             partSpec.put(key.toLowerCase(), val);
         }
