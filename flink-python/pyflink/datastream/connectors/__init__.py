@@ -24,8 +24,21 @@ from pyflink.datastream.connectors.file_system import (FileEnumeratorProvider, F
                                                        RollingPolicy,
                                                        StreamFormat, StreamingFileSink, BulkFormat)
 from pyflink.datastream.connectors.jdbc import JdbcSink, JdbcConnectionOptions, JdbcExecutionOptions
-from pyflink.datastream.connectors.kafka import (FlinkKafkaConsumer, FlinkKafkaProducer, Semantic,
-                                                 KafkaSource)
+from pyflink.datastream.connectors.kafka import (
+    FlinkKafkaConsumer,
+    FlinkKafkaProducer,
+    Semantic,
+    KafkaSource,
+    KafkaSourceBuilder,
+    KafkaTopicPartition,
+    KafkaOffsetsInitializer,
+    KafkaOffsetResetStrategy,
+    KafkaSink,
+    KafkaSinkBuilder,
+    KafkaRecordSerializationSchema,
+    KafkaRecordSerializationSchemaBuilder,
+    KafkaTopicSelector,
+)
 from pyflink.datastream.connectors.number_seq import NumberSequenceSource
 from pyflink.datastream.connectors.pulsar import PulsarDeserializationSchema, PulsarSource, \
     PulsarSourceBuilder, SubscriptionType, StartCursor, StopCursor, PulsarSerializationSchema, \
@@ -50,6 +63,15 @@ __all__ = [
     'FlinkKafkaProducer',
     'Semantic',
     'KafkaSource',
+    'KafkaSourceBuilder',
+    'KafkaTopicPartition',
+    'KafkaOffsetsInitializer',
+    'KafkaOffsetResetStrategy',
+    'KafkaSink',
+    'KafkaSinkBuilder',
+    'KafkaRecordSerializationSchema',
+    'KafkaRecordSerializationSchemaBuilder',
+    'KafkaTopicSelector',
     'JdbcSink',
     'JdbcConnectionOptions',
     'JdbcExecutionOptions',

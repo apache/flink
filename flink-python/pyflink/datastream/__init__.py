@@ -169,6 +169,10 @@ Classes to define source & sink:
       A streaming data source that pulls a parallel data stream from Apache Kafka.
     - :class:`connectors.FlinkKafkaProducer`:
       A streaming data sink to produce data into a Kafka topic.
+    - :class:`connectors.KafkaSource`:
+      The new API to read data in parallel from Apache Kafka.
+    - :class:`connectors.KafkaSink`:
+      The new API to write data into to Apache Kafka topics.
     - :class:`connectors.FileSource`:
       A unified data source that reads files - both in batch and in streaming mode.
       This source supports all (distributed) file systems and object stores that can be accessed via
