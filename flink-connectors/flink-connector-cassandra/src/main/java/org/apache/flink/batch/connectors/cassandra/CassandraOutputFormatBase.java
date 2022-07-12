@@ -97,7 +97,7 @@ abstract class CassandraOutputFormatBase<OUT, V> extends OutputFormatBase<OUT, V
 
     private static class CompletableFutureCallback<T> implements FutureCallback<T> {
 
-        CompletableFuture<T> completableFuture;
+        private final CompletableFuture<T> completableFuture;
 
         public CompletableFutureCallback(CompletableFuture<T> completableFuture) {
             this.completableFuture = completableFuture;
