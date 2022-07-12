@@ -36,6 +36,7 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.executiongraph.JobStatusHook;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -134,6 +135,8 @@ public class StreamGraph implements Pipeline {
     private PipelineOptions.VertexDescriptionMode descriptionMode =
             PipelineOptions.VertexDescriptionMode.TREE;
     private boolean vertexNameIncludeIndexPrefix = false;
+
+    private final List<JobStatusHook> jobStatusHooks = new ArrayList<>();
 
     public StreamGraph(
             ExecutionConfig executionConfig,
@@ -1033,5 +1036,17 @@ public class StreamGraph implements Pipeline {
 
     public boolean isVertexNameIncludeIndexPrefix() {
         return this.vertexNameIncludeIndexPrefix;
+    }
+
+    /** Registers the JobStatusHook. */
+    public void registerJobStatusHook(JobStatusHook hook) {
+        checkNotNull(hook, "Registering a null JobStatusHook is not allowed. ");
+        if (!jobStatusHooks.contains(hook)) {
+            this.jobStatusHooks.add(hook);
+        }
+    }
+
+    public List<JobStatusHook> getJobStatusHooks() {
+        return this.jobStatusHooks;
     }
 }

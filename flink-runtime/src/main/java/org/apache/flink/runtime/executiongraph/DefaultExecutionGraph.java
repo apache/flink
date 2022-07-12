@@ -289,6 +289,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     private final ExecutionJobVertex.Factory executionJobVertexFactory;
 
+    private final List<JobStatusHook> jobStatusHooks;
+
     // --------------------------------------------------------------------------------------------
     //   Constructors
     // --------------------------------------------------------------------------------------------
@@ -311,7 +313,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             VertexAttemptNumberStore initialAttemptCounts,
             VertexParallelismStore vertexParallelismStore,
             boolean isDynamic,
-            ExecutionJobVertex.Factory executionJobVertexFactory)
+            ExecutionJobVertex.Factory executionJobVertexFactory,
+            List<JobStatusHook> jobStatusHooks)
             throws IOException {
 
         this.executionGraphId = new ExecutionGraphID();
@@ -381,10 +384,14 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         this.executionJobVertexFactory = checkNotNull(executionJobVertexFactory);
 
+        this.jobStatusHooks = checkNotNull(jobStatusHooks);
+
         LOG.info(
                 "Created execution graph {} for job {}.",
                 executionGraphId,
                 jobInformation.getJobId());
+        // Trigger hook onCreated
+        notifyJobStatusHooks(state, null);
     }
 
     @Override
@@ -1139,6 +1146,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
             stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
             notifyJobStatusChange(newState);
+            notifyJobStatusHooks(newState, error);
             return true;
         } else {
             return false;
@@ -1540,6 +1548,31 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 } catch (Throwable t) {
                     LOG.warn("Error while notifying JobStatusListener", t);
                 }
+            }
+        }
+    }
+
+    private void notifyJobStatusHooks(JobStatus newState, @Nullable Throwable cause) {
+        JobID jobID = jobInformation.getJobId();
+        for (JobStatusHook hook : jobStatusHooks) {
+            try {
+                switch (newState) {
+                    case CREATED:
+                        hook.onCreated(jobID);
+                        break;
+                    case CANCELED:
+                        hook.onCanceled(jobID);
+                        break;
+                    case FAILED:
+                        hook.onFailed(jobID, cause);
+                        break;
+                    case FINISHED:
+                        hook.onFinished(jobID);
+                        break;
+                }
+            } catch (Throwable e) {
+                throw new RuntimeException(
+                        "Error while notifying JobStatusHook[" + hook.getClass() + "]", e);
             }
         }
     }
