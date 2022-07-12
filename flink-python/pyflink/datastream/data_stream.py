@@ -824,7 +824,15 @@ class DataStream(object):
         :param sink: The user defined sink.
         :return: The closed DataStream.
         """
-        return DataStreamSink(self._j_data_stream.sinkTo(sink.get_java_function()))
+        ds = self
+
+        from pyflink.datastream.connectors.base import PreTransformWrapper
+        if isinstance(sink, PreTransformWrapper):
+            pre_transform_sink = cast(PreTransformWrapper, sink)
+            if pre_transform_sink.need_pre_transform():
+                ds = pre_transform_sink.get_pre_transform().apply(self)
+
+        return DataStreamSink(ds._j_data_stream.sinkTo(sink.get_java_function()))
 
     def execute_and_collect(self, job_execution_name: str = None, limit: int = None) \
             -> Union['CloseableIterator', list]:
