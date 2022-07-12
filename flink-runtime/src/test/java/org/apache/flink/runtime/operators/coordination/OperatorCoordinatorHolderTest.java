@@ -461,7 +461,6 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         globalFailure = null;
     }
 
-
     // ------------------------------------------------------------------------
     //   test actions
     // ------------------------------------------------------------------------
