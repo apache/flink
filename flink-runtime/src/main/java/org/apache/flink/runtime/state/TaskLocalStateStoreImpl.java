@@ -307,8 +307,12 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
                 jobVertexID,
                 subtaskIndex);
 
-        pruneCheckpoints(
-                snapshotCheckpointId -> snapshotCheckpointId == abortedCheckpointId, false);
+        boolean success =
+                pruneCheckpoints(
+                        snapshotCheckpointId -> snapshotCheckpointId == abortedCheckpointId, false);
+        if (!success) {
+            discardExecutor.execute(() -> tryDeleteLocalStateDirectory(abortedCheckpointId));
+        }
     }
 
     @Override
@@ -408,7 +412,10 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
                                 discardEx);
                     }
                 });
+        tryDeleteLocalStateDirectory(checkpointID);
+    }
 
+    private void tryDeleteLocalStateDirectory(long checkpointID) {
         Optional<LocalRecoveryDirectoryProvider> directoryProviderOptional =
                 localRecoveryConfig.getLocalStateDirectoryProvider();
 
@@ -449,8 +456,14 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
         }
     }
 
-    /** Pruning the useless checkpoints, it should be called only when holding the {@link #lock}. */
-    private void pruneCheckpoints(LongPredicate pruningChecker, boolean breakOnceCheckerFalse) {
+    /**
+     * Pruning the useless checkpoints, it should be called only when holding the {@link #lock}.
+     *
+     * @param pruningChecker the checker which determine if a checkpoint needs to be pruned.
+     * @param breakOnceCheckerFalse indicate whether break the loop once check result is false.
+     * @return true if pruning checkpoints is success, false if no checkpoints is pruned.
+     */
+    private boolean pruneCheckpoints(LongPredicate pruningChecker, boolean breakOnceCheckerFalse) {
 
         final List<Map.Entry<Long, TaskStateSnapshot>> toRemove = new ArrayList<>();
 
@@ -473,6 +486,7 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
         }
 
         asyncDiscardLocalStateForCollection(toRemove);
+        return !toRemove.isEmpty();
     }
 
     @Override

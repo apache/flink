@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -45,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -58,6 +61,7 @@ public class TaskLocalStateStoreImplTest extends TestLogger {
     private AllocationID allocationID;
     private JobVertexID jobVertexID;
     private int subtaskIdx;
+    private LocalRecoveryDirectoryProviderImpl directoryProvider;
 
     @Before
     public void before() throws Exception {
@@ -82,7 +86,7 @@ public class TaskLocalStateStoreImplTest extends TestLogger {
             AllocationID allocationID,
             JobVertexID jobVertexID,
             int subtaskIdx) {
-        LocalRecoveryDirectoryProviderImpl directoryProvider =
+        directoryProvider =
                 new LocalRecoveryDirectoryProviderImpl(
                         allocationBaseDirs, jobID, jobVertexID, subtaskIdx);
 
@@ -174,8 +178,38 @@ public class TaskLocalStateStoreImplTest extends TestLogger {
         final int chkCount = 4;
         final int aborted = chkCount - 2;
         List<TestingTaskStateSnapshot> taskStateSnapshots = storeStates(chkCount);
+        checkLocalStateDirectoryExistOrNot(aborted, true);
         taskLocalStateStore.abortCheckpoint(aborted);
+        checkLocalStateDirectoryExistOrNot(aborted, false);
         checkPrunedAndDiscarded(taskStateSnapshots, aborted, aborted + 1);
+        checkStoredAsExpected(taskStateSnapshots, 0, aborted);
+        checkStoredAsExpected(taskStateSnapshots, aborted + 1, chkCount);
+    }
+
+    @Test
+    public void abortUnregisteredCheckpoint() throws Exception {
+        final int chkCount = 4;
+        final int aborted = chkCount - 2;
+        List<TestingTaskStateSnapshot> taskStateSnapshots = new ArrayList<>(chkCount);
+        for (int i = 0; i < chkCount; ++i) {
+            TestingTaskStateSnapshot taskStateSnapshot = new TestingTaskStateSnapshot();
+            taskStateSnapshot.putSubtaskStateByOperatorID(
+                    new OperatorID(), OperatorSubtaskState.builder().build());
+            taskStateSnapshots.add(taskStateSnapshot);
+            if (i == aborted) {
+                java.nio.file.Path chkDir =
+                        directoryProvider.subtaskSpecificCheckpointDirectory(aborted).toPath();
+                Files.createDirectory(chkDir);
+                Files.createFile(chkDir.resolve("checkpoint_test_file"));
+                // For checkpoint to be aborted, don't register it into taskLocalStateStore.
+                continue;
+            }
+            taskLocalStateStore.storeLocalState(i, taskStateSnapshot);
+        }
+
+        checkLocalStateDirectoryExistOrNot(aborted, true);
+        taskLocalStateStore.abortCheckpoint(aborted);
+        checkLocalStateDirectoryExistOrNot(aborted, false);
         checkStoredAsExpected(taskStateSnapshots, 0, aborted);
         checkStoredAsExpected(taskStateSnapshots, aborted + 1, chkCount);
     }
@@ -258,6 +292,14 @@ public class TaskLocalStateStoreImplTest extends TestLogger {
             Assert.assertNull(taskLocalStateStore.retrieveLocalState(i));
             assertTrue(history.get(i).isDiscarded());
         }
+    }
+
+    private void checkLocalStateDirectoryExistOrNot(long checkpointID, boolean exist)
+            throws IOException {
+        File localStateDir = directoryProvider.subtaskSpecificCheckpointDirectory(checkpointID);
+        Path path = new Path(localStateDir.toURI());
+        FileSystem fileSystem = path.getFileSystem();
+        assertEquals(exist, fileSystem.exists(path));
     }
 
     private List<TestingTaskStateSnapshot> storeStates(int count) {
