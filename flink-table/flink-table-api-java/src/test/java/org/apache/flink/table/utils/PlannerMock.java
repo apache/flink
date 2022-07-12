@@ -22,6 +22,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.delegation.InternalPlan;
+import org.apache.flink.table.delegation.OperationExternalExecutor;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -36,6 +37,11 @@ public class PlannerMock implements Planner {
     @Override
     public Parser getParser() {
         return new ParserMock();
+    }
+
+    @Override
+    public OperationExternalExecutor getOperationExternalExecutor() {
+        return null;
     }
 
     @Override

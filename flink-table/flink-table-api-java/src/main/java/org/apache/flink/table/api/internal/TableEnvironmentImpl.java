@@ -74,6 +74,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.InternalPlan;
+import org.apache.flink.table.delegation.OperationExternalExecutor;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
@@ -703,7 +704,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
         }
 
-        return executeInternal(operations.get(0));
+        Operation operation = operations.get(0);
+        return executeOperation(operation);
     }
 
     @Override
@@ -796,6 +798,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             }
         }
         return result;
+    }
+
+    @Override
+    public TableResultInternal executeOperation(Operation operation) {
+        // try to use external operation executor to execute the operation
+        Optional<TableResultInternal> tableResult =
+                getOperationExternalExecutor().executeOperation(operation);
+        // if the external operation executor return empty, fall back to internal implementation
+        return tableResult.orElseGet(() -> executeInternal(operation));
     }
 
     private TableResultInternal executeInternal(
@@ -1637,6 +1648,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public Parser getParser() {
         return getPlanner().getParser();
+    }
+
+    @Override
+    public OperationExternalExecutor getOperationExternalExecutor() {
+        return getPlanner().getOperationExternalExecutor();
     }
 
     @Override

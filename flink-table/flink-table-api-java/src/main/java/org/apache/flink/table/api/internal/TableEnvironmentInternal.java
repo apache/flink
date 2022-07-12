@@ -26,6 +26,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.delegation.InternalPlan;
+import org.apache.flink.table.delegation.OperationExternalExecutor;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
@@ -53,6 +54,14 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      */
     Parser getParser();
 
+    /**
+     * Return a {@link OperationExternalExecutor} that provides method for executing operation in
+     * external implementation.
+     *
+     * @return initialized {@link OperationExternalExecutor}.
+     */
+    OperationExternalExecutor getOperationExternalExecutor();
+
     /** Returns a {@link CatalogManager} that deals with all catalog objects. */
     CatalogManager getCatalogManager();
 
@@ -77,6 +86,15 @@ public interface TableEnvironmentInternal extends TableEnvironment {
 
     /**
      * Execute the given operation and return the execution result.
+     *
+     * @param operation The operation to be executed.
+     * @return the content of the execution result.
+     */
+    TableResultInternal executeOperation(Operation operation);
+
+    /**
+     * Execute the given operation with Flink's internal implementation and return the execution
+     * result.
      *
      * @param operation The operation to be executed.
      * @return the content of the execution result.
