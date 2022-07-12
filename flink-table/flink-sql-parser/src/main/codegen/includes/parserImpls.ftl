@@ -1111,6 +1111,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
     SqlNodeList columnList = SqlNodeList.EMPTY;
 	SqlCharStringLiteral comment = null;
 	SqlTableLike tableLike = null;
+    SqlNode query = null;
 
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
@@ -1152,6 +1153,10 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
         <LIKE>
         tableLike = SqlTableLike(getPos())
     ]
+    [
+        <AS>
+        query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+    ]
     {
         return new SqlCreateTable(startPos.plus(getPos()),
                 tableName,
@@ -1163,7 +1168,8 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
                 comment,
                 tableLike,
                 isTemporary,
-                ifNotExists);
+                ifNotExists,
+                query);
     }
 }
 

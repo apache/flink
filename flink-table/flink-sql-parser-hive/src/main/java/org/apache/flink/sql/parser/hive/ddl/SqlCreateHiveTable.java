@@ -88,7 +88,8 @@ public class SqlCreateHiveTable extends SqlCreateTable {
                 HiveDDLUtils.unescapeStringLiteral(comment),
                 null,
                 isTemporary,
-                ifNotExists);
+                ifNotExists,
+                null);
 
         HiveDDLUtils.unescapeProperties(propertyList);
         this.origColList = HiveDDLUtils.deepCopyColList(columnList);
