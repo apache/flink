@@ -22,6 +22,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.blocklist.BlockedNode;
+import org.apache.flink.runtime.blocklist.BlocklistHandler;
+import org.apache.flink.runtime.blocklist.DefaultBlocklistHandler;
+import org.apache.flink.runtime.blocklist.NoOpBlocklistHandler;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -62,6 +66,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -511,6 +516,33 @@ class ResourceManagerTest {
         assertThat(stopWorkerFuture.get()).isEqualTo(taskExecutorId);
     }
 
+    @Test
+    void testUnblockResourcesWillTriggerResourceRequirementsCheck() throws Exception {
+
+        final CompletableFuture<Void> triggerRequirementsCheckFuture = new CompletableFuture<>();
+
+        final SlotManager slotManager =
+                new TestingSlotManagerBuilder()
+                        .setTriggerRequirementsCheckConsumer(
+                                triggerRequirementsCheckFuture::complete)
+                        .createSlotManager();
+        resourceManager =
+                new ResourceManagerBuilder()
+                        .withSlotManager(slotManager)
+                        .withBlocklistHandlerFactory(
+                                new DefaultBlocklistHandler.Factory(Duration.ofMillis(100L)))
+                        .buildAndStart();
+
+        final ResourceManagerGateway resourceManagerGateway =
+                resourceManager.getSelfGateway(ResourceManagerGateway.class);
+
+        resourceManagerGateway.notifyNewBlockedNodes(
+                Collections.singleton(
+                        new BlockedNode("node", "Test cause", System.currentTimeMillis())));
+
+        triggerRequirementsCheckFuture.get();
+    }
+
     private void testDisconnectJobManager(JobStatus jobStatus) throws Exception {
         final TestingJobMasterGateway jobMasterGateway =
                 new TestingJobMasterGatewayBuilder()
@@ -598,6 +630,8 @@ class ResourceManagerTest {
         private HeartbeatServices heartbeatServices = null;
         private JobLeaderIdService jobLeaderIdService = null;
         private SlotManager slotManager = null;
+        private BlocklistHandler.Factory blocklistHandlerFactory =
+                new NoOpBlocklistHandler.Factory();
         private Function<ResourceID, Boolean> stopWorkerFunction = null;
 
         private ResourceManagerBuilder withHeartbeatServices(HeartbeatServices heartbeatServices) {
@@ -613,6 +647,12 @@ class ResourceManagerTest {
 
         private ResourceManagerBuilder withSlotManager(SlotManager slotManager) {
             this.slotManager = slotManager;
+            return this;
+        }
+
+        private ResourceManagerBuilder withBlocklistHandlerFactory(
+                BlocklistHandler.Factory blocklistHandlerFactory) {
+            this.blocklistHandlerFactory = blocklistHandlerFactory;
             return this;
         }
 
@@ -655,6 +695,7 @@ class ResourceManagerTest {
                             new NoOpDelegationTokenManager(),
                             slotManager,
                             NoOpResourceManagerPartitionTracker::get,
+                            blocklistHandlerFactory,
                             jobLeaderIdService,
                             testingFatalErrorHandler,
                             UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),

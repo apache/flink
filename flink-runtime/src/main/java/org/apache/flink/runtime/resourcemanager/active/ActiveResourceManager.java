@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blocklist.BlocklistHandler;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
@@ -50,7 +51,6 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -113,6 +113,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             DelegationTokenManager delegationTokenManager,
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
+            BlocklistHandler.Factory blocklistHandlerFactory,
             JobLeaderIdService jobLeaderIdService,
             ClusterInformation clusterInformation,
             FatalErrorHandler fatalErrorHandler,
@@ -129,6 +130,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                 delegationTokenManager,
                 slotManager,
                 clusterPartitionTrackerFactory,
+                blocklistHandlerFactory,
                 jobLeaderIdService,
                 clusterInformation,
                 fatalErrorHandler,
@@ -157,12 +159,11 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     protected void initialize() throws ResourceManagerException {
         try {
-            // TODO: pass the blocked node retriever
             resourceManagerDriver.initialize(
                     this,
                     new GatewayMainThreadExecutor(),
                     ioExecutor,
-                    () -> Collections.emptySet());
+                    blocklistHandler::getAllBlockedNodeIds);
         } catch (Exception e) {
             throw new ResourceManagerException("Cannot initialize resource provider.", e);
         }

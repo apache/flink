@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.blocklist.NoOpBlocklistHandler;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -145,6 +146,7 @@ public class StandaloneResourceManagerTest extends TestLogger {
                     delegationTokenManager,
                     slotManager,
                     NoOpResourceManagerPartitionTracker::get,
+                    new NoOpBlocklistHandler.Factory(),
                     jobLeaderIdService,
                     clusterInformation,
                     fatalErrorHandler,

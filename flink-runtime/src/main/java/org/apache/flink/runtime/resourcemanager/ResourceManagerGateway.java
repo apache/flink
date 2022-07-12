@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobKey;
+import org.apache.flink.runtime.blocklist.BlocklistListener;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -55,7 +56,7 @@ import java.util.concurrent.CompletableFuture;
 
 /** The {@link ResourceManager}'s RPC gateway interface. */
 public interface ResourceManagerGateway
-        extends FencedRpcGateway<ResourceManagerId>, ClusterPartitionManager {
+        extends FencedRpcGateway<ResourceManagerId>, ClusterPartitionManager, BlocklistListener {
 
     /**
      * Register a {@link JobMaster} at the resource manager.

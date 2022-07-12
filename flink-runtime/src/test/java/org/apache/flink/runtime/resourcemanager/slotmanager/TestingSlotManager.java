@@ -45,16 +45,19 @@ public class TestingSlotManager implements SlotManager {
     private final Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier;
     private final Consumer<ResourceRequirements> processRequirementsConsumer;
     private final Consumer<JobID> clearRequirementsConsumer;
+    private final Consumer<Void> triggerRequirementsCheckConsumer;
 
     TestingSlotManager(
             Consumer<Boolean> setFailUnfulfillableRequestConsumer,
             Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier,
             Consumer<ResourceRequirements> processRequirementsConsumer,
-            Consumer<JobID> clearRequirementsConsumer) {
+            Consumer<JobID> clearRequirementsConsumer,
+            Consumer<Void> triggerRequirementsCheckConsumer) {
         this.setFailUnfulfillableRequestConsumer = setFailUnfulfillableRequestConsumer;
         this.getRequiredResourcesSupplier = getRequiredResourcesSupplier;
         this.processRequirementsConsumer = processRequirementsConsumer;
         this.clearRequirementsConsumer = clearRequirementsConsumer;
+        this.triggerRequirementsCheckConsumer = triggerRequirementsCheckConsumer;
     }
 
     @Override
@@ -152,6 +155,11 @@ public class TestingSlotManager implements SlotManager {
     @Override
     public void setFailUnfulfillableRequest(boolean failUnfulfillableRequest) {
         setFailUnfulfillableRequestConsumer.accept(failUnfulfillableRequest);
+    }
+
+    @Override
+    public void triggerResourceRequirementsCheck() {
+        triggerRequirementsCheckConsumer.accept(null);
     }
 
     @Override

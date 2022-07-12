@@ -26,6 +26,7 @@ import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
@@ -195,6 +196,7 @@ public class TaskManagerDisconnectOnShutdownITCase {
                     delegationTokenManager,
                     resourceManagerRuntimeServices.getSlotManager(),
                     ResourceManagerPartitionTrackerImpl::new,
+                    BlocklistUtils.loadBlocklistHandlerFactory(configuration),
                     resourceManagerRuntimeServices.getJobLeaderIdService(),
                     clusterInformation,
                     fatalErrorHandler,

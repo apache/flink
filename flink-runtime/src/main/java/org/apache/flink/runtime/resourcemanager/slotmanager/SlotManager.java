@@ -152,4 +152,10 @@ public interface SlotManager extends AutoCloseable {
     void freeSlot(SlotID slotId, AllocationID allocationId);
 
     void setFailUnfulfillableRequest(boolean failUnfulfillableRequest);
+
+    /**
+     * Trigger the resource requirement check. This method will be called when some slot statuses
+     * changed.
+     */
+    void triggerResourceRequirementsCheck();
 }
