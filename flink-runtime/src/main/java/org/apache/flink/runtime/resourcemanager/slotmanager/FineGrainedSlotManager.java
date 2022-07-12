@@ -172,6 +172,11 @@ public class FineGrainedSlotManager implements SlotManager {
         }
     }
 
+    @Override
+    public void triggerResourceRequirementsCheck() {
+        checkResourceRequirementsWithDelay();
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Component lifecycle methods
     // ---------------------------------------------------------------------------------------------
