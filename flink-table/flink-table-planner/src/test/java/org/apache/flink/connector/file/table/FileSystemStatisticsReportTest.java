@@ -208,8 +208,7 @@ public class FileSystemStatisticsReportTest extends TableTestBase {
                         false);
 
         FlinkStatistic statistic = getStatisticsFromOptimizedPlan("select * from PartTable");
-        // TODO get partition statistics from catalog
-        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(3));
+        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(9));
     }
 
     @Test
@@ -219,7 +218,6 @@ public class FileSystemStatisticsReportTest extends TableTestBase {
                         OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_REPORT_STATISTICS_ENABLED,
                         false);
         FlinkStatistic statistic = getStatisticsFromOptimizedPlan("select * from PartTable");
-        // TODO get partition statistics from catalog
         assertThat(statistic.getTableStats()).isEqualTo(TableStats.UNKNOWN);
     }
 
