@@ -256,10 +256,16 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
         ClassLoader getUserCodeClassloader();
 
         /**
-         * Get the {@link CoordinatorStore} instance for sharring information between {@link
+         * Gets the {@link CoordinatorStore} instance for sharing information between {@link
          * OperatorCoordinator}s.
          */
         CoordinatorStore getCoordinatorStore();
+
+        /**
+         * Gets that whether the coordinator supports an execution vertex to have multiple
+         * concurrent running execution attempts.
+         */
+        boolean isConcurrentExecutionAttemptsSupported();
     }
 
     // ------------------------------------------------------------------------

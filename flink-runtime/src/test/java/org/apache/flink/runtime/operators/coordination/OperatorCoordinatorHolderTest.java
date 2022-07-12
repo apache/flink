@@ -511,7 +511,8 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
                         getClass().getClassLoader(),
                         3,
                         1775,
-                        eventTarget);
+                        eventTarget,
+                        false);
 
         holder.lazyInitialize(globalFailureHandler, mainThreadExecutor);
         holder.start();

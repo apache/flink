@@ -21,7 +21,11 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
+import org.apache.flink.util.SerializedValue;
 
 /** The ExecutionJobVertex which supports speculative execution. */
 public class SpeculativeExecutionJobVertex extends ExecutionJobVertex {
@@ -51,6 +55,16 @@ public class SpeculativeExecutionJobVertex extends ExecutionJobVertex {
                 createTimestamp,
                 executionHistorySizeLimit,
                 initialAttemptCount);
+    }
+
+    @Override
+    protected OperatorCoordinatorHolder createOperatorCoordinatorHolder(
+            SerializedValue<OperatorCoordinator.Provider> provider,
+            ClassLoader classLoader,
+            CoordinatorStore coordinatorStore)
+            throws Exception {
+        return OperatorCoordinatorHolder.create(
+                provider, this, classLoader, coordinatorStore, true);
     }
 
     /** Factory to create {@link SpeculativeExecutionJobVertex}. */

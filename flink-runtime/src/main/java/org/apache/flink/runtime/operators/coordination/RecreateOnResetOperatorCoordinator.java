@@ -246,6 +246,11 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
             return context.getCoordinatorStore();
         }
 
+        @Override
+        public boolean isConcurrentExecutionAttemptsSupported() {
+            return context.isConcurrentExecutionAttemptsSupported();
+        }
+
         @VisibleForTesting
         synchronized void quiesce() {
             quiesced = true;

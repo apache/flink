@@ -94,13 +94,15 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
             coordinatorThreadFactory;
     private final OperatorCoordinator.SubtaskGateway[] subtaskGateways;
     private final String coordinatorThreadName;
+    private final boolean supportsConcurrentExecutionAttempts;
     private volatile boolean closed;
 
     public SourceCoordinatorContext(
             SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
             int numWorkerThreads,
             OperatorCoordinator.Context operatorCoordinatorContext,
-            SimpleVersionedSerializer<SplitT> splitSerializer) {
+            SimpleVersionedSerializer<SplitT> splitSerializer,
+            boolean supportsConcurrentExecutionAttempts) {
         this(
                 Executors.newScheduledThreadPool(1, coordinatorThreadFactory),
                 Executors.newScheduledThreadPool(
@@ -110,7 +112,8 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                 coordinatorThreadFactory,
                 operatorCoordinatorContext,
                 splitSerializer,
-                new SplitAssignmentTracker<>());
+                new SplitAssignmentTracker<>(),
+                supportsConcurrentExecutionAttempts);
     }
 
     // Package private method for unit test.
@@ -121,7 +124,8 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
             SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
             OperatorCoordinator.Context operatorCoordinatorContext,
             SimpleVersionedSerializer<SplitT> splitSerializer,
-            SplitAssignmentTracker<SplitT> splitAssignmentTracker) {
+            SplitAssignmentTracker<SplitT> splitAssignmentTracker,
+            boolean supportsConcurrentExecutionAttempts) {
         this.workerExecutor = workerExecutor;
         this.coordinatorExecutor = coordinatorExecutor;
         this.coordinatorThreadFactory = coordinatorThreadFactory;
@@ -130,6 +134,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         this.registeredReaders = new ConcurrentHashMap<>();
         this.assignmentTracker = splitAssignmentTracker;
         this.coordinatorThreadName = coordinatorThreadFactory.getCoordinatorThreadName();
+        this.supportsConcurrentExecutionAttempts = supportsConcurrentExecutionAttempts;
         this.subtaskGateways =
                 new OperatorCoordinator.SubtaskGateway
                         [operatorCoordinatorContext.currentParallelism()];
@@ -141,6 +146,10 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                                         this::handleUncaughtExceptionFromAsyncCall, runnable));
 
         this.notifier = new ExecutorNotifier(workerExecutor, errorHandlingCoordinatorExecutor);
+    }
+
+    boolean isConcurrentExecutionAttemptsSupported() {
+        return supportsConcurrentExecutionAttempts;
     }
 
     @Override
