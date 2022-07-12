@@ -51,6 +51,7 @@ import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
@@ -73,7 +74,9 @@ import org.apache.hadoop.hive.serde2.lazybinary.LazyBinarySerDe;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.net.URI;
@@ -88,6 +91,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test Hive syntax when Hive dialect is used. */
 public class HiveDialectITCase {
+
+    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
 
     private TableEnvironment tableEnv;
     private HiveCatalog hiveCatalog;
@@ -729,6 +734,44 @@ public class HiveDialectITCase {
         functions = tableEnv.listUserDefinedFunctions();
         assertThat(functions).isEmpty();
         tableEnv.executeSql("drop temporary function if exists foo");
+    }
+
+    @Test
+    public void testCreateFunctionUsingJar() throws Exception {
+        tableEnv.executeSql("create table src(x int)");
+        tableEnv.executeSql("insert into src values (1), (2)").await();
+        String udfClass = "addOne";
+        String udfCode =
+                "public class "
+                        + udfClass
+                        + " extends org.apache.hadoop.hive.ql.exec.UDF {\n"
+                        + " public int evaluate(int content) {\n"
+                        + "    return content + 1;\n"
+                        + " }"
+                        + "}\n";
+        File jarFile =
+                UserClassLoaderJarTestUtils.createJarFile(
+                        tempFolder.newFolder("test-jar"), "test-udf.jar", udfClass, udfCode);
+        // test create function using jar
+        tableEnv.executeSql(
+                String.format(
+                        "create function add_one as 'addOne' using jar '%s'", jarFile.getPath()));
+        assertThat(
+                        CollectionUtil.iteratorToList(
+                                        tableEnv.executeSql("select add_one(x) from src").collect())
+                                .toString())
+                .isEqualTo("[+I[2], +I[3]]");
+        // test create temporary function using jar
+        tableEnv.executeSql(
+                String.format(
+                        "create temporary function t_add_one as 'addOne' using jar '%s'",
+                        jarFile.getPath()));
+        assertThat(
+                        CollectionUtil.iteratorToList(
+                                        tableEnv.executeSql("select t_add_one(x) from src")
+                                                .collect())
+                                .toString())
+                .isEqualTo("[+I[2], +I[3]]");
     }
 
     @Test

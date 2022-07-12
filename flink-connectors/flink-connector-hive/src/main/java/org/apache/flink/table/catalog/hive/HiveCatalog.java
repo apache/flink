@@ -78,6 +78,7 @@ import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.ManagedTableFactory;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
@@ -97,6 +98,7 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.PrincipalType;
+import org.apache.hadoop.hive.metastore.api.ResourceType;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
@@ -1331,21 +1333,55 @@ public class HiveCatalog extends AbstractCatalog {
             Function function =
                     client.getFunction(
                             functionPath.getDatabaseName(), functionPath.getObjectName());
+            List<ResourceUri> resources = new ArrayList<>();
+            for (org.apache.hadoop.hive.metastore.api.ResourceUri resourceUri :
+                    function.getResourceUris()) {
+                switch (resourceUri.getResourceType()) {
+                    case JAR:
+                        resources.add(
+                                new ResourceUri(
+                                        org.apache.flink.table.resource.ResourceType.JAR,
+                                        resourceUri.getUri()));
+                        break;
+                    case FILE:
+                        resources.add(
+                                new ResourceUri(
+                                        org.apache.flink.table.resource.ResourceType.FILE,
+                                        resourceUri.getUri()));
+                        break;
+                    case ARCHIVE:
+                        resources.add(
+                                new ResourceUri(
+                                        org.apache.flink.table.resource.ResourceType.ARCHIVE,
+                                        resourceUri.getUri()));
+                        break;
+                    default:
+                        throw new CatalogException(
+                                String.format(
+                                        "Unknown resource type %s for function %s.",
+                                        resourceUri.getResourceType(), functionPath.getFullName()));
+                }
+            }
 
             if (function.getClassName().startsWith(FLINK_PYTHON_FUNCTION_PREFIX)) {
                 return new CatalogFunctionImpl(
                         function.getClassName().substring(FLINK_PYTHON_FUNCTION_PREFIX.length()),
-                        FunctionLanguage.PYTHON);
+                        FunctionLanguage.PYTHON,
+                        resources);
             } else if (function.getClassName().startsWith(FLINK_SCALA_FUNCTION_PREFIX)) {
                 return new CatalogFunctionImpl(
                         function.getClassName().substring(FLINK_SCALA_FUNCTION_PREFIX.length()),
-                        FunctionLanguage.SCALA);
+                        FunctionLanguage.SCALA,
+                        resources);
             } else if (function.getClassName().startsWith("flink:")) {
                 // to be compatible with old behavior
                 return new CatalogFunctionImpl(
-                        function.getClassName().substring("flink:".length()));
+                        function.getClassName().substring("flink:".length()),
+                        FunctionLanguage.JAVA,
+                        resources);
             } else {
-                return new CatalogFunctionImpl(function.getClassName());
+                return new CatalogFunctionImpl(
+                        function.getClassName(), FunctionLanguage.JAVA, resources);
             }
         } catch (NoSuchObjectException e) {
             throw new FunctionNotExistException(getName(), functionPath, e);
@@ -1390,6 +1426,32 @@ public class HiveCatalog extends AbstractCatalog {
                             + " JAVA/SCALA or PYTHON based function for now");
         }
 
+        List<org.apache.hadoop.hive.metastore.api.ResourceUri> resources = new ArrayList<>();
+        for (ResourceUri resourceUri : function.getFunctionResources()) {
+            switch (resourceUri.getResourceType()) {
+                case JAR:
+                    resources.add(
+                            new org.apache.hadoop.hive.metastore.api.ResourceUri(
+                                    ResourceType.JAR, resourceUri.getUri()));
+                    break;
+                case FILE:
+                    resources.add(
+                            new org.apache.hadoop.hive.metastore.api.ResourceUri(
+                                    ResourceType.FILE, resourceUri.getUri()));
+                    break;
+                case ARCHIVE:
+                    resources.add(
+                            new org.apache.hadoop.hive.metastore.api.ResourceUri(
+                                    ResourceType.ARCHIVE, resourceUri.getUri()));
+                    break;
+                default:
+                    throw new CatalogException(
+                            String.format(
+                                    "Unknown resource type %s for function %s.",
+                                    resourceUri.getResourceType(), functionPath.getFullName()));
+            }
+        }
+
         return new Function(
                 // due to https://issues.apache.org/jira/browse/HIVE-22053, we have to normalize
                 // function name ourselves
@@ -1402,7 +1464,7 @@ public class HiveCatalog extends AbstractCatalog {
                 // change later
                 (int) (System.currentTimeMillis() / 1000),
                 FunctionType.JAVA, // FunctionType only has JAVA now
-                new ArrayList<>() // Resource URIs
+                resources // Resource URIs
                 );
     }
 
