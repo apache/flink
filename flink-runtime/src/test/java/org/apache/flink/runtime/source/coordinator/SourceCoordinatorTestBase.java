@@ -177,6 +177,7 @@ abstract class SourceCoordinatorTestBase {
                 coordinatorThreadFactory,
                 operatorCoordinatorContext,
                 new MockSourceSplitSerializer(),
-                splitSplitAssignmentTracker);
+                splitSplitAssignmentTracker,
+                false);
     }
 }

@@ -220,8 +220,8 @@ public class ExecutionJobVertex
                 for (final SerializedValue<OperatorCoordinator.Provider> provider :
                         coordinatorProviders) {
                     coordinators.add(
-                            OperatorCoordinatorHolder.create(
-                                    provider, this, graph.getUserClassLoader(), coordinatorStore));
+                            createOperatorCoordinatorHolder(
+                                    provider, graph.getUserClassLoader(), coordinatorStore));
                 }
             } catch (Exception | LinkageError e) {
                 IOUtils.closeAllQuietly(coordinators);
@@ -276,6 +276,15 @@ public class ExecutionJobVertex
                 createTimestamp,
                 executionHistorySizeLimit,
                 initialAttemptCount);
+    }
+
+    protected OperatorCoordinatorHolder createOperatorCoordinatorHolder(
+            SerializedValue<OperatorCoordinator.Provider> provider,
+            ClassLoader classLoader,
+            CoordinatorStore coordinatorStore)
+            throws Exception {
+        return OperatorCoordinatorHolder.create(
+                provider, this, classLoader, coordinatorStore, false);
     }
 
     public boolean isInitialized() {

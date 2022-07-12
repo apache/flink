@@ -166,7 +166,8 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                         coordinatorThreadFactory,
                         operatorCoordinatorContext,
                         new MockSourceSplitSerializer(),
-                        splitSplitAssignmentTracker);
+                        splitSplitAssignmentTracker,
+                        false);
 
         testingContext.runInCoordinatorThread(
                 () -> {
@@ -200,7 +201,8 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                                 TEST_OPERATOR_ID.toHexString(), operatorCoordinatorContext),
                         operatorCoordinatorContext,
                         new MockSourceSplitSerializer(),
-                        splitSplitAssignmentTracker);
+                        splitSplitAssignmentTracker,
+                        false);
 
         testingContext.callAsync(
                 () -> {

@@ -425,7 +425,8 @@ public class OperatorCoordinatorHolder
             SerializedValue<OperatorCoordinator.Provider> serializedProvider,
             ExecutionJobVertex jobVertex,
             ClassLoader classLoader,
-            CoordinatorStore coordinatorStore)
+            CoordinatorStore coordinatorStore,
+            boolean supportsConcurrentExecutionAttempts)
             throws Exception {
 
         try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
@@ -444,7 +445,8 @@ public class OperatorCoordinatorHolder
                     jobVertex.getGraph().getUserClassLoader(),
                     jobVertex.getParallelism(),
                     jobVertex.getMaxParallelism(),
-                    taskAccesses);
+                    taskAccesses,
+                    supportsConcurrentExecutionAttempts);
         }
     }
 
@@ -457,7 +459,8 @@ public class OperatorCoordinatorHolder
             final ClassLoader userCodeClassLoader,
             final int operatorParallelism,
             final int operatorMaxParallelism,
-            final SubtaskAccess.SubtaskAccessFactory taskAccesses)
+            final SubtaskAccess.SubtaskAccessFactory taskAccesses,
+            final boolean supportsConcurrentExecutionAttempts)
             throws Exception {
 
         final LazyInitializedCoordinatorContext context =
@@ -466,7 +469,8 @@ public class OperatorCoordinatorHolder
                         operatorName,
                         userCodeClassLoader,
                         operatorParallelism,
-                        coordinatorStore);
+                        coordinatorStore,
+                        supportsConcurrentExecutionAttempts);
 
         final OperatorCoordinator coordinator = coordinatorProvider.create(context);
 
@@ -503,6 +507,7 @@ public class OperatorCoordinatorHolder
         private final ClassLoader userCodeClassLoader;
         private final int operatorParallelism;
         private final CoordinatorStore coordinatorStore;
+        private final boolean supportsConcurrentExecutionAttempts;
 
         private GlobalFailureHandler globalFailureHandler;
         private Executor schedulerExecutor;
@@ -514,12 +519,14 @@ public class OperatorCoordinatorHolder
                 final String operatorName,
                 final ClassLoader userCodeClassLoader,
                 final int operatorParallelism,
-                final CoordinatorStore coordinatorStore) {
+                final CoordinatorStore coordinatorStore,
+                final boolean supportsConcurrentExecutionAttempts) {
             this.operatorId = checkNotNull(operatorId);
             this.operatorName = checkNotNull(operatorName);
             this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
             this.operatorParallelism = operatorParallelism;
             this.coordinatorStore = checkNotNull(coordinatorStore);
+            this.supportsConcurrentExecutionAttempts = supportsConcurrentExecutionAttempts;
         }
 
         void lazyInitialize(GlobalFailureHandler globalFailureHandler, Executor schedulerExecutor) {
@@ -587,6 +594,11 @@ public class OperatorCoordinatorHolder
         @Override
         public CoordinatorStore getCoordinatorStore() {
             return coordinatorStore;
+        }
+
+        @Override
+        public boolean isConcurrentExecutionAttemptsSupported() {
+            return supportsConcurrentExecutionAttempts;
         }
     }
 }
