@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -53,6 +54,9 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
     }
 
     @Override
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {}
+
+    @Override
     public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {}
 
     @Override
@@ -60,6 +64,12 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 
     @Override
     public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {}
+
+    @Override
+    public void alignedBarrierTimeout(long checkpointId) throws IOException {}
+
+    @Override
+    public void abortCheckpoint(long checkpointId, CheckpointException cause) {}
 
     @Override
     public void notifyEndOfData(StopMode mode) throws IOException {}

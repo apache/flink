@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -33,17 +32,13 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.RexFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
-import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
-import org.apache.flink.table.planner.functions.utils.HiveTableSqlFunction;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
-import org.apache.flink.table.planner.plan.schema.DeferredTypeFlinkTableFunction;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.utils.TypeConversions;
-import org.apache.flink.types.Row;
 
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
@@ -59,26 +54,24 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.flink.table.planner.functions.utils.HiveFunctionUtils.isHiveFunc;
-import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
-
 /** Thin adapter between {@link SqlOperatorTable} and {@link FunctionCatalog}. */
 @Internal
 public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 
     private final FunctionCatalog functionCatalog;
-
     private final DataTypeFactory dataTypeFactory;
-
     private final FlinkTypeFactory typeFactory;
+    private final RexFactory rexFactory;
 
     public FunctionCatalogOperatorTable(
             FunctionCatalog functionCatalog,
             DataTypeFactory dataTypeFactory,
-            FlinkTypeFactory typeFactory) {
+            FlinkTypeFactory typeFactory,
+            RexFactory rexFactory) {
         this.functionCatalog = functionCatalog;
         this.dataTypeFactory = dataTypeFactory;
         this.typeFactory = typeFactory;
+        this.rexFactory = rexFactory;
     }
 
     @Override
@@ -106,37 +99,14 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
         final FunctionIdentifier identifier = resolvedFunction.getIdentifier().orElse(null);
         // legacy
         if (definition instanceof AggregateFunctionDefinition) {
-            AggregateFunctionDefinition def = (AggregateFunctionDefinition) definition;
-            if (isHiveFunc(def.getAggregateFunction())) {
-                return Optional.of(
-                        new HiveAggSqlFunction(
-                                identifier, def.getAggregateFunction(), typeFactory));
-            } else {
-                return convertAggregateFunction(
-                        identifier, (AggregateFunctionDefinition) definition);
-            }
+            return convertAggregateFunction(identifier, (AggregateFunctionDefinition) definition);
         } else if (definition instanceof ScalarFunctionDefinition) {
             ScalarFunctionDefinition def = (ScalarFunctionDefinition) definition;
             return convertScalarFunction(identifier, def);
         } else if (definition instanceof TableFunctionDefinition
                 && category != null
                 && category.isTableFunction()) {
-            TableFunctionDefinition def = (TableFunctionDefinition) definition;
-            if (isHiveFunc(def.getTableFunction())) {
-                DataType returnType = fromLegacyInfoToDataType(new GenericTypeInfo<>(Row.class));
-                return Optional.of(
-                        new HiveTableSqlFunction(
-                                identifier,
-                                def.getTableFunction(),
-                                returnType,
-                                typeFactory,
-                                new DeferredTypeFlinkTableFunction(
-                                        def.getTableFunction(), returnType),
-                                HiveTableSqlFunction.operandTypeChecker(
-                                        identifier.toString(), def.getTableFunction())));
-            } else {
-                return convertTableFunction(identifier, (TableFunctionDefinition) definition);
-            }
+            return convertTableFunction(identifier, (TableFunctionDefinition) definition);
         }
         // new stack
         return convertToBridgingSqlFunction(category, resolvedFunction);
@@ -179,6 +149,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
                     BridgingSqlFunction.of(
                             dataTypeFactory,
                             typeFactory,
+                            rexFactory,
                             SqlKind.OTHER_FUNCTION,
                             resolvedFunction,
                             typeInference);

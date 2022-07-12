@@ -33,6 +33,24 @@
             <td>The lower bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Currently, this option should be configured as a power of 2, otherwise it will also be rounded up to a power of 2 automatically.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.speculative.block-slow-node-duration</h5></td>
+            <td style="word-wrap: break-word;">1 min</td>
+            <td>Duration</td>
+            <td>Controls how long an detected slow node should be blocked for.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.speculative.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Controls whether to enable speculative execution.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.speculative.max-concurrent-executions</h5></td>
+            <td style="word-wrap: break-word;">2</td>
+            <td>Integer</td>
+            <td>Controls the maximum number of execution attempts of each operator that can execute concurrently, including the original one and speculative ones.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.adaptive-scheduler.min-parallelism-increase</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
@@ -60,7 +78,7 @@
             <td><h5>jobmanager.execution.attempts-history-size</h5></td>
             <td style="word-wrap: break-word;">16</td>
             <td>Integer</td>
-            <td>The maximum number of prior execution attempts kept in history.</td>
+            <td>The maximum number of historical execution attempts kept in history.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.execution.failover-strategy</h5></td>

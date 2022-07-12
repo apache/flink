@@ -21,42 +21,45 @@ package org.apache.flink.yarn.configuration;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link YarnDeploymentTarget}. */
-public class YarnDeploymentTargetTest {
+class YarnDeploymentTargetTest {
 
     @Test
-    public void testCorrectInstantiationFromConfiguration() {
+    void testCorrectInstantiationFromConfiguration() {
         for (YarnDeploymentTarget t : YarnDeploymentTarget.values()) {
             testCorrectInstantiationFromConfigurationHelper(t);
         }
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testInvalidInstantiationFromConfiguration() {
+    @Test
+    void testInvalidInstantiationFromConfiguration() {
         final Configuration configuration = getConfigurationWithTarget("invalid-target");
-        YarnDeploymentTarget.fromConfig(configuration);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testNullInstantiationFromConfiguration() {
-        YarnDeploymentTarget.fromConfig(new Configuration());
+        assertThatThrownBy(() -> YarnDeploymentTarget.fromConfig(configuration))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testThatAValidOptionIsValid() {
-        assertTrue(
-                YarnDeploymentTarget.isValidYarnTarget(YarnDeploymentTarget.APPLICATION.getName()));
+    void testNullInstantiationFromConfiguration() {
+        assertThatThrownBy(() -> YarnDeploymentTarget.fromConfig(new Configuration()))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testThatAnInvalidOptionIsInvalid() {
-        assertFalse(YarnDeploymentTarget.isValidYarnTarget("invalid-target"));
+    void testThatAValidOptionIsValid() {
+        assertThat(
+                        YarnDeploymentTarget.isValidYarnTarget(
+                                YarnDeploymentTarget.APPLICATION.getName()))
+                .isTrue();
+    }
+
+    @Test
+    void testThatAnInvalidOptionIsInvalid() {
+        assertThat(YarnDeploymentTarget.isValidYarnTarget("invalid-target")).isFalse();
     }
 
     private void testCorrectInstantiationFromConfigurationHelper(
@@ -66,7 +69,7 @@ public class YarnDeploymentTargetTest {
         final YarnDeploymentTarget actualDeploymentTarget =
                 YarnDeploymentTarget.fromConfig(configuration);
 
-        assertSame(actualDeploymentTarget, expectedDeploymentTarget);
+        assertThat(actualDeploymentTarget).isEqualTo(expectedDeploymentTarget);
     }
 
     private Configuration getConfigurationWithTarget(final String target) {

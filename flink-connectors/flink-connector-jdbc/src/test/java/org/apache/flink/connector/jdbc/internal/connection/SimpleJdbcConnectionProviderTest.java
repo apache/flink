@@ -34,18 +34,8 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link SimpleJdbcConnectionProvider}. */
 public class SimpleJdbcConnectionProviderTest {
@@ -71,36 +61,35 @@ public class SimpleJdbcConnectionProviderTest {
     @Test
     public void testEstablishConnection() throws Exception {
         JdbcConnectionProvider provider = newFakeConnectionProvider();
-        assertNull(provider.getConnection());
-        assertFalse(provider.isConnectionValid());
+        assertThat(provider.getConnection()).isNull();
+        assertThat(provider.isConnectionValid()).isFalse();
 
         Connection connection = provider.getOrEstablishConnection();
-        assertNotNull(connection);
-        assertFalse(connection.isClosed());
-        assertTrue(provider.isConnectionValid());
-        assertThat(connection, instanceOf(FakeConnection.class));
+        assertThat(connection).isNotNull();
+        assertThat(connection.isClosed()).isFalse();
+        assertThat(provider.isConnectionValid()).isTrue();
+        assertThat(connection).isInstanceOf(FakeConnection.class);
 
-        assertNotNull(provider.getConnection());
-        assertSame(connection, provider.getConnection());
-        assertSame(connection, provider.getOrEstablishConnection());
+        assertThat(provider.getConnection()).isNotNull().isSameAs(connection);
+        assertThat(provider.getOrEstablishConnection()).isSameAs(connection);
     }
 
     @Test
     public void testEstablishConnectionWithoutDriverName() throws Exception {
         JdbcConnectionProvider provider = newProvider(FakeDBUtils.TEST_DB_URL, null);
-        assertNull(provider.getConnection());
-        assertFalse(provider.isConnectionValid());
+        assertThat(provider.getConnection()).isNull();
+        assertThat(provider.isConnectionValid()).isFalse();
 
         Connection connection = provider.getOrEstablishConnection();
-        assertNotNull(connection);
-        assertFalse(connection.isClosed());
-        assertTrue(provider.isConnectionValid());
-        assertThat(connection, instanceOf(FakeConnection.class));
-        assertThat(connection, not(instanceOf(FakeConnection3.class)));
+        assertThat(connection).isNotNull();
+        assertThat(connection.isClosed()).isFalse();
+        assertThat(provider.isConnectionValid()).isTrue();
+        assertThat(connection)
+                .isInstanceOf(FakeConnection.class)
+                .isNotInstanceOf(FakeConnection3.class);
 
-        assertNotNull(provider.getConnection());
-        assertSame(connection, provider.getConnection());
-        assertSame(connection, provider.getOrEstablishConnection());
+        assertThat(provider.getConnection()).isNotNull().isSameAs(connection);
+        assertThat(provider.getOrEstablishConnection()).isSameAs(connection);
     }
 
     @Test
@@ -108,12 +97,12 @@ public class SimpleJdbcConnectionProviderTest {
         JdbcConnectionProvider provider1 =
                 newFakeConnectionProviderWithDriverName(FakeDBUtils.DRIVER1_CLASS_NAME);
         Connection connection1 = provider1.getOrEstablishConnection();
-        assertThat(connection1, instanceOf(FakeConnection1.class));
+        assertThat(connection1).isInstanceOf(FakeConnection1.class);
 
         JdbcConnectionProvider provider2 =
                 newFakeConnectionProviderWithDriverName(FakeDBUtils.DRIVER2_CLASS_NAME);
         Connection connection2 = provider2.getOrEstablishConnection();
-        assertThat(connection2, instanceOf(FakeConnection2.class));
+        assertThat(connection2).isInstanceOf(FakeConnection2.class);
     }
 
     @Test
@@ -124,35 +113,31 @@ public class SimpleJdbcConnectionProviderTest {
                         .map(Driver::getClass)
                         .map(Class::getName)
                         .collect(Collectors.toSet());
-        assertThat(registeredDriverNames, not(hasItem(unregisteredDriverName)));
+        assertThat(registeredDriverNames).doesNotContain(unregisteredDriverName);
 
         JdbcConnectionProvider provider =
                 newFakeConnectionProviderWithDriverName(unregisteredDriverName);
         Connection connection = provider.getOrEstablishConnection();
-        assertThat(connection, instanceOf(FakeConnection3.class));
+        assertThat(connection).isInstanceOf(FakeConnection3.class);
     }
 
     @Test
-    public void testInvalidDriverUrl() throws Exception {
+    public void testInvalidDriverUrl() {
         JdbcConnectionProvider provider =
                 newProvider(FakeDBUtils.TEST_DB_INVALID_URL, FakeDBUtils.DRIVER1_CLASS_NAME);
-        try {
-            provider.getOrEstablishConnection();
-            fail("expect exception");
-        } catch (SQLException ex) {
-            assertThat(
-                    ex.getMessage(),
-                    containsString(
-                            "No suitable driver found for " + FakeDBUtils.TEST_DB_INVALID_URL));
-        }
+
+        assertThatThrownBy(provider::getOrEstablishConnection)
+                .isInstanceOf(SQLException.class)
+                .hasMessageContaining(
+                        "No suitable driver found for " + FakeDBUtils.TEST_DB_INVALID_URL);
     }
 
     @Test
     public void testCloseNullConnection() throws Exception {
         JdbcConnectionProvider provider = newFakeConnectionProvider();
         provider.closeConnection();
-        assertNull(provider.getConnection());
-        assertFalse(provider.isConnectionValid());
+        assertThat(provider.getConnection()).isNull();
+        assertThat(provider.isConnectionValid()).isFalse();
     }
 
     @Test
@@ -161,17 +146,17 @@ public class SimpleJdbcConnectionProviderTest {
 
         Connection connection1 = provider.getOrEstablishConnection();
         provider.closeConnection();
-        assertNull(provider.getConnection());
-        assertFalse(provider.isConnectionValid());
-        assertTrue(connection1.isClosed());
+        assertThat(provider.getConnection()).isNull();
+        assertThat(provider.isConnectionValid()).isFalse();
+        assertThat(connection1.isClosed()).isTrue();
 
         Connection connection2 = provider.getOrEstablishConnection();
-        assertNotSame(connection1, connection2);
-        assertFalse(connection2.isClosed());
+        assertThat(connection2).isNotSameAs(connection1);
+        assertThat(connection2.isClosed()).isFalse();
 
         connection2.close();
-        assertNotNull(provider.getConnection());
-        assertFalse(provider.isConnectionValid());
+        assertThat(provider.getConnection()).isNotNull();
+        assertThat(provider.isConnectionValid()).isFalse();
     }
 
     @Test
@@ -179,18 +164,18 @@ public class SimpleJdbcConnectionProviderTest {
         JdbcConnectionProvider provider = newFakeConnectionProvider();
 
         Connection connection1 = provider.reestablishConnection();
-        assertNotNull(connection1);
-        assertFalse(connection1.isClosed());
-        assertSame(connection1, provider.getConnection());
-        assertSame(connection1, provider.getOrEstablishConnection());
+        assertThat(connection1).isNotNull();
+        assertThat(connection1.isClosed()).isFalse();
+        assertThat(provider.getConnection()).isSameAs(connection1);
+        assertThat(provider.getOrEstablishConnection()).isSameAs(connection1);
 
         Connection connection2 = provider.reestablishConnection();
-        assertNotNull(connection2);
-        assertFalse(connection2.isClosed());
-        assertSame(connection2, provider.getConnection());
-        assertSame(connection2, provider.getOrEstablishConnection());
+        assertThat(connection2).isNotNull();
+        assertThat(connection2.isClosed()).isFalse();
+        assertThat(provider.getConnection()).isSameAs(connection2);
+        assertThat(provider.getOrEstablishConnection()).isSameAs(connection2);
 
-        assertTrue(connection1.isClosed());
-        assertNotSame(connection1, connection2);
+        assertThat(connection1.isClosed()).isTrue();
+        assertThat(connection2).isNotSameAs(connection1);
     }
 }

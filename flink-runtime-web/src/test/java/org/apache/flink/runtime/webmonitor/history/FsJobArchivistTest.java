@@ -22,24 +22,21 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.history.FsJobArchivist;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link FsJobArchivist}. */
-public class FsJobArchivistTest {
-
-    @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
+class FsJobArchivistTest {
 
     @Test
-    public void testArchiveJob() throws Exception {
-        final Path tmpPath = new Path(tmpFolder.getRoot().getAbsolutePath());
+    void testArchiveJob(@TempDir File tmpFolder) throws Exception {
+        final Path tmpPath = new Path(tmpFolder.getAbsolutePath());
         final JobID jobId = new JobID();
 
         final Collection<ArchivedJson> toArchive = new ArrayList<>(2);
@@ -49,6 +46,6 @@ public class FsJobArchivistTest {
         final Path archive = FsJobArchivist.archiveJob(tmpPath, jobId, toArchive);
         final Collection<ArchivedJson> restored = FsJobArchivist.getArchivedJsons(archive);
 
-        Assert.assertThat(restored, containsInAnyOrder(toArchive.toArray()));
+        assertThat(restored).containsExactlyElementsOf(toArchive);
     }
 }

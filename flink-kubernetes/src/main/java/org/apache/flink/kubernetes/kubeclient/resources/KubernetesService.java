@@ -26,10 +26,4 @@ public class KubernetesService extends KubernetesResource<Service> {
     public KubernetesService(Service internalResource) {
         super(internalResource);
     }
-
-    /** The flink service type. */
-    public enum ServiceType {
-        REST_SERVICE,
-        INTERNAL_SERVICE,
-    }
 }

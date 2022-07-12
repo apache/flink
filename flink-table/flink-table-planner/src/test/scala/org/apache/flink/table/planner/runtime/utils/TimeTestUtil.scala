@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
@@ -31,8 +30,8 @@ import org.apache.flink.table.planner.JLong
 
 object TimeTestUtil {
 
-  class EventTimeSourceFunction[T](
-      dataWithTimestampList: Seq[Either[(Long, T), Long]]) extends SourceFunction[T] {
+  class EventTimeSourceFunction[T](dataWithTimestampList: Seq[Either[(Long, T), Long]])
+    extends SourceFunction[T] {
 
     override def run(ctx: SourceContext[T]): Unit = {
       dataWithTimestampList.foreach {
@@ -44,8 +43,8 @@ object TimeTestUtil {
     override def cancel(): Unit = ???
   }
 
-  class TimestampAndWatermarkWithOffset[T <: Product](
-      offset: Long) extends AssignerWithPunctuatedWatermarks[T] {
+  class TimestampAndWatermarkWithOffset[T <: Product](offset: Long)
+    extends AssignerWithPunctuatedWatermarks[T] {
 
     override def checkAndGetNextWatermark(lastElement: T, extractedTimestamp: Long): Watermark = {
       new Watermark(extractedTimestamp - offset)
@@ -57,13 +56,13 @@ object TimeTestUtil {
   }
 
   /**
-   * A streaming operator to emit records and watermark depends on the input data.
-   * The last emitted watermark will be stored in state to emit it again on recovery.
-   * This is necessary for late arrival testing with [[FailingCollectionSource]].
+   * A streaming operator to emit records and watermark depends on the input data. The last emitted
+   * watermark will be stored in state to emit it again on recovery. This is necessary for late
+   * arrival testing with [[FailingCollectionSource]].
    */
   class EventTimeProcessOperator[T]
     extends AbstractStreamOperator[T]
-      with OneInputStreamOperator[Either[(Long, T), Long], T] {
+    with OneInputStreamOperator[Either[(Long, T), Long], T] {
 
     private var currentWatermark: Long = 0L
     private var watermarkState: ListState[JLong] = _

@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
@@ -80,6 +82,8 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 
     private final ComparableRecordComparator serializableComparator;
 
+    private final TypeSerializer<RowData> inputRowSer;
+
     public RetractableTopNFunction(
             StateTtlConfig ttlConfig,
             InternalTypeInfo<RowData> inputRowType,
@@ -102,6 +106,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
         this.sortKeyType = sortKeySelector.getProducedType();
         this.serializableComparator = comparableRecordComparator;
         this.generatedEqualiser = generatedEqualiser;
+        this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
     }
 
     @Override
@@ -186,16 +191,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
                     sortedMap.put(sortKey, count);
                 }
             } else {
-                if (sortedMap.isEmpty()) {
-                    if (lenient) {
-                        LOG.warn(STATE_CLEARED_WARN_MSG);
-                    } else {
-                        throw new RuntimeException(STATE_CLEARED_WARN_MSG);
-                    }
-                } else {
-                    throw new RuntimeException(
-                            "Can not retract a non-existent record. This should never happen.");
-                }
+                stateStaledErrorHandle();
             }
 
             if (!stateRemoved) {
@@ -226,10 +222,19 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 
     private void processStateStaled(Iterator<Map.Entry<RowData, Long>> sortedMapIterator)
             throws RuntimeException {
+        // Sync with dataState first
+        sortedMapIterator.remove();
+
+        stateStaledErrorHandle();
+    }
+
+    /**
+     * Handle state staled error by configured lenient option. If option is true, warning log only,
+     * otherwise a {@link RuntimeException} will be thrown.
+     */
+    private void stateStaledErrorHandle() {
         // Skip the data if it's state is cleared because of state ttl.
         if (lenient) {
-            // Sync with dataState
-            sortedMapIterator.remove();
             LOG.warn(STATE_CLEARED_WARN_MSG);
         } else {
             throw new RuntimeException(STATE_CLEARED_WARN_MSG);
@@ -320,7 +325,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
             }
         }
         if (toDelete != null) {
-            collectDelete(out, toDelete);
+            collectDelete(out, inputRowSer.copy(toDelete));
         }
         if (toCollect != null) {
             collectInsert(out, inputRow);
@@ -390,8 +395,12 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
             }
         }
         if (isInRankEnd(currentRank)) {
-            // there is no enough elements in Top-N, emit DELETE message for the retract record.
-            collectDelete(out, prevRow, currentRank);
+            if (!findsSortKey && null == prevRow) {
+                stateStaledErrorHandle();
+            } else {
+                // there is no enough elements in Top-N, emit DELETE message for the retract record.
+                collectDelete(out, prevRow, currentRank);
+            }
         }
 
         return findsSortKey;

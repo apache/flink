@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
@@ -55,8 +54,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for the {@link AkkaRpcService}. */
 class AkkaRpcServiceTest {
 
-    private static final Time TIMEOUT = Time.milliseconds(10000L);
-
     // ------------------------------------------------------------------------
     //  shared test members
     // ------------------------------------------------------------------------
@@ -79,7 +76,7 @@ class AkkaRpcServiceTest {
                 AkkaFutureUtils.toJava(actorSystem.terminate());
 
         FutureUtils.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
-                .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+                .get();
 
         actorSystem = null;
         akkaRpcService = null;
@@ -315,7 +312,7 @@ class AkkaRpcServiceTest {
             terminationFuture.get();
             assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted()).isTrue();
         } finally {
-            RpcUtils.terminateRpcService(akkaRpcService, TIMEOUT);
+            RpcUtils.terminateRpcService(akkaRpcService);
         }
     }
 

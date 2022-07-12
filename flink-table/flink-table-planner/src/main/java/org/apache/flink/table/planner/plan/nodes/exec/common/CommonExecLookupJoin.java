@@ -95,6 +95,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -170,10 +172,6 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
     @JsonProperty(FIELD_NAME_JOIN_CONDITION)
     private final @Nullable RexNode joinCondition;
 
-    private final boolean existCalcOnTemporalTable;
-
-    private final @Nullable RelDataType temporalTableOutputType;
-
     protected CommonExecLookupJoin(
             int id,
             ExecNodeContext context,
@@ -196,15 +194,6 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         this.temporalTableSourceSpec = checkNotNull(temporalTableSourceSpec);
         this.projectionOnTemporalTable = projectionOnTemporalTable;
         this.filterOnTemporalTable = filterOnTemporalTable;
-        if (null != projectionOnTemporalTable) {
-            this.existCalcOnTemporalTable = true;
-            this.temporalTableOutputType =
-                    RexUtil.createStructType(
-                            FlinkTypeFactory.INSTANCE(), projectionOnTemporalTable);
-        } else {
-            this.existCalcOnTemporalTable = false;
-            temporalTableOutputType = null;
-        }
     }
 
     public TemporalTableSourceSpec getTemporalTableSourceSpec() {
@@ -216,7 +205,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
     public Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
         RelOptTable temporalTable =
-                temporalTableSourceSpec.getTemporalTable(planner.getFlinkContext());
+                temporalTableSourceSpec.getTemporalTable(
+                        planner.getFlinkContext(), unwrapTypeFactory(planner));
         // validate whether the node is valid and supported.
         validate(temporalTable);
         final ExecEdge inputEdge = getInputEdges().get(0);
@@ -241,9 +231,10 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                     createAsyncLookupJoin(
                             temporalTable,
                             config,
+                            planner.getFlinkContext().getClassLoader(),
                             lookupKeys,
                             (AsyncTableFunction<Object>) userDefinedFunction,
-                            planner.getRelBuilder(),
+                            planner.createRelBuilder(),
                             inputRowType,
                             tableSourceRowType,
                             resultRowType,
@@ -253,9 +244,10 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                     createSyncLookupJoin(
                             temporalTable,
                             config,
+                            planner.getFlinkContext().getClassLoader(),
                             lookupKeys,
                             (TableFunction<Object>) userDefinedFunction,
-                            planner.getRelBuilder(),
+                            planner.createRelBuilder(),
                             inputRowType,
                             tableSourceRowType,
                             resultRowType,
@@ -311,6 +303,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
     private StreamOperatorFactory<RowData> createAsyncLookupJoin(
             RelOptTable temporalTable,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
             AsyncTableFunction<Object> asyncLookupFunction,
             RelBuilder relBuilder,
@@ -331,6 +324,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                 generatedFuncWithType =
                         LookupJoinCodeGenerator.generateAsyncLookupFunction(
                                 config,
+                                classLoader,
                                 dataTypeFactory,
                                 inputRowType,
                                 tableSourceRowType,
@@ -340,14 +334,21 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                                 asyncLookupFunction,
                                 StringUtils.join(temporalTable.getQualifiedName(), "."));
 
+        Optional<RelDataType> temporalTableOutputType =
+                projectionOnTemporalTable != null
+                        ? Optional.of(
+                                RexUtil.createStructType(
+                                        unwrapTypeFactory(relBuilder), projectionOnTemporalTable))
+                        : Optional.empty();
         RowType rightRowType =
-                Optional.ofNullable(temporalTableOutputType)
-                        .map(FlinkTypeFactory::toLogicalRowType)
-                        .orElse(tableSourceRowType);
+                projectionOnTemporalTable != null
+                        ? (RowType) toLogicalType(temporalTableOutputType.get())
+                        : tableSourceRowType;
         // a projection or filter after table source scan
         GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture =
                 LookupJoinCodeGenerator.generateTableAsyncCollector(
                         config,
+                        classLoader,
                         "TableFunctionResultFuture",
                         inputRowType,
                         rightRowType,
@@ -356,14 +357,15 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         DataStructureConverter<?, ?> fetcherConverter =
                 DataStructureConverters.getConverter(generatedFuncWithType.dataType());
         AsyncFunction<RowData, RowData> asyncFunc;
-        if (existCalcOnTemporalTable) {
+        if (projectionOnTemporalTable != null) {
             // a projection or filter after table source scan
             GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc =
                     LookupJoinCodeGenerator.generateCalcMapFunction(
                             config,
+                            classLoader,
                             JavaScalaConversionUtil.toScala(projectionOnTemporalTable),
                             filterOnTemporalTable,
-                            temporalTableOutputType,
+                            temporalTableOutputType.get(),
                             tableSourceRowType);
             asyncFunc =
                     new AsyncLookupJoinWithCalcRunner(
@@ -395,6 +397,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
     private StreamOperatorFactory<RowData> createSyncLookupJoin(
             RelOptTable temporalTable,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
             TableFunction<?> syncLookupFunction,
             RelBuilder relBuilder,
@@ -412,6 +415,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedFetcher =
                 LookupJoinCodeGenerator.generateSyncLookupFunction(
                         config,
+                        classLoader,
                         dataTypeFactory,
                         inputRowType,
                         tableSourceRowType,
@@ -422,14 +426,19 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                         StringUtils.join(temporalTable.getQualifiedName(), "."),
                         isObjectReuseEnabled);
 
+        Optional<RelDataType> temporalTableOutputType =
+                projectionOnTemporalTable != null
+                        ? Optional.of(
+                                RexUtil.createStructType(
+                                        unwrapTypeFactory(relBuilder), projectionOnTemporalTable))
+                        : Optional.empty();
         RowType rightRowType =
-                Optional.ofNullable(temporalTableOutputType)
-                        .map(FlinkTypeFactory::toLogicalRowType)
-                        .orElse(tableSourceRowType);
-        CodeGeneratorContext ctx = new CodeGeneratorContext(config);
+                projectionOnTemporalTable != null
+                        ? (RowType) toLogicalType(temporalTableOutputType.get())
+                        : tableSourceRowType;
         GeneratedCollector<TableFunctionCollector<RowData>> generatedCollector =
                 LookupJoinCodeGenerator.generateCollector(
-                        ctx,
+                        new CodeGeneratorContext(config, classLoader),
                         inputRowType,
                         rightRowType,
                         resultRowType,
@@ -437,14 +446,15 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                         JavaScalaConversionUtil.toScala(Optional.empty()),
                         true);
         ProcessFunction<RowData, RowData> processFunc;
-        if (existCalcOnTemporalTable) {
+        if (projectionOnTemporalTable != null) {
             // a projection or filter after table source scan
             GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc =
                     LookupJoinCodeGenerator.generateCalcMapFunction(
                             config,
+                            classLoader,
                             JavaScalaConversionUtil.toScala(projectionOnTemporalTable),
                             filterOnTemporalTable,
-                            temporalTableOutputType,
+                            temporalTableOutputType.get(),
                             tableSourceRowType);
 
             processFunc =

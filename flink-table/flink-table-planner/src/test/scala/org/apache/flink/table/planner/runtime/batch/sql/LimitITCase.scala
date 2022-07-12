@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.TestData.{data3, nullablesOfData3, type3}
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
+import org.apache.flink.table.planner.runtime.utils.TestData.{data3, nullablesOfData3, type3}
 
 class LimitITCase extends LegacyLimitITCase {
   override def before(): Unit = {

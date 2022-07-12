@@ -309,7 +309,9 @@ public class AdaptiveScheduler
                     vertex.getID());
             for (JobEdge jobEdge : vertex.getInputs()) {
                 Preconditions.checkState(
-                        jobEdge.getSource().getResultType().isPipelined(),
+                        jobEdge.getSource()
+                                .getResultType()
+                                .isPipelinedOrPipelinedBoundedResultPartition(),
                         "The adaptive scheduler supports pipelined data exchanges (violated by %s -> %s).",
                         jobEdge.getSource().getProducer(),
                         jobEdge.getTarget().getID());
@@ -523,15 +525,6 @@ public class AdaptiveScheduler
                                         intermediateResultId, resultPartitionId),
                         "requestPartitionState")
                 .orElseThrow(() -> new PartitionProducerDisposedException(resultPartitionId));
-    }
-
-    @Override
-    public void notifyPartitionDataAvailable(ResultPartitionID partitionID) {
-        state.tryRun(
-                StateWithExecutionGraph.class,
-                stateWithExecutionGraph ->
-                        stateWithExecutionGraph.notifyPartitionDataAvailable(partitionID),
-                "notifyPartitionDataAvailable");
     }
 
     @Override
@@ -998,8 +991,7 @@ public class AdaptiveScheduler
             final CompletableFuture<Void> registrationFuture =
                     executionVertex
                             .getCurrentExecutionAttempt()
-                            .registerProducedPartitions(
-                                    assignedSlot.getTaskManagerLocation(), false);
+                            .registerProducedPartitions(assignedSlot.getTaskManagerLocation());
             Preconditions.checkState(
                     registrationFuture.isDone(),
                     "Partition registration must be completed immediately for reactive mode");

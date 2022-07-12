@@ -18,10 +18,13 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.runtime.rest.HttpMethodWrapper;
+
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Locale;
 
 /**
  * This class links {@link RequestBody}s to {@link ResponseBody}s types and contains meta-data
@@ -66,4 +69,28 @@ public interface MessageHeaders<
      * @return description for the header
      */
     String getDescription();
+
+    /**
+     * Returns a short description for this header suitable for method code generation.
+     *
+     * @return short description
+     */
+    default String operationId() {
+        if (getHttpMethod() != HttpMethodWrapper.GET) {
+            throw new UnsupportedOperationException(
+                    "The default implementation is only supported for GET calls. Please override 'operationId()'.");
+        }
+
+        final String className = getClass().getSimpleName();
+        final int headersSuffixStart = className.lastIndexOf("Headers");
+        if (headersSuffixStart == -1) {
+            throw new IllegalStateException(
+                    "Expect name of class "
+                            + getClass()
+                            + " to end on 'Headers'. Please rename the class or override 'operationId()'.");
+        }
+
+        return getHttpMethod().name().toLowerCase(Locale.ROOT)
+                + className.substring(0, headersSuffixStart);
+    }
 }

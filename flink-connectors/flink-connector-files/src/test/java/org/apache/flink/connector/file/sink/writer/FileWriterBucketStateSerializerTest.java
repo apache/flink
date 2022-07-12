@@ -21,17 +21,17 @@ package org.apache.flink.connector.file.sink.writer;
 import org.apache.flink.connector.file.sink.utils.FileSinkTestUtils;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the serialization and deserialization for {@link FileWriterBucketState}. */
-public class FileWriterBucketStateSerializerTest {
+class FileWriterBucketStateSerializerTest {
 
     @Test
-    public void testWithoutInProgressFile() throws IOException {
+    void testWithoutInProgressFile() throws IOException {
         FileWriterBucketState bucketState =
                 new FileWriterBucketState(
                         "bucketId", new Path("file:///tmp/bucketId"), 1429537268, null);
@@ -40,7 +40,7 @@ public class FileWriterBucketStateSerializerTest {
     }
 
     @Test
-    public void testWithInProgressFile() throws IOException {
+    void testWithInProgressFile() throws IOException {
         FileWriterBucketState bucketState =
                 new FileWriterBucketState(
                         "bucketId",
@@ -53,14 +53,12 @@ public class FileWriterBucketStateSerializerTest {
 
     private void assertBucketStateEquals(
             FileWriterBucketState bucketState, FileWriterBucketState deserialized) {
-        assertEquals(bucketState.getBucketId(), deserialized.getBucketId());
-        assertEquals(bucketState.getBucketPath(), deserialized.getBucketPath());
-        assertEquals(
-                bucketState.getInProgressFileCreationTime(),
-                deserialized.getInProgressFileCreationTime());
-        assertEquals(
-                bucketState.getInProgressFileRecoverable(),
-                deserialized.getInProgressFileRecoverable());
+        assertThat(bucketState.getBucketId()).isEqualTo(deserialized.getBucketId());
+        assertThat(bucketState.getBucketPath()).isEqualTo(deserialized.getBucketPath());
+        assertThat(bucketState.getInProgressFileCreationTime())
+                .isEqualTo(deserialized.getInProgressFileCreationTime());
+        assertThat(bucketState.getInProgressFileRecoverable())
+                .isEqualTo(deserialized.getInProgressFileRecoverable());
     }
 
     private FileWriterBucketState serializeAndDeserialize(FileWriterBucketState bucketState)

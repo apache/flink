@@ -31,6 +31,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -169,6 +171,22 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
                 startSeqNum,
                 data == null ? 0 : data.length);
         enqueue(write(checkpointId, info, data), false);
+    }
+
+    @Override
+    public void addOutputDataFuture(
+            long checkpointId,
+            ResultSubpartitionInfo info,
+            int startSeqNum,
+            CompletableFuture<List<Buffer>> dataFuture)
+            throws IllegalArgumentException {
+        LOG.trace(
+                "{} adding output data future, checkpoint {}, channel: {}, startSeqNum: {}",
+                taskName,
+                checkpointId,
+                info,
+                startSeqNum);
+        enqueue(write(checkpointId, info, dataFuture), false);
     }
 
     @Override

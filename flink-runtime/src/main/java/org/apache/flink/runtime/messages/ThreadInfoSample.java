@@ -22,7 +22,9 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.lang.management.ThreadInfo;
+import java.util.Collection;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * A serializable wrapper container for transferring parts of the {@link
@@ -54,11 +56,27 @@ public class ThreadInfoSample implements Serializable {
         }
     }
 
+    /**
+     * Constructs a collection of {@link ThreadInfoSample}s from a collection of {@link ThreadInfo}
+     * samples.
+     *
+     * @param threadInfos the collection of {@link ThreadInfo}.
+     * @return the collection of the corresponding {@link ThreadInfoSample}s.
+     */
+    public static Collection<ThreadInfoSample> from(Collection<ThreadInfo> threadInfos) {
+        return threadInfos.stream()
+                .map(
+                        threadInfo ->
+                                new ThreadInfoSample(
+                                        threadInfo.getThreadState(), threadInfo.getStackTrace()))
+                .collect(Collectors.toList());
+    }
+
     public Thread.State getThreadState() {
         return threadState;
     }
 
     public StackTraceElement[] getStackTrace() {
-        return stackTrace.clone();
+        return stackTrace;
     }
 }

@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.StringValue;
 
 /** Tests for {@link StringValueArrayComparator}. */
-public class StringValueArrayComparatorTest extends ComparatorTestBase<StringValueArray> {
+class StringValueArrayComparatorTest extends ComparatorTestBase<StringValueArray> {
 
     @Override
     protected TypeComparator<StringValueArray> createComparator(boolean ascending) {

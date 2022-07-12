@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
@@ -36,8 +35,8 @@ import org.apache.calcite.rel.core.Aggregate.Group
 import scala.collection.JavaConversions._
 
 /**
-  * Rule to convert a [[FlinkLogicalWindowAggregate]] into a [[StreamPhysicalGroupWindowAggregate]].
-  */
+ * Rule to convert a [[FlinkLogicalWindowAggregate]] into a [[StreamPhysicalGroupWindowAggregate]].
+ */
 class StreamPhysicalGroupWindowAggregateRule
   extends ConverterRule(
     classOf[FlinkLogicalWindowAggregate],

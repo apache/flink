@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.BiConsumerWithException;
 
@@ -26,9 +27,11 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestDispatcher.NO_OP;
+import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -129,11 +132,32 @@ public class ChannelStateWriteRequestExecutorImplTest {
     }
 
     @Test
-    public void testCanBeClosed() throws IOException {
-        TestRequestDispatcher requestProcessor = new TestRequestDispatcher();
+    public void testCanBeClosed() throws Exception {
+        long checkpointId = 1L;
+        ChannelStateWriteRequestDispatcher processor =
+                new ChannelStateWriteRequestDispatcherImpl(
+                        "dummy task",
+                        0,
+                        getStreamFactoryFactory(),
+                        new ChannelStateSerializerImpl());
         try (ChannelStateWriteRequestExecutorImpl worker =
-                new ChannelStateWriteRequestExecutorImpl(TASK_NAME, requestProcessor)) {
+                new ChannelStateWriteRequestExecutorImpl(TASK_NAME, processor)) {
             worker.start();
+            worker.submit(
+                    new CheckpointStartRequest(
+                            checkpointId,
+                            new ChannelStateWriter.ChannelStateWriteResult(),
+                            CheckpointStorageLocationReference.getDefault()));
+            worker.submit(
+                    ChannelStateWriteRequest.write(
+                            checkpointId,
+                            new ResultSubpartitionInfo(0, 0),
+                            new CompletableFuture<>()));
+            worker.submit(
+                    ChannelStateWriteRequest.write(
+                            checkpointId,
+                            new ResultSubpartitionInfo(0, 0),
+                            new CompletableFuture<>()));
         }
     }
 

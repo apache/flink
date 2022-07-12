@@ -18,6 +18,7 @@
 package org.apache.flink.connectors.kinesis.testutils;
 
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
+import org.apache.flink.connector.aws.testutils.AWSServicesTestUtils;
 
 import org.rnorth.ducttape.ratelimits.RateLimiter;
 import org.rnorth.ducttape.ratelimits.RateLimiterBuilder;
@@ -25,22 +26,14 @@ import org.rnorth.ducttape.unreliables.Unreliables;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.core.SdkSystemSetting;
-import software.amazon.awssdk.http.SdkHttpConfigurationOption;
-import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
-import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
-import software.amazon.awssdk.http.nio.netty.SdkEventLoopGroup;
+import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.ListStreamsResponse;
-import software.amazon.awssdk.utils.AttributeMap;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Properties;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -100,26 +93,15 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
     }
 
     /** Returns the client to access the container from outside the docker network. */
-    public KinesisAsyncClient createContainerClient(SdkAsyncHttpClient httpClient)
-            throws URISyntaxException {
-        return createClient(getContainerEndpointUrl(), httpClient);
+    public KinesisClient createContainerClient(SdkHttpClient httpClient) {
+        return AWSServicesTestUtils.createAwsSyncClient(
+                getContainerEndpointUrl(), httpClient, KinesisClient.builder());
     }
 
     /** Returns the client to access the host from inside the docker network. */
-    public KinesisAsyncClient createHostClient(SdkAsyncHttpClient httpClient)
-            throws URISyntaxException {
-        return createClient(getHostEndpointUrl(), httpClient);
-    }
-
-    public KinesisAsyncClient createClient(String endPoint, SdkAsyncHttpClient httpClient)
-            throws URISyntaxException {
-        return KinesisAsyncClient.builder()
-                .endpointOverride(new URI(endPoint))
-                .region(REGION)
-                .credentialsProvider(
-                        () -> AwsBasicCredentials.create(getAccessKey(), getSecretKey()))
-                .httpClient(httpClient)
-                .build();
+    public KinesisClient createHostClient(SdkHttpClient httpClient) {
+        return AWSServicesTestUtils.createAwsSyncClient(
+                getHostEndpointUrl(), httpClient, KinesisClient.builder());
     }
 
     private void startContainer() {
@@ -171,21 +153,11 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
                     () -> rateLimiter.getWhenReady(lambda));
         }
 
-        private ListStreamsResponse list()
-                throws ExecutionException, InterruptedException, URISyntaxException {
-            try (SdkAsyncHttpClient httpClient = buildSdkAsyncHttpClient();
-                    KinesisAsyncClient containerClient = createContainerClient(httpClient)) {
-                return containerClient.listStreams().get();
+        private ListStreamsResponse list() {
+            try (SdkHttpClient httpClient = AWSServicesTestUtils.createHttpClient();
+                    KinesisClient containerClient = createContainerClient(httpClient)) {
+                return containerClient.listStreams();
             }
         }
-    }
-
-    public SdkAsyncHttpClient buildSdkAsyncHttpClient() {
-        return NettyNioAsyncHttpClient.builder()
-                .eventLoopGroupBuilder(SdkEventLoopGroup.builder())
-                .buildWithDefaults(
-                        AttributeMap.builder()
-                                .put(SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES, true)
-                                .build());
     }
 }

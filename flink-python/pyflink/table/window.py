@@ -60,12 +60,10 @@ class Tumble(object):
     Example:
     ::
 
-        >>> from pyflink.table import expressions as expr
-        >>> Tumble.over(expr.lit(10).minutes)
-        ...       .on(expr.col("rowtime"))
+        >>> from pyflink.table.expressions import col, lit
+        >>> Tumble.over(lit(10).minutes) \\
+        ...       .on(col("rowtime")) \\
         ...       .alias("w")
-
-        >>> Tumble.over("10.minutes").on("rowtime").alias("w")
     """
 
     @classmethod
@@ -139,13 +137,10 @@ class Session(object):
     Example:
     ::
 
-        >>> from pyflink.table import expressions as expr
-        >>> Session.with_gap(expr.lit(10).minutes)
-        ...        .on(expr.col("rowtime"))
+        >>> from pyflink.table.expressions import col, lit
+        >>> Session.with_gap(lit(10).minutes) \\
+        ...        .on(col("rowtime")) \\
         ...        .alias("w")
-
-        >>> Session.with_gap("10.minutes").on("rowtime").alias("w")
-
     """
 
     @classmethod
@@ -224,13 +219,11 @@ class Slide(object):
     Example:
     ::
 
-        >>> from pyflink.table import expressions as expr
-        >>> Slide.over(expr.lit(10).minutes)
-        ...      .every(expr.lit(5).minutes)
-        ...      .on(expr.col("rowtime"))
+        >>> from pyflink.table.expressions import col, lit
+        >>> Slide.over(lit(10).minutes) \\
+        ...      .every(lit(5).minutes) \\
+        ...      .on(col("rowtime")) \\
         ...      .alias("w")
-
-        >>> Slide.over("10.minutes").every("5.minutes").on("rowtime").alias("w")
     """
 
     @classmethod
@@ -332,13 +325,11 @@ class Over(object):
     Example:
     ::
 
-        >>> from pyflink.table import expressions as expr
+        >>> from pyflink.table.expressions import col, UNBOUNDED_RANGE
         >>> Over.partition_by(col("a")) \\
         ...     .order_by(col("rowtime")) \\
-        ...     .preceding(expr.UNBOUNDED_RANGE) \\
+        ...     .preceding(UNBOUNDED_RANGE) \\
         ...     .alias("w")
-
-        >>> Over.partition_by("a").order_by("rowtime").preceding("unbounded_range").alias("w")
     """
 
     @classmethod

@@ -125,7 +125,8 @@ public class ResultPartitionFactoryTest extends TestLogger {
                         Integer.MAX_VALUE,
                         10,
                         sortShuffleMinParallelism,
-                        false);
+                        false,
+                        0);
 
         final ResultPartitionDeploymentDescriptor descriptor =
                 new ResultPartitionDeploymentDescriptor(
@@ -133,8 +134,7 @@ public class ResultPartitionFactoryTest extends TestLogger {
                                 .setPartitionType(partitionType)
                                 .build(),
                         NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
-                        1,
-                        true);
+                        1);
 
         // guard our test assumptions
         assertEquals(1, descriptor.getNumberOfSubpartitions());

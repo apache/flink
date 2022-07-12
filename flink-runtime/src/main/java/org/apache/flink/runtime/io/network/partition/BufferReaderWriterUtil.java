@@ -43,7 +43,7 @@ import java.nio.channels.FileChannel;
  */
 public final class BufferReaderWriterUtil {
 
-    static final int HEADER_LENGTH = 8;
+    public static final int HEADER_LENGTH = 8;
 
     private static final short HEADER_VALUE_IS_BUFFER = 0;
 
@@ -130,7 +130,7 @@ public final class BufferReaderWriterUtil {
         return -1L;
     }
 
-    static void setByteChannelBufferHeader(Buffer buffer, ByteBuffer header) {
+    public static void setByteChannelBufferHeader(Buffer buffer, ByteBuffer header) {
         header.clear();
         header.putShort(buffer.isBuffer() ? HEADER_VALUE_IS_BUFFER : HEADER_VALUE_IS_EVENT);
         header.putShort(buffer.isCompressed() ? BUFFER_IS_COMPRESSED : BUFFER_IS_NOT_COMPRESSED);
@@ -163,7 +163,7 @@ public final class BufferReaderWriterUtil {
     }
 
     @Nullable
-    static Buffer readFromByteChannel(
+    public static Buffer readFromByteChannel(
             FileChannel channel,
             ByteBuffer headerBuffer,
             MemorySegment memorySegment,
@@ -200,10 +200,31 @@ public final class BufferReaderWriterUtil {
         return new NetworkBuffer(memorySegment, bufferRecycler, dataType, isCompressed, size);
     }
 
-    static ByteBuffer allocatedHeaderBuffer() {
+    public static ByteBuffer allocatedHeaderBuffer() {
         ByteBuffer bb = ByteBuffer.allocateDirect(HEADER_LENGTH);
         configureByteBuffer(bb);
         return bb;
+    }
+
+    /** Skip one data buffer from the channel's current position by headerBuffer. */
+    public static void positionToNextBuffer(FileChannel channel, ByteBuffer headerBuffer)
+            throws IOException {
+        headerBuffer.clear();
+        if (!tryReadByteBuffer(channel, headerBuffer)) {
+            throwCorruptDataException();
+        }
+        headerBuffer.flip();
+
+        try {
+            headerBuffer.getShort();
+            headerBuffer.getShort();
+            long bufferSize = headerBuffer.getInt();
+            channel.position(channel.position() + bufferSize);
+        } catch (BufferUnderflowException | IllegalArgumentException e) {
+            // buffer underflow if header buffer is undersized
+            // IllegalArgumentException if size is outside memory segment size
+            throwCorruptDataException();
+        }
     }
 
     static ByteBuffer[] allocatedWriteBufferArray() {
@@ -251,7 +272,7 @@ public final class BufferReaderWriterUtil {
         }
     }
 
-    static void writeBuffers(FileChannel channel, long bytesExpected, ByteBuffer... buffers)
+    public static void writeBuffers(FileChannel channel, long bytesExpected, ByteBuffer... buffers)
             throws IOException {
         // The FileChannel#write method relies on the writev system call for data writing on linux.
         // The writev system call has a limit on the maximum number of buffers can be written in one

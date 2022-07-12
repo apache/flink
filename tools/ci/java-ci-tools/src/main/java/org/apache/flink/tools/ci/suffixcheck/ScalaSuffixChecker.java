@@ -17,10 +17,12 @@
 
 package org.apache.flink.tools.ci.suffixcheck;
 
+import org.apache.flink.tools.ci.utils.dependency.DependencyParser;
+import org.apache.flink.tools.ci.utils.shared.Dependency;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -31,8 +33,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -96,48 +98,38 @@ public class ScalaSuffixChecker {
         final Set<String> cleanModules = new HashSet<>();
         final Set<String> infectedModules = new HashSet<>();
 
-        try (final BufferedReader bufferedReader =
-                Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+        final Map<String, Set<Dependency>> dependenciesByModule =
+                DependencyParser.parseDependencyTreeOutput(path);
 
-            String line;
-            while ((line = bufferedReader.readLine()) != null) {
-                final Matcher matcher = moduleNamePattern.matcher(line);
-                if (matcher.matches()) {
-                    final String moduleName = stripScalaSuffix(matcher.group(1));
-                    if (isExcluded(moduleName)) {
-                        continue;
-                    }
-                    LOG.trace("Parsing module '{}'.", moduleName);
+        for (String module : dependenciesByModule.keySet()) {
+            final String moduleName = stripScalaSuffix(module);
+            if (isExcluded(moduleName)) {
+                continue;
+            }
+            LOG.trace("Processing module '{}'.", moduleName);
 
-                    // skip: [INFO] org.apache.flink:flink-annotations:jar:1.14-SNAPSHOT
-                    bufferedReader.readLine();
+            final Collection<Dependency> dependencies = dependenciesByModule.get(module);
 
-                    boolean infected = false;
-                    line = bufferedReader.readLine();
-                    while (blockPattern.matcher(line).matches()) {
-                        final boolean dependsOnScala = dependsOnScala(line);
-                        final boolean isTestDependency = line.endsWith(":test");
-                        // we ignored flink-rpc-akka because it is loaded through a separate class
-                        // loader
-                        final boolean isExcluded = isExcluded(line);
-                        LOG.trace("\tline:{}", line);
-                        LOG.trace("\t\tdepends-on-scala:{}", dependsOnScala);
-                        LOG.trace("\t\tis-test-dependency:{}", isTestDependency);
-                        LOG.trace("\t\tis-excluded:{}", isExcluded);
-                        if (dependsOnScala && !isTestDependency && !isExcluded) {
-                            LOG.trace("\t\tOutbreak detected at {}!", moduleName);
-                            infected = true;
-                        }
-
-                        line = bufferedReader.readLine();
-                    }
-
-                    if (infected) {
-                        infectedModules.add(moduleName);
-                    } else {
-                        cleanModules.add(moduleName);
-                    }
+            boolean infected = false;
+            for (Dependency dependency : dependencies) {
+                final boolean dependsOnScala = dependsOnScala(dependency);
+                final boolean isTestDependency = dependency.getScope().get().equals("test");
+                // we ignored flink-rpc-akka because it is loaded through a separate class loader
+                final boolean isExcluded = isExcluded(dependency.getArtifactId());
+                LOG.trace("\tdependency:{}", dependency);
+                LOG.trace("\t\tdepends-on-scala:{}", dependsOnScala);
+                LOG.trace("\t\tis-test-dependency:{}", isTestDependency);
+                LOG.trace("\t\tis-excluded:{}", isExcluded);
+                if (dependsOnScala && !isTestDependency && !isExcluded) {
+                    LOG.trace("\t\tOutbreak detected at {}!", moduleName);
+                    infected = true;
                 }
+            }
+
+            if (infected) {
+                infectedModules.add(moduleName);
+            } else {
+                cleanModules.add(moduleName);
             }
         }
 
@@ -149,8 +141,9 @@ public class ScalaSuffixChecker {
         return i > 0 ? moduleName.substring(0, i) : moduleName;
     }
 
-    private static boolean dependsOnScala(final String line) {
-        return line.contains("org.scala-lang") || scalaSuffixPattern.matcher(line).find();
+    private static boolean dependsOnScala(final Dependency dependency) {
+        return dependency.getGroupId().contains("org.scala-lang")
+                || scalaSuffixPattern.matcher(dependency.getArtifactId()).find();
     }
 
     private static Collection<String> checkScalaSuffixes(

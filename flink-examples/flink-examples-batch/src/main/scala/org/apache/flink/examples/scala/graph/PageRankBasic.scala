@@ -17,8 +17,6 @@
  */
 package org.apache.flink.examples.scala.graph
 
-import java.lang.Iterable
-
 import org.apache.flink.api.common.functions.GroupReduceFunction
 import org.apache.flink.api.java.aggregation.Aggregations.SUM
 import org.apache.flink.api.java.utils.ParameterTool
@@ -26,11 +24,13 @@ import org.apache.flink.api.scala._
 import org.apache.flink.examples.java.graph.util.PageRankData
 import org.apache.flink.util.Collector
 
+import java.lang.Iterable
+
 import scala.collection.JavaConverters._
 
 /**
  * A basic implementation of the Page Rank algorithm using a bulk iteration.
- * 
+ *
  * This implementation requires a set of pages and a set of directed links as input and works as
  * follows.
  *
@@ -40,16 +40,16 @@ import scala.collection.JavaConverters._
  * with the new ranks of all pages. This implementation terminates after a fixed number of
  * iterations. This is the Wikipedia entry for the
  * [[http://en.wikipedia.org/wiki/Page_rank Page Rank algorithm]]
- * 
+ *
  * Input files are plain text files and must be formatted as follows:
  *
- *  - Pages represented as an (long) ID separated by new-line characters.
- *    For example `"1\n2\n12\n42\n63"` gives five pages with IDs 1, 2, 12, 42, and 63.
- *  - Links are represented as pairs of page IDs which are separated by space  characters. Links
- *    are separated by new-line characters.
- *    For example `"1 2\n2 12\n1 12\n42 63"` gives four (directed) links (1)->(2), (2)->(12),
- *    (1)->(12), and (42)->(63). For this simple implementation it is required that each page has
- *    at least one incoming and one outgoing link (a page can point to itself).
+ *   - Pages represented as an (long) ID separated by new-line characters. For example
+ *     `"1\n2\n12\n42\n63"` gives five pages with IDs 1, 2, 12, 42, and 63.
+ *   - Links are represented as pairs of page IDs which are separated by space characters. Links are
+ *     separated by new-line characters. For example `"1 2\n2 12\n1 12\n42 63"` gives four
+ *     (directed) links (1)->(2), (2)->(12), (1)->(12), and (42)->(63). For this simple
+ *     implementation it is required that each page has at least one incoming and one outgoing link
+ *     (a page can point to itself).
  *
  * Usage:
  * {{{
@@ -58,18 +58,17 @@ import scala.collection.JavaConverters._
  *
  * If no parameters are provided, the program is run with default data from
  * [[org.apache.flink.examples.java.graph.util.PageRankData]] and 10 iterations.
- * 
+ *
  * This example shows how to use:
  *
- *  - Bulk Iterations
- *  - Default Join
- *  - Configure user-defined functions using constructor parameters.
- *
+ *   - Bulk Iterations
+ *   - Default Join
+ *   - Configure user-defined functions using constructor parameters.
  */
 object PageRankBasic {
 
-  private final val DAMPENING_FACTOR: Double = 0.85
-  private final val EPSILON: Double = 0.0001
+  final private val DAMPENING_FACTOR: Double = 0.85
+  final private val EPSILON: Double = 0.0001
 
   def main(args: Array[String]) {
 
@@ -91,10 +90,11 @@ object PageRankBasic {
 
     // build adjacency list from link input
     val adjacencyLists = links
-      .groupBy("sourceId").reduceGroup( new GroupReduceFunction[Link, AdjacencyList] {
+      .groupBy("sourceId")
+      .reduceGroup(new GroupReduceFunction[Link, AdjacencyList] {
         override def reduce(values: Iterable[Link], out: Collector[AdjacencyList]): Unit = {
           var outputId = -1L
-          val outputList = values.asScala map { t => outputId = t.sourceId; t.targetId }
+          val outputList = values.asScala.map { t => outputId = t.sourceId; t.targetId }
           out.collect(new AdjacencyList(outputId, outputList.toArray))
         }
       })
@@ -104,18 +104,22 @@ object PageRankBasic {
       currentRanks =>
         val newRanks = currentRanks
           // distribute ranks to target pages
-          .join(adjacencyLists).where("pageId").equalTo("sourceId") {
+          .join(adjacencyLists)
+          .where("pageId")
+          .equalTo("sourceId") {
             (page, adjacent, out: Collector[Page]) =>
               val targets = adjacent.targetIds
               val len = targets.length
-              adjacent.targetIds foreach { t => out.collect(Page(t, page.rank /len )) }
+              adjacent.targetIds.foreach(t => out.collect(Page(t, page.rank / len)))
           }
           // collect ranks and sum them up
-          .groupBy("pageId").aggregate(SUM, "rank")
+          .groupBy("pageId")
+          .aggregate(SUM, "rank")
           // apply dampening factor
-          .map { p =>
-            Page(p.pageId, (p.rank * DAMPENING_FACTOR) + ((1 - DAMPENING_FACTOR) / numPages))
-          }.withForwardedFields("pageId")
+          .map {
+            p => Page(p.pageId, (p.rank * DAMPENING_FACTOR) + ((1 - DAMPENING_FACTOR) / numPages))
+          }
+          .withForwardedFields("pageId")
 
         // terminate if no rank update was significant
         val termination = currentRanks.join(newRanks).where("pageId").equalTo("pageId") {
@@ -153,8 +157,9 @@ object PageRankBasic {
   //     UTIL METHODS
   // *************************************************************************
 
-  private def getPagesDataSet(env: ExecutionEnvironment, params: ParameterTool):
-                     (DataSet[Long], Long) = {
+  private def getPagesDataSet(
+      env: ExecutionEnvironment,
+      params: ParameterTool): (DataSet[Long], Long) = {
     if (params.has("pages") && params.has("numPages")) {
       val pages = env
         .readCsvFile[Tuple1[Long]](params.get("pages"), fieldDelimiter = " ", lineDelimiter = "\n")
@@ -167,16 +172,15 @@ object PageRankBasic {
     }
   }
 
-  private def getLinksDataSet(env: ExecutionEnvironment, params: ParameterTool):
-                      DataSet[Link] = {
+  private def getLinksDataSet(env: ExecutionEnvironment, params: ParameterTool): DataSet[Link] = {
     if (params.has("links")) {
-      env.readCsvFile[Link](params.get("links"), fieldDelimiter = " ",
-        includedFields = Array(0, 1))
+      env.readCsvFile[Link](params.get("links"), fieldDelimiter = " ", includedFields = Array(0, 1))
     } else {
       println("Executing PageRank example with default links data set.")
       println("Use --links to specify file input.")
-      val edges = PageRankData.EDGES.map { case Array(v1, v2) => Link(v1.asInstanceOf[Long],
-        v2.asInstanceOf[Long])}
+      val edges = PageRankData.EDGES.map {
+        case Array(v1, v2) => Link(v1.asInstanceOf[Long], v2.asInstanceOf[Long])
+      }
       env.fromCollection(edges)
     }
   }

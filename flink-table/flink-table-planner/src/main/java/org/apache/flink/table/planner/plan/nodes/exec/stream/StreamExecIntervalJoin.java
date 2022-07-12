@@ -167,7 +167,11 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                 } else {
                     GeneratedJoinCondition joinCondition =
                             JoinUtil.generateConditionFunction(
-                                    config, joinSpec, leftRowType, rightRowType);
+                                    config,
+                                    planner.getFlinkContext().getClassLoader(),
+                                    joinSpec,
+                                    leftRowType,
+                                    rightRowType);
                     IntervalJoinFunction joinFunction =
                             new IntervalJoinFunction(
                                     joinCondition, returnTypeInfo, joinSpec.getFilterNulls());
@@ -203,10 +207,14 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                     // set KeyType and Selector for state
                     RowDataKeySelector leftSelect =
                             KeySelectorUtil.getRowDataSelector(
-                                    joinSpec.getLeftKeys(), InternalTypeInfo.of(leftRowType));
+                                    planner.getFlinkContext().getClassLoader(),
+                                    joinSpec.getLeftKeys(),
+                                    InternalTypeInfo.of(leftRowType));
                     RowDataKeySelector rightSelect =
                             KeySelectorUtil.getRowDataSelector(
-                                    joinSpec.getRightKeys(), InternalTypeInfo.of(rightRowType));
+                                    planner.getFlinkContext().getClassLoader(),
+                                    joinSpec.getRightKeys(),
+                                    InternalTypeInfo.of(rightRowType));
                     transform.setStateKeySelectors(leftSelect, rightSelect);
                     transform.setStateKeyType(leftSelect.getProducedType());
                     return transform;

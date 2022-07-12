@@ -223,7 +223,7 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
             }
         } else {
             LOG.debug(
-                    "No SlotExecutionVertexAssignment for logical {} from physical {}}",
+                    "No request for logical {} from physical {}}",
                     logicalSlotRequestId,
                     physicalSlotRequestId);
         }

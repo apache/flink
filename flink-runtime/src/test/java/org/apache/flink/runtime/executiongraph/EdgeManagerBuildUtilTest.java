@@ -24,13 +24,17 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.POINTWISE;
@@ -42,6 +46,9 @@ import static org.junit.Assert.assertEquals;
  * DistributionPattern#ALL_TO_ALL}.
  */
 public class EdgeManagerBuildUtilTest {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Test
     public void testGetMaxNumEdgesToTargetInPointwiseConnection() throws Exception {
@@ -120,7 +127,7 @@ public class EdgeManagerBuildUtilTest {
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setVertexParallelismStore(
                                 SchedulerBase.computeVertexParallelismStore(ordered))
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         eg.attachJobGraph(ordered);
         return Pair.of(eg.getAllVertices().get(v1.getID()), eg.getAllVertices().get(v2.getID()));
     }

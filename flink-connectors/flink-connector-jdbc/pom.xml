@@ -27,7 +27,6 @@ under the License.
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
 		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-connector-jdbc</artifactId>
@@ -36,7 +35,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<postgres.version>42.2.10</postgres.version>
+		<postgres.version>42.3.3</postgres.version>
 		<oracle.version>19.3.0.0</oracle.version>
 	</properties>
 
@@ -134,7 +133,7 @@ under the License.
 		<dependency>
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
-			<version>8.0.27</version>
+			<version>8.0.29</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -177,15 +176,6 @@ under the License.
 
 	<build>
 		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<!-- Disable jvm process reuse to test driver class loading issues -->
-					<reuseForks>false</reuseForks>
-				</configuration>
-			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>

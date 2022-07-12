@@ -31,7 +31,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -52,7 +52,7 @@ import static org.assertj.core.api.HamcrestCondition.matching;
  * Tests for {@link CatalogTable} to {@link ResolvedCatalogTable} and {@link CatalogView} to {@link
  * ResolvedCatalogView} including {@link CatalogPropertiesUtil}.
  */
-public class CatalogBaseTableResolutionTest {
+class CatalogBaseTableResolutionTest {
 
     private static final ObjectIdentifier IDENTIFIER =
             ObjectIdentifier.of(DEFAULT_CATALOG, DEFAULT_DATABASE, "TestTable");
@@ -121,7 +121,7 @@ public class CatalogBaseTableResolutionTest {
                     null);
 
     @Test
-    public void testCatalogTableResolution() {
+    void testCatalogTableResolution() {
         final CatalogTable table = catalogTable();
 
         assertThat(table.getUnresolvedSchema()).isNotNull();
@@ -135,7 +135,7 @@ public class CatalogBaseTableResolutionTest {
     }
 
     @Test
-    public void testCatalogViewResolution() {
+    void testCatalogViewResolution() {
         final CatalogView view = catalogView();
 
         final ResolvedCatalogView resolvedView =
@@ -145,7 +145,7 @@ public class CatalogBaseTableResolutionTest {
     }
 
     @Test
-    public void testPropertyDeSerialization() {
+    void testPropertyDeSerialization() {
         final CatalogTable table = CatalogTable.fromProperties(catalogTableAsProperties());
 
         final ResolvedCatalogTable resolvedTable =
@@ -157,7 +157,7 @@ public class CatalogBaseTableResolutionTest {
     }
 
     @Test
-    public void testPropertyDeserializationError() {
+    void testPropertyDeserializationError() {
         try {
             final Map<String, String> properties = catalogTableAsProperties();
             properties.remove("schema.4.data-type");
@@ -173,7 +173,7 @@ public class CatalogBaseTableResolutionTest {
     }
 
     @Test
-    public void testInvalidPartitionKeys() {
+    void testInvalidPartitionKeys() {
         final CatalogTable catalogTable =
                 CatalogTable.of(
                         TABLE_SCHEMA,

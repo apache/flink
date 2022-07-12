@@ -41,18 +41,16 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.utils.TestUserClassLoaderJar;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -103,7 +101,7 @@ public class LocalExecutorITCase extends TestLogger {
     public static void setup() throws IOException {
         clusterClient = MINI_CLUSTER_RESOURCE.getClusterClient();
         File udfJar =
-                TestUserClassLoaderJar.createJarFile(
+                UserClassLoaderJarTestUtils.createJarFile(
                         tempFolder.newFolder("test-jar"),
                         "test-classloader-udf.jar",
                         UserDefinedFunctions.GENERATED_UDF_CLASS,
@@ -119,8 +117,6 @@ public class LocalExecutorITCase extends TestLogger {
         config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
         return config;
     }
-
-    @Rule public ExpectedException exception = ExpectedException.none();
 
     @Test
     public void testCompleteStatement() {
@@ -140,7 +136,7 @@ public class LocalExecutorITCase extends TestLogger {
         assertThat(executor.completeStatement(sessionId, "SELECT * FROM TableNumber1 WH", 29))
                 .isEqualTo(expectedClause);
 
-        final List<String> expectedField = Arrays.asList("IntegerField1");
+        final List<String> expectedField = Collections.singletonList("IntegerField1");
         assertThat(
                         executor.completeStatement(
                                 sessionId, "SELECT * FROM TableNumber1 WHERE Inte", 37))

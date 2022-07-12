@@ -75,6 +75,7 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
             GeneratedWatermarkGenerator generatedWatermarkGenerator =
                     WatermarkGeneratorCodeGenerator.generateWatermarkGenerator(
                             context.getTableConfig(),
+                            context.getClassLoader(),
                             context.getSourceRowType(),
                             watermarkExpr,
                             Option.apply("context"));

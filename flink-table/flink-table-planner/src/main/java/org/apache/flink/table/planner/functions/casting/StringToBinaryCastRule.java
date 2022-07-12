@@ -19,17 +19,15 @@
 package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
-import org.apache.flink.table.utils.EncodingUtils;
 
-import static org.apache.flink.table.codesplit.CodeSplitUtil.newName;
 import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.couldPad;
 import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.trimOrPadByteArray;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.arrayLength;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
 /**
  * {@link LogicalTypeFamily#CHARACTER_STRING} to {@link LogicalTypeFamily#BINARY_STRING} cast rule.
@@ -60,8 +58,7 @@ class StringToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Stri
     // new behavior
     isNull$0 = _myInputIsNull;
     if (!isNull$0) {
-        java.lang.String hexStringTerm$10 = _myInput.toString();
-        byte[] byteArrayTerm$0 = org.apache.flink.table.utils.EncodingUtils.decodeHex(hexStringTerm$10);
+        byte[] byteArrayTerm$0 = _myInput.toBytes();
         if (byteArrayTerm$0.length <= 2) {
             // If could pad
             result$1 = java.util.Arrays.copyOf(byteArrayTerm$0, 2);
@@ -89,15 +86,10 @@ class StringToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Stri
                     .toString();
         } else {
             final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
-            final String byteArrayTerm = newName("byteArrayTerm");
-            final String hexStringTerm = newName("hexStringTerm");
+            final String byteArrayTerm = CodeGenUtils.newName("byteArrayTerm");
 
             return new CastRuleUtils.CodeWriter()
-                    .declStmt(String.class, hexStringTerm, methodCall(inputTerm, "toString"))
-                    .declStmt(
-                            byte[].class,
-                            byteArrayTerm,
-                            staticCall(EncodingUtils.class, "decodeHex", hexStringTerm))
+                    .declStmt(byte[].class, byteArrayTerm, methodCall(inputTerm, "toBytes"))
                     .ifStmt(
                             arrayLength(byteArrayTerm) + " <= " + targetLength,
                             thenWriter -> {

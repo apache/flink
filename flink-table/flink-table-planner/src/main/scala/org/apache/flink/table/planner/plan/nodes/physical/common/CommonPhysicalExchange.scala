@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.common
 
 import org.apache.flink.table.api.TableException
@@ -27,16 +26,14 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.RequiredDist
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
+import org.apache.calcite.rel.{RelDistribution, RelNode, RelWriter}
 import org.apache.calcite.rel.RelDistribution.Type
 import org.apache.calcite.rel.core.Exchange
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelDistribution, RelNode, RelWriter}
 
 import scala.collection.JavaConverters._
 
-/**
- * Base class for flink [[Exchange]].
- */
+/** Base class for flink [[Exchange]]. */
 abstract class CommonPhysicalExchange(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -69,15 +66,15 @@ abstract class CommonPhysicalExchange(
         costFactory.makeCost(inputRows, cpuCost, diskIoCost, networkCost, 0)
       case RelDistribution.Type.BROADCAST_DISTRIBUTED =>
         // network cost of Broadcast = size * (parallelism of other input) which we don't have here.
-        val nParallelism = Math.max(1,
-          (inputSize / SQL_DEFAULT_PARALLELISM_WORKER_PROCESS_SIZE).toInt)
+        val nParallelism =
+          Math.max(1, (inputSize / SQL_DEFAULT_PARALLELISM_WORKER_PROCESS_SIZE).toInt)
         val cpuCost = nParallelism.toDouble * inputRows * SERIALIZE_DESERIALIZE_CPU_COST
         val networkCost = nParallelism * inputSize
         costFactory.makeCost(inputRows, cpuCost, 0, networkCost, 0)
       case RelDistribution.Type.HASH_DISTRIBUTED =>
         // hash shuffle
         val cpuCost = (HASH_CPU_COST * relDistribution.getKeys.size +
-          SERIALIZE_DESERIALIZE_CPU_COST ) * inputRows
+          SERIALIZE_DESERIALIZE_CPU_COST) * inputRows
         costFactory.makeCost(inputRows, cpuCost, 0, inputSize, 0)
       case RelDistribution.Type.ANY =>
         // the specific partitioner may be ForwardPartitioner or RebalancePartitioner
@@ -100,9 +97,10 @@ abstract class CommonPhysicalExchange(
     val exchangeName = relDistribution.getType.shortName
     val fieldNames = relDistribution.getType match {
       case RelDistribution.Type.RANGE_DISTRIBUTED =>
-        flinkRelDistribution.getFieldCollations.get.asScala.map { fieldCollation =>
-          val name = inputFieldNames.get(fieldCollation.getFieldIndex)
-          s"$name ${fieldCollation.getDirection.shortString}"
+        flinkRelDistribution.getFieldCollations.get.asScala.map {
+          fieldCollation =>
+            val name = inputFieldNames.get(fieldCollation.getFieldIndex)
+            s"$name ${fieldCollation.getDirection.shortString}"
         }.asJava
       case _ =>
         flinkRelDistribution.getKeys.asScala.map(inputFieldNames.get(_)).asJava

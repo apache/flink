@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
@@ -28,15 +27,10 @@ import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.taskmanager.ConsumableNotifyingResultPartitionWriterDecorator;
-import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
-import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.util.concurrent.FutureConsumerWithException;
 
 import org.hamcrest.Matchers;
 import org.junit.AfterClass;
@@ -46,7 +40,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
@@ -103,58 +96,6 @@ public class ResultPartitionTest {
         }
     }
 
-    /** Tests notifyPartitionDataAvailable behaviour depending on the relevant flags. */
-    @Test
-    public void testNotifyPartitionDataAvailable() throws Exception {
-        FutureConsumerWithException[] notificationCalls =
-                new FutureConsumerWithException[] {
-                    writer -> ((ResultPartitionWriter) writer).finish(),
-                    writer ->
-                            ((ResultPartitionWriter) writer)
-                                    .emitRecord(ByteBuffer.allocate(bufferSize), 0),
-                    writer ->
-                            ((ResultPartitionWriter) writer)
-                                    .broadcastEvent(EndOfPartitionEvent.INSTANCE, false),
-                    writer ->
-                            ((ResultPartitionWriter) writer)
-                                    .broadcastRecord(ByteBuffer.allocate(bufferSize))
-                };
-
-        for (FutureConsumerWithException notificationCall : notificationCalls) {
-            testNotifyPartitionDataAvailable(notificationCall);
-        }
-    }
-
-    private void testNotifyPartitionDataAvailable(
-            FutureConsumerWithException<ResultPartitionWriter, Exception> notificationCall)
-            throws Exception {
-        JobID jobId = new JobID();
-        TaskActions taskActions = new NoOpTaskActions();
-
-        {
-            // Pipelined, send message => notify
-            TestResultPartitionConsumableNotifier notifier =
-                    new TestResultPartitionConsumableNotifier();
-            ResultPartitionWriter consumableNotifyingPartitionWriter =
-                    createConsumableNotifyingResultPartitionWriter(
-                            ResultPartitionType.PIPELINED, taskActions, jobId, notifier);
-            notificationCall.accept(consumableNotifyingPartitionWriter);
-            notifier.check(
-                    jobId, consumableNotifyingPartitionWriter.getPartitionId(), taskActions, 1);
-        }
-
-        {
-            // Blocking, send message => don't notify
-            TestResultPartitionConsumableNotifier notifier =
-                    new TestResultPartitionConsumableNotifier();
-            ResultPartitionWriter partition =
-                    createConsumableNotifyingResultPartitionWriter(
-                            ResultPartitionType.BLOCKING, taskActions, jobId, notifier);
-            notificationCall.accept(partition);
-            notifier.check(null, null, null, 0);
-        }
-    }
-
     @Test
     public void testAddOnFinishedPipelinedPartition() throws Exception {
         testAddOnFinishedPartition(ResultPartitionType.PIPELINED);
@@ -202,24 +143,13 @@ public class ResultPartitionTest {
      */
     private void testAddOnFinishedPartition(final ResultPartitionType partitionType)
             throws Exception {
-        TestResultPartitionConsumableNotifier notifier =
-                new TestResultPartitionConsumableNotifier();
         BufferWritingResultPartition bufferWritingResultPartition =
                 createResultPartition(partitionType);
-        ResultPartitionWriter partitionWriter =
-                ConsumableNotifyingResultPartitionWriterDecorator.decorate(
-                        Collections.singleton(
-                                PartitionTestUtils.createPartitionDeploymentDescriptor(
-                                        partitionType)),
-                        new ResultPartitionWriter[] {bufferWritingResultPartition},
-                        new NoOpTaskActions(),
-                        new JobID(),
-                        notifier)[0];
+
         try {
-            partitionWriter.finish();
-            notifier.reset();
+            bufferWritingResultPartition.finish();
             // partitionWriter.emitRecord() should fail
-            partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+            bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
         } catch (IllegalStateException e) {
             // expected => ignored
         } finally {
@@ -228,8 +158,6 @@ public class ResultPartitionTest {
             assertEquals(
                     0,
                     bufferWritingResultPartition.getBufferPool().bestEffortGetNumOfUsedBuffers());
-            // should not have notified either
-            notifier.check(null, null, null, 0);
         }
     }
 
@@ -249,23 +177,13 @@ public class ResultPartitionTest {
      * @param partitionType the result partition type to set up
      */
     private void testAddOnReleasedPartition(ResultPartitionType partitionType) throws Exception {
-        TestResultPartitionConsumableNotifier notifier =
-                new TestResultPartitionConsumableNotifier();
         BufferWritingResultPartition bufferWritingResultPartition =
                 createResultPartition(partitionType);
-        ResultPartitionWriter partitionWriter =
-                ConsumableNotifyingResultPartitionWriterDecorator.decorate(
-                        Collections.singleton(
-                                PartitionTestUtils.createPartitionDeploymentDescriptor(
-                                        partitionType)),
-                        new ResultPartitionWriter[] {bufferWritingResultPartition},
-                        new NoOpTaskActions(),
-                        new JobID(),
-                        notifier)[0];
+
         try {
-            partitionWriter.release(null);
+            bufferWritingResultPartition.release(null);
             // partitionWriter.emitRecord() should silently drop the given record
-            partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+            bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
         } finally {
             assertEquals(1, bufferWritingResultPartition.numBuffersOut.getCount());
             assertEquals(bufferSize, bufferWritingResultPartition.numBytesOut.getCount());
@@ -273,8 +191,6 @@ public class ResultPartitionTest {
             assertEquals(
                     0,
                     bufferWritingResultPartition.getBufferPool().bestEffortGetNumOfUsedBuffers());
-            // should not have notified either
-            notifier.check(null, null, null, 0);
         }
     }
 
@@ -313,34 +229,18 @@ public class ResultPartitionTest {
      * @param partitionType the result partition type to set up
      */
     private void testAddOnPartition(final ResultPartitionType partitionType) throws Exception {
-        TestResultPartitionConsumableNotifier notifier =
-                new TestResultPartitionConsumableNotifier();
-        JobID jobId = new JobID();
-        TaskActions taskActions = new NoOpTaskActions();
         BufferWritingResultPartition bufferWritingResultPartition =
                 createResultPartition(partitionType);
-        ResultPartitionWriter partitionWriter =
-                ConsumableNotifyingResultPartitionWriterDecorator.decorate(
-                        Collections.singleton(
-                                PartitionTestUtils.createPartitionDeploymentDescriptor(
-                                        partitionType)),
-                        new ResultPartitionWriter[] {bufferWritingResultPartition},
-                        taskActions,
-                        jobId,
-                        notifier)[0];
+
         try {
             // partitionWriter.emitRecord() will allocate a new buffer and copies the record to it
-            partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+            bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
         } finally {
             assertEquals(1, bufferWritingResultPartition.numBuffersOut.getCount());
             assertEquals(bufferSize, bufferWritingResultPartition.numBytesOut.getCount());
             assertEquals(
                     1,
                     bufferWritingResultPartition.getBufferPool().bestEffortGetNumOfUsedBuffers());
-            // should have been notified for pipelined partitions
-            if (partitionType.isPipelined()) {
-                notifier.check(jobId, partitionWriter.getPartitionId(), taskActions, 1);
-            }
         }
     }
 
@@ -455,22 +355,6 @@ public class ResultPartitionTest {
         }
     }
 
-    private ResultPartitionWriter createConsumableNotifyingResultPartitionWriter(
-            ResultPartitionType partitionType,
-            TaskActions taskActions,
-            JobID jobId,
-            ResultPartitionConsumableNotifier notifier)
-            throws IOException {
-        ResultPartition partition = createResultPartition(partitionType);
-        return ConsumableNotifyingResultPartitionWriterDecorator.decorate(
-                Collections.singleton(
-                        PartitionTestUtils.createPartitionDeploymentDescriptor(partitionType)),
-                new ResultPartitionWriter[] {partition},
-                taskActions,
-                jobId,
-                notifier)[0];
-    }
-
     private BufferWritingResultPartition createResultPartition(ResultPartitionType partitionType)
             throws IOException {
         NettyShuffleEnvironment network =
@@ -489,7 +373,7 @@ public class ResultPartitionTest {
         // setup
         int bufferSize = 1024;
         NetworkBufferPool globalPool = new NetworkBufferPool(10, bufferSize);
-        BufferPool localPool = globalPool.createBufferPool(1, 1, 1, Integer.MAX_VALUE);
+        BufferPool localPool = globalPool.createBufferPool(1, 1, 1, Integer.MAX_VALUE, 0);
         BufferWritingResultPartition resultPartition =
                 (BufferWritingResultPartition)
                         new ResultPartitionBuilder().setBufferPoolFactory(() -> localPool).build();
@@ -834,28 +718,15 @@ public class ResultPartitionTest {
     }
 
     private void testNumBytesProducedCounter(boolean isBroadcast) throws IOException {
-        TestResultPartitionConsumableNotifier notifier =
-                new TestResultPartitionConsumableNotifier();
-        JobID jobId = new JobID();
-        TaskActions taskActions = new NoOpTaskActions();
         BufferWritingResultPartition bufferWritingResultPartition =
                 createResultPartition(ResultPartitionType.BLOCKING);
-        ResultPartitionWriter partitionWriter =
-                ConsumableNotifyingResultPartitionWriterDecorator.decorate(
-                        Collections.singleton(
-                                PartitionTestUtils.createPartitionDeploymentDescriptor(
-                                        ResultPartitionType.BLOCKING)),
-                        new ResultPartitionWriter[] {bufferWritingResultPartition},
-                        taskActions,
-                        jobId,
-                        notifier)[0];
 
         if (isBroadcast) {
-            partitionWriter.broadcastRecord(ByteBuffer.allocate(bufferSize));
+            bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(bufferSize));
             assertEquals(bufferSize, bufferWritingResultPartition.numBytesProduced.getCount());
             assertEquals(2 * bufferSize, bufferWritingResultPartition.numBytesOut.getCount());
         } else {
-            partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+            bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
             assertEquals(bufferSize, bufferWritingResultPartition.numBytesProduced.getCount());
             assertEquals(bufferSize, bufferWritingResultPartition.numBytesOut.getCount());
         }
@@ -935,40 +806,5 @@ public class ResultPartitionTest {
 
         assertEquals(7, subpartition1.pollBuffer().buffer().getSize());
         assertEquals(0, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
-    }
-
-    private static class TestResultPartitionConsumableNotifier
-            implements ResultPartitionConsumableNotifier {
-        private JobID jobID;
-        private ResultPartitionID partitionID;
-        private TaskActions taskActions;
-        private int numNotification;
-
-        @Override
-        public void notifyPartitionConsumable(
-                JobID jobID, ResultPartitionID partitionID, TaskActions taskActions) {
-            ++numNotification;
-            this.jobID = jobID;
-            this.partitionID = partitionID;
-            this.taskActions = taskActions;
-        }
-
-        private void check(
-                JobID jobID,
-                ResultPartitionID partitionID,
-                TaskActions taskActions,
-                int numNotification) {
-            assertEquals(jobID, this.jobID);
-            assertEquals(partitionID, this.partitionID);
-            assertEquals(taskActions, this.taskActions);
-            assertEquals(numNotification, this.numNotification);
-        }
-
-        private void reset() {
-            jobID = null;
-            partitionID = null;
-            taskActions = null;
-            numNotification = 0;
-        }
     }
 }

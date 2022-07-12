@@ -24,6 +24,7 @@ import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.TestLogger;
 
@@ -137,7 +138,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
         }
     }
 
-    private static class ThrowingStateHandle implements StreamStateHandle {
+    private static class ThrowingStateHandle implements TestStreamStateHandle {
         private static final long serialVersionUID = -2102069659550694805L;
 
         private final IOException expectedException;

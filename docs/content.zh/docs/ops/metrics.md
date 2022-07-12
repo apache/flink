@@ -782,7 +782,7 @@ Some metrics might not be exposed when using other JVM implementations (e.g. IBM
 </table>
 
 
-### Network 
+### Network
 
 {{< hint warning >}}
 Deprecated: use [Default shuffle service metrics](#default-shuffle-service)
@@ -840,12 +840,12 @@ Deprecated: use [Default shuffle service metrics](#default-shuffle-service)
     </tr>
     <tr>
       <td>outPoolUsage</td>
-      <td>An estimate of the output buffers usage.</td>
+      <td>An estimate of the output buffers usage. The pool usage can be > 100% if overdraft buffers are being used.</td>
       <td>Gauge</td>
     </tr>
     <tr>
       <td rowspan="4">Network.&lt;Input|Output&gt;.&lt;gate|partition&gt;<br />
-        <strong>(only available if <tt>taskmanager.net.detailed-metrics</tt> config option is set)</strong></td>
+        <strong>(only available if <tt>taskmanager.network.detailed-metrics</tt> config option is set)</strong></td>
       <td>totalQueueLen</td>
       <td>Total number of queued buffers in all input/output channels.</td>
       <td>Gauge</td>
@@ -960,12 +960,12 @@ Metrics related to data exchange between task executors using netty network comm
     </tr>
     <tr>
       <td>outPoolUsage</td>
-      <td>An estimate of the output buffers usage.</td>
+      <td>An estimate of the output buffers usage. The pool usage can be > 100% if overdraft buffers are being used.</td>
       <td>Gauge</td>
     </tr>
     <tr>
       <td rowspan="4">Shuffle.Netty.&lt;Input|Output&gt;.&lt;gate|partition&gt;<br />
-        <strong>(only available if <tt>taskmanager.net.detailed-metrics</tt> config option is set)</strong></td>
+        <strong>(only available if <tt>taskmanager.network.detailed-metrics</tt> config option is set)</strong></td>
       <td>totalQueueLen</td>
       <td>Total number of queued buffers in all input/output channels.</td>
       <td>Gauge</td>
@@ -1041,7 +1041,7 @@ Metrics related to data exchange between task executors using netty network comm
   </thead>
   <tbody>
     <tr>
-      <th rowspan="4"><strong>JobManager</strong></th>
+      <th rowspan="5"><strong>JobManager</strong></th>
       <td>numRegisteredTaskManagers</td>
       <td>The number of registered taskmanagers.</td>
       <td>Gauge</td>
@@ -1277,7 +1277,7 @@ Note that the metrics are only available via reporters.
   </thead>
   <tbody>
     <tr>
-      <th rowspan="20"><strong>Job (only available on TaskManager)</strong></th>
+      <th rowspan="8"><strong>Job (only available on TaskManager)</strong></th>
       <td>numberOfUploadRequests</td>
       <td>Total number of upload requests made</td>
       <td>Counter</td>
@@ -1290,6 +1290,11 @@ Note that the metrics are only available via reporters.
     <tr>
       <td>attemptsPerUpload</td>
       <td>The number of attempts per upload</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>totalAttemptsPerUpload</td>
+      <td>The total count distributions of attempts for per upload</td>
       <td>Histogram</td>
     </tr>
     <tr>
@@ -1310,7 +1315,43 @@ Note that the metrics are only available via reporters.
     <tr>
       <td>uploadQueueSize</td>
       <td>Current size of upload queue. Queue items can be packed together and form a single upload.</td>
-      <td>Meter</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <th rowspan="7"><strong>Task/Operator</strong></th>
+      <td>startedMaterialization</td>
+      <td>The number of started materializations.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>completedMaterialization</td>
+      <td>The number of successfully completed materializations.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>failedMaterialization</td>
+      <td>The number of failed materializations.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>lastFullSizeOfMaterialization</td>
+      <td>The full size of the materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastIncSizeOfMaterialization</td>
+      <td>The incremental size of the materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastFullSizeOfNonMaterialization</td>
+      <td>The full size of the non-materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastIncSizeOfNonMaterialization</td>
+      <td>The incremental size of the non-materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>
@@ -1702,12 +1743,12 @@ configured interval (`metrics.system-resource-probing-interval`).
 System resources reporting requires an optional dependency to be present on the
 classpath (for example placed in Flink's `lib` directory):
 
-  - `com.github.oshi:oshi-core:3.4.0` (licensed under EPL 1.0 license)
+  - `com.github.oshi:oshi-core:6.1.5` (licensed under MIT license)
 
 Including it's transitive dependencies:
 
-  - `net.java.dev.jna:jna-platform:jar:4.2.2`
-  - `net.java.dev.jna:jna:jar:4.2.2`
+  - `net.java.dev.jna:jna-platform:jar:5.10.0`
+  - `net.java.dev.jna:jna:jar:5.10.0`
 
 Failures in this regard will be reported as warning messages like `NoClassDefFoundError`
 logged by `SystemResourcesMetricsInitializer` during the startup.

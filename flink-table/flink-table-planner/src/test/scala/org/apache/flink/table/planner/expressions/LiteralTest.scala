@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
@@ -89,9 +88,7 @@ class LiteralTest extends ExpressionTestBase {
       "U&'>#263A<' UESCAPE '#'", // custom escape '#'
       ">\u263A<")
 
-    testSqlApi(
-      """'>\\<'""",
-      ">\\\\<")
+    testSqlApi("""'>\\<'""", ">\\\\<")
   }
 
   override def functions: Map[String, ScalarFunction] = Map(

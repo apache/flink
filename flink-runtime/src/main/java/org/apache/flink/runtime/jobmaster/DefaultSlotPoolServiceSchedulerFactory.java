@@ -35,6 +35,7 @@ import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeServiceFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolServiceFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.PreferredAllocationRequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy;
@@ -81,8 +82,9 @@ public final class DefaultSlotPoolServiceSchedulerFactory
     }
 
     @Override
-    public SlotPoolService createSlotPoolService(JobID jid) {
-        return slotPoolServiceFactory.createSlotPoolService(jid);
+    public SlotPoolService createSlotPoolService(
+            JobID jid, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
+        return slotPoolServiceFactory.createSlotPoolService(jid, declarativeSlotPoolFactory);
     }
 
     @Override

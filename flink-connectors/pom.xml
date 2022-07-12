@@ -27,7 +27,6 @@ under the License.
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
 		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
 	</parent>
 
 
@@ -98,9 +97,7 @@ under the License.
 				<module>flink-sql-connector-elasticsearch7</module>
 				<module>flink-sql-connector-hbase-1.4</module>
 				<module>flink-sql-connector-hbase-2.2</module>
-				<module>flink-sql-connector-hive-1.2.2</module>
-				<module>flink-sql-connector-hive-2.2.0</module>
-				<module>flink-sql-connector-hive-2.3.6</module>
+				<module>flink-sql-connector-hive-2.3.9</module>
 				<module>flink-sql-connector-hive-3.1.2</module>
 				<module>flink-sql-connector-kafka</module>
 				<module>flink-sql-connector-aws-kinesis-streams</module>

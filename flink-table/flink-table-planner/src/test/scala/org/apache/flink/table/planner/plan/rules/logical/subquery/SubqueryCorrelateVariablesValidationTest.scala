@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical.subquery
 
 import org.apache.flink.api.scala._
@@ -28,11 +27,38 @@ import java.sql.{Date, Timestamp}
 class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
 
   util.addTableSource[(String, Short, Int, Long, Float, Double, BigDecimal, Timestamp, Date)](
-    "t1", 't1a, 't1b, 't1c, 't1d, 't1e, 't1f, 't1g, 't1h, 't1i)
+    "t1",
+    't1a,
+    't1b,
+    't1c,
+    't1d,
+    't1e,
+    't1f,
+    't1g,
+    't1h,
+    't1i)
   util.addTableSource[(String, Short, Int, Long, Float, Double, BigDecimal, Timestamp, Date)](
-    "t2", 't2a, 't2b, 't2c, 't2d, 't2e, 't2f, 't2g, 't2h, 't2i)
+    "t2",
+    't2a,
+    't2b,
+    't2c,
+    't2d,
+    't2e,
+    't2f,
+    't2g,
+    't2h,
+    't2i)
   util.addTableSource[(String, Short, Int, Long, Float, Double, BigDecimal, Timestamp, Date)](
-    "t3", 't3a, 't3b, 't3c, 't3d, 't3e, 't3f, 't3g, 't3h, 't3i)
+    "t3",
+    't3a,
+    't3b,
+    't3c,
+    't3d,
+    't3e,
+    't3f,
+    't3g,
+    't3h,
+    't3i)
 
   @Test
   def testWithProjectProjectCorrelate(): Unit = {

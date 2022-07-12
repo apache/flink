@@ -49,7 +49,7 @@ public class TestProcessingTimeServiceTest {
         StreamConfig streamConfig = testHarness.getStreamConfig();
 
         StreamMap<String, String> mapOperator =
-                new StreamMap<>(new StreamTaskTimerTest.DummyMapFunction<>());
+                new StreamMap<>(new StreamTaskTimerITCase.DummyMapFunction<>());
         streamConfig.setStreamOperator(mapOperator);
         streamConfig.setOperatorID(new OperatorID());
 

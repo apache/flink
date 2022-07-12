@@ -112,17 +112,6 @@ TableEnvironment API
     </tr>
     <tr>
       <td>
-        <strong>sql_query(query)</strong>
-      </td>
-      <td>
-        执行一条 SQL 查询，并将查询的结果作为一个 `Table` 对象。
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.sql_query" name="链接">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
         <strong>create_temporary_view(view_path, table)</strong>
       </td>
       <td>
@@ -168,6 +157,17 @@ TableEnvironment API
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.execute_sql" name="链接">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>sql_query(query)</strong>
+      </td>
+      <td>
+        执行一条 SQL 查询，并将查询的结果作为一个 `Table` 对象。
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.sql_query" name="链接">}}
       </td>
     </tr>
   </tbody>
@@ -570,7 +570,9 @@ TableEnvironment API
         <a href="{{< ref "docs/dev/python/python_config" >}}">Python 配置</a> 中找到所有可用的配置选项。 <br> <br>
         下面的代码示例展示了如何通过这个 API 来设置配置选项：<br>
 # set the parallelism to 8 <br>
-table_env.get_config().set("parallelism.default", "8")
+table_env.get_config().set("parallelism.default", "8")<br>
+# set the job name <br>
+table_env.get_config().set("pipeline.name", "my_first_job")
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.get_config" name="链接">}}

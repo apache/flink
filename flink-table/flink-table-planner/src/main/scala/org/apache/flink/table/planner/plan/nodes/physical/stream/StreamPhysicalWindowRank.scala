@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowRank
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.rank._
@@ -38,8 +38,8 @@ import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 /**
- * Stream physical RelNode for [[Rank]] requires PARTITION BY clause contains start and end
- * columns of the windowing TVF.
+ * Stream physical RelNode for [[Rank]] requires PARTITION BY clause contains start and end columns
+ * of the windowing TVF.
  */
 class StreamPhysicalWindowRank(
     cluster: RelOptCluster,

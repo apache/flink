@@ -22,8 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 
 /** Output collector for Python UDF runner. */
 @Internal
@@ -31,8 +33,11 @@ public final class RunnerOutputCollector<OUT> implements Collector<Row> {
 
     private final TimestampedCollector<OUT> collector;
 
+    private final StreamRecord<?> reuse;
+
     public RunnerOutputCollector(TimestampedCollector<OUT> collector) {
         this.collector = collector;
+        this.reuse = new StreamRecord<>(null);
     }
 
     @SuppressWarnings("unchecked")
@@ -45,6 +50,20 @@ public final class RunnerOutputCollector<OUT> implements Collector<Row> {
             collector.eraseTimestamp();
         }
         collector.collect((OUT) runnerOutput.getField(1));
+    }
+
+    @SuppressWarnings("unchecked")
+    public <X> void collect(OutputTag<X> outputTag, Row runnerOutput) {
+        long ts = (long) runnerOutput.getField(0);
+        StreamRecord<X> typedReuse = (StreamRecord<X>) reuse;
+        typedReuse.replace((X) runnerOutput.getField(1));
+        if (ts != Long.MIN_VALUE) {
+            reuse.setTimestamp(ts);
+            collector.collect(outputTag, typedReuse);
+        } else {
+            reuse.eraseTimestamp();
+            collector.collect(outputTag, typedReuse);
+        }
     }
 
     @Override

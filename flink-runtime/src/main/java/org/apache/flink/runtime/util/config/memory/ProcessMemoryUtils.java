@@ -229,7 +229,7 @@ public class ProcessMemoryUtils<FM extends FlinkMemory> {
             LOG.info(
                     "The derived JVM Overhead size ({}) does not match "
                             + "the configured or default JVM Overhead fraction ({}) from the configured Total Process Memory size ({}). "
-                            + "The derived JVM OVerhead size will be used.",
+                            + "The derived JVM Overhead size will be used.",
                     derivedJvmOverheadSize.toHumanReadableString(),
                     jvmOverheadRangeFraction.getFraction(),
                     totalProcessMemorySize.toHumanReadableString());

@@ -343,8 +343,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<TaskThreadInfoResponse> requestThreadInfoSamples(
-            ExecutionAttemptID taskExecutionAttemptId,
-            ThreadInfoSamplesRequest threadInfoSamplesRequest,
+            Collection<ExecutionAttemptID> taskExecutionAttemptIds,
+            ThreadInfoSamplesRequest requestParams,
             Time timeout) {
         return requestThreadInfoSamplesSupplier.get();
     }

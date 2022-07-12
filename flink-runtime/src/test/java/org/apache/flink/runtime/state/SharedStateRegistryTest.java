@@ -24,14 +24,18 @@ import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.Chan
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 import static junit.framework.TestCase.assertFalse;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.ChangelogStateHandleWrapper;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.IncrementalStateHandleWrapper;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.createDummyChangelogStateHandle;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.createDummyIncrementalStateHandle;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class SharedStateRegistryTest {
@@ -122,6 +126,7 @@ public class SharedStateRegistryTest {
                         Collections.singletonList(materializedState1),
                         Collections.singletonList(nonMaterializedState1),
                         materializedStateBase1.getKeyGroupRange(),
+                        checkpointId1,
                         materializationId,
                         nonMaterializedState1.getStateSize());
         changelogStateBackendHandle1.registerSharedStates(sharedStateRegistry, checkpointId1);
@@ -136,6 +141,7 @@ public class SharedStateRegistryTest {
                         Collections.singletonList(materializedState2),
                         Collections.singletonList(nonMaterializedState2),
                         materializedStateBase1.getKeyGroupRange(),
+                        checkpointId2,
                         materializationId,
                         nonMaterializedState2.getStateSize());
         changelogStateBackendHandle2.registerSharedStates(sharedStateRegistry, checkpointId2);
@@ -160,6 +166,7 @@ public class SharedStateRegistryTest {
                         Collections.singletonList(materializedState3),
                         Collections.singletonList(nonMaterializedState2),
                         materializedState3.getKeyGroupRange(),
+                        checkpointId3,
                         materializationId2,
                         0L);
         changelogStateBackendHandle3.registerSharedStates(sharedStateRegistry, checkpointId3);
@@ -174,7 +181,24 @@ public class SharedStateRegistryTest {
         assertFalse(nonMaterializedState2.isDiscarded());
     }
 
-    private static class TestSharedState implements StreamStateHandle {
+    @Test
+    public void testUnregisterUnusedState() {
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
+        TestingStreamStateHandle handle = new TestingStreamStateHandle();
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("first"), handle, 1L);
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("first"), handle, 2L);
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("first"), handle, 3L);
+        sharedStateRegistry.registerReference(
+                new SharedStateRegistryKey("second"), new TestingStreamStateHandle(), 4L);
+        Set<Long> stillInUse = sharedStateRegistry.unregisterUnusedState(3);
+        Set<Long> expectedInUse = new HashSet<>(Arrays.asList(1L, 4L));
+        assertEquals(expectedInUse, stillInUse);
+
+        stillInUse = sharedStateRegistry.unregisterUnusedState(4);
+        assertEquals(Collections.singleton(4L), stillInUse);
+    }
+
+    private static class TestSharedState implements TestStreamStateHandle {
         private static final long serialVersionUID = 4468635881465159780L;
 
         private SharedStateRegistryKey key;

@@ -30,20 +30,15 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.io.InputGateUtil;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
-import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler.Cancellable;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ScheduledFuture;
-import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
 /**
@@ -160,7 +155,7 @@ public class InputProcessorUtil {
                     checkpointCoordinator,
                     clock,
                     numberOfChannels,
-                    createRegisterTimerCallback(mailboxExecutor, timerService),
+                    BarrierAlignmentUtil.createRegisterTimerCallback(mailboxExecutor, timerService),
                     enableCheckpointAfterTasksFinished,
                     inputs);
         } else {
@@ -169,24 +164,10 @@ public class InputProcessorUtil {
                     toNotifyOnCheckpoint,
                     clock,
                     numberOfChannels,
-                    createRegisterTimerCallback(mailboxExecutor, timerService),
+                    BarrierAlignmentUtil.createRegisterTimerCallback(mailboxExecutor, timerService),
                     enableCheckpointAfterTasksFinished,
                     inputs);
         }
-    }
-
-    private static BiFunction<Callable<?>, Duration, Cancellable> createRegisterTimerCallback(
-            MailboxExecutor mailboxExecutor, TimerService timerService) {
-        return (callable, delay) -> {
-            ScheduledFuture<?> scheduledFuture =
-                    timerService.registerTimer(
-                            timerService.getCurrentProcessingTime() + delay.toMillis(),
-                            timestamp ->
-                                    mailboxExecutor.submit(
-                                            callable,
-                                            "Execute checkpoint barrier handler delayed action"));
-            return () -> scheduledFuture.cancel(false);
-        };
     }
 
     private static void registerCheckpointMetrics(

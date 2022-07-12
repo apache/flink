@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.JDouble
@@ -31,9 +30,9 @@ import org.apache.calcite.util.{BuiltInMethod, Util}
 import scala.collection.JavaConversions._
 
 /**
-  * FlinkRelMdPercentageOriginalRows supplies a implementation of
-  * [[RelMetadataQuery#getPercentageOriginalRows]] for the standard logical algebra.
-  */
+ * FlinkRelMdPercentageOriginalRows supplies a implementation of
+ * [[RelMetadataQuery#getPercentageOriginalRows]] for the standard logical algebra.
+ */
 class FlinkRelMdPercentageOriginalRows private
   extends MetadataHandler[BuiltInMetadata.PercentageOriginalRows] {
 
@@ -75,13 +74,14 @@ class FlinkRelMdPercentageOriginalRows private
   def getPercentageOriginalRows(rel: Union, mq: RelMetadataQuery): JDouble = {
     var numerator: JDouble = 0.0
     var denominator: JDouble = 0.0
-    rel.getInputs.foreach { input =>
-      val inputRowCount = mq.getRowCount(input)
-      val percentage = mq.getPercentageOriginalRows(input)
-      if (percentage != null && percentage != 0.0) {
-        denominator += inputRowCount / percentage
-        numerator += inputRowCount
-      }
+    rel.getInputs.foreach {
+      input =>
+        val inputRowCount = mq.getRowCount(input)
+        val percentage = mq.getPercentageOriginalRows(input)
+        if (percentage != null && percentage != 0.0) {
+          denominator += inputRowCount / percentage
+          numerator += inputRowCount
+        }
     }
     quotientForPercentage(numerator, denominator)
   }
@@ -91,9 +91,7 @@ class FlinkRelMdPercentageOriginalRows private
     mq.getPercentageOriginalRows(rel)
   }
 
-  /**
-    * Catch-all rule when none of the others apply.
-    */
+  /** Catch-all rule when none of the others apply. */
   def getPercentageOriginalRows(rel: RelNode, mq: RelMetadataQuery): JDouble = {
     if (rel.getInputs.size > 1) {
       // No generic formula available for multiple inputs.
@@ -143,6 +141,7 @@ object FlinkRelMdPercentageOriginalRows {
   private val INSTANCE = new FlinkRelMdPercentageOriginalRows
 
   val SOURCE: RelMetadataProvider = ReflectiveRelMetadataProvider.reflectiveSource(
-    BuiltInMethod.PERCENTAGE_ORIGINAL_ROWS.method, INSTANCE)
+    BuiltInMethod.PERCENTAGE_ORIGINAL_ROWS.method,
+    INSTANCE)
 
 }

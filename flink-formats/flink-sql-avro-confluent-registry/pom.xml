@@ -26,13 +26,19 @@ under the License.
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
 		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-sql-avro-confluent-registry</artifactId>
 	<name>Flink : Formats : SQL Avro Confluent Registry</name>
 
 	<packaging>jar</packaging>
+
+	<repositories>
+		<repository>
+			<id>confluent</id>
+			<url>https://packages.confluent.io/maven/</url>
+		</repository>
+	</repositories>
 
 	<dependencies>
 		<dependency>

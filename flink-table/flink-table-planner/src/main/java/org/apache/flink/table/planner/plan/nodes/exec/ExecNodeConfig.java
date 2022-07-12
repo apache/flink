@@ -21,11 +21,9 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 
 import java.util.Optional;
 
@@ -38,30 +36,13 @@ import java.util.Optional;
 @Internal
 public final class ExecNodeConfig implements ReadableConfig {
 
-    // See https://issues.apache.org/jira/browse/FLINK-26190
-    // Used only by CommonPythonUtil#getMergedConfig(StreamExecutionEnvironment, TableConfig)}
-    // otherwise it can be changed to ReadableConfig.
-    private final TableConfig tableConfig;
+    private final ReadableConfig tableConfig;
 
     private final ReadableConfig nodeConfig;
 
     ExecNodeConfig(TableConfig tableConfig, ReadableConfig nodeConfig) {
         this.nodeConfig = nodeConfig;
         this.tableConfig = tableConfig;
-    }
-
-    /**
-     * Return the {@link PlannerBase#getTableConfig()}.
-     *
-     * @return the {@link PlannerBase#getTableConfig()}.
-     * @deprecated This method is used only for {@link
-     *     CommonPythonUtil#getMergedConfig(StreamExecutionEnvironment, TableConfig)}. It should be
-     *     removed when this method is refactored to accept a {@link ReadableConfig} instead.
-     */
-    // See https://issues.apache.org/jira/browse/FLINK-26190
-    @Deprecated
-    public TableConfig getTableConfig() {
-        return tableConfig;
     }
 
     @Override

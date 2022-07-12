@@ -19,7 +19,8 @@
 package org.apache.flink.python;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.ReadableConfig;
 
 /** The base interface of runner which is responsible for the execution of Python functions. */
 @Internal
@@ -28,7 +29,7 @@ public interface PythonFunctionRunner {
     /**
      * Prepares the Python function runner, such as preparing the Python execution environment, etc.
      */
-    void open(PythonConfig config) throws Exception;
+    void open(ReadableConfig config) throws Exception;
 
     /** Tear-down the Python function runner. */
     void close() throws Exception;
@@ -50,7 +51,7 @@ public interface PythonFunctionRunner {
      *     empty. f0 means the byte array buffer which stores the Python function result. f1 means
      *     the length of the Python function result byte array.
      */
-    Tuple2<byte[], Integer> pollResult() throws Exception;
+    Tuple3<String, byte[], Integer> pollResult() throws Exception;
 
     /**
      * Retrieves the Python function result, waiting if necessary until an element becomes
@@ -60,7 +61,7 @@ public interface PythonFunctionRunner {
      *     stores the Python function result. f1 means the length of the Python function result byte
      *     array.
      */
-    Tuple2<byte[], Integer> takeResult() throws Exception;
+    Tuple3<String, byte[], Integer> takeResult() throws Exception;
 
     /**
      * Forces to finish the processing of the current bundle of elements. It will flush the data

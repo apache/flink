@@ -91,6 +91,8 @@ public class DirectConvertRule implements CallExpressionConvertRule {
                 BuiltInFunctionDefinitions.SIMILAR, FlinkSqlOperatorTable.SIMILAR_TO);
         DEFINITION_OPERATOR_MAP.put(
                 BuiltInFunctionDefinitions.SUBSTRING, FlinkSqlOperatorTable.SUBSTRING);
+        DEFINITION_OPERATOR_MAP.put(
+                BuiltInFunctionDefinitions.SUBSTR, FlinkSqlOperatorTable.SUBSTR);
         DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.UPPER, FlinkSqlOperatorTable.UPPER);
         DEFINITION_OPERATOR_MAP.put(
                 BuiltInFunctionDefinitions.UPPERCASE, FlinkSqlOperatorTable.UPPER);
@@ -110,11 +112,26 @@ public class DirectConvertRule implements CallExpressionConvertRule {
                 BuiltInFunctionDefinitions.FROM_BASE64, FlinkSqlOperatorTable.FROM_BASE64);
         DEFINITION_OPERATOR_MAP.put(
                 BuiltInFunctionDefinitions.TO_BASE64, FlinkSqlOperatorTable.TO_BASE64);
+        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.ASCII, FlinkSqlOperatorTable.ASCII);
+        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.CHR, FlinkSqlOperatorTable.CHR);
+        DEFINITION_OPERATOR_MAP.put(
+                BuiltInFunctionDefinitions.DECODE, FlinkSqlOperatorTable.DECODE);
+        DEFINITION_OPERATOR_MAP.put(
+                BuiltInFunctionDefinitions.ENCODE, FlinkSqlOperatorTable.ENCODE);
+        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LEFT, FlinkSqlOperatorTable.LEFT);
+        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.RIGHT, FlinkSqlOperatorTable.RIGHT);
+        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.INSTR, FlinkSqlOperatorTable.INSTR);
+        DEFINITION_OPERATOR_MAP.put(
+                BuiltInFunctionDefinitions.LOCATE, FlinkSqlOperatorTable.LOCATE);
+        DEFINITION_OPERATOR_MAP.put(
+                BuiltInFunctionDefinitions.PARSE_URL, FlinkSqlOperatorTable.PARSE_URL);
         DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.UUID, FlinkSqlOperatorTable.UUID);
         DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LTRIM, FlinkSqlOperatorTable.LTRIM);
         DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.RTRIM, FlinkSqlOperatorTable.RTRIM);
         DEFINITION_OPERATOR_MAP.put(
                 BuiltInFunctionDefinitions.REPEAT, FlinkSqlOperatorTable.REPEAT);
+        DEFINITION_OPERATOR_MAP.put(
+                BuiltInFunctionDefinitions.REGEXP, FlinkSqlOperatorTable.REGEXP);
         DEFINITION_OPERATOR_MAP.put(
                 BuiltInFunctionDefinitions.REGEXP_REPLACE, FlinkSqlOperatorTable.REGEXP_REPLACE);
 
@@ -182,6 +199,8 @@ public class DirectConvertRule implements CallExpressionConvertRule {
                 BuiltInFunctionDefinitions.LOCAL_TIMESTAMP, FlinkSqlOperatorTable.LOCALTIMESTAMP);
         DEFINITION_OPERATOR_MAP.put(
                 BuiltInFunctionDefinitions.DATE_FORMAT, FlinkSqlOperatorTable.DATE_FORMAT);
+        DEFINITION_OPERATOR_MAP.put(
+                BuiltInFunctionDefinitions.FROM_UNIXTIME, FlinkSqlOperatorTable.FROM_UNIXTIME);
         DEFINITION_OPERATOR_MAP.put(
                 BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ,
                 FlinkSqlOperatorTable.TO_TIMESTAMP_LTZ);

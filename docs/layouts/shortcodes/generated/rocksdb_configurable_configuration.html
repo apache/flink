@@ -72,7 +72,7 @@
             <td><h5>state.backend.rocksdb.log.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The directory for RocksDB's information logging files. If empty (Flink default setting), log files will be in the same directory as the Flink log. If non-empty, this directory will be used and the data directory's absolute path will be used as the prefix of the log file name.</td>
+            <td>The directory for RocksDB's information logging files. If empty (Flink default setting), log files will be in the same directory as the Flink log. If non-empty, this directory will be used and the data directory's absolute path will be used as the prefix of the log file name. If setting this option as a non-existing location, e.g '/dev/null', RocksDB will then create the log under its own database folder as before.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.log.file-num</h5></td>
@@ -94,9 +94,9 @@
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.restore-overlap-fraction-threshold</h5></td>
-            <td style="word-wrap: break-word;">0.75</td>
+            <td style="word-wrap: break-word;">0.0</td>
             <td>Double</td>
-            <td>The threshold of the overlap fraction between the handle's key-group range and target key-group range. When restore base DB, only the handle which overlap fraction greater than or equal to *threshold* has a chance to be an initial handle.</td>
+            <td>The threshold of overlap fraction between the handle's key-group range and target key-group range. When restore base DB, only the handle which overlap fraction greater than or equal to threshold has a chance to be an initial handle. The default value is 0.0, there is always a handle will be selected for initialization. </td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.thread.num</h5></td>

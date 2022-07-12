@@ -32,10 +32,9 @@ import org.apache.flink.table.factories.TestFormatFactory;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.TestLogger;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
@@ -51,11 +50,11 @@ import static org.apache.flink.connector.kinesis.table.KinesisConnectorOptions.S
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 
 /** Test for {@link KinesisDynamicSink} created by {@link KinesisDynamicTableSinkFactory}. */
-public class KinesisDynamicTableSinkFactoryTest extends TestLogger {
+class KinesisDynamicTableSinkFactoryTest {
     private static final String STREAM_NAME = "myStream";
 
     @Test
-    public void testGoodTableSinkForPartitionedTable() {
+    void testGoodTableSinkForPartitionedTable() {
         ResolvedSchema sinkSchema = defaultSinkSchema();
         DataType physicalDataType = sinkSchema.toPhysicalRowDataType();
         Map<String, String> sinkOptions = defaultTableOptions().build();
@@ -89,7 +88,7 @@ public class KinesisDynamicTableSinkFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testGoodTableSinkCopyForPartitionedTable() {
+    void testGoodTableSinkCopyForPartitionedTable() {
         ResolvedSchema sinkSchema = defaultSinkSchema();
         DataType physicalDataType = sinkSchema.toPhysicalRowDataType();
         Map<String, String> sinkOptions = defaultTableOptions().build();
@@ -117,7 +116,7 @@ public class KinesisDynamicTableSinkFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testGoodTableSinkForNonPartitionedTable() {
+    void testGoodTableSinkForNonPartitionedTable() {
         ResolvedSchema sinkSchema = defaultSinkSchema();
         Map<String, String> sinkOptions = defaultTableOptions().build();
 
@@ -146,7 +145,7 @@ public class KinesisDynamicTableSinkFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testGoodTableSinkForNonPartitionedTableWithSinkOptions() {
+    void testGoodTableSinkForNonPartitionedTableWithSinkOptions() {
         ResolvedSchema sinkSchema = defaultSinkSchema();
         Map<String, String> sinkOptions = defaultTableOptionsWithSinkOptions().build();
 
@@ -175,7 +174,7 @@ public class KinesisDynamicTableSinkFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testGoodTableSinkForNonPartitionedTableWithProducerOptions() {
+    void testGoodTableSinkForNonPartitionedTableWithProducerOptions() {
         ResolvedSchema sinkSchema = defaultSinkSchema();
         Map<String, String> sinkOptions = defaultTableOptionsWithDeprecatedOptions().build();
 
@@ -209,7 +208,7 @@ public class KinesisDynamicTableSinkFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testBadTableSinkForCustomPartitionerForPartitionedTable() {
+    void testBadTableSinkForCustomPartitionerForPartitionedTable() {
         ResolvedSchema sinkSchema = defaultSinkSchema();
         Map<String, String> sinkOptions =
                 defaultTableOptions()
@@ -229,7 +228,7 @@ public class KinesisDynamicTableSinkFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testBadTableSinkForNonExistingPartitionerClass() {
+    void testBadTableSinkForNonExistingPartitionerClass() {
         ResolvedSchema sinkSchema = defaultSinkSchema();
         Map<String, String> sinkOptions =
                 defaultTableOptions()

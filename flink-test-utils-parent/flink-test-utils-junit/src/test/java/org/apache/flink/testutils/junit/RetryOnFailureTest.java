@@ -18,16 +18,17 @@
 
 package org.apache.flink.testutils.junit;
 
-import org.junit.AfterClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.apache.flink.testutils.junit.extensions.retry.RetryExtension;
 
-import static org.junit.Assert.assertEquals;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the RetryOnFailure annotation. */
-public class RetryOnFailureTest {
-
-    @Rule public RetryRule retryRule = new RetryRule();
+@ExtendWith(RetryExtension.class)
+class RetryOnFailureTest {
 
     private static final int NUMBER_OF_RUNS = 5;
 
@@ -37,15 +38,15 @@ public class RetryOnFailureTest {
 
     private static boolean firstRun = true;
 
-    @AfterClass
-    public static void verify() throws Exception {
-        assertEquals(NUMBER_OF_RUNS + 1, numberOfFailedRuns);
-        assertEquals(3, numberOfSuccessfulRuns);
+    @AfterAll
+    static void verify() {
+        assertThat(numberOfFailedRuns).isEqualTo(NUMBER_OF_RUNS + 1);
+        assertThat(numberOfSuccessfulRuns).isEqualTo(3);
     }
 
-    @Test
+    @TestTemplate
     @RetryOnFailure(times = NUMBER_OF_RUNS)
-    public void testRetryOnFailure() throws Exception {
+    void testRetryOnFailure() {
         // All but the (expected) last run should be successful
         if (numberOfFailedRuns < NUMBER_OF_RUNS) {
             numberOfFailedRuns++;
@@ -55,9 +56,9 @@ public class RetryOnFailureTest {
         }
     }
 
-    @Test
+    @TestTemplate
     @RetryOnFailure(times = NUMBER_OF_RUNS)
-    public void testRetryOnceOnFailure() throws Exception {
+    void testRetryOnceOnFailure() {
         if (firstRun) {
             numberOfFailedRuns++;
             firstRun = false;
@@ -67,9 +68,9 @@ public class RetryOnFailureTest {
         }
     }
 
-    @Test
+    @TestTemplate
     @RetryOnFailure(times = NUMBER_OF_RUNS)
-    public void testDontRetryOnSuccess() throws Exception {
+    void testDontRetryOnSuccess() {
         numberOfSuccessfulRuns++;
     }
 }

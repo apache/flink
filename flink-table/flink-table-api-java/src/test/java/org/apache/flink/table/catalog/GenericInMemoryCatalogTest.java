@@ -33,8 +33,8 @@ import org.apache.flink.table.functions.TestGenericUDF;
 import org.apache.flink.table.functions.TestSimpleUDF;
 import org.apache.flink.table.utils.TableEnvironmentMock;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,10 +42,10 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for GenericInMemoryCatalog. */
-public class GenericInMemoryCatalogTest extends CatalogTestBase {
+class GenericInMemoryCatalogTest extends CatalogTestBase {
 
-    @BeforeClass
-    public static void init() {
+    @BeforeAll
+    static void init() {
         catalog = new GenericInMemoryCatalog(TEST_CATALOG_NAME);
         catalog.open();
     }
@@ -53,7 +53,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
     // ------ tables ------
 
     @Test
-    public void testDropTable_partitionedTable() throws Exception {
+    void testDropTable_partitionedTable() throws Exception {
         catalog.createDatabase(db1, createDb(), false);
         catalog.createTable(path1, createPartitionedTable(), false);
         CatalogPartition catalogPartition = createPartition();
@@ -69,7 +69,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
     }
 
     @Test
-    public void testRenameTable_partitionedTable() throws Exception {
+    void testRenameTable_partitionedTable() throws Exception {
         catalog.createDatabase(db1, createDb(), false);
         CatalogTable table = createPartitionedTable();
         catalog.createTable(path1, table, false);
@@ -91,7 +91,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
     // ------ statistics ------
 
     @Test
-    public void testStatistics() throws Exception {
+    void testStatistics() throws Exception {
         // Table related
         catalog.createDatabase(db1, createDb(), false);
         CatalogTable table = createTable();
@@ -184,7 +184,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
     }
 
     @Test
-    public void testRegisterCatalog() {
+    void testRegisterCatalog() {
         final TableEnvironmentMock tableEnv = TableEnvironmentMock.getStreamingInstance();
         try {
             tableEnv.registerCatalog(TEST_CATALOG_NAME, new MyCatalog(TEST_CATALOG_NAME));

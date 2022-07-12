@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -44,24 +43,24 @@ import scala.collection.JavaConverters._
 object SearchOperatorGen {
 
   /**
-   * Generates SEARCH expression using either an HashSet or a concatenation of OR,
-   * depending on whether the elements of the haystack are all literals or not.
+   * Generates SEARCH expression using either an HashSet or a concatenation of OR, depending on
+   * whether the elements of the haystack are all literals or not.
    *
    * Note that both IN/NOT IN are converted to SEARCH when the set has only constant values,
    * otherwise the IN/NOT IN are converted to a set of disjunctions. See
    * [[org.apache.calcite.rex.RexBuilder#makeIn(org.apache.calcite.rex.RexNode, java.util.List)]].
    */
   def generateSearch(
-       ctx: CodeGeneratorContext,
-       target: GeneratedExpression,
-       sargLiteral: RexLiteral): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      target: GeneratedExpression,
+      sargLiteral: RexLiteral): GeneratedExpression = {
     val sarg: Sarg[Nothing] = sargLiteral.getValueAs(classOf[Sarg[Nothing]])
     val targetType = target.resultType
     val sargType = FlinkTypeFactory.toLogicalType(sargLiteral.getType)
 
     val commonType: LogicalType = findCommonType(asList(targetType, sargType))
-      .orElseThrow(() =>
-        new CodeGenException(s"Unable to find common type of $target and $sargLiteral."))
+      .orElseThrow(
+        () => new CodeGenException(s"Unable to find common type of $target and $sargLiteral."))
 
     val needle = generateCast(
       ctx,
@@ -110,19 +109,21 @@ object SearchOperatorGen {
       val rangeToExpression = new RangeToExpression(ctx, sargType, dummyTarget)
 
       // We use a chain of ORs and range comparisons
-      var rangeChecks: Seq[GeneratedExpression] = sarg
-        .rangeSet
-        .asRanges
-        .asScala
-        .toSeq
+      var rangeChecks: Seq[GeneratedExpression] = sarg.rangeSet.asRanges.asScala.toSeq
         .map(RangeSets.map(_, rangeToExpression))
 
       if (sarg.containsNull) {
-        rangeChecks = Seq(generateIsNull(target)) ++ rangeChecks
+        rangeChecks =
+          Seq(generateIsNull(target, new BooleanType(target.resultType.isNullable))) ++ rangeChecks
       }
 
       val generatedRangeChecks = rangeChecks
-        .reduce((left, right) => generateOr(left, right))
+        .reduce(
+          (left, right) =>
+            generateOr(
+              left,
+              right,
+              new BooleanType(left.resultType.isNullable || right.resultType.isNullable)))
 
       // Add the target expression code
       val finalCode =
@@ -137,86 +138,77 @@ object SearchOperatorGen {
   }
 
   private class RangeToExpression[C <: Comparable[C]](
-       ctx: CodeGeneratorContext,
-       boundType: LogicalType,
-       target: GeneratedExpression) extends RangeSets.Handler[C, GeneratedExpression] {
+      ctx: CodeGeneratorContext,
+      boundType: LogicalType,
+      target: GeneratedExpression)
+    extends RangeSets.Handler[C, GeneratedExpression] {
+
+    final val resultTypeForBoolExpr = new BooleanType(
+      boundType.isNullable
+        || target.resultType.isNullable)
 
     override def all(): GeneratedExpression = {
-      generateLiteral(ctx, true, new BooleanType())
+      generateLiteral(ctx, true, new BooleanType(false))
     }
 
-    /**
-     * lower <= target
-     */
+    /** lower <= target */
     override def atLeast(lower: C): GeneratedExpression = {
-      generateComparison(ctx, "<=", lit(lower), target)
+      generateComparison(ctx, "<=", lit(lower), target, resultTypeForBoolExpr)
     }
 
-    /**
-     * target <= upper
-     */
+    /** target <= upper */
     override def atMost(upper: C): GeneratedExpression = {
-      generateComparison(ctx, "<=", target, lit(upper))
+      generateComparison(ctx, "<=", target, lit(upper), resultTypeForBoolExpr)
     }
 
-    /**
-     * lower < target
-     */
+    /** lower < target */
     override def greaterThan(lower: C): GeneratedExpression = {
-      generateComparison(ctx, "<", lit(lower), target)
+      generateComparison(ctx, "<", lit(lower), target, resultTypeForBoolExpr)
     }
 
-    /**
-     * target < upper
-     */
+    /** target < upper */
     override def lessThan(upper: C): GeneratedExpression = {
-      generateComparison(ctx, "<", target, lit(upper))
+      generateComparison(ctx, "<", target, lit(upper), resultTypeForBoolExpr)
     }
 
-    /**
-     * value == target
-     */
+    /** value == target */
     override def singleton(value: C): GeneratedExpression = {
-      generateComparison(ctx, "==", lit(value), target)
+      generateComparison(ctx, "==", lit(value), target, resultTypeForBoolExpr)
     }
 
-    /**
-     * lower <= target && target <= upper
-     */
+    /** lower <= target && target <= upper */
     override def closed(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        generateComparison(ctx, "<=", lit(lower), target),
-        generateComparison(ctx, "<=", target, lit(upper))
+        generateComparison(ctx, "<=", lit(lower), target, resultTypeForBoolExpr),
+        generateComparison(ctx, "<=", target, lit(upper), resultTypeForBoolExpr),
+        resultTypeForBoolExpr
       )
     }
 
-    /**
-     * lower <= target && target < upper
-     */
+    /** lower <= target && target < upper */
     override def closedOpen(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        generateComparison(ctx, "<=", lit(lower), target),
-        generateComparison(ctx, "<", target, lit(upper))
+        generateComparison(ctx, "<=", lit(lower), target, resultTypeForBoolExpr),
+        generateComparison(ctx, "<", target, lit(upper), resultTypeForBoolExpr),
+        resultTypeForBoolExpr
       )
     }
 
-    /**
-     * lower < target && target <= upper
-     */
+    /** lower < target && target <= upper */
     override def openClosed(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        generateComparison(ctx, "<", lit(lower), target),
-        generateComparison(ctx, "<=", target, lit(upper))
+        generateComparison(ctx, "<", lit(lower), target, resultTypeForBoolExpr),
+        generateComparison(ctx, "<=", target, lit(upper), resultTypeForBoolExpr),
+        resultTypeForBoolExpr
       )
     }
 
-    /**
-     * lower < target && target < upper
-     */
+    /** lower < target && target < upper */
     override def open(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        generateComparison(ctx, "<", lit(lower), target),
-        generateComparison(ctx, "<", target, lit(upper))
+        generateComparison(ctx, "<", lit(lower), target, resultTypeForBoolExpr),
+        generateComparison(ctx, "<", target, lit(upper), resultTypeForBoolExpr),
+        resultTypeForBoolExpr
       )
     }
 

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -36,9 +35,8 @@ import java.math.{BigDecimal => JBigDecimal}
 import scala.collection.Seq
 
 /**
-  * Conformance test of SQL type Decimal(p,s).
-  * Served also as documentation of our Decimal behaviors.
-  */
+ * Conformance test of SQL type Decimal(p,s). Served also as documentation of our Decimal behaviors.
+ */
 class DecimalITCase extends BatchTestBase {
 
   private case class Coll(colTypes: Seq[LogicalType], rows: Seq[Row])
@@ -48,20 +46,20 @@ class DecimalITCase extends BatchTestBase {
       tables: Seq[Coll],
       query: String,
       expected: Coll,
-      isSorted: Boolean = false)
-    : Unit = {
+      isSorted: Boolean = false): Unit = {
 
     var tableId = 0
     var queryX = query
-    tables.foreach{ table =>
-      tableId += 1
-      globalTableId += 1
-      val tableName = "Table" + tableId
-      val newTableName = tableName + "_" + globalTableId
-      val rowTypeInfo = new RowTypeInfo(table.colTypes.toArray.map(fromLogicalTypeToTypeInfo): _*)
-      val fieldNames = rowTypeInfo.getFieldNames.mkString(",")
-      registerCollection(newTableName, table.rows, rowTypeInfo, fieldNames)
-      queryX = queryX.replace(tableName, newTableName)
+    tables.foreach {
+      table =>
+        tableId += 1
+        globalTableId += 1
+        val tableName = "Table" + tableId
+        val newTableName = tableName + "_" + globalTableId
+        val rowTypeInfo = new RowTypeInfo(table.colTypes.toArray.map(fromLogicalTypeToTypeInfo): _*)
+        val fieldNames = rowTypeInfo.getFieldNames.mkString(",")
+        registerCollection(newTableName, table.rows, rowTypeInfo, fieldNames)
+        queryX = queryX.replace(tableName, newTableName)
     }
 
     // check result schema
@@ -70,17 +68,13 @@ class DecimalITCase extends BatchTestBase {
     val ts2 = resultTable.getSchema.getFieldDataTypes.map(fromDataTypeToLogicalType)
     Assert.assertEquals(ts1.length, ts2.length)
 
-    Assert.assertTrue(ts1.zip(ts2).forall {
-      case (t1, t2) => isInteroperable(t1, t2)
-    })
+    Assert.assertTrue(ts1.zip(ts2).forall { case (t1, t2) => isInteroperable(t1, t2) })
 
     def prepareResult(isSorted: Boolean, seq: Seq[Row]) = {
       if (!isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
     }
     val resultRows = executeQuery(resultTable)
-    Assert.assertEquals(
-      prepareResult(isSorted, expected.rows),
-      prepareResult(isSorted, resultRows))
+    Assert.assertEquals(prepareResult(isSorted, expected.rows), prepareResult(isSorted, resultRows))
   }
 
   private def checkQuery1(
@@ -89,8 +83,7 @@ class DecimalITCase extends BatchTestBase {
       query: String,
       expectedColTypes: Seq[LogicalType],
       expectedRows: Seq[Row],
-      isSorted: Boolean = false)
-    : Unit = {
+      isSorted: Boolean = false): Unit = {
     checkQueryX(
       Seq(Coll(sourceColTypes, sourceRows)),
       query,
@@ -130,7 +123,7 @@ class DecimalITCase extends BatchTestBase {
 
   // d"xxx" => new BigDecimal("xxx")
   // d"xxx$yy" => new BigDecimal("xxx").setScale(yy)
-  private implicit class DecimalConvertor(val sc: StringContext) {
+  implicit private class DecimalConvertor(val sc: StringContext) {
     def d(args: Any*): java.math.BigDecimal = args.length match {
       case 0 => new JBigDecimal(sc.parts.head)
       case 1 => new JBigDecimal(sc.parts.head).setScale(args.head.asInstanceOf[Int])
@@ -151,7 +144,8 @@ class DecimalITCase extends BatchTestBase {
       s1r(d"3.14"),
       "select log10(f0), ln(f0), log(f0), log2(f0) from Table1",
       Seq(DOUBLE, DOUBLE, DOUBLE, DOUBLE),
-      s1r(log10(3.14), Math.log(3.14), Math.log(3.14), Math.log(3.14)/Math.log(2.0)))
+      s1r(log10(3.14), Math.log(3.14), Math.log(3.14), Math.log(3.14) / Math.log(2.0))
+    )
 
     checkQuery1(
       Seq(DECIMAL(10, 2), DOUBLE),
@@ -165,7 +159,8 @@ class DecimalITCase extends BatchTestBase {
       s1r(d"3.14", 0.3),
       "select power(f0,f0), power(f0,f1), power(f1,f0), sqrt(f0) from Table1",
       Seq(DOUBLE, DOUBLE, DOUBLE, DOUBLE),
-      s1r(pow(3.14, 3.14), pow(3.14, 0.3), pow(0.3, 3.14), pow(3.14, 0.5)))
+      s1r(pow(3.14, 3.14), pow(3.14, 0.3), pow(0.3, 3.14), pow(3.14, 0.5))
+    )
 
     checkQuery1(
       Seq(DECIMAL(10, 2), DOUBLE),
@@ -179,7 +174,8 @@ class DecimalITCase extends BatchTestBase {
       s1r(d"0.12"),
       "select sin(f0), cos(f0), tan(f0), cot(f0) from Table1",
       Seq(DOUBLE, DOUBLE, DOUBLE, DOUBLE),
-      s1r(sin(0.12), cos(0.12), tan(0.12), 1.0/tan(0.12)))
+      s1r(sin(0.12), cos(0.12), tan(0.12), 1.0 / tan(0.12))
+    )
 
     checkQuery1(
       Seq(DECIMAL(10, 2)),
@@ -224,7 +220,8 @@ class DecimalITCase extends BatchTestBase {
       (0 until 100).map(_ => row(d"100.000", d"1${10}")),
       "select avg(f0), avg(f1) from Table1",
       Seq(DECIMAL(38, 6), DECIMAL(38, 10)),
-      s1r(d"100.000000", d"1${10}"))
+      s1r(d"100.000000", d"1${10}")
+    )
 
     checkQuery1(
       Seq(DECIMAL(37, 0)),
@@ -243,7 +240,8 @@ class DecimalITCase extends BatchTestBase {
       (10 to 90).map(i => row(java.math.BigDecimal.valueOf(i))),
       "select min(f0), max(f0), count(f0) from Table1",
       Seq(DECIMAL(6, 3), DECIMAL(6, 3), LONG),
-      s1r(d"10.000", d"90.000", 81L))
+      s1r(d"10.000", d"90.000", 81L)
+    )
   }
 
   @Test
@@ -356,7 +354,8 @@ class DecimalITCase extends BatchTestBase {
       "select f0 from Table1 A order by f0",
       Seq(DECIMAL(8, 2)),
       Seq(row(d"1.00"), row(d"1.00"), row(d"2.00"), row(d"3.00")),
-      isSorted = true)
+      isSorted = true
+    )
   }
 
   @Test
@@ -365,9 +364,10 @@ class DecimalITCase extends BatchTestBase {
       Seq(DECIMAL(6, 3), DECIMAL(6, 3), DECIMAL(20, 10)),
       Seq(row(d"100.000", null, null)),
       "select distinct(f0), f1, f2 from (select t1.f0, t1.f1, t1.f2 from Table1 t1 " +
-          "union all (SELECT * FROM Table1)) order by f0",
+        "union all (SELECT * FROM Table1)) order by f0",
       Seq(DECIMAL(6, 3), DECIMAL(6, 3), DECIMAL(20, 10)),
-      s1r(d"100.000", null, null))
+      s1r(d"100.000", null, null)
+    )
   }
 
   @Test
@@ -379,14 +379,16 @@ class DecimalITCase extends BatchTestBase {
       (0 until 100).map(_ => row(d"100.000", null, null)),
       "select f0, avg(f1), avg(f2) from Table1 group by f0",
       Seq(DECIMAL(6, 3), DECIMAL(38, 6), DECIMAL(38, 10)),
-      s1r(d"100.000", null, null))
+      s1r(d"100.000", null, null)
+    )
 
     checkQuery1(
       Seq(DECIMAL(6, 3), DECIMAL(6, 3), DECIMAL(20, 10)),
       (0 until 100).map(_ => row(d"100.000", d"100.000", d"1${10}")),
       "select f0, avg(f1), avg(f2) from Table1 group by f0",
       Seq(DECIMAL(6, 3), DECIMAL(38, 6), DECIMAL(38, 10)),
-      s1r(d"100.000", d"100.000000", d"1${10}"))
+      s1r(d"100.000", d"100.000000", d"1${10}")
+    )
   }
 
   @Test
@@ -398,14 +400,16 @@ class DecimalITCase extends BatchTestBase {
       (0 until 100).map(_ => row(d"100.000", null, null)),
       "select f0, min(f1), min(f2) from Table1 group by f0",
       Seq(DECIMAL(6, 3), DECIMAL(6, 3), DECIMAL(20, 10)),
-      s1r(d"100.000", null, null))
+      s1r(d"100.000", null, null)
+    )
 
     checkQuery1(
       Seq(DECIMAL(6, 3), DECIMAL(6, 3), DECIMAL(20, 10)),
       (0 until 100).map(i => row(d"100.000", new JBigDecimal(100 - i), d"1${10}")),
       "select f0, min(f1), min(f2) from Table1 group by f0",
       Seq(DECIMAL(6, 3), DECIMAL(6, 3), DECIMAL(20, 10)),
-      s1r(d"100.000", d"1.000", d"1${10}"))
+      s1r(d"100.000", d"1.000", d"1${10}")
+    )
   }
 
 }

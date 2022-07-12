@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.python.aggregate;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputDeserializer;
@@ -68,6 +69,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 
 /** PassThroughPythonStreamGroupWindowAggregateOperator. */
@@ -85,7 +87,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
 
     private transient UpdatableRowData reusePythonTimerRowData;
     private transient UpdatableRowData reusePythonTimerData;
-    private transient LinkedBlockingQueue<byte[]> resultBuffer;
+    private transient LinkedBlockingQueue<Tuple2<String, byte[]>> resultBuffer;
     private Projection<RowData, BinaryRowData> groupKeyProjection;
     private Function<RowData, RowData> aggExtracter;
     private Function<TimeWindow, RowData> windowExtractor;
@@ -200,7 +202,6 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                 userDefinedFunctionOutputType,
                 STREAM_GROUP_WINDOW_AGGREGATE_URN,
                 getUserDefinedFunctionsProto(),
-                new HashMap<>(),
                 PythonTestUtils.createMockFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 getKeySerializer(),
@@ -295,7 +296,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
         }
     }
 
-    public void setResultBuffer(LinkedBlockingQueue<byte[]> resultBuffer) {
+    public void setResultBuffer(LinkedBlockingQueue<Tuple2<String, byte[]>> resultBuffer) {
         this.resultBuffer = resultBuffer;
     }
 
@@ -343,7 +344,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                     reuseJoinedRow.replace(windowAggResult, windowProperty);
                     reusePythonRowData.setField(1, reuseJoinedRow);
                     udfOutputTypeSerializer.serialize(reusePythonRowData, output);
-                    resultBuffer.add(output.getCopyOfBuffer());
+                    resultBuffer.add(Tuple2.of(OUTPUT_COLLECTION_ID, output.getCopyOfBuffer()));
                     break;
                 }
             }
@@ -375,7 +376,9 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                                 .collect(Collectors.toList()));
         final GeneratedProjection generatedProjection =
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
                         name,
                         inputType,
                         forwardedFieldType,
@@ -426,7 +429,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
         windowBaos.reset();
         DataOutputSerializer output = new DataOutputSerializer(1);
         udfOutputTypeSerializer.serialize(reusePythonTimerRowData, output);
-        resultBuffer.add(output.getCopyOfBuffer());
+        resultBuffer.add(Tuple2.of(OUTPUT_COLLECTION_ID, output.getCopyOfBuffer()));
     }
 
     private void cleanWindowIfNeeded(RowData key, TimeWindow window, long currentTime)
@@ -447,7 +450,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
             reuseJoinedRow.replace(windowAggResult, windowProperty);
             reusePythonRowData.setField(1, reuseJoinedRow);
             udfOutputTypeSerializer.serialize(reusePythonRowData, output);
-            resultBuffer.add(output.getCopyOfBuffer());
+            resultBuffer.add(Tuple2.of(OUTPUT_COLLECTION_ID, output.getCopyOfBuffer()));
             // 2. delete window timer
             if (windowAssigner.isEventTime()) {
                 deleteEventTimeTimer(key, window);

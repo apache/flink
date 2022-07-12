@@ -87,8 +87,6 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
             IntermediateDataSetID intermediateResultId, ResultPartitionID resultPartitionId)
             throws PartitionProducerDisposedException;
 
-    void notifyPartitionDataAvailable(ResultPartitionID partitionID);
-
     ExecutionGraphInfo requestJob();
 
     JobStatus requestJobStatus();

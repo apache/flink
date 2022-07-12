@@ -33,7 +33,7 @@ import org.apache.flink.table.data.columnar.vector.heap.HeapLongVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapShortVector;
 import org.apache.flink.table.utils.DateTimeUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -42,13 +42,13 @@ import java.nio.charset.StandardCharsets;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test {@link VectorizedColumnBatch}. */
-public class VectorizedColumnBatchTest {
+class VectorizedColumnBatchTest {
 
     private static final int VECTOR_SIZE = 1024;
     private static final int ARRAY_SIZE = 3;
 
     @Test
-    public void testTyped() throws IOException {
+    void testTyped() throws IOException {
         HeapBooleanVector col0 = new HeapBooleanVector(VECTOR_SIZE);
         for (int i = 0; i < VECTOR_SIZE; i++) {
             col0.vector[i] = i % 2 == 0;
@@ -256,7 +256,7 @@ public class VectorizedColumnBatchTest {
     }
 
     @Test
-    public void testNull() {
+    void testNull() {
         // all null
         HeapIntVector col0 = new HeapIntVector(VECTOR_SIZE);
         for (int i = 0; i < VECTOR_SIZE; i++) {
@@ -287,7 +287,7 @@ public class VectorizedColumnBatchTest {
     }
 
     @Test
-    public void testDictionary() {
+    void testDictionary() {
         // all null
         HeapIntVector col = new HeapIntVector(VECTOR_SIZE);
         Integer[] dict = new Integer[2];

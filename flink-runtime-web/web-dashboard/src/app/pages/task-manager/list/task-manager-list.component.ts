@@ -21,12 +21,11 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { mergeMap, takeUntil } from 'rxjs/operators';
 
+import { TaskManagersItem } from '@flink-runtime-web/interfaces';
+import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
-import { TaskmanagersItem } from 'interfaces';
-import { StatusService, TaskManagerService } from 'services';
-
-function createSortFn(selector: (item: TaskmanagersItem) => number): NzTableSortFn<TaskmanagersItem> {
+function createSortFn(selector: (item: TaskManagersItem) => number): NzTableSortFn<TaskManagersItem> {
   return (pre, next) => (selector(pre) > selector(next) ? 1 : -1);
 }
 
@@ -37,7 +36,7 @@ function createSortFn(selector: (item: TaskmanagersItem) => number): NzTableSort
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerListComponent implements OnInit, OnDestroy {
-  public readonly trackById = (_: number, node: TaskmanagersItem): string => node.id;
+  public readonly trackById = (_: number, node: TaskManagersItem): string => node.id;
 
   public readonly sortDataPortFn = createSortFn(item => item.dataPort);
   public readonly sortHeartBeatFn = createSortFn(item => item.timeSinceLastHeartbeat);
@@ -48,14 +47,14 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
   public readonly sortFreeMemoryFn = createSortFn(item => item.hardware?.freeMemory);
   public readonly sortManagedMemoryFn = createSortFn(item => item.hardware?.managedMemory);
 
-  public listOfTaskManager: TaskmanagersItem[] = [];
+  public listOfTaskManager: TaskManagersItem[] = [];
   public isLoading = true;
   public sortName: string;
   public sortValue: string;
 
   private readonly destroy$ = new Subject<void>();
 
-  public navigateTo(taskManager: TaskmanagersItem): void {
+  public navigateTo(taskManager: TaskManagersItem): void {
     this.router.navigate([taskManager.id, 'metrics'], { relativeTo: this.activatedRoute }).then();
   }
 

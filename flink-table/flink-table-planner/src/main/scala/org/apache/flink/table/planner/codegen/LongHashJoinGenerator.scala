@@ -15,41 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.metrics.Gauge
-import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.data.{RowData, TimestampData}
+import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
-import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{INPUT_SELECTION, generateCollect}
+import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{generateCollect, INPUT_SELECTION}
 import org.apache.flink.table.runtime.generated.{GeneratedJoinCondition, GeneratedProjection}
 import org.apache.flink.table.runtime.hashtable.{LongHashPartition, LongHybridHashTable}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.operators.join.HashJoinType
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
-import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.LogicalTypeRoot._
 
-/**
-  * Generate a long key hash join operator using [[LongHybridHashTable]].
-  */
+/** Generate a long key hash join operator using [[LongHybridHashTable]]. */
 object LongHashJoinGenerator {
 
-  def support(
-      joinType: HashJoinType,
-      keyType: RowType,
-      filterNulls: Array[Boolean]): Boolean = {
+  def support(joinType: HashJoinType, keyType: RowType, filterNulls: Array[Boolean]): Boolean = {
     (joinType == HashJoinType.INNER ||
-        joinType == HashJoinType.SEMI ||
-        joinType == HashJoinType.ANTI ||
-        joinType == HashJoinType.PROBE_OUTER) &&
-        filterNulls.forall(b => b) &&
-        keyType.getFieldCount == 1 && {
+      joinType == HashJoinType.SEMI ||
+      joinType == HashJoinType.ANTI ||
+      joinType == HashJoinType.PROBE_OUTER) &&
+    filterNulls.forall(b => b) &&
+    keyType.getFieldCount == 1 && {
       keyType.getTypeAt(0).getTypeRoot match {
         case BIGINT | INTEGER | SMALLINT | TINYINT | FLOAT | DOUBLE | DATE |
-             TIME_WITHOUT_TIME_ZONE => true
+            TIME_WITHOUT_TIME_ZONE =>
+          true
         case TIMESTAMP_WITHOUT_TIME_ZONE =>
           val timestampType = keyType.getTypeAt(0).asInstanceOf[TimestampType]
           TimestampData.isCompact(timestampType.getPrecision)
@@ -63,10 +58,7 @@ object LongHashJoinGenerator {
     }
   }
 
-  private def genGetLongKey(
-      keyType: RowType,
-      keyMapping: Array[Int],
-      rowTerm: String): String = {
+  private def genGetLongKey(keyType: RowType, keyMapping: Array[Int], rowTerm: String): String = {
     val singleType = keyType.getTypeAt(0)
     val getCode = rowFieldReadAccess(keyMapping(0), rowTerm, singleType)
     val term = singleType.getTypeRoot match {
@@ -82,19 +74,22 @@ object LongHashJoinGenerator {
   def genAnyNullsInKeys(keyMapping: Array[Int], rowTerm: String): (String, String) = {
     val builder = new StringBuilder()
     val anyNullTerm = newName("anyNull")
-    keyMapping.foreach(key =>
-      builder.append(s"$anyNullTerm |= $rowTerm.isNullAt($key);")
-    )
-    (s"""
-       |boolean $anyNullTerm = false;
-       |$builder
-     """.stripMargin, anyNullTerm)
+    keyMapping.foreach(key => builder.append(s"$anyNullTerm |= $rowTerm.isNullAt($key);"))
+    (
+      s"""
+         |boolean $anyNullTerm = false;
+         |$builder
+     """.stripMargin,
+      anyNullTerm)
   }
 
-  def genProjection(tableConfig: ReadableConfig, types: Array[LogicalType]): GeneratedProjection = {
+  def genProjection(
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
+      types: Array[LogicalType]): GeneratedProjection = {
     val rowType = RowType.of(types: _*)
     ProjectionCodeGenerator.generateProjection(
-      CodeGeneratorContext.apply(tableConfig),
+      new CodeGeneratorContext(tableConfig, classLoader),
       "Projection",
       rowType,
       rowType,
@@ -103,6 +98,7 @@ object LongHashJoinGenerator {
 
   def gen(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       hashJoinType: HashJoinType,
       keyType: RowType,
       buildType: RowType,
@@ -118,13 +114,15 @@ object LongHashJoinGenerator {
     val probeSer = new BinaryRowDataSerializer(probeType.getFieldCount)
 
     val tableTerm = newName("LongHashTable")
-    val ctx = CodeGeneratorContext(tableConfig)
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
     val buildSerTerm = ctx.addReusableObject(buildSer, "buildSer")
     val probeSerTerm = ctx.addReusableObject(probeSer, "probeSer")
 
-    val bGenProj = genProjection(tableConfig, buildType.getChildren.toArray(Array[LogicalType]()))
+    val bGenProj =
+      genProjection(tableConfig, classLoader, buildType.getChildren.toArray(Array[LogicalType]()))
     ctx.addReusableInnerClass(bGenProj.getClassName, bGenProj.getCode)
-    val pGenProj = genProjection(tableConfig, probeType.getChildren.toArray(Array[LogicalType]()))
+    val pGenProj =
+      genProjection(tableConfig, classLoader, probeType.getChildren.toArray(Array[LogicalType]()))
     ctx.addReusableInnerClass(pGenProj.getClassName, pGenProj.getCode)
     ctx.addReusableInnerClass(condFunc.getClassName, condFunc.getCode)
 
@@ -302,13 +300,12 @@ object LongHashJoinGenerator {
          |}
        """.stripMargin)
 
-    ctx.addReusableCloseStatement(
-      s"""
-         |if (this.table != null) {
-         |  this.table.close();
-         |  this.table.free();
-         |  this.table = null;
-         |}
+    ctx.addReusableCloseStatement(s"""
+                                     |if (this.table != null) {
+                                     |  this.table.close();
+                                     |  this.table.free();
+                                     |  this.table = null;
+                                     |}
        """.stripMargin)
 
     val buildEnd = newName("buildEnd")
@@ -337,28 +334,26 @@ object LongHashJoinGenerator {
        """.stripMargin,
       buildType,
       probeType,
-      nextSelectionCode = Some(
-        s"""
-           |if ($buildEnd) {
-           |  return $INPUT_SELECTION.SECOND;
-           |} else {
-           |  return $INPUT_SELECTION.FIRST;
-           |}
+      nextSelectionCode = Some(s"""
+                                  |if ($buildEnd) {
+                                  |  return $INPUT_SELECTION.SECOND;
+                                  |} else {
+                                  |  return $INPUT_SELECTION.FIRST;
+                                  |}
          """.stripMargin),
-      endInputCode1 = Some(
-        s"""
-           |LOG.info("Finish build phase.");
-           |table.endBuild();
-           |$buildEnd = true;
+      endInputCode1 = Some(s"""
+                              |LOG.info("Finish build phase.");
+                              |table.endBuild();
+                              |$buildEnd = true;
        """.stripMargin),
-      endInputCode2 = Some(
-        s"""
-           |LOG.info("Finish probe phase.");
-           |while (this.table.nextMatching()) {
-           |  joinWithNextKey();
-           |}
-           |LOG.info("Finish rebuild phase.");
-         """.stripMargin))
+      endInputCode2 = Some(s"""
+                              |LOG.info("Finish probe phase.");
+                              |while (this.table.nextMatching()) {
+                              |  joinWithNextKey();
+                              |}
+                              |LOG.info("Finish rebuild phase.");
+         """.stripMargin)
+    )
 
     new CodeGenOperatorFactory[RowData](genOp)
   }

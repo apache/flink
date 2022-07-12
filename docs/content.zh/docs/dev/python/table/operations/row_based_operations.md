@@ -36,6 +36,7 @@ from pyflink.common import Row
 from pyflink.table import EnvironmentSettings, TableEnvironment
 from pyflink.table.expressions import col
 from pyflink.table.types import DataTypes
+from pyflink.table.udf import udf
 
 env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
@@ -43,32 +44,38 @@ table_env = TableEnvironment.create(env_settings)
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 
 @udf(result_type=DataTypes.ROW([DataTypes.FIELD("id", DataTypes.BIGINT()),
-                               DataTypes.FIELD("data", DataTypes.STRING())]))
+                                DataTypes.FIELD("data", DataTypes.STRING())]))
 def func1(id: int, data: str) -> Row:
     return Row(id, data * 2)
 
 # the input columns are specified as the inputs
-table.map(func1(col('id'), col('data'))).to_pandas()
+table.map(func1(col('id'), col('data'))).execute().print()
 # result is 
-#    _c0         _c1
-#  0    1        HiHi
-#  1    2  HelloHello
+#+----------------------+--------------------------------+
+#|                   id |                           data |
+#+----------------------+--------------------------------+
+#|                    1 |                           HiHi |
+#|                    2 |                     HelloHello |
+#+----------------------+--------------------------------+
 ```
 
 It also supports to take a Row object (containing all the columns of the input table) as input.
 
 ```python
 @udf(result_type=DataTypes.ROW([DataTypes.FIELD("id", DataTypes.BIGINT()),
-                               DataTypes.FIELD("data", DataTypes.STRING())]))
+                                DataTypes.FIELD("data", DataTypes.STRING())]))
 def func2(data: Row) -> Row:
     return Row(data.id, data.data * 2)
 
 # specify the function without the input columns
-table.map(func2).alias('id', 'data').to_pandas()
+table.map(func2).execute().print()
 # result is 
-#      id        data
-#  0    1        HiHi
-#  1    2  HelloHello
+#+----------------------+--------------------------------+
+#|                   id |                           data |
+#+----------------------+--------------------------------+
+#|                    1 |                           HiHi |
+#|                    2 |                     HelloHello |
+#+----------------------+--------------------------------+
 ```
 
 <span class="label label-info">Note</span> The input columns should not be specified when using func2 in the map operation.
@@ -79,17 +86,20 @@ It should be noted that the input type and output type should be pandas.DataFram
 ```python
 import pandas as pd
 @udf(result_type=DataTypes.ROW([DataTypes.FIELD("id", DataTypes.BIGINT()),
-                               DataTypes.FIELD("data", DataTypes.STRING())]),
-                               func_type='pandas')
+                                DataTypes.FIELD("data", DataTypes.STRING())]),
+     func_type='pandas')
 def func3(data: pd.DataFrame) -> pd.DataFrame:
     res = pd.concat([data.id, data.data * 2], axis=1)
     return res
 
-table.map(func3).alias('id', 'data').to_pandas()
+table.map(func3).execute().print()
 # result is 
-#      id        data
-#  0    1        HiHi
-#  1    2  HelloHello
+#+----------------------+--------------------------------+
+#|                   id |                           data |
+#+----------------------+--------------------------------+
+#|                    1 |                           HiHi |
+#|                    2 |                     HelloHello |
+#+----------------------+--------------------------------+
 ```
 
 ## FlatMap
@@ -101,7 +111,7 @@ from pyflink.common import Row
 from pyflink.table.udf import udtf
 from pyflink.table import DataTypes, EnvironmentSettings, TableEnvironment
 
-env_settings = EnvironmentSettings.in_streaming_mode()
+env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi,Flink'), (2, 'Hello')], ['id', 'data'])
@@ -112,24 +122,30 @@ def split(x: Row) -> Row:
         yield x.id, s
 
 # use split in `flat_map`
-table.flat_map(split).to_pandas()
+table.flat_map(split).execute().print()
 # result is
-#    f0       f1
-# 0   1       Hi
-# 1   1    Flink
-# 2   2    Hello
+#+-------------+--------------------------------+
+#|          f0 |                             f1 |
+#+-------------+--------------------------------+
+#|           1 |                             Hi |
+#|           1 |                          Flink |
+#|           2 |                          Hello |
+#+-------------+--------------------------------+
 ```
 
 The python [table function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-functions) could also be used in `join_lateral` and `left_outer_join_lateral`.
 
 ```python
 # use table function in `join_lateral` or `left_outer_join_lateral`
-table.join_lateral(split.alias('a', 'b')).to_pandas()
+table.join_lateral(split.alias('a', 'b')).execute().print()
 # result is 
-#    id      data  a      b
-# 0   1  Hi,Flink  1     Hi
-# 1   1  Hi,Flink  1  Flink
-# 2   2     Hello  2  Hello
+#+----------------------+--------------------------------+-------------+--------------------------------+
+#|                   id |                           data |           a |                              b |
+#+----------------------+--------------------------------+-------------+--------------------------------+
+#|                    1 |                       Hi,Flink |           1 |                             Hi |
+#|                    1 |                       Hi,Flink |           1 |                          Flink |
+#|                    2 |                          Hello |           2 |                          Hello |
+#+----------------------+--------------------------------+-------------+--------------------------------+
 ```
 
 ## Aggregate
@@ -188,12 +204,15 @@ t = table_env.from_elements([(1, 2), (2, 1), (1, 3)], ['a', 'b'])
 result = t.group_by(col('a')) \
     .aggregate(agg.alias("c", "d")) \
     .select(col('a'), col('c'), col('d'))
-result.to_pandas()
+result.execute().print()
 
 # the result is
-#    a  c  d
-# 0  1  2  5
-# 1  2  1  1
+#+----+----------------------+----------------------+----------------------+
+#| op |                    a |                    c |                    d |
+#+----+----------------------+----------------------+----------------------+
+#| +I |                    1 |                    2 |                    5 |
+#| +I |                    2 |                    1 |                    1 |
+#+----+----------------------+----------------------+----------------------+
 
 # aggregate with a python vectorized aggregate function
 env_settings = EnvironmentSettings.in_batch_mode()
@@ -207,11 +226,14 @@ pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
                         DataTypes.FIELD("b", DataTypes.INT())]),
                    func_type="pandas")
 t.aggregate(pandas_udaf.alias("a", "b")) \
-    .select(col('a'), col('b')).to_pandas()
+    .select(col('a'), col('b')).execute().print()
 
 # the result is
-#      a  b
-# 0  2.0  3
+#+--------------------------------+-------------+
+#|                              a |           b |
+#+--------------------------------+-------------+
+#|                            2.0 |           3 |
+#+--------------------------------+-------------+
 ```
 
 <span class="label label-info">Note</span> Similar to `map` operation, if you specify the aggregate function without the input columns in `aggregate` operation, it will take Row or Pandas.DataFrame as input which contains all the columns of the input table including the grouping keys.
@@ -229,6 +251,7 @@ Similar to `aggregate`, you have to close the `flat_aggregate` with a select sta
 ```python
 from pyflink.common import Row
 from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.expressions import col
 from pyflink.table.udf import udtaf, TableAggregateFunction
 
 class Top2(TableAggregateFunction):
@@ -262,18 +285,22 @@ table_env = TableEnvironment.create(env_settings)
 # top2 = udtaf(Top2(), result_type=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]), accumulator_type=DataTypes.ARRAY(DataTypes.BIGINT()))
 top2 = udtaf(Top2())
 t = table_env.from_elements([(1, 'Hi', 'Hello'),
-                              (3, 'Hi', 'hi'),
-                              (5, 'Hi2', 'hi'),
-                              (7, 'Hi', 'Hello'),
-                              (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
+                             (3, 'Hi', 'hi'),
+                             (5, 'Hi2', 'hi'),
+                             (7, 'Hi', 'Hello'),
+                             (2, 'Hi', 'Hello')],
+                            ['a', 'b', 'c'])
 
 # call function "inline" without registration in Table API
-result = t.group_by(t.b).flat_aggregate(top2).select('*').to_pandas()
+result = t.group_by(col('b')).flat_aggregate(top2).select(col('*')).to_pandas()
 
 # the result is:
-#      b    a
-# 0  Hi2  5.0
-# 1  Hi2  NaN
-# 2   Hi  7.0
-# 3   Hi  3.0
+#+----+--------------------------------+----------------------+
+#| op |                              b |                    a |
+#+----+--------------------------------+----------------------+
+#| +I |                            Hi2 |                    5 |
+#| +I |                            Hi2 |               <NULL> |
+#| +I |                             Hi |                    7 |
+#| +I |                             Hi |                    3 |
+#+----+--------------------------------+----------------------+
 ```

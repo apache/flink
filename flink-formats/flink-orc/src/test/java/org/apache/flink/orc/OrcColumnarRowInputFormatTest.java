@@ -42,7 +42,6 @@ import org.apache.flink.util.IOUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -61,8 +60,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link OrcColumnarRowInputFormat}. */
 public class OrcColumnarRowInputFormatTest {
@@ -111,17 +109,17 @@ public class OrcColumnarRowInputFormatTest {
                     format,
                     split,
                     row -> {
-                        Assert.assertFalse(row.isNullAt(0));
-                        Assert.assertFalse(row.isNullAt(1));
+                        assertThat(row.isNullAt(0)).isFalse();
+                        assertThat(row.isNullAt(1)).isFalse();
                         totalF0.addAndGet(row.getInt(0));
-                        Assert.assertNotNull(row.getString(1).toString());
+                        assertThat(row.getString(1).toString()).isNotNull();
                         cnt.incrementAndGet();
                     });
         }
 
         // check that all rows have been read
-        assertEquals(1920800, cnt.get());
-        assertEquals(1844737280400L, totalF0.get());
+        assertThat(cnt.get()).isEqualTo(1920800);
+        assertThat(totalF0.get()).isEqualTo(1844737280400L);
     }
 
     @Test
@@ -138,19 +136,19 @@ public class OrcColumnarRowInputFormatTest {
                     format,
                     split,
                     row -> {
-                        Assert.assertFalse(row.isNullAt(0));
-                        Assert.assertFalse(row.isNullAt(1));
-                        Assert.assertFalse(row.isNullAt(2));
-                        Assert.assertNotNull(row.getString(0).toString());
+                        assertThat(row.isNullAt(0)).isFalse();
+                        assertThat(row.isNullAt(1)).isFalse();
+                        assertThat(row.isNullAt(2)).isFalse();
+                        assertThat(row.getString(0).toString()).isNotNull();
                         totalF0.addAndGet(row.getInt(1));
-                        Assert.assertNotNull(row.getString(2).toString());
+                        assertThat(row.getString(2).toString()).isNotNull();
                         cnt.incrementAndGet();
                     });
         }
 
         // check that all rows have been read
-        assertEquals(1920800, cnt.get());
-        assertEquals(1844737280400L, totalF0.get());
+        assertThat(cnt.get()).isEqualTo(1920800);
+        assertThat(totalF0.get()).isEqualTo(1844737280400L);
     }
 
     @Test
@@ -169,14 +167,13 @@ public class OrcColumnarRowInputFormatTest {
                     row -> {
                         if (cnt.get() == 0) {
                             // validate first row
-                            assertNotNull(row);
-                            assertEquals(1, row.getArity());
-                            assertEquals(
-                                    DecimalDataUtils.castFrom(-1000.5d, 10, 5),
-                                    row.getDecimal(0, 10, 5));
+                            assertThat(row).isNotNull();
+                            assertThat(row.getArity()).isEqualTo(1);
+                            assertThat(row.getDecimal(0, 10, 5))
+                                    .isEqualTo(DecimalDataUtils.castFrom(-1000.5d, 10, 5));
                         } else {
                             if (!row.isNullAt(0)) {
-                                assertNotNull(row.getDecimal(0, 10, 5));
+                                assertThat(row.getDecimal(0, 10, 5)).isNotNull();
                             } else {
                                 nullCount.incrementAndGet();
                             }
@@ -185,8 +182,8 @@ public class OrcColumnarRowInputFormatTest {
                     });
         }
 
-        assertEquals(6000, cnt.get());
-        assertEquals(2000, nullCount.get());
+        assertThat(cnt.get()).isEqualTo(6000);
+        assertThat(nullCount.get()).isEqualTo(2000);
     }
 
     @Test
@@ -233,28 +230,27 @@ public class OrcColumnarRowInputFormatTest {
                     split,
                     row -> {
                         // data values
-                        Assert.assertFalse(row.isNullAt(3));
-                        Assert.assertFalse(row.isNullAt(5));
+                        assertThat(row.isNullAt(3)).isFalse();
+                        assertThat(row.isNullAt(5)).isFalse();
                         totalF0.addAndGet(row.getInt(3));
-                        Assert.assertNotNull(row.getString(5).toString());
-
+                        assertThat(row.getString(5).toString()).isNotNull();
                         // part values
-                        Assert.assertFalse(row.isNullAt(0));
-                        Assert.assertFalse(row.isNullAt(1));
-                        Assert.assertFalse(row.isNullAt(2));
-                        Assert.assertFalse(row.isNullAt(4));
-                        Assert.assertEquals(
-                                DecimalDataUtils.castFrom(5.333, 10, 5), row.getDecimal(0, 10, 5));
-                        Assert.assertEquals(1, row.getInt(1));
-                        Assert.assertEquals(3, row.getLong(2));
-                        Assert.assertEquals("f5", row.getString(4).toString());
+                        assertThat(row.isNullAt(0)).isFalse();
+                        assertThat(row.isNullAt(1)).isFalse();
+                        assertThat(row.isNullAt(2)).isFalse();
+                        assertThat(row.isNullAt(4)).isFalse();
+                        assertThat(row.getDecimal(0, 10, 5))
+                                .isEqualTo(DecimalDataUtils.castFrom(5.333, 10, 5));
+                        assertThat(row.getInt(1)).isEqualTo(1);
+                        assertThat(row.getLong(2)).isEqualTo(3);
+                        assertThat(row.getString(4).toString()).isEqualTo("f5");
                         cnt.incrementAndGet();
                     });
         }
 
         // check that all rows have been read
-        assertEquals(1920800, cnt.get());
-        assertEquals(1844737280400L, totalF0.get());
+        assertThat(cnt.get()).isEqualTo(1920800);
+        assertThat(totalF0.get()).isEqualTo(1844737280400L);
     }
 
     @Test
@@ -303,10 +299,10 @@ public class OrcColumnarRowInputFormatTest {
 
         Consumer<RowData> consumer =
                 row -> {
-                    Assert.assertFalse(row.isNullAt(0));
-                    Assert.assertFalse(row.isNullAt(1));
+                    assertThat(row.isNullAt(0)).isFalse();
+                    assertThat(row.isNullAt(1)).isFalse();
                     totalF0.addAndGet(row.getInt(0));
-                    assertNotNull(row.getString(1).toString());
+                    assertThat(row.getString(1).toString()).isNotNull();
                     cnt.incrementAndGet();
                 };
 
@@ -317,7 +313,7 @@ public class OrcColumnarRowInputFormatTest {
         try (BulkFormat.Reader<RowData> reader = createReader(format, split)) {
             while (cnt.get() < breakCnt) {
                 BulkFormat.RecordIterator<RowData> batch = reader.readBatch();
-                Assert.assertNotNull(batch);
+                assertThat(batch).isNotNull();
 
                 RecordAndPosition<RowData> record;
                 while ((record = batch.next()) != null && cnt.get() < breakCnt) {
@@ -336,8 +332,8 @@ public class OrcColumnarRowInputFormatTest {
         // forEach(format, split, consumer);
 
         // check that all rows have been read
-        assertEquals(expectedCnt, cnt.get());
-        assertEquals(expectedTotalF0, totalF0.get());
+        assertThat(cnt.get()).isEqualTo(expectedCnt);
+        assertThat(totalF0.get()).isEqualTo(expectedTotalF0);
     }
 
     protected OrcColumnarRowInputFormat<?, FileSourceSplit> createFormat(

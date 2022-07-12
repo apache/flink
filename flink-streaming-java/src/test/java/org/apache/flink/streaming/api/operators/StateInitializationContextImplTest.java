@@ -33,7 +33,6 @@ import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
@@ -73,6 +72,7 @@ import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -166,7 +166,7 @@ public class StateInitializationContextImplTest {
         TaskStateManager manager =
                 new TaskStateManagerImpl(
                         new JobID(),
-                        new ExecutionAttemptID(),
+                        createExecutionAttemptId(),
                         new TestTaskLocalStateStore(),
                         new InMemoryStateChangelogStorage(),
                         jobManagerTaskRestore,

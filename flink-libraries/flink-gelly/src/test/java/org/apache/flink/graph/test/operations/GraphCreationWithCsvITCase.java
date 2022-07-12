@@ -38,6 +38,8 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
+
 /** Test graph creation from CSV. */
 @RunWith(Parameterized.class)
 public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {

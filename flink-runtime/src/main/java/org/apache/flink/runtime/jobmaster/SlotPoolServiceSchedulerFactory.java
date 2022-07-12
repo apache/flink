@@ -28,6 +28,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -46,9 +47,11 @@ public interface SlotPoolServiceSchedulerFactory {
      * Creates a {@link SlotPoolService}.
      *
      * @param jid jid is the JobID to pass to the service
+     * @param declarativeSlotPoolFactory the declarative slot pool factory
      * @return created SlotPoolService
      */
-    SlotPoolService createSlotPoolService(JobID jid);
+    SlotPoolService createSlotPoolService(
+            JobID jid, DeclarativeSlotPoolFactory declarativeSlotPoolFactory);
 
     /**
      * Returns the scheduler type this factory is creating.

@@ -24,10 +24,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
-
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,51 +31,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-import static java.util.Arrays.asList;
-
 /** Tests for {@link ExternalSerializer}. */
-@RunWith(Parameterized.class)
-public class ExternalSerializerTest<T> extends SerializerTestInstance<T> {
-
-    @Parameters(name = "{index}: {0}")
-    public static List<TestSpec<?>> testData() {
-        return asList(
-                TestSpec.forDataType(DataTypes.INT()).withLength(4).addInstance(18).addInstance(42),
-                TestSpec.forDataType(
-                                DataTypes.ROW(
-                                        DataTypes.FIELD("age", DataTypes.INT()),
-                                        DataTypes.FIELD("name", DataTypes.STRING())))
-                        .addInstance(Row.of(12, "Bob"))
-                        .addInstance(Row.of(42, null)),
-                TestSpec.forDataType(
-                                DataTypes.STRUCTURED(
-                                        ImmutableTestPojo.class,
-                                        DataTypes.FIELD("age", DataTypes.INT()),
-                                        DataTypes.FIELD("name", DataTypes.STRING())))
-                        .addInstance(new ImmutableTestPojo(12, "Bob"))
-                        .addInstance(new ImmutableTestPojo(42, null)),
-                TestSpec.forDataType(
-                                DataTypes.ARRAY(
-                                                DataTypes.STRUCTURED(
-                                                        ImmutableTestPojo.class,
-                                                        DataTypes.FIELD("age", DataTypes.INT()),
-                                                        DataTypes.FIELD(
-                                                                "name", DataTypes.STRING())))
-                                        .bridgedTo(List.class))
-                        .addInstance(Collections.singletonList(new ImmutableTestPojo(12, "Bob")))
-                        .addInstance(
-                                Arrays.asList(
-                                        new ImmutableTestPojo(42, "Alice"),
-                                        null,
-                                        null,
-                                        new ImmutableTestPojo(42, null))),
-                TestSpec.forDataType(DataTypes.ARRAY(DataTypes.INT()))
-                        .addInstance(new Integer[] {0, 1, null, 3})
-                        .addInstance(new Integer[0]));
-    }
+abstract class ExternalSerializerTest<T> extends SerializerTestInstance<T> {
 
     @SuppressWarnings("unchecked")
-    public ExternalSerializerTest(TestSpec<T> testSpec) {
+    ExternalSerializerTest(TestSpec<T> testSpec) {
         super(
                 ExternalSerializer.of(testSpec.dataType),
                 (Class<T>) testSpec.dataType.getConversionClass(),
@@ -91,6 +47,72 @@ public class ExternalSerializerTest<T> extends SerializerTestInstance<T> {
     @Override
     protected boolean allowNullInstances(TypeSerializer<T> serializer) {
         return true;
+    }
+
+    static final class ExternalSerializer1Test extends ExternalSerializerTest {
+        public ExternalSerializer1Test() {
+            super(
+                    TestSpec.forDataType(DataTypes.INT())
+                            .withLength(4)
+                            .addInstance(18)
+                            .addInstance(42));
+        }
+    }
+
+    static final class ExternalSerializer2Test extends ExternalSerializerTest {
+        public ExternalSerializer2Test() {
+            super(
+                    TestSpec.forDataType(
+                                    DataTypes.ROW(
+                                            DataTypes.FIELD("age", DataTypes.INT()),
+                                            DataTypes.FIELD("name", DataTypes.STRING())))
+                            .addInstance(Row.of(12, "Bob"))
+                            .addInstance(Row.of(42, null)));
+        }
+    }
+
+    static final class ExternalSerializer3Test extends ExternalSerializerTest {
+        public ExternalSerializer3Test() {
+            super(
+                    TestSpec.forDataType(
+                                    DataTypes.STRUCTURED(
+                                            ImmutableTestPojo.class,
+                                            DataTypes.FIELD("age", DataTypes.INT()),
+                                            DataTypes.FIELD("name", DataTypes.STRING())))
+                            .addInstance(new ImmutableTestPojo(12, "Bob"))
+                            .addInstance(new ImmutableTestPojo(42, null)));
+        }
+    }
+
+    static final class ExternalSerializer4Test extends ExternalSerializerTest {
+        public ExternalSerializer4Test() {
+            super(
+                    TestSpec.forDataType(
+                                    DataTypes.ARRAY(
+                                                    DataTypes.STRUCTURED(
+                                                            ImmutableTestPojo.class,
+                                                            DataTypes.FIELD("age", DataTypes.INT()),
+                                                            DataTypes.FIELD(
+                                                                    "name", DataTypes.STRING())))
+                                            .bridgedTo(List.class))
+                            .addInstance(
+                                    Collections.singletonList(new ImmutableTestPojo(12, "Bob")))
+                            .addInstance(
+                                    Arrays.asList(
+                                            new ImmutableTestPojo(42, "Alice"),
+                                            null,
+                                            null,
+                                            new ImmutableTestPojo(42, null))));
+        }
+    }
+
+    static final class ExternalSerializer5Test extends ExternalSerializerTest {
+        public ExternalSerializer5Test() {
+            super(
+                    TestSpec.forDataType(DataTypes.ARRAY(DataTypes.INT()))
+                            .addInstance(new Integer[] {0, 1, null, 3})
+                            .addInstance(new Integer[0]));
+        }
     }
 
     // --------------------------------------------------------------------------------------------

@@ -114,7 +114,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
 
         final Tuple2<Long, Long> windowSizeAndSlideSize = WindowCodeGenerator.getWindowDef(window);
         final Configuration pythonConfig =
-                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), config.getTableConfig());
+                CommonPythonUtil.extractPythonConfiguration(planner.getExecEnv(), config);
         int groupBufferLimitSize =
                 pythonConfig.getInteger(
                         ExecutionConfigOptions.TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT);
@@ -128,7 +128,8 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                         windowSizeAndSlideSize.f0,
                         windowSizeAndSlideSize.f1,
                         pythonConfig,
-                        config);
+                        config,
+                        planner.getFlinkContext().getClassLoader());
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
@@ -143,7 +144,8 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
             long windowSize,
             long slideSize,
             Configuration pythonConfig,
-            ExecNodeConfig config) {
+            ExecNodeConfig config,
+            ClassLoader classLoader) {
         int[] namePropertyTypeArray =
                 Arrays.stream(namedWindowProperties)
                         .mapToInt(
@@ -168,6 +170,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonGroupWindowAggregateFunctionOperator(
                         config,
+                        classLoader,
                         pythonConfig,
                         inputRowType,
                         outputRowType,
@@ -189,6 +192,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonGroupWindowAggregateFunctionOperator(
             ExecNodeConfig config,
+            ClassLoader classLoader,
             Configuration pythonConfig,
             RowType inputRowType,
             RowType outputRowType,
@@ -240,19 +244,19 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             slideSize,
                             namePropertyTypeArray,
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(config),
+                                    new CodeGeneratorContext(config, classLoader),
                                     "UdafInputProjection",
                                     inputRowType,
                                     udfInputType,
                                     udafInputOffsets),
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(config),
+                                    new CodeGeneratorContext(config, classLoader),
                                     "GroupKey",
                                     inputRowType,
                                     (RowType) Projection.of(grouping).project(inputRowType),
                                     grouping),
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(config),
+                                    new CodeGeneratorContext(config, classLoader),
                                     "GroupSet",
                                     inputRowType,
                                     (RowType) Projection.of(auxGrouping).project(inputRowType),

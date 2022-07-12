@@ -55,16 +55,19 @@ import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,6 +75,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Integration tests related to {@link ApplicationDispatcherBootstrap}. */
 @ExtendWith(TestLoggerExtension.class)
 public class ApplicationDispatcherBootstrapITCase {
+
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
     private static Supplier<DispatcherResourceManagerComponentFactory>
             createApplicationModeDispatcherResourceManagerComponentFactorySupplier(
@@ -95,15 +102,17 @@ public class ApplicationDispatcherBootstrapITCase {
     public void testDispatcherRecoversAfterLosingAndRegainingLeadership() throws Exception {
         final String blockId = UUID.randomUUID().toString();
         final Configuration configuration = new Configuration();
+        final JobID jobId = new JobID();
         configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
         configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
         configuration.set(ClientOptions.CLIENT_RETRY_PERIOD, Duration.ofMillis(100));
+        configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
         final TestingMiniClusterConfiguration clusterConfiguration =
                 TestingMiniClusterConfiguration.newBuilder()
                         .setConfiguration(configuration)
                         .build();
         final EmbeddedHaServicesWithLeadershipControl haServices =
-                new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor());
+                new EmbeddedHaServicesWithLeadershipControl(EXECUTOR_EXTENSION.getExecutor());
         final TestingMiniCluster.Builder clusterBuilder =
                 TestingMiniCluster.newBuilder(clusterConfiguration)
                         .setHighAvailabilityServicesSupplier(() -> haServices)
@@ -117,13 +126,12 @@ public class ApplicationDispatcherBootstrapITCase {
             cluster.start();
 
             // wait until job is running
-            awaitJobStatus(cluster, ApplicationDispatcherBootstrap.ZERO_JOB_ID, JobStatus.RUNNING);
+            awaitJobStatus(cluster, jobId, JobStatus.RUNNING);
 
             // make sure the operator is actually running
             BlockingJob.awaitRunning(blockId);
 
-            final CompletableFuture<JobResult> firstJobResult =
-                    cluster.requestJobResult(ApplicationDispatcherBootstrap.ZERO_JOB_ID);
+            final CompletableFuture<JobResult> firstJobResult = cluster.requestJobResult(jobId);
             haServices.revokeDispatcherLeadership();
             // make sure the leadership is revoked to avoid race conditions
             assertThat(firstJobResult.get())
@@ -132,14 +140,13 @@ public class ApplicationDispatcherBootstrapITCase {
             haServices.grantDispatcherLeadership();
 
             // job is suspended, wait until it's running
-            awaitJobStatus(cluster, ApplicationDispatcherBootstrap.ZERO_JOB_ID, JobStatus.RUNNING);
+            awaitJobStatus(cluster, jobId, JobStatus.RUNNING);
 
             // unblock processing so the job can finish
             BlockingJob.unblock(blockId);
 
             // and wait for it to actually finish
-            final JobResult secondJobResult =
-                    cluster.requestJobResult(ApplicationDispatcherBootstrap.ZERO_JOB_ID).get();
+            final JobResult secondJobResult = cluster.requestJobResult(jobId).get();
             assertThat(secondJobResult.isSuccess()).isTrue();
             assertThat(secondJobResult.getApplicationStatus())
                     .isEqualTo(ApplicationStatus.SUCCEEDED);
@@ -154,9 +161,11 @@ public class ApplicationDispatcherBootstrapITCase {
     @Test
     public void testDirtyJobResultRecoveryInApplicationMode() throws Exception {
         final Configuration configuration = new Configuration();
+        final JobID jobId = new JobID();
         configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
         configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
         configuration.set(ClientOptions.CLIENT_RETRY_PERIOD, Duration.ofMillis(100));
+        configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
         final TestingMiniClusterConfiguration clusterConfiguration =
                 TestingMiniClusterConfiguration.newBuilder()
                         .setConfiguration(configuration)
@@ -166,11 +175,9 @@ public class ApplicationDispatcherBootstrapITCase {
         // implementation fail to submit the job
         final JobResultStore jobResultStore = new EmbeddedJobResultStore();
         jobResultStore.createDirtyResult(
-                new JobResultEntry(
-                        TestingJobResultStore.createSuccessfulJobResult(
-                                ApplicationDispatcherBootstrap.ZERO_JOB_ID)));
+                new JobResultEntry(TestingJobResultStore.createSuccessfulJobResult(jobId)));
         final EmbeddedHaServicesWithLeadershipControl haServices =
-                new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor()) {
+                new EmbeddedHaServicesWithLeadershipControl(EXECUTOR_EXTENSION.getExecutor()) {
 
                     @Override
                     public JobResultStore getJobResultStore() {
@@ -198,14 +205,8 @@ public class ApplicationDispatcherBootstrapITCase {
                         "The job's main method shouldn't have been succeeded due to a DuplicateJobSubmissionException.")
                 .hasAtLeastOneElementOfType(DuplicateJobSubmissionException.class);
 
-        assertThat(
-                        jobResultStore.hasDirtyJobResultEntry(
-                                ApplicationDispatcherBootstrap.ZERO_JOB_ID))
-                .isFalse();
-        assertThat(
-                        jobResultStore.hasCleanJobResultEntry(
-                                ApplicationDispatcherBootstrap.ZERO_JOB_ID))
-                .isTrue();
+        assertThat(jobResultStore.hasDirtyJobResultEntry(jobId)).isFalse();
+        assertThat(jobResultStore.hasCleanJobResultEntry(jobId)).isTrue();
     }
 
     @Test
@@ -223,7 +224,7 @@ public class ApplicationDispatcherBootstrapITCase {
                         .setConfiguration(configuration)
                         .build();
         final EmbeddedHaServicesWithLeadershipControl haServices =
-                new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor());
+                new EmbeddedHaServicesWithLeadershipControl(EXECUTOR_EXTENSION.getExecutor());
         final TestingMiniCluster.Builder clusterBuilder =
                 TestingMiniCluster.newBuilder(clusterConfiguration)
                         .setHighAvailabilityServicesSupplier(() -> haServices)

@@ -36,11 +36,8 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.utils.FunctionLookupMock;
 import org.apache.flink.types.Row;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
@@ -48,9 +45,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -59,14 +56,13 @@ import static org.apache.flink.table.api.Expressions.row;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link OperationTreeBuilder#values}. */
-@RunWith(Parameterized.class)
 public class ValuesOperationTreeBuilderTest {
 
-    @Parameterized.Parameters(name = "{0}")
-    public static Collection<TestSpec> parameters() {
-        return asList(
+    static Stream<TestSpec> parameters() {
+        return Stream.of(
                 TestSpec.test("Flattening row constructor")
                         .values(row(1, "ABC"), row(2, "EFG"))
                         .equalTo(
@@ -405,16 +401,25 @@ public class ValuesOperationTreeBuilderTest {
         }
     }
 
-    @Parameterized.Parameter public TestSpec testSpec;
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
-    @Test
-    public void testValues() {
-
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("parameters")
+    public void testValues(TestSpec testSpec) {
         if (testSpec.exceptionMessage != null) {
-            thrown.expect(ValidationException.class);
-            thrown.expectMessage(testSpec.exceptionMessage);
+            if (testSpec.expectedRowType != null) {
+                assertThatThrownBy(
+                                () ->
+                                        testSpec.getTreeBuilder()
+                                                .values(
+                                                        testSpec.expectedRowType,
+                                                        testSpec.expressions))
+                        .isInstanceOf(ValidationException.class)
+                        .hasMessage(testSpec.exceptionMessage);
+            } else {
+                assertThatThrownBy(() -> testSpec.getTreeBuilder().values(testSpec.expressions))
+                        .isInstanceOf(ValidationException.class)
+                        .hasMessage(testSpec.exceptionMessage);
+            }
+            return;
         }
 
         ValuesQueryOperation operation;
@@ -486,6 +491,7 @@ public class ValuesOperationTreeBuilderTest {
         public OperationTreeBuilder getTreeBuilder() {
             return OperationTreeBuilder.create(
                     TableConfig.getDefault(),
+                    Thread.currentThread().getContextClassLoader(),
                     new FunctionLookupMock(Collections.emptyMap()),
                     new DataTypeFactoryMock(),
                     name -> Optional.empty(), // do not support

@@ -15,24 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
-import java.util
-import java.util.{List => JList}
+import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalTableAggregate, TableAggregate}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalTableAggregate, TableAggregate}
+
+import java.util
+import java.util.{List => JList}
 
 /**
-  * Sub-class of [[TableAggregate]] that is a relational expression which performs aggregations but
-  * outputs 0 or more records for a group.
-  */
+ * Sub-class of [[TableAggregate]] that is a relational expression which performs aggregations but
+ * outputs 0 or more records for a group.
+ */
 class FlinkLogicalTableAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

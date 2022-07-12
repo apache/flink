@@ -15,35 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, hashCodeForType, newName}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{hashCodeForType, newName, ROW_DATA}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.runtime.generated.{GeneratedHashFunction, HashFunction}
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.util.MathUtils
 
 /**
-  * CodeGenerator for hash code RowData, Calculate a hash value based on some fields
-  * of RowData.
-  * NOTE: If you need a hash value that is more evenly distributed, call [[MathUtils.murmurHash]]
-  * outside to scatter.
-  */
+ * CodeGenerator for hash code RowData, Calculate a hash value based on some fields of RowData.
+ * NOTE: If you need a hash value that is more evenly distributed, call [[MathUtils.murmurHash]]
+ * outside to scatter.
+ */
 object HashCodeGenerator {
 
   /**
-    * A sequence of prime numbers to be used for salting the computed hash values.
-    * Based on some empirical evidence, we are using a 32-element subsequence of the
-    * OEIS sequence #A068652 (numbers such that every cyclic permutation is a prime).
-    *
-    * @see <a href="http://en.wikipedia.org/wiki/List_of_prime_numbers">
-    *        http://en.wikipedia.org/wiki/List_of_prime_numbers</a>
-    * @see <a href="http://oeis.org/A068652">http://oeis.org/A068652</a>
-    */
-  val HASH_SALT: Array[Int] = Array[Int](
-    73, 79, 97, 113, 131, 197, 199, 311, 337, 373, 719, 733, 919, 971, 991, 1193, 1931, 3119,
-    3779, 7793, 7937, 9311, 9377, 11939, 19391, 19937, 37199, 39119, 71993, 91193, 93719, 93911)
+   * A sequence of prime numbers to be used for salting the computed hash values. Based on some
+   * empirical evidence, we are using a 32-element subsequence of the OEIS sequence #A068652
+   * (numbers such that every cyclic permutation is a prime).
+   *
+   * @see
+   *   <a href="http://en.wikipedia.org/wiki/List_of_prime_numbers">
+   *   http://en.wikipedia.org/wiki/List_of_prime_numbers</a>
+   * @see
+   *   <a href="http://oeis.org/A068652">http://oeis.org/A068652</a>
+   */
+  val HASH_SALT: Array[Int] = Array[Int](73, 79, 97, 113, 131, 197, 199, 311, 337, 373, 719, 733,
+    919, 971, 991, 1193, 1931, 3119, 3779, 7793, 7937, 9311, 9377, 11939, 19391, 19937, 37199,
+    39119, 71993, 91193, 93719, 93911)
 
   def generateRowHash(
       ctx: CodeGeneratorContext,
@@ -54,8 +54,8 @@ object HashCodeGenerator {
     val baseClass = classOf[HashFunction]
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
 
-    val accessExprs = hashFields.map(
-      idx => GenerateUtils.generateFieldAccess(ctx, input, inputTerm, idx))
+    val accessExprs =
+      hashFields.map(idx => GenerateUtils.generateFieldAccess(ctx, input, inputTerm, idx))
 
     val (hashBody, resultTerm) = generateCodeBody(ctx, accessExprs)
     val code =
@@ -79,8 +79,7 @@ object HashCodeGenerator {
       }
     """.stripMargin
 
-    new GeneratedHashFunction(
-      className, code, ctx.references.toArray, ctx.tableConfig)
+    new GeneratedHashFunction(className, code, ctx.references.toArray, ctx.tableConfig)
   }
 
   private def generateCodeBody(
@@ -88,19 +87,24 @@ object HashCodeGenerator {
       accessExprs: Seq[GeneratedExpression]): (String, String) = {
     val hashIntTerm = CodeGenUtils.newName("hashCode")
     var i = -1
-    val hashBodyCode = accessExprs.map(expr => {
-      i = i + 1
-      s"""
-         |$hashIntTerm *= ${HASH_SALT(i & 0x1F)};
-         |${expr.code}
-         |if (!${expr.nullTerm}) {
-         | $hashIntTerm += ${hashCodeForType(ctx, expr.resultType, expr.resultTerm)};
-         |}
-         |""".stripMargin
+    val hashBodyCode = accessExprs
+      .map(
+        expr => {
+          i = i + 1
+          s"""
+             |$hashIntTerm *= ${HASH_SALT(i & 0x1f)};
+             |${expr.code}
+             |if (!${expr.nullTerm}) {
+             | $hashIntTerm += ${hashCodeForType(ctx, expr.resultType, expr.resultTerm)};
+             |}
+             |""".stripMargin
 
-    }).mkString("\n")
-    (s"""
-        |int $hashIntTerm = 0;
-        |$hashBodyCode""".stripMargin, hashIntTerm)
+        })
+      .mkString("\n")
+    (
+      s"""
+         |int $hashIntTerm = 0;
+         |$hashBodyCode""".stripMargin,
+      hashIntTerm)
   }
 }

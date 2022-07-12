@@ -214,7 +214,6 @@ public class ShuffleDescriptorTest extends TestLogger {
                         .registerPartitionWithProducer(
                                 jobID, partitionDescriptor, producerDescriptor)
                         .get();
-        return new ResultPartitionDeploymentDescriptor(
-                partitionDescriptor, shuffleDescriptor, 1, true);
+        return new ResultPartitionDeploymentDescriptor(partitionDescriptor, shuffleDescriptor, 1);
     }
 }

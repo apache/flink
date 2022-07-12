@@ -17,9 +17,9 @@
  */
 
 import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
-import { JobManagerService } from 'services';
+import { JobManagerService } from '@flink-runtime-web/services';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
-import { flinkEditorOptions } from 'share/common/editor/editor-config';
+import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 

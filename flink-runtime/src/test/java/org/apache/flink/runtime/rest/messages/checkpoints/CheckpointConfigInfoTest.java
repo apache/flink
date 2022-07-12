@@ -45,6 +45,8 @@ public class CheckpointConfigInfoTest
                 true,
                 3,
                 4,
-                true);
+                true,
+                0,
+                null);
     }
 }

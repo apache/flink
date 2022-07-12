@@ -34,6 +34,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
@@ -49,6 +50,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
@@ -67,6 +69,8 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class RandomGeneratorVisitor extends DataGenVisitorBase {
 
     public static final int RANDOM_STRING_LENGTH_DEFAULT = 100;
+
+    public static final int RANDOM_BYTES_LENGTH_DEFAULT = 100;
 
     private static final int RANDOM_COLLECTION_LENGTH_DEFAULT = 3;
 
@@ -133,6 +137,32 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
                         .defaultValue(RANDOM_STRING_LENGTH_DEFAULT);
         return DataGeneratorContainer.of(
                 getRandomStringGenerator(config.get(lenOption)), lenOption);
+    }
+
+    @Override
+    public DataGeneratorContainer visit(BinaryType binaryType) {
+        ConfigOption<Integer> lenOption =
+                key(DataGenConnectorOptionsUtil.FIELDS
+                                + "."
+                                + name
+                                + "."
+                                + DataGenConnectorOptionsUtil.LENGTH)
+                        .intType()
+                        .defaultValue(RANDOM_BYTES_LENGTH_DEFAULT);
+        return DataGeneratorContainer.of(getRandomBytesGenerator(config.get(lenOption)), lenOption);
+    }
+
+    @Override
+    public DataGeneratorContainer visit(VarBinaryType varBinaryType) {
+        ConfigOption<Integer> lenOption =
+                key(DataGenConnectorOptionsUtil.FIELDS
+                                + "."
+                                + name
+                                + "."
+                                + DataGenConnectorOptionsUtil.LENGTH)
+                        .intType()
+                        .defaultValue(RANDOM_BYTES_LENGTH_DEFAULT);
+        return DataGeneratorContainer.of(getRandomBytesGenerator(config.get(lenOption)), lenOption);
     }
 
     @Override
@@ -374,6 +404,17 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
                 long maxPastMillis = maxPast.toMillis();
                 long past = maxPastMillis > 0 ? random.nextLong(0, maxPastMillis) : 0;
                 return TimestampData.fromEpochMillis(System.currentTimeMillis() - past);
+            }
+        };
+    }
+
+    private static RandomGenerator<byte[]> getRandomBytesGenerator(int length) {
+        return new RandomGenerator<byte[]>() {
+            @Override
+            public byte[] next() {
+                byte[] arr = new byte[length];
+                random.getRandomGenerator().nextBytes(arr);
+                return arr;
             }
         };
     }

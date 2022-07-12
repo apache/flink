@@ -15,35 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.`type`.RelDataTypeFactory
 import org.apache.calcite.rel.core.Join
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
-import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.`type`.SqlTypeUtil
+import org.apache.calcite.sql.SqlKind
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 /**
-  * Planner rule that coerces the both sides of EQUALS(`=`) operator in Join condition
-  * to the same type while sans nullability.
-  *
-  * <p>For most cases, we already did the type coercion during type validation by implicit
-  * type coercion or during sqlNode to relNode conversion, this rule just does a rechecking
-  * to ensure a strongly uniform equals type, so that during a HashJoin shuffle we can have
-  * the same hashcode of the same value.
-  */
-class JoinConditionTypeCoerceRule extends RelOptRule(
-  operand(classOf[Join], any),
-  "JoinConditionTypeCoerceRule") {
+ * Planner rule that coerces the both sides of EQUALS(`=`) operator in Join condition to the same
+ * type while sans nullability.
+ *
+ * <p>For most cases, we already did the type coercion during type validation by implicit type
+ * coercion or during sqlNode to relNode conversion, this rule just does a rechecking to ensure a
+ * strongly uniform equals type, so that during a HashJoin shuffle we can have the same hashcode of
+ * the same value.
+ */
+class JoinConditionTypeCoerceRule
+  extends RelOptRule(operand(classOf[Join], any), "JoinConditionTypeCoerceRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: Join = call.rel(0)
@@ -66,17 +64,14 @@ class JoinConditionTypeCoerceRule extends RelOptRule(
       case c: RexCall if c.isA(SqlKind.EQUALS) =>
         (c.operands.head, c.operands.last) match {
           case (ref1: RexInputRef, ref2: RexInputRef)
-            if !SqlTypeUtil.equalSansNullability(
-              typeFactory,
-              ref1.getType,
-              ref2.getType) =>
+              if !SqlTypeUtil.equalSansNullability(typeFactory, ref1.getType, ref2.getType) =>
             val refList = ref1 :: ref2 :: Nil
             val targetType = typeFactory.leastRestrictive(refList.map(ref => ref.getType))
             if (targetType == null) {
               throw new TableException(
                 s"implicit type conversion between" +
-                s" ${ref1.getType} and ${ref2.getType} " +
-                s"is not supported on join's condition now")
+                  s" ${ref1.getType} and ${ref2.getType} " +
+                  s"is not supported on join's condition now")
             }
             newJoinFilters += builder.equals(
               rexBuilder.ensureType(targetType, ref1, true),
@@ -89,10 +84,8 @@ class JoinConditionTypeCoerceRule extends RelOptRule(
     }
 
     val newCondExp = builder.and(
-      FlinkRexUtil.simplify(
-        rexBuilder,
-        builder.and(newJoinFilters),
-        join.getCluster.getPlanner.getExecutor))
+      FlinkRexUtil
+        .simplify(rexBuilder, builder.and(newJoinFilters), join.getCluster.getPlanner.getExecutor))
 
     val newJoin = join.copy(
       join.getTraitSet,
@@ -106,9 +99,9 @@ class JoinConditionTypeCoerceRule extends RelOptRule(
   }
 
   /**
-    * Returns true if two input refs of an equal call have different types in join condition,
-    * else false.
-    */
+   * Returns true if two input refs of an equal call have different types in join condition, else
+   * false.
+   */
   private def hasEqualsRefsOfDifferentTypes(
       typeFactory: RelDataTypeFactory,
       predicate: RexNode): Boolean = {
@@ -117,10 +110,7 @@ class JoinConditionTypeCoerceRule extends RelOptRule(
       case c: RexCall if c.isA(SqlKind.EQUALS) =>
         (c.operands.head, c.operands.last) match {
           case (ref1: RexInputRef, ref2: RexInputRef) =>
-            !SqlTypeUtil.equalSansNullability(
-              typeFactory,
-              ref1.getType,
-              ref2.getType)
+            !SqlTypeUtil.equalSansNullability(typeFactory, ref1.getType, ref2.getType)
           case _ => false
         }
       case _ => false

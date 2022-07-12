@@ -23,6 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.api.scala.extensions.base.AcceptPFTestBase
 import org.apache.flink.api.scala.extensions.data.KeyValuePair
+
 import org.junit.Test
 
 class OnGroupedDataSetTest extends AcceptPFTestBase {
@@ -30,31 +31,28 @@ class OnGroupedDataSetTest extends AcceptPFTestBase {
   @Test
   def testSortGroupWithOnTuple(): Unit = {
     val test =
-      groupedTuples.sortGroupWith(Order.ASCENDING) {
-        case (id, _) => id
-      }
-    assert(test.isInstanceOf[GroupedDataSet[_]],
+      groupedTuples.sortGroupWith(Order.ASCENDING) { case (id, _) => id }
+    assert(
+      test.isInstanceOf[GroupedDataSet[_]],
       "sortGroupWith on tuples should produce a GroupedDataSet")
   }
 
   @Test
   def testSortGroupWithOnCaseClass(): Unit = {
     val test =
-      groupedCaseObjects.sortGroupWith(Order.ASCENDING) {
-        case KeyValuePair(id, _) => id
-      }
-    assert(test.isInstanceOf[GroupedDataSet[_]],
+      groupedCaseObjects.sortGroupWith(Order.ASCENDING) { case KeyValuePair(id, _) => id }
+    assert(
+      test.isInstanceOf[GroupedDataSet[_]],
       "sortGroupWith on case objects should produce a GroupedDataSet")
   }
 
   @Test
   def testReduceWithOnTuple(): Unit = {
     val test =
-      groupedTuples.reduceWith {
-        case ((_, v1), (_, v2)) => (0, s"$v1 $v2")
-      }
+      groupedTuples.reduceWith { case ((_, v1), (_, v2)) => (0, s"$v1 $v2") }
 
-    assert(test.javaSet.isInstanceOf[ReduceOperator[_]],
+    assert(
+      test.javaSet.isInstanceOf[ReduceOperator[_]],
       "reduceWith on tuples should produce a ReduceOperator")
   }
 
@@ -65,7 +63,8 @@ class OnGroupedDataSetTest extends AcceptPFTestBase {
         case (KeyValuePair(_, v1), KeyValuePair(_, v2)) => KeyValuePair(0, s"$v1 $v2")
       }
 
-    assert(test.javaSet.isInstanceOf[ReduceOperator[_]],
+    assert(
+      test.javaSet.isInstanceOf[ReduceOperator[_]],
       "reduceWith on case objects should produce a ReduceOperator")
   }
 
@@ -77,7 +76,8 @@ class OnGroupedDataSetTest extends AcceptPFTestBase {
         case (_, value) #:: _ => accumulator.append(value).append('\n')
       }
 
-    assert(test.javaSet.isInstanceOf[GroupReduceOperator[_, _]],
+    assert(
+      test.javaSet.isInstanceOf[GroupReduceOperator[_, _]],
       "reduceGroupWith on tuples should produce a GroupReduceOperator")
   }
 
@@ -89,7 +89,8 @@ class OnGroupedDataSetTest extends AcceptPFTestBase {
         case KeyValuePair(_, value) #:: _ => accumulator.append(value).append('\n')
       }
 
-    assert(test.javaSet.isInstanceOf[GroupReduceOperator[_, _]],
+    assert(
+      test.javaSet.isInstanceOf[GroupReduceOperator[_, _]],
       "reduceGroupWith on case objects should produce a GroupReduceOperator")
   }
 
@@ -101,7 +102,8 @@ class OnGroupedDataSetTest extends AcceptPFTestBase {
         case (_, value) #:: _ => accumulator.append(value).append('\n')
       }
 
-    assert(test.javaSet.isInstanceOf[GroupCombineOperator[_, _]],
+    assert(
+      test.javaSet.isInstanceOf[GroupCombineOperator[_, _]],
       "combineGroupWith on tuples should produce a GroupCombineOperator")
   }
 
@@ -113,7 +115,8 @@ class OnGroupedDataSetTest extends AcceptPFTestBase {
         case KeyValuePair(_, value) #:: _ => accumulator.append(value).append('\n')
       }
 
-    assert(test.javaSet.isInstanceOf[GroupCombineOperator[_, _]],
+    assert(
+      test.javaSet.isInstanceOf[GroupCombineOperator[_, _]],
       "combineGroupWith on case objects should produce a GroupCombineOperator")
   }
 

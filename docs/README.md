@@ -10,6 +10,7 @@ https://flink.apache.org/ is also generated from the files found here.
 
 The Flink documentation uses [Hugo](https://gohugo.io/getting-started/installing/) to generate HTML files.  More specifically, it uses the *extended version* of Hugo with Sass/SCSS support. 
 
+As a pre-requisite, you need to have [Go](https://golang.org/doc/install) installed.
 To build the documentation, you can install Hugo locally or use a Docker image. 
 
 Both methods require you to execute commands in the directory of this module (`docs/`). The built site is served at http://localhost:1313/.
@@ -18,6 +19,7 @@ Both methods require you to execute commands in the directory of this module (`d
 
 ```sh
 $ git submodule update --init --recursive
+$ ./setup_docs.sh
 $ docker run -v $(pwd):/src -p 1313:1313 jakejarvis/hugo-extended:latest server --buildDrafts --buildFuture --bind 0.0.0.0
 ```
 
@@ -27,10 +29,76 @@ Make sure you have installed [Hugo](https://gohugo.io/getting-started/installing
 
 ```sh
 $ git submodule update --init --recursive
+$ ./setup_docs.sh
 $ ./build_docs.sh
 ```
 
 The site can be viewed at http://localhost:1313/
+
+## Include externally hosted documentation
+
+With the ongoing efforts to move Flink's connectors from this repository to individual, dedicated
+repositories, this also requires the documentation to be hosted outside this repo. However, 
+we still want to serve all documentation as a whole on the Flink documentation website.
+
+In order to achieve this, we're using [Hugo Modules.](https://gohugo.io/hugo-modules/configuration/) 
+to create a virtual filesystem. 
+
+Adding new externally hosted documentation requires the following steps to be taken:
+
+1. (If necessary) Move the existing documentation to the new repository
+2. In this new repository, in the `docs` folder, create a file `go.mod` containing:
+
+```go
+module github.com/apache/flink-connector-<repositoryname>/docs
+
+go 1.18
+```
+
+Replace <repositoryname> with the name of your repository.
+See https://github.com/apache/flink-connector-elasticsearch/tree/main/docs/go.mod for an example.
+3. In this new repository, in the `docs` folder, create a `config.toml` file containing:
+
+```yaml
+module:
+  mounts:
+    - source: content
+      target: content
+      lang: en
+    - source: content.zh
+      target: content.zh
+      lang: zh
+```
+
+See https://github.com/apache/flink-connector-elasticsearch/tree/main/docs/config.toml for an example.
+
+4. In the Flink repository, edit the `docs/setup_docs.sh` file and add a reference to your now 
+externally hosted documentation. The reference will look like `hugo mod get -u github.com/apache/<reponame>/docs@main`
+
+Replace <repositoryname> with the name of your repository.
+
+5. In the Flink repository, edit the `docs/config.toml` file add the files from the external
+repository as a mount to the Flink documentation. Hugo creates a virtual mount, meaning that any
+mounted file will appear as if it's located in this repository. 
+
+```yaml
+[module]
+[[module.imports]]
+  path = 'github.com/apache/<repositoryname>/docs'
+[[module.imports.mounts]]
+  source = 'content'
+  target = 'content'
+  lang = 'en'
+[[module.imports.mounts]]
+  source = 'content.zh'
+  target = 'content'
+  lang = 'zh'
+```
+
+Replace <repositoryname> with the name of your repository.
+The Chinese documentation source `content.zh` is targetted to the actual `content` folder. 
+Hugo combines the `target` and `lang` to display the correct language. 
+See the current `docs/config.toml` file for an example.
 
 ## Generate configuration tables
 

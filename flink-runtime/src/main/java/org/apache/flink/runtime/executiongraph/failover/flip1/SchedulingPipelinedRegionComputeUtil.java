@@ -55,7 +55,7 @@ public final class SchedulingPipelinedRegionComputeUtil {
                 buildRawRegions(
                         topologicallySortedVertices,
                         vertex ->
-                                getNonReconnectableConsumedResults(
+                                getMustBePipelinedConsumedResults(
                                         vertex, resultPartitionRetriever));
 
         return mergeRegionsOnCycles(vertexToRegion, executionVertexRetriever);
@@ -113,7 +113,7 @@ public final class SchedulingPipelinedRegionComputeUtil {
             final List<Integer> currentRegionOutEdges = new ArrayList<>();
             for (SchedulingExecutionVertex vertex : currentRegion) {
                 for (SchedulingResultPartition producedResult : vertex.getProducedResults()) {
-                    if (!producedResult.getResultType().isReconnectable()) {
+                    if (producedResult.getResultType().mustBePipelinedConsumed()) {
                         continue;
                     }
                     final Optional<ConsumerVertexGroup> consumerVertexGroup =
@@ -143,23 +143,23 @@ public final class SchedulingPipelinedRegionComputeUtil {
         return outEdges;
     }
 
-    private static Iterable<SchedulingResultPartition> getNonReconnectableConsumedResults(
+    private static Iterable<SchedulingResultPartition> getMustBePipelinedConsumedResults(
             SchedulingExecutionVertex vertex,
             Function<IntermediateResultPartitionID, ? extends SchedulingResultPartition>
                     resultPartitionRetriever) {
-        List<SchedulingResultPartition> nonReconnectableConsumedResults = new ArrayList<>();
+        List<SchedulingResultPartition> mustBePipelinedConsumedResults = new ArrayList<>();
         for (ConsumedPartitionGroup consumedPartitionGroup : vertex.getConsumedPartitionGroups()) {
             for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
                 SchedulingResultPartition consumedResult =
                         resultPartitionRetriever.apply(partitionId);
-                if (consumedResult.getResultType().isReconnectable()) {
+                if (!consumedResult.getResultType().mustBePipelinedConsumed()) {
                     // The result types of partitions in one ConsumedPartitionGroup are all the same
                     break;
                 }
-                nonReconnectableConsumedResults.add(consumedResult);
+                mustBePipelinedConsumedResults.add(consumedResult);
             }
         }
-        return nonReconnectableConsumedResults;
+        return mustBePipelinedConsumedResults;
     }
 
     private SchedulingPipelinedRegionComputeUtil() {}

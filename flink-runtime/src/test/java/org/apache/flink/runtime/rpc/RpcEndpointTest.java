@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLoggerExtension;
 
@@ -51,7 +50,6 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 @ExtendWith(TestLoggerExtension.class)
 public class RpcEndpointTest {
 
-    private static final Time TIMEOUT = Time.seconds(10L);
     private static RpcService rpcService = null;
 
     @BeforeAll
@@ -82,7 +80,7 @@ public class RpcEndpointTest {
 
             assertEquals(Integer.valueOf(expectedValue), foobar.get());
         } finally {
-            RpcUtils.terminateRpcEndpoint(baseEndpoint, TIMEOUT);
+            RpcUtils.terminateRpcEndpoint(baseEndpoint);
 
             baseEndpoint.validateResourceClosed();
         }
@@ -109,7 +107,7 @@ public class RpcEndpointTest {
                         fail(
                                 "Expected to fail with a RuntimeException since we requested the wrong gateway type.");
                     } finally {
-                        RpcUtils.terminateRpcEndpoint(baseEndpoint, TIMEOUT);
+                        RpcUtils.terminateRpcEndpoint(baseEndpoint);
 
                         baseEndpoint.validateResourceClosed();
                     }
@@ -141,7 +139,7 @@ public class RpcEndpointTest {
             assertEquals(Integer.valueOf(barfoo), extendedGateway.barfoo().get());
             assertEquals(foo, differentGateway.foo().get());
         } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
+            RpcUtils.terminateRpcEndpoint(endpoint);
             endpoint.validateResourceClosed();
         }
     }
@@ -160,7 +158,7 @@ public class RpcEndpointTest {
             endpoint.start();
             assertTrue(gateway.queryIsRunningFlag().get());
         } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
+            RpcUtils.terminateRpcEndpoint(endpoint);
             endpoint.validateResourceClosed();
         }
     }
@@ -181,7 +179,7 @@ public class RpcEndpointTest {
         assertFalse(gateway.queryIsRunningFlag().get());
 
         stopFuture.complete(null);
-        terminationFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+        terminationFuture.get();
         endpoint.validateResourceClosed();
     }
 
@@ -289,9 +287,9 @@ public class RpcEndpointTest {
                                 endpoint.validateRunsInMainThread();
                                 asyncExecutionFuture.complete(null);
                             });
-            asyncExecutionFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+            asyncExecutionFuture.get();
         } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
+            RpcUtils.terminateRpcEndpoint(endpoint);
             endpoint.validateResourceClosed();
         }
     }
@@ -451,10 +449,10 @@ public class RpcEndpointTest {
                                 endpoint.validateRunsInMainThread();
                                 return expectedInteger;
                             },
-                            TIMEOUT);
-            assertEquals(expectedInteger, integerFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit()));
+                            Duration.ofSeconds(10L));
+            assertEquals(expectedInteger, integerFuture.get());
         } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
+            RpcUtils.terminateRpcEndpoint(endpoint);
             endpoint.validateResourceClosed();
         }
     }
@@ -467,7 +465,7 @@ public class RpcEndpointTest {
     public void testCallAsyncTimeout()
             throws InterruptedException, ExecutionException, TimeoutException {
         final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
-        final Time timeout = Time.milliseconds(100);
+        final Duration timeout = Duration.ofMillis(100);
         CountDownLatch latch = new CountDownLatch(1);
         try {
             endpoint.start();
@@ -486,7 +484,7 @@ public class RpcEndpointTest {
             assertTrue(throwable instanceof TimeoutException);
         } finally {
             latch.countDown();
-            RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
+            RpcUtils.terminateRpcEndpoint(endpoint);
             endpoint.validateResourceClosed();
         }
     }
@@ -505,7 +503,7 @@ public class RpcEndpointTest {
         }
 
         @Override
-        public <V> CompletableFuture<V> callAsync(Callable<V> callable, Time callTimeout) {
+        public <V> CompletableFuture<V> callAsync(Callable<V> callable, Duration callTimeout) {
             throw new UnsupportedOperationException();
         }
 

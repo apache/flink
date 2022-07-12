@@ -27,7 +27,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 
@@ -50,11 +49,10 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SqlClient}. */
 public class SqlClientTest {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -119,9 +117,9 @@ public class SqlClientTest {
     @Test
     public void testUnsupportedGatewayMode() {
         String[] args = new String[] {"gateway"};
-        thrown.expect(SqlClientException.class);
-        thrown.expectMessage("Gateway mode is not supported yet.");
-        SqlClient.main(args);
+        assertThatThrownBy(() -> SqlClient.main(args))
+                .isInstanceOf(SqlClientException.class)
+                .hasMessage("Gateway mode is not supported yet.");
     }
 
     @Test
@@ -203,11 +201,11 @@ public class SqlClientTest {
     }
 
     @Test
-    public void testExecuteSqlWithHDFSFile() throws Exception {
+    public void testExecuteSqlWithHDFSFile() {
         String[] args = new String[] {"-f", "hdfs://path/to/file/test.sql"};
-        thrown.expect(SqlClientException.class);
-        thrown.expectMessage("SQL Client only supports to load files in local.");
-        runSqlClient(args);
+        assertThatThrownBy(() -> runSqlClient(args))
+                .isInstanceOf(SqlClientException.class)
+                .hasMessage("SQL Client only supports to load files in local.");
     }
 
     private String runSqlClient(String[] args) throws Exception {

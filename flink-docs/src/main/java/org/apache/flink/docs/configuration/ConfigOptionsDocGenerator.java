@@ -30,6 +30,7 @@ import org.apache.flink.configuration.description.Formatter;
 import org.apache.flink.configuration.description.HtmlFormatter;
 import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.configuration.description.TextElement;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -57,8 +58,10 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -523,16 +526,32 @@ public class ConfigOptionsDocGenerator {
         if (!clazz.isEnum()) {
             return null;
         }
-
+        AtomicReference<IllegalAccessException> exception = new AtomicReference<>(null);
         InlineElement[] optionDescriptions =
-                Arrays.stream(clazz.getEnumConstants())
+                Arrays.stream(clazz.getDeclaredFields())
+                        .filter(field -> field.isEnumConstant() && shouldBeDocumented(field))
+                        .map(
+                                field -> {
+                                    try {
+                                        return field.get(null);
+                                    } catch (IllegalAccessException e) {
+                                        exception.set(
+                                                ExceptionUtils.firstOrSuppressed(
+                                                        e, exception.get()));
+                                    }
+                                    return null;
+                                })
+                        .filter(Objects::nonNull)
                         .map(ConfigOptionsDocGenerator::formatEnumOption)
                         .map(
                                 elements ->
                                         TextElement.wrap(
                                                 elements.stream().toArray(InlineElement[]::new)))
                         .toArray(InlineElement[]::new);
-
+        if (exception.get() != null) {
+            throw new RuntimeException(
+                    "config option should have public access right.", exception.get());
+        }
         return Description.builder().text("Possible values:").list(optionDescriptions).build();
     }
 

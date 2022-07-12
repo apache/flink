@@ -25,23 +25,29 @@ import org.apache.flink.table.runtime.generated.GeneratedCollector
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.util.Collector
 
-/**
-  * A code generator for generating [[Collector]]s.
-  */
+/** A code generator for generating [[Collector]]s. */
 object CollectorCodeGenerator {
 
   /**
    * Generates a [[TableFunctionCollector]] that can be passed to Java compiler.
    *
-   * @param ctx The context of the code generator
-   * @param name Class name of the table function collector. Must not be unique but has to be a
-   *             valid Java class identifier.
-   * @param bodyCode body code for the collector method
-   * @param inputType The type of the element being collected
-   * @param collectedType The type of the element collected by the collector
-   * @param inputTerm The term of the input element
-   * @param collectedTerm The term of the collected element
-   * @return instance of GeneratedCollector
+   * @param ctx
+   *   The context of the code generator
+   * @param name
+   *   Class name of the table function collector. Must not be unique but has to be a valid Java
+   *   class identifier.
+   * @param bodyCode
+   *   body code for the collector method
+   * @param inputType
+   *   The type of the element being collected
+   * @param collectedType
+   *   The type of the element collected by the collector
+   * @param inputTerm
+   *   The term of the input element
+   * @param collectedTerm
+   *   The term of the collected element
+   * @return
+   *   instance of GeneratedCollector
    */
   def generateTableFunctionCollector(
       ctx: CodeGeneratorContext,
@@ -51,7 +57,7 @@ object CollectorCodeGenerator {
       collectedType: LogicalType,
       inputTerm: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       collectedTerm: String = CodeGenUtils.DEFAULT_INPUT2_TERM)
-    : GeneratedCollector[TableFunctionCollector[_]] = {
+      : GeneratedCollector[TableFunctionCollector[_]] = {
 
     val funcName = newName(name)
     val input1TypeClass = boxedTypeTermForType(inputType)
@@ -93,21 +99,26 @@ object CollectorCodeGenerator {
       }
     """.stripMargin
 
-    new GeneratedCollector(
-      funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
+    new GeneratedCollector(funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
   }
 
   /**
    * Generates a [[Collector]] that wraps another [[Collector]].
    *
-   * @param ctx The context of the code generator
-   * @param name Class name of the collector. Must not be unique but has to be a
-   *             valid Java class identifier.
-   * @param inputType The type of the element being collected
-   * @param inputTerm The term of the input element
-   * @param inputConversion The term for converting the input
-   * @param bodyCode body code for the collector method
-   * @return instance of GeneratedCollector
+   * @param ctx
+   *   The context of the code generator
+   * @param name
+   *   Class name of the collector. Must not be unique but has to be a valid Java class identifier.
+   * @param inputType
+   *   The type of the element being collected
+   * @param inputTerm
+   *   The term of the input element
+   * @param inputConversion
+   *   The term for converting the input
+   * @param bodyCode
+   *   body code for the collector method
+   * @return
+   *   instance of GeneratedCollector
    */
   def generateWrappingCollector(
       ctx: CodeGeneratorContext,
@@ -115,8 +126,7 @@ object CollectorCodeGenerator {
       inputType: LogicalType,
       inputTerm: String,
       inputConversion: (String) => String,
-      bodyCode: String)
-    : GeneratedCollector[WrappingCollector[_]] = {
+      bodyCode: String): GeneratedCollector[WrappingCollector[_]] = {
 
     val funcName = newName(name)
     val inputTypeTerm = boxedTypeTermForType(inputType)
@@ -156,15 +166,13 @@ object CollectorCodeGenerator {
       }
     """.stripMargin
 
-    new GeneratedCollector(
-      funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
+    new GeneratedCollector(funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
   }
 
   def addToContext(
       ctx: CodeGeneratorContext,
       collectorTerm: String,
-      generatedCollector: GeneratedCollector[_])
-    : Unit = {
+      generatedCollector: GeneratedCollector[_]): Unit = {
 
     ctx.addReusableMember(s"private ${generatedCollector.getClassName} $collectorTerm = null;")
     ctx.addReusableInnerClass(generatedCollector.getClassName, generatedCollector.getCode)

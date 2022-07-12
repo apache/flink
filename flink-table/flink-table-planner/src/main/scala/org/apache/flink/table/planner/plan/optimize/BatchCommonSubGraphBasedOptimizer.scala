@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.optimize
 
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, SqlExprToRexConverterFactory}
+import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, RexFactory}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram}
@@ -34,9 +33,7 @@ import org.apache.calcite.rel.RelNode
 
 import java.util.Collections
 
-/**
-  * A [[CommonSubGraphBasedOptimizer]] for Batch.
-  */
+/** A [[CommonSubGraphBasedOptimizer]] for Batch. */
 class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
   extends CommonSubGraphBasedOptimizer {
 
@@ -49,10 +46,11 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
   }
 
   private def optimizeBlock(block: RelNodeBlock): Unit = {
-    block.children.foreach { child =>
-      if (child.getNewOutputNode.isEmpty) {
-        optimizeBlock(child)
-      }
+    block.children.foreach {
+      child =>
+        if (child.getNewOutputNode.isEmpty) {
+          optimizeBlock(child)
+        }
     }
 
     val originTree = block.getPlan
@@ -62,8 +60,8 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
       case _: LegacySink | _: Sink => // ignore
       case _ =>
         val name = createUniqueIntermediateRelTableName
-        val intermediateRelTable =  new IntermediateRelTable(Collections.singletonList(name),
-          optimizedTree)
+        val intermediateRelTable =
+          new IntermediateRelTable(Collections.singletonList(name), optimizedTree)
         val newTableScan = wrapIntermediateRelTableToTableScan(intermediateRelTable, name)
         block.setNewOutputNode(newTableScan)
         block.setOutputTableName(name)
@@ -72,38 +70,46 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
   }
 
   /**
-    * Generates the optimized [[RelNode]] tree from the original relational node tree.
-    *
-    * @param relNode The original [[RelNode]] tree
-    * @return The optimized [[RelNode]] tree
-    */
+   * Generates the optimized [[RelNode]] tree from the original relational node tree.
+   *
+   * @param relNode
+   *   The original [[RelNode]] tree
+   * @return
+   *   The optimized [[RelNode]] tree
+   */
   private def optimizeTree(relNode: RelNode): RelNode = {
     val tableConfig = planner.getTableConfig
-    val programs = TableConfigUtils.getCalciteConfig(tableConfig).getBatchProgram
+    val programs = TableConfigUtils
+      .getCalciteConfig(tableConfig)
+      .getBatchProgram
       .getOrElse(FlinkBatchProgram.buildProgram(tableConfig))
     Preconditions.checkNotNull(programs)
 
     val context = unwrapContext(relNode)
 
-    programs.optimize(relNode, new BatchOptimizeContext {
+    programs.optimize(
+      relNode,
+      new BatchOptimizeContext {
 
-      override def isBatchMode: Boolean = true
+        override def isBatchMode: Boolean = true
 
-      override def getTableConfig: TableConfig = tableConfig
+        override def getTableConfig: TableConfig = tableConfig
 
-      override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
+        override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
 
-      override def getCatalogManager: CatalogManager = planner.catalogManager
+        override def getCatalogManager: CatalogManager = planner.catalogManager
 
-      override def getModuleManager: ModuleManager = planner.moduleManager
+        override def getModuleManager: ModuleManager = planner.moduleManager
 
-      override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
-        context.getSqlExprToRexConverterFactory
+        override def getRexFactory: RexFactory = context.getRexFactory
 
-      override def getFlinkRelBuilder: FlinkRelBuilder = planner.getRelBuilder
+        override def getFlinkRelBuilder: FlinkRelBuilder = planner.createRelBuilder
 
-      override def needFinalTimeIndicatorConversion: Boolean = true
-    })
+        override def needFinalTimeIndicatorConversion: Boolean = true
+
+        override def getClassLoader: ClassLoader = context.getClassLoader
+      }
+    )
   }
 
 }

@@ -19,10 +19,8 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
@@ -53,14 +51,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link BuiltInFunctionDefinitions#CAST} regarding {@link DataTypes#ROW}. */
 class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
-
-    @Override
-    Configuration getConfiguration() {
-        return new Configuration()
-                .set(
-                        ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
-                        ExecutionConfigOptions.LegacyCastBehaviour.DISABLED);
-    }
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
@@ -205,14 +195,14 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                         .onFieldsWithData("foo")
                         .testSqlResult(
                                 "CAST(CAST(x'68656C6C6F20636F6465' AS BINARY(10)) AS VARCHAR)",
-                                "68656c6c6f20636f6465",
+                                "hello code",
                                 STRING().notNull()),
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST, "test the x'....' binary syntax")
                         .onFieldsWithData("foo")
                         .testSqlResult(
-                                "CAST(CAST(x'68656C6C6F2063617374' AS BINARY(10)) AS VARCHAR)",
-                                "68656c6c6f2063617374",
+                                "CAST(CAST(x'68656C6C6F20636F6465' AS BINARY(5)) AS VARCHAR)",
+                                "hello",
                                 STRING().notNull()),
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST, "cast STRUCTURED to STRING")

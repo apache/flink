@@ -37,6 +37,7 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.factories.TestFormatFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.LimitPushDownSpec;
@@ -147,7 +148,9 @@ public class DynamicTableSourceSpecSerdeTest {
                         Collections.emptyList(),
                         options2);
 
-        FlinkTypeFactory factory = FlinkTypeFactory.INSTANCE();
+        FlinkTypeFactory factory =
+                new FlinkTypeFactory(
+                        Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
         RexBuilder rexBuilder = new RexBuilder(factory);
         DynamicTableSourceSpec spec2 =
                 new DynamicTableSourceSpec(
@@ -265,7 +268,10 @@ public class DynamicTableSourceSpecSerdeTest {
         assertThat(actual.getContextResolvedTable()).isEqualTo(spec.getContextResolvedTable());
         assertThat(actual.getSourceAbilities()).isEqualTo(spec.getSourceAbilities());
 
-        assertThat(actual.getScanTableSource(plannerMocks.getPlannerContext().getFlinkContext()))
+        assertThat(
+                        actual.getScanTableSource(
+                                plannerMocks.getPlannerContext().getFlinkContext(),
+                                serdeCtx.getTypeFactory()))
                 .isNotNull();
     }
 
@@ -330,7 +336,8 @@ public class DynamicTableSourceSpecSerdeTest {
         TestDynamicTableFactory.DynamicTableSourceMock dynamicTableSource =
                 (TestDynamicTableFactory.DynamicTableSourceMock)
                         actual.getScanTableSource(
-                                plannerMocks.getPlannerContext().getFlinkContext());
+                                plannerMocks.getPlannerContext().getFlinkContext(),
+                                serdeCtx.getTypeFactory());
 
         assertThat(dynamicTableSource.password).isEqualTo("xyz");
         assertThat(

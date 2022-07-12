@@ -19,8 +19,6 @@
 package org.apache.flink.architecture;
 
 import org.apache.flink.architecture.common.ImportOptions;
-import org.apache.flink.architecture.rules.ApiAnnotationRules;
-import org.apache.flink.architecture.rules.TableApiRules;
 
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
@@ -36,8 +34,7 @@ import com.tngtech.archunit.junit.ArchTests;
             ImportOptions.ExcludeShadedImportOption.class
         })
 public class ArchitectureTest {
-    @ArchTest
-    public static final ArchTests API_ANNOTATIONS = ArchTests.in(ApiAnnotationRules.class);
 
-    @ArchTest public static final ArchTests TABLE_API = ArchTests.in(TableApiRules.class);
+    @ArchTest
+    public static final ArchTests COMMON_TESTS = ArchTests.in(ProductionCodeArchitectureBase.class);
 }

@@ -45,6 +45,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -156,8 +157,8 @@ public class FileCacheDirectoriesTest {
     @Test
     public void testDirectoryCleanUp() throws Exception {
         JobID jobID = new JobID();
-        ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-        ExecutionAttemptID attemptID2 = new ExecutionAttemptID();
+        ExecutionAttemptID attemptID1 = createExecutionAttemptId();
+        ExecutionAttemptID attemptID2 = createExecutionAttemptId();
 
         final String fileName = "test_file";
         // copy / create the file
@@ -215,7 +216,7 @@ public class FileCacheDirectoriesTest {
     private void testDirectoryDownloaded(DistributedCache.DistributedCacheEntry entry)
             throws Exception {
         JobID jobID = new JobID();
-        ExecutionAttemptID attemptID = new ExecutionAttemptID();
+        ExecutionAttemptID attemptID = createExecutionAttemptId();
 
         // copy / create the file
         final String fileName = "test_file";

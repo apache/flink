@@ -20,9 +20,10 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+
+import static org.apache.flink.runtime.executiongraph.ExecutionAttemptID.randomId;
 
 /** A collection of safe drop-in replacements for existing {@link ComponentMetricGroup}s. */
 public class UnregisteredMetricGroups {
@@ -153,30 +154,22 @@ public class UnregisteredMetricGroups {
 
         @Override
         public TaskMetricGroup addTask(
-                final JobVertexID jobVertexId,
-                final ExecutionAttemptID executionAttemptID,
-                final String taskName,
-                final int subtaskIndex,
-                final int attemptNumber) {
+                final ExecutionAttemptID executionAttemptID, final String taskName) {
             return createUnregisteredTaskMetricGroup();
         }
     }
 
     /** A safe drop-in replacement for {@link TaskMetricGroup}s. */
     public static class UnregisteredTaskMetricGroup extends TaskMetricGroup {
-        private static final JobVertexID DEFAULT_VERTEX_ID = new JobVertexID(0, 0);
-        private static final ExecutionAttemptID DEFAULT_ATTEMPT_ID = new ExecutionAttemptID();
+        private static final ExecutionAttemptID DEFAULT_ATTEMPT_ID = randomId();
         private static final String DEFAULT_TASK_NAME = "UnregisteredTask";
 
         protected UnregisteredTaskMetricGroup() {
             super(
                     NoOpMetricRegistry.INSTANCE,
                     new UnregisteredTaskManagerJobMetricGroup(),
-                    DEFAULT_VERTEX_ID,
                     DEFAULT_ATTEMPT_ID,
-                    DEFAULT_TASK_NAME,
-                    0,
-                    0);
+                    DEFAULT_TASK_NAME);
         }
 
         @Override

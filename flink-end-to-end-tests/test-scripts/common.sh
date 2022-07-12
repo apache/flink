@@ -299,12 +299,20 @@ function wait_rest_endpoint_up {
   exit 1
 }
 
+function relocate_rocksdb_logs {
+  # After FLINK-24785, RocksDB's log would be created under Flink's log directory by default,
+  # this would make e2e tests' artifacts containing too many log files.
+  # As RocksDB's log would not help much in e2e tests, move the location back to its own folder.
+  set_config_key "state.backend.rocksdb.log.dir" "/dev/null"
+}
+
 function wait_dispatcher_running {
   local query_url="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
   wait_rest_endpoint_up "${query_url}" "Dispatcher" "\{\"taskmanagers\":\[.+\]\}"
 }
 
 function start_cluster {
+  relocate_rocksdb_logs
   "$FLINK_DIR"/bin/start-cluster.sh
   wait_dispatcher_running
 }
@@ -628,9 +636,10 @@ function kill_random_taskmanager {
 }
 
 function setup_flink_slf4j_metric_reporter() {
-  INTERVAL="${1:-1 SECONDS}"
+  METRIC_NAME_PATTERN="${1:-"*"}"
   set_config_key "metrics.reporter.slf4j.factory.class" "org.apache.flink.metrics.slf4j.Slf4jReporterFactory"
-  set_config_key "metrics.reporter.slf4j.interval" "${INTERVAL}"
+  set_config_key "metrics.reporter.slf4j.interval" "1 SECONDS"
+  set_config_key "metrics.reporter.slf4j.filter.includes" "*:${METRIC_NAME_PATTERN}"
 }
 
 function get_job_metric {
@@ -706,7 +715,7 @@ function wait_num_of_occurence_in_logs {
     echo "Waiting for text ${text} to appear ${number} of times in logs..."
 
     while : ; do
-      N=$(grep -o "${text}" $FLINK_LOG_DIR/*${logs}*.log* | wc -l)
+      N=$(grep -E -o "${text}" $FLINK_LOG_DIR/*${logs}*.log* | wc -l)
 
       if [ -z $N ]; then
         N=0

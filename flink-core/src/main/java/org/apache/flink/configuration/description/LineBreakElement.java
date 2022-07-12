@@ -18,7 +18,10 @@
 
 package org.apache.flink.configuration.description;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /** Represents a line break in the {@link Description}. */
+@PublicEvolving
 public class LineBreakElement implements InlineElement, BlockElement {
 
     /** Creates a line break in the description. */

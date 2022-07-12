@@ -44,7 +44,6 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHits;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -62,6 +61,7 @@ import java.util.HashSet;
 import java.util.Map;
 
 import static org.apache.flink.table.api.Expressions.row;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT tests for {@link ElasticsearchDynamicSink}. */
 @ExtendWith(TestLoggerExtension.class)
@@ -142,7 +142,7 @@ abstract class ElasticsearchDynamicSinkBaseITCase {
         expectedMap.put("e", 2);
         expectedMap.put("f", "2003-10-20");
         expectedMap.put("g", "2012-12-12 12:12:12");
-        Assertions.assertEquals(response, expectedMap);
+        assertThat(response).isEqualTo(expectedMap);
     }
 
     @Test
@@ -190,7 +190,7 @@ abstract class ElasticsearchDynamicSinkBaseITCase {
         expectedMap.put("e", 2);
         expectedMap.put("f", "2003-10-20");
         expectedMap.put("g", "2012-12-12 12:12:12");
-        Assertions.assertEquals(response, expectedMap);
+        assertThat(response).isEqualTo(expectedMap);
     }
 
     @Test
@@ -273,7 +273,7 @@ abstract class ElasticsearchDynamicSinkBaseITCase {
         HashSet<Map<Object, Object>> expectedSet = new HashSet<>();
         expectedSet.add(expectedMap1);
         expectedSet.add(expectedMap2);
-        Assertions.assertEquals(resultSet, expectedSet);
+        assertThat(resultSet).isEqualTo(expectedSet);
     }
 
     @Test
@@ -302,7 +302,7 @@ abstract class ElasticsearchDynamicSinkBaseITCase {
         Map<Object, Object> expectedMap = new HashMap<>();
         expectedMap.put("a", 1);
         expectedMap.put("b", "2012-12-12 12:12:12");
-        Assertions.assertEquals(response, expectedMap);
+        assertThat(response).isEqualTo(expectedMap);
     }
 
     @Test
@@ -353,6 +353,6 @@ abstract class ElasticsearchDynamicSinkBaseITCase {
         Map<Object, Object> expectedMap = new HashMap<>();
         expectedMap.put("a", 1);
         expectedMap.put("b", "2012-12-12 12:12:12");
-        Assertions.assertEquals(response, expectedMap);
+        assertThat(response).isEqualTo(expectedMap);
     }
 }

@@ -24,13 +24,10 @@ import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 /** Test json serialization/deserialization for table sink. */
 public class TableSinkJsonPlanTest extends TableTestBase {
-    @Rule public ExpectedException exception = ExpectedException.none();
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;

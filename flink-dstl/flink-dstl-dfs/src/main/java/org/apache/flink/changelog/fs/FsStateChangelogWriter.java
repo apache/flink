@@ -106,6 +106,12 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     private SequenceNumber lowestSequenceNumber = INITIAL_SQN;
 
     /**
+     * {@link SequenceNumber} after which changes will NOT be requested, inclusive. Decreased on
+     * {@link #truncateAndClose(SequenceNumber)}.
+     */
+    private SequenceNumber highestSequenceNumber = SequenceNumber.of(Long.MAX_VALUE);
+
+    /**
      * Active changes, that all share the same {@link #activeSequenceNumber}.
      *
      * <p>When the latter is incremented in {@link #rollover()}, those changes are added to {@link
@@ -131,17 +137,21 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
 
     private final MailboxExecutor mailboxExecutor;
 
+    private final TaskChangelogRegistry changelogRegistry;
+
     FsStateChangelogWriter(
             UUID logId,
             KeyGroupRange keyGroupRange,
             StateChangeUploadScheduler uploader,
             long preEmptivePersistThresholdInBytes,
-            MailboxExecutor mailboxExecutor) {
+            MailboxExecutor mailboxExecutor,
+            TaskChangelogRegistry changelogRegistry) {
         this.logId = logId;
         this.keyGroupRange = keyGroupRange;
         this.uploader = uploader;
         this.preEmptivePersistThresholdInBytes = preEmptivePersistThresholdInBytes;
         this.mailboxExecutor = mailboxExecutor;
+        this.changelogRegistry = changelogRegistry;
     }
 
     @Override
@@ -152,7 +162,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         activeChangeSetSize += value.length;
         if (activeChangeSetSize >= preEmptivePersistThresholdInBytes) {
             LOG.debug(
-                    "pre-emptively flush {}Mb of appended changes to the common store",
+                    "pre-emptively flush {}MB of appended changes to the common store",
                     activeChangeSetSize / 1024 / 1024);
             persistInternal(notUploaded.isEmpty() ? activeSequenceNumber : notUploaded.firstKey());
         }
@@ -244,8 +254,14 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                     } else {
                         uploadCompletionListeners.removeIf(listener -> listener.onSuccess(results));
                         for (UploadResult result : results) {
-                            if (result.sequenceNumber.compareTo(lowestSequenceNumber) >= 0) {
-                                uploaded.put(result.sequenceNumber, result);
+                            SequenceNumber resultSqn = result.sequenceNumber;
+                            if (resultSqn.compareTo(lowestSequenceNumber) >= 0
+                                    && resultSqn.compareTo(highestSequenceNumber) < 0) {
+                                uploaded.put(resultSqn, result);
+                            } else {
+                                // uploaded already truncated, i.e. materialized state changes,
+                                // or closed
+                                changelogRegistry.notUsed(result.streamStateHandle, logId);
                             }
                         }
                     }
@@ -270,7 +286,18 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         checkArgument(to.compareTo(activeSequenceNumber) <= 0);
         lowestSequenceNumber = to;
         notUploaded.headMap(lowestSequenceNumber, false).clear();
-        uploaded.headMap(lowestSequenceNumber, false).clear();
+
+        Map<SequenceNumber, UploadResult> toDiscard = uploaded.headMap(to);
+        notifyStateNotUsed(toDiscard);
+        toDiscard.clear();
+    }
+
+    @Override
+    public void truncateAndClose(SequenceNumber from) {
+        LOG.debug("truncate {} tail from sqn {} (incl.)", logId, from);
+        highestSequenceNumber = from;
+        notifyStateNotUsed(uploaded.tailMap(from));
+        close();
     }
 
     private void rollover() {
@@ -288,7 +315,20 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
 
     @Override
     public void confirm(SequenceNumber from, SequenceNumber to) {
-        // do nothing
+        checkState(from.compareTo(to) <= 0, "Invalid confirm range: [%s,%s)", from, to);
+        checkState(
+                from.compareTo(activeSequenceNumber) <= 0
+                        && to.compareTo(activeSequenceNumber) <= 0,
+                "Invalid confirm range: [%s,%s), active sqn: %s",
+                from,
+                to,
+                activeSequenceNumber);
+        // it is possible that "uploaded" has already been truncated (after checkpoint subsumption)
+        // so do not check that "uploaded" contains the specified range
+        LOG.debug("Confirm [{}, {})", from, to);
+        uploaded.subMap(from, to).values().stream()
+                .map(UploadResult::getStreamStateHandle)
+                .forEach(changelogRegistry::stopTracking);
     }
 
     @Override
@@ -306,17 +346,17 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
             tuples.add(Tuple2.of(uploadResult.getStreamStateHandle(), uploadResult.getOffset()));
             size += uploadResult.getSize();
         }
-        return new ChangelogStateHandleStreamImpl(tuples, keyGroupRange, size, incrementalSize);
+        return new ChangelogStateHandleStreamImpl(
+                tuples,
+                keyGroupRange,
+                size,
+                incrementalSize,
+                FsStateChangelogStorageFactory.IDENTIFIER);
     }
 
     @VisibleForTesting
     SequenceNumber lastAppendedSqnUnsafe() {
         return activeSequenceNumber;
-    }
-
-    @VisibleForTesting
-    public SequenceNumber getLowestSequenceNumber() {
-        return lowestSequenceNumber;
     }
 
     private void ensureCanPersist(SequenceNumber from) throws IOException {
@@ -394,5 +434,12 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         Map<SequenceNumber, StateChangeSet> toUpload = new HashMap<>(tailMap);
         tailMap.clear();
         return toUpload;
+    }
+
+    private void notifyStateNotUsed(Map<SequenceNumber, UploadResult> notUsedState) {
+        LOG.trace("Uploaded state to discard: {}", notUsedState);
+        for (UploadResult result : notUsedState.values()) {
+            changelogRegistry.notUsed(result.streamStateHandle, logId);
+        }
     }
 }

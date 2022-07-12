@@ -26,9 +26,7 @@ import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
-/**
-  * Tests for [[SimplifyFilterConditionRule]].
-  */
+/** Tests for [[SimplifyFilterConditionRule]]. */
 class SimplifyFilterConditionRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
@@ -59,14 +57,12 @@ class SimplifyFilterConditionRuleTest extends TableTestBase {
 
   @Test
   def testSimpleConditionWithCastToTrue(): Unit = {
-    util.verifyRelPlan(
-      "SELECT * FROM x WHERE CAST(200 AS BOOLEAN)")
+    util.verifyRelPlan("SELECT * FROM x WHERE CAST(200 AS BOOLEAN)")
   }
 
   @Test
   def testSimpleConditionWithCastToFalse(): Unit = {
-    util.verifyRelPlan(
-      "SELECT * FROM x WHERE CAST(0 AS BOOLEAN)")
+    util.verifyRelPlan("SELECT * FROM x WHERE CAST(0 AS BOOLEAN)")
   }
 
   @Test

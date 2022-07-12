@@ -29,6 +29,7 @@ import oshi.hardware.NetworkIF;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
@@ -53,6 +54,7 @@ public class SystemResourcesCounter extends Thread {
     private volatile boolean running = true;
 
     private long[] previousCpuTicks;
+    private long[][] previousProcCpuTicks;
     private long[] bytesReceivedPerInterface;
     private long[] bytesSentPerInterface;
 
@@ -63,6 +65,7 @@ public class SystemResourcesCounter extends Thread {
     private volatile double cpuIOWait;
     private volatile double cpuIrq;
     private volatile double cpuSoftIrq;
+    private volatile double cpuSteal;
     private volatile double cpuUsage;
 
     private volatile double cpuLoad1;
@@ -86,15 +89,15 @@ public class SystemResourcesCounter extends Thread {
                 new AtomicReferenceArray<>(
                         hardwareAbstractionLayer.getProcessor().getLogicalProcessorCount());
 
-        NetworkIF[] networkIFs = hardwareAbstractionLayer.getNetworkIFs();
-        bytesReceivedPerInterface = new long[networkIFs.length];
-        bytesSentPerInterface = new long[networkIFs.length];
-        receiveRatePerInterface = new AtomicLongArray(networkIFs.length);
-        sendRatePerInterface = new AtomicLongArray(networkIFs.length);
-        networkInterfaceNames = new String[networkIFs.length];
+        List<NetworkIF> networkIFs = hardwareAbstractionLayer.getNetworkIFs();
+        bytesReceivedPerInterface = new long[networkIFs.size()];
+        bytesSentPerInterface = new long[networkIFs.size()];
+        receiveRatePerInterface = new AtomicLongArray(networkIFs.size());
+        sendRatePerInterface = new AtomicLongArray(networkIFs.size());
+        networkInterfaceNames = new String[networkIFs.size()];
 
-        for (int i = 0; i < networkInterfaceNames.length; i++) {
-            networkInterfaceNames[i] = networkIFs[i].getName();
+        for (int i = 0; i < networkIFs.size(); i++) {
+            networkInterfaceNames[i] = networkIFs.get(i).getName();
         }
     }
 
@@ -147,6 +150,10 @@ public class SystemResourcesCounter extends Thread {
         return cpuSoftIrq;
     }
 
+    public double getCpuSteal() {
+        return cpuSteal;
+    }
+
     public double getCpuUsage() {
         return cpuUsage;
     }
@@ -183,25 +190,40 @@ public class SystemResourcesCounter extends Thread {
         return sendRatePerInterface.get(interfaceNo);
     }
 
-    private void calculateCPUUsage(CentralProcessor processor) {
-        long[] ticks = processor.getSystemCpuLoadTicks();
-        if (this.previousCpuTicks == null) {
-            this.previousCpuTicks = ticks;
+    private long[] getSystemCpuLoadTicksDiff(CentralProcessor processor) {
+        long[] cpuTicks = processor.getSystemCpuLoadTicks();
+        if (previousCpuTicks == null) {
+            previousCpuTicks = cpuTicks;
         }
+        long[] diffTicks = new long[cpuTicks.length];
+        for (int i = 0; i < cpuTicks.length; ++i) {
+            diffTicks[i] = cpuTicks[i] - previousCpuTicks[i];
+        }
+        return diffTicks;
+    }
 
-        long userTicks =
-                ticks[TickType.USER.getIndex()] - previousCpuTicks[TickType.USER.getIndex()];
-        long niceTicks =
-                ticks[TickType.NICE.getIndex()] - previousCpuTicks[TickType.NICE.getIndex()];
-        long sysTicks =
-                ticks[TickType.SYSTEM.getIndex()] - previousCpuTicks[TickType.SYSTEM.getIndex()];
-        long idleTicks =
-                ticks[TickType.IDLE.getIndex()] - previousCpuTicks[TickType.IDLE.getIndex()];
-        long iowaitTicks =
-                ticks[TickType.IOWAIT.getIndex()] - previousCpuTicks[TickType.IOWAIT.getIndex()];
-        long irqTicks = ticks[TickType.IRQ.getIndex()] - previousCpuTicks[TickType.IRQ.getIndex()];
-        long softIrqTicks =
-                ticks[TickType.SOFTIRQ.getIndex()] - previousCpuTicks[TickType.SOFTIRQ.getIndex()];
+    private double[] getProcessorCpuLoadTicksDiff(CentralProcessor processor) {
+        long[][] procCpuTicks = processor.getProcessorCpuLoadTicks();
+        if (previousProcCpuTicks == null) {
+            previousProcCpuTicks = procCpuTicks;
+        }
+        double[] procCpuLoad = processor.getProcessorCpuLoadBetweenTicks(previousProcCpuTicks);
+        previousProcCpuTicks = procCpuTicks;
+        return procCpuLoad;
+    }
+
+    private void calculateCPUUsage(CentralProcessor processor) {
+        long[] ticksDiff = getSystemCpuLoadTicksDiff(processor);
+
+        long userTicks = ticksDiff[TickType.USER.getIndex()];
+        long niceTicks = ticksDiff[TickType.NICE.getIndex()];
+        long sysTicks = ticksDiff[TickType.SYSTEM.getIndex()];
+        long idleTicks = ticksDiff[TickType.IDLE.getIndex()];
+        long iowaitTicks = ticksDiff[TickType.IOWAIT.getIndex()];
+        long irqTicks = ticksDiff[TickType.IRQ.getIndex()];
+        long softIrqTicks = ticksDiff[TickType.SOFTIRQ.getIndex()];
+        long stealTicks = ticksDiff[TickType.STEAL.getIndex()];
+
         long totalCpuTicks =
                 userTicks
                         + niceTicks
@@ -209,8 +231,8 @@ public class SystemResourcesCounter extends Thread {
                         + idleTicks
                         + iowaitTicks
                         + irqTicks
-                        + softIrqTicks;
-        this.previousCpuTicks = ticks;
+                        + softIrqTicks
+                        + stealTicks;
 
         cpuUser = 100d * userTicks / totalCpuTicks;
         cpuNice = 100d * niceTicks / totalCpuTicks;
@@ -219,27 +241,32 @@ public class SystemResourcesCounter extends Thread {
         cpuIOWait = 100d * iowaitTicks / totalCpuTicks;
         cpuIrq = 100d * irqTicks / totalCpuTicks;
         cpuSoftIrq = 100d * softIrqTicks / totalCpuTicks;
+        cpuSteal = 100d * stealTicks / totalCpuTicks;
 
-        cpuUsage = processor.getSystemCpuLoad() * 100;
+        // Note: The docs of OSHI state: "To calculate overall Idle time using this method, include
+        // both Idle and IOWait ticks." (See here:
+        // https://oshi.github.io/oshi/oshi-core/apidocs/oshi/hardware/CentralProcessor.html )
+        // Therefore, we calculate CPU usage as the difference of total CPU time and Idle time.
+        cpuUsage = 100d * (totalCpuTicks - (idleTicks + iowaitTicks)) / totalCpuTicks;
 
         double[] loadAverage = processor.getSystemLoadAverage(3);
         cpuLoad1 = (loadAverage[0] < 0 ? Double.NaN : loadAverage[0]);
         cpuLoad5 = (loadAverage[1] < 0 ? Double.NaN : loadAverage[1]);
         cpuLoad15 = (loadAverage[2] < 0 ? Double.NaN : loadAverage[2]);
 
-        double[] load = processor.getProcessorCpuLoadBetweenTicks();
+        double[] load = getProcessorCpuLoadTicksDiff(processor);
         checkState(load.length == cpuUsagePerProcessor.length());
         for (int i = 0; i < load.length; i++) {
             cpuUsagePerProcessor.set(i, load[i] * 100);
         }
     }
 
-    private void calculateNetworkUsage(NetworkIF[] networkIFs) {
-        checkState(networkIFs.length == receiveRatePerInterface.length());
+    private void calculateNetworkUsage(List<NetworkIF> networkIFs) {
+        checkState(networkIFs.size() == receiveRatePerInterface.length());
 
-        for (int i = 0; i < networkIFs.length; i++) {
-            NetworkIF networkIF = networkIFs[i];
-            networkIF.updateNetworkStats();
+        for (int i = 0; i < networkIFs.size(); i++) {
+            NetworkIF networkIF = networkIFs.get(i);
+            networkIF.updateAttributes();
 
             receiveRatePerInterface.set(
                     i,

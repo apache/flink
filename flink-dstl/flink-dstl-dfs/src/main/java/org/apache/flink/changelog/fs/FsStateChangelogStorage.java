@@ -19,6 +19,7 @@ package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -26,8 +27,6 @@ import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
-import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
-import org.apache.flink.runtime.state.changelog.StateChangelogHandleStreamHandleReader;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 
 import org.slf4j.Logger;
@@ -39,14 +38,16 @@ import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.changelog.fs.FsStateChangelogOptions.NUM_DISCARD_THREADS;
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.PREEMPTIVE_PERSIST_THRESHOLD;
 import static org.apache.flink.changelog.fs.StateChangeUploadScheduler.directScheduler;
 import static org.apache.flink.changelog.fs.StateChangeUploadScheduler.fromConfig;
+import static org.apache.flink.changelog.fs.TaskChangelogRegistry.defaultChangelogRegistry;
 
 /** Filesystem-based implementation of {@link StateChangelogStorage}. */
 @Experimental
 @ThreadSafe
-public class FsStateChangelogStorage
+public class FsStateChangelogStorage extends FsStateChangelogStorageForRecovery
         implements StateChangelogStorage<ChangelogStateHandleStreamImpl> {
     private static final Logger LOG = LoggerFactory.getLogger(FsStateChangelogStorage.class);
 
@@ -59,36 +60,61 @@ public class FsStateChangelogStorage
      */
     private final AtomicInteger logIdGenerator = new AtomicInteger(0);
 
-    public FsStateChangelogStorage(Configuration config, TaskManagerJobMetricGroup metricGroup)
+    private final TaskChangelogRegistry changelogRegistry;
+
+    public FsStateChangelogStorage(
+            JobID jobID, Configuration config, TaskManagerJobMetricGroup metricGroup)
+            throws IOException {
+        this(jobID, config, metricGroup, defaultChangelogRegistry(config.get(NUM_DISCARD_THREADS)));
+    }
+
+    public FsStateChangelogStorage(
+            JobID jobID,
+            Configuration config,
+            TaskManagerJobMetricGroup metricGroup,
+            TaskChangelogRegistry changelogRegistry)
             throws IOException {
         this(
-                fromConfig(config, new ChangelogStorageMetricGroup(metricGroup)),
-                config.get(PREEMPTIVE_PERSIST_THRESHOLD).getBytes());
+                fromConfig(
+                        jobID,
+                        config,
+                        new ChangelogStorageMetricGroup(metricGroup),
+                        changelogRegistry),
+                config.get(PREEMPTIVE_PERSIST_THRESHOLD).getBytes(),
+                changelogRegistry);
     }
 
     @VisibleForTesting
     public FsStateChangelogStorage(
+            JobID jobID,
             Path basePath,
             boolean compression,
             int bufferSize,
-            ChangelogStorageMetricGroup metricGroup)
+            ChangelogStorageMetricGroup metricGroup,
+            TaskChangelogRegistry changelogRegistry)
             throws IOException {
         this(
                 directScheduler(
                         new StateChangeFsUploader(
+                                jobID,
                                 basePath,
                                 basePath.getFileSystem(),
                                 compression,
                                 bufferSize,
-                                metricGroup)),
-                PREEMPTIVE_PERSIST_THRESHOLD.defaultValue().getBytes());
+                                metricGroup,
+                                changelogRegistry)),
+                PREEMPTIVE_PERSIST_THRESHOLD.defaultValue().getBytes(),
+                changelogRegistry);
     }
 
     @VisibleForTesting
     public FsStateChangelogStorage(
-            StateChangeUploadScheduler uploader, long preEmptivePersistThresholdInBytes) {
-        this.uploader = uploader;
+            StateChangeUploadScheduler uploader,
+            long preEmptivePersistThresholdInBytes,
+            TaskChangelogRegistry changelogRegistry) {
         this.preEmptivePersistThresholdInBytes = preEmptivePersistThresholdInBytes;
+        this.changelogRegistry = changelogRegistry;
+        this.uploader = uploader;
     }
 
     @Override
@@ -97,12 +123,12 @@ public class FsStateChangelogStorage
         UUID logId = new UUID(0, logIdGenerator.getAndIncrement());
         LOG.info("createWriter for operator {}/{}: {}", operatorID, keyGroupRange, logId);
         return new FsStateChangelogWriter(
-                logId, keyGroupRange, uploader, preEmptivePersistThresholdInBytes, mailboxExecutor);
-    }
-
-    @Override
-    public StateChangelogHandleReader<ChangelogStateHandleStreamImpl> createReader() {
-        return new StateChangelogHandleStreamHandleReader(new StateChangeFormat());
+                logId,
+                keyGroupRange,
+                uploader,
+                preEmptivePersistThresholdInBytes,
+                mailboxExecutor,
+                changelogRegistry);
     }
 
     @Override

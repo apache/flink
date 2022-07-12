@@ -60,7 +60,6 @@ class PrometheusPushGatewayReporterTest {
         MetricConfig metricConfig = new MetricConfig();
         metricConfig.setProperty(HOST.key(), "localhost");
         metricConfig.setProperty(PORT.key(), "18080");
-        PrometheusPushGatewayReporter reporter = factory.createMetricReporter(metricConfig);
         String gatewayBaseURL = factory.createMetricReporter(metricConfig).hostUrl.toString();
         assertThat(gatewayBaseURL).isEqualTo("http://localhost:18080");
     }
@@ -70,7 +69,6 @@ class PrometheusPushGatewayReporterTest {
         PrometheusPushGatewayReporterFactory factory = new PrometheusPushGatewayReporterFactory();
         MetricConfig metricConfig = new MetricConfig();
         metricConfig.setProperty(HOST_URL.key(), "https://localhost:18080");
-        PrometheusPushGatewayReporter reporter = factory.createMetricReporter(metricConfig);
         String gatewayBaseURL = factory.createMetricReporter(metricConfig).hostUrl.toString();
         assertThat(gatewayBaseURL).isEqualTo("https://localhost:18080");
     }

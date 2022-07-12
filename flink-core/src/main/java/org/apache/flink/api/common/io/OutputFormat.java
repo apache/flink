@@ -71,7 +71,7 @@ public interface OutputFormat<IT> extends Serializable {
      * <p>When this method is called, the output format it guaranteed to be opened.
      *
      * @param record The records to add to the output.
-     * @throws IOException Thrown, if the records could not be added to to an I/O problem.
+     * @throws IOException Thrown, if the records could not be added due to an I/O problem.
      */
     void writeRecord(IT record) throws IOException;
 

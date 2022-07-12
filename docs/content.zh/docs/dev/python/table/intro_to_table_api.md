@@ -68,7 +68,7 @@ table_env.execute_sql("""
 # 通过 Table API 创建一张表：
 source_table = table_env.from_path("datagen")
 # 或者通过 SQL 查询语句创建一张表：
-source_table = table_env.sql_query("SELECT * FROM datagen")
+# source_table = table_env.sql_query("SELECT * FROM datagen")
 
 result_table = source_table.select(source_table.id + 1, source_table.data)
 
@@ -76,7 +76,7 @@ result_table = source_table.select(source_table.id + 1, source_table.data)
 # 将 Table API 结果表数据写入 sink 表：
 result_table.execute_insert("print").wait()
 # 或者通过 SQL 查询语句来写入 sink 表：
-table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").wait()
+# table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").wait()
 ```
 
 {{< top >}}
@@ -102,20 +102,23 @@ table_env = TableEnvironment.create(env_settings)
 
 `TableEnvironment` 可以用来:
 
-* 创建 `Table`
-* 将 `Table` 注册成临时表
-* 执行 SQL 查询，更多细节可查阅 [SQL]({{< ref "docs/dev/table/sql/overview" >}})
-* 注册用户自定义的 (标量，表值，或者聚合) 函数, 更多细节可查阅 [普通的用户自定义函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) 和 [向量化的用户自定义函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}})
-* 配置作业，更多细节可查阅 [Python 配置]({{< ref "docs/dev/python/python_config" >}})
-* 管理 Python 依赖，更多细节可查阅 [依赖管理]({{< ref "docs/dev/python/dependency_management" >}})
-* 提交作业执行
+* `Table` 管理：[创建表](#create-tables)、列举表、[Table 和 DataStream 互转]({{< ref "docs/dev/table/data_stream_api" >}}#converting-between-datastream-and-table)等。
+* 自定义函数管理：自定义函数的注册、删除、列举等。 关于 Python 自定义函数的更多细节，请参考[普通自定义函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) 和[向量化自定义函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}})章节的介绍。
+* 执行 [SQL]({{< ref "docs/dev/table/sql/overview" >}}) 语句：更多细节可查阅[SQL 查询](#write-sql-queries)章节的介绍。
+* 作业配置管理：更多细节可查阅[Python 配置]({{< ref "docs/dev/python/python_config" >}})章节的介绍。
+* Python 依赖管理：更多细节可查阅[依赖管理]({{< ref "docs/dev/python/dependency_management" >}})章节的介绍。
+* 作业提交：更多细节可查阅[作业提交](#emit-results)章节的介绍。
 
 {{< top >}}
+
+<a name="create-tables"></a>
 
 创建表
 ---------------
 
-`Table` 是 Python Table API 的核心组件。`Table` 是 Table API 作业中间结果的逻辑表示。
+`Table` 是 Python Table API 的核心组件。`Table` 对象由一系列数据转换操作构成，但是它不包含数据本身。
+相反，它描述了如何从数据源中读取数据，以及如何将最终结果写出到外部存储等。表可以被打印、优化并最终在集群中执行。
+表也可以是有限流或无限流，以支持流式处理和批处理场景。
 
 一个 `Table` 实例总是与一个特定的 `TableEnvironment` 相绑定。不支持在同一个查询中合并来自不同 TableEnvironments 的表，例如 join 或者 union 它们。
 
@@ -131,61 +134,63 @@ env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
-table.to_pandas()
+table.execute().print()
 ```
 
 结果为：
 
 ```text
-   _1     _2
-0   1     Hi
-1   2  Hello
++----------------------+--------------------------------+
+|                   _1 |                             _2 |
++----------------------+--------------------------------+
+|                    1 |                             Hi |
+|                    2 |                          Hello |
++----------------------+--------------------------------+
 ```
 
 你也可以创建具有指定列名的表：
 
 ```python
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
-table.to_pandas()
+table.execute().print()
 ```
 
 结果为：
 
 ```text
-   id   data
-0   1     Hi
-1   2  Hello
++----------------------+--------------------------------+
+|                   id |                           data |
++----------------------+--------------------------------+
+|                    1 |                             Hi |
+|                    2 |                          Hello |
++----------------------+--------------------------------+
 ```
 
-默认情况下，表结构是从数据中自动提取的。
-
-如果自动生成的表模式不符合你的要求，你也可以手动指定：
+默认情况下，表结构是从数据中自动提取的。 如果自动生成的表模式不符合你的预期，你也可以手动指定：
 
 ```python
-table_without_schema = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
+table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 # 默认情况下，“id” 列的类型是 64 位整型
-default_type = table_without_schema.to_pandas()["id"].dtype
-print('By default the type of the "id" column is %s.' % default_type)
+print('By default the type of the "id" column is %s.' % table.get_schema().get_field_data_type("id"))
 
 from pyflink.table import DataTypes
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
                                 DataTypes.ROW([DataTypes.FIELD("id", DataTypes.TINYINT()),
                                                DataTypes.FIELD("data", DataTypes.STRING())]))
 # 现在 “id” 列的类型是 8 位整型
-type = table.to_pandas()["id"].dtype
-print('Now the type of the "id" column is %s.' % type)
+print('Now the type of the "id" column is %s.' % table.get_schema().get_field_data_type("id"))
 ```
 
 结果为：
 
 ```text
-默认情况下，“id” 列的类型是 64 位整型。
-现在 “id” 列的类型是 8 位整型。
+By default the type of the "id" column is BIGINT.
+Now the type of the "id" column is TINYINT.
 ```
 
 ### 通过 DDL 创建
 
-你可以通过 DDL 创建一张表：
+你可以通过 DDL 语句创建表，它代表一张从指定的外部存储读取数据的表：
 
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
@@ -209,16 +214,61 @@ table_env.execute_sql("""
     )
 """)
 table = table_env.from_path("random_source")
-table.to_pandas()
+table.execute().print()
 ```
 
 结果为：
 
 ```text
-   id  data
-0   2     5
-1   1     4
-2   3     6
++----+----------------------+--------+
+| op |                   id |   data |
++----+----------------------+--------+
+| +I |                    1 |      4 |
+| +I |                    2 |      5 |
+| +I |                    3 |      6 |
++----+----------------------+--------+
+```
+
+### 通过 TableDescriptor 创建
+
+你也可以通过 TableDescriptor 来创建表. 这种方式等价于通过 SQL DDL 语句的方式.
+
+```python
+from pyflink.table import EnvironmentSettings, TableEnvironment, TableDescriptor, Schema, DataTypes
+
+# create a stream TableEnvironment
+env_settings = EnvironmentSettings.in_streaming_mode()
+table_env = TableEnvironment.create(env_settings)
+
+table_env.create_temporary_table(
+    'random_source',
+    TableDescriptor.for_connector('datagen')
+        .schema(Schema.new_builder()
+                .column('id', DataTypes.BIGINT())
+                .column('data', DataTypes.TINYINT())
+                .build())
+        .option('fields.id.kind', 'sequence')
+        .option('fields.id.start', '1')
+        .option('fields.id.end', '3')
+        .option('fields.data.kind', 'sequence')
+        .option('fields.data.start', '4')
+        .option('fields.data.end', '6')
+        .build())
+
+table = table_env.from_path("random_source")
+table.execute().print()
+```
+
+The results are as following:
+
+```text
++----+----------------------+--------+
+| op |                   id |   data |
++----+----------------------+--------+
+| +I |                    1 |      4 |
+| +I |                    2 |      5 |
+| +I |                    3 |      6 |
++----+----------------------+--------+
 ```
 
 ### 通过 Catalog 创建
@@ -241,15 +291,18 @@ table_env.create_temporary_view('source_table', table)
 
 # 从 catalog 中获取 Table API 表
 new_table = table_env.from_path('source_table')
-new_table.to_pandas()
+new_table.execute().print()
 ```
 
 结果为：
 
 ```text
-   id   data
-0   1     Hi
-1   2  Hello
++----+----------------------+--------------------------------+
+| op |                   id |                           data |
++----+----------------------+--------------------------------+
+| +I |                    1 |                             Hi |
+| +I |                    2 |                          Hello |
++----+----------------------+--------------------------------+
 ```
 
 {{< top >}}
@@ -269,6 +322,7 @@ new_table.to_pandas()
 
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
+from pyflink.table.expressions import col
 
 # 通过 batch table environment 来执行查询
 env_settings = EnvironmentSettings.in_batch_mode()
@@ -279,19 +333,22 @@ orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30
 
 # 计算所有来自法国客户的收入
 revenue = orders \
-    .select(orders.name, orders.country, orders.revenue) \
-    .where(orders.country == 'FRANCE') \
-    .group_by(orders.name) \
-    .select(orders.name, orders.revenue.sum.alias('rev_sum'))
-    
-revenue.to_pandas()
+    .select(col("name"), col("country"), col("revenue")) \
+    .where(col("country") == 'FRANCE') \
+    .group_by(col("name")) \
+    .select(col("name"), col("country").sum.alias('rev_sum'))
+
+revenue.execute().print()
 ```
 
 结果为：
 
 ```text
-   name  rev_sum
-0  Jack       30
++--------------------------------+----------------------+
+|                           name |              rev_sum |
++--------------------------------+----------------------+
+|                           Jack |                   30 |
++--------------------------------+----------------------+
 ```
 
 Table API 也支持 [行操作]({{< ref "docs/dev/table/tableapi" >}}#row-based-operations)的 API, 这些行操作包括 [Map Operation]({{< ref "docs/dev/table/tableapi" >}}#row-based-operations), 
@@ -313,22 +370,27 @@ orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30
                                  ['name', 'country', 'revenue'])
 
 map_function = udf(lambda x: pd.concat([x.name, x.revenue * 10], axis=1),
-                    result_type=DataTypes.ROW(
-                                [DataTypes.FIELD("name", DataTypes.STRING()),
-                                 DataTypes.FIELD("revenue", DataTypes.BIGINT())]),
-                    func_type="pandas")
+                   result_type=DataTypes.ROW(
+                               [DataTypes.FIELD("name", DataTypes.STRING()),
+                                DataTypes.FIELD("revenue", DataTypes.BIGINT())]),
+                   func_type="pandas")
 
-orders.map(map_function).alias('name', 'revenue').to_pandas()
+orders.map(map_function).execute().print()
 ```
 
 结果为：
 
 ```text
-   name  revenue
-0  Jack      100
-1  Rose      300
-2  Jack      200
++--------------------------------+----------------------+
+|                           name |              revenue |
++--------------------------------+----------------------+
+|                           Jack |                  100 |
+|                           Rose |                  300 |
+|                           Jack |                  200 |
++--------------------------------+----------------------+
 ```
+
+<a name="write-sql-queries"></a>
 
 ### SQL 查询
 
@@ -463,26 +525,59 @@ table_env.execute_sql("""
 table = table_env.from_path("sql_source")
 
 # 或者通过 SQL 查询语句创建表
-table = table_env.sql_query("SELECT * FROM sql_source")
+# table = table_env.sql_query("SELECT * FROM sql_source")
 
 # 将表中的数据写出
-table.to_pandas()
+table.execute().print()
 ```
 
 结果为：
 
 ```text
-   id  data
-0   2     5
-1   1     4
-2   4     7
-3   3     6
++----+----------------------+--------+
+| op |                   id |   data |
++----+----------------------+--------+
+| +I |                    1 |      4 |
+| +I |                    2 |      5 |
+| +I |                    3 |      6 |
+| +I |                    4 |      7 |
++----+----------------------+--------+
 ```
 
 {{< top >}}
 
+<a name="emit-results"></a>
+
 将结果写出
 ----------------
+
+### 打印结果
+
+你可以通过 `TableResult.print` 方法，将表的结果打印到标准输出中。该方法通常用于预览表的中间结果。
+
+```python
+# prepare source tables 
+source = table_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+
+# Get TableResult
+table_result = table_env.execute_sql("select a + 1, b, c from %s" % source)
+
+# Print the table
+table_result.print()
+```
+
+结果为：
+
+```text
++----+----------------------+--------------------------------+--------------------------------+
+| op |               EXPR$0 |                              b |                              c |
++----+----------------------+--------------------------------+--------------------------------+
+| +I |                    2 |                             Hi |                          Hello |
+| +I |                    3 |                          Hello |                          Hello |
++----+----------------------+--------------------------------+--------------------------------+
+```
+
+<span class="label label-info">Note</span> 该方式会触发表的物化，同时将表的内容收集到客户端内存中，所以通过 {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}} 来限制收集数据的条数是一种很好的做法。
 
 ### 将结果数据收集到客户端
 
@@ -495,10 +590,10 @@ table.to_pandas()
 source = table_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
 
 # 得到 TableResult
-res = table_env.execute_sql("select a + 1, b, c from %s" % source)
+table_result = table_env.execute_sql("select a + 1, b, c from %s" % source)
 
 # 遍历结果
-with res.collect() as results:
+with table_result.collect() as results:
    for result in results:
        print(result)
 ```
@@ -510,13 +605,15 @@ with res.collect() as results:
 <Row(3, 'Hello', 'Hello')>
 ```
 
+<span class="label label-info">Note</span> 该方式会触发表的物化，同时将表的内容收集到客户端内存中，所以通过 {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}} 来限制收集数据的条数是一种很好的做法。
+
 ### 将结果数据转换为Pandas DataFrame，并收集到客户端
 
 你可以调用 "to_pandas" 方法来 [将一个 `Table` 对象转化成 pandas DataFrame]({{< ref "docs/dev/python/table/conversion_of_pandas" >}}#convert-pyflink-table-to-pandas-dataframe):
 
 ```python
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
-table.to_pandas()
+print(table.to_pandas())
 ```
 
 结果为：
@@ -527,9 +624,9 @@ table.to_pandas()
 1   2  Hello
 ```
 
-<span class="label label-info">Note</span> "to_pandas" 会触发表的物化，同时将表的内容收集到客户端内存中，所以通过 {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}} 来限制收集数据的条数是一种很好的做法。
+<span class="label label-info">Note</span> 该方式会触发表的物化，同时将表的内容收集到客户端内存中，所以通过 {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}} 来限制收集数据的条数是一种很好的做法。
 
-<span class="label label-info">Note</span> flink planner 不支持 "to_pandas"，并且，并不是所有的数据类型都可以转换为 pandas DataFrames。
+<span class="label label-info">Note</span> 并不是所有的数据类型都可以转换为 pandas DataFrames。
 
 ### 将结果写入到一张 Sink 表中
 
@@ -627,6 +724,7 @@ Table API 提供了一种机制来查看 `Table` 的逻辑查询计划和优化�
 ```python
 # 使用流模式 TableEnvironment
 from pyflink.table import EnvironmentSettings, TableEnvironment
+from pyflink.table.expressions import col
 
 env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
@@ -634,7 +732,7 @@ table_env = TableEnvironment.create(env_settings)
 table1 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table2 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table = table1 \
-    .where(table1.data.like('H%')) \
+    .where(col("data").like('H%')) \
     .union_all(table2)
 print(table.explain())
 ```
@@ -680,6 +778,7 @@ Stage 136 : Data Source
 ```python
 # 使用流模式 TableEnvironment
 from pyflink.table import EnvironmentSettings, TableEnvironment
+from pyflink.table.expressions import col
 
 env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(environment_settings=env_settings)
@@ -705,7 +804,7 @@ table_env.execute_sql("""
 
 statement_set = table_env.create_statement_set()
 
-statement_set.add_insert("print_sink_table", table1.where(table1.data.like('H%')))
+statement_set.add_insert("print_sink_table", table1.where(col("data").like('H%')))
 statement_set.add_insert("black_hole_sink_table", table2)
 
 print(statement_set.explain())

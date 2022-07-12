@@ -31,7 +31,7 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.util.Collection;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -61,7 +61,7 @@ public class JdbcXaFacadeImplTest extends JdbcTestBase {
     public void testRecover() throws Exception {
         try (XaFacade f = XaFacadeImpl.fromXaDataSource(getDbMetadata().buildXaDataSource())) {
             f.open();
-            assertEquals(0, f.recover().size());
+            assertThat(f.recover()).isEmpty();
             f.start(XID);
             // insert some data to prevent database from ignoring the transaction
             try (Connection c = f.getConnection()) {
@@ -75,7 +75,7 @@ public class JdbcXaFacadeImplTest extends JdbcTestBase {
             f.open();
             Collection<Xid> recovered = f.recover();
             recovered.forEach(f::rollback);
-            assertEquals(1, recovered.size());
+            assertThat(recovered).hasSize(1);
         }
     }
 

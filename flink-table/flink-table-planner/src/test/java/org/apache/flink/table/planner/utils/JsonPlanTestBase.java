@@ -22,6 +22,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.CompiledPlanUtils;
@@ -32,8 +33,6 @@ import org.apache.flink.util.StringUtils;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
-import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
@@ -55,8 +54,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** The base class for json plan testing. */
 public abstract class JsonPlanTestBase extends AbstractTestBase {
 
-    @Rule public ExpectedException exception = ExpectedException.none();
-
     protected TableEnvironment tableEnv;
 
     @Before
@@ -72,7 +69,10 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
     protected TableResult compileSqlAndExecutePlan(String sql) {
         CompiledPlan compiledPlan = tableEnv.compilePlanSql(sql);
         checkTransformationUids(compiledPlan);
-        return compiledPlan.execute();
+        // try to execute the string json plan to validate to ser/de result
+        String jsonPlan = compiledPlan.asJsonString();
+        CompiledPlan newCompiledPlan = tableEnv.loadPlan(PlanReference.fromJsonString(jsonPlan));
+        return newCompiledPlan.execute();
     }
 
     protected void checkTransformationUids(CompiledPlan compiledPlan) {

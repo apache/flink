@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -40,6 +41,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
@@ -96,6 +98,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
+import org.assertj.core.api.Assertions;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 import org.junit.Assert;
@@ -113,6 +116,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.areOperatorsChainable;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -720,6 +724,45 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 sourceAndMapVertex.getProducedDataSets().get(0).getResultType());
     }
 
+    /** Test setting exchange mode to {@link StreamExchangeMode#HYBRID}. */
+    @Test
+    public void testExchangeModeHybrid() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        // fromElements -> Map -> Print
+        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+
+        DataStream<Integer> partitionAfterSourceDataStream =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                sourceDataStream.getTransformation(),
+                                new ForwardPartitioner<>(),
+                                StreamExchangeMode.HYBRID));
+        DataStream<Integer> mapDataStream =
+                partitionAfterSourceDataStream.map(value -> value).setParallelism(1);
+
+        DataStream<Integer> partitionAfterMapDataStream =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                mapDataStream.getTransformation(),
+                                new RescalePartitioner<>(),
+                                StreamExchangeMode.HYBRID));
+        partitionAfterMapDataStream.print().setParallelism(2);
+
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+
+        List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+        assertEquals(2, verticesSorted.size());
+
+        // it can be chained with Hybrid exchange mode
+        JobVertex sourceAndMapVertex = verticesSorted.get(0);
+
+        // Hybrid exchange mode is translated into Hybrid result partition
+        Assertions.assertThat(sourceAndMapVertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.HYBRID);
+    }
+
     @Test
     public void testStreamingJobTypeByDefault() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -1202,6 +1245,26 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
     }
 
     @Test
+    public void testSetNonDefaultSlotSharingInHybridMode() {
+        Configuration configuration = new Configuration();
+        // set all edge to HYBRID result partition type.
+        configuration.set(
+                ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.WIP_ALL_EXCHANGES_HYBRID);
+
+        final StreamGraph streamGraph = createStreamGraphForSlotSharingTest(configuration);
+        // specify slot sharing group for map1
+        streamGraph.getStreamNodes().stream()
+                .filter(n -> "map1".equals(n.getOperatorName()))
+                .findFirst()
+                .get()
+                .setSlotSharingGroup("testSlotSharingGroup");
+        assertThatThrownBy(() -> StreamingJobGraphGenerator.createJobGraph(streamGraph))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(
+                        "hybrid shuffle mode currently does not support setting non-default slot sharing group.");
+    }
+
+    @Test
     public void testSlotSharingOnAllVerticesInSameSlotSharingGroupByDefaultEnabled() {
         final StreamGraph streamGraph = createStreamGraphForSlotSharingTest(new Configuration());
         // specify slot sharing group for map1
@@ -1489,7 +1552,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
     }
 
-    private static final class UnusedOperatorFactory extends AbstractStreamOperatorFactory<Long> {
+    static final class UnusedOperatorFactory extends AbstractStreamOperatorFactory<Long> {
 
         @Override
         public <T extends StreamOperator<Long>> T createStreamOperator(

@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.sources
 
 import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException, WatermarkSpec}
-import org.apache.flink.table.expressions.ApiExpressionUtils.{typeLiteral, valueLiteral}
 import org.apache.flink.table.expressions.{CallExpression, Expression, ResolvedExpression, ResolvedFieldReference}
+import org.apache.flink.table.expressions.ApiExpressionUtils.{typeLiteral, valueLiteral}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
@@ -30,47 +29,44 @@ import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTyp
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.{TimestampExtractor, TimestampExtractorUtils}
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.logical.RowType.RowField
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.RowType.RowField
 
+import _root_.java.sql.Timestamp
+import _root_.java.util.function.{Function => JFunction}
+import _root_.scala.collection.JavaConversions._
+import _root_.scala.collection.JavaConverters._
 import org.apache.calcite.plan.RelOptCluster
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.logical.LogicalValues
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 
-import _root_.java.sql.Timestamp
-import _root_.java.util.function.{Function => JFunction}
-
-import _root_.scala.collection.JavaConversions._
-import _root_.scala.collection.JavaConverters._
-
-/**
- * Note: We aim to gradually port the logic in this class to [[DynamicSinkUtils]].
- */
+/** Note: We aim to gradually port the logic in this class to [[DynamicSinkUtils]]. */
 object TableSourceUtil {
 
   /**
    * Fixes the precision of [[TableSource#getProducedDataType()]] with the given logical schema
-   * type. The precision of producedDataType may lose, because the data type may comes from
-   * legacy type (e.g. Types.BIG_DEC). However, the precision is important to convert output of
-   * source to internal row.
+   * type. The precision of producedDataType may lose, because the data type may comes from legacy
+   * type (e.g. Types.BIG_DEC). However, the precision is important to convert output of source to
+   * internal row.
    *
-   * @param tableSource the table source
-   * @param logicalSchema the logical schema from DDL which carries the correct precisions
-   * @return the produced data type with correct precisions.
+   * @param tableSource
+   *   the table source
+   * @param logicalSchema
+   *   the logical schema from DDL which carries the correct precisions
+   * @return
+   *   the produced data type with correct precisions.
    */
   def fixPrecisionForProducedDataType(
       tableSource: TableSource[_],
-      logicalSchema: RowType)
-    : DataType = {
+      logicalSchema: RowType): DataType = {
 
     // remove proctime field from logical schema, because proctime is not in produced data type
     val schemaWithoutProctime = getProctimeAttribute(tableSource) match {
       case Some(proctime) =>
-        val fields = logicalSchema
-          .getFields
+        val fields = logicalSchema.getFields
           .filter(f => !f.getName.equals(proctime))
           .asJava
         new RowType(logicalSchema.isNullable, fields)
@@ -91,19 +87,21 @@ object TableSourceUtil {
 
     val correspondingLogicalType = sourceLogicalType match {
       case outType: RowType =>
-        val logicalNamesToTypes = schemaWithoutProctime
-          .getFields
+        val logicalNamesToTypes = schemaWithoutProctime.getFields
           .map(f => (f.getName, f.getType))
           .toMap
-        val fields = outType.getFields.map(f => {
-          val t = mapping(f.getName) match {
-            case Some(n) if logicalNamesToTypes.contains(n) =>
-              logicalNamesToTypes(n) // find corresponding logical type
-            case _ =>
-              f.getType // use physical type if logical type can't find
-          }
-          new RowField(f.getName, t)
-        }).asJava
+        val fields = outType.getFields
+          .map(
+            f => {
+              val t = mapping(f.getName) match {
+                case Some(n) if logicalNamesToTypes.contains(n) =>
+                  logicalNamesToTypes(n) // find corresponding logical type
+                case _ =>
+                  f.getType // use physical type if logical type can't find
+              }
+              new RowField(f.getName, t)
+            })
+          .asJava
         new RowType(schemaWithoutProctime.isNullable, fields)
 
       case _ =>
@@ -113,23 +111,26 @@ object TableSourceUtil {
     }
 
     // fixing the precision
-    tableSource
-      .getProducedDataType
+    tableSource.getProducedDataType
       .accept(new DataTypePrecisionFixer(correspondingLogicalType))
   }
 
   /**
-    * Returns schema of the selected fields of the given [[TableSource]].
-    *
-    * <p> The watermark strategy specifications should either come from the [[TableSchema]]
-    * or [[TableSource]].
-    *
-    * @param typeFactory Type factory to create the type
-    * @param tableSource Table source to derive watermark strategies
-    * @param streaming Flag to determine whether the schema of a stream or batch table is created
-    * @return The row type for the selected fields of the given [[TableSource]], this type would
-    *         also be patched with time attributes defined in the give [[WatermarkSpec]]
-    */
+   * Returns schema of the selected fields of the given [[TableSource]].
+   *
+   * <p> The watermark strategy specifications should either come from the [[TableSchema]] or
+   * [[TableSource]].
+   *
+   * @param typeFactory
+   *   Type factory to create the type
+   * @param tableSource
+   *   Table source to derive watermark strategies
+   * @param streaming
+   *   Flag to determine whether the schema of a stream or batch table is created
+   * @return
+   *   The row type for the selected fields of the given [[TableSource]], this type would also be
+   *   patched with time attributes defined in the give [[WatermarkSpec]]
+   */
   def getSourceRowTypeFromSource(
       typeFactory: FlinkTypeFactory,
       tableSource: TableSource[_],
@@ -145,18 +146,18 @@ object TableSourceUtil {
       val proctimeAttributes = getProctimeAttribute(tableSource)
 
       // patch rowtime fields with time indicator type
-      rowtimeAttributes.foreach { rowtimeField =>
-        val idx = fieldNames.indexOf(rowtimeField)
-        val rowtimeType = new TimestampType(
-          true, TimestampKind.ROWTIME, 3)
-        fieldTypes = fieldTypes.patch(idx, Seq(rowtimeType), 1)
+      rowtimeAttributes.foreach {
+        rowtimeField =>
+          val idx = fieldNames.indexOf(rowtimeField)
+          val rowtimeType = new TimestampType(true, TimestampKind.ROWTIME, 3)
+          fieldTypes = fieldTypes.patch(idx, Seq(rowtimeType), 1)
       }
       // patch proctime field with time indicator type
-      proctimeAttributes.foreach { proctimeField =>
-        val idx = fieldNames.indexOf(proctimeField)
-        val proctimeType = new LocalZonedTimestampType(
-          true, TimestampKind.PROCTIME, 3)
-        fieldTypes = fieldTypes.patch(idx, Seq(proctimeType), 1)
+      proctimeAttributes.foreach {
+        proctimeField =>
+          val idx = fieldNames.indexOf(proctimeField)
+          val proctimeType = new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3)
+          fieldTypes = fieldTypes.patch(idx, Seq(proctimeType), 1)
       }
     }
     typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
@@ -165,15 +166,20 @@ object TableSourceUtil {
   /**
    * Returns schema of the selected fields of the given [[TableSource]].
    *
-   * <p> The watermark strategy specifications should either come from the [[TableSchema]]
-   * or [[TableSource]].
+   * <p> The watermark strategy specifications should either come from the [[TableSchema]] or
+   * [[TableSource]].
    *
-   * @param typeFactory Type factory to create the type
-   * @param tableSchema Table schema to derive table field names and data types
-   * @param tableSource Table source to derive watermark strategies
-   * @param streaming Flag to determine whether the schema of a stream or batch table is created
-   * @return The row type for the selected fields of the given [[TableSource]], this type would
-   *         also be patched with time attributes defined in the give [[WatermarkSpec]]
+   * @param typeFactory
+   *   Type factory to create the type
+   * @param tableSchema
+   *   Table schema to derive table field names and data types
+   * @param tableSource
+   *   Table source to derive watermark strategies
+   * @param streaming
+   *   Flag to determine whether the schema of a stream or batch table is created
+   * @return
+   *   The row type for the selected fields of the given [[TableSource]], this type would also be
+   *   patched with time attributes defined in the give [[WatermarkSpec]]
    */
   def getSourceRowType(
       typeFactory: FlinkTypeFactory,
@@ -193,16 +199,18 @@ object TableSourceUtil {
   }
 
   /**
-    * Returns the [[RowtimeAttributeDescriptor]] of a [[TableSource]].
-    *
-    * @param tableSource The [[TableSource]] for which the [[RowtimeAttributeDescriptor]] is
-    *                    returned.
-    * @param rowType The table source table row type
-    * @return The [[RowtimeAttributeDescriptor]] of the [[TableSource]].
-    */
+   * Returns the [[RowtimeAttributeDescriptor]] of a [[TableSource]].
+   *
+   * @param tableSource
+   *   The [[TableSource]] for which the [[RowtimeAttributeDescriptor]] is returned.
+   * @param rowType
+   *   The table source table row type
+   * @return
+   *   The [[RowtimeAttributeDescriptor]] of the [[TableSource]].
+   */
   def getRowtimeAttributeDescriptor(
       tableSource: TableSource[_],
-      rowType: RelDataType): Option[RowtimeAttributeDescriptor] = {
+      rowType: RowType): Option[RowtimeAttributeDescriptor] = {
 
     tableSource match {
       case r: DefinedRowtimeAttributes =>
@@ -229,24 +237,25 @@ object TableSourceUtil {
   /**
    * Retrieves an expression to compute a rowtime attribute.
    *
-   * @param extractor Timestamp extractor to construct an expression for.
-   * @param physicalInputType Physical input type that the timestamp extractor accesses.
-   * @param relBuilder  Builder needed to construct the resulting RexNode.
-   * @param nameMapping Additional remapping of a logical to a physical field name.
-   *                    TimestampExtractor works with logical names, but accesses physical
-   *                    fields
-   * @return The [[RexNode]] expression to extract the timestamp.
+   * @param extractor
+   *   Timestamp extractor to construct an expression for.
+   * @param physicalInputType
+   *   Physical input type that the timestamp extractor accesses.
+   * @param relBuilder
+   *   Builder needed to construct the resulting RexNode.
+   * @param nameMapping
+   *   Additional remapping of a logical to a physical field name. TimestampExtractor works with
+   *   logical names, but accesses physical fields
+   * @return
+   *   The [[RexNode]] expression to extract the timestamp.
    */
   def getRowtimeExtractionExpression(
       extractor: TimestampExtractor,
       physicalInputType: DataType,
       relBuilder: RelBuilder,
-      nameMapping: JFunction[String, String])
-    : RexNode = {
-    val accessedFields = TimestampExtractorUtils.getAccessedFields(
-      extractor,
-      physicalInputType,
-      nameMapping)
+      nameMapping: JFunction[String, String]): RexNode = {
+    val accessedFields =
+      TimestampExtractorUtils.getAccessedFields(extractor, physicalInputType, nameMapping)
 
     relBuilder.push(createSchemaRelNode(accessedFields, relBuilder.getCluster))
     val expr = constructExpression(
@@ -259,26 +268,22 @@ object TableSourceUtil {
 
   private def createSchemaRelNode(
       fields: Array[ResolvedFieldReference],
-      cluster: RelOptCluster)
-    : RelNode = {
+      cluster: RelOptCluster): RelNode = {
     val maxIdx = fields.map(_.fieldIndex()).max
     val idxMap: Map[Int, (String, LogicalType)] = Map(
       fields.map(f => f.fieldIndex() -> (f.name(), fromTypeInfoToLogicalType(f.resultType()))): _*)
     val (physicalFields, physicalTypes) = (0 to maxIdx)
-      .map(i => idxMap.getOrElse(i, ("", new TinyIntType()))).unzip
-    val physicalSchema: RelDataType = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-      .buildRelNodeRowType(
-        physicalFields,
-        physicalTypes)
-    LogicalValues.createEmpty(
-      cluster,
-      physicalSchema)
+      .map(i => idxMap.getOrElse(i, ("", new TinyIntType())))
+      .unzip
+    val physicalSchema: RelDataType = cluster.getTypeFactory
+      .asInstanceOf[FlinkTypeFactory]
+      .buildRelNodeRowType(physicalFields, physicalTypes)
+    LogicalValues.createEmpty(cluster, physicalSchema)
   }
 
   private def constructExpression(
       timestampExtractor: TimestampExtractor,
-      fieldAccesses: Array[ResolvedFieldReference])
-    : Expression = {
+      fieldAccesses: Array[ResolvedFieldReference]): Expression = {
     val expression = timestampExtractor.getExpression(fieldAccesses)
     // add cast to requested type and convert expression to RexNode
     // If resultType is TimeIndicatorTypeInfo, its internal format is long, but cast

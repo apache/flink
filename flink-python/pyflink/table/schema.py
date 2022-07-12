@@ -122,7 +122,7 @@ class Schema(object):
 
         def column_by_expression(self,
                                  column_name: str,
-                                 expr: Expression) -> 'Schema.Builder':
+                                 expr: Union[str, Expression]) -> 'Schema.Builder':
             """
             Declares a computed column that is appended to this schema.
 
@@ -139,9 +139,9 @@ class Schema(object):
             Example:
             ::
 
-                >>> Schema.new_builder().
-                ...  column_by_expression("ts", "orig_ts - INTERVAL '60' MINUTE").
-                ...  column_by_metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp")
+                >>> Schema.new_builder() \\
+                ...     .column_by_expression("ts", "orig_ts - INTERVAL '60' MINUTE") \\
+                ...     .column_by_metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp")
 
             :param column_name: Column name
             :param expr: Computation of the column
@@ -194,7 +194,7 @@ class Schema(object):
 
         def watermark(self,
                       column_name: str,
-                      watermark_expr: Expression) -> 'Schema.Builder':
+                      watermark_expr: Union[str, Expression]) -> 'Schema.Builder':
             """
             Declares that the given column should serve as an event-time (i.e. rowtime) attribute
             and specifies a corresponding watermark strategy as an expression.

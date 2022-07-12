@@ -15,41 +15,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.sort
 
 import org.apache.flink.configuration.ReadableConfig
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, newName}
-import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GenerateUtils}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, ROW_DATA}
+import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
 import org.apache.flink.table.runtime.generated.{GeneratedRecordComparator, RecordComparator}
 import org.apache.flink.table.types.logical.RowType
 
-/**
-  * A code generator for generating [[RecordComparator]].
-  */
+/** A code generator for generating [[RecordComparator]]. */
 object ComparatorCodeGenerator {
 
   /**
-    * Generates a [[RecordComparator]] that can be passed to a Java compiler.
-    *
-    * @param tableConfig Table config.
-    * @param name        Class name of the function.
-    *                    Does not need to be unique but has to be a valid Java class identifier.
-    * @param inputType   input type.
-    * @param sortSpec    sort specification.
-    * @return A GeneratedRecordComparator
-    */
+   * Generates a [[RecordComparator]] that can be passed to a Java compiler.
+   *
+   * @param tableConfig
+   *   Table config.
+   * @param classLoader
+   *   user ClassLoader.
+   * @param name
+   *   Class name of the function. Does not need to be unique but has to be a valid Java class
+   *   identifier.
+   * @param inputType
+   *   input type.
+   * @param sortSpec
+   *   sort specification.
+   * @return
+   *   A GeneratedRecordComparator
+   */
   def gen(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       name: String,
       inputType: RowType,
       sortSpec: SortSpec): GeneratedRecordComparator = {
     val className = newName(name)
     val baseClass = classOf[RecordComparator]
 
-    val ctx = new CodeGeneratorContext(tableConfig)
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
     val compareCode = GenerateUtils.generateRowCompare(ctx, inputType, sortSpec, "o1", "o2")
 
     val code =
@@ -74,8 +79,7 @@ object ComparatorCodeGenerator {
       }
       """.stripMargin
 
-    new GeneratedRecordComparator(
-      className, code, ctx.references.toArray, ctx.tableConfig)
+    new GeneratedRecordComparator(className, code, ctx.references.toArray, ctx.tableConfig)
   }
 
 }

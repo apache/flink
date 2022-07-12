@@ -19,7 +19,7 @@
 
 set -Eeuo pipefail
 
-KAFKA_VERSION="2.8.1"
+KAFKA_VERSION="3.1.1"
 CONFLUENT_VERSION="6.2.2"
 CONFLUENT_MAJOR_VERSION="6.2"
 # Check the Confluent Platform <> Apache Kafka compatibility matrix when updating KAFKA_VERSION
@@ -85,6 +85,8 @@ source "${CONDA_HOME}/bin/activate"
 cd "${FLINK_PYTHON_DIR}"
 
 rm -rf dist
+
+pip install -r dev/dev-requirements.txt
 
 python setup.py sdist
 
@@ -269,3 +271,6 @@ if [[ "${EXPECTED_MSG[*]}" != "${SORTED_READ_MSG[*]}" ]]; then
     echo -e "ACTUAL: --${SORTED_READ_MSG[*]}--"
     exit 1
 fi
+
+# clean up python env
+"${FLINK_PYTHON_DIR}/dev/lint-python.sh" -r

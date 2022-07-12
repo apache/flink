@@ -17,9 +17,6 @@
  */
 package org.apache.flink.api.scala.runtime
 
-import java.lang.{Boolean => JBoolean}
-import java.util.function.BiFunction
-
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerializer}
@@ -27,8 +24,12 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
 import org.apache.flink.testutils.DeeplyEqualsChecker
 import org.apache.flink.testutils.DeeplyEqualsChecker.CustomEqualityChecker
-import org.junit.Assert._
-import org.junit.{Assert, Ignore, Test}
+
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{Disabled, Test}
+
+import java.lang.{Boolean => JBoolean}
+import java.util.function.BiFunction
 
 import scala.collection.{SortedMap, SortedSet}
 import scala.util.{Failure, Success}
@@ -91,9 +92,8 @@ class ScalaSpecialTypesSerializerTest {
 
   @Test
   def testFailure(): Unit = {
-    val testData = Array(
-      Failure(new RuntimeException("test")),
-      Failure(new RuntimeException("one, two")))
+    val testData =
+      Array(Failure(new RuntimeException("test")), Failure(new RuntimeException("one, two")))
     runTests(testData)
   }
 
@@ -105,7 +105,7 @@ class ScalaSpecialTypesSerializerTest {
 
   @Test
   def testIntArray(): Unit = {
-    val testData = Array(Array(1,3,3,7), Array(4,7))
+    val testData = Array(Array(1, 3, 3, 7), Array(4, 7))
     runTests(testData)
   }
 
@@ -123,28 +123,20 @@ class ScalaSpecialTypesSerializerTest {
 
   @Test
   def testSortedSet(): Unit = {
-    val testData = Array(SortedSet(1,2,3), SortedSet(2,3))
+    val testData = Array(SortedSet(1, 2, 3), SortedSet(2, 3))
     runTests(testData)
   }
 
-  private final def runTests[T : TypeInformation](instances: Array[T]) {
-    try {
-      val typeInfo = implicitly[TypeInformation[T]]
-      val serializer = typeInfo.createSerializer(new ExecutionConfig)
-      val typeClass = typeInfo.getTypeClass
-      val test = new ScalaSpecialTypesSerializerTestInstance[T](
-        serializer,
-        typeClass,
-        serializer.getLength,
-        instances)
-      test.testAll()
-    } catch {
-      case e: Exception => {
-        System.err.println(e.getMessage)
-        e.printStackTrace()
-        Assert.fail(e.getMessage)
-      }
-    }
+  final private def runTests[T: TypeInformation](instances: Array[T]) {
+    val typeInfo = implicitly[TypeInformation[T]]
+    val serializer = typeInfo.createSerializer(new ExecutionConfig)
+    val typeClass = typeInfo.getTypeClass
+    val test = new ScalaSpecialTypesSerializerTestInstance[T](
+      serializer,
+      typeClass,
+      serializer.getLength,
+      instances)
+    test.testAll()
   }
 }
 
@@ -164,10 +156,7 @@ object ScalaSpecialTypesSerializerTestInstance {
 
   val compareTraversable: CustomEqualityChecker =
     new CustomEqualityChecker {
-      override def check(
-          o1: AnyRef,
-          o2: AnyRef,
-          checker: DeeplyEqualsChecker): Boolean = {
+      override def check(o1: AnyRef, o2: AnyRef, checker: DeeplyEqualsChecker): Boolean = {
         val s1 = o1.asInstanceOf[TraversableOnce[_]].toIterator
         val s2 = o2.asInstanceOf[TraversableOnce[_]].toIterator
 
@@ -184,17 +173,16 @@ object ScalaSpecialTypesSerializerTestInstance {
 
   val compareFailure: CustomEqualityChecker =
     new CustomEqualityChecker {
-      override def check(
-          o1: AnyRef,
-          o2: AnyRef,
-          checker: DeeplyEqualsChecker): Boolean = {
-        o1.asInstanceOf[Failure[_]].exception.getMessage
+      override def check(o1: AnyRef, o2: AnyRef, checker: DeeplyEqualsChecker): Boolean = {
+        o1.asInstanceOf[Failure[_]]
+          .exception
+          .getMessage
           .equals(o2.asInstanceOf[Failure[_]].exception.getMessage)
       }
     }
 }
 
-@Ignore("Prevents this class from being considered a test class by JUnit.")
+@Disabled("Prevents this class from being considered a test class by JUnit.")
 class ScalaSpecialTypesSerializerTestInstance[T](
     serializer: TypeSerializer[T],
     typeClass: Class[T],
@@ -202,9 +190,11 @@ class ScalaSpecialTypesSerializerTestInstance[T](
     testData: Array[T])
   extends SerializerTestInstance[T](
     new DeeplyEqualsChecker()
-      .withCustomCheck(ScalaSpecialTypesSerializerTestInstance.isTraversable,
+      .withCustomCheck(
+        ScalaSpecialTypesSerializerTestInstance.isTraversable,
         ScalaSpecialTypesSerializerTestInstance.compareTraversable)
-      .withCustomCheck(ScalaSpecialTypesSerializerTestInstance.isFailure,
+      .withCustomCheck(
+        ScalaSpecialTypesSerializerTestInstance.isFailure,
         ScalaSpecialTypesSerializerTestInstance.compareFailure),
     serializer,
     typeClass,
@@ -213,26 +203,17 @@ class ScalaSpecialTypesSerializerTestInstance[T](
 
   @Test
   override def testInstantiate(): Unit = {
-    try {
-      val serializer: TypeSerializer[T] = getSerializer
-      if (!serializer.isInstanceOf[KryoSerializer[_]]) {
-        // kryo serializer does return null, so only test for non-kryo-serializers
-        val instance: T = serializer.createInstance
-        assertNotNull("The created instance must not be null.", instance)
-      }
-      val tpe: Class[T] = getTypeClass
-      assertNotNull("The test is corrupt: type class is null.", tpe)
-      // We cannot check this because Collection Instances are not always of the type
-      // that the user writes, they might have generated names.
-      // assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
+    val serializer: TypeSerializer[T] = getSerializer
+    if (!serializer.isInstanceOf[KryoSerializer[_]]) {
+      // kryo serializer does return null, so only test for non-kryo-serializers
+      val instance: T = serializer.createInstance
+      assertThat(instance).isNotNull().withFailMessage("The created instance must not be null.")
     }
-    catch {
-      case e: Exception => {
-        System.err.println(e.getMessage)
-        e.printStackTrace()
-        fail("Exception in test: " + e.getMessage)
-      }
-    }
+    val tpe: Class[T] = getTypeClass
+    assertThat(tpe).isNotNull().withFailMessage("The test is corrupt: type class is null.")
+    // We cannot check this because Collection Instances are not always of the type
+    // that the user writes, they might have generated names.
+    // assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
   }
 }
 
@@ -240,4 +221,3 @@ object WeekDay extends Enumeration {
   type WeekDay = Value
   val Mon, Tue, Wed, Thu, Fri, Sat, Sun = Value
 }
-

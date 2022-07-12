@@ -536,6 +536,8 @@ public class CheckpointCoordinator {
             boolean initializeBaseLocations = !baseLocationsForCheckpointInitialized;
             baseLocationsForCheckpointInitialized = true;
 
+            CompletableFuture<Void> masterTriggerCompletionPromise = new CompletableFuture<>();
+
             final CompletableFuture<PendingCheckpoint> pendingCheckpointCompletableFuture =
                     checkpointPlanFuture
                             .thenApplyAsync(
@@ -560,7 +562,8 @@ public class CheckpointCoordinator {
                                                     checkpointInfo.f0,
                                                     request.isPeriodic,
                                                     checkpointInfo.f1,
-                                                    request.getOnCompletionFuture()),
+                                                    request.getOnCompletionFuture(),
+                                                    masterTriggerCompletionPromise),
                                     timer);
 
             final CompletableFuture<?> coordinatorCheckpointsComplete =
@@ -584,6 +587,11 @@ public class CheckpointCoordinator {
                             .thenComposeAsync(
                                     (checkpointInfo) -> {
                                         PendingCheckpoint pendingCheckpoint = checkpointInfo.f0;
+                                        if (pendingCheckpoint.isDisposed()) {
+                                            // The disposed checkpoint will be handled later,
+                                            // skip snapshotting the coordinator states.
+                                            return null;
+                                        }
                                         synchronized (lock) {
                                             pendingCheckpoint.setCheckpointTargetLocation(
                                                     checkpointInfo.f1);
@@ -611,12 +619,21 @@ public class CheckpointCoordinator {
                                 PendingCheckpoint checkpoint =
                                         FutureUtils.getWithoutException(
                                                 pendingCheckpointCompletableFuture);
+                                if (checkpoint == null || checkpoint.isDisposed()) {
+                                    // The disposed checkpoint will be handled later,
+                                    // skip snapshotting the master states.
+                                    return null;
+                                }
                                 return snapshotMasterState(checkpoint);
                             },
                             timer);
 
+            FutureUtils.forward(
+                    CompletableFuture.allOf(masterStatesComplete, coordinatorCheckpointsComplete),
+                    masterTriggerCompletionPromise);
+
             FutureUtils.assertNoException(
-                    CompletableFuture.allOf(masterStatesComplete, coordinatorCheckpointsComplete)
+                    masterTriggerCompletionPromise
                             .handleAsync(
                                     (ignored, throwable) -> {
                                         final PendingCheckpoint checkpoint =
@@ -778,7 +795,8 @@ public class CheckpointCoordinator {
             CheckpointPlan checkpointPlan,
             boolean isPeriodic,
             long checkpointID,
-            CompletableFuture<CompletedCheckpoint> onCompletionPromise) {
+            CompletableFuture<CompletedCheckpoint> onCompletionPromise,
+            CompletableFuture<Void> masterTriggerCompletionPromise) {
 
         synchronized (lock) {
             try {
@@ -803,7 +821,8 @@ public class CheckpointCoordinator {
                         masterHooks.keySet(),
                         props,
                         onCompletionPromise,
-                        pendingCheckpointStats);
+                        pendingCheckpointStats,
+                        masterTriggerCompletionPromise);
 
         synchronized (lock) {
             pendingCheckpoints.put(checkpointID, checkpoint);
@@ -1780,7 +1799,8 @@ public class CheckpointCoordinator {
         // register shared state - even before adding the checkpoint to the store
         // because the latter might trigger subsumption so the ref counts must be up-to-date
         savepoint.registerSharedStatesAfterRestored(
-                completedCheckpointStore.getSharedStateRegistry());
+                completedCheckpointStore.getSharedStateRegistry(),
+                restoreSettings.getRestoreMode());
 
         completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                 savepoint, checkpointsCleaner, this::scheduleTriggerRequest);

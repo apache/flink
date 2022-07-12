@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.RuntimeExecutionMode
@@ -37,21 +36,20 @@ import java.util.TimeZone
 
 import scala.collection.mutable
 
-/**
- * Tests that check all non-deterministic functions can be executed.
- */
+/** Tests that check all non-deterministic functions can be executed. */
 class NonDeterministicTests extends ExpressionTestBase {
 
   @Test
   def testTemporalFunctionsInStreamMode(): Unit = {
-    val temporalFunctions = getCodeGenFunctions(List(
-      "CURRENT_DATE",
-      "CURRENT_TIME",
-      "CURRENT_TIMESTAMP",
-      "CURRENT_ROW_TIMESTAMP()",
-      "NOW()",
-      "LOCALTIME",
-      "LOCALTIMESTAMP"))
+    val temporalFunctions = getCodeGenFunctions(
+      List(
+        "CURRENT_DATE",
+        "CURRENT_TIME",
+        "CURRENT_TIMESTAMP",
+        "CURRENT_ROW_TIMESTAMP()",
+        "NOW()",
+        "LOCALTIME",
+        "LOCALTIMESTAMP"))
     val round1 = evaluateFunctionResult(temporalFunctions)
     Thread.sleep(1 * 1000L)
     val round2: List[String] = evaluateFunctionResult(temporalFunctions)
@@ -87,13 +85,14 @@ class NonDeterministicTests extends ExpressionTestBase {
       InternalConfigOptions.TABLE_QUERY_START_LOCAL_TIME,
       Long.box(1123L + TimeZone.getTimeZone(zoneId).getOffset(1123L)))
 
-    val temporalFunctions = getCodeGenFunctions(List(
-      "CURRENT_DATE",
-      "CURRENT_TIME",
-      "CURRENT_TIMESTAMP",
-      "NOW()",
-      "LOCALTIME",
-      "LOCALTIMESTAMP"))
+    val temporalFunctions = getCodeGenFunctions(
+      List(
+        "CURRENT_DATE",
+        "CURRENT_TIME",
+        "CURRENT_TIMESTAMP",
+        "NOW()",
+        "LOCALTIME",
+        "LOCALTIMESTAMP"))
 
     val expected = mutable.MutableList[String](
       "1970-01-01",
@@ -138,15 +137,13 @@ class NonDeterministicTests extends ExpressionTestBase {
     tableConfig.setLocalTimeZone(zoneId)
     val localDateTime = LocalDateTime.now(zoneId)
 
-    val formattedLocalTime = localDateTime
-      .toLocalTime
+    val formattedLocalTime = localDateTime.toLocalTime
       .format(DateTimeFormatter.ofPattern("HH:mm:ss"))
     val formattedLocalDateTime = localDateTime
       .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
     val formattedCurrentDate = localDateTime
       .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-    val formattedCurrentTime = localDateTime
-      .toLocalTime
+    val formattedCurrentTime = localDateTime.toLocalTime
       .format(DateTimeFormatter.ofPattern("HH:mm:ss"))
     val formattedCurrentTimestamp = localDateTime
       .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
@@ -154,19 +151,13 @@ class NonDeterministicTests extends ExpressionTestBase {
     // the LOCALTIME/LOCALTIMESTAMP/CURRENT_DATE/CURRENT_TIME/CURRENT_TIMESTAMP/NOW() functions
     // are not deterministic, thus we use following pattern to check the returned SQL value
     // in session time zone
-    testSqlApi(
-      s"TIME_SUB(LOCALTIME, TIME '$formattedLocalTime') <= 60000",
-      "TRUE")
+    testSqlApi(s"TIME_SUB(LOCALTIME, TIME '$formattedLocalTime') <= 60000", "TRUE")
     testSqlApi(
       s"TIMESTAMPDIFF(SECOND, TIMESTAMP '$formattedLocalDateTime', LOCALTIMESTAMP) <= 60",
       "TRUE")
-    testSqlApi(
-      s"DATE_SUB(CURRENT_DATE, DATE '$formattedCurrentDate') >= 0",
-      "TRUE")
+    testSqlApi(s"DATE_SUB(CURRENT_DATE, DATE '$formattedCurrentDate') >= 0", "TRUE")
 
-    testSqlApi(
-      s"TIME_SUB(CURRENT_TIME, TIME '$formattedCurrentTime') <= 60000",
-      "TRUE")
+    testSqlApi(s"TIME_SUB(CURRENT_TIME, TIME '$formattedCurrentTime') <= 60000", "TRUE")
 
     testSqlApi(
       s"TIMESTAMPDIFF(SECOND, ${timestampLtz(formattedCurrentTimestamp)}, CURRENT_TIMESTAMP) <= 60",
@@ -209,8 +200,7 @@ object TimeDiffFun extends ScalarFunction {
     // we simply assume the two times were produced less than 1 minute
     if (t1.getTime < t2.getTime && millsInDay - Math.abs(t1.getTime - t2.getTime) < 60000) {
       t1.getTime + millsInDay - t2.getTime
-    }
-    else {
+    } else {
       t1.getTime - t2.getTime
     }
   }

@@ -42,6 +42,9 @@ import java.io.File;
 import java.util.List;
 import java.util.Locale;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
+
 /** Tests for {@link ExecutionEnvironment#readCsvFile}. */
 @RunWith(Parameterized.class)
 public class CsvReaderITCase extends MultipleProgramsTestBase {

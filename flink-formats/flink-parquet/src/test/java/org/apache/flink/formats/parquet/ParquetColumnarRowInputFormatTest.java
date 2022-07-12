@@ -75,9 +75,7 @@ import static org.apache.flink.connector.file.src.util.Utils.forEachRemaining;
 import static org.apache.flink.formats.parquet.utils.ParquetWriterUtil.createTempParquetFile;
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 import static org.apache.parquet.schema.Types.primitive;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ParquetColumnarRowInputFormat}. */
 @RunWith(Parameterized.class)
@@ -250,9 +248,9 @@ public class ParquetColumnarRowInputFormatTest {
                         new FileSourceSplit("id", testPath, 0, Long.MAX_VALUE, 0, Long.MAX_VALUE)),
                 row -> {
                     int i = cnt.get();
-                    assertEquals(i, row.getDouble(0), 0);
-                    assertEquals((byte) i, row.getByte(1));
-                    assertEquals(i, row.getInt(2));
+                    assertThat(row.getDouble(0)).isEqualTo(i);
+                    assertThat(row.getByte(1)).isEqualTo((byte) i);
+                    assertThat(row.getInt(2)).isEqualTo(i);
                     cnt.incrementAndGet();
                 });
     }
@@ -292,10 +290,10 @@ public class ParquetColumnarRowInputFormatTest {
                         new FileSourceSplit("id", testPath, 0, Long.MAX_VALUE, 0, Long.MAX_VALUE)),
                 row -> {
                     int i = cnt.get();
-                    assertEquals(i, row.getDouble(0), 0);
-                    assertEquals((byte) i, row.getByte(1));
-                    assertEquals(i, row.getInt(2));
-                    assertTrue(row.isNullAt(3));
+                    assertThat(row.getDouble(0)).isEqualTo(i);
+                    assertThat(row.getByte(1)).isEqualTo((byte) i);
+                    assertThat(row.getInt(2)).isEqualTo(i);
+                    assertThat(row.isNullAt(3)).isTrue();
                     cnt.incrementAndGet();
                 });
     }
@@ -368,7 +366,7 @@ public class ParquetColumnarRowInputFormatTest {
         int len3 =
                 testReadingSplit(
                         subList(records, len1 + len2), testPath, fileLen * 2 / 3, Long.MAX_VALUE);
-        assertEquals(records.size(), len1 + len2 + len3);
+        assertThat(len1 + len2 + len3).isEqualTo(records.size());
 
         // test seek
         int cntAfterSeeking =
@@ -378,7 +376,7 @@ public class ParquetColumnarRowInputFormatTest {
                         0,
                         fileLen,
                         records.size() / 2);
-        assertEquals(records.size() - records.size() / 2, cntAfterSeeking);
+        assertThat(cntAfterSeeking).isEqualTo(records.size() - records.size() / 2);
     }
 
     private int testReadingSplit(
@@ -455,47 +453,48 @@ public class ParquetColumnarRowInputFormatTest {
                         previousRow.set(row);
                     } else {
                         // ParquetColumnarRowInputFormat should only have one row instance.
-                        assertSame(previousRow.get(), row);
+                        assertThat(row).isSameAs(previousRow.get());
                     }
-
                     Integer v = expected.get(cnt.get());
                     if (v == null) {
-                        assertTrue(row.isNullAt(0));
-                        assertTrue(row.isNullAt(1));
-                        assertTrue(row.isNullAt(2));
-                        assertTrue(row.isNullAt(3));
-                        assertTrue(row.isNullAt(4));
-                        assertTrue(row.isNullAt(5));
-                        assertTrue(row.isNullAt(6));
-                        assertTrue(row.isNullAt(7));
-                        assertTrue(row.isNullAt(8));
-                        assertTrue(row.isNullAt(9));
-                        assertTrue(row.isNullAt(10));
-                        assertTrue(row.isNullAt(11));
-                        assertTrue(row.isNullAt(12));
-                        assertTrue(row.isNullAt(13));
-                        assertTrue(row.isNullAt(14));
+                        assertThat(row.isNullAt(0)).isTrue();
+                        assertThat(row.isNullAt(1)).isTrue();
+                        assertThat(row.isNullAt(2)).isTrue();
+                        assertThat(row.isNullAt(3)).isTrue();
+                        assertThat(row.isNullAt(4)).isTrue();
+                        assertThat(row.isNullAt(5)).isTrue();
+                        assertThat(row.isNullAt(6)).isTrue();
+                        assertThat(row.isNullAt(7)).isTrue();
+                        assertThat(row.isNullAt(8)).isTrue();
+                        assertThat(row.isNullAt(9)).isTrue();
+                        assertThat(row.isNullAt(10)).isTrue();
+                        assertThat(row.isNullAt(11)).isTrue();
+                        assertThat(row.isNullAt(12)).isTrue();
+                        assertThat(row.isNullAt(13)).isTrue();
+                        assertThat(row.isNullAt(14)).isTrue();
                     } else {
-                        assertEquals("" + v, row.getString(0).toString());
-                        assertEquals(v % 2 == 0, row.getBoolean(1));
-                        assertEquals(v.byteValue(), row.getByte(2));
-                        assertEquals(v.shortValue(), row.getShort(3));
-                        assertEquals(v.intValue(), row.getInt(4));
-                        assertEquals(v.longValue(), row.getLong(5));
-                        assertEquals(v.floatValue(), row.getFloat(6), 0);
-                        assertEquals(v.doubleValue(), row.getDouble(7), 0);
-                        assertEquals(toDateTime(v), row.getTimestamp(8, 9).toLocalDateTime());
-                        assertEquals(BigDecimal.valueOf(v), row.getDecimal(9, 5, 0).toBigDecimal());
-                        assertEquals(
-                                BigDecimal.valueOf(v), row.getDecimal(10, 15, 0).toBigDecimal());
-                        assertEquals(
-                                BigDecimal.valueOf(v), row.getDecimal(11, 20, 0).toBigDecimal());
-                        assertEquals(
-                                BigDecimal.valueOf(v), row.getDecimal(12, 5, 0).toBigDecimal());
-                        assertEquals(
-                                BigDecimal.valueOf(v), row.getDecimal(13, 15, 0).toBigDecimal());
-                        assertEquals(
-                                BigDecimal.valueOf(v), row.getDecimal(14, 20, 0).toBigDecimal());
+                        assertThat(row.getString(0).toString()).isEqualTo("" + v);
+                        assertThat(row.getBoolean(1)).isEqualTo(v % 2 == 0);
+                        assertThat(row.getByte(2)).isEqualTo(v.byteValue());
+                        assertThat(row.getShort(3)).isEqualTo(v.shortValue());
+                        assertThat(row.getInt(4)).isEqualTo(v.intValue());
+                        assertThat(row.getLong(5)).isEqualTo(v.longValue());
+                        assertThat(row.getFloat(6)).isEqualTo(v.floatValue());
+                        assertThat(row.getDouble(7)).isEqualTo(v.doubleValue());
+                        assertThat(row.getTimestamp(8, 9).toLocalDateTime())
+                                .isEqualTo(toDateTime(v));
+                        assertThat(row.getDecimal(9, 5, 0).toBigDecimal())
+                                .isEqualTo(BigDecimal.valueOf(v));
+                        assertThat(row.getDecimal(10, 15, 0).toBigDecimal())
+                                .isEqualTo(BigDecimal.valueOf(v));
+                        assertThat(row.getDecimal(11, 20, 0).toBigDecimal())
+                                .isEqualTo(BigDecimal.valueOf(v));
+                        assertThat(row.getDecimal(12, 5, 0).toBigDecimal())
+                                .isEqualTo(BigDecimal.valueOf(v));
+                        assertThat(row.getDecimal(13, 15, 0).toBigDecimal())
+                                .isEqualTo(BigDecimal.valueOf(v));
+                        assertThat(row.getDecimal(14, 20, 0).toBigDecimal())
+                                .isEqualTo(BigDecimal.valueOf(v));
                     }
                     cnt.incrementAndGet();
                 });
@@ -605,39 +604,33 @@ public class ParquetColumnarRowInputFormatTest {
                 row -> {
                     int i = cnt.get();
                     // common values
-                    assertEquals(i, row.getDouble(0), 0);
-                    assertEquals((byte) i, row.getByte(1));
-                    assertEquals(i, row.getInt(2));
-
+                    assertThat(row.getDouble(0)).isEqualTo(i);
+                    assertThat(row.getByte(1)).isEqualTo((byte) i);
+                    assertThat(row.getInt(2)).isEqualTo(i);
                     // partition values
                     if (nullPartValue) {
                         for (int j = 3; j < 16; j++) {
-                            assertTrue(row.isNullAt(j));
+                            assertThat(row.isNullAt(j)).isTrue();
                         }
                     } else {
-                        assertTrue(row.getBoolean(3));
-                        assertEquals(9, row.getByte(4));
-                        assertEquals(10, row.getShort(5));
-                        assertEquals(11, row.getInt(6));
-                        assertEquals(12, row.getLong(7));
-                        assertEquals(13, row.getFloat(8), 0);
-                        assertEquals(6.6, row.getDouble(9), 0);
-                        assertEquals(
-                                DateTimeUtils.toInternal(Date.valueOf("2020-11-23")),
-                                row.getInt(10));
-                        assertEquals(
-                                LocalDateTime.of(1999, 1, 1, 1, 1),
-                                row.getTimestamp(11, 9).toLocalDateTime());
-                        assertEquals(
-                                DecimalData.fromBigDecimal(new BigDecimal(24), 5, 0),
-                                row.getDecimal(12, 5, 0));
-                        assertEquals(
-                                DecimalData.fromBigDecimal(new BigDecimal(25), 15, 0),
-                                row.getDecimal(13, 15, 0));
-                        assertEquals(
-                                DecimalData.fromBigDecimal(new BigDecimal(26), 20, 0),
-                                row.getDecimal(14, 20, 0));
-                        assertEquals("f27", row.getString(15).toString());
+                        assertThat(row.getBoolean(3)).isTrue();
+                        assertThat(row.getByte(4)).isEqualTo((byte) 9);
+                        assertThat(row.getShort(5)).isEqualTo((short) 10);
+                        assertThat(row.getInt(6)).isEqualTo(11);
+                        assertThat(row.getLong(7)).isEqualTo(12);
+                        assertThat(row.getFloat(8)).isEqualTo((float) 13);
+                        assertThat(row.getDouble(9)).isEqualTo(6.6);
+                        assertThat(row.getInt(10))
+                                .isEqualTo(DateTimeUtils.toInternal(Date.valueOf("2020-11-23")));
+                        assertThat(row.getTimestamp(11, 9).toLocalDateTime())
+                                .isEqualTo(LocalDateTime.of(1999, 1, 1, 1, 1));
+                        assertThat(row.getDecimal(12, 5, 0))
+                                .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(24), 5, 0));
+                        assertThat(row.getDecimal(13, 15, 0))
+                                .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(25), 15, 0));
+                        assertThat(row.getDecimal(14, 20, 0))
+                                .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(26), 20, 0));
+                        assertThat(row.getString(15).toString()).isEqualTo("f27");
                     }
                     cnt.incrementAndGet();
                 });

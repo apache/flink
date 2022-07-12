@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.akka.ActorSystemScheduledExecutorAdapter;
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
-import org.apache.flink.runtime.rpc.FencedMainThreadExecutable;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -36,7 +35,6 @@ import org.apache.flink.runtime.rpc.messages.HandshakeSuccessMessage;
 import org.apache.flink.runtime.rpc.messages.RemoteHandshakeMessage;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -297,8 +295,6 @@ public class AkkaRpcService implements RpcService {
                             ((FencedRpcEndpoint<?>) rpcEndpoint)::getFencingToken,
                             captureAskCallstacks,
                             flinkClassLoader);
-
-            implementedRpcGateways.add(FencedMainThreadExecutable.class);
         } else {
             akkaInvocationHandler =
                     new AkkaInvocationHandler(
@@ -353,6 +349,7 @@ public class AkkaRpcService implements RpcService {
                                             actorTerminationFuture,
                                             getVersion(),
                                             configuration.getMaximumFramesize(),
+                                            configuration.isForceRpcInvocationSerialization(),
                                             flinkClassLoader),
                             rpcEndpoint.getEndpointId());
 
@@ -559,7 +556,7 @@ public class AkkaRpcService implements RpcService {
                                                         actorRef,
                                                         new RemoteHandshakeMessage(
                                                                 clazz, getVersion()),
-                                                        configuration.getTimeout().toMilliseconds())
+                                                        configuration.getTimeout().toMillis())
                                                 .<HandshakeSuccessMessage>mapTo(
                                                         ClassTag$.MODULE$
                                                                 .<HandshakeSuccessMessage>apply(
@@ -598,7 +595,7 @@ public class AkkaRpcService implements RpcService {
     private CompletableFuture<ActorRef> resolveActorAddress(String address) {
         final ActorSelection actorSel = actorSystem.actorSelection(address);
 
-        return actorSel.resolveOne(TimeUtils.toDuration(configuration.getTimeout()))
+        return actorSel.resolveOne(configuration.getTimeout())
                 .toCompletableFuture()
                 .exceptionally(
                         error -> {

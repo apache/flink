@@ -26,6 +26,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
@@ -67,7 +68,7 @@ public class CodeSplitTest {
     public void testJoinCondition() {
         int numFields = 200;
 
-        FlinkTypeFactory typeFactory = FlinkTypeFactory.INSTANCE();
+        FlinkTypeFactory typeFactory = new FlinkTypeFactory(classLoader, FlinkTypeSystem.INSTANCE);
         RexBuilder builder = new RexBuilder(typeFactory);
         RelDataType intType = typeFactory.createFieldTypeFromLogicalType(new IntType());
         RexNode[] conditions = new RexNode[numFields];
@@ -97,7 +98,11 @@ public class CodeSplitTest {
                 tableConfig -> {
                     JoinCondition instance =
                             JoinUtil.generateConditionFunction(
-                                            tableConfig, joinCondition, rowType, rowType)
+                                            tableConfig,
+                                            Thread.currentThread().getContextClassLoader(),
+                                            joinCondition,
+                                            rowType,
+                                            rowType)
                                     .newInstance(classLoader);
                     for (int i = 0; i < 100; i++) {
                         assertThat(instance.apply(rowData1, rowData2)).isEqualTo(result);
@@ -125,7 +130,9 @@ public class CodeSplitTest {
                 tableConfig -> {
                     HashFunction instance =
                             HashCodeGenerator.generateRowHash(
-                                            new CodeGeneratorContext(tableConfig),
+                                            new CodeGeneratorContext(
+                                                    tableConfig,
+                                                    Thread.currentThread().getContextClassLoader()),
                                             rowType,
                                             "",
                                             hashFields)
@@ -166,7 +173,12 @@ public class CodeSplitTest {
         Consumer<ReadableConfig> consumer =
                 tableConfig -> {
                     RecordComparator instance =
-                            ComparatorCodeGenerator.gen(tableConfig, "", rowType, sortSpec)
+                            ComparatorCodeGenerator.gen(
+                                            tableConfig,
+                                            Thread.currentThread().getContextClassLoader(),
+                                            "",
+                                            rowType,
+                                            sortSpec)
                                     .newInstance(classLoader);
                     for (int i = 0; i < 100; i++) {
                         assertThat(instance.compare(rowData1, rowData2)).isEqualTo(result);
@@ -202,7 +214,9 @@ public class CodeSplitTest {
                 tableConfig -> {
                     Projection instance =
                             ProjectionCodeGenerator.generateProjection(
-                                            new CodeGeneratorContext(tableConfig),
+                                            new CodeGeneratorContext(
+                                                    tableConfig,
+                                                    Thread.currentThread().getContextClassLoader()),
                                             "",
                                             rowType,
                                             rowType,

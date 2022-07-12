@@ -59,7 +59,7 @@ public class AbstractDispatcherTest extends TestLogger {
     @AfterClass
     public static void teardownClass() throws Exception {
         if (rpcService != null) {
-            RpcUtils.terminateRpcService(rpcService, TIMEOUT);
+            RpcUtils.terminateRpcService(rpcService);
             rpcService = null;
         }
     }
@@ -103,7 +103,6 @@ public class AbstractDispatcherTest extends TestLogger {
 
     protected TestingDispatcher.Builder createTestingDispatcherBuilder() {
         return TestingDispatcher.builder()
-                .setRpcService(rpcService)
                 .setConfiguration(configuration)
                 .setHeartbeatServices(heartbeatServices)
                 .setHighAvailabilityServices(haServices)

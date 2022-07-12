@@ -39,6 +39,8 @@ provide exactly-once guarantees.
 The following example shows how to create a PyFlink Table from a Pandas DataFrame:
 
 ```python
+from pyflink.table import DataTypes
+
 import pandas as pd
 import numpy as np
 
@@ -57,7 +59,7 @@ table = t_env.from_pandas(pdf, [DataTypes.DOUBLE(), DataTypes.DOUBLE()])
 # Create a PyFlink Table from a Pandas DataFrame with the specified row type
 table = t_env.from_pandas(pdf,
                           DataTypes.ROW([DataTypes.FIELD("f0", DataTypes.DOUBLE()),
-                                         DataTypes.FIELD("f1", DataTypes.DOUBLE())])
+                                         DataTypes.FIELD("f1", DataTypes.DOUBLE())]))
 ```
 
 ## Convert PyFlink Table to Pandas DataFrame
@@ -72,6 +74,8 @@ You can limit the number of rows collected to client side via {{< pythondoc file
 The following example shows how to convert a PyFlink Table to a Pandas DataFrame:
 
 ```python
+from pyflink.table.expressions import col
+
 import pandas as pd
 import numpy as np
 

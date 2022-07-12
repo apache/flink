@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.AbstractDataType;
@@ -76,7 +75,6 @@ import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour;
 import static org.apache.flink.util.CollectionUtil.entry;
 import static org.apache.flink.util.CollectionUtil.map;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -117,11 +115,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     @Override
     Configuration getConfiguration() {
-        return new Configuration()
-                .set(TableConfigOptions.LOCAL_TIME_ZONE, TEST_TZ.getId())
-                .set(
-                        ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
-                        LegacyCastBehaviour.DISABLED);
+        return super.getConfiguration().set(TableConfigOptions.LOCAL_TIME_ZONE, TEST_TZ.getId());
     }
 
     @Override
@@ -187,11 +181,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(BINARY(2))
                         .fromCase(BINARY(5), null, null)
-                        .fromCase(CHAR(4), "666F", new byte[] {102, 111})
-                        .fromCase(VARCHAR(8), "666f", new byte[] {102, 111})
-                        .fromCase(STRING(), "AAbbcCdD", new byte[] {-86, -69})
-                        .fromCase(VARCHAR(4), "FC", new byte[] {-4, 0})
-                        .fromCase(STRING(), "df", new byte[] {-33, 0})
+                        .fromCase(CHAR(4), "666F", new byte[] {54, 54})
+                        .fromCase(VARCHAR(8), "666f", new byte[] {54, 54})
+                        .fromCase(STRING(), "a", new byte[] {97, 0})
+                        .fromCase(VARCHAR(4), "FC", new byte[] {70, 67})
+                        .fromCase(STRING(), "foobar", new byte[] {102, 111})
                         // Not supported - no fix
                         .failValidation(BOOLEAN(), true)
                         //
@@ -225,9 +219,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(VARBINARY(4))
                         .fromCase(VARBINARY(5), null, null)
-                        .fromCase(CHAR(4), "666F", new byte[] {102, 111})
-                        .fromCase(VARCHAR(8), "666f", new byte[] {102, 111})
-                        .fromCase(STRING(), "AAbbCcDdEe", new byte[] {-86, -69, -52, -35})
+                        .fromCase(CHAR(4), "foo", new byte[] {102, 111, 111, 32})
+                        .fromCase(VARCHAR(8), "foobar", new byte[] {102, 111, 111, 98})
+                        .fromCase(STRING(), "AAbbCcDdEe", new byte[] {65, 65, 98, 98})
                         // Not supported - no fix
                         .failValidation(BOOLEAN(), true)
                         //
@@ -259,9 +253,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(BYTES())
                         .fromCase(BYTES(), null, null)
-                        .fromCase(CHAR(4), "666f", new byte[] {102, 111})
-                        .fromCase(VARCHAR(8), "666F", new byte[] {102, 111})
-                        .fromCase(STRING(), "aaBBCcDdEe", new byte[] {-86, -69, -52, -35, -18})
+                        .fromCase(CHAR(4), "foo", new byte[] {102, 111, 111, 32})
+                        .fromCase(VARCHAR(8), "foobar", new byte[] {102, 111, 111, 98, 97, 114})
+                        .fromCase(
+                                STRING(),
+                                "Apache Flink",
+                                new byte[] {65, 112, 97, 99, 104, 101, 32, 70, 108, 105, 110, 107})
                         // Not supported - no fix
                         .failValidation(BOOLEAN(), true)
                         //
@@ -991,11 +988,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(STRING(), "Apache Flink", "Apache Flink")
                         .fromCase(STRING(), null, null)
                         .fromCase(BOOLEAN(), true, "TRUE")
-                        .fromCase(BINARY(2), DEFAULT_BINARY, "0001")
-                        .fromCase(BINARY(3), DEFAULT_BINARY, "000100")
-                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, "000102")
-                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, "000102")
-                        .fromCase(BYTES(), DEFAULT_BYTES, "0001020304")
+                        .fromCase(BINARY(2), DEFAULT_BINARY, "\u0000\u0001")
+                        .fromCase(BINARY(3), DEFAULT_BINARY, "\u0000\u0001\u0000")
+                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, "\u0000\u0001\u0002")
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, "\u0000\u0001\u0002")
+                        .fromCase(BYTES(), DEFAULT_BYTES, "\u0000\u0001\u0002\u0003\u0004")
                         .fromCase(DECIMAL(4, 3), 9.87, "9.870")
                         .fromCase(DECIMAL(10, 5), 1, "1.00000")
                         .fromCase(
@@ -1077,9 +1074,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(INTERVAL(DAY()), Duration.ofHours(36), "+1 12:00:00.000")
                         .fromCase(ARRAY(INT().nullable()), new Integer[] {null, 456}, "[NULL, 456]")
                         .fromCase(
-                                MAP(STRING(), INTERVAL(MONTH()).nullable()),
-                                map(entry("a", -123), entry("b", null)),
-                                "{a=-10-03, b=NULL}")
+                                MAP(STRING(), INTERVAL(MONTH())),
+                                map(entry("a", -123)),
+                                "{a=-10-03}")
                         .fromCase(
                                 ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
                                 Row.of(null, "abc"),
@@ -1223,7 +1220,6 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         private final List<Object> columnData = new ArrayList<>();
         private final List<DataType> columnTypes = new ArrayList<>();
         private final List<Object> expectedValues = new ArrayList<>();
-        private final List<Class<? extends Throwable>> expectedFailureClasses = new ArrayList<>();
         private final List<TestType> testTypes = new ArrayList<>();
 
         private enum TestType {

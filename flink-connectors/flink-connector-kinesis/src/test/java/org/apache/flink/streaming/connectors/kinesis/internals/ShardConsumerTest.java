@@ -38,8 +38,7 @@ import static org.apache.flink.streaming.connectors.kinesis.internals.ShardConsu
 import static org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumerTestUtils.fakeSequenceNumber;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -58,7 +57,7 @@ public class ShardConsumerTest {
 
         ShardConsumerMetricsReporter metrics =
                 assertNumberOfMessagesReceivedFromKinesis(500, kinesis, fakeSequenceNumber());
-        assertEquals(500, metrics.getMillisBehindLatest());
+        assertThat(metrics.getMillisBehindLatest()).isEqualTo(500);
     }
 
     @Test
@@ -69,7 +68,7 @@ public class ShardConsumerTest {
                         500, 5, 500);
         AbstractMetricGroup metricGroup = createFakeShardConsumerMetricGroup();
         assertNumberOfMessagesReceivedFromKinesis(500, kinesis, fakeSequenceNumber(), metricGroup);
-        assertTrue(metricGroup.isClosed());
+        assertThat(metricGroup.isClosed()).isTrue();
     }
 
     @Test
@@ -181,8 +180,8 @@ public class ShardConsumerTest {
         // 10 * 3 * 5 = 150
         ShardConsumerMetricsReporter metrics =
                 assertNumberOfMessagesReceivedFromKinesis(150, kinesis, fakeSequenceNumber());
-        assertEquals(3, metrics.getNumberOfAggregatedRecords());
-        assertEquals(15, metrics.getNumberOfDeaggregatedRecords());
+        assertThat(metrics.getNumberOfAggregatedRecords()).isEqualTo(3);
+        assertThat(metrics.getNumberOfDeaggregatedRecords()).isEqualTo(15);
 
         verify(kinesis)
                 .getShardIterator(any(), eq("AFTER_SEQUENCE_NUMBER"), eq("fakeStartingState"));
@@ -202,8 +201,8 @@ public class ShardConsumerTest {
         // 5 * 1 * 10 - 6 = 44
         ShardConsumerMetricsReporter metrics =
                 assertNumberOfMessagesReceivedFromKinesis(44, kinesis, sequenceNumber);
-        assertEquals(1, metrics.getNumberOfAggregatedRecords());
-        assertEquals(10, metrics.getNumberOfDeaggregatedRecords());
+        assertThat(metrics.getNumberOfAggregatedRecords()).isEqualTo(1);
+        assertThat(metrics.getNumberOfDeaggregatedRecords()).isEqualTo(10);
 
         verify(kinesis).getShardIterator(any(), eq("AT_SEQUENCE_NUMBER"), eq("0"));
     }

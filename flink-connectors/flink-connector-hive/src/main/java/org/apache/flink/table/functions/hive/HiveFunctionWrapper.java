@@ -19,7 +19,9 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.Preconditions;
 
+import org.apache.hadoop.hive.ql.exec.SerializationUtilities;
 import org.apache.hadoop.hive.ql.exec.UDF;
 
 import java.io.Serializable;
@@ -36,6 +38,11 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
     public static final long serialVersionUID = 393313529306818205L;
 
     private final String className;
+    // a field to hold the string serialized for the UDF.
+    // we sometimes need to hold it in case of some serializable UDF will contain
+    // additional information such as Hive's GenericUDFMacro and if we construct the UDF directly by
+    // getUDFClass#newInstance, the information will be missed.
+    private String udfSerializedString;
 
     private transient UDFType instance = null;
 
@@ -44,15 +51,40 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
     }
 
     /**
+     * Create a HiveFunctionWrapper with a UDF instance. In this constructor, the instance will be
+     * serialized to string and held on in the HiveFunctionWrapper.
+     */
+    public HiveFunctionWrapper(String className, UDFType serializableInstance) {
+        this(className);
+        Preconditions.checkArgument(
+                serializableInstance.getClass().getName().equals(className),
+                String.format(
+                        "Expect the UDF is instance of %s, but is instance of %s.",
+                        className, serializableInstance.getClass().getName()));
+        Preconditions.checkArgument(
+                serializableInstance instanceof Serializable,
+                String.format(
+                        "The UDF %s should be an instance of Serializable.",
+                        serializableInstance.getClass().getName()));
+        // we need to use the SerializationUtilities#serializeObject to serialize UDF for the UDF
+        // may not be serialized by Java serializer
+        this.udfSerializedString =
+                SerializationUtilities.serializeObject((Serializable) serializableInstance);
+    }
+
+    /**
      * Instantiate a Hive function instance.
      *
      * @return a Hive function instance
      */
     public UDFType createFunction() {
-        if (instance != null) {
+        if (udfSerializedString != null) {
+            // deserialize the string to udf instance
+            return deserializeUDF();
+        } else if (instance != null) {
             return instance;
         } else {
-            UDFType func = null;
+            UDFType func;
             try {
                 func = getUDFClass().newInstance();
             } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
@@ -87,5 +119,21 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
      */
     public Class<UDFType> getUDFClass() throws ClassNotFoundException {
         return (Class<UDFType>) Thread.currentThread().getContextClassLoader().loadClass(className);
+    }
+
+    /**
+     * Deserialize UDF used the udfSerializedString held on.
+     *
+     * @return the UDF deserialized
+     */
+    private UDFType deserializeUDF() {
+        try {
+            return (UDFType)
+                    SerializationUtilities.deserializeObject(
+                            udfSerializedString, (Class<Serializable>) getUDFClass());
+        } catch (ClassNotFoundException e) {
+            throw new FlinkHiveUDFException(
+                    String.format("Failed to deserialize function %s.", className), e);
+        }
     }
 }

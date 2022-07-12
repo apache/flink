@@ -21,12 +21,9 @@ package org.apache.flink.streaming.api.operators.async;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -41,14 +38,12 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -488,8 +483,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
         DataStream<Integer> input = chainEnv.fromElements(1, 2, 3);
 
         input =
-                addAsyncOperatorLegacyChained(
-                        input, firstFunction, TIMEOUT, 6, AsyncDataStream.OutputMode.ORDERED);
+                AsyncDataStream.orderedWait(
+                        input, firstFunction, TIMEOUT, TimeUnit.MILLISECONDS, 6);
 
         // the map function is designed to chain after async function. we place an Integer object in
         // it and
@@ -517,8 +512,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
                         });
 
         input =
-                addAsyncOperatorLegacyChained(
-                        input, secondFunction, TIMEOUT, 3, AsyncDataStream.OutputMode.UNORDERED);
+                AsyncDataStream.unorderedWait(
+                        input, secondFunction, TIMEOUT, TimeUnit.MILLISECONDS, 3);
 
         input.map(
                         new MapFunction<Integer, Integer>() {
@@ -656,7 +651,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
     @SuppressWarnings("rawtypes")
     @Test
-    public void testStateSnapshotAndRestoreWithObjectReused() throws Exception {
+    public void testObjectReused() throws Exception {
         TypeSerializer[] fieldSerializers = new TypeSerializer[] {IntSerializer.INSTANCE};
         TupleSerializer<Tuple1> inputSerializer =
                 new TupleSerializer<>(Tuple1.class, fieldSerializers);
@@ -1099,39 +1094,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
         public void asyncInvoke(IN input, ResultFuture<OUT> resultFuture) throws Exception {
             // no op
         }
-    }
-
-    /**
-     * This helper function is needed to check that the temporary fix for FLINK-13063 can be
-     * backwards compatible with the old chaining behavior by setting the ChainingStrategy manually.
-     * TODO: remove after a proper fix for FLINK-13063 is in place that allows chaining.
-     */
-    private <IN, OUT> SingleOutputStreamOperator<OUT> addAsyncOperatorLegacyChained(
-            DataStream<IN> in,
-            AsyncFunction<IN, OUT> func,
-            long timeout,
-            int bufSize,
-            AsyncDataStream.OutputMode mode) {
-
-        TypeInformation<OUT> outTypeInfo =
-                TypeExtractor.getUnaryOperatorReturnType(
-                        func,
-                        AsyncFunction.class,
-                        0,
-                        1,
-                        new int[] {1, 0},
-                        in.getType(),
-                        Utils.getCallLocationName(),
-                        true);
-
-        // create transform
-        AsyncWaitOperatorFactory<IN, OUT> factory =
-                new AsyncWaitOperatorFactory<>(
-                        in.getExecutionEnvironment().clean(func), timeout, bufSize, mode);
-
-        factory.setChainingStrategy(ChainingStrategy.ALWAYS);
-
-        return in.transform("async wait operator", outTypeInfo, factory);
     }
 
     private static <OUT> OneInputStreamOperatorTestHarness<Integer, OUT> createTestHarness(

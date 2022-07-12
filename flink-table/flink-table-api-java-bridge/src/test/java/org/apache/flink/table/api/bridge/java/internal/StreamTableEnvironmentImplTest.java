@@ -32,7 +32,7 @@ import org.apache.flink.table.utils.ExecutorMock;
 import org.apache.flink.table.utils.PlannerMock;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -41,9 +41,9 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StreamTableEnvironmentImpl}. */
-public class StreamTableEnvironmentImplTest {
+class StreamTableEnvironmentImplTest {
     @Test
-    public void testAppendStreamDoesNotOverwriteTableConfig() {
+    void testAppendStreamDoesNotOverwriteTableConfig() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
 
@@ -58,7 +58,7 @@ public class StreamTableEnvironmentImplTest {
     }
 
     @Test
-    public void testRetractStreamDoesNotOverwriteTableConfig() {
+    void testRetractStreamDoesNotOverwriteTableConfig() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
 
@@ -80,7 +80,11 @@ public class StreamTableEnvironmentImplTest {
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
-                new FunctionCatalog(tableConfig, catalogManager, moduleManager),
+                new FunctionCatalog(
+                        tableConfig,
+                        catalogManager,
+                        moduleManager,
+                        StreamTableEnvironmentImplTest.class.getClassLoader()),
                 tableConfig,
                 env,
                 new TestPlanner(elements.getTransformation()),

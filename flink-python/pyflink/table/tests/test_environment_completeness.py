@@ -39,7 +39,6 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTest
         return {
             'getCompletionHints',
             'fromValues',
-            'create',
             # See FLINK-25986
             'loadPlan',
             'compilePlanSql',

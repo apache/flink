@@ -21,6 +21,8 @@ package org.apache.flink.formats.csv;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.connector.Projection;
+import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.GenericRowData;
@@ -35,7 +37,10 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -46,7 +51,7 @@ import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_TYPE;
 import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link CsvFormatFactory}. */
 public class CsvFormatFactoryTest extends TestLogger {
@@ -67,7 +72,7 @@ public class CsvFormatFactoryTest extends TestLogger {
                         .build();
         final Map<String, String> options = getAllOptions();
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
-        assertEquals(expectedDeser, actualDeser);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
 
         final CsvRowDataSerializationSchema expectedSer =
                 new CsvRowDataSerializationSchema.Builder(PHYSICAL_TYPE)
@@ -78,7 +83,7 @@ public class CsvFormatFactoryTest extends TestLogger {
                         .setNullLiteral("n/a")
                         .build();
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
-        assertEquals(expectedSer, actualSer);
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     @Test
@@ -103,7 +108,7 @@ public class CsvFormatFactoryTest extends TestLogger {
                         .build();
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
 
-        assertEquals(expectedDeser, actualDeser);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
 
         final CsvRowDataSerializationSchema expectedSer =
                 new CsvRowDataSerializationSchema.Builder(PHYSICAL_TYPE)
@@ -115,7 +120,7 @@ public class CsvFormatFactoryTest extends TestLogger {
                         .build();
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
 
-        assertEquals(expectedSer, actualSer);
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     @Test
@@ -174,23 +179,23 @@ public class CsvFormatFactoryTest extends TestLogger {
         SerializationSchema<RowData> serializationSchema1 = createSerializationSchema(options1);
         DeserializationSchema<RowData> deserializationSchema1 =
                 createDeserializationSchema(options1);
-        assertEquals(expectedSer, serializationSchema1);
-        assertEquals(expectedDeser, deserializationSchema1);
+        assertThat(serializationSchema1).isEqualTo(expectedSer);
+        assertThat(deserializationSchema1).isEqualTo(expectedDeser);
 
         final Map<String, String> options2 =
                 getModifiedOptions(opts -> opts.put("csv.field-delimiter", "\\t"));
         SerializationSchema<RowData> serializationSchema2 = createSerializationSchema(options2);
         DeserializationSchema<RowData> deserializationSchema2 =
                 createDeserializationSchema(options2);
-        assertEquals(expectedSer, serializationSchema2);
-        assertEquals(expectedDeser, deserializationSchema2);
+        assertThat(serializationSchema2).isEqualTo(expectedSer);
+        assertThat(deserializationSchema2).isEqualTo(expectedDeser);
 
         // test (de)serialization
         RowData rowData = GenericRowData.of(fromString("abc"), 123, false);
         byte[] bytes = serializationSchema2.serialize(rowData);
-        assertEquals("abc\t123\tfalse", new String(bytes));
+        assertThat(new String(bytes)).isEqualTo("abc\t123\tfalse");
         RowData actual = deserializationSchema2.deserialize("abc\t123\tfalse".getBytes());
-        assertEquals(rowData, actual);
+        assertThat(actual).isEqualTo(rowData);
     }
 
     @Test
@@ -199,17 +204,15 @@ public class CsvFormatFactoryTest extends TestLogger {
         final Map<String, String> options =
                 getModifiedOptions(opts -> opts.put("csv.field-delimiter", "\t"));
 
-        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
-        assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
         TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
-                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+                createDynamicTableSourceMock(options);
 
         DeserializationSchema<RowData> deserializationSchema =
                 sourceMock.valueFormat.createRuntimeDecoder(
                         ScanRuntimeProviderContext.INSTANCE, PHYSICAL_DATA_TYPE);
         RowData expected = GenericRowData.of(fromString("abc"), 123, false);
         RowData actual = deserializationSchema.deserialize("abc\t123\tfalse".getBytes());
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -225,6 +228,57 @@ public class CsvFormatFactoryTest extends TestLogger {
                 getModifiedOptions(opts -> opts.put("csv.ignore-parse-errors", "abc"));
 
         createTableSink(SCHEMA, options);
+    }
+
+    @Test
+    public void testProjectionPushdown() throws IOException {
+        final Map<String, String> options = getAllOptions();
+
+        final Projection projection =
+                Projection.fromFieldNames(PHYSICAL_DATA_TYPE, Collections.singletonList("c"));
+
+        final int[][] projectionMatrix = projection.toNestedIndexes();
+        DeserializationSchema<RowData> actualDeser =
+                createDeserializationSchema(options, projectionMatrix);
+
+        String data = "a1;2;false";
+        RowData deserialized = actualDeser.deserialize(data.getBytes());
+        GenericRowData expected = GenericRowData.of(false);
+
+        assertThat(deserialized).isEqualTo(expected);
+    }
+
+    @Test
+    public void testProjectionPushdownNoOpProjection() throws IOException {
+        final Map<String, String> options = getAllOptions();
+
+        List<String> fields = Arrays.asList("a", "b", "c");
+        final Projection projection = Projection.fromFieldNames(PHYSICAL_DATA_TYPE, fields);
+
+        final int[][] projectionMatrix = projection.toNestedIndexes();
+        DeserializationSchema<RowData> actualDeser =
+                createDeserializationSchema(options, projectionMatrix);
+
+        String data = "a1;2;false";
+        RowData deserialized = actualDeser.deserialize(data.getBytes());
+        GenericRowData expected = GenericRowData.of(fromString("a1"), 2, false);
+
+        assertThat(deserialized).isEqualTo(expected);
+    }
+
+    @Test
+    public void testProjectionPushdownEmptyProjection() throws IOException {
+        final Map<String, String> options = getAllOptions();
+
+        final int[][] projectionMatrix = new int[][] {};
+        DeserializationSchema<RowData> actualDeser =
+                createDeserializationSchema(options, projectionMatrix);
+
+        String data = "a1;2;false";
+        RowData deserialized = actualDeser.deserialize(data.getBytes());
+        GenericRowData expected = GenericRowData.of();
+
+        assertThat(deserialized).isEqualTo(expected);
     }
 
     // ------------------------------------------------------------------------
@@ -262,19 +316,36 @@ public class CsvFormatFactoryTest extends TestLogger {
 
     private static DeserializationSchema<RowData> createDeserializationSchema(
             Map<String, String> options) {
-        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
-        assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
         TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
-                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+                createDynamicTableSourceMock(options);
 
         return sourceMock.valueFormat.createRuntimeDecoder(
                 ScanRuntimeProviderContext.INSTANCE, PHYSICAL_DATA_TYPE);
     }
 
+    private static DeserializationSchema<RowData> createDeserializationSchema(
+            Map<String, String> options, int[][] projections) {
+        TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
+                createDynamicTableSourceMock(options);
+
+        ProjectableDecodingFormat<DeserializationSchema<RowData>> valueFormat =
+                (ProjectableDecodingFormat<DeserializationSchema<RowData>>) sourceMock.valueFormat;
+
+        return valueFormat.createRuntimeDecoder(
+                ScanRuntimeProviderContext.INSTANCE, PHYSICAL_DATA_TYPE, projections);
+    }
+
+    private static TestDynamicTableFactory.DynamicTableSourceMock createDynamicTableSourceMock(
+            Map<String, String> options) {
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
+        assertThat(actualSource).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
+        return (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+    }
+
     private static SerializationSchema<RowData> createSerializationSchema(
             Map<String, String> options) {
         final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
-        assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 

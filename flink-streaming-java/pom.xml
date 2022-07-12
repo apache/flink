@@ -26,7 +26,6 @@ under the License.
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
 		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-streaming-java</artifactId>
@@ -115,16 +114,6 @@ under the License.
 							<type>jar</type>
 						</dependency>
 					</oldVersion>
-				</configuration>
-			</plugin>
-
-			<!-- disable fork reuse for the streaming project, because of
-			incorrect declaration of tests -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<reuseForks>false</reuseForks>
 				</configuration>
 			</plugin>
 

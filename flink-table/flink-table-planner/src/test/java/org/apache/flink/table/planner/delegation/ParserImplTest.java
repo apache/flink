@@ -49,7 +49,7 @@ public class ParserImplTest {
                     plannerMocks.getCatalogManager(),
                     plannerSupplier,
                     () -> plannerSupplier.get().parser(),
-                    plannerMocks.getPlannerContext().getSqlExprToRexConverterFactory());
+                    plannerMocks.getPlannerContext().getRexFactory());
 
     private static final List<TestSpec> TEST_SPECS =
             Arrays.asList(

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
@@ -27,9 +26,7 @@ import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
-/**
-  * Test for [[ReplaceMinusWithAntiJoinRule]].
-  */
+/** Test for [[ReplaceMinusWithAntiJoinRule]]. */
 class ReplaceMinusWithAntiJoinRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()

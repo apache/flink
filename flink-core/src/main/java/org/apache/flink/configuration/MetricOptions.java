@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LineBreakElement.linebreak;
+import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Configuration options for metrics and metric reporters. */
@@ -65,8 +67,8 @@ public class MetricOptions {
                                     + " any of the names in the list will be started. Otherwise, all reporters that could be found in"
                                     + " the configuration will be started.");
 
-    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
-    @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 1)
+    /** @deprecated use {@link MetricOptions#REPORTER_FACTORY_CLASS} instead. */
+    @Deprecated
     public static final ConfigOption<String> REPORTER_CLASS =
             key("class")
                     .stringType()
@@ -88,7 +90,8 @@ public class MetricOptions {
             key("interval")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(10))
-                    .withDescription("The reporter interval to use for the reporter named <name>.");
+                    .withDescription(
+                            "The reporter interval to use for the reporter named <name>. Only applicable to push-based reporters.");
 
     @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
     @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 2)
@@ -106,7 +109,7 @@ public class MetricOptions {
                     .mapType()
                     .defaultValue(Collections.emptyMap())
                     .withDescription(
-                            "The map of additional variables that should be included for the reporter named <name>. Only applicable to tag-based reporters (e.g., PRometheus, InfluxDB).");
+                            "The map of additional variables that should be included for the reporter named <name>. Only applicable to tag-based reporters.");
 
     @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
     @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 3)
@@ -115,10 +118,99 @@ public class MetricOptions {
                     .stringType()
                     .defaultValue(".")
                     .withDescription(
-                            "The set of variables that should be excluded for the reporter named <name>. Only applicable to tag-based reporters (e.g., PRometheus, InfluxDB).");
+                            "The set of variables that should be excluded for the reporter named <name>. Only applicable to tag-based reporters.");
 
     @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
     @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 4)
+    public static final ConfigOption<List<String>> REPORTER_INCLUDES =
+            key("filter.includes")
+                    .stringType()
+                    .asList()
+                    .defaultValues("*:*:*")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The metrics that should be included for the reporter named <name>."
+                                                    + " Filters are specified as a list, with each filter following this format:")
+                                    .linebreak()
+                                    .text("%s", code("<scope>[:<name>[,<name>][:<type>[,<type>]]]"))
+                                    .linebreak()
+                                    .text(
+                                            "A metric matches a filter if the scope pattern and at least one of the name patterns and at least one of the types match.")
+                                    .linebreak()
+                                    .list(
+                                            text(
+                                                    "scope: Filters based on the logical scope.%s"
+                                                            + "Specified as a pattern where %s matches any sequence of characters and %s separates scope components.%s%s"
+                                                            + "For example:%s"
+                                                            + " \"%s\" matches any job-related metrics on the JobManager,%s"
+                                                            + " \"%s\" matches all job-related metrics and%s"
+                                                            + " \"%s\" matches all metrics below the job-level (i.e., task/operator metrics etc.).%s%s",
+                                                    linebreak(),
+                                                    code("*"),
+                                                    code("."),
+                                                    linebreak(),
+                                                    linebreak(),
+                                                    linebreak(),
+                                                    code("jobmanager.job"),
+                                                    linebreak(),
+                                                    code("*.job"),
+                                                    linebreak(),
+                                                    code("*.job.*"),
+                                                    linebreak(),
+                                                    linebreak()),
+                                            text(
+                                                    "name: Filters based on the metric name.%s"
+                                                            + "Specified as a comma-separate list of patterns where %s matches any sequence of characters.%s%s"
+                                                            + "For example, \"%s\" matches any metrics where the name contains %s.%s%s",
+                                                    linebreak(),
+                                                    code("*"),
+                                                    linebreak(),
+                                                    linebreak(),
+                                                    code("*Records*,*Bytes*"),
+                                                    code("\"Records\" or \"Bytes\""),
+                                                    linebreak(),
+                                                    linebreak()),
+                                            text(
+                                                    "type: Filters based on the metric type. Specified as a comma-separated list of metric types: %s",
+                                                    code("[counter, meter, gauge, histogram]")))
+                                    .text("Examples:")
+                                    .list(
+                                            text(
+                                                    "\"%s\" Matches metrics like %s.",
+                                                    code("*:numRecords*"), code("numRecordsIn")),
+                                            text(
+                                                    "\"%s\" Matches metrics like %s on the operator level.",
+                                                    code("*.job.task.operator:numRecords*"),
+                                                    code("numRecordsIn")),
+                                            text(
+                                                    "\"%s\" Matches meter metrics like %s on the operator level.",
+                                                    code("*.job.task.operator:numRecords*:meter"),
+                                                    code("numRecordsInPerSecond")),
+                                            text(
+                                                    "\"%s\" Matches all counter/meter metrics like or %s.",
+                                                    code("*:numRecords*,numBytes*:counter,meter"),
+                                                    code("numRecordsInPerSecond"),
+                                                    code("numBytesOut")))
+                                    .build());
+
+    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 5)
+    public static final ConfigOption<List<String>> REPORTER_EXCLUDES =
+            key("filter.excludes")
+                    .stringType()
+                    .asList()
+                    .defaultValues()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The metrics that should be excluded for the reporter named <name>. The format is identical to %s",
+                                            code(REPORTER_INCLUDES.key()))
+                                    .linebreak()
+                                    .build());
+
+    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 6)
     public static final ConfigOption<String> REPORTER_CONFIG_PARAMETER =
             key("<parameter>")
                     .stringType()
@@ -139,7 +231,7 @@ public class MetricOptions {
                     .stringType()
                     .defaultValue("<host>.jobmanager")
                     .withDescription(
-                            "Defines the scope format string that is applied to all metrics scoped to a JobManager.");
+                            "Defines the scope format string that is applied to all metrics scoped to a JobManager. Only effective when a identifier-based reporter is configured.");
 
     /** The scope format string that is applied to all metrics scoped to a TaskManager. */
     public static final ConfigOption<String> SCOPE_NAMING_TM =
@@ -147,7 +239,7 @@ public class MetricOptions {
                     .stringType()
                     .defaultValue("<host>.taskmanager.<tm_id>")
                     .withDescription(
-                            "Defines the scope format string that is applied to all metrics scoped to a TaskManager.");
+                            "Defines the scope format string that is applied to all metrics scoped to a TaskManager. Only effective when a identifier-based reporter is configured");
 
     /** The scope format string that is applied to all metrics scoped to a job on a JobManager. */
     public static final ConfigOption<String> SCOPE_NAMING_JM_JOB =
@@ -155,7 +247,7 @@ public class MetricOptions {
                     .stringType()
                     .defaultValue("<host>.jobmanager.<job_name>")
                     .withDescription(
-                            "Defines the scope format string that is applied to all metrics scoped to a job on a JobManager.");
+                            "Defines the scope format string that is applied to all metrics scoped to a job on a JobManager. Only effective when a identifier-based reporter is configured");
 
     /** The scope format string that is applied to all metrics scoped to a job on a TaskManager. */
     public static final ConfigOption<String> SCOPE_NAMING_TM_JOB =
@@ -163,7 +255,7 @@ public class MetricOptions {
                     .stringType()
                     .defaultValue("<host>.taskmanager.<tm_id>.<job_name>")
                     .withDescription(
-                            "Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager.");
+                            "Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager. Only effective when a identifier-based reporter is configured");
 
     /** The scope format string that is applied to all metrics scoped to a task. */
     public static final ConfigOption<String> SCOPE_NAMING_TASK =
@@ -172,7 +264,7 @@ public class MetricOptions {
                     .defaultValue(
                             "<host>.taskmanager.<tm_id>.<job_name>.<task_name>.<subtask_index>")
                     .withDescription(
-                            "Defines the scope format string that is applied to all metrics scoped to a task.");
+                            "Defines the scope format string that is applied to all metrics scoped to a task. Only effective when a identifier-based reporter is configured");
 
     /** The scope format string that is applied to all metrics scoped to an operator. */
     public static final ConfigOption<String> SCOPE_NAMING_OPERATOR =
@@ -181,7 +273,7 @@ public class MetricOptions {
                     .defaultValue(
                             "<host>.taskmanager.<tm_id>.<job_name>.<operator_name>.<subtask_index>")
                     .withDescription(
-                            "Defines the scope format string that is applied to all metrics scoped to an operator.");
+                            "Defines the scope format string that is applied to all metrics scoped to an operator. Only effective when a identifier-based reporter is configured");
 
     public static final ConfigOption<Long> LATENCY_INTERVAL =
             key("metrics.latency.interval")

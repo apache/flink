@@ -127,7 +127,6 @@ class MyUDF(ScalarFunction):
         self.meter = None
 
     def open(self, function_context):
-        super().open(function_context)
         # 120秒内统计的平均每秒事件数，默认是60秒
         self.meter = function_context.get_metric_group().meter("my_meter", time_span_in_seconds=120)
 
@@ -151,14 +150,14 @@ class MyUDF(ScalarFunction):
 {{< tab "Python" >}}
 ```python
 
-function_context
-    .get_metric_group()
-    .add_group("my_metrics")
+function_context \
+    .get_metric_group() \
+    .add_group("my_metrics") \
     .counter("my_counter")
 
-function_context
-    .get_metric_group()
-    .add_group("my_metrics_key", "my_metrics_value")
+function_context \
+    .get_metric_group() \
+    .add_group("my_metrics_key", "my_metrics_value") \
     .counter("my_counter")
 
 ```
@@ -182,9 +181,9 @@ function_context
 {{< tabs "6d0715c0-6c39-489a-b3f3-e9bf7d50c268" >}}
 {{< tab "Python" >}}
 ```python
-function_context
-    .get_metric_group()
-    .add_group("my_metrics_key", "my_metrics_value")
+function_context \
+    .get_metric_group() \
+    .add_group("my_metrics_key", "my_metrics_value") \
     .counter("my_counter")
 ```
 {{< /tab >}}

@@ -75,7 +75,7 @@ import org.apache.flink.runtime.rest.handler.async.OperationResult;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
+import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -115,7 +115,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * job submissions, persisting them, spawning JobManagers to execute the jobs and to recover them in
  * case of a master failure. Furthermore, it knows about the state of the Flink session cluster.
  */
-public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<DispatcherId>
+public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         implements DispatcherGateway {
 
     public static final String DISPATCHER_NAME = "dispatcher";
@@ -475,8 +475,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                         exception,
                         null,
                         System.currentTimeMillis());
-        archiveExecutionGraph(new ExecutionGraphInfo(archivedExecutionGraph));
-        return CompletableFuture.completedFuture(Acknowledge.get());
+        ExecutionGraphInfo executionGraphInfo = new ExecutionGraphInfo(archivedExecutionGraph);
+        writeToExecutionGraphInfoStore(executionGraphInfo);
+        return archiveExecutionGraphToHistoryServer(executionGraphInfo);
     }
 
     /**
@@ -612,10 +613,13 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                                         return handleJobManagerRunnerResult(
                                                 jobManagerRunnerResult, executionType);
                                     } else {
-                                        return jobManagerRunnerFailed(jobId, throwable);
+                                        return CompletableFuture.completedFuture(
+                                                jobManagerRunnerFailed(
+                                                        jobId, JobStatus.FAILED, throwable));
                                     }
                                 },
-                                getMainThreadExecutor());
+                                getMainThreadExecutor())
+                        .thenCompose(Function.identity());
 
         final CompletableFuture<Void> jobTerminationFuture =
                 cleanupJobStateFuture.thenCompose(
@@ -644,25 +648,52 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         return null;
     }
 
-    private CleanupJobState handleJobManagerRunnerResult(
+    private CompletableFuture<CleanupJobState> handleJobManagerRunnerResult(
             JobManagerRunnerResult jobManagerRunnerResult, ExecutionType executionType) {
         if (jobManagerRunnerResult.isInitializationFailure()
                 && executionType == ExecutionType.RECOVERY) {
-            return jobManagerRunnerFailed(
-                    jobManagerRunnerResult.getExecutionGraphInfo().getJobId(),
-                    jobManagerRunnerResult.getInitializationFailure());
+            // fail fatally to make the Dispatcher fail-over and recover all jobs once more (which
+            // can only happen in HA mode)
+            return CompletableFuture.completedFuture(
+                    jobManagerRunnerFailed(
+                            jobManagerRunnerResult.getExecutionGraphInfo().getJobId(),
+                            JobStatus.INITIALIZING,
+                            jobManagerRunnerResult.getInitializationFailure()));
         }
         return jobReachedTerminalState(jobManagerRunnerResult.getExecutionGraphInfo());
     }
 
-    enum CleanupJobState {
-        LOCAL,
-        GLOBAL
+    private static class CleanupJobState {
+
+        private final boolean globalCleanup;
+        private final JobStatus jobStatus;
+
+        public static CleanupJobState localCleanup(JobStatus jobStatus) {
+            return new CleanupJobState(false, jobStatus);
+        }
+
+        public static CleanupJobState globalCleanup(JobStatus jobStatus) {
+            return new CleanupJobState(true, jobStatus);
+        }
+
+        private CleanupJobState(boolean globalCleanup, JobStatus jobStatus) {
+            this.globalCleanup = globalCleanup;
+            this.jobStatus = jobStatus;
+        }
+
+        public boolean isGlobalCleanup() {
+            return globalCleanup;
+        }
+
+        public JobStatus getJobStatus() {
+            return jobStatus;
+        }
     }
 
-    private CleanupJobState jobManagerRunnerFailed(JobID jobId, Throwable throwable) {
+    private CleanupJobState jobManagerRunnerFailed(
+            JobID jobId, JobStatus jobStatus, Throwable throwable) {
         jobMasterFailed(jobId, throwable);
-        return CleanupJobState.LOCAL;
+        return CleanupJobState.localCleanup(jobStatus);
     }
 
     @Override
@@ -979,15 +1010,17 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     private CompletableFuture<Void> removeJob(JobID jobId, CleanupJobState cleanupJobState) {
-        switch (cleanupJobState) {
-            case LOCAL:
-                return localResourceCleaner.cleanupAsync(jobId);
-            case GLOBAL:
-                return globalResourceCleaner
-                        .cleanupAsync(jobId)
-                        .thenRun(() -> markJobAsClean(jobId));
-            default:
-                throw new IllegalStateException("Invalid cleanup state: " + cleanupJobState);
+        if (cleanupJobState.isGlobalCleanup()) {
+            return globalResourceCleaner
+                    .cleanupAsync(jobId)
+                    .thenRunAsync(() -> markJobAsClean(jobId), ioExecutor)
+                    .thenRunAsync(
+                            () ->
+                                    runPostJobGloballyTerminated(
+                                            jobId, cleanupJobState.getJobStatus()),
+                            getMainThreadExecutor());
+        } else {
+            return localResourceCleaner.cleanupAsync(jobId);
         }
     }
 
@@ -999,6 +1032,11 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         } catch (IOException e) {
             log.warn("Could not properly mark job {} result as clean.", jobId, e);
         }
+    }
+
+    protected void runPostJobGloballyTerminated(JobID jobId, JobStatus jobStatus) {
+        // no-op: we need to provide this method to enable the MiniDispatcher implementation to do
+        // stuff after the job is cleaned up
     }
 
     /** Terminate all currently running {@link JobManagerRunner}s. */
@@ -1030,7 +1068,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         fatalErrorHandler.onFatalError(throwable);
     }
 
-    protected CleanupJobState jobReachedTerminalState(ExecutionGraphInfo executionGraphInfo) {
+    @VisibleForTesting
+    protected CompletableFuture<CleanupJobState> jobReachedTerminalState(
+            ExecutionGraphInfo executionGraphInfo) {
         final ArchivedExecutionGraph archivedExecutionGraph =
                 executionGraphInfo.getArchivedExecutionGraph();
         final JobStatus terminalJobStatus = archivedExecutionGraph.getState();
@@ -1060,40 +1100,75 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                     terminalJobStatus);
         }
 
-        archiveExecutionGraph(executionGraphInfo);
+        writeToExecutionGraphInfoStore(executionGraphInfo);
 
-        if (terminalJobStatus.isGloballyTerminalState()) {
-            final JobID jobId = executionGraphInfo.getJobId();
-            try {
-                if (jobResultStore.hasCleanJobResultEntry(jobId)) {
-                    log.warn(
-                            "Job {} is already marked as clean but clean up was triggered again.",
-                            jobId);
-                } else if (!jobResultStore.hasDirtyJobResultEntry(jobId)) {
-                    jobResultStore.createDirtyResult(
-                            new JobResultEntry(
-                                    JobResult.createFrom(
-                                            executionGraphInfo.getArchivedExecutionGraph())));
-                    log.info(
-                            "Job {} has been registered for cleanup in the JobResultStore after reaching a terminal state.",
-                            jobId);
-                }
-            } catch (IOException e) {
-                fatalErrorHandler.onFatalError(
-                        new FlinkException(
-                                String.format(
-                                        "The job %s couldn't be marked as pre-cleanup finished in JobResultStore.",
-                                        jobId),
-                                e));
-            }
+        if (!terminalJobStatus.isGloballyTerminalState()) {
+            return CompletableFuture.completedFuture(
+                    CleanupJobState.localCleanup(terminalJobStatus));
         }
 
-        return terminalJobStatus.isGloballyTerminalState()
-                ? CleanupJobState.GLOBAL
-                : CleanupJobState.LOCAL;
+        // do not create an archive for suspended jobs, as this would eventually lead to
+        // multiple archive attempts which we currently do not support
+        CompletableFuture<Acknowledge> archiveFuture =
+                archiveExecutionGraphToHistoryServer(executionGraphInfo);
+
+        return archiveFuture.thenCompose(
+                ignored -> registerGloballyTerminatedJobInJobResultStore(executionGraphInfo));
     }
 
-    private void archiveExecutionGraph(ExecutionGraphInfo executionGraphInfo) {
+    private CompletableFuture<CleanupJobState> registerGloballyTerminatedJobInJobResultStore(
+            ExecutionGraphInfo executionGraphInfo) {
+        final CompletableFuture<Void> writeFuture = new CompletableFuture<>();
+        final JobID jobId = executionGraphInfo.getJobId();
+
+        final ArchivedExecutionGraph archivedExecutionGraph =
+                executionGraphInfo.getArchivedExecutionGraph();
+
+        final JobStatus terminalJobStatus = archivedExecutionGraph.getState();
+        Preconditions.checkArgument(
+                terminalJobStatus.isGloballyTerminalState(),
+                "Job %s is in state %s which is not globally terminal.",
+                jobId,
+                terminalJobStatus);
+
+        ioExecutor.execute(
+                () -> {
+                    try {
+                        if (jobResultStore.hasCleanJobResultEntry(jobId)) {
+                            log.warn(
+                                    "Job {} is already marked as clean but clean up was triggered again.",
+                                    jobId);
+                        } else if (!jobResultStore.hasDirtyJobResultEntry(jobId)) {
+                            jobResultStore.createDirtyResult(
+                                    new JobResultEntry(
+                                            JobResult.createFrom(archivedExecutionGraph)));
+                            log.info(
+                                    "Job {} has been registered for cleanup in the JobResultStore after reaching a terminal state.",
+                                    jobId);
+                        }
+                    } catch (IOException e) {
+                        writeFuture.completeExceptionally(e);
+                        return;
+                    }
+                    writeFuture.complete(null);
+                });
+
+        return writeFuture.handleAsync(
+                (ignored, error) -> {
+                    if (error != null) {
+                        fatalErrorHandler.onFatalError(
+                                new FlinkException(
+                                        String.format(
+                                                "The job %s couldn't be marked as pre-cleanup finished in JobResultStore.",
+                                                executionGraphInfo.getJobId()),
+                                        error));
+                    }
+                    return CleanupJobState.globalCleanup(terminalJobStatus);
+                },
+                getMainThreadExecutor());
+    }
+
+    private void writeToExecutionGraphInfoStore(ExecutionGraphInfo executionGraphInfo) {
         try {
             executionGraphInfoStore.put(executionGraphInfo);
         } catch (IOException e) {
@@ -1103,24 +1178,25 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                     executionGraphInfo.getArchivedExecutionGraph().getJobID(),
                     e);
         }
+    }
 
-        // do not create an archive for suspended jobs, as this would eventually lead to multiple
-        // archive attempts which we currently do not support
-        if (executionGraphInfo.getArchivedExecutionGraph().getState().isGloballyTerminalState()) {
-            final CompletableFuture<Acknowledge> executionGraphFuture =
-                    historyServerArchivist.archiveExecutionGraph(executionGraphInfo);
+    private CompletableFuture<Acknowledge> archiveExecutionGraphToHistoryServer(
+            ExecutionGraphInfo executionGraphInfo) {
 
-            executionGraphFuture.whenComplete(
-                    (Acknowledge ignored, Throwable throwable) -> {
-                        if (throwable != null) {
-                            log.info(
-                                    "Could not archive completed job {}({}) to the history server.",
-                                    executionGraphInfo.getArchivedExecutionGraph().getJobName(),
-                                    executionGraphInfo.getArchivedExecutionGraph().getJobID(),
-                                    throwable);
-                        }
-                    });
-        }
+        return historyServerArchivist
+                .archiveExecutionGraph(executionGraphInfo)
+                .handleAsync(
+                        (Acknowledge ignored, Throwable throwable) -> {
+                            if (throwable != null) {
+                                log.info(
+                                        "Could not archive completed job {}({}) to the history server.",
+                                        executionGraphInfo.getArchivedExecutionGraph().getJobName(),
+                                        executionGraphInfo.getArchivedExecutionGraph().getJobID(),
+                                        throwable);
+                            }
+                            return Acknowledge.get();
+                        },
+                        getMainThreadExecutor());
     }
 
     private void jobMasterFailed(JobID jobId, Throwable cause) {
@@ -1215,15 +1291,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 getMainThreadExecutor());
     }
 
+    @VisibleForTesting
     CompletableFuture<Void> getJobTerminationFuture(JobID jobId) {
-        if (jobManagerRunnerRegistry.isRegistered(jobId)) {
-            return FutureUtils.completedExceptionally(
-                    new DispatcherException(
-                            String.format("Job with job id %s is still running.", jobId)));
-        } else {
-            return jobManagerRunnerTerminationFutures.getOrDefault(
-                    jobId, CompletableFuture.completedFuture(null));
-        }
+        return jobManagerRunnerTerminationFutures.getOrDefault(
+                jobId, CompletableFuture.completedFuture(null));
     }
 
     private void registerDispatcherMetrics(MetricGroup jobManagerMetricGroup) {

@@ -43,9 +43,12 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -57,6 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -83,9 +87,13 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /** Tests to verify state assignment operation. */
 public class StateAssignmentOperationTest extends TestLogger {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static final int MAX_P = 256;
 
@@ -738,6 +746,46 @@ public class StateAssignmentOperationTest extends TestLogger {
     }
 
     @Test
+    public void testOnlyUpstreamChannelStateAssignment()
+            throws JobException, JobExecutionException {
+        // given: There is only input channel state for one subpartition.
+        List<OperatorID> operatorIds = buildOperatorIds(2);
+        Map<OperatorID, OperatorState> states = new HashMap<>();
+        Random random = new Random();
+        OperatorState upstreamState = new OperatorState(operatorIds.get(0), 2, MAX_P);
+        OperatorSubtaskState state =
+                OperatorSubtaskState.builder()
+                        .setResultSubpartitionState(
+                                new StateObjectCollection<>(
+                                        asList(
+                                                createNewResultSubpartitionStateHandle(10, random),
+                                                createNewResultSubpartitionStateHandle(
+                                                        10, random))))
+                        .build();
+        upstreamState.putState(0, state);
+
+        states.put(operatorIds.get(0), upstreamState);
+
+        Map<OperatorID, ExecutionJobVertex> vertices =
+                buildVertices(operatorIds, 3, RANGE, ROUND_ROBIN);
+
+        // when: States are assigned.
+        new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false)
+                .assignStates();
+
+        // then: All subtask have not null TaskRestore information(even if it is empty).
+        ExecutionJobVertex jobVertexWithFinishedOperator = vertices.get(operatorIds.get(0));
+        for (ExecutionVertex task : jobVertexWithFinishedOperator.getTaskVertices()) {
+            assertNotNull(task.getCurrentExecutionAttempt().getTaskRestore());
+        }
+
+        ExecutionJobVertex jobVertexWithoutFinishedOperator = vertices.get(operatorIds.get(1));
+        for (ExecutionVertex task : jobVertexWithoutFinishedOperator.getTaskVertices()) {
+            assertNotNull(task.getCurrentExecutionAttempt().getTaskRestore());
+        }
+    }
+
+    @Test
     public void testStateWithFullyFinishedOperators() throws JobException, JobExecutionException {
         List<OperatorID> operatorIds = buildOperatorIds(2);
         Map<OperatorID, OperatorState> states =
@@ -926,7 +974,9 @@ public class StateAssignmentOperationTest extends TestLogger {
             throws JobException, JobExecutionException {
         JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(jobVertices);
         ExecutionGraph eg =
-                TestingDefaultExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setJobGraph(jobGraph)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         return Arrays.stream(jobVertices)
                 .collect(
                         Collectors.toMap(

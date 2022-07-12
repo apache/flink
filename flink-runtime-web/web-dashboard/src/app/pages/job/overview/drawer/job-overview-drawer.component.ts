@@ -22,9 +22,9 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { combineLatest, Subject } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
 
-import { JobChartService } from 'share/customize/job-chart/job-chart.service';
+import { JobChartService } from '@flink-runtime-web/share/customize/job-chart/job-chart.service';
 
-import { JobService } from 'services';
+import { JobLocalService } from '../../job-local.service';
 
 @Component({
   selector: 'flink-job-overview-drawer',
@@ -69,13 +69,13 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
   constructor(
     private readonly activatedRoute: ActivatedRoute,
     private readonly router: Router,
-    private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
     private readonly jobChartService: JobChartService
   ) {}
 
   public ngOnInit(): void {
     const nodeId$ = this.activatedRoute.params.pipe(map(item => item.vertexId));
-    combineLatest([this.jobService.jobDetail$.pipe(map(item => item.plan.nodes)), nodeId$])
+    combineLatest([this.jobLocalService.jobDetailChanges().pipe(map(item => item.plan.nodes)), nodeId$])
       .pipe(takeUntil(this.destroy$))
       .subscribe(([nodes, nodeId]) => {
         if (!this.activatedRoute.firstChild) {
@@ -84,7 +84,7 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
           this.cachePath = this.activatedRoute.firstChild.snapshot.data.path;
         }
         if (nodes && nodeId) {
-          this.jobService.selectedVertex$.next(nodes.find(item => item.id === nodeId));
+          this.jobLocalService.setSelectedVertex(nodes.find(item => item.id === nodeId) || null);
         }
       });
   }
@@ -92,7 +92,7 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
   public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.jobService.selectedVertex$.next(null);
+    this.jobLocalService.setSelectedVertex(null);
   }
 
   public closeDrawer(): void {

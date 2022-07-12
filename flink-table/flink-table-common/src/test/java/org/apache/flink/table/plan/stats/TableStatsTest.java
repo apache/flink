@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.stats;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,10 +26,10 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link TableStats}. */
-public class TableStatsTest {
+class TableStatsTest {
 
     @Test
-    public void testMerge() {
+    void testMerge() {
         Map<String, ColumnStats> colStats1 = new HashMap<>();
         colStats1.put("a", new ColumnStats(4L, 5L, 2D, 3, 15, 2));
         TableStats stats1 = new TableStats(30, colStats1);
@@ -44,7 +44,7 @@ public class TableStatsTest {
     }
 
     @Test
-    public void testMergeLackColumnStats() {
+    void testMergeLackColumnStats() {
         Map<String, ColumnStats> colStats1 = new HashMap<>();
         colStats1.put("a", new ColumnStats(4L, 5L, 2D, 3, 15, 2));
         colStats1.put("b", new ColumnStats(4L, 5L, 2D, 3, 15, 2));
@@ -60,7 +60,7 @@ public class TableStatsTest {
     }
 
     @Test
-    public void testMergeUnknownRowCount() {
+    void testMergeUnknownRowCount() {
         TableStats stats1 = new TableStats(-1, new HashMap<>());
         TableStats stats2 = new TableStats(32, new HashMap<>());
         assertThat(stats1.merge(stats2)).isEqualTo(new TableStats(-1, new HashMap<>()));
@@ -75,7 +75,7 @@ public class TableStatsTest {
     }
 
     @Test
-    public void testMergeColumnStatsUnknown() {
+    void testMergeColumnStatsUnknown() {
         ColumnStats columnStats0 = new ColumnStats(4L, 5L, 2D, 3, 15, 2);
         ColumnStats columnStats1 = new ColumnStats(4L, null, 2D, 3, 15, 2);
         ColumnStats columnStats2 = new ColumnStats(4L, 5L, 2D, null, 15, 2);

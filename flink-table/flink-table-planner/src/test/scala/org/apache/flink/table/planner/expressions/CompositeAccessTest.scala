@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.api._
@@ -92,10 +91,14 @@ class CompositeAccessTest extends CompositeTypeTestBase {
     testAllApis('f9.at(2).get("_1"), "f9[2]._1", "NULL")
     testAllApis('f10.at(1).get("stringField"), "f10[1].stringField", "Bob")
     testAllApis('f11.at(1).get("myString"), "f11[1].myString", "Hello")
-    testAllApis('f12.at(1).get("arrayField").at(1).get("stringField"),
-      "f12[1].arrayField[1].stringField", "Alice")
+    testAllApis(
+      'f12.at(1).get("arrayField").at(1).get("stringField"),
+      "f12[1].arrayField[1].stringField",
+      "Alice")
 
-    testAllApis('f13.at(1).get("objectField").get("stringField"), "f13[1].objectField.stringField",
+    testAllApis(
+      'f13.at(1).get("objectField").get("stringField"),
+      "f13[1].objectField.stringField",
       "Bob")
   }
 }

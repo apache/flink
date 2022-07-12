@@ -24,6 +24,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.TestBaseUtils.TupleComparator;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;

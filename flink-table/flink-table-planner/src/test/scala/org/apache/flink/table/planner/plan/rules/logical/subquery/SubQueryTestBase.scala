@@ -23,9 +23,7 @@ import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableConfigUtil
 
 import org.apache.calcite.sql2rel.SqlToRelConverter
 
-/**
-  * Tests for [[org.apache.flink.table.planner.plan.rules.logical.FlinkSubQueryRemoveRule]].
-  */
+/** Tests for [[org.apache.flink.table.planner.plan.rules.logical.FlinkSubQueryRemoveRule]]. */
 class SubQueryTestBase extends TableTestBase {
   protected val util: BatchTableTestUtil = batchTestUtil()
 
@@ -33,7 +31,8 @@ class SubQueryTestBase extends TableTestBase {
   var calciteConfig = TableConfigUtils.getCalciteConfig(util.tableEnv.getConfig)
   val builder = CalciteConfig.createBuilder(calciteConfig)
   builder.replaceSqlToRelConverterConfig(
-    SqlToRelConverter.config()
+    SqlToRelConverter
+      .config()
       .withTrimUnusedFields(false)
       .withExpand(false)
       .withInSubQueryThreshold(3))

@@ -17,12 +17,15 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.changelog.fs.StateChangeUploadScheduler.UploadTask;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.util.clock.Clock;
@@ -40,6 +43,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.core.fs.FileSystem.WriteMode.NO_OVERWRITE;
 
@@ -47,8 +52,10 @@ import static org.apache.flink.core.fs.FileSystem.WriteMode.NO_OVERWRITE;
  * A synchronous {@link StateChangeUploadScheduler} implementation that uploads the changes using
  * {@link FileSystem}.
  */
-class StateChangeFsUploader implements StateChangeUploader {
+public class StateChangeFsUploader implements StateChangeUploader {
     private static final Logger LOG = LoggerFactory.getLogger(StateChangeFsUploader.class);
+
+    @VisibleForTesting public static final String PATH_SUB_DIR = "dstl";
 
     private final Path basePath;
     private final FileSystem fileSystem;
@@ -57,20 +64,53 @@ class StateChangeFsUploader implements StateChangeUploader {
     private final int bufferSize;
     private final ChangelogStorageMetricGroup metrics;
     private final Clock clock;
+    private final TaskChangelogRegistry changelogRegistry;
+    private final BiFunction<Path, Long, StreamStateHandle> handleFactory;
 
+    @VisibleForTesting
     public StateChangeFsUploader(
+            JobID jobID,
             Path basePath,
             FileSystem fileSystem,
             boolean compression,
             int bufferSize,
-            ChangelogStorageMetricGroup metrics) {
-        this.basePath = basePath;
+            ChangelogStorageMetricGroup metrics,
+            TaskChangelogRegistry changelogRegistry) {
+        this(
+                jobID,
+                basePath,
+                fileSystem,
+                compression,
+                bufferSize,
+                metrics,
+                changelogRegistry,
+                FileStateHandle::new);
+    }
+
+    public StateChangeFsUploader(
+            JobID jobID,
+            Path basePath,
+            FileSystem fileSystem,
+            boolean compression,
+            int bufferSize,
+            ChangelogStorageMetricGroup metrics,
+            TaskChangelogRegistry changelogRegistry,
+            BiFunction<Path, Long, StreamStateHandle> handleFactory) {
+        this.basePath =
+                new Path(basePath, String.format("%s/%s", jobID.toHexString(), PATH_SUB_DIR));
         this.fileSystem = fileSystem;
         this.format = new StateChangeFormat();
         this.compression = compression;
         this.bufferSize = bufferSize;
         this.metrics = metrics;
         this.clock = SystemClock.getInstance();
+        this.changelogRegistry = changelogRegistry;
+        this.handleFactory = handleFactory;
+    }
+
+    @VisibleForTesting
+    public Path getBasePath() {
+        return this.basePath;
     }
 
     public UploadTasksResult upload(Collection<UploadTask> tasks) throws IOException {
@@ -114,7 +154,13 @@ class StateChangeFsUploader implements StateChangeUploader {
                 for (UploadTask task : tasks) {
                     tasksOffsets.put(task, format.write(stream, task.changeSets));
                 }
-                FileStateHandle handle = new FileStateHandle(path, stream.getPos());
+                StreamStateHandle handle = handleFactory.apply(path, stream.getPos());
+                changelogRegistry.startTracking(
+                        handle,
+                        tasks.stream()
+                                .flatMap(t -> t.getChangeSets().stream())
+                                .map(StateChangeSet::getLogId)
+                                .collect(Collectors.toSet()));
                 // WARN: streams have to be closed before returning the results
                 // otherwise JM may receive invalid handles
                 return new UploadTasksResult(tasksOffsets, handle);

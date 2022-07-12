@@ -58,10 +58,14 @@ print(table.get_schema())
 在作业运行的过程中，日志信息会打印在 `TaskManager` 的日志文件中。
 
 ```python
+from pyflink.table import DataTypes
+from pyflink.table.udf import udf
+
+import logging
+
 @udf(result_type=DataTypes.BIGINT())
 def add(i, j):
     # 使用 logging 模块
-    import logging
     logging.info("debug")
     # 使用 print 函数
     print('debug')

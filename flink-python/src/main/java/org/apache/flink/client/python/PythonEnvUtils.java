@@ -171,12 +171,33 @@ final class PythonEnvUtils {
                                         originalFileName = archivePath.getName();
                                     } else {
                                         archivePath = new Path(archive);
-                                        targetDirName = archivePath.getName();
-                                        originalFileName = targetDirName;
+                                        originalFileName = archivePath.getName();
+                                        targetDirName = originalFileName;
                                     }
+
+                                    Path localArchivePath = archivePath;
+                                    try {
+                                        if (archivePath.getFileSystem().isDistributedFS()) {
+                                            localArchivePath =
+                                                    new Path(
+                                                            env.tempDirectory,
+                                                            String.join(
+                                                                    File.separator,
+                                                                    UUID.randomUUID().toString(),
+                                                                    originalFileName));
+                                            FileUtils.copy(archivePath, localArchivePath, false);
+                                        }
+                                    } catch (IOException e) {
+                                        String msg =
+                                                String.format(
+                                                        "Error occurred when copying %s to %s.",
+                                                        archivePath, localArchivePath);
+                                        throw new RuntimeException(msg, e);
+                                    }
+
                                     try {
                                         CompressionUtils.extractFile(
-                                                archivePath.getPath(),
+                                                localArchivePath.getPath(),
                                                 String.join(
                                                         File.separator,
                                                         env.archivesDirectory,
@@ -484,9 +505,9 @@ final class PythonEnvUtils {
     /** The shutdown hook used to destroy the Python process. */
     public static class PythonProcessShutdownHook extends Thread {
 
-        private Process process;
-        private GatewayServer gatewayServer;
-        private String tmpDir;
+        private final Process process;
+        private final GatewayServer gatewayServer;
+        private final String tmpDir;
 
         public PythonProcessShutdownHook(
                 Process process, GatewayServer gatewayServer, String tmpDir) {

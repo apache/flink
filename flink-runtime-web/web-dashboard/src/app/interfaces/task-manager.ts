@@ -17,7 +17,7 @@
  */
 
 export interface TaskManagerList {
-  taskmanagers: TaskmanagersItem[];
+  taskmanagers: TaskManagersItem[];
 }
 
 export interface TaskManagerDetail {
@@ -38,7 +38,12 @@ export interface TaskManagerLogItem {
   mtime: number;
 }
 
-export interface TaskmanagersItem {
+export interface TaskManagerLogDetail {
+  data: string;
+  url: string;
+}
+
+export interface TaskManagersItem {
   id: string;
   path: string;
   dataPort: number;

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions.validation
 
 import org.apache.flink.table.api._
@@ -57,9 +56,7 @@ class ArrayTypeValidationTest extends ArrayTypeTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testElementNonArraySql(): Unit = {
-    testSqlApi(
-      "ELEMENT(f0)",
-      "FAIL")
+    testSqlApi("ELEMENT(f0)", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])

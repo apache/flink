@@ -21,13 +21,13 @@ package org.apache.flink.table.api;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TableDescriptor}. */
-public class TableDescriptorTest {
+class TableDescriptorTest {
 
     private static final ConfigOption<Boolean> OPTION_A =
             ConfigOptions.key("a").booleanType().noDefaultValue();
@@ -39,7 +39,7 @@ public class TableDescriptorTest {
             ConfigOptions.key("key.format").stringType().noDefaultValue();
 
     @Test
-    public void testBasic() {
+    void testBasic() {
         final Schema schema =
                 Schema.newBuilder()
                         .column("f0", DataTypes.STRING())
@@ -67,13 +67,13 @@ public class TableDescriptorTest {
     }
 
     @Test
-    public void testNoSchema() {
+    void testNoSchema() {
         final TableDescriptor descriptor = TableDescriptor.forConnector("test-connector").build();
         assertThat(descriptor.getSchema()).isNotPresent();
     }
 
     @Test
-    public void testOptions() {
+    void testOptions() {
         final TableDescriptor descriptor =
                 TableDescriptor.forConnector("test-connector")
                         .schema(Schema.newBuilder().build())
@@ -90,7 +90,7 @@ public class TableDescriptorTest {
     }
 
     @Test
-    public void testFormatBasic() {
+    void testFormatBasic() {
         final TableDescriptor descriptor =
                 TableDescriptor.forConnector("test-connector")
                         .schema(Schema.newBuilder().build())
@@ -103,7 +103,7 @@ public class TableDescriptorTest {
     }
 
     @Test
-    public void testFormatWithFormatDescriptor() {
+    void testFormatWithFormatDescriptor() {
         final TableDescriptor descriptor =
                 TableDescriptor.forConnector("test-connector")
                         .schema(Schema.newBuilder().build())
@@ -125,7 +125,7 @@ public class TableDescriptorTest {
     }
 
     @Test
-    public void testToString() {
+    void testToString() {
         final Schema schema = Schema.newBuilder().column("f0", DataTypes.STRING()).build();
 
         final FormatDescriptor formatDescriptor =
@@ -157,7 +157,7 @@ public class TableDescriptorTest {
     }
 
     @Test
-    public void testFormatDescriptorWithPrefix() {
+    void testFormatDescriptorWithPrefix() {
         assertThatThrownBy(
                         () -> {
                             TableDescriptor.forConnector("test-connector")

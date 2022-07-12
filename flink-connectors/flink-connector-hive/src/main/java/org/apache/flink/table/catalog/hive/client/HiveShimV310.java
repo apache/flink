@@ -48,7 +48,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /** Shim for Hive version 3.1.0. */
-public class HiveShimV310 extends HiveShimV235 {
+public class HiveShimV310 extends HiveShimV239 {
 
     // timestamp classes
     private static Class hiveTimestampClz;
@@ -140,9 +140,21 @@ public class HiveShimV310 extends HiveShimV235 {
     }
 
     @Override
+    public Class<?> getDateWritableClass() {
+        initDateTimeClasses();
+        return dateWritableConstructor.getDeclaringClass();
+    }
+
+    @Override
     public Class<?> getTimestampDataTypeClass() {
         initDateTimeClasses();
         return hiveTimestampClz;
+    }
+
+    @Override
+    public Class<?> getTimestampWritableClass() {
+        initDateTimeClasses();
+        return timestampWritableConstructor.getDeclaringClass();
     }
 
     @Override

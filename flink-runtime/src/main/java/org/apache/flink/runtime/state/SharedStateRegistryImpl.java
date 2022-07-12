@@ -19,17 +19,24 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -50,6 +57,9 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
 
     /** Executor for async state deletion */
     private final Executor asyncDisposalExecutor;
+
+    /** Checkpoint ID below which no state is discarded, inclusive. */
+    private long highestNotClaimedCheckpointID = -1L;
 
     /** Default uses direct executor to delete unreferenced state */
     public SharedStateRegistryImpl() {
@@ -133,7 +143,8 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
     }
 
     @Override
-    public void unregisterUnusedState(long lowestCheckpointID) {
+    public Set<Long> unregisterUnusedState(long lowestCheckpointID) {
+        Set<Long> checkpointInUse = new HashSet<>();
         LOG.debug(
                 "Discard state created before checkpoint {} and not used afterwards",
                 lowestCheckpointID);
@@ -147,16 +158,20 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
             while (it.hasNext()) {
                 SharedStateEntry entry = it.next();
                 if (entry.lastUsedCheckpointID < lowestCheckpointID) {
-                    subsumed.add(entry.stateHandle);
+                    if (entry.createdByCheckpointID > highestNotClaimedCheckpointID) {
+                        subsumed.add(entry.stateHandle);
+                    }
                     it.remove();
+                } else {
+                    checkpointInUse.add(entry.createdByCheckpointID);
                 }
             }
         }
-
         LOG.trace("Discard {} state asynchronously", subsumed.size());
         for (StreamStateHandle handle : subsumed) {
             scheduleAsyncDelete(handle);
         }
+        return checkpointInUse;
     }
 
     @Override
@@ -171,6 +186,20 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
             for (CompositeStateHandle stateHandle : stateHandles) {
                 stateHandle.registerSharedStates(this, checkpointID);
             }
+        }
+    }
+
+    @Override
+    public void registerAllAfterRestored(CompletedCheckpoint checkpoint, RestoreMode mode) {
+        registerAll(checkpoint.getOperatorStates().values(), checkpoint.getCheckpointID());
+        // In NO_CLAIM and LEGACY restore modes, shared state of the initial checkpoints must be
+        // preserved. This is achieved by advancing highestRetainCheckpointID here, and then
+        // checking entry.createdByCheckpointID against it on checkpoint subsumption.
+        // In CLAIM restore mode, the shared state of the initial checkpoints must be
+        // discarded as soon as it becomes unused - so highestRetainCheckpointID is not updated.
+        if (mode != RestoreMode.CLAIM) {
+            highestNotClaimedCheckpointID =
+                    Math.max(highestNotClaimedCheckpointID, checkpoint.getCheckpointID());
         }
     }
 
@@ -251,6 +280,8 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
         /** The shared state handle */
         StreamStateHandle stateHandle;
 
+        private final long createdByCheckpointID;
+
         private long lastUsedCheckpointID;
 
         /** Whether this entry is included into a confirmed checkpoint. */
@@ -258,6 +289,7 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
 
         SharedStateEntry(StreamStateHandle value, long checkpointID) {
             this.stateHandle = value;
+            this.createdByCheckpointID = checkpointID;
             this.lastUsedCheckpointID = checkpointID;
         }
 
@@ -266,6 +298,8 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
             return "SharedStateEntry{"
                     + "stateHandle="
                     + stateHandle
+                    + ", createdByCheckpointID="
+                    + createdByCheckpointID
                     + ", lastUsedCheckpointID="
                     + lastUsedCheckpointID
                     + '}';
@@ -273,6 +307,62 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
 
         private void advanceLastUsingCheckpointID(long checkpointID) {
             lastUsedCheckpointID = Math.max(checkpointID, lastUsedCheckpointID);
+        }
+    }
+
+    /** An object with empty discardState for registering. */
+    public static class EmptyDiscardStateObjectForRegister implements StreamStateHandle {
+        private static final long serialVersionUID = 1L;
+
+        private StateHandleID stateHandleID;
+
+        public EmptyDiscardStateObjectForRegister(StateHandleID stateHandleID) {
+            this.stateHandleID = stateHandleID;
+        }
+
+        @Override
+        public void discardState() throws Exception {}
+
+        @Override
+        public long getStateSize() {
+            throw new UnsupportedOperationException("Should not call here.");
+        }
+
+        @Override
+        public FSDataInputStream openInputStream() throws IOException {
+            throw new UnsupportedOperationException("Should not call here.");
+        }
+
+        @Override
+        public Optional<byte[]> asBytesIfInMemory() {
+            throw new UnsupportedOperationException("Should not call here.");
+        }
+
+        @Override
+        public PhysicalStateHandleID getStreamStateHandleID() {
+            throw new UnsupportedOperationException("Should not call here.");
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            EmptyDiscardStateObjectForRegister that = (EmptyDiscardStateObjectForRegister) o;
+            return Objects.equals(stateHandleID, that.stateHandleID);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(stateHandleID);
+        }
+
+        @Override
+        public String toString() {
+            return "EmptyDiscardStateObject{" + stateHandleID + '}';
         }
     }
 }

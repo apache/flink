@@ -39,8 +39,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link AbstractFetcher}. */
 @SuppressWarnings("serial")
@@ -84,8 +83,8 @@ public class AbstractFetcherTest {
                         }
                     });
 
-            assertTrue(fetcher.getLastCommittedOffsets().isPresent());
-            assertEquals(Collections.emptyMap(), fetcher.getLastCommittedOffsets().get());
+            assertThat(fetcher.getLastCommittedOffsets()).isPresent();
+            assertThat(fetcher.getLastCommittedOffsets().get()).isEmpty();
         }
     }
 
@@ -116,20 +115,15 @@ public class AbstractFetcherTest {
 
         emitRecord(fetcher, 1L, partitionStateHolder, 1L);
         emitRecord(fetcher, 2L, partitionStateHolder, 2L);
-        assertEquals(2L, sourceContext.getLatestElement().getValue().longValue());
-        assertEquals(2L, partitionStateHolder.getOffset());
+        assertThat(sourceContext.getLatestElement().getValue().longValue()).isEqualTo(2L);
+        assertThat(partitionStateHolder.getOffset()).isEqualTo(2L);
 
         // emit no records
         fetcher.emitRecordsWithTimestamps(emptyQueue(), partitionStateHolder, 3L, Long.MIN_VALUE);
-        assertEquals(
-                2L,
-                sourceContext
-                        .getLatestElement()
-                        .getValue()
-                        .longValue()); // the null record should be skipped
-        assertEquals(
-                3L,
-                partitionStateHolder.getOffset()); // the offset in state still should have advanced
+        assertThat(sourceContext.getLatestElement().getValue().longValue())
+                .isEqualTo(2L); // the null record should be skipped
+        assertThat(partitionStateHolder.getOffset())
+                .isEqualTo(3L); // the offset in state still should have advanced
     }
 
     @Test

@@ -16,37 +16,51 @@
 # limitations under the License.
 ################################################################################
 import abc
+from typing import cast
 
 from pyflink.common import Row
 from pyflink.common.serializer import VoidNamespaceSerializer
 from pyflink.datastream import TimeDomain, RuntimeContext
+from pyflink.datastream.functions import BroadcastProcessFunction
+from pyflink.datastream.window import WindowOperationDescriptor
 from pyflink.fn_execution import pickle
-from pyflink.fn_execution.datastream.process_function import \
-    InternalKeyedProcessFunctionOnTimerContext, InternalKeyedProcessFunctionContext, \
-    InternalProcessFunctionContext
+from pyflink.fn_execution.datastream.process_function import (
+    InternalKeyedProcessFunctionOnTimerContext,
+    InternalKeyedProcessFunctionContext,
+    InternalProcessFunctionContext,
+    InternalBroadcastProcessFunctionContext,
+    InternalReadOnlyBroadcastProcessFunctionContext,
+)
 from pyflink.fn_execution.datastream.runtime_context import StreamingRuntimeContext
 from pyflink.fn_execution.datastream.window.window_operator import WindowOperator
 from pyflink.fn_execution.datastream.timerservice_impl import (
-    TimerServiceImpl, InternalTimerServiceImpl, NonKeyedTimerServiceImpl)
-from pyflink.fn_execution.datastream.input_handler import (RunnerInputHandler, TimerHandler,
-                                                           _emit_results)
+    TimerServiceImpl,
+    InternalTimerServiceImpl,
+    NonKeyedTimerServiceImpl,
+)
+from pyflink.fn_execution.datastream.input_handler import (
+    RunnerInputHandler,
+    TimerHandler,
+    _emit_results,
+)
 from pyflink.metrics.metricbase import GenericMetricGroup
-
 
 DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:ds:stateless_function:v1"
 DATA_STREAM_STATEFUL_FUNCTION_URN = "flink:transform:ds:stateful_function:v1"
 
 
 class Operation(abc.ABC):
-
-    def __init__(self, serialized_fn):
+    def __init__(self, serialized_fn, operator_state_backend=None):
         if serialized_fn.metric_enabled:
             self.base_metric_group = GenericMetricGroup(None, None)
         else:
             self.base_metric_group = None
+        self.operator_state_backend = operator_state_backend
 
     def finish(self):
         self._update_gauge(self.base_metric_group)
+        if self.operator_state_backend is not None:
+            self.operator_state_backend.commit()
 
     def _update_gauge(self, base_metric_group):
         if base_metric_group is not None:
@@ -68,15 +82,19 @@ class Operation(abc.ABC):
 
 
 class StatelessOperation(Operation):
-
-    def __init__(self, serialized_fn):
-        super(StatelessOperation, self).__init__(serialized_fn)
-        self.open_func, self.close_func, self.process_element_func = \
-            extract_stateless_function(
-                user_defined_function_proto=serialized_fn,
-                runtime_context=StreamingRuntimeContext.of(
-                    serialized_fn.runtime_context,
-                    self.base_metric_group))
+    def __init__(self, serialized_fn, operator_state_backend):
+        super(StatelessOperation, self).__init__(serialized_fn, operator_state_backend)
+        (
+            self.open_func,
+            self.close_func,
+            self.process_element_func,
+        ) = extract_stateless_function(
+            user_defined_function_proto=serialized_fn,
+            runtime_context=StreamingRuntimeContext.of(
+                serialized_fn.runtime_context, self.base_metric_group
+            ),
+            operator_state_store=operator_state_backend,
+        )
 
     def open(self):
         self.open_func()
@@ -89,19 +107,24 @@ class StatelessOperation(Operation):
 
 
 class StatefulOperation(Operation):
-
-    def __init__(self, serialized_fn, keyed_state_backend):
-        super(StatefulOperation, self).__init__(serialized_fn)
+    def __init__(self, serialized_fn, keyed_state_backend, operator_state_backend):
+        super(StatefulOperation, self).__init__(serialized_fn, operator_state_backend)
         self.keyed_state_backend = keyed_state_backend
-        self.open_func, self.close_func, self.process_element_func, self.process_timer_func, \
-            self.internal_timer_service = \
-            extract_stateful_function(
-                user_defined_function_proto=serialized_fn,
-                runtime_context=StreamingRuntimeContext.of(
-                    serialized_fn.runtime_context,
-                    self.base_metric_group,
-                    self.keyed_state_backend),
-                keyed_state_backend=self.keyed_state_backend)
+        (
+            self.open_func,
+            self.close_func,
+            self.process_element_func,
+            self.process_timer_func,
+            self.internal_timer_service,
+        ) = extract_stateful_function(
+            user_defined_function_proto=serialized_fn,
+            runtime_context=StreamingRuntimeContext.of(
+                serialized_fn.runtime_context,
+                self.base_metric_group,
+                self.keyed_state_backend,
+            ),
+            keyed_state_backend=self.keyed_state_backend,
+        )
 
     def finish(self):
         super().finish()
@@ -123,20 +146,25 @@ class StatefulOperation(Operation):
         self.internal_timer_service.add_timer_info(timer_info)
 
 
-def extract_stateless_function(user_defined_function_proto, runtime_context: RuntimeContext):
+def extract_stateless_function(
+    user_defined_function_proto, runtime_context: RuntimeContext, operator_state_store
+):
     """
     Extracts user-defined-function from the proto representation of a
     :class:`Function`.
 
     :param user_defined_function_proto: the proto representation of the Python :class:`Function`
     :param runtime_context: the streaming runtime context
+    :param operator_state_store: operator state store for getting broadcast states
     """
     from pyflink.fn_execution import flink_fn_execution_pb2
 
     func_type = user_defined_function_proto.function_type
+    has_side_output = user_defined_function_proto.has_side_output
     UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
 
     if func_type == UserDefinedDataStreamFunction.REVISE_OUTPUT:
+
         def open_func():
             pass
 
@@ -173,7 +201,7 @@ def extract_stateless_function(user_defined_function_proto, runtime_context: Run
                 ctx.set_timestamp(timestamp)
                 ctx.timer_service().advance_watermark(watermark)
                 results = process_element(value[2], ctx)
-                yield from _emit_results(timestamp, watermark, results)
+                yield from _emit_results(timestamp, watermark, results, has_side_output)
 
             process_element_func = wrapped_func
 
@@ -195,7 +223,41 @@ def extract_stateless_function(user_defined_function_proto, runtime_context: Run
                 else:
                     results = process_element2(normal_data[2], ctx)
 
-                yield from _emit_results(timestamp, watermark, results)
+                yield from _emit_results(timestamp, watermark, results, has_side_output)
+
+            process_element_func = wrapped_func
+
+        elif func_type == UserDefinedDataStreamFunction.CO_BROADCAST_PROCESS:
+            user_defined_func = cast(BroadcastProcessFunction, user_defined_func)
+            process_element = user_defined_func.process_element
+            process_broadcast_element = user_defined_func.process_broadcast_element
+            broadcast_ctx = InternalBroadcastProcessFunctionContext(
+                NonKeyedTimerServiceImpl(), operator_state_store
+            )
+            read_only_broadcast_ctx = InternalReadOnlyBroadcastProcessFunctionContext(
+                NonKeyedTimerServiceImpl(), operator_state_store
+            )
+
+            def wrapped_func(value):
+                # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK,
+                #   [isNormal, broadcastInput, normalInput]]
+                timestamp = value[0]
+                watermark = value[1]
+                broadcast_ctx.set_timestamp(timestamp)
+                cast(
+                    TimerServiceImpl, broadcast_ctx.timer_service()
+                ).advance_watermark(watermark)
+                read_only_broadcast_ctx.set_timestamp(timestamp)
+                cast(
+                    TimerServiceImpl, read_only_broadcast_ctx.timer_service()
+                ).advance_watermark(watermark)
+
+                data = value[2]
+                if data[0]:
+                    results = process_element(data[1], read_only_broadcast_ctx)
+                else:
+                    results = process_broadcast_element(data[2], broadcast_ctx)
+                yield from _emit_results(timestamp, watermark, results, has_side_output)
 
             process_element_func = wrapped_func
 
@@ -205,13 +267,14 @@ def extract_stateless_function(user_defined_function_proto, runtime_context: Run
     return open_func, close_func, process_element_func
 
 
-def extract_stateful_function(user_defined_function_proto,
-                              runtime_context: RuntimeContext,
-                              keyed_state_backend):
+def extract_stateful_function(
+    user_defined_function_proto, runtime_context: RuntimeContext, keyed_state_backend
+):
     from pyflink.fn_execution import flink_fn_execution_pb2
 
     func_type = user_defined_function_proto.function_type
     user_defined_func = pickle.loads(user_defined_function_proto.payload)
+    has_side_output = user_defined_function_proto.has_side_output
     internal_timer_service = InternalTimerServiceImpl(keyed_state_backend)
 
     def state_key_selector(normal_data):
@@ -224,8 +287,10 @@ def extract_stateful_function(user_defined_function_proto,
         return normal_data[1]
 
     UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
-    if func_type in (UserDefinedDataStreamFunction.KEYED_PROCESS,
-                     UserDefinedDataStreamFunction.KEYED_CO_PROCESS):
+    if func_type in (
+        UserDefinedDataStreamFunction.KEYED_PROCESS,
+        UserDefinedDataStreamFunction.KEYED_CO_PROCESS,
+    ):
         timer_service = TimerServiceImpl(internal_timer_service)
         ctx = InternalKeyedProcessFunctionContext(timer_service)
         on_timer_ctx = InternalKeyedProcessFunctionOnTimerContext(timer_service)
@@ -263,7 +328,9 @@ def extract_stateful_function(user_defined_function_proto,
                 ctx.set_timestamp(timestamp)
                 ctx.set_current_key(user_key_selector(normal_data))
                 keyed_state_backend.set_current_key(state_key_selector(normal_data))
-                return process_function.process_element(input_selector(normal_data), ctx)
+                return process_function.process_element(
+                    input_selector(normal_data), ctx
+                )
 
         elif func_type == UserDefinedDataStreamFunction.KEYED_CO_PROCESS:
 
@@ -279,18 +346,25 @@ def extract_stateful_function(user_defined_function_proto,
                 keyed_state_backend.set_current_key(state_key_selector(user_input))
 
                 if is_left:
-                    return process_function.process_element1(input_selector(user_input), ctx)
+                    return process_function.process_element1(
+                        input_selector(user_input), ctx
+                    )
                 else:
-                    return process_function.process_element2(input_selector(user_input), ctx)
+                    return process_function.process_element2(
+                        input_selector(user_input), ctx
+                    )
 
         else:
             raise Exception("Unsupported func_type: " + str(func_type))
 
     elif func_type == UserDefinedDataStreamFunction.WINDOW:
-        window_operation_descriptor = user_defined_func
+        window_operation_descriptor = (
+            user_defined_func
+        )  # type: WindowOperationDescriptor
         window_assigner = window_operation_descriptor.assigner
         window_trigger = window_operation_descriptor.trigger
         allowed_lateness = window_operation_descriptor.allowed_lateness
+        late_data_output_tag = window_operation_descriptor.late_data_output_tag
         window_state_descriptor = window_operation_descriptor.window_state_descriptor
         internal_window_function = window_operation_descriptor.internal_window_function
         window_serializer = window_operation_descriptor.window_serializer
@@ -304,7 +378,9 @@ def extract_stateful_function(user_defined_function_proto,
             window_state_descriptor,
             internal_window_function,
             window_trigger,
-            allowed_lateness)
+            allowed_lateness,
+            late_data_output_tag,
+        )
         internal_timer_service.set_namespace_serializer(window_serializer)
 
         def open_func():
@@ -315,7 +391,9 @@ def extract_stateful_function(user_defined_function_proto,
 
         def process_element(normal_data, timestamp: int):
             keyed_state_backend.set_current_key(state_key_selector(normal_data))
-            return window_operator.process_element(input_selector(normal_data), timestamp)
+            return window_operator.process_element(
+                input_selector(normal_data), timestamp
+            )
 
         def on_event_time(timestamp: int, key, namespace):
             keyed_state_backend.set_current_key(key)
@@ -328,16 +406,22 @@ def extract_stateful_function(user_defined_function_proto,
     else:
         raise Exception("Unsupported function_type: " + str(func_type))
 
-    input_handler = RunnerInputHandler(
-        internal_timer_service,
-        process_element)
+    input_handler = RunnerInputHandler(internal_timer_service, process_element, has_side_output)
     process_element_func = input_handler.process_element
 
     timer_handler = TimerHandler(
         internal_timer_service,
         on_event_time,
         on_processing_time,
-        keyed_state_backend._namespace_coder_impl)
+        keyed_state_backend._namespace_coder_impl,
+        has_side_output
+    )
     process_timer_func = timer_handler.process_timer
 
-    return open_func, close_func, process_element_func, process_timer_func, internal_timer_service
+    return (
+        open_func,
+        close_func,
+        process_element_func,
+        process_timer_func,
+        internal_timer_service,
+    )

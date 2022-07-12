@@ -179,6 +179,11 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
     }
 
     @Override
+    public Optional<SlotInfo> getSlotInformation(AllocationID allocationID) {
+        return Optional.ofNullable(registeredSlots.get(allocationID));
+    }
+
+    @Override
     public Collection<FreeSlotInfo> getFreeSlotsInformation() {
         final Map<ResourceID, Integer> freeSlotsPerTaskExecutor = new HashMap<>();
 

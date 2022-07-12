@@ -191,6 +191,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
 
         final AggregateInfoList localAggInfoList =
                 AggregateUtil.transformToStreamAggregateInfoList(
+                        planner.getTypeFactory(),
                         localAggInputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         aggCallNeedRetractions,
@@ -200,6 +201,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                         true); // needDistinctInfo
         final AggregateInfoList globalAggInfoList =
                 AggregateUtil.transformToStreamAggregateInfoList(
+                        planner.getTypeFactory(),
                         localAggInputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         aggCallNeedRetractions,
@@ -215,7 +217,8 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                         grouping.length,
                         localAggInfoList.getAccTypes(),
                         config,
-                        planner.getRelBuilder());
+                        planner.getFlinkContext().getClassLoader(),
+                        planner.createRelBuilder());
 
         final GeneratedAggsHandleFunction globalAggsHandler =
                 generateAggsHandler(
@@ -224,7 +227,8 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                         0, // mergedAccOffset
                         localAggInfoList.getAccTypes(),
                         config,
-                        planner.getRelBuilder());
+                        planner.getFlinkContext().getClassLoader(),
+                        planner.createRelBuilder());
 
         final int indexOfCountStar = globalAggInfoList.getIndexOfCountStar();
         final LogicalType[] globalAccTypes =
@@ -236,7 +240,8 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                         .map(LogicalTypeDataTypeConverter::fromDataTypeToLogicalType)
                         .toArray(LogicalType[]::new);
         final GeneratedRecordEqualiser recordEqualiser =
-                new EqualiserCodeGenerator(globalAggValueTypes)
+                new EqualiserCodeGenerator(
+                                globalAggValueTypes, planner.getFlinkContext().getClassLoader())
                         .generateRecordEqualiser("GroupAggValueEqualiser");
 
         final OneInputStreamOperator<RowData, RowData> operator;
@@ -271,7 +276,10 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
 
         // set KeyType and Selector for state
         final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(),
+                        grouping,
+                        InternalTypeInfo.of(inputRowType));
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
 
@@ -284,6 +292,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
             int mergedAccOffset,
             DataType[] mergedAccExternalTypes,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             RelBuilder relBuilder) {
 
         // For local aggregate, the result will be buffered, so copyInputField is true.
@@ -292,7 +301,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
         // then multi-put to state, so copyInputField is true.
         AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(config, classLoader),
                         relBuilder,
                         JavaScalaConversionUtil.toScala(localAggInputRowType.getChildren()),
                         true);

@@ -32,12 +32,8 @@ public class JavaCodeSplitter {
 
     public static String split(String code, int maxMethodLength, int maxClassMemberCount) {
         try {
-            if (code.length() <= maxMethodLength) {
-                return code;
-            }
             return splitImpl(code, maxMethodLength, maxClassMemberCount);
         } catch (Throwable t) {
-            System.out.println(code);
             throw new RuntimeException(
                     "JavaCodeSplitter failed. This is a bug. Please file an issue.", t);
         }
@@ -45,8 +41,12 @@ public class JavaCodeSplitter {
 
     private static String splitImpl(String code, int maxMethodLength, int maxClassMemberCount) {
         checkArgument(code != null && !code.isEmpty(), "code cannot be empty");
-        checkArgument(maxMethodLength > 0);
-        checkArgument(maxClassMemberCount > 0);
+        checkArgument(maxMethodLength > 0, "maxMethodLength must be greater than 0");
+        checkArgument(maxClassMemberCount > 0, "maxClassMemberCount must be greater than 0");
+
+        if (code.length() <= maxMethodLength) {
+            return code;
+        }
 
         String returnValueRewrittenCode = new ReturnValueRewriter(code, maxMethodLength).rewrite();
         return Optional.ofNullable(

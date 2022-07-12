@@ -117,8 +117,8 @@ public class HiveTestUtils {
             String warehouseDir = TEMPORARY_FOLDER.newFolder().getAbsolutePath() + "/metastore_db";
             String warehouseUri = String.format(HIVE_WAREHOUSE_URI_FORMAT, warehouseDir);
 
+            HiveConf.setHiveSiteLocation(classLoader.getResource(HiveCatalog.HIVE_SITE_FILE));
             HiveConf hiveConf = new HiveConf();
-            hiveConf.addResource(classLoader.getResource(HiveCatalog.HIVE_SITE_FILE));
             hiveConf.setVar(
                     HiveConf.ConfVars.METASTOREWAREHOUSE,
                     TEMPORARY_FOLDER.newFolder("hive_warehouse").getAbsolutePath());

@@ -21,12 +21,15 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.strategy.VertexwiseSchedulingStrategy;
+
+import java.util.concurrent.ScheduledExecutorService;
 
 /** A utility class to create {@link AdaptiveBatchScheduler} instances for testing. */
 public class AdaptiveBatchSchedulerTestUtils {
@@ -41,8 +44,10 @@ public class AdaptiveBatchSchedulerTestUtils {
                 JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM.defaultValue();
 
         public AdaptiveBatchSchedulerBuilder(
-                JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
-            super(jobGraph, mainThreadExecutor);
+                JobGraph jobGraph,
+                ComponentMainThreadExecutor mainThreadExecutor,
+                ScheduledExecutorService executorService) {
+            super(jobGraph, mainThreadExecutor, executorService);
             setSchedulingStrategyFactory(new VertexwiseSchedulingStrategy.Factory());
         }
 
@@ -68,7 +73,8 @@ public class AdaptiveBatchSchedulerTestUtils {
                             blobWriter,
                             shuffleMaster,
                             partitionTracker,
-                            true);
+                            true,
+                            new ExecutionJobVertex.Factory());
 
             return new AdaptiveBatchScheduler(
                     log,
@@ -84,7 +90,7 @@ public class AdaptiveBatchSchedulerTestUtils {
                     schedulingStrategyFactory,
                     failoverStrategyFactory,
                     restartBackoffTimeStrategy,
-                    executionVertexOperations,
+                    executionOperations,
                     executionVertexVersioner,
                     executionSlotAllocatorFactory,
                     System.currentTimeMillis(),

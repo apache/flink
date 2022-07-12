@@ -41,7 +41,10 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.TaskInputsOutputsDescriptor;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -49,6 +52,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -56,6 +60,9 @@ import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link SsgNetworkMemoryCalculationUtils}. */
 public class SsgNetworkMemoryCalculationUtilsTest {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static final TestShuffleMaster SHUFFLE_MASTER = new TestShuffleMaster();
 
@@ -180,7 +187,8 @@ public class SsgNetworkMemoryCalculationUtilsTest {
                                 -1,
                                 consumerMaxParallelism,
                                 distributionPattern,
-                                true);
+                                true,
+                                EXECUTOR_RESOURCE.getExecutor());
 
         final Iterator<ExecutionJobVertex> vertexIterator =
                 eg.getVerticesTopologically().iterator();
@@ -215,7 +223,7 @@ public class SsgNetworkMemoryCalculationUtilsTest {
                 .setJobGraph(jobGraph)
                 .setVertexParallelismStore(vertexParallelismStore)
                 .setShuffleMaster(SHUFFLE_MASTER)
-                .buildDynamicGraph();
+                .buildDynamicGraph(EXECUTOR_RESOURCE.getExecutor());
     }
 
     private void createExecutionGraphAndEnrichNetworkMemory(
@@ -223,7 +231,7 @@ public class SsgNetworkMemoryCalculationUtilsTest {
         TestingDefaultExecutionGraphBuilder.newBuilder()
                 .setJobGraph(createStreamingGraph(slotSharingGroups, Arrays.asList(4, 5, 6)))
                 .setShuffleMaster(SHUFFLE_MASTER)
-                .build();
+                .build(EXECUTOR_RESOURCE.getExecutor());
     }
 
     private static JobGraph createStreamingGraph(
@@ -262,7 +270,7 @@ public class SsgNetworkMemoryCalculationUtilsTest {
         map.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, resultPartitionType);
         sink.connectNewDataSetAsInput(map, DistributionPattern.ALL_TO_ALL, resultPartitionType);
 
-        if (resultPartitionType.isPipelined()) {
+        if (!resultPartitionType.isBlockingOrBlockingPersistentResultPartition()) {
             return JobGraphTestUtils.streamingJobGraph(source, map, sink);
 
         } else {

@@ -50,7 +50,8 @@ public final class TimerRegistration {
             InternalTimerService internalTimerService,
             KeyContext keyContext,
             TypeSerializer namespaceSerializer,
-            TypeSerializer<Row> timerDataSerializer) {
+            TypeSerializer<Row> timerDataSerializer)
+            throws Exception {
         this.keyedStateBackend = keyedStateBackend;
         this.internalTimerService = internalTimerService;
         this.keyContext = keyContext;

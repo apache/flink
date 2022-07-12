@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.table.validation
 
 import org.apache.flink.api.scala._
@@ -27,9 +26,9 @@ import org.junit.Test
 
 class GroupWindowValidationTest extends TableTestBase {
 
-  //===============================================================================================
+  // ===============================================================================================
   // Common test
-  //===============================================================================================
+  // ===============================================================================================
 
   @Test(expected = classOf[ValidationException])
   def testGroupByWithoutWindowAlias(): Unit = {
@@ -37,7 +36,7 @@ class GroupWindowValidationTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
 
     table
-      .window(Tumble over 5.milli on 'long as 'w)
+      .window(Tumble.over(5.milli).on('long).as('w))
       .groupBy('string)
       .select('string, 'int.count)
   }
@@ -48,17 +47,17 @@ class GroupWindowValidationTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
 
     table
-      .window(Tumble over 5.milli on 'long as 'w)
+      .window(Tumble.over(5.milli).on('long).as('w))
       .groupBy('w, 'string)
       .select('string, 'int.count)
-      .window(Slide over 5.milli every 1.milli on 'int as 'w2) // 'Int  does not exist in input.
+      .window(Slide.over(5.milli).every(1.milli).on('int).as('w2)) // 'Int  does not exist in input.
       .groupBy('w2)
       .select('string)
   }
 
-  //===============================================================================================
+  // ===============================================================================================
   // Tumbling Windows
-  //===============================================================================================
+  // ===============================================================================================
 
   @Test(expected = classOf[ValidationException])
   def testInvalidProcessingTimeDefinition(): Unit = {
@@ -89,7 +88,7 @@ class GroupWindowValidationTest extends TableTestBase {
     val myWeightedAvg = new WeightedAvgWithMerge
 
     table
-      .window(Tumble over 2.minutes on 'rowtime as 'w)
+      .window(Tumble.over(2.minutes).on('rowtime).as('w))
       .groupBy('w, 'long)
       // invalid function arguments
       .select(myWeightedAvg('int, 'string))
@@ -103,15 +102,15 @@ class GroupWindowValidationTest extends TableTestBase {
     val myWeightedAvg = new WeightedAvgWithMerge
 
     table
-      .window(Tumble over 2.minutes on 'rowtime as 'w)
+      .window(Tumble.over(2.minutes).on('rowtime).as('w))
       .groupBy('w)
       // invalid function arguments
       .select(myWeightedAvg('int, 'string))
   }
 
-  //===============================================================================================
+  // ===============================================================================================
   // Sliding Windows
-  //===============================================================================================
+  // ===============================================================================================
 
   @Test(expected = classOf[ValidationException])
   def testSlidingGroupWindowWithInvalidUdAggArgs(): Unit = {
@@ -121,7 +120,7 @@ class GroupWindowValidationTest extends TableTestBase {
     val myWeightedAvg = new WeightedAvgWithMerge
 
     table
-      .window(Slide over 2.minutes every 1.minute on 'rowtime as 'w)
+      .window(Slide.over(2.minutes).every(1.minute).on('rowtime).as('w))
       .groupBy('w, 'long)
       // invalid function arguments
       .select(myWeightedAvg('int, 'string))
@@ -135,7 +134,7 @@ class GroupWindowValidationTest extends TableTestBase {
     val myWeightedAvg = new WeightedAvgWithMerge
 
     table
-      .window(Slide over 2.minutes every 1.minute on 'long as 'w)
+      .window(Slide.over(2.minutes).every(1.minute).on('long).as('w))
       .groupBy('w)
       // invalid function arguments
       .select(myWeightedAvg('int, 'string))
@@ -149,7 +148,7 @@ class GroupWindowValidationTest extends TableTestBase {
     val myWeightedAvg = new WeightedAvgWithMerge
 
     table
-      .window(Session withGap 2.minutes on 'rowtime as 'w)
+      .window(Session.withGap(2.minutes).on('rowtime).as('w))
       .groupBy('w, 'long)
       // invalid function arguments
       .select(myWeightedAvg('int, 'string))
@@ -163,7 +162,7 @@ class GroupWindowValidationTest extends TableTestBase {
     val myWeightedAvg = new WeightedAvgWithMerge
 
     table
-      .window(Session withGap 2.minutes on 'rowtime as 'w)
+      .window(Session.withGap(2.minutes).on('rowtime).as('w))
       .groupBy('w)
       // invalid function arguments
       .select(myWeightedAvg('int, 'string))

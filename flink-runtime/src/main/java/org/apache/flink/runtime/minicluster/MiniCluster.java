@@ -87,6 +87,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
+import org.apache.flink.runtime.security.token.KerberosDelegationTokenManagerFactory;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
@@ -187,6 +189,9 @@ public class MiniCluster implements AutoCloseableAsync {
 
     @GuardedBy("lock")
     private HeartbeatServices heartbeatServices;
+
+    @GuardedBy("lock")
+    private DelegationTokenManager delegationTokenManager;
 
     @GuardedBy("lock")
     private BlobCacheService blobCacheService;
@@ -416,6 +421,13 @@ public class MiniCluster implements AutoCloseableAsync {
 
                 heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
+                delegationTokenManager =
+                        KerberosDelegationTokenManagerFactory.create(
+                                getClass().getClassLoader(),
+                                configuration,
+                                commonRpcService.getScheduledExecutor(),
+                                ioExecutor);
+
                 blobCacheService =
                         BlobUtils.createBlobCacheService(
                                 configuration,
@@ -491,6 +503,7 @@ public class MiniCluster implements AutoCloseableAsync {
                         dispatcherResourceManagerComponentRpcServiceFactory,
                         blobServer,
                         heartbeatServices,
+                        delegationTokenManager,
                         metricRegistry,
                         metricQueryServiceRetriever,
                         new ShutDownFatalErrorHandler()));
@@ -509,6 +522,7 @@ public class MiniCluster implements AutoCloseableAsync {
                     RpcServiceFactory rpcServiceFactory,
                     BlobServer blobServer,
                     HeartbeatServices heartbeatServices,
+                    DelegationTokenManager delegationTokenManager,
                     MetricRegistry metricRegistry,
                     MetricQueryServiceRetriever metricQueryServiceRetriever,
                     FatalErrorHandler fatalErrorHandler)
@@ -525,6 +539,7 @@ public class MiniCluster implements AutoCloseableAsync {
                         haServices,
                         blobServer,
                         heartbeatServices,
+                        delegationTokenManager,
                         metricRegistry,
                         new MemoryExecutionGraphInfoStore(),
                         metricQueryServiceRetriever,

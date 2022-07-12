@@ -29,6 +29,7 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -53,6 +54,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
             UUID leaderSessionId,
             ResourceID resourceId,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
             JobLeaderIdService jobLeaderIdService,
@@ -67,6 +69,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
                 leaderSessionId,
                 resourceId,
                 heartbeatServices,
+                delegationTokenManager,
                 slotManager,
                 clusterPartitionTrackerFactory,
                 jobLeaderIdService,

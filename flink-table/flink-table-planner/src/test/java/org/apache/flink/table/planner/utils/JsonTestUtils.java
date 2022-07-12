@@ -41,8 +41,4 @@ public final class JsonTestUtils {
         return ((ObjectNode) target)
                 .set("flinkVersion", OBJECT_MAPPER_INSTANCE.valueToTree(flinkVersion.toString()));
     }
-
-    public static JsonNode clearFlinkVersion(JsonNode target) {
-        return ((ObjectNode) target).remove("flinkVersion");
-    }
 }

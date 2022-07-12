@@ -26,7 +26,6 @@ under the License.
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-rpc</artifactId>
 		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-rpc-akka</artifactId>

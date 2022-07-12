@@ -20,26 +20,25 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalOverAggregate, FlinkLogicalRank}
 import org.apache.flink.table.planner.plan.utils.RankUtil
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapClassLoader, unwrapTableConfig}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankType}
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rex.{RexInputRef, RexProgramBuilder, RexUtil}
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
 
 import scala.collection.JavaConversions._
 
 /**
-  * Planner rule that matches a [[FlinkLogicalCalc]] on a [[FlinkLogicalOverAggregate]],
-  * and converts them into a [[FlinkLogicalRank]].
-  */
+ * Planner rule that matches a [[FlinkLogicalCalc]] on a [[FlinkLogicalOverAggregate]], and converts
+ * them into a [[FlinkLogicalRank]].
+ */
 abstract class FlinkLogicalRankRuleBase
   extends RelOptRule(
-    operand(classOf[FlinkLogicalCalc],
-      operand(classOf[FlinkLogicalOverAggregate], any()))) {
+    operand(classOf[FlinkLogicalCalc], operand(classOf[FlinkLogicalOverAggregate], any()))) {
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val calc: FlinkLogicalCalc = call.rel(0)
@@ -57,7 +56,8 @@ abstract class FlinkLogicalRankRuleBase
       predicate,
       rankFieldIndex,
       calc.getCluster.getRexBuilder,
-      tableConfig)
+      tableConfig,
+      unwrapClassLoader(calc))
     require(rankRange.isDefined)
 
     val cluster = window.getCluster
@@ -123,7 +123,8 @@ abstract class FlinkLogicalRankRuleBase
         remainingPreds.orNull,
         calc.getRowType,
         true, // normalize
-        null) // simplify
+        null
+      ) // simplify
 
       calc.copy(calc.getTraitSet, rank, programBuilder.getProgram)
     }
@@ -132,22 +133,22 @@ abstract class FlinkLogicalRankRuleBase
 }
 
 /**
-  * This rule handles [[SqlRankFunction]] and rank range with end.
-  *
-  * The following two example queries could be converted to Rank by this rule:
-  * 1. constant range (rn <= 2):
-  * {{{
-  * SELECT * FROM (
-  *   SELECT a, b, ROW_NUMBER() OVER (PARTITION BY b ORDER BY a) rn FROM MyTable) t
-  * WHERE rn <= 2
-  * }}}
-  * 2. variable range (rk < a):
-  * {{{
-  * SELECT * FROM (
-  *   SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY c) rk FROM MyTable) t
-  * WHERE rk < a
-  * }}}
-  */
+ * This rule handles [[SqlRankFunction]] and rank range with end.
+ *
+ * The following two example queries could be converted to Rank by this rule:
+ *   1. constant range (rn <= 2):
+ *      {{{
+ * SELECT * FROM (
+ *   SELECT a, b, ROW_NUMBER() OVER (PARTITION BY b ORDER BY a) rn FROM MyTable) t
+ * WHERE rn <= 2
+ *      }}}
+ *      2. variable range (rk < a):
+ *      {{{
+ * SELECT * FROM (
+ *   SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY c) rk FROM MyTable) t
+ * WHERE rk < a
+ *      }}}
+ */
 class FlinkLogicalRankRuleForRangeEnd extends FlinkLogicalRankRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -182,7 +183,8 @@ class FlinkLogicalRankRuleForRangeEnd extends FlinkLogicalRankRuleBase {
           predicate,
           rankFieldIndex,
           calc.getCluster.getRexBuilder,
-          tableConfig)
+          tableConfig,
+          unwrapClassLoader(calc))
 
         rankRange match {
           case Some(_: ConstantRankRangeWithoutEnd) =>
@@ -207,13 +209,11 @@ class FlinkLogicalRankRuleForRangeEnd extends FlinkLogicalRankRuleBase {
 }
 
 /**
-  * This rule only handles RANK function and constant rank range.
-  *
-  * The following example query could be converted to Rank by this rule:
-  * SELECT * FROM (
-  * SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a) rk FROM MyTable) t
-  * WHERE rk <= 2
-  */
+ * This rule only handles RANK function and constant rank range.
+ *
+ * The following example query could be converted to Rank by this rule: SELECT * FROM ( SELECT a, b,
+ * RANK() OVER (PARTITION BY b ORDER BY a) rk FROM MyTable) t WHERE rk <= 2
+ */
 class FlinkLogicalRankRuleForConstantRange extends FlinkLogicalRankRuleBase {
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0)
@@ -247,7 +247,8 @@ class FlinkLogicalRankRuleForConstantRange extends FlinkLogicalRankRuleBase {
           predicate,
           rankFieldIndex,
           calc.getCluster.getRexBuilder,
-          tableConfig)
+          tableConfig,
+          unwrapClassLoader(calc))
 
         // remaining predicate must not access rank field attributes
         val remainingPredsAccessRank = remainingPreds.isDefined &&

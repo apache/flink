@@ -41,6 +41,7 @@ public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
         assertThat(LongHashJoinGenerator.support(type, keyType, new boolean[] {true})).isTrue();
         return LongHashJoinGenerator.gen(
                 new Configuration(),
+                Thread.currentThread().getContextClassLoader(),
                 type,
                 keyType,
                 RowType.of(new IntType(), new IntType()),

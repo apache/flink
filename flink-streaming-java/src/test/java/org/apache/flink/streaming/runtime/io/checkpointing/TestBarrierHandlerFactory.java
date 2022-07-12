@@ -22,20 +22,14 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler.Cancellable;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
-import java.time.Duration;
-import java.util.concurrent.Callable;
-import java.util.function.BiFunction;
-
 /** A factory for creating instances of {@link SingleCheckpointBarrierHandler} for tests. */
 public class TestBarrierHandlerFactory {
     private final AbstractInvokable target;
-    private BiFunction<Callable<?>, Duration, Cancellable> actionRegistration =
-            (callable, delay) -> () -> {};
+    private BarrierAlignmentUtil.DelayableTimer actionRegistration = (callable, delay) -> () -> {};
     private Clock clock = SystemClock.getInstance();
     private boolean enableCheckpointsAfterTasksFinish = true;
 
@@ -48,7 +42,7 @@ public class TestBarrierHandlerFactory {
     }
 
     public TestBarrierHandlerFactory withActionRegistration(
-            BiFunction<Callable<?>, Duration, Cancellable> actionRegistration) {
+            BarrierAlignmentUtil.DelayableTimer actionRegistration) {
         this.actionRegistration = actionRegistration;
         return this;
     }

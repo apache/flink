@@ -15,21 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.utils.NonPojo
+import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
 import org.junit.{Rule, Test}
+import org.junit.Assert._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -52,8 +51,7 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     unionDs.toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList(
-        "Hi", "Hello", "Hello world", "Hi", "Hello", "Hello world")
+    val expected = mutable.MutableList("Hi", "Hello", "Hello world", "Hi", "Hello", "Hello world")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -87,9 +85,11 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
 
   @Test
   def testUnionWithCompositeType(): Unit = {
-    val s1 = env.fromElements((1, (1, "a")), (2, (2, "b")))
+    val s1 = env
+      .fromElements((1, (1, "a")), (2, (2, "b")))
       .toTable(tEnv, 'a, 'b)
-    val s2 = env.fromElements(((3, "c"), 3), ((4, "d"), 4))
+    val s2 = env
+      .fromElements(((3, "c"), 3), ((4, "d"), 4))
       .toTable(tEnv, 'a, 'b)
 
     val sink = new TestingAppendSink
@@ -124,7 +124,9 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     env.execute()
 
     val expected = Seq(
-      "1,1,Hello", "2,2,Hello", "4,4,Hello"
+      "1,1,Hello",
+      "2,2,Hello",
+      "4,4,Hello"
     )
 
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
@@ -148,19 +150,21 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       (-1, "Hanoi-1")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv,'a, 'b, 'c)
+    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv,'x, 'y)
+    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
 
     val sink = new TestingRetractSink
 
     tableA
       .where('a.in(tableB.where('y.like("%Hanoi%")).groupBy('y).select('x.sum)))
-      .toRetractStream[Row].addSink(sink)
+      .toRetractStream[Row]
+      .addSink(sink)
     env.execute()
 
     val expected = Seq(
-      "2,2,Hello", "3,3,Hello World"
+      "2,2,Hello",
+      "3,3,Hello World"
     )
 
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
@@ -187,11 +191,11 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       (2L, "Cool")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv,'a, 'b, 'c)
+    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv,'x, 'y)
+    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
 
-    val tableC = env.fromCollection(dataC).toTable(tEnv,'w, 'z)
+    val tableC = env.fromCollection(dataC).toTable(tEnv, 'w, 'z)
 
     val sink = new TestingRetractSink
 
@@ -202,7 +206,8 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     env.execute()
 
     val expected = Seq(
-      "1,1,Hello", "2,2,Hello"
+      "1,1,Hello",
+      "2,2,Hello"
     )
 
     assertEquals(expected.sorted, sink.getRetractResults.sorted)

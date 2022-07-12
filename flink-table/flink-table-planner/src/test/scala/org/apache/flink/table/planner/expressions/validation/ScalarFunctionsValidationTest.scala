@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions.validation
 
 import org.apache.flink.table.api._
@@ -46,42 +45,29 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testSqlApi("BIN(f16)", "101010") // Date type
   }
 
-
   @Test(expected = classOf[ValidationException])
   def testInvalidTruncate1(): Unit = {
     // All arguments are string type
-    testSqlApi(
-      "TRUNCATE('abc', 'def')",
-      "FAIL")
+    testSqlApi("TRUNCATE('abc', 'def')", "FAIL")
 
     // The second argument is of type String
-    testSqlApi(
-      "TRUNCATE(f12, f0)",
-      "FAIL")
+    testSqlApi("TRUNCATE(f12, f0)", "FAIL")
 
     // The second argument is of type Float
-    testSqlApi(
-      "TRUNCATE(f12,f12)",
-      "FAIL")
+    testSqlApi("TRUNCATE(f12,f12)", "FAIL")
 
     // The second argument is of type Double
-    testSqlApi(
-      "TRUNCATE(f12, cast(f28 as DOUBLE))",
-      "FAIL")
+    testSqlApi("TRUNCATE(f12, cast(f28 as DOUBLE))", "FAIL")
 
     // The second argument is of type BigDecimal
-    testSqlApi(
-      "TRUNCATE(f12,f15)",
-      "FAIL")
+    testSqlApi("TRUNCATE(f12,f15)", "FAIL")
   }
 
   @Test
   def testInvalidTruncate2(): Unit = {
     thrown.expect(classOf[ValidationException])
     // The one argument is of type String
-    testSqlApi(
-      "TRUNCATE('abc')",
-      "FAIL")
+    testSqlApi("TRUNCATE('abc')", "FAIL")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -144,71 +130,6 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testTableApi(timestampDiff(TimePointUnit.MINUTE, "2016-02-24", "2016-02-27"), "FAIL")
   }
 
-  @Test
-  def testDOWWithTimeWhichIsUnsupported(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    testSqlApi("EXTRACT(DOW FROM TIME '12:42:25')", "0")
-  }
-
-  @Test
-  def testDOYWithTimeWhichIsUnsupported(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    testSqlApi("EXTRACT(DOY FROM TIME '12:42:25')", "0")
-  }
-
-  @Test
-  def testISODOWWithTimeWhichIsUnsupported(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    testSqlApi("EXTRACT(ISODOW FROM TIME '12:42:25')", "0")
-  }
-
-  @Test
-  def testISOYEARWithTimeWhichIsUnsupported(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    testSqlApi("EXTRACT(ISOYEAR FROM TIME '12:42:25')", "0")
-  }
-
-  private def testExtractFromTimeZeroResult(unit: TimeUnit): Unit = {
-    thrown.expect(classOf[ValidationException])
-    testSqlApi("EXTRACT(" + unit + " FROM TIME '00:00:00')", "0")
-  }
-
-  @Test
-  def testMillenniumWithTime(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    testExtractFromTimeZeroResult(TimeUnit.MILLENNIUM)
-  }
-
-  @Test
-  def testCenturyWithTime(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    testExtractFromTimeZeroResult(TimeUnit.CENTURY)
-  }
-
-  @Test
-  def testDecadeWithTime(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    testExtractFromTimeZeroResult(TimeUnit.DECADE)
-  }
-
-  @Test
-  def testYearWithTime(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    testExtractFromTimeZeroResult(TimeUnit.YEAR)
-  }
-
-  @Test
-  def testMonthWithTime(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    testExtractFromTimeZeroResult(TimeUnit.MONTH)
-  }
-
-  @Test
-  def testDayWithTime(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    testExtractFromTimeZeroResult(TimeUnit.DAY)
-  }
-
   // ----------------------------------------------------------------------------------------------
   // Builtin functions
   // ----------------------------------------------------------------------------------------------
@@ -229,18 +150,14 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     // test IF(BOOL, STRING, BOOLEAN)
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage("Cannot apply 'IF' to arguments")
-    testSqlApi(
-      "IF(f7 > 5, f0, f1)",
-      "FAIL")
+    testSqlApi("IF(f7 > 5, f0, f1)", "FAIL")
   }
 
   @Test
   def testInvalidToBase64(): Unit = {
-    //test TO_BASE64(INTEGER)
+    // test TO_BASE64(INTEGER)
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage("Cannot apply 'TO_BASE64' to arguments of type 'TO_BASE64(<INTEGER>)'")
-    testSqlApi(
-      "TO_BASE64(11)",
-      "FAIL")
+    testSqlApi("TO_BASE64(11)", "FAIL")
   }
 }

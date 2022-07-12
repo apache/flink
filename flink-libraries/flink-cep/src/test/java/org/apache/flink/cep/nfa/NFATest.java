@@ -20,6 +20,7 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.WithinType;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
@@ -98,7 +99,7 @@ public class NFATest extends TestLogger {
         expectedPatterns.add(firstPattern);
         expectedPatterns.add(secondPattern);
 
-        NFA<Event> nfa = new NFA<>(states, 0, false);
+        NFA<Event> nfa = new NFA<>(states, Collections.emptyMap(), 0, false);
         NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).build();
 
         Collection<Map<String, List<Event>>> actualPatterns =
@@ -108,7 +109,7 @@ public class NFATest extends TestLogger {
     }
 
     @Test
-    public void testTimeoutWindowPruning() throws Exception {
+    public void testTimeoutWindowPruningWithinFirstAndLast() throws Exception {
         List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
         streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
@@ -125,6 +126,40 @@ public class NFATest extends TestLogger {
         expectedPatterns.add(secondPattern);
 
         NFA<Event> nfa = createStartEndNFA();
+        NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).build();
+
+        Collection<Map<String, List<Event>>> actualPatterns =
+                nfaTestHarness.consumeRecords(streamEvents);
+
+        assertEquals(expectedPatterns, actualPatterns);
+    }
+
+    @Test
+    public void testTimeoutWindowPruningWithinPreviousAndNext() throws Exception {
+        List<StreamRecord<Event>> streamEvents = new ArrayList<>();
+
+        streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
+        streamEvents.add(new StreamRecord<>(new Event(2, "end", 2.0), 2L));
+        streamEvents.add(new StreamRecord<>(new Event(3, "start", 3.0), 3L));
+        streamEvents.add(new StreamRecord<>(new Event(4, "end", 4.0), 6L));
+        streamEvents.add(new StreamRecord<>(new Event(5, "start", 5.0), 7L));
+        streamEvents.add(new StreamRecord<>(new Event(6, "end", 6.0), 8L));
+
+        List<Map<String, List<Event>>> expectedPatterns = new ArrayList<>();
+
+        Map<String, List<Event>> secondPattern = new HashMap<>();
+        secondPattern.put("start", Collections.singletonList(new Event(1, "start", 1.0)));
+        secondPattern.put("end", Collections.singletonList(new Event(2, "end", 2.0)));
+
+        expectedPatterns.add(secondPattern);
+
+        secondPattern = new HashMap<>();
+        secondPattern.put("start", Collections.singletonList(new Event(5, "start", 5.0)));
+        secondPattern.put("end", Collections.singletonList(new Event(6, "end", 6.0)));
+
+        expectedPatterns.add(secondPattern);
+
+        NFA<Event> nfa = createStartEndNFA(WithinType.PREVIOUS_AND_CURRENT);
         NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).build();
 
         Collection<Map<String, List<Event>>> actualPatterns =
@@ -374,7 +409,10 @@ public class NFATest extends TestLogger {
     }
 
     private NFA<Event> createStartEndNFA() {
+        return createStartEndNFA(WithinType.FIRST_AND_LAST);
+    }
 
+    private NFA<Event> createStartEndNFA(WithinType withinType) {
         State<Event> startState = new State<>("start", State.StateType.Start);
         State<Event> endState = new State<>("end", State.StateType.Normal);
         State<Event> endingState = new State<>("", State.StateType.Final);
@@ -406,6 +444,11 @@ public class NFATest extends TestLogger {
         states.add(endState);
         states.add(endingState);
 
-        return new NFA<>(states, 2L, false);
+        boolean withinFirstAndLast = WithinType.FIRST_AND_LAST.equals(withinType);
+        return new NFA<>(
+                states,
+                withinFirstAndLast ? Collections.emptyMap() : Collections.singletonMap("end", 2L),
+                withinFirstAndLast ? 2L : 0L,
+                false);
     }
 }

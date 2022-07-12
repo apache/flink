@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.api.DataTypes.NULL
@@ -24,8 +23,8 @@ import org.apache.flink.table.planner.plan.utils.{ExpandUtil, RelExplainUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexNode}
 import org.apache.calcite.util.Litmus
 
@@ -35,18 +34,22 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 /**
-  * Relational expression that apply a number of projects to every input row,
-  * hence we will get multiple output rows for an input row.
-  *
-  * <p/> Values of expand_id should be unique.
-  *
-  * @param cluster       cluster that this relational expression belongs to
-  * @param traits        the traits of this rel
-  * @param input         input relational expression
-  * @param projects      all projects, each project contains list of expressions for
-  *                      the output columns
-  * @param expandIdIndex expand_id('$e') field index
-  */
+ * Relational expression that apply a number of projects to every input row, hence we will get
+ * multiple output rows for an input row.
+ *
+ * <p/> Values of expand_id should be unique.
+ *
+ * @param cluster
+ *   cluster that this relational expression belongs to
+ * @param traits
+ *   the traits of this rel
+ * @param input
+ *   input relational expression
+ * @param projects
+ *   all projects, each project contains list of expressions for the output columns
+ * @param expandIdIndex
+ *   expand_id('$e') field index
+ */
 abstract class Expand(
     cluster: RelOptCluster,
     traits: RelTraitSet,
@@ -109,7 +112,7 @@ abstract class Expand(
           case ref: RexInputRef =>
             fieldNames += inputNames.get(ref.getIndex)
           case _: RexLiteral => // ignore
-          case exp@_ =>
+          case exp @ _ =>
             throw new TableException(
               "Expand node only support RexInputRef and RexLiteral, but got " + exp)
         }
@@ -144,7 +147,8 @@ abstract class Expand(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("projects", RelExplainUtil.projectsToString(projects, input.getRowType, getRowType))
   }
 

@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.plan.abilities.source.LimitPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
@@ -57,7 +58,10 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 /** Tests for {@link TemporalTableSourceSpec} serialization and deserialization. */
 @Execution(CONCURRENT)
 public class TemporalTableSourceSpecSerdeTest {
-    private static final FlinkTypeFactory FACTORY = FlinkTypeFactory.INSTANCE();
+    private static final FlinkTypeFactory FACTORY =
+            new FlinkTypeFactory(
+                    TemporalTableSourceSpecSerdeTest.class.getClassLoader(),
+                    FlinkTypeSystem.INSTANCE);
 
     private static final FlinkContext FLINK_CONTEXT =
             JsonSerdeTestUtil.configuredSerdeContext().getFlinkContext();
@@ -97,6 +101,7 @@ public class TemporalTableSourceSpecSerdeTest {
                                 ObjectIdentifier.of("default_catalog", "default_db", "MyTable"),
                                 resolvedCatalogTable),
                         FLINK_CONTEXT,
+                        FACTORY,
                         new SourceAbilitySpec[] {new LimitPushDownSpec(100)});
         TemporalTableSourceSpec temporalTableSourceSpec1 =
                 new TemporalTableSourceSpec(tableSourceTable1);

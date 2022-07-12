@@ -250,8 +250,6 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
                     new JobMasterBuilder(jobGraph, rpcService)
                             .withConfiguration(configuration)
                             .withHighAvailabilityServices(haServices)
-                            .withJobManagerSharedServices(
-                                    new TestingJobManagerSharedServicesBuilder().build())
                             .withFatalErrorHandler(fatalErrorHandler)
                             .withHeartbeatServices(heartbeatServices)
                             .withPartitionTrackerFactory(ignored -> partitionTracker)
@@ -321,7 +319,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
         public void close() throws Exception {
             try {
                 if (jobMaster != null) {
-                    RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+                    RpcUtils.terminateRpcEndpoint(jobMaster);
                 }
             } finally {
                 temporaryFolder.delete();

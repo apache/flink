@@ -87,6 +87,7 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
+import org.apache.flink.streaming.runtime.io.checkpointing.BarrierAlignmentUtil;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -95,6 +96,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction.Suspension;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxMetricsController;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.PeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
@@ -107,7 +109,6 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
-import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.RunnableWithException;
@@ -271,12 +272,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     /** Thread pool for async snapshot workers. */
     private final ExecutorService asyncOperationsThreadPool;
 
-    private final RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriter;
+    protected final RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriter;
 
     protected final MailboxProcessor mailboxProcessor;
-
-    /** Mailbox metrics measurement is timer triggered with the given interval in milliseconds. */
-    protected int mailboxMetricsInterval = 1000;
 
     final MailboxExecutor mainMailboxExecutor;
 
@@ -380,15 +378,23 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         try {
             this.environment = environment;
             this.configuration = new StreamConfig(environment.getTaskConfiguration());
-            Counter numMailsProcessedCounter =
-                    environment.getMetricGroup().getIOMetricGroup().getNumMailsProcessedCounter();
-            this.mailboxProcessor =
-                    new MailboxProcessor(
-                            this::processInput, mailbox, actionExecutor, numMailsProcessedCounter);
+
+            // Initialize mailbox metrics
+            MailboxMetricsController mailboxMetricsControl =
+                    new MailboxMetricsController(
+                            environment.getMetricGroup().getIOMetricGroup().getMailboxLatency(),
+                            environment
+                                    .getMetricGroup()
+                                    .getIOMetricGroup()
+                                    .getNumMailsProcessedCounter());
             environment
                     .getMetricGroup()
                     .getIOMetricGroup()
                     .registerMailboxSizeSupplier(() -> mailbox.size());
+
+            this.mailboxProcessor =
+                    new MailboxProcessor(
+                            this::processInput, mailbox, actionExecutor, mailboxMetricsControl);
 
             // Should be closed last.
             resourceCloser.registerCloseable(mailboxProcessor);
@@ -435,12 +441,20 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
             environment.setCheckpointStorageAccess(checkpointStorageAccess);
 
+            // if the clock is not already set, then assign a default TimeServiceProvider
+            if (timerService == null) {
+                this.timerService = createTimerService("Time Trigger for " + getName());
+            } else {
+                this.timerService = timerService;
+            }
+
+            this.systemTimerService = createTimerService("System Time Trigger for " + getName());
+
             this.subtaskCheckpointCoordinator =
                     new SubtaskCheckpointCoordinatorImpl(
                             checkpointStorageAccess,
                             getName(),
                             actionExecutor,
-                            getCancelables(),
                             getAsyncOperationsThreadPool(),
                             environment,
                             this,
@@ -450,16 +464,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                     .get(
                                             ExecutionCheckpointingOptions
                                                     .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH),
-                            this::prepareInputSnapshot);
+                            this::prepareInputSnapshot,
+                            BarrierAlignmentUtil.createRegisterTimerCallback(
+                                    mainMailboxExecutor, systemTimerService));
+            resourceCloser.registerCloseable(subtaskCheckpointCoordinator::close);
 
-            // if the clock is not already set, then assign a default TimeServiceProvider
-            if (timerService == null) {
-                this.timerService = createTimerService("Time Trigger for " + getName());
-            } else {
-                this.timerService = timerService;
-            }
-
-            this.systemTimerService = createTimerService("System Time Trigger for " + getName());
             // Register to stop all timers and threads. Should be closed first.
             resourceCloser.registerCloseable(this::tryShutdownTimerService);
 
@@ -469,6 +478,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             Configuration taskManagerConf = environment.getTaskManagerInfo().getConfiguration();
 
             this.bufferDebloatPeriod = taskManagerConf.get(BUFFER_DEBLOAT_PERIOD).toMillis();
+            mailboxMetricsControl.setupLatencyMeasurement(systemTimerService, mainMailboxExecutor);
         } catch (Exception ex) {
             try {
                 resourceCloser.close();
@@ -761,9 +771,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         scheduleBufferDebloater();
 
-        scheduleMailboxMetrics();
-
         // let the task do its work
+        getEnvironment().getMetricGroup().getIOMetricGroup().markTaskStart();
         runMailboxLoop();
 
         // if this left the run() method cleanly despite the fact that this was canceled,
@@ -795,29 +804,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                     scheduleBufferDebloater();
                                 },
                                 "Buffer size recalculation"));
-    }
-
-    @VisibleForTesting
-    public void measureMailboxLatency() {
-        long startTime = SystemClock.getInstance().relativeTimeMillis();
-        mainMailboxExecutor.execute(
-                () -> {
-                    long endTime = SystemClock.getInstance().relativeTimeMillis();
-                    long latency = endTime - startTime;
-                    environment
-                            .getMetricGroup()
-                            .getIOMetricGroup()
-                            .getMailboxLatency()
-                            .update(latency);
-                    scheduleMailboxMetrics();
-                },
-                "Measure mailbox latency metric");
-    }
-
-    private void scheduleMailboxMetrics() {
-        systemTimerService.registerTimer(
-                systemTimerService.getCurrentProcessingTime() + mailboxMetricsInterval,
-                timestamp -> measureMailboxLatency());
     }
 
     @VisibleForTesting
@@ -986,6 +972,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                 // can be invoked from a different thread
                                 mailboxProcessor.allActionsCompleted();
                                 try {
+                                    subtaskCheckpointCoordinator.cancel();
                                     cancelables.close();
                                 } catch (IOException e) {
                                     throw new CompletionException(e);

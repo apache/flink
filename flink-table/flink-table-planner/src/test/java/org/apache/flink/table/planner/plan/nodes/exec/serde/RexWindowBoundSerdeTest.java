@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
@@ -61,7 +59,7 @@ public class RexWindowBoundSerdeTest {
                                 RexWindowBound.class))
                 .isEqualTo(RexWindowBounds.UNBOUNDED_PRECEDING);
 
-        RexBuilder builder = new RexBuilder(FlinkTypeFactory.INSTANCE());
+        RexBuilder builder = new RexBuilder(serdeCtx.getTypeFactory());
         RexWindowBound windowBound = RexWindowBounds.following(builder.makeLiteral("test"));
         assertThat(
                         objectReader.readValue(

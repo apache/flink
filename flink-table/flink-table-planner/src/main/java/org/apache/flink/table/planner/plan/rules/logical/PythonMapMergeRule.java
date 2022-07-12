@@ -27,7 +27,6 @@ import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Calc;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
@@ -65,50 +64,37 @@ public class PythonMapMergeRule extends RelOptRule {
                         .map(topProgram::expandLocalRef)
                         .collect(Collectors.toList());
 
-        if (topProjects.size() != 1
-                || !PythonUtil.isPythonCall(topProjects.get(0), null)
-                || !PythonUtil.takesRowAsInput((RexCall) topProjects.get(0))) {
-            return false;
-        }
-
         RexProgram bottomProgram = bottomCalc.getProgram();
         List<RexNode> bottomProjects =
                 bottomProgram.getProjectList().stream()
                         .map(bottomProgram::expandLocalRef)
                         .collect(Collectors.toList());
-        if (bottomProjects.size() != 1 || !PythonUtil.isPythonCall(bottomProjects.get(0), null)) {
+
+        // both the bottom calc and the top calc contain only one project which is a Python
+        // function
+        if (topProjects.size() != 1
+                || !PythonUtil.isPythonCall(topProjects.get(0), null)
+                || topProgram.getCondition() != null
+                || bottomProjects.size() != 1
+                || !PythonUtil.isPythonCall(bottomProjects.get(0), null)
+                || bottomProgram.getCondition() != null) {
             return false;
         }
 
-        // Only Python Functions with same Python function kind can be merged together.
+        // top project is a map function which takes row as input
+        if (!PythonUtil.takesRowAsInput((RexCall) topProjects.get(0))) {
+            return false;
+        }
+
+        // only Python functions with same Python function kind can be merged together.
         if (PythonUtil.isPythonCall(topProjects.get(0), PythonFunctionKind.GENERAL)
                 ^ PythonUtil.isPythonCall(bottomProjects.get(0), PythonFunctionKind.GENERAL)) {
             return false;
         }
 
-        RexProgram middleProgram = middleCalc.getProgram();
-        if (topProgram.getCondition() != null
-                || middleProgram.getCondition() != null
-                || bottomProgram.getCondition() != null) {
-            return false;
-        }
-
-        List<RexNode> middleProjects =
-                middleProgram.getProjectList().stream()
-                        .map(middleProgram::expandLocalRef)
-                        .collect(Collectors.toList());
-        int inputRowFieldCount =
-                middleProgram
-                        .getInputRowType()
-                        .getFieldList()
-                        .get(0)
-                        .getValue()
-                        .getFieldList()
-                        .size();
-
-        return isFlattenCalc(middleProjects, inputRowFieldCount)
+        return PythonUtil.isFlattenCalc(middleCalc)
                 && isTopCalcTakesWholeMiddleCalcAsInputs(
-                        (RexCall) topProjects.get(0), middleProjects.size());
+                        (RexCall) topProjects.get(0), middleCalc.getRowType().getFieldCount());
     }
 
     private boolean isTopCalcTakesWholeMiddleCalcAsInputs(
@@ -121,32 +107,6 @@ public class PythonMapMergeRule extends RelOptRule {
             RexNode input = pythonCallInputs.get(i);
             if (input instanceof RexInputRef) {
                 if (((RexInputRef) input).getIndex() != i) {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean isFlattenCalc(List<RexNode> middleProjects, int inputRowFieldCount) {
-        if (inputRowFieldCount != middleProjects.size()) {
-            return false;
-        }
-        for (int i = 0; i < inputRowFieldCount; i++) {
-            RexNode middleProject = middleProjects.get(i);
-            if (middleProject instanceof RexFieldAccess) {
-                RexFieldAccess rexField = ((RexFieldAccess) middleProject);
-                if (rexField.getField().getIndex() != i) {
-                    return false;
-                }
-                RexNode expr = rexField.getReferenceExpr();
-                if (expr instanceof RexInputRef) {
-                    if (((RexInputRef) expr).getIndex() != 0) {
-                        return false;
-                    }
-                } else {
                     return false;
                 }
             } else {

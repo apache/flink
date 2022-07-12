@@ -38,11 +38,8 @@ import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 
-import static junit.framework.TestCase.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link RowCsvInputFormat}. */
 public class RowCsvInputFormatTest {
@@ -82,46 +79,45 @@ public class RowCsvInputFormatTest {
         format.open(split);
 
         Row result = new Row(3);
-        try {
-            result = format.nextRecord(result);
-            fail(
-                    "RuntimeException was not thrown! (Row length mismatch. 3 fields expected but was 1)");
-        } catch (IOException ignored) {
-        } // => ok
 
-        try {
-            result = format.nextRecord(result);
-            fail("NumberFormatException was not thrown! (For input string: \"header2\")");
-        } catch (IOException ignored) {
-        } // => ok
+        RowCsvInputFormat finalFormat = format;
+        Row finalResult = result;
+        assertThatThrownBy(() -> finalFormat.nextRecord(finalResult))
+                .isInstanceOf(IOException.class)
+                .hasRootCauseMessage("Row length mismatch. 3 fields expected but was 1.");
 
-        result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("this is", result.getField(0));
-        assertEquals(1, result.getField(1));
-        assertEquals(2.0, result.getField(2));
-
-        try {
-            result = format.nextRecord(result);
-            fail(
-                    "RuntimeException was not thrown! (Row length mismatch. 3 fields expected but was 1)");
-        } catch (IOException ignored) {
-        } // => ok
+        RowCsvInputFormat finalFormat1 = format;
+        Row finalResult1 = result;
+        assertThatThrownBy(() -> finalFormat1.nextRecord(finalResult1))
+                .isInstanceOf(IOException.class)
+                .hasRootCauseMessage("For input string: \"header2\"");
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("a test", result.getField(0));
-        assertEquals(3, result.getField(1));
-        assertEquals(4.0, result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("this is");
+        assertThat(result.getField(1)).isEqualTo(1);
+        assertThat(result.getField(2)).isEqualTo(2.0);
+
+        RowCsvInputFormat finalFormat2 = format;
+        Row finalResult2 = result;
+        assertThatThrownBy(() -> finalFormat2.nextRecord(finalResult2))
+                .isInstanceOf(IOException.class)
+                .hasRootCauseMessage("Row length mismatch. 3 fields expected but was 1.");
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("#next", result.getField(0));
-        assertEquals(5, result.getField(1));
-        assertEquals(6.0, result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("a test");
+        assertThat(result.getField(1)).isEqualTo(3);
+        assertThat(result.getField(2)).isEqualTo(4.0);
 
         result = format.nextRecord(result);
-        assertNull(result);
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("#next");
+        assertThat(result.getField(1)).isEqualTo(5);
+        assertThat(result.getField(2)).isEqualTo(6.0);
+
+        result = format.nextRecord(result);
+        assertThat(result).isNull();
 
         // re-open with lenient = true
         builder.setIgnoreParseErrors(true);
@@ -132,38 +128,38 @@ public class RowCsvInputFormatTest {
         result = new Row(3);
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("#description of the data", result.getField(0));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("#description of the data");
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("header1", result.getField(0));
-        assertNull(result.getField(1));
-        assertNull(result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("header1");
+        assertThat(result.getField(1)).isNull();
+        assertThat(result.getField(2)).isNull();
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("this is", result.getField(0));
-        assertEquals(1, result.getField(1));
-        assertEquals(2.0, result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("this is");
+        assertThat(result.getField(1)).isEqualTo(1);
+        assertThat(result.getField(2)).isEqualTo(2.0);
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("//a comment", result.getField(0));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("//a comment");
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("a test", result.getField(0));
-        assertEquals(3, result.getField(1));
-        assertEquals(4.0, result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("a test");
+        assertThat(result.getField(1)).isEqualTo(3);
+        assertThat(result.getField(2)).isEqualTo(4.0);
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("#next", result.getField(0));
-        assertEquals(5, result.getField(1));
-        assertEquals(6.0, result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("#next");
+        assertThat(result.getField(1)).isEqualTo(5);
+        assertThat(result.getField(2)).isEqualTo(6.0);
         result = format.nextRecord(result);
-        assertNull(result);
+        assertThat(result).isNull();
     }
 
     @Test
@@ -196,19 +192,19 @@ public class RowCsvInputFormatTest {
         Row result = new Row(3);
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("this is", result.getField(0));
-        assertEquals(1, result.getField(1));
-        assertEquals(2.0, result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("this is");
+        assertThat(result.getField(1)).isEqualTo(1);
+        assertThat(result.getField(2)).isEqualTo(2.0);
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("a test", result.getField(0));
-        assertEquals(3, result.getField(1));
-        assertEquals(4.0, result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("a test");
+        assertThat(result.getField(1)).isEqualTo(3);
+        assertThat(result.getField(2)).isEqualTo(4.0);
 
         result = format.nextRecord(result);
-        assertNull(result);
+        assertThat(result).isNull();
     }
 
     @Test
@@ -234,32 +230,32 @@ public class RowCsvInputFormatTest {
         Row result = new Row(3);
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("abc", result.getField(0));
-        assertEquals("def", result.getField(1));
-        assertEquals("ghijk", result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("abc");
+        assertThat(result.getField(1)).isEqualTo("def");
+        assertThat(result.getField(2)).isEqualTo("ghijk");
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("abc", result.getField(0));
-        assertEquals("", result.getField(1));
-        assertEquals("hhg", result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("abc");
+        assertThat(result.getField(1)).isEqualTo("");
+        assertThat(result.getField(2)).isEqualTo("hhg");
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("", result.getField(0));
-        assertEquals("", result.getField(1));
-        assertEquals("", result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("");
+        assertThat(result.getField(1)).isEqualTo("");
+        assertThat(result.getField(2)).isEqualTo("");
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("", result.getField(0));
-        assertEquals("", result.getField(1));
-        assertEquals("", result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("");
+        assertThat(result.getField(1)).isEqualTo("");
+        assertThat(result.getField(2)).isEqualTo("");
 
         result = format.nextRecord(result);
-        assertNull(result);
-        assertTrue(format.reachedEnd());
+        assertThat(result).isNull();
+        assertThat(format.reachedEnd()).isTrue();
     }
 
     @Test
@@ -287,26 +283,26 @@ public class RowCsvInputFormatTest {
         Row result = new Row(3);
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("a|b|c", result.getField(0));
-        assertEquals("def", result.getField(1));
-        assertEquals("ghijk", result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("a|b|c");
+        assertThat(result.getField(1)).isEqualTo("def");
+        assertThat(result.getField(2)).isEqualTo("ghijk");
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("abc", result.getField(0));
-        assertEquals("", result.getField(1));
-        assertEquals("|hhg", result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("abc");
+        assertThat(result.getField(1)).isEqualTo("");
+        assertThat(result.getField(2)).isEqualTo("|hhg");
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("", result.getField(0));
-        assertEquals("", result.getField(1));
-        assertEquals("", result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("");
+        assertThat(result.getField(1)).isEqualTo("");
+        assertThat(result.getField(2)).isEqualTo("");
 
         result = format.nextRecord(result);
-        assertNull(result);
-        assertTrue(format.reachedEnd());
+        assertThat(result).isNull();
+        assertThat(format.reachedEnd()).isTrue();
     }
 
     @Test
@@ -333,40 +329,39 @@ public class RowCsvInputFormatTest {
         Row result = new Row(3);
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("abc", result.getField(0));
-        assertEquals("def", result.getField(1));
-        assertEquals("ghijk", result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("abc");
+        assertThat(result.getField(1)).isEqualTo("def");
+        assertThat(result.getField(2)).isEqualTo("ghijk");
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("abc", result.getField(0));
-        assertEquals("def", result.getField(1));
-        assertEquals("", result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("abc");
+        assertThat(result.getField(1)).isEqualTo("def");
+        assertThat(result.getField(2)).isEqualTo("");
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("abc", result.getField(0));
-        assertEquals("", result.getField(1));
-        assertEquals("", result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("abc");
+        assertThat(result.getField(1)).isEqualTo("");
+        assertThat(result.getField(2)).isEqualTo("");
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("", result.getField(0));
-        assertEquals("", result.getField(1));
-        assertEquals("", result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("");
+        assertThat(result.getField(1)).isEqualTo("");
+        assertThat(result.getField(2)).isEqualTo("");
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("", result.getField(0));
-        assertEquals("", result.getField(1));
-        assertEquals("", result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo("");
+        assertThat(result.getField(1)).isEqualTo("");
+        assertThat(result.getField(2)).isEqualTo("");
 
-        try {
-            format.nextRecord(result);
-            fail("RuntimeException: Row length mismatch. 3 fields expected but was 2");
-        } catch (IOException e) {
-        }
+        Row finalResult = result;
+        assertThatThrownBy(() -> format.nextRecord(finalResult))
+                .isInstanceOf(IOException.class)
+                .hasRootCauseMessage("Row length mismatch. 3 fields expected but was 2.");
     }
 
     @Test
@@ -394,24 +389,24 @@ public class RowCsvInputFormatTest {
         Row result = new Row(5);
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals(111, result.getField(0));
-        assertEquals(222, result.getField(1));
-        assertEquals(333, result.getField(2));
-        assertEquals(444, result.getField(3));
-        assertEquals(555, result.getField(4));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo(111);
+        assertThat(result.getField(1)).isEqualTo(222);
+        assertThat(result.getField(2)).isEqualTo(333);
+        assertThat(result.getField(3)).isEqualTo(444);
+        assertThat(result.getField(4)).isEqualTo(555);
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals(666, result.getField(0));
-        assertEquals(777, result.getField(1));
-        assertEquals(888, result.getField(2));
-        assertEquals(999, result.getField(3));
-        assertEquals(0, result.getField(4));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo(666);
+        assertThat(result.getField(1)).isEqualTo(777);
+        assertThat(result.getField(2)).isEqualTo(888);
+        assertThat(result.getField(3)).isEqualTo(999);
+        assertThat(result.getField(4)).isEqualTo(0);
 
         result = format.nextRecord(result);
-        assertNull(result);
-        assertTrue(format.reachedEnd());
+        assertThat(result).isNull();
+        assertThat(format.reachedEnd()).isTrue();
     }
 
     @Test
@@ -454,12 +449,12 @@ public class RowCsvInputFormatTest {
 
         for (int i = 0; i < linesCnt; i++) {
             result = format.nextRecord(result);
-            assertNull(result.getField(i));
+            assertThat(result.getField(i)).isNull();
         }
 
         // ensure no more rows
-        assertNull(format.nextRecord(result));
-        assertTrue(format.reachedEnd());
+        assertThat(format.nextRecord(result)).isNull();
+        assertThat(format.reachedEnd()).isTrue();
     }
 
     @Test
@@ -487,24 +482,24 @@ public class RowCsvInputFormatTest {
         Row result = new Row(5);
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals(11.1, result.getField(0));
-        assertEquals(22.2, result.getField(1));
-        assertEquals(33.3, result.getField(2));
-        assertEquals(44.4, result.getField(3));
-        assertEquals(55.5, result.getField(4));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo(11.1);
+        assertThat(result.getField(1)).isEqualTo(22.2);
+        assertThat(result.getField(2)).isEqualTo(33.3);
+        assertThat(result.getField(3)).isEqualTo(44.4);
+        assertThat(result.getField(4)).isEqualTo(55.5);
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals(66.6, result.getField(0));
-        assertEquals(77.7, result.getField(1));
-        assertEquals(88.8, result.getField(2));
-        assertEquals(99.9, result.getField(3));
-        assertEquals(0.0, result.getField(4));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo(66.6);
+        assertThat(result.getField(1)).isEqualTo(77.7);
+        assertThat(result.getField(2)).isEqualTo(88.8);
+        assertThat(result.getField(3)).isEqualTo(99.9);
+        assertThat(result.getField(4)).isEqualTo(0.0);
 
         result = format.nextRecord(result);
-        assertNull(result);
-        assertTrue(format.reachedEnd());
+        assertThat(result).isNull();
+        assertThat(format.reachedEnd()).isTrue();
     }
 
     @Test
@@ -541,20 +536,20 @@ public class RowCsvInputFormatTest {
         Row result = new Row(3);
         result = format.nextRecord(result);
 
-        assertNotNull(result);
-        assertEquals(111, result.getField(0));
-        assertEquals(444, result.getField(1));
-        assertEquals(888, result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo(111);
+        assertThat(result.getField(1)).isEqualTo(444);
+        assertThat(result.getField(2)).isEqualTo(888);
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals(0, result.getField(0));
-        assertEquals(777, result.getField(1));
-        assertEquals(333, result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo(0);
+        assertThat(result.getField(1)).isEqualTo(777);
+        assertThat(result.getField(2)).isEqualTo(333);
 
         result = format.nextRecord(result);
-        assertNull(result);
-        assertTrue(format.reachedEnd());
+        assertThat(result).isNull();
+        assertThat(format.reachedEnd()).isTrue();
     }
 
     @Test
@@ -613,8 +608,8 @@ public class RowCsvInputFormatTest {
         inputFormat.open(splits[0]);
 
         Row record = inputFormat.nextRecord(new Row(2));
-        assertEquals("20:41:52-1-3-2015", record.getField(0));
-        assertEquals("Blahblah <blah@blahblah.org>", record.getField(1));
+        assertThat(record.getField(0)).isEqualTo("20:41:52-1-3-2015");
+        assertThat(record.getField(1)).isEqualTo("Blahblah <blah@blahblah.org>");
     }
 
     @Test
@@ -647,8 +642,8 @@ public class RowCsvInputFormatTest {
         inputFormat.open(splits[0]);
 
         Row record = inputFormat.nextRecord(new Row(2));
-        assertEquals("\"Hello\" World", record.getField(0));
-        assertEquals("We are\" young", record.getField(1));
+        assertThat(record.getField(0)).isEqualTo("\"Hello\" World");
+        assertThat(record.getField(1)).isEqualTo("We are\" young");
     }
 
     @Test
@@ -677,22 +672,22 @@ public class RowCsvInputFormatTest {
         Row result = new Row(4);
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals(Date.valueOf("1990-10-14"), result.getField(0));
-        assertEquals(Time.valueOf("02:42:25"), result.getField(1));
-        assertEquals(Timestamp.valueOf("1990-10-14 02:42:25.123"), result.getField(2));
-        assertEquals(Timestamp.valueOf("1990-01-04 02:02:05"), result.getField(3));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo(Date.valueOf("1990-10-14"));
+        assertThat(result.getField(1)).isEqualTo(Time.valueOf("02:42:25"));
+        assertThat(result.getField(2)).isEqualTo(Timestamp.valueOf("1990-10-14 02:42:25.123"));
+        assertThat(result.getField(3)).isEqualTo(Timestamp.valueOf("1990-01-04 02:02:05"));
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals(Date.valueOf("1990-10-14"), result.getField(0));
-        assertEquals(Time.valueOf("02:42:25"), result.getField(1));
-        assertEquals(Timestamp.valueOf("1990-10-14 02:42:25.123"), result.getField(2));
-        assertEquals(Timestamp.valueOf("1990-01-04 02:02:05.3"), result.getField(3));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo(Date.valueOf("1990-10-14"));
+        assertThat(result.getField(1)).isEqualTo(Time.valueOf("02:42:25"));
+        assertThat(result.getField(2)).isEqualTo(Timestamp.valueOf("1990-10-14 02:42:25.123"));
+        assertThat(result.getField(3)).isEqualTo(Timestamp.valueOf("1990-01-04 02:02:05.3"));
 
         result = format.nextRecord(result);
-        assertNull(result);
-        assertTrue(format.reachedEnd());
+        assertThat(result).isNull();
+        assertThat(format.reachedEnd()).isTrue();
     }
 
     @Test
@@ -732,17 +727,17 @@ public class RowCsvInputFormatTest {
 
         // check first row
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals(888, result.getField(0));
-        assertEquals(444, result.getField(1));
-        assertEquals(111, result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo(888);
+        assertThat(result.getField(1)).isEqualTo(444);
+        assertThat(result.getField(2)).isEqualTo(111);
 
         // check second row
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals(333, result.getField(0));
-        assertEquals(777, result.getField(1));
-        assertEquals(0, result.getField(2));
+        assertThat(result).isNotNull();
+        assertThat(result.getField(0)).isEqualTo(333);
+        assertThat(result.getField(1)).isEqualTo(777);
+        assertThat(result.getField(2)).isEqualTo(0);
     }
 
     private static FileInputSplit createTempFile(String content) throws IOException {
@@ -791,11 +786,11 @@ public class RowCsvInputFormatTest {
         inputFormat.open(splits[0]);
 
         Row result = inputFormat.nextRecord(new Row(1));
-        assertNotNull("Expecting to not return null", result);
-        assertEquals(FIRST_PART, result.getField(0));
+        assertThat(result).as("Expecting to not return null").isNotNull();
+        assertThat(result.getField(0)).isEqualTo(FIRST_PART);
 
         result = inputFormat.nextRecord(result);
-        assertNotNull("Expecting to not return null", result);
-        assertEquals(SECOND_PART, result.getField(0));
+        assertThat(result).as("Expecting to not return null").isNotNull();
+        assertThat(result.getField(0)).isEqualTo(SECOND_PART);
     }
 }

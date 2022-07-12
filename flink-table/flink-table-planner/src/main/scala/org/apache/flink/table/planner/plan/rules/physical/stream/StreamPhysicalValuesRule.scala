@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -26,9 +25,7 @@ import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 
-/**
-  * Rule that converts [[FlinkLogicalValues]] to [[StreamPhysicalValues]].
-  */
+/** Rule that converts [[FlinkLogicalValues]] to [[StreamPhysicalValues]]. */
 class StreamPhysicalValuesRule
   extends ConverterRule(
     classOf[FlinkLogicalValues],
@@ -40,11 +37,7 @@ class StreamPhysicalValuesRule
     val values: FlinkLogicalValues = rel.asInstanceOf[FlinkLogicalValues]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
-    new StreamPhysicalValues(
-      rel.getCluster,
-      traitSet,
-      values.getTuples,
-      rel.getRowType)
+    new StreamPhysicalValues(rel.getCluster, traitSet, values.getTuples, rel.getRowType)
   }
 }
 

@@ -31,7 +31,11 @@ import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.SupplierWithException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -54,10 +58,13 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** This class contains auxiliary methods for unit tests. */
 public class CommonTestUtils {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CommonTestUtils.class);
 
     private static final long RETRY_INTERVAL = 100L;
 
@@ -142,6 +149,30 @@ public class CommonTestUtils {
             throws Exception {
         while (!condition.get()) {
             Thread.sleep(retryIntervalMillis);
+        }
+    }
+
+    public static void waitUntilCondition(
+            SupplierWithException<Boolean, Exception> condition, int retryAttempts)
+            throws Exception {
+        waitUntilCondition(condition, RETRY_INTERVAL, retryAttempts);
+    }
+
+    public static void waitUntilCondition(
+            SupplierWithException<Boolean, Exception> condition,
+            long retryIntervalMillis,
+            int retryAttempts)
+            throws Exception {
+        while (!condition.get() && retryAttempts != 0) {
+            retryAttempts--;
+            LOG.debug("Condition not true. Remaining retry attempts {}", retryAttempts);
+            LOG.debug("Sleeping for {} milliseconds", retryIntervalMillis);
+            Thread.sleep(retryIntervalMillis);
+        }
+        if (retryAttempts == 0) {
+            throw new FlinkException("Exhausted retry attempts.");
+        } else {
+            LOG.debug("Condition true. Remaining retry attempts {}", retryAttempts);
         }
     }
 
@@ -309,18 +340,30 @@ public class CommonTestUtils {
                 });
     }
 
-    /** Wait for at least one successful checkpoint. */
-    public static void waitForCheckpoint(JobID jobID, MiniCluster miniCluster)
+    /** Wait for (at least) the given number of successful checkpoints. */
+    public static void waitForCheckpoint(JobID jobID, MiniCluster miniCluster, int numCheckpoints)
             throws Exception, FlinkJobNotFoundException {
         waitUntilCondition(
-                () ->
-                        Optional.ofNullable(
-                                        miniCluster
-                                                .getExecutionGraph(jobID)
-                                                .get()
-                                                .getCheckpointStatsSnapshot())
-                                .filter(st -> st.getCounts().getNumberOfCompletedCheckpoints() > 0)
-                                .isPresent());
+                () -> {
+                    AccessExecutionGraph graph = miniCluster.getExecutionGraph(jobID).get();
+                    if (Optional.ofNullable(graph.getCheckpointStatsSnapshot())
+                            .filter(
+                                    st ->
+                                            st.getCounts().getNumberOfCompletedCheckpoints()
+                                                    >= numCheckpoints)
+                            .isPresent()) {
+                        return true;
+                    } else if (graph.getState().isGloballyTerminalState()) {
+                        checkState(
+                                graph.getFailureInfo() != null,
+                                "Job terminated before taking required %s checkpoints: %s",
+                                numCheckpoints,
+                                graph.getState());
+                        throw graph.getFailureInfo().getException();
+                    } else {
+                        return false;
+                    }
+                });
     }
 
     /**

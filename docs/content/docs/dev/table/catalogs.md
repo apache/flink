@@ -245,7 +245,7 @@ schema = Schema.new_builder() \
     
 catalog_table = t_env.create_table("myhive.mydb.mytable", TableDescriptor.for_connector("kafka")
     .schema(schema)
-    // …
+    # …
     .build())
 
 # tables should contain "mytable"

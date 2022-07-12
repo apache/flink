@@ -21,14 +21,13 @@ package org.apache.flink.table.sources;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assume.assumeThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Collection of tests that verify assumptions that table sources should meet. */
-public abstract class TableSourceTestBase {
+abstract class TableSourceTestBase {
 
     /**
      * Constructs a table source to be tested.
@@ -46,10 +45,10 @@ public abstract class TableSourceTestBase {
      * <p>Required by {@code PushProjectIntoTableSourceScanRule}.
      */
     @Test
-    public void testEmptyProjection() {
+    void testEmptyProjection() {
         TableSource<?> source =
                 createTableSource(TableSchema.builder().field("f0", DataTypes.INT()).build());
-        assumeThat(source, instanceOf(ProjectableTableSource.class));
+        assumeThat(source).isInstanceOf(ProjectableTableSource.class);
 
         ProjectableTableSource<?> projectableTableSource = (ProjectableTableSource<?>) source;
 
@@ -64,7 +63,7 @@ public abstract class TableSourceTestBase {
      * <p>Required by {@code PushProjectIntoTableSourceScanRule}.
      */
     @Test
-    public void testProjectionReturnsDifferentSource() {
+    void testProjectionReturnsDifferentSource() {
         TableSource<?> source =
                 createTableSource(
                         TableSchema.builder()
@@ -72,7 +71,7 @@ public abstract class TableSourceTestBase {
                                 .field("f1", DataTypes.STRING())
                                 .field("f2", DataTypes.BIGINT())
                                 .build());
-        assumeThat(source, instanceOf(ProjectableTableSource.class));
+        assumeThat(source).isInstanceOf(ProjectableTableSource.class);
 
         ProjectableTableSource<?> projectableTableSource = (ProjectableTableSource<?>) source;
 

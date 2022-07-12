@@ -421,7 +421,7 @@ env.enable_changelog_statebackend(true)
 
 ### Monitoring
 
-Available metrics are listed [here]({{< ref "docs/ops/metrics#changelog" >}}).
+Available metrics are listed [here]({{< ref "docs/ops/metrics#state-changelog" >}}).
 
 If a task is backpressured by writing state changes, it will be shown as busy (red) in the UI.
 
@@ -429,9 +429,9 @@ If a task is backpressured by writing state changes, it will be shown as busy (r
 
 **Enabling Changelog**
 
-Resuming only from savepoints in canonical format is supported:
+Resuming from both savepoints and checkpoints is supported:
 - given an existing non-changelog job
-- take a [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) (canonical format is the default)
+- take either a [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) or a [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
 - alter configuration (enable Changelog)
 - resume from the taken snapshot
 
@@ -477,14 +477,14 @@ state.checkpoint-storage: jobmanager
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setStateBackend(new HashMapStateBackend());
-env.getCheckpointConfig().setCheckpointStorage(new JobManagerStateBackend());
+env.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage());
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment
 env.setStateBackend(new HashMapStateBackend)
-env.getCheckpointConfig().setCheckpointStorage(new JobManagerStateBackend)
+env.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage)
 ```
 {{< /tab >}}
 {{< /tabs>}}

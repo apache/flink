@@ -139,8 +139,9 @@ public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
 
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                        new CodeGeneratorContext(config),
-                        planner.getRelBuilder(),
+                        new CodeGeneratorContext(
+                                config, planner.getFlinkContext().getClassLoader()),
+                        planner.createRelBuilder(),
                         JavaScalaConversionUtil.toScala(inputRowType.getChildren()),
                         // the local aggregate result will be buffered, so need copy
                         true);
@@ -151,6 +152,7 @@ public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
 
         final AggregateInfoList aggInfoList =
                 AggregateUtil.transformToStreamAggregateInfoList(
+                        planner.getTypeFactory(),
                         inputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         aggCallNeedRetractions,
@@ -164,7 +166,9 @@ public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
 
         final RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(
-                        grouping, (InternalTypeInfo<RowData>) inputTransform.getOutputType());
+                        planner.getFlinkContext().getClassLoader(),
+                        grouping,
+                        (InternalTypeInfo<RowData>) inputTransform.getOutputType());
 
         final MapBundleOperator<RowData, RowData, RowData, RowData> operator =
                 new MapBundleOperator<>(

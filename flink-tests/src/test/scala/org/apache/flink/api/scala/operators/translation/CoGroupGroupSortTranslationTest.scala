@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.operators.translation
 
 import org.apache.flink.api.common.operators.Order
@@ -23,8 +22,9 @@ import org.apache.flink.api.common.operators.base.CoGroupOperatorBase
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.scala._
 import org.apache.flink.util.{Collector, TestLogger}
-import org.junit.Assert._
+
 import org.junit.{Ignore, Test}
+import org.junit.Assert._
 
 class CoGroupGroupSortTranslationTest extends TestLogger {
 
@@ -32,128 +32,127 @@ class CoGroupGroupSortTranslationTest extends TestLogger {
   def testGroupSortTuples() {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
-      
-      val input1 = env.fromElements( (0L, 0L) )
-      val input2 = env.fromElements( (0L, 0L, 0L) )
-      
+
+      val input1 = env.fromElements((0L, 0L))
+      val input2 = env.fromElements((0L, 0L, 0L))
+
       input1
-          .coGroup(input2)
-          .where(1).equalTo(2)
-          .sortFirstGroup(0, Order.DESCENDING)
-          .sortSecondGroup(1, Order.ASCENDING).sortSecondGroup(0, Order.DESCENDING) {
-               (first, second) => first.buffered.head
-            }
+        .coGroup(input2)
+        .where(1)
+        .equalTo(2)
+        .sortFirstGroup(0, Order.DESCENDING)
+        .sortSecondGroup(1, Order.ASCENDING)
+        .sortSecondGroup(0, Order.DESCENDING)((first, second) => first.buffered.head)
         .output(new DiscardingOutputFormat[(Long, Long)])
-        
+
       val p = env.createProgramPlan()
-      
+
       val sink = p.getDataSinks.iterator().next()
       val coGroup = sink.getInput.asInstanceOf[CoGroupOperatorBase[_, _, _, _]]
-      
-      assertNotNull(coGroup.getGroupOrderForInputOne)
-      assertNotNull(coGroup.getGroupOrderForInputTwo)
-      
-      assertEquals(1, coGroup.getGroupOrderForInputOne.getNumberOfFields)
-      assertEquals(0, coGroup.getGroupOrderForInputOne.getFieldNumber(0).intValue())
-      assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputOne.getOrder(0))
-      
-      assertEquals(2, coGroup.getGroupOrderForInputTwo.getNumberOfFields)
-      assertEquals(1, coGroup.getGroupOrderForInputTwo.getFieldNumber(0).intValue())
-      assertEquals(0, coGroup.getGroupOrderForInputTwo.getFieldNumber(1).intValue())
-      assertEquals(Order.ASCENDING, coGroup.getGroupOrderForInputTwo.getOrder(0))
-      assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputTwo.getOrder(1))
-    }
-    catch {
-      case e: Exception => {
-        e.printStackTrace()
-        fail(e.getMessage)
-      }
-    }
-  }
-  
-  @Test
-  def testSortTuplesAndPojos() {
-    try {
-      val env = ExecutionEnvironment.getExecutionEnvironment
-      
-      val input1 = env.fromElements(new Tuple2[Long, Long](0L, 0L))
-      val input2 = env.fromElements(new CoGroupTestPoJo())
-      
-      input1
-          .coGroup(input2)
-          .where(1).equalTo("b")
-          .sortFirstGroup(0, Order.DESCENDING)
-          .sortSecondGroup("c", Order.ASCENDING).sortSecondGroup("a", Order.DESCENDING) {
-               (first, second) => first.buffered.head
-            }
-          .output(new DiscardingOutputFormat[(Long, Long)])
-          
-      val p = env.createProgramPlan()
-      
-      val sink = p.getDataSinks.iterator().next()
-      val coGroup = sink.getInput.asInstanceOf[CoGroupOperatorBase[_, _, _, _]]
-      
+
       assertNotNull(coGroup.getGroupOrderForInputOne)
       assertNotNull(coGroup.getGroupOrderForInputTwo)
 
       assertEquals(1, coGroup.getGroupOrderForInputOne.getNumberOfFields)
       assertEquals(0, coGroup.getGroupOrderForInputOne.getFieldNumber(0).intValue())
       assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputOne.getOrder(0))
-      
+
       assertEquals(2, coGroup.getGroupOrderForInputTwo.getNumberOfFields)
-      assertEquals(2, coGroup.getGroupOrderForInputTwo.getFieldNumber(0).intValue())
+      assertEquals(1, coGroup.getGroupOrderForInputTwo.getFieldNumber(0).intValue())
       assertEquals(0, coGroup.getGroupOrderForInputTwo.getFieldNumber(1).intValue())
       assertEquals(Order.ASCENDING, coGroup.getGroupOrderForInputTwo.getOrder(0))
       assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputTwo.getOrder(1))
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)
       }
     }
   }
-  
+
+  @Test
+  def testSortTuplesAndPojos() {
+    try {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+
+      val input1 = env.fromElements(new Tuple2[Long, Long](0L, 0L))
+      val input2 = env.fromElements(new CoGroupTestPoJo())
+
+      input1
+        .coGroup(input2)
+        .where(1)
+        .equalTo("b")
+        .sortFirstGroup(0, Order.DESCENDING)
+        .sortSecondGroup("c", Order.ASCENDING)
+        .sortSecondGroup("a", Order.DESCENDING)((first, second) => first.buffered.head)
+        .output(new DiscardingOutputFormat[(Long, Long)])
+
+      val p = env.createProgramPlan()
+
+      val sink = p.getDataSinks.iterator().next()
+      val coGroup = sink.getInput.asInstanceOf[CoGroupOperatorBase[_, _, _, _]]
+
+      assertNotNull(coGroup.getGroupOrderForInputOne)
+      assertNotNull(coGroup.getGroupOrderForInputTwo)
+
+      assertEquals(1, coGroup.getGroupOrderForInputOne.getNumberOfFields)
+      assertEquals(0, coGroup.getGroupOrderForInputOne.getFieldNumber(0).intValue())
+      assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputOne.getOrder(0))
+
+      assertEquals(2, coGroup.getGroupOrderForInputTwo.getNumberOfFields)
+      assertEquals(2, coGroup.getGroupOrderForInputTwo.getFieldNumber(0).intValue())
+      assertEquals(0, coGroup.getGroupOrderForInputTwo.getFieldNumber(1).intValue())
+      assertEquals(Order.ASCENDING, coGroup.getGroupOrderForInputTwo.getOrder(0))
+      assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputTwo.getOrder(1))
+    } catch {
+      case e: Exception => {
+        e.printStackTrace()
+        fail(e.getMessage)
+      }
+    }
+  }
+
   @Test
   @Ignore
   def testGroupSortTuplesDefaultCoGroup() {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
-      
-      val input1 = env.fromElements( (0L, 0L) )
-      val input2 = env.fromElements( (0L, 0L, 0L) )
-      
+
+      val input1 = env.fromElements((0L, 0L))
+      val input2 = env.fromElements((0L, 0L, 0L))
+
       input1
         .coGroup(input2)
-        .where(1).equalTo(2)
+        .where(1)
+        .equalTo(2)
         .sortFirstGroup(0, Order.DESCENDING)
-        .sortSecondGroup(1, Order.ASCENDING).sortSecondGroup(0, Order.DESCENDING)
+        .sortSecondGroup(1, Order.ASCENDING)
+        .sortSecondGroup(0, Order.DESCENDING)
         .apply(
-          (a: Iterator[(Long, Long)],
-            b: Iterator[(Long, Long, Long)],
-            c: Collector[(Long, Long)]) =>
-            a.foreach(e => c.collect(e)))
+          (
+              a: Iterator[(Long, Long)],
+              b: Iterator[(Long, Long, Long)],
+              c: Collector[(Long, Long)]) => a.foreach(e => c.collect(e)))
         .output(new DiscardingOutputFormat[(Long, Long)])
-        
+
       val p = env.createProgramPlan()
-      
+
       val sink = p.getDataSinks.iterator().next()
       val coGroup = sink.getInput.asInstanceOf[CoGroupOperatorBase[_, _, _, _]]
-      
+
       assertNotNull(coGroup.getGroupOrderForInputOne)
       assertNotNull(coGroup.getGroupOrderForInputTwo)
-      
+
       assertEquals(1, coGroup.getGroupOrderForInputOne.getNumberOfFields)
       assertEquals(0, coGroup.getGroupOrderForInputOne.getFieldNumber(0).intValue())
       assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputOne.getOrder(0))
-      
+
       assertEquals(2, coGroup.getGroupOrderForInputTwo.getNumberOfFields)
       assertEquals(1, coGroup.getGroupOrderForInputTwo.getFieldNumber(0).intValue())
       assertEquals(0, coGroup.getGroupOrderForInputTwo.getFieldNumber(1).intValue())
       assertEquals(Order.ASCENDING, coGroup.getGroupOrderForInputTwo.getOrder(0))
       assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputTwo.getOrder(1))
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)
@@ -163,7 +162,7 @@ class CoGroupGroupSortTranslationTest extends TestLogger {
 }
 
 class CoGroupTestPoJo {
-  
+
   var a: Long = _
   var b: Long = _
   var c: Long = _

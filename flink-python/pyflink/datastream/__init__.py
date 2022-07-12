@@ -35,6 +35,11 @@ Entry point classes of Flink DataStream API:
       Represent two connected streams of (possibly) different data types. Connected
       streams are useful for cases where operations on one stream directly affect the operations on
       the other stream, usually via shared state between the streams.
+    - :class:`BroadcastStream`:
+      Represent a stream with :class:`state.BroadcastState` (s).
+    - :class:`BroadcastConnectedStream`:
+      Represents the result of connecting a keyed or non-keyed stream, with a
+      :class:`BroadcastStream` with :class:`state.BroadcastState` (s)
 
 Functions used to transform a :class:`DataStream` into another :class:`DataStream`:
 
@@ -70,6 +75,10 @@ Functions used to transform a :class:`DataStream` into another :class:`DataStrea
       information such as the current timestamp, the watermark, etc.
     - :class:`AggregateFunction`:
       Base class for a user-defined aggregate function.
+    - :class:`BroadcastProcessFunction`:
+      A function to be applied to a :class:`BroadcastConnectedStream` that connects
+      :class:`BroadcastStream`, i.e. a stream with broadcast state, with a non-keyed
+      :class:`DataStream`.
     - :class:`RuntimeContext`:
       Contains information about the context in which functions are executed. Each
       parallel instance of the function will have a context through which it can access static
@@ -83,6 +92,8 @@ Classes to define window:
       A grouping of elements according to a time interval from start (inclusive) to end (exclusive).
     - :class:`CountWindow`:
       A grouping of elements according to element count from start (inclusive) to end (exclusive).
+    - :class:`GlobalWindow`:
+      The window into which all data is placed.
     - :class:`WindowAssigner`:
       Assigns zero or more :class:`Window` to an element.
     - :class:`MergingWindowAssigner`:
@@ -139,11 +150,18 @@ Classes for state operations:
     - :class:`state.AggregatingState`:
       Interface for aggregating state, based on an :class:`AggregateFunction`. Elements that are
       added to this type of state will be eagerly pre-aggregated using a given AggregateFunction.
+    - :class:`state.BroadcastState`:
+      A type of state that can be created to store the state of a :class:`BroadcastStream`. This
+      state assumes that the same elements are sent to all instances of an operator.
+    - :class:`state.ReadOnlyBroadcastState`:
+      A read-only view of the :class:`state.BroadcastState`.
     - :class:`state.StateTtlConfig`:
       Configuration of state TTL logic.
 
 Classes to define source & sink:
 
+    - :class:`connectors.elasticsearch.ElasticsearchSink`:
+      A sink for publishing data into Elasticsearch 6 or Elasticsearch 7.
     - :class:`connectors.FlinkKafkaConsumer`:
       A streaming data source that pulls a parallel data stream from Apache Kafka.
     - :class:`connectors.FlinkKafkaProducer`:
@@ -163,6 +181,10 @@ Classes to define source & sink:
     - :class:`connectors.StreamingFileSink`:
       Sink that emits its input elements to files within buckets. This is integrated with the
       checkpointing mechanism to provide exactly once semantics.
+    - :class:`connectors.PulsarSource`:
+      A streaming data source that pulls a parallel data stream from Pulsar.
+    - :class:`connectors.PulsarSink`:
+      A streaming data sink to produce data into Pulsar.
     - :class:`connectors.RMQSource`:
       A streaming data source that pulls a parallel data stream from RabbitMQ.
     - :class:`connectors.RMQSink`:
@@ -183,18 +205,20 @@ Other important classes:
       Interface for implementing user defined sink functionality.
     - :class:`SourceFunction`:
       Interface for implementing user defined source functionality.
+    - :class:`OutputTag`:
+      Tag with a name and type for identifying side output of an operator
 """
 from pyflink.datastream.checkpoint_config import CheckpointConfig, ExternalizedCheckpointCleanup
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.data_stream import DataStream, KeyedStream, WindowedStream, \
-    ConnectedStreams, DataStreamSink
+    ConnectedStreams, DataStreamSink, BroadcastStream, BroadcastConnectedStream
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFunction,
                                           CoFlatMapFunction, ReduceFunction, RuntimeContext,
                                           KeySelector, FilterFunction, Partitioner, SourceFunction,
                                           SinkFunction, CoProcessFunction, KeyedProcessFunction,
                                           KeyedCoProcessFunction, AggregateFunction, WindowFunction,
-                                          ProcessWindowFunction)
+                                          ProcessWindowFunction, BroadcastProcessFunction)
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup, MemorySize
 from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
                                               RocksDBStateBackend, CustomStateBackend,
@@ -209,7 +233,8 @@ from pyflink.datastream.time_domain import TimeDomain
 from pyflink.datastream.functions import ProcessFunction
 from pyflink.datastream.timerservice import TimerService
 from pyflink.datastream.window import Window, TimeWindow, CountWindow, WindowAssigner, \
-    MergingWindowAssigner, TriggerResult, Trigger
+    MergingWindowAssigner, TriggerResult, Trigger, GlobalWindow
+from pyflink.datastream.output_tag import OutputTag
 
 __all__ = [
     'StreamExecutionEnvironment',
@@ -217,6 +242,8 @@ __all__ = [
     'KeyedStream',
     'WindowedStream',
     'ConnectedStreams',
+    'BroadcastStream',
+    'BroadcastConnectedStream',
     'DataStreamSink',
     'MapFunction',
     'CoMapFunction',
@@ -231,6 +258,7 @@ __all__ = [
     'WindowFunction',
     'ProcessWindowFunction',
     'AggregateFunction',
+    'BroadcastProcessFunction',
     'RuntimeContext',
     'TimerService',
     'CheckpointingMode',
@@ -252,6 +280,7 @@ __all__ = [
     'Window',
     'TimeWindow',
     'CountWindow',
+    'GlobalWindow',
     'WindowAssigner',
     'MergingWindowAssigner',
     'TriggerResult',
@@ -263,5 +292,6 @@ __all__ = [
     'SourceFunction',
     'SinkFunction',
     'SlotSharingGroup',
-    'MemorySize'
+    'MemorySize',
+    'OutputTag'
 ]

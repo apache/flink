@@ -30,12 +30,13 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
+import java.time.Duration;
 import java.util.concurrent.Executor;
 
 /** Builder for {@link DeclarativeSlotManager}. */
 public class DeclarativeSlotManagerBuilder {
     private SlotMatchingStrategy slotMatchingStrategy;
-    private ScheduledExecutor scheduledExecutor;
+    private final ScheduledExecutor scheduledExecutor;
     private Time taskManagerRequestTimeout;
     private Time slotRequestTimeout;
     private Time taskManagerTimeout;
@@ -47,10 +48,11 @@ public class DeclarativeSlotManagerBuilder {
     private int redundantTaskManagerNum;
     private ResourceTracker resourceTracker;
     private SlotTracker slotTracker;
+    private Duration requirementCheckDelay;
 
-    private DeclarativeSlotManagerBuilder() {
+    private DeclarativeSlotManagerBuilder(ScheduledExecutor scheduledExecutor) {
         this.slotMatchingStrategy = AnyMatchingSlotMatchingStrategy.INSTANCE;
-        this.scheduledExecutor = TestingUtils.defaultScheduledExecutor();
+        this.scheduledExecutor = scheduledExecutor;
         this.taskManagerRequestTimeout = TestingUtils.infiniteTime();
         this.slotRequestTimeout = TestingUtils.infiniteTime();
         this.taskManagerTimeout = TestingUtils.infiniteTime();
@@ -64,15 +66,11 @@ public class DeclarativeSlotManagerBuilder {
                 ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue();
         this.resourceTracker = new DefaultResourceTracker();
         this.slotTracker = new DefaultSlotTracker();
+        this.requirementCheckDelay = Duration.ZERO;
     }
 
-    public static DeclarativeSlotManagerBuilder newBuilder() {
-        return new DeclarativeSlotManagerBuilder();
-    }
-
-    public DeclarativeSlotManagerBuilder setScheduledExecutor(ScheduledExecutor scheduledExecutor) {
-        this.scheduledExecutor = scheduledExecutor;
-        return this;
+    public static DeclarativeSlotManagerBuilder newBuilder(ScheduledExecutor scheduledExecutor) {
+        return new DeclarativeSlotManagerBuilder(scheduledExecutor);
     }
 
     public DeclarativeSlotManagerBuilder setTaskManagerRequestTimeout(
@@ -140,12 +138,18 @@ public class DeclarativeSlotManagerBuilder {
         return this;
     }
 
+    public DeclarativeSlotManagerBuilder setRequirementCheckDelay(Duration requirementCheckDelay) {
+        this.requirementCheckDelay = requirementCheckDelay;
+        return this;
+    }
+
     public DeclarativeSlotManager build() {
         final SlotManagerConfiguration slotManagerConfiguration =
                 new SlotManagerConfiguration(
                         taskManagerRequestTimeout,
                         slotRequestTimeout,
                         taskManagerTimeout,
+                        requirementCheckDelay,
                         waitResultConsumedBeforeRelease,
                         slotMatchingStrategy,
                         defaultWorkerResourceSpec,

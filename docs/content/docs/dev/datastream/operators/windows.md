@@ -490,6 +490,16 @@ input
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+input \
+    .key_by(<key selector>) \
+    .window(GlobalWindows.create()) \
+    .<windowed transformation>(<window function>)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ## Window Functions
@@ -708,34 +718,34 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> impl
      */
     public void clear(Context context) throws Exception {}
 
-   	/**
-   	 * The context holding window metadata.
-   	 */
-   	public abstract class Context implements java.io.Serializable {
-   	    /**
-   	     * Returns the window that is being evaluated.
-   	     */
-   	    public abstract W window();
+    /**
+     * The context holding window metadata.
+     */
+    public abstract class Context implements java.io.Serializable {
+        /**
+         * Returns the window that is being evaluated.
+         */
+        public abstract W window();
 
-   	    /** Returns the current processing time. */
-   	    public abstract long currentProcessingTime();
+        /** Returns the current processing time. */
+        public abstract long currentProcessingTime();
 
-   	    /** Returns the current event-time watermark. */
-   	    public abstract long currentWatermark();
+        /** Returns the current event-time watermark. */
+        public abstract long currentWatermark();
 
-   	    /**
-   	     * State accessor for per-key and per-window state.
-   	     *
-   	     * <p><b>NOTE:</b>If you use per-window state you have to ensure that you clean it up
-   	     * by implementing {@link ProcessWindowFunction#clear(Context)}.
-   	     */
-   	    public abstract KeyedStateStore windowState();
+        /**
+         * State accessor for per-key and per-window state.
+         *
+         * <p><b>NOTE:</b>If you use per-window state you have to ensure that you clean it up
+         * by implementing {@link ProcessWindowFunction#clear(Context)}.
+         */
+        public abstract KeyedStateStore windowState();
 
-   	    /**
-   	     * State accessor for per-key global state.
-   	     */
-   	    public abstract KeyedStateStore globalState();
-   	}
+        /**
+         * State accessor for per-key global state.
+         */
+        public abstract KeyedStateStore globalState();
+    }
 
 }
 ```
@@ -1494,6 +1504,16 @@ input
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+input \
+    .key_by(<key selector>) \
+    .window(<window assigner>) \
+    .allowed_lateness(<time>) \
+    .<windowed transformation>(<window function>)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 {{< hint info >}}
@@ -1540,6 +1560,22 @@ val result = input
     .<windowed transformation>(<window function>)
 
 val lateStream = result.getSideOutput(lateOutputTag)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+late_output_tag = OutputTag("late-data", type_info)
+
+input = ...  # type: DataStream
+
+result = input \
+    .key_by(<key selector>) \
+    .window(<window assigner>) \
+    .allowed_lateness(<time>) \
+    .side_output_late_data(late_output_tag) \
+    .<windowed transformation>(<window function>)
+
+late_stream = result.get_side_output(late_output_tag)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1621,6 +1657,20 @@ val resultsPerKey = input
 val globalResults = resultsPerKey
     .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
     .process(new TopKWindowFunction())
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+results_per_key = input \
+    .key_by(<key selector>) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .reduce(Summer())
+
+global_results = results_per_key \
+    .window_all(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
+    .process(TopKWindowFunction())
 ```
 {{< /tab >}}
 {{< /tabs >}}

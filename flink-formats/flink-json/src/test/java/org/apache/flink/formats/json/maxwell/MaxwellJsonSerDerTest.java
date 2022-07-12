@@ -29,7 +29,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,7 +41,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.DataTypes.FIELD;
@@ -49,14 +48,12 @@ import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link MaxwellJsonSerializationSchema} and {@link MaxwellJsonDeserializationSchema}.
  */
-public class MaxwellJsonSerDerTest {
+class MaxwellJsonSerDerTest {
 
     private static final DataType PHYSICAL_DATA_TYPE =
             ROW(
@@ -66,7 +63,7 @@ public class MaxwellJsonSerDerTest {
                     FIELD("weight", FLOAT()));
 
     @Test
-    public void testDeserializationWithMetadata() throws Exception {
+    void testDeserializationWithMetadata() throws Exception {
         // we only read the first line for keeping the test simple
         final String firstLine = readLines("maxwell-data.txt").get(0);
         final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
@@ -85,23 +82,25 @@ public class MaxwellJsonSerDerTest {
                         TimestampFormat.ISO_8601);
         final SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
-        assertEquals(1, collector.list.size());
-        Consumer<RowData> consumer =
-                row -> {
-                    assertThat(row.getInt(0), equalTo(101));
-                    assertThat(row.getString(1).toString(), equalTo("scooter"));
-                    assertThat(row.getString(2).toString(), equalTo("Small 2-wheel scooter"));
-                    assertThat(row.getFloat(3), equalTo(3.14f));
-                    assertThat(row.getString(4).toString(), equalTo("test"));
-                    assertThat(row.getString(5).toString(), equalTo("product"));
-                    assertThat(row.getArray(6).getString(0).toString(), equalTo("id"));
-                    assertThat(row.getTimestamp(7, 3).getMillisecond(), equalTo(1596684883000L));
-                };
-        consumer.accept(collector.list.get(0));
+        assertThat(collector.list).hasSize(1);
+        assertThat(collector.list.get(0))
+                .satisfies(
+                        row -> {
+                            assertThat(row.getInt(0)).isEqualTo(101);
+                            assertThat(row.getString(1).toString()).isEqualTo("scooter");
+                            assertThat(row.getString(2).toString())
+                                    .isEqualTo("Small 2-wheel scooter");
+                            assertThat(row.getFloat(3)).isEqualTo(3.14f);
+                            assertThat(row.getString(4).toString()).isEqualTo("test");
+                            assertThat(row.getString(5).toString()).isEqualTo("product");
+                            assertThat(row.getArray(6).getString(0).toString()).isEqualTo("id");
+                            assertThat(row.getTimestamp(7, 3).getMillisecond())
+                                    .isEqualTo(1596684883000L);
+                        });
     }
 
     @Test
-    public void testSerializationDeserialization() throws Exception {
+    void testSerializationDeserialization() throws Exception {
         List<String> lines = readLines("maxwell-data.txt");
         MaxwellJsonDeserializationSchema deserializationSchema =
                 new MaxwellJsonDeserializationSchema(
@@ -177,7 +176,7 @@ public class MaxwellJsonSerDerTest {
                         "-D(103,12-pack drill bits,12-pack of drill bits with sizes ranging from #40 to #3,0.8)");
         List<String> actual =
                 collector.list.stream().map(Object::toString).collect(Collectors.toList());
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
 
         MaxwellJsonSerializationSchema serializationSchema =
                 new MaxwellJsonSerializationSchema(
@@ -219,7 +218,7 @@ public class MaxwellJsonSerDerTest {
                         "{\"data\":{\"id\":102,\"name\":\"car battery\",\"description\":\"12V car battery\",\"weight\":5.17},\"type\":\"insert\"}",
                         "{\"data\":{\"id\":102,\"name\":\"car battery\",\"description\":\"12V car battery\",\"weight\":5.17},\"type\":\"delete\"}",
                         "{\"data\":{\"id\":103,\"name\":\"12-pack drill bits\",\"description\":\"12-pack of drill bits with sizes ranging from #40 to #3\",\"weight\":0.8},\"type\":\"delete\"}");
-        assertEquals(expectedResult, result);
+        assertThat(result).isEqualTo(expectedResult);
     }
 
     // --------------------------------------------------------------------------------------------

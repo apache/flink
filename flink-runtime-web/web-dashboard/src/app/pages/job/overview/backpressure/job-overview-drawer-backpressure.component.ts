@@ -20,8 +20,10 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { Subject } from 'rxjs';
 import { mergeMap, takeUntil, tap } from 'rxjs/operators';
 
-import { JobBackpressure, JobBackpressureSubtask, NodesItemCorrect } from 'interfaces';
-import { JobService } from 'services';
+import { JobBackpressure, JobBackpressureSubtask, NodesItemCorrect } from '@flink-runtime-web/interfaces';
+import { JobService } from '@flink-runtime-web/services';
+
+import { JobLocalService } from '../../job-local.service';
 
 @Component({
   selector: 'flink-job-overview-drawer-backpressure',
@@ -40,14 +42,19 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   public ngOnInit(): void {
-    this.jobService.jobWithVertex$
+    this.jobLocalService
+      .jobWithVertexChanges()
       .pipe(
-        takeUntil(this.destroy$),
         tap(data => (this.selectedVertex = data.vertex)),
-        mergeMap(data => this.jobService.loadOperatorBackPressure(data.job.jid, data.vertex!.id))
+        mergeMap(data => this.jobService.loadOperatorBackPressure(data.job.jid, data.vertex!.id)),
+        takeUntil(this.destroy$)
       )
       .subscribe(
         data => {

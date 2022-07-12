@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.FloatValue;
 
 /** Tests for {@link FloatValueArrayComparator}. */
-public class FloatValueArrayComparatorTest extends ComparatorTestBase<FloatValueArray> {
+class FloatValueArrayComparatorTest extends ComparatorTestBase<FloatValueArray> {
 
     @Override
     protected TypeComparator<FloatValueArray> createComparator(boolean ascending) {

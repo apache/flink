@@ -30,13 +30,14 @@ import org.apache.flink.util.Preconditions;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** {@link TestTaskStateManager} builder. */
 public class TestTaskStateManagerBuilder {
 
     private JobID jobID = new JobID();
-    private ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+    private ExecutionAttemptID executionAttemptID = createExecutionAttemptId();
     private CheckpointResponder checkpointResponder = new TestCheckpointResponder();
     private LocalRecoveryConfig localRecoveryConfig = TestLocalRecoveryConfig.disabled();
     private StateChangelogStorage<?> stateChangelogStorage = new InMemoryStateChangelogStorage();

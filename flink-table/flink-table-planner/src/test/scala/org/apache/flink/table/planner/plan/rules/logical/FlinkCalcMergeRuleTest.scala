@@ -31,9 +31,7 @@ import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
-/**
-  * Test for [[FlinkCalcMergeRule]].
-  */
+/** Test for [[FlinkCalcMergeRule]]. */
 class FlinkCalcMergeRuleTest extends TableTestBase {
   private val util = batchTestUtil()
 
@@ -46,19 +44,22 @@ class FlinkCalcMergeRuleTest extends TableTestBase {
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(FlinkBatchRuleSets.TABLE_REF_RULES)
-        .build())
+        .build()
+    )
     programs.addLast(
       "logical",
       FlinkVolcanoProgramBuilder.newBuilder
-        .add(RuleSets.ofList(
-          CoreRules.FILTER_TO_CALC,
-          CoreRules.PROJECT_TO_CALC,
-          FlinkCalcMergeRule.INSTANCE,
-          FlinkLogicalCalc.CONVERTER,
-          FlinkLogicalLegacyTableSourceScan.CONVERTER
-        ))
+        .add(
+          RuleSets.ofList(
+            CoreRules.FILTER_TO_CALC,
+            CoreRules.PROJECT_TO_CALC,
+            FlinkCalcMergeRule.INSTANCE,
+            FlinkLogicalCalc.CONVERTER,
+            FlinkLogicalLegacyTableSourceScan.CONVERTER
+          ))
         .setRequiredOutputTraits(Array(FlinkConventions.LOGICAL))
-        .build())
+        .build()
+    )
     util.replaceBatchProgram(programs)
 
     util.addTableSource[(Int, Int, String)]("MyTable", 'a, 'b, 'c)

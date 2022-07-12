@@ -308,7 +308,7 @@ Supported Environment:
 
 #### Huawei Cloud Stream Service
 
-[Website](https://www.huaweicloud.com/en-us/product/cs.html)
+[Website](https://www.huaweicloud.com/intl/zh-cn/product/cs.html)
 
 Supported Environment:
 {{< label Huawei Cloud >}}

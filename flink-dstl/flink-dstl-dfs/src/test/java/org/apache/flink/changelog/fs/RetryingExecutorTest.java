@@ -75,10 +75,12 @@ class RetryingExecutorTest {
         List<Integer> discarded = new CopyOnWriteArrayList<>();
         AtomicBoolean executionBlocked = new AtomicBoolean(true);
         Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
+        ChangelogStorageMetricGroup metrics = createUnregisteredChangelogStorageMetricGroup();
         try (RetryingExecutor executor =
                 new RetryingExecutor(
                         numAttempts,
-                        createUnregisteredChangelogStorageMetricGroup().getAttemptsPerUpload())) {
+                        metrics.getAttemptsPerUpload(),
+                        metrics.getTotalAttemptsPerUpload())) {
             executor.execute(
                     RetryPolicy.fixed(numAttempts, timeoutMs, 0),
                     new RetriableAction<Integer>() {
@@ -228,10 +230,12 @@ class RetryingExecutorTest {
             throws Exception {
         AtomicInteger attemptsMade = new AtomicInteger(0);
         CountDownLatch firstAttemptCompletedLatch = new CountDownLatch(1);
+        ChangelogStorageMetricGroup metrics = createUnregisteredChangelogStorageMetricGroup();
         try (RetryingExecutor executor =
                 new RetryingExecutor(
                         scheduler,
-                        createUnregisteredChangelogStorageMetricGroup().getAttemptsPerUpload())) {
+                        metrics.getAttemptsPerUpload(),
+                        metrics.getTotalAttemptsPerUpload())) {
             executor.execute(
                     policy,
                     runnableToAction(

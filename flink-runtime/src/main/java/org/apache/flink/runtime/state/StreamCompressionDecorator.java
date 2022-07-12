@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.util.NonClosingInputStreamDecorator;
-import org.apache.flink.runtime.util.NonClosingOutpusStreamDecorator;
+import org.apache.flink.runtime.util.NonClosingOutputStreamDecorator;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,7 +46,7 @@ public abstract class StreamCompressionDecorator implements Serializable {
      * @return an output stream that is decorated by the compression scheme.
      */
     public final OutputStream decorateWithCompression(OutputStream stream) throws IOException {
-        return decorateWithCompression(new NonClosingOutpusStreamDecorator(stream));
+        return decorateWithCompression(new NonClosingOutputStreamDecorator(stream));
     }
 
     /**
@@ -64,7 +64,7 @@ public abstract class StreamCompressionDecorator implements Serializable {
      * @param stream the stream to decorate
      * @return an output stream that is decorated by the compression scheme.
      */
-    protected abstract OutputStream decorateWithCompression(NonClosingOutpusStreamDecorator stream)
+    protected abstract OutputStream decorateWithCompression(NonClosingOutputStreamDecorator stream)
             throws IOException;
 
     /**

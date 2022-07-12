@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfileTestingUtils;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingPayload;
@@ -53,6 +54,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createRandomExecutionVertexId;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -113,9 +115,9 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
         AllocationContext context =
                 AllocationContext.newBuilder().addGroup(EV1, EV2).addGroup(EV3, EV4).build();
 
-        List<SlotExecutionVertexAssignment> executionVertexAssignments =
+        List<ExecutionSlotAssignment> executionSlotAssignments =
                 context.allocateSlotsFor(EV1, EV2, EV3, EV4);
-        Collection<ExecutionVertexID> assignIds = getAssignIds(executionVertexAssignments);
+        Collection<ExecutionVertexID> assignIds = getAssignIds(executionSlotAssignments);
 
         assertThat(assignIds, containsInAnyOrder(EV1, EV2, EV3, EV4));
         assertThat(context.getSlotProvider().getRequests().keySet(), hasSize(2));
@@ -126,9 +128,8 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
         AllocationContext context = AllocationContext.newBuilder().addGroup(EV1, EV2).build();
 
         context.allocateSlotsFor(EV1);
-        List<SlotExecutionVertexAssignment> executionVertexAssignments =
-                context.allocateSlotsFor(EV2);
-        Collection<ExecutionVertexID> assignIds = getAssignIds(executionVertexAssignments);
+        List<ExecutionSlotAssignment> executionSlotAssignments = context.allocateSlotsFor(EV2);
+        Collection<ExecutionVertexID> assignIds = getAssignIds(executionSlotAssignments);
 
         // execution 0 from the first allocateSlotsFor call and execution 1 from the second
         // allocateSlotsFor call
@@ -142,8 +143,8 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
             throws ExecutionException, InterruptedException {
         AllocationContext context = AllocationContext.newBuilder().addGroup(EV1).build();
 
-        SlotExecutionVertexAssignment assignment1 = context.allocateSlotsFor(EV1).get(0);
-        SlotExecutionVertexAssignment assignment2 = context.allocateSlotsFor(EV1).get(0);
+        ExecutionSlotAssignment assignment1 = context.allocateSlotsFor(EV1).get(0);
+        ExecutionSlotAssignment assignment2 = context.allocateSlotsFor(EV1).get(0);
 
         assertThat(
                 assignment1.getLogicalSlotFuture().get()
@@ -226,7 +227,7 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
                 true,
                 true,
                 (context, assignment) -> {
-                    context.getAllocator().cancel(assignment.getExecutionVertexId());
+                    context.getAllocator().cancel(assignment.getExecutionAttemptId());
                     try {
                         assignment.getLogicalSlotFuture().get();
                         fail("The logical future must finish with the cancellation exception");
@@ -245,7 +246,7 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
                 false,
                 false,
                 (context, assignment) -> {
-                    context.getAllocator().cancel(assignment.getExecutionVertexId());
+                    context.getAllocator().cancel(assignment.getExecutionAttemptId());
                     assignment.getLogicalSlotFuture().get();
                 });
     }
@@ -253,7 +254,7 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
     private static void testLogicalSlotRequestCancellationOrRelease(
             boolean completePhysicalSlotFutureManually,
             boolean cancelsPhysicalSlotRequestAndRemovesSharedSlot,
-            BiConsumerWithException<AllocationContext, SlotExecutionVertexAssignment, Exception>
+            BiConsumerWithException<AllocationContext, ExecutionSlotAssignment, Exception>
                     cancelOrReleaseAction)
             throws Exception {
         AllocationContext.Builder allocationContextBuilder =
@@ -264,19 +265,19 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
         }
         AllocationContext context = allocationContextBuilder.build();
 
-        List<SlotExecutionVertexAssignment> assignments = context.allocateSlotsFor(EV1, EV2);
+        List<ExecutionSlotAssignment> assignments = context.allocateSlotsFor(EV1, EV2);
         assertThat(context.getSlotProvider().getRequests().keySet(), hasSize(1));
 
         // cancel or release only one sharing logical slots
         cancelOrReleaseAction.accept(context, assignments.get(0));
-        List<SlotExecutionVertexAssignment> assignmentsAfterOneCancellation =
+        List<ExecutionSlotAssignment> assignmentsAfterOneCancellation =
                 context.allocateSlotsFor(EV1, EV2);
         // there should be no more physical slot allocations, as the first logical slot reuses the
         // previous shared slot
         assertThat(context.getSlotProvider().getRequests().keySet(), hasSize(1));
 
         // cancel or release all sharing logical slots
-        for (SlotExecutionVertexAssignment assignment : assignmentsAfterOneCancellation) {
+        for (ExecutionSlotAssignment assignment : assignmentsAfterOneCancellation) {
             cancelOrReleaseAction.accept(context, assignment);
         }
         SlotRequestId slotRequestId =
@@ -298,7 +299,7 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
     public void testPhysicalSlotReleaseLogicalSlots()
             throws ExecutionException, InterruptedException {
         AllocationContext context = AllocationContext.newBuilder().addGroup(EV1, EV2).build();
-        List<SlotExecutionVertexAssignment> assignments = context.allocateSlotsFor(EV1, EV2);
+        List<ExecutionSlotAssignment> assignments = context.allocateSlotsFor(EV1, EV2);
         List<TestingPayload> payloads =
                 assignments.stream()
                         .map(
@@ -376,10 +377,10 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
         AllocationContext context = createBulkCheckerContextWithEv12GroupAndEv3Group(bulkChecker);
 
         // allocate 2 physical slots for 2 groups
-        List<SlotExecutionVertexAssignment> assignments1 = context.allocateSlotsFor(EV1, EV3);
+        List<ExecutionSlotAssignment> assignments1 = context.allocateSlotsFor(EV1, EV3);
         fulfilOneOfTwoSlotRequestsAndGetPendingProfile(context, new AllocationID());
         PhysicalSlotRequestBulk bulk1 = bulkChecker.getBulk();
-        List<SlotExecutionVertexAssignment> assignments2 = context.allocateSlotsFor(EV2);
+        List<ExecutionSlotAssignment> assignments2 = context.allocateSlotsFor(EV2);
 
         // cancelling of (EV1, EV3) releases assignments1 and only one physical slot for EV3
         // the second physical slot is held by sharing EV2 from the next bulk
@@ -438,10 +439,9 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
                                         new FlinkException("test failure")))
                         .build();
 
-        final List<SlotExecutionVertexAssignment> allocatedSlots =
-                context.allocateSlotsFor(EV1, EV2);
+        final List<ExecutionSlotAssignment> allocatedSlots = context.allocateSlotsFor(EV1, EV2);
 
-        for (SlotExecutionVertexAssignment allocatedSlot : allocatedSlots) {
+        for (ExecutionSlotAssignment allocatedSlot : allocatedSlots) {
             assertTrue(allocatedSlot.getLogicalSlotFuture().isCompletedExceptionally());
         }
 
@@ -473,9 +473,10 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
     }
 
     private static List<ExecutionVertexID> getAssignIds(
-            Collection<SlotExecutionVertexAssignment> assignments) {
+            Collection<ExecutionSlotAssignment> assignments) {
         return assignments.stream()
-                .map(SlotExecutionVertexAssignment::getExecutionVertexId)
+                .map(ExecutionSlotAssignment::getExecutionAttemptId)
+                .map(ExecutionAttemptID::getExecutionVertexId)
                 .collect(Collectors.toList());
     }
 
@@ -524,8 +525,13 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
             return allocator;
         }
 
-        private List<SlotExecutionVertexAssignment> allocateSlotsFor(ExecutionVertexID... ids) {
-            return allocator.allocateSlotsFor(Arrays.asList(ids));
+        private List<ExecutionSlotAssignment> allocateSlotsFor(ExecutionVertexID... ids) {
+            return allocator.allocateSlotsFor(
+                    Arrays.stream(ids)
+                            .map(
+                                    executionVertexId ->
+                                            createExecutionAttemptId(executionVertexId, 0))
+                            .collect(Collectors.toList()));
         }
 
         private TestingSlotSharingStrategy getSlotSharingStrategy() {

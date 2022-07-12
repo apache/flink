@@ -19,27 +19,23 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.runtime.util.HadoopUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for {@link ContainerRequestReflector}. */
-public class ContainerRequestReflectorTest extends TestLogger {
+class ContainerRequestReflectorTest {
 
     @Test
-    public void testGetContainerRequestIfConstructorPresent() {
+    void testGetContainerRequestIfConstructorPresent() {
         final ContainerRequestReflector containerRequestReflector =
                 new ContainerRequestReflector(ContainerRequestWithConstructor.class);
         Resource resource = Resource.newInstance(100, 1);
@@ -47,20 +43,20 @@ public class ContainerRequestReflectorTest extends TestLogger {
 
         AMRMClient.ContainerRequest containerRequest =
                 containerRequestReflector.getContainerRequest(resource, priority, "GPU");
-        assertTrue(containerRequest instanceof ContainerRequestWithConstructor);
+        assertThat(containerRequest).isInstanceOf(ContainerRequestWithConstructor.class);
         ContainerRequestWithConstructor containerRequestWithConstructor =
                 (ContainerRequestWithConstructor) containerRequest;
-        assertEquals("GPU", containerRequestWithConstructor.getNodeLabelsExpression());
+        assertThat(containerRequestWithConstructor.getNodeLabelsExpression()).isEqualTo("GPU");
 
         containerRequest = containerRequestReflector.getContainerRequest(resource, priority, null);
-        assertFalse(containerRequest instanceof ContainerRequestWithConstructor);
+        assertThat(containerRequest).isNotInstanceOf(ContainerRequestWithConstructor.class);
 
         containerRequest = containerRequestReflector.getContainerRequest(resource, priority, "");
-        assertFalse(containerRequest instanceof ContainerRequestWithConstructor);
+        assertThat(containerRequest).isNotInstanceOf(ContainerRequestWithConstructor.class);
     }
 
     @Test
-    public void testGetContainerRequestIfConstructorAbsent() {
+    void testGetContainerRequestIfConstructorAbsent() {
         final ContainerRequestReflector containerRequestReflector =
                 new ContainerRequestReflector(ContainerRequestWithoutConstructor.class);
         Resource resource = Resource.newInstance(100, 1);
@@ -68,18 +64,18 @@ public class ContainerRequestReflectorTest extends TestLogger {
 
         AMRMClient.ContainerRequest containerRequest =
                 containerRequestReflector.getContainerRequest(resource, priority, "GPU");
-        assertFalse(containerRequest instanceof ContainerRequestWithoutConstructor);
+        assertThat(containerRequest).isNotInstanceOf(ContainerRequestWithoutConstructor.class);
 
         containerRequest = containerRequestReflector.getContainerRequest(resource, priority, null);
-        assertFalse(containerRequest instanceof ContainerRequestWithoutConstructor);
+        assertThat(containerRequest).isNotInstanceOf(ContainerRequestWithoutConstructor.class);
 
         containerRequest = containerRequestReflector.getContainerRequest(resource, priority, "");
-        assertFalse(containerRequest instanceof ContainerRequestWithoutConstructor);
+        assertThat(containerRequest).isNotInstanceOf(ContainerRequestWithoutConstructor.class);
     }
 
     @Test
-    public void testGetContainerRequestWithoutYarnSupport() {
-        assumeTrue(HadoopUtils.isMaxHadoopVersion(2, 6));
+    void testGetContainerRequestWithoutYarnSupport() {
+        assumeThat(HadoopUtils.isMaxHadoopVersion(2, 6)).isTrue();
 
         Resource resource = Resource.newInstance(100, 1);
         Priority priority = Priority.newInstance(1);
@@ -90,24 +86,24 @@ public class ContainerRequestReflectorTest extends TestLogger {
     }
 
     @Test
-    public void testGetContainerRequestWithYarnSupport()
+    void testGetContainerRequestWithYarnSupport()
             throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        assumeTrue(HadoopUtils.isMinHadoopVersion(2, 6));
+        assumeThat(HadoopUtils.isMinHadoopVersion(2, 6)).isTrue();
 
         Resource resource = Resource.newInstance(100, 1);
         Priority priority = Priority.newInstance(1);
 
         AMRMClient.ContainerRequest containerRequest =
                 ContainerRequestReflector.INSTANCE.getContainerRequest(resource, priority, "GPU");
-        assertEquals("GPU", getNodeLabelExpressionWithReflector(containerRequest));
+        assertThat(getNodeLabelExpressionWithReflector(containerRequest)).isEqualTo("GPU");
 
         containerRequest =
                 ContainerRequestReflector.INSTANCE.getContainerRequest(resource, priority, null);
-        assertNull(getNodeLabelExpressionWithReflector(containerRequest));
+        assertThat(getNodeLabelExpressionWithReflector(containerRequest)).isNull();
 
         containerRequest =
                 ContainerRequestReflector.INSTANCE.getContainerRequest(resource, priority, "");
-        assertNull(getNodeLabelExpressionWithReflector(containerRequest));
+        assertThat(getNodeLabelExpressionWithReflector(containerRequest)).isNull();
     }
 
     private String getNodeLabelExpressionWithReflector(AMRMClient.ContainerRequest containerRequest)

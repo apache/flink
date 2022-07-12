@@ -90,9 +90,6 @@ public class TestingJobMasterGatewayBuilder {
             requestPartitionStateFunction =
                     (ignoredA, ignoredB) ->
                             CompletableFuture.completedFuture(ExecutionState.RUNNING);
-    private Function<ResultPartitionID, CompletableFuture<Acknowledge>>
-            notifyPartitionDataAvailableFunction =
-                    ignored -> CompletableFuture.completedFuture(Acknowledge.get());
     private Function<ResourceID, CompletableFuture<Acknowledge>> disconnectTaskManagerFunction =
             ignored -> CompletableFuture.completedFuture(Acknowledge.get());
     private Consumer<ResourceManagerId> disconnectResourceManagerConsumer = ignored -> {};
@@ -209,13 +206,6 @@ public class TestingJobMasterGatewayBuilder {
             BiFunction<IntermediateDataSetID, ResultPartitionID, CompletableFuture<ExecutionState>>
                     requestPartitionStateFunction) {
         this.requestPartitionStateFunction = requestPartitionStateFunction;
-        return this;
-    }
-
-    public TestingJobMasterGatewayBuilder setNotifyPartitionDataAvailableFunction(
-            Function<ResultPartitionID, CompletableFuture<Acknowledge>>
-                    notifyPartitionDataAvailableFunction) {
-        this.notifyPartitionDataAvailableFunction = notifyPartitionDataAvailableFunction;
         return this;
     }
 
@@ -400,7 +390,6 @@ public class TestingJobMasterGatewayBuilder {
                 updateTaskExecutionStateFunction,
                 requestNextInputSplitFunction,
                 requestPartitionStateFunction,
-                notifyPartitionDataAvailableFunction,
                 disconnectTaskManagerFunction,
                 disconnectResourceManagerConsumer,
                 offerSlotsFunction,

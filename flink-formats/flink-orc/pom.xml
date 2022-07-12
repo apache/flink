@@ -26,7 +26,6 @@ under the License.
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
 		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-orc</artifactId>
@@ -146,6 +145,14 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Required due to UniqueBucketAssigner -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -157,6 +164,16 @@ under the License.
 
 	</dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.google.guava</groupId>
+				<artifactId>guava</artifactId>
+				<version>27.0.1-jre</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<profiles>
 		<profile>
 			<!-- This profile adds dependencies needed to execute the tests
@@ -166,7 +183,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-hdfs-client</artifactId>
-					<version>${hadoop.version}</version>
+					<version>${flink.hadoop.version}</version>
 					<scope>test</scope>
 				</dependency>
 			</dependencies>

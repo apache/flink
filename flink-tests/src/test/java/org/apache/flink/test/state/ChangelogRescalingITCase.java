@@ -128,7 +128,8 @@ public class ChangelogRescalingITCase extends TestLogger {
     @Before
     public void before() throws Exception {
         Configuration configuration = new Configuration();
-        FsStateChangelogStorageFactory.configure(configuration, temporaryFolder.newFolder());
+        FsStateChangelogStorageFactory.configure(
+                configuration, temporaryFolder.newFolder(), Duration.ofMinutes(1), 10);
         cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -326,7 +327,7 @@ public class ChangelogRescalingITCase extends TestLogger {
     }
 
     private String checkpointAndCancel(JobID jobID) throws Exception {
-        waitForCheckpoint(jobID, cluster.getMiniCluster());
+        waitForCheckpoint(jobID, cluster.getMiniCluster(), 1);
         cluster.getClusterClient().cancel(jobID).get();
         checkStatus(jobID);
         return CommonTestUtils.getLatestCompletedCheckpointPath(jobID, cluster.getMiniCluster())

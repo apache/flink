@@ -34,8 +34,11 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.Collector;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -43,6 +46,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -51,6 +55,9 @@ import static org.junit.Assert.fail;
 /** Tests for {@link RescalePartitioner}. */
 @SuppressWarnings("serial")
 public class RescalePartitionerTest extends StreamPartitionerTest {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Override
     public StreamPartitioner<Tuple> createPartitioner() {
@@ -121,7 +128,7 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setVertexParallelismStore(
                                 SchedulerBase.computeVertexParallelismStore(jobGraph))
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
 
         try {
             eg.attachJobGraph(jobVertices);

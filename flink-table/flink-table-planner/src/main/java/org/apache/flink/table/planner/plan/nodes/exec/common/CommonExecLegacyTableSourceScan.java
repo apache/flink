@@ -24,10 +24,10 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
@@ -44,9 +44,9 @@ import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.utils.TypeMappingUtils;
 
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
@@ -120,22 +120,25 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
         }
 
         final RowType outputType = (RowType) getOutputType();
-        final RelDataType relDataType = FlinkTypeFactory.INSTANCE().buildRelNodeRowType(outputType);
         // get expression to extract rowtime attribute
         final Optional<RexNode> rowtimeExpression =
                 JavaScalaConversionUtil.toJava(
                                 TableSourceUtil.getRowtimeAttributeDescriptor(
-                                        tableSource, relDataType))
+                                        tableSource, outputType))
                         .map(
                                 desc ->
                                         TableSourceUtil.getRowtimeExtractionExpression(
                                                 desc.getTimestampExtractor(),
                                                 producedDataType,
-                                                planner.getRelBuilder(),
+                                                planner.createRelBuilder(),
                                                 getNameRemapping()));
 
         return createConversionTransformationIfNeeded(
-                planner.getExecEnv(), config, sourceTransform, rowtimeExpression.orElse(null));
+                planner.getExecEnv(),
+                config,
+                planner.getFlinkContext().getClassLoader(),
+                sourceTransform,
+                rowtimeExpression.orElse(null));
     }
 
     protected abstract <IN> Transformation<IN> createInput(
@@ -146,6 +149,7 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
     protected abstract Transformation<RowData> createConversionTransformationIfNeeded(
             StreamExecutionEnvironment streamExecEnv,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             Transformation<?> sourceTransform,
             @Nullable RexNode rowtimeExpression);
 
@@ -155,9 +159,10 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
     }
 
     protected int[] computeIndexMapping(boolean isStreaming) {
+        RowType outputType = (RowType) getOutputType();
         TableSchema tableSchema =
-                FlinkTypeFactory.toTableSchema(
-                        FlinkTypeFactory.INSTANCE().buildRelNodeRowType((RowType) getOutputType()));
+                TableSchema.fromResolvedSchema(
+                        DataTypeUtils.expandCompositeTypeToSchema(DataTypes.of(outputType)));
         return TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
                 tableSource, tableSchema.getTableColumns(), isStreaming, getNameRemapping());
     }

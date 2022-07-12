@@ -87,15 +87,21 @@ public interface DeclarativeSlotPool {
             long currentTime);
 
     /**
-     * Registers the given set of slots at the slot pool.
+     * Registers the given set of slots at the slot pool. The slot pool will try to accept all slots
+     * unless the slot is unavailable (for example, the TaskManger is blocked).
+     *
+     * <p>The difference from {@link #offerSlots} is that this method allows accepting slots which
+     * exceed the currently required, but the {@link #offerSlots} only accepts those slots that are
+     * currently required.
      *
      * @param slots slots to register
      * @param taskManagerLocation taskManagerLocation is the location of the offering TaskExecutor
      * @param taskManagerGateway taskManagerGateway is the gateway to talk to the offering
      *     TaskExecutor
      * @param currentTime currentTime is the time the slots are being offered
+     * @return the successfully registered slots; the other slot offers are implicitly rejected
      */
-    void registerSlots(
+    Collection<SlotOffer> registerSlots(
             Collection<? extends SlotOffer> slots,
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,

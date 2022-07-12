@@ -210,7 +210,7 @@ public class NFAStatusChangeITCase {
         // be removed from eventSharedBuffer as the timeout happens
         nfaState.resetStateChanged();
         Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutResults =
-                nfa.advanceTime(sharedBufferAccessor, nfaState, 12L);
+                nfa.advanceTime(sharedBufferAccessor, nfaState, 12L).f1;
         assertTrue(
                 "NFA status should change as timeout happens",
                 nfaState.isStateChanged() && !timeoutResults.isEmpty());

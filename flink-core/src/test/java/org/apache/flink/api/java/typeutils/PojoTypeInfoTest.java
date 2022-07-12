@@ -21,7 +21,7 @@ package org.apache.flink.api.java.typeutils;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /** Test for {@link PojoTypeInfo}. */
-public class PojoTypeInfoTest extends TypeInformationTestBase<PojoTypeInfo<?>> {
+class PojoTypeInfoTest extends TypeInformationTestBase<PojoTypeInfo<?>> {
 
     @Override
     protected PojoTypeInfo<?>[] getTestData() {

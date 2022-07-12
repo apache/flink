@@ -72,6 +72,8 @@ class PeriodicMaterializationManager implements Closeable {
 
     private final ChangelogKeyedStateBackend<?> keyedStateBackend;
 
+    private final ChangelogMaterializationMetricGroup metrics;
+
     /** Whether PeriodicMaterializationManager is started. */
     private boolean started = false;
 
@@ -83,6 +85,7 @@ class PeriodicMaterializationManager implements Closeable {
             String subtaskName,
             AsyncExceptionHandler asyncExceptionHandler,
             ChangelogKeyedStateBackend<?> keyedStateBackend,
+            ChangelogMaterializationMetricGroup metricGroup,
             long periodicMaterializeDelay,
             int allowedNumberOfFailures,
             String operatorSubtaskId) {
@@ -90,6 +93,7 @@ class PeriodicMaterializationManager implements Closeable {
         this.asyncOperationsThreadPool = checkNotNull(asyncOperationsThreadPool);
         this.subtaskName = checkNotNull(subtaskName);
         this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
+        this.metrics = metricGroup;
         this.keyedStateBackend = checkNotNull(keyedStateBackend);
 
         this.periodicMaterializeDelay = periodicMaterializeDelay;
@@ -132,8 +136,14 @@ class PeriodicMaterializationManager implements Closeable {
     public void triggerMaterialization() {
         mailboxExecutor.execute(
                 () -> {
-                    Optional<MaterializationRunnable> materializationRunnableOptional =
-                            keyedStateBackend.initMaterialization();
+                    metrics.reportStartedMaterialization();
+                    Optional<MaterializationRunnable> materializationRunnableOptional;
+                    try {
+                        materializationRunnableOptional = keyedStateBackend.initMaterialization();
+                    } catch (Exception ex) {
+                        metrics.reportFailedMaterialization();
+                        throw ex;
+                    }
 
                     if (materializationRunnableOptional.isPresent()) {
                         MaterializationRunnable runnable = materializationRunnableOptional.get();
@@ -144,6 +154,7 @@ class PeriodicMaterializationManager implements Closeable {
                                                 runnable.getMaterializationID(),
                                                 runnable.getMaterializedTo()));
                     } else {
+                        metrics.reportCompletedMaterialization();
                         scheduleNextMaterialization();
 
                         LOG.info(
@@ -169,9 +180,15 @@ class PeriodicMaterializationManager implements Closeable {
                                 numberOfConsecutiveFailures.set(0);
 
                                 mailboxExecutor.execute(
-                                        () ->
+                                        () -> {
+                                            try {
                                                 keyedStateBackend.updateChangelogSnapshotState(
-                                                        snapshotResult, materializationID, upTo),
+                                                        snapshotResult, materializationID, upTo);
+                                                metrics.reportCompletedMaterialization();
+                                            } catch (Exception ex) {
+                                                metrics.reportFailedMaterialization();
+                                            }
+                                        },
                                         "Task {} update materializedSnapshot up to changelog sequence number: {}",
                                         subtaskName,
                                         upTo);
@@ -183,6 +200,7 @@ class PeriodicMaterializationManager implements Closeable {
                                 scheduleNextMaterialization();
                             } else {
                                 // if failed
+                                metrics.reportFailedMaterialization();
                                 int retryTime = numberOfConsecutiveFailures.incrementAndGet();
 
                                 if (retryTime <= allowedNumberOfFailures) {

@@ -31,7 +31,6 @@ import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
 import org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkBase;
-import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
@@ -77,10 +76,8 @@ public class SchedulerEndToEndBenchmarkBase extends SchedulerBenchmarkBase {
             ComponentMainThreadExecutor mainThreadExecutor,
             ScheduledExecutorService executorService)
             throws Exception {
-        return SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
-                .setFutureExecutor(executorService)
-                .setIoExecutor(executorService)
-                .setDelayExecutor(new ScheduledExecutorServiceAdapter(executorService))
+        return new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                        jobGraph, mainThreadExecutor, executorService)
                 .setExecutionSlotAllocatorFactory(
                         SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                 physicalSlotProvider))

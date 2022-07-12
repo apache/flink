@@ -6,6 +6,7 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
+- org.apache.parquet:parquet-avro:1.12.2
 - org.apache.parquet:parquet-hadoop:1.12.2
 - org.apache.parquet:parquet-column:1.12.2
 - org.apache.parquet:parquet-common:1.12.2

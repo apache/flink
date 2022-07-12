@@ -72,4 +72,9 @@ public class JarRunHeaders
                 + "'. "
                 + "Program arguments can be passed both via the JSON request (recommended) or query parameters.";
     }
+
+    @Override
+    public String operationId() {
+        return "submitJobFromJar";
+    }
 }

@@ -23,9 +23,8 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.fs.RefCountedBufferingFileStream;
 import org.apache.flink.core.fs.RefCountedFileWithStream;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.FunctionWithException;
-
-import org.apache.commons.io.IOUtils;
 
 import javax.annotation.concurrent.NotThreadSafe;
 

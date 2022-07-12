@@ -103,7 +103,7 @@ Kafka message value as string:
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 KafkaSource.<String>builder()
-        .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringSerializer.class));
+        .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class));
 ```
 
 ### Starting Offset
@@ -116,8 +116,8 @@ KafkaSource.builder()
     .setStartingOffsets(OffsetsInitializer.committedOffsets())
     // Start from committed offset, also use EARLIEST as reset strategy if committed offset doesn't exist
     .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
-    // Start from the first record whose timestamp is greater than or equals a timestamp
-    .setStartingOffsets(OffsetsInitializer.timestamp(1592323200L))
+    // Start from the first record whose timestamp is greater than or equals a timestamp (milliseconds)
+    .setStartingOffsets(OffsetsInitializer.timestamp(1657256176000L))
     // Start from earliest offset
     .setStartingOffsets(OffsetsInitializer.earliest())
     // Start from latest offset
@@ -164,14 +164,6 @@ it is configured:
   for the starting offsets
 - ```partition.discovery.interval.ms``` is overridden to -1 when
   ```setBounded(OffsetsInitializer)``` has been invoked
-
-The code snippet below shows configuring KafkaConsumer to use "PLAIN" as SASL mechanism and provide
-JAAS configuration:
-```java
-KafkaSource.builder()
-    .setProperty("sasl.mechanism", "PLAIN")
-    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";");
-```
 
 ### Dynamic Partition Discovery
 In order to handle scenarios like topic scaling-out or topic creation without restarting the Flink
@@ -307,6 +299,49 @@ For metrics of Kafka consumer, you can refer to
 <a href="http://kafka.apache.org/documentation/#consumer_monitoring">Apache Kafka Documentation</a>
 for more details.
 
+In case you experience a warning with a stack trace containing
+`javax.management.InstanceAlreadyExistsException: kafka.consumer:[...]`, you are probably trying to
+register multiple ```KafkaConsumers``` with the same client.id. The warning indicates that not all
+available metrics are correctly forwarded to the metrics system. You must ensure that a different
+```client.id.prefix``` for every ```KafkaSource``` is configured and that no other
+```KafkaConsumer``` in your job uses the same ```client.id```.
+
+### Security
+In order to enable security configurations including encryption and authentication, you just need to setup security
+configurations as additional properties to the Kafka source. The code snippet below shows configuring Kafka source to
+use PLAIN as SASL mechanism and provide JAAS configuration:
+
+```java
+KafkaSource.builder()
+    .setProperty("security.protocol", "SASL_PLAINTEXT")
+    .setProperty("sasl.mechanism", "PLAIN")
+    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";");
+```
+
+For a more complex example, use SASL_SSL as the security protocol and use SCRAM-SHA-256 as SASL mechanism:
+```java
+KafkaSource.builder()
+    .setProperty("security.protocol", "SASL_SSL")
+    // SSL configurations
+    // Configure the path of truststore (CA) provided by the server
+    .setProperty("ssl.truststore.location", "/path/to/kafka.client.truststore.jks")
+    .setProperty("ssl.truststore.password", "test1234")
+    // Configure the path of keystore (private key) if client authentication is required
+    .setProperty("ssl.keystore.location", "/path/to/kafka.client.keystore.jks")
+    .setProperty("ssl.keystore.password", "test1234")
+    // SASL configurations
+    // Set SASL mechanism as SCRAM-SHA-256
+    .setProperty("sasl.mechanism", "SCRAM-SHA-256")
+    // Set JAAS configurations
+    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"username\" password=\"password\";");
+```
+
+Please note that the class path of the login module in `sasl.jaas.config` might be different if you relocate Kafka
+client dependencies in the job JAR, so you may need to rewrite it with the actual class path of the module in the JAR.
+
+For detailed explanations of security configurations, please refer to
+<a href="https://kafka.apache.org/documentation/#security">the "Security" section in Apache Kafka documentation</a>.
+
 ### Behind the Scene
 {{< hint info >}}
 If you are interested in how Kafka source works under the design of new data source API, you may
@@ -370,7 +405,7 @@ KafkaSink<String> sink = KafkaSink.<String>builder()
             .setValueSerializationSchema(new SimpleStringSchema())
             .build()
         )
-        .setDeliverGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+        .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
         .build();
         
 stream.sinkTo(sink);

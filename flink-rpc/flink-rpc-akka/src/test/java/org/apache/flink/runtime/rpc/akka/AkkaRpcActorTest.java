@@ -30,7 +30,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
+import org.apache.flink.runtime.rpc.exceptions.EndpointNotStartedException;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.rpc.exceptions.RpcException;
@@ -39,7 +39,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import akka.actor.ActorRef;
@@ -76,7 +75,7 @@ class AkkaRpcActorTest {
     //  shared test members
     // ------------------------------------------------------------------------
 
-    private static Time timeout = Time.milliseconds(10000L);
+    private static Duration timeout = Duration.ofSeconds(10L);
 
     private static AkkaRpcService akkaRpcService;
 
@@ -90,7 +89,7 @@ class AkkaRpcActorTest {
 
     @AfterAll
     static void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
-        RpcUtils.terminateRpcService(akkaRpcService, timeout);
+        RpcUtils.terminateRpcService(akkaRpcService);
     }
 
     /**
@@ -105,7 +104,7 @@ class AkkaRpcActorTest {
         CompletableFuture<DummyRpcGateway> futureRpcGateway =
                 akkaRpcService.connect(rpcEndpoint.getAddress(), DummyRpcGateway.class);
 
-        DummyRpcGateway rpcGateway = futureRpcGateway.get(timeout.getSize(), timeout.getUnit());
+        DummyRpcGateway rpcGateway = futureRpcGateway.get();
 
         assertThat(rpcGateway.getAddress()).isEqualTo(rpcEndpoint.getAddress());
     }
@@ -119,7 +118,7 @@ class AkkaRpcActorTest {
         CompletableFuture<DummyRpcGateway> futureRpcGateway =
                 akkaRpcService.connect("foobar", DummyRpcGateway.class);
 
-        assertThatThrownBy(() -> futureRpcGateway.get(timeout.getSize(), timeout.getUnit()))
+        assertThatThrownBy(() -> futureRpcGateway.get())
                 .hasCauseInstanceOf(RpcConnectionException.class);
     }
 
@@ -135,9 +134,9 @@ class AkkaRpcActorTest {
 
         DummyRpcGateway rpcGateway = rpcEndpoint.getSelfGateway(DummyRpcGateway.class);
 
-        // this message should be discarded and completed with an AkkaRpcException
-        assertThatThrownBy(() -> rpcGateway.foobar().get(timeout.getSize(), timeout.getUnit()))
-                .hasCauseInstanceOf(AkkaRpcException.class);
+        // this message should be discarded and complete with an exception
+        assertThatThrownBy(() -> rpcGateway.foobar().get())
+                .hasCauseInstanceOf(EndpointNotStartedException.class);
 
         // set a new value which we expect to be returned
         rpcEndpoint.setFoobar(expectedValue);
@@ -150,11 +149,11 @@ class AkkaRpcActorTest {
             CompletableFuture<Integer> result = rpcGateway.foobar();
 
             // now we should receive a result :-)
-            Integer actualValue = result.get(timeout.getSize(), timeout.getUnit());
+            Integer actualValue = result.get();
 
             assertThat(actualValue).isEqualTo(expectedValue);
         } finally {
-            RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 
@@ -187,7 +186,7 @@ class AkkaRpcActorTest {
         ExceptionalGateway rpcGateway = rpcEndpoint.getSelfGateway(ExceptionalGateway.class);
         CompletableFuture<Integer> result = rpcGateway.doStuff();
 
-        assertThatThrownBy(() -> result.get(timeout.getSize(), timeout.getUnit()))
+        assertThatThrownBy(() -> result.get())
                 .extracting(e -> e.getCause())
                 .satisfies(
                         e ->
@@ -204,7 +203,7 @@ class AkkaRpcActorTest {
         ExceptionalGateway rpcGateway = rpcEndpoint.getSelfGateway(ExceptionalGateway.class);
         CompletableFuture<Integer> result = rpcGateway.doStuff();
 
-        assertThatThrownBy(() -> result.get(timeout.getSize(), timeout.getUnit()))
+        assertThatThrownBy(() -> result.get())
                 .extracting(e -> e.getCause())
                 .satisfies(
                         e -> assertThat(e).isInstanceOf(Exception.class).hasMessage("some test"));
@@ -252,8 +251,8 @@ class AkkaRpcActorTest {
                     .withThrowableOfType(ExecutionException.class)
                     .withCauseInstanceOf(RpcException.class);
         } finally {
-            RpcUtils.terminateRpcService(clientAkkaRpcService, timeout);
-            RpcUtils.terminateRpcService(serverAkkaRpcService, timeout);
+            RpcUtils.terminateRpcService(clientAkkaRpcService);
+            RpcUtils.terminateRpcService(serverAkkaRpcService);
         }
     }
 
@@ -302,11 +301,10 @@ class AkkaRpcActorTest {
 
             rpcService.stopService();
 
-            terminationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+            terminationFuture.get();
         } finally {
             rpcActorSystem.terminate();
-            AkkaFutureUtils.toJava(rpcActorSystem.whenTerminated())
-                    .get(timeout.getSize(), timeout.getUnit());
+            AkkaFutureUtils.toJava(rpcActorSystem.whenTerminated()).get();
         }
     }
 
@@ -332,7 +330,7 @@ class AkkaRpcActorTest {
             // the onStopFuture completion should allow the endpoint to terminate
             terminationFuture.get();
         } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(endpoint);
         }
     }
 
@@ -352,7 +350,7 @@ class AkkaRpcActorTest {
 
             terminationFuture.get();
         } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(endpoint);
         }
     }
 
@@ -374,9 +372,9 @@ class AkkaRpcActorTest {
             assertThat(terminationFuture).isNotDone();
 
             final CompletableFuture<Integer> firstAsyncOperationFuture =
-                    asyncOperationGateway.asyncOperation(timeout);
+                    asyncOperationGateway.asyncOperation(Time.fromDuration(timeout));
             final CompletableFuture<Integer> secondAsyncOperationFuture =
-                    asyncOperationGateway.asyncOperation(timeout);
+                    asyncOperationGateway.asyncOperation(Time.fromDuration(timeout));
 
             endpoint.awaitEnterAsyncOperation();
 
@@ -396,11 +394,11 @@ class AkkaRpcActorTest {
 
             assertThat(endpoint.getNumberAsyncOperationCalls()).isEqualTo(1);
             assertThat(secondAsyncOperationFuture)
-                    .failsWithin(TimeUtils.toDuration(timeout))
+                    .failsWithin(timeout)
                     .withThrowableOfType(ExecutionException.class)
                     .withCauseInstanceOf(RecipientUnreachableException.class);
         } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(endpoint);
         }
     }
 
@@ -416,7 +414,7 @@ class AkkaRpcActorTest {
             onStartEndpoint.start();
             onStartEndpoint.awaitUntilOnStartCalled();
         } finally {
-            RpcUtils.terminateRpcEndpoint(onStartEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(onStartEndpoint);
         }
     }
 
@@ -430,7 +428,9 @@ class AkkaRpcActorTest {
         onStartEndpoint.awaitUntilOnStartCalled();
 
         assertThatThrownBy(() -> onStartEndpoint.getTerminationFuture().get())
-                .satisfies(FlinkAssertions.containsCause(testException));
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                testException.getClass(), testException.getMessage()));
     }
 
     /**
@@ -462,7 +462,7 @@ class AkkaRpcActorTest {
             assertThat(endpoint.getNumOnStopCalls()).isEqualTo(1);
         } finally {
             onStopFuture.complete(null);
-            RpcUtils.terminateRpcEndpoint(endpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(endpoint);
         }
     }
 

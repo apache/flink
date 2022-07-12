@@ -28,6 +28,7 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
@@ -48,7 +49,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
-import org.apache.flink.runtime.scheduler.DefaultExecutionVertexOperations;
+import org.apache.flink.runtime.scheduler.DefaultExecutionOperations;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
@@ -145,7 +146,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                         blobWriter,
                         shuffleMaster,
                         partitionTracker,
-                        true);
+                        true,
+                        new ExecutionJobVertex.Factory());
 
         return new AdaptiveBatchScheduler(
                 log,
@@ -161,7 +163,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                 new VertexwiseSchedulingStrategy.Factory(),
                 FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(jobMasterConfiguration),
                 restartBackoffTimeStrategy,
-                new DefaultExecutionVertexOperations(),
+                new DefaultExecutionOperations(),
                 new ExecutionVertexVersioner(),
                 allocatorFactory,
                 initializationTimestamp,
@@ -179,7 +181,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
         for (JobVertex jobVertex : jobGraph.getVertices()) {
             for (IntermediateDataSet dataSet : jobVertex.getProducedDataSets()) {
                 checkState(
-                        dataSet.getResultType().isBlocking(),
+                        dataSet.getResultType().isBlockingOrBlockingPersistentResultPartition(),
                         String.format(
                                 "At the moment, adaptive batch scheduler requires batch workloads "
                                         + "to be executed with types of all edges being BLOCKING. "

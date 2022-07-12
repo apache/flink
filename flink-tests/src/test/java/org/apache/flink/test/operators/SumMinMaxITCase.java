@@ -32,6 +32,8 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
+
 /**
  * Integration tests for {@link org.apache.flink.api.scala.GroupedDataSet#min} and {@link
  * org.apache.flink.api.scala.GroupedDataSet#max}.

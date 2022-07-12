@@ -37,6 +37,12 @@ public class ForwardHashExchangeTest extends TableTestBase {
 
         util.getStreamEnv().getConfig().setDynamicGraph(true);
         util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED,
+                        false);
+        util.tableEnv()
                 .executeSql(
                         "CREATE TABLE T (\n"
                                 + "  a BIGINT,\n"
@@ -69,6 +75,20 @@ public class ForwardHashExchangeTest extends TableTestBase {
                                 + " 'connector' = 'values',\n"
                                 + " 'bounded' = 'true'\n"
                                 + ")");
+    }
+
+    @Test
+    public void testRankWithHashShuffle() {
+        util.verifyExecPlan(
+                "SELECT * FROM (SELECT a, b, RANK() OVER(PARTITION BY a ORDER BY b) rk FROM T) WHERE rk <= 10");
+    }
+
+    @Test
+    public void testSortAggregateWithHashShuffle() {
+        util.tableEnv()
+                .getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        util.verifyExecPlan(" SELECT a, SUM(b) AS b FROM T GROUP BY a");
     }
 
     @Test
@@ -130,12 +150,45 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testSortAggOnSortMergeJoinWithHashShuffle() {
+    public void testOnePhaseSortAggOnSortMergeJoinWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(
                         ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
                         "HashJoin,NestedLoopJoin,HashAgg");
+        util.tableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
+        util.verifyExecPlan(
+                "WITH r AS (SELECT * FROM T1, T2 WHERE a1 = a2 AND c1 LIKE 'He%')\n"
+                        + "SELECT sum(b1) FROM r group by a1");
+    }
+
+    @Test
+    public void testTwoPhaseSortAggOnSortMergeJoinWithHashShuffle() {
+        util.tableEnv()
+                .getConfig()
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+                        "HashJoin,NestedLoopJoin,HashAgg");
+        util.tableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
+        util.verifyExecPlan(
+                "WITH r AS (SELECT * FROM T1, T2 WHERE a1 = a2 AND c1 LIKE 'He%')\n"
+                        + "SELECT sum(b1) FROM r group by a1");
+    }
+
+    @Test
+    public void testAutoPhaseSortAggOnSortMergeJoinWithHashShuffle() {
+        util.tableEnv()
+                .getConfig()
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+                        "HashJoin,NestedLoopJoin,HashAgg");
+        util.tableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "AUTO");
         util.verifyExecPlan(
                 "WITH r AS (SELECT * FROM T1, T2 WHERE a1 = a2 AND c1 LIKE 'He%')\n"
                         + "SELECT sum(b1) FROM r group by a1");
@@ -196,10 +249,13 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testRankOnSortAggWithHashShuffle() {
+    public void testRankOnOnePhaseSortAggWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
-                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
+                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        util.tableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
         util.verifyExecPlan(
                 "SELECT * FROM (\n"
                         + "                SELECT a, b, RANK() OVER(PARTITION BY a ORDER BY b) rk FROM (\n"
@@ -209,10 +265,45 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testRankOnSortAggWithGlobalShuffle() {
+    public void testRankOnTwoPhaseSortAggWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
-                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
+                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        util.tableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
+        util.verifyExecPlan(
+                "SELECT * FROM (\n"
+                        + "                SELECT a, b, RANK() OVER(PARTITION BY a ORDER BY b) rk FROM (\n"
+                        + "                        SELECT a, SUM(b) AS b FROM T GROUP BY a\n"
+                        + "                )\n"
+                        + "        ) WHERE rk <= 10");
+    }
+
+    @Test
+    public void testRankOnOnePhaseSortAggWithGlobalShuffle() {
+        util.tableEnv()
+                .getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        util.tableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
+        util.verifyExecPlan(
+                "SELECT * FROM (\n"
+                        + "                SELECT b, RANK() OVER(ORDER BY b) rk FROM (\n"
+                        + "                        SELECT SUM(b) AS b FROM T\n"
+                        + "                )\n"
+                        + "        ) WHERE rk <= 10");
+    }
+
+    @Test
+    public void testRankOnTwoPhaseSortAggWithGlobalShuffle() {
+        util.tableEnv()
+                .getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        util.tableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
         util.verifyExecPlan(
                 "SELECT * FROM (\n"
                         + "                SELECT b, RANK() OVER(ORDER BY b) rk FROM (\n"

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.table.api.TableException
@@ -31,15 +30,14 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.{Programs, RuleSet}
 
 /**
-  * A FlinkRuleSetProgram that runs with [[org.apache.calcite.plan.volcano.VolcanoPlanner]].
-  *
-  * @tparam OC OptimizeContext
-  */
+ * A FlinkRuleSetProgram that runs with [[org.apache.calcite.plan.volcano.VolcanoPlanner]].
+ *
+ * @tparam OC
+ *   OptimizeContext
+ */
 class FlinkVolcanoProgram[OC <: FlinkOptimizeContext] extends FlinkRuleSetProgram[OC] {
 
-  /**
-    * Required output traits, this must not be None when doing optimize.
-    */
+  /** Required output traits, this must not be None when doing optimize. */
   protected var requiredOutputTraits: Option[Array[RelTrait]] = None
 
   override def optimize(root: RelNode, context: OC): RelNode = {
@@ -61,25 +59,22 @@ class FlinkVolcanoProgram[OC <: FlinkOptimizeContext] extends FlinkRuleSetProgra
 
     try {
       FlinkRelMdNonCumulativeCost.THREAD_PLANNER.set(planner)
-      optProgram.run(
-        planner,
-        root,
-        targetTraits,
-        ImmutableList.of(),
-        ImmutableList.of())
+      optProgram.run(planner, root, targetTraits, ImmutableList.of(), ImmutableList.of())
     } catch {
       case e: CannotPlanException =>
         throw new TableException(
           s"Cannot generate a valid execution plan for the given query: \n\n" +
             s"${FlinkRelOptUtil.toString(root)}\n" +
             s"This exception indicates that the query uses an unsupported SQL feature.\n" +
-            s"Please check the documentation for the set of currently supported SQL features.", e)
+            s"Please check the documentation for the set of currently supported SQL features.",
+          e)
       case t: TableException =>
         throw new TableException(
           s"Cannot generate a valid execution plan for the given query: \n\n" +
             s"${FlinkRelOptUtil.toString(root)}\n" +
             s"${t.getMessage}\n" +
-            s"Please check the documentation for the set of currently supported SQL features.", t)
+            s"Please check the documentation for the set of currently supported SQL features.",
+          t)
       case a: AssertionError =>
         throw new AssertionError(s"Sql optimization: Assertion error: ${a.getMessage}", a)
       case r: RuntimeException if r.getCause.isInstanceOf[TableException] =>
@@ -94,9 +89,7 @@ class FlinkVolcanoProgram[OC <: FlinkOptimizeContext] extends FlinkRuleSetProgra
     }
   }
 
-  /**
-    * Sets required output traits.
-    */
+  /** Sets required output traits. */
   def setRequiredOutputTraits(relTraits: Array[RelTrait]): Unit = {
     Preconditions.checkNotNull(relTraits)
     requiredOutputTraits = Some(relTraits)
@@ -107,17 +100,13 @@ class FlinkVolcanoProgram[OC <: FlinkOptimizeContext] extends FlinkRuleSetProgra
 class FlinkVolcanoProgramBuilder[OC <: FlinkOptimizeContext] {
   private val volcanoProgram = new FlinkVolcanoProgram[OC]
 
-  /**
-    * Adds rules for this program.
-    */
+  /** Adds rules for this program. */
   def add(ruleSet: RuleSet): FlinkVolcanoProgramBuilder[OC] = {
     volcanoProgram.add(ruleSet)
     this
   }
 
-  /**
-    * Sets required output traits.
-    */
+  /** Sets required output traits. */
   def setRequiredOutputTraits(relTraits: Array[RelTrait]): FlinkVolcanoProgramBuilder[OC] = {
     volcanoProgram.setRequiredOutputTraits(relTraits)
     this

@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -51,9 +50,17 @@ public interface StateChangelogWriter<Handle extends ChangelogStateHandle> exten
     CompletableFuture<Handle> persist(SequenceNumber from) throws IOException;
 
     /**
-     * Truncate in-memory view of this state changelog to free up resources. Called upon state
-     * materialization. Any {@link #persist(SequenceNumber) persisted} state changes will not be
-     * discarded; any ongoing persist calls will not be affected.
+     * Truncate this state changelog to free up the resources and collect any garbage. That means:
+     *
+     * <ul>
+     *   <li>Discard the written state changes - in the provided range [from; to)
+     *   <li>Truncate the in-memory view of this changelog - in the range [0; to)
+     * </ul>
+     *
+     * Called upon state materialization. Any ongoing persist calls will not be affected.
+     *
+     * <p>WARNING: the range [from; to) must not include any range that is included into any
+     * checkpoint that is not subsumed or aborted.
      *
      * @param to exclusive
      */
@@ -74,11 +81,16 @@ public interface StateChangelogWriter<Handle extends ChangelogStateHandle> exten
     void reset(SequenceNumber from, SequenceNumber to);
 
     /**
+     * Truncate the tail of log and close it. No new appends will be possible. Any appended but not
+     * persisted records will be lost.
+     *
+     * @param from {@link SequenceNumber} from which to truncate the changelog, inclusive
+     */
+    void truncateAndClose(SequenceNumber from);
+
+    /**
      * Close this log. No new appends will be possible. Any appended but not persisted records will
      * be lost.
      */
     void close();
-
-    @VisibleForTesting
-    SequenceNumber getLowestSequenceNumber();
 }

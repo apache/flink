@@ -23,7 +23,7 @@ import org.apache.flink.connector.jdbc.JdbcTestFixture;
 import org.junit.Test;
 
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@link JdbcXaSinkFunction} tests using H2 DB. H2 uses MVCC (so we can e.g. count records while
@@ -47,22 +47,19 @@ public class JdbcXaSinkH2Test extends JdbcXaSinkTestBase {
     @Test
     public void testHappyFlow() throws Exception {
         sinkHelper.emit(TEST_DATA[0]);
-        assertEquals(
-                "record should not be inserted before the checkpoint started.",
-                0,
-                xaHelper.countInDb());
+        assertThat(xaHelper.countInDb())
+                .as("record should not be inserted before the checkpoint started.")
+                .isEqualTo(0);
 
         sinkHelper.snapshotState(Long.MAX_VALUE);
-        assertEquals(
-                "record should not be inserted before the checkpoint completed.",
-                0,
-                xaHelper.countInDb());
+        assertThat(xaHelper.countInDb())
+                .as("record should not be inserted before the checkpoint completed.")
+                .isEqualTo(0);
 
         sinkHelper.notifyCheckpointComplete(Long.MAX_VALUE);
-        assertEquals(
-                "record should be inserted after the checkpoint completed.",
-                1,
-                xaHelper.countInDb());
+        assertThat(xaHelper.countInDb())
+                .as("record should be inserted after the checkpoint completed.")
+                .isEqualTo(1);
     }
 
     @Test
@@ -70,7 +67,7 @@ public class JdbcXaSinkH2Test extends JdbcXaSinkTestBase {
         JdbcXaSinkTestHelper sinkHelper = this.sinkHelper;
         sinkHelper.snapshotState(1);
         sinkHelper.snapshotState(2);
-        assertEquals(0, xaHelper.countInDb());
+        assertThat(xaHelper.countInDb()).isEqualTo(0);
     }
 
     @Override

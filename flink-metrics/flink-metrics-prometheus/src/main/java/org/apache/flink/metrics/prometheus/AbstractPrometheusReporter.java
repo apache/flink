@@ -57,15 +57,10 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
     private static final Pattern UNALLOWED_CHAR_PATTERN = Pattern.compile("[^a-zA-Z0-9:_]");
     private static final CharacterFilter CHARACTER_FILTER =
-            new CharacterFilter() {
-                @Override
-                public String filterCharacters(String input) {
-                    return replaceInvalidChars(input);
-                }
-            };
+            AbstractPrometheusReporter::replaceInvalidChars;
 
-    private static final char SCOPE_SEPARATOR = '_';
-    private static final String SCOPE_PREFIX = "flink" + SCOPE_SEPARATOR;
+    @VisibleForTesting static final char SCOPE_SEPARATOR = '_';
+    @VisibleForTesting static final String SCOPE_PREFIX = "flink" + SCOPE_SEPARATOR;
 
     private final Map<String, AbstractMap.SimpleImmutableEntry<Collector, Integer>>
             collectorsWithCountByMetricName = new HashMap<>();
@@ -189,7 +184,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
         switch (metric.getMetricType()) {
             case GAUGE:
                 ((io.prometheus.client.Gauge) collector)
-                        .setChild(gaugeFrom((Gauge) metric), toArray(dimensionValues));
+                        .setChild(gaugeFrom((Gauge<?>) metric), toArray(dimensionValues));
                 break;
             case COUNTER:
                 ((io.prometheus.client.Gauge) collector)
@@ -263,14 +258,13 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private static String getLogicalScope(MetricGroup group) {
         return LogicalScopeProvider.castFrom(group)
                 .getLogicalScope(CHARACTER_FILTER, SCOPE_SEPARATOR);
     }
 
     @VisibleForTesting
-    io.prometheus.client.Gauge.Child gaugeFrom(Gauge gauge) {
+    io.prometheus.client.Gauge.Child gaugeFrom(Gauge<?> gauge) {
         return new io.prometheus.client.Gauge.Child() {
             @Override
             public double get() {

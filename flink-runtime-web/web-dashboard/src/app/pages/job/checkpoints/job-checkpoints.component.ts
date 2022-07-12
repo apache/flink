@@ -16,11 +16,14 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
-import { distinctUntilChanged } from 'rxjs/operators';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { forkJoin, of, Subject } from 'rxjs';
+import { catchError, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 
-import { CheckpointConfig, CheckpointHistory, Checkpoint, JobDetailCorrect } from 'interfaces';
-import { JobService } from 'services';
+import { CheckpointConfig, CheckpointHistory, Checkpoint, JobDetailCorrect } from '@flink-runtime-web/interfaces';
+import { JobService } from '@flink-runtime-web/services';
+
+import { JobLocalService } from '../job-local.service';
 
 @Component({
   selector: 'flink-job-checkpoints',
@@ -28,33 +31,71 @@ import { JobService } from 'services';
   styleUrls: ['./job-checkpoints.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class JobCheckpointsComponent implements OnInit {
+export class JobCheckpointsComponent implements OnInit, OnDestroy {
+  disabledInterval = 0x7fffffffffffffff;
+
   public readonly trackById = (_: number, node: CheckpointHistory): number => node.id;
 
-  public checkPointStats: Checkpoint;
-  public checkPointConfig: CheckpointConfig;
+  public checkPointStats?: Checkpoint;
+  public checkPointConfig?: CheckpointConfig;
   public jobDetail: JobDetailCorrect;
 
   public moreDetailsPanel = { active: false, disabled: false };
 
-  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+  private refresh$ = new Subject<void>();
+  private destroy$ = new Subject<void>();
+
+  constructor(
+    private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   public ngOnInit(): void {
-    this.jobService.jobDetail$.pipe(distinctUntilChanged((pre, next) => pre.jid === next.jid)).subscribe(data => {
-      this.jobDetail = data;
-      this.jobService.loadCheckpointStats(this.jobDetail.jid).subscribe(stats => {
+    this.refresh$
+      .pipe(
+        switchMap(() =>
+          forkJoin([
+            this.jobService.loadCheckpointStats(this.jobDetail.jid).pipe(
+              catchError(() => {
+                return of(undefined);
+              })
+            ),
+            this.jobService.loadCheckpointConfig(this.jobDetail.jid).pipe(
+              catchError(() => {
+                return of(undefined);
+              })
+            )
+          ])
+        ),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(([stats, config]) => {
         this.checkPointStats = stats;
-        this.cdr.markForCheck();
-      });
-      this.jobService.loadCheckpointConfig(this.jobDetail.jid).subscribe(config => {
         this.checkPointConfig = config;
         this.cdr.markForCheck();
       });
-    });
+
+    this.jobLocalService
+      .jobDetailChanges()
+      .pipe(
+        distinctUntilChanged((pre, next) => pre.jid === next.jid),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        this.jobDetail = data;
+        this.cdr.markForCheck();
+        this.refresh$.next();
+      });
+  }
+
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.refresh$.complete();
   }
 
   public refresh(): void {
-    this.jobService.loadCheckpointStats(this.jobDetail.jid).subscribe(data => (this.checkPointStats = data));
-    this.jobService.loadCheckpointConfig(this.jobDetail.jid).subscribe(data => (this.checkPointConfig = data));
+    this.refresh$.next();
   }
 }

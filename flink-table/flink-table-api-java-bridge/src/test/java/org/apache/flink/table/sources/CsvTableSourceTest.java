@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 /** Tests for {@link CsvTableSource}. */
-public class CsvTableSourceTest extends TableSourceTestBase {
+class CsvTableSourceTest extends TableSourceTestBase {
 
     @Override
     protected TableSource<?> createTableSource(TableSchema requestedSchema) {

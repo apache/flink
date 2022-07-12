@@ -28,7 +28,7 @@ import java.util.Random;
 import java.util.TreeMap;
 
 /** A test for the {@link MapSerializer}. */
-public class MapSerializerTest extends SerializerTestBase<Map<Long, String>> {
+class MapSerializerTest extends SerializerTestBase<Map<Long, String>> {
 
     @Override
     protected TypeSerializer<Map<Long, String>> createSerializer() {

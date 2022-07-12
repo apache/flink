@@ -27,7 +27,7 @@
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
-	<artifactId>flink-python-test_${scala.binary.version}</artifactId>
+	<artifactId>flink-python-test</artifactId>
 	<name>Flink : E2E Tests : Python</name>
 
 	<dependencies>

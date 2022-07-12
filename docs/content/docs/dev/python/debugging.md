@@ -60,10 +60,14 @@ You can log contextual and debug information via `print` or standard Python logg
 The logging messages will be printed in the log files of the `TaskManagers` during job execution.
 
 ```python
+from pyflink.table import DataTypes
+from pyflink.table.udf import udf
+
+import logging
+
 @udf(result_type=DataTypes.BIGINT())
 def add(i, j):
     # use logging modules
-    import logging
     logging.info("debug")
     # use print function
     print('debug')

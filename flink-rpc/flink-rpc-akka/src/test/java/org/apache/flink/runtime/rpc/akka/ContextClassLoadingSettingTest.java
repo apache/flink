@@ -17,9 +17,9 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
+import org.apache.flink.runtime.rpc.Local;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -39,6 +39,7 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -59,8 +60,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * side.
  */
 class ContextClassLoadingSettingTest {
-
-    private static final Time TIMEOUT = Time.milliseconds(10000L);
 
     // Many of the contained tests assert that a future is completed with a specific context class
     // loader by applying a synchronous operation.
@@ -98,7 +97,7 @@ class ContextClassLoadingSettingTest {
                 AkkaFutureUtils.toJava(actorSystem.terminate());
 
         FutureUtils.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
-                .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+                .get();
 
         actorSystem = null;
         akkaRpcService = null;
@@ -323,8 +322,8 @@ class ContextClassLoadingSettingTest {
             // exception
             connect.getPickyObject().get();
         } finally {
-            RpcUtils.terminateRpcService(clientAkkaRpcService, TIMEOUT);
-            RpcUtils.terminateRpcService(serverAkkaRpcService, TIMEOUT);
+            RpcUtils.terminateRpcService(clientAkkaRpcService);
+            RpcUtils.terminateRpcService(serverAkkaRpcService);
         }
     }
 
@@ -360,10 +359,6 @@ class ContextClassLoadingSettingTest {
         CompletableFuture<ClassLoader> getContextClassLoader();
 
         CompletableFuture<Void> doSomethingAsync();
-
-        CompletableFuture<ClassLoader> doCallAsync();
-
-        CompletableFuture<ClassLoader> doRunAsync();
 
         void doSomethingWithoutReturningAnything();
 
@@ -416,14 +411,11 @@ class ContextClassLoadingSettingTest {
             return rpcResponseFuture;
         }
 
-        @Override
         public CompletableFuture<ClassLoader> doCallAsync() {
             return callAsync(
-                    () -> Thread.currentThread().getContextClassLoader(),
-                    Time.of(10, TimeUnit.SECONDS));
+                    () -> Thread.currentThread().getContextClassLoader(), Duration.ofSeconds(10));
         }
 
-        @Override
         public CompletableFuture<ClassLoader> doRunAsync() {
             final CompletableFuture<ClassLoader> contextClassLoader = new CompletableFuture<>();
             runAsync(
@@ -448,6 +440,7 @@ class ContextClassLoadingSettingTest {
         }
 
         @Override
+        @Local
         public CompletableFuture<ClassLoader> getContextClassLoader() {
             return CompletableFuture.completedFuture(
                     Thread.currentThread().getContextClassLoader());

@@ -44,7 +44,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base class for KafkaSource unit tests. */
 public class KafkaSourceTestEnv extends KafkaTestBase {
@@ -220,6 +220,10 @@ public class KafkaSourceTestEnv extends KafkaTestBase {
     public static void setupEarliestOffsets(String topic) throws Throwable {
         // Delete some records to move the starting partition.
         List<TopicPartition> partitions = getPartitionsForTopic(topic);
+        setupEarliestOffsets(partitions);
+    }
+
+    public static void setupEarliestOffsets(List<TopicPartition> partitions) throws Throwable {
         Map<TopicPartition, RecordsToDelete> toDelete = new HashMap<>();
         getEarliestOffsets(partitions)
                 .forEach((tp, offset) -> toDelete.put(tp, RecordsToDelete.beforeOffset(offset)));
@@ -240,7 +244,7 @@ public class KafkaSourceTestEnv extends KafkaTestBase {
                                                 new ArrayList<>(committedOffsets.keySet())))
                         .partitionsToOffsetAndMetadata()
                         .get();
-        assertEquals("The offsets are not committed", committedOffsets, toVerify);
+        assertThat(toVerify).as("The offsets are not committed").isEqualTo(committedOffsets);
     }
 
     public static void produceToKafka(Collection<ProducerRecord<String, Integer>> records)

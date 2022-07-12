@@ -63,6 +63,12 @@
             <td>Strategy how to restore catalog objects such as tables, functions, or data types using a given plan and performing catalog lookups if necessary. It influences the need for catalog metadata to bepresent and enables partial enrichment of plan information.<br /><br />Possible values:<ul><li>"ALL": Reads all metadata about catalog tables, functions, or data types that has been persisted in the plan. The strategy performs a catalog lookup by identifier to fill in missing information or enrich mutable options. If the original object is not available in the catalog anymore, pipelines can still be restored if all information necessary is contained in the plan.</li><li>"ALL_ENFORCED": Requires that all metadata about catalog tables, functions, or data types has been persisted in the plan. The strategy will neither perform a catalog lookup by identifier nor enrich mutable options with catalog information. A restore will fail if not all information necessary is contained in the plan.</li><li>"IDENTIFIER": Uses only the identifier of catalog tables, functions, or data types and always performs a catalog lookup. A restore will fail if the original object is not available in the catalog anymore. Additional metadata that might be contained in the plan will be ignored.</li></ul></td>
         </tr>
         <tr>
+            <td><h5>table.resource.download.dir</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">System.getProperty("java.io.tmpdir")</td>
+            <td>String</td>
+            <td>Local directory that is used by planner for storing downloaded resources.</td>
+        </tr>
+        <tr>
             <td><h5>table.sql-dialect</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">"default"</td>
             <td>String</td>

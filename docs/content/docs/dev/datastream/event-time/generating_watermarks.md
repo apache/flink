@@ -94,6 +94,19 @@ WatermarkStrategy
   })
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+class FirstElementTimestampAssigner(TimestampAssigner):
+   
+    def extract_timestamp(self, value, record_timestamp):
+        return value[0]
+
+
+WatermarkStrategy \
+    .for_bounded_out_of_orderness(Duration.of_seconds(20)) \
+    .with_timestamp_assigner(FirstElementTimestampAssigner())
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Specifying a `TimestampAssigner` is optional and in most cases you don't
@@ -165,6 +178,26 @@ withTimestampsAndWatermarks
         .addSink(...)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+
+# currently read_file is not supported in PyFlink
+stream = env \
+    .read_text_file(my_file_path, charset) \
+    .map(lambda s: MyEvent.from_string(s))
+
+with_timestamp_and_watermarks = stream \
+    .filter(lambda e: e.severity() == WARNING) \
+    .assign_timestamp_and_watermarks(<watermark strategy>)
+
+with_timestamp_and_watermarks \
+    .key_by(lambda e: e.get_group()) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(10))) \
+    .reduce(lambda a, b: a.add(b)) \
+    .add_sink(...)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Using a `WatermarkStrategy` this way takes a stream and produce a new stream
@@ -197,6 +230,13 @@ WatermarkStrategy
 WatermarkStrategy
   .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
   .withIdleness(Duration.ofMinutes(1))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+WatermarkStrategy \
+    .for_bounded_out_of_orderness(Duration.of_seconds(20)) \
+    .with_idleness(Duration.of_minutes(1))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -234,6 +274,13 @@ WatermarkStrategy
 WatermarkStrategy
   .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
   .withWatermarkAlignment("alignment-group-1", Duration.ofSeconds(20), Duration.ofSeconds(1))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+WatermarkStrategy \
+    .for_bounded_out_of_orderness(Duration.of_seconds(20)) \
+    .with_watermark_alignment("alignment-group-1", Duration.of_seconds(20), Duration.of_seconds(1))
 ```
 {{< /tab >}}
 {{< /tabs >}}

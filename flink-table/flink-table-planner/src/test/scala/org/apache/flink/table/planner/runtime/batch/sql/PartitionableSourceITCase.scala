@@ -15,18 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.client.ClientUtils
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.api.{EnvironmentSettings, TableConfig}
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, ObjectPath}
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.factories.{TestValuesCatalog, TestValuesTableFactory}
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.utils.TestUserClassLoaderJar
-import org.apache.flink.util.TemporaryClassLoaderContext
+import org.apache.flink.table.planner.utils.TestingTableEnvironment
+import org.apache.flink.util.UserClassLoaderJarTestUtils
 
 import org.junit.{Before, Test}
 import org.junit.runner.RunWith
@@ -39,13 +41,45 @@ import java.util
 import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
-class PartitionableSourceITCase(
-  val sourceFetchPartitions: Boolean,
-  val useCatalogFilter: Boolean) extends BatchTestBase{
+class PartitionableSourceITCase(val sourceFetchPartitions: Boolean, val useCatalogFilter: Boolean)
+  extends BatchTestBase {
+
+  final private val UDF_CLASS =
+    s"""
+       |public class TrimUDF extends org.apache.flink.table.functions.ScalarFunction {
+       |   public String eval(String str) {
+       |     return str.trim();
+       |   }
+       |}
+       |""".stripMargin
+
+  private def overrideTableEnv(): Unit = {
+    val tmpDir: File = TEMPORARY_FOLDER.newFolder()
+    val udfJarFile: File =
+      UserClassLoaderJarTestUtils.createJarFile(tmpDir, "flink-test-udf.jar", "TrimUDF", UDF_CLASS)
+    val jars: util.List[URL] = util.Collections.singletonList(udfJarFile.toURI.toURL)
+    val cl = ClientUtils.buildUserCodeClassLoader(
+      jars,
+      util.Collections.emptyList(),
+      getClass.getClassLoader,
+      new Configuration())
+
+    settings = EnvironmentSettings.newInstance().inBatchMode().withClassLoader(cl).build()
+    testingTableEnv = TestingTableEnvironment
+      .create(settings, catalogManager = None, TableConfig.getDefault)
+    tEnv = testingTableEnv
+    planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+    env = planner.getExecEnv
+    env.getConfig.enableObjectReuse()
+    tableConfig = tEnv.getConfig
+  }
 
   @Before
-  override def before() : Unit = {
+  override def before(): Unit = {
+    // override TableEnvironment by a user defined classloader
+    overrideTableEnv()
     super.before()
+
     env.setParallelism(1) // set sink parallelism to 1
     val data = Seq(
       row(1, "ZhangSan", "A", 1),
@@ -58,39 +92,39 @@ class PartitionableSourceITCase(
 
     val partitionableTable =
       s"""
-        |CREATE TABLE PartitionableTable (
-        |  id int,
-        |  name string,
-        |  part1 string,
-        |  part2 int,
-        |  virtualField as part2 + 1)
-        |  partitioned by (part1, part2)
-        |  with (
-        |    'connector' = 'values',
-        |    'data-id' = '$dataId',
-        |    'bounded' = 'true',
-        |    'partition-list' = '%s'
-        |)
-        |""".stripMargin
+         |CREATE TABLE PartitionableTable (
+         |  id int,
+         |  name string,
+         |  part1 string,
+         |  part2 int,
+         |  virtualField as part2 + 1)
+         |  partitioned by (part1, part2)
+         |  with (
+         |    'connector' = 'values',
+         |    'data-id' = '$dataId',
+         |    'bounded' = 'true',
+         |    'partition-list' = '%s'
+         |)
+         |""".stripMargin
 
     // test when PushDownFilter can consume all filters including fields partitionKeys
     val partitionableAndFilterableTable =
       s"""
-        |CREATE TABLE PartitionableAndFilterableTable (
-        |  id int,
-        |  name string,
-        |  part1 string,
-        |  part2 int,
-        |  virtualField as part2 + 1)
-        |  partitioned by (part1, part2)
-        |  with (
-        |    'connector' = 'values',
-        |    'data-id' = '$dataId',
-        |    'bounded' = 'true',
-        |    'partition-list' = '%s',
-        |    'filterable-fields' = 'id;part1;part2'
-        |)
-        |""".stripMargin
+         |CREATE TABLE PartitionableAndFilterableTable (
+         |  id int,
+         |  name string,
+         |  part1 string,
+         |  part2 int,
+         |  virtualField as part2 + 1)
+         |  partitioned by (part1, part2)
+         |  with (
+         |    'connector' = 'values',
+         |    'data-id' = '$dataId',
+         |    'bounded' = 'true',
+         |    'partition-list' = '%s',
+         |    'filterable-fields' = 'id;part1;part2'
+         |)
+         |""".stripMargin
 
     if (sourceFetchPartitions) {
       val partitions = "part1:A,part2:1;part1:A,part2:2;part1:B,part2:3;part1:C,part2:1"
@@ -108,50 +142,57 @@ class PartitionableSourceITCase(
       val partitionableAndFilterableTablePath =
         ObjectPath.fromString("test_database.PartitionableAndFilterableTable")
       val partitions = Seq(
-        Map("part1"->"A", "part2"->"1"),
-        Map("part1"->"A", "part2"->"2"),
-        Map("part1"->"B", "part2"->"3"),
-        Map("part1"->"C", "part2"->"1"))
-      partitions.foreach(partition => {
-        val catalogPartitionSpec = new CatalogPartitionSpec(partition)
-        val catalogPartition = new CatalogPartitionImpl(
-          new java.util.HashMap[String, String](), "")
-        catalog.createPartition(
-          partitionableTablePath, catalogPartitionSpec, catalogPartition, true)
-        catalog.createPartition(
-          partitionableAndFilterableTablePath, catalogPartitionSpec, catalogPartition, true)
-      })
+        Map("part1" -> "A", "part2" -> "1"),
+        Map("part1" -> "A", "part2" -> "2"),
+        Map("part1" -> "B", "part2" -> "3"),
+        Map("part1" -> "C", "part2" -> "1"))
+      partitions.foreach(
+        partition => {
+          val catalogPartitionSpec = new CatalogPartitionSpec(partition)
+          val catalogPartition =
+            new CatalogPartitionImpl(new java.util.HashMap[String, String](), "")
+          catalog.createPartition(
+            partitionableTablePath,
+            catalogPartitionSpec,
+            catalogPartition,
+            true)
+          catalog.createPartition(
+            partitionableAndFilterableTablePath,
+            catalogPartitionSpec,
+            catalogPartition,
+            true)
+        })
     }
   }
 
   @Test
   def testSimplePartitionFieldPredicate1(): Unit = {
-    checkResult("SELECT * FROM PartitionableTable WHERE part1 = 'A'",
+    checkResult(
+      "SELECT * FROM PartitionableTable WHERE part1 = 'A'",
       Seq(
         row(1, "ZhangSan", "A", 1, 2),
         row(2, "LiSi", "A", 1, 2),
         row(3, "Jack", "A", 2, 3)
-      )
-    )
+      ))
   }
 
   @Test
   def testPartialPartitionFieldPredicatePushDown(): Unit = {
-    checkResult("SELECT * FROM PartitionableTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1",
+    checkResult(
+      "SELECT * FROM PartitionableTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1",
       Seq(
         row(3, "Jack", "A", 2, 3),
         row(4, "Tom", "B", 3, 4)
-      )
-    )
+      ))
   }
 
   @Test
   def testUnconvertedExpression(): Unit = {
-    checkResult("select * from PartitionableTable where trim(part1) = 'A' and part2 > 1",
+    checkResult(
+      "select * from PartitionableTable where trim(part1) = 'A' and part2 > 1",
       Seq(
         row(3, "Jack", "A", 2, 3)
-      )
-    )
+      ))
   }
 
   @Test
@@ -176,31 +217,12 @@ class PartitionableSourceITCase(
 
   @Test
   def testPartitionPrunerCompileClassLoader(): Unit = {
-    val udfJavaCode =
-      s"""
-         |public class TrimUDF extends org.apache.flink.table.functions.ScalarFunction {
-         |   public String eval(String str) {
-         |     return str.trim();
-         |   }
-         |}
-         |""".stripMargin
-    val tmpDir: File = TEMPORARY_FOLDER.newFolder()
-    val udfJarFile: File = TestUserClassLoaderJar.createJarFile(
-      tmpDir, "flink-test-udf.jar", "TrimUDF", udfJavaCode)
-    val jars: util.List[URL] = util.Collections.singletonList(udfJarFile.toURI.toURL)
-    val cl = ClientUtils.buildUserCodeClassLoader(jars, util.Collections.emptyList(),
-      getClass.getClassLoader, new Configuration())
-    val ctx = TemporaryClassLoaderContext.of(cl)
-    try {
-      tEnv.executeSql("create temporary function trimUDF as 'TrimUDF'")
-      checkResult("select * from PartitionableTable where trimUDF(part1) = 'A' and part2 > 1",
-        Seq(
-          row(3, "Jack", "A", 2, 3)
-        )
-      )
-    } finally {
-      ctx.close()
-    }
+    tEnv.executeSql("create temporary function trimUDF as 'TrimUDF'")
+    checkResult(
+      "select * from PartitionableTable where trimUDF(part1) = 'A' and part2 > 1",
+      Seq(
+        row(3, "Jack", "A", 2, 3)
+      ))
   }
 }
 

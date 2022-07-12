@@ -30,8 +30,11 @@ import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.runtime.rest.handler.job.GeneratedLogUrlHandler;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
+import org.apache.flink.runtime.rest.messages.JobManagerLogUrlHeaders;
+import org.apache.flink.runtime.rest.messages.TaskManagerLogUrlHeaders;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -44,6 +47,7 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -63,6 +67,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -285,6 +290,25 @@ public class HistoryServer {
             LOG.info("Using directory {} as local cache.", webDir);
 
             Router router = new Router();
+
+            final String jobManagerPattern =
+                    config.get(HistoryServerOptions.HISTORY_SERVER_JOBMANAGER_LOG_URL_PATTERN);
+            if (!StringUtils.isNullOrWhitespaceOnly(jobManagerPattern)) {
+                router.addGet(
+                        JobManagerLogUrlHeaders.getInstance().getTargetRestEndpointURL(),
+                        new GeneratedLogUrlHandler(
+                                CompletableFuture.completedFuture(jobManagerPattern)));
+            }
+
+            final String taskManagerPattern =
+                    config.get(HistoryServerOptions.HISTORY_SERVER_TASKMANAGER_LOG_URL_PATTERN);
+            if (!StringUtils.isNullOrWhitespaceOnly(taskManagerPattern)) {
+                router.addGet(
+                        TaskManagerLogUrlHeaders.getInstance().getTargetRestEndpointURL(),
+                        new GeneratedLogUrlHandler(
+                                CompletableFuture.completedFuture(taskManagerPattern)));
+            }
+
             router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
 
             createDashboardConfigFile();
@@ -349,7 +373,11 @@ public class HistoryServer {
             fw.write(
                     createConfigJson(
                             DashboardConfiguration.from(
-                                    webRefreshIntervalMillis, ZonedDateTime.now(), false, false)));
+                                    webRefreshIntervalMillis,
+                                    ZonedDateTime.now(),
+                                    false,
+                                    false,
+                                    true)));
             fw.flush();
         } catch (IOException ioe) {
             LOG.error("Failed to write config file.");

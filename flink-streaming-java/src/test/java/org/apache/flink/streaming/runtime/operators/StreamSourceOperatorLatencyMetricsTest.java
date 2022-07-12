@@ -237,6 +237,7 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 
         cfg.setTimeCharacteristic(TimeCharacteristic.EventTime);
         cfg.setOperatorID(new OperatorID());
+        cfg.serializeAllConfigs();
 
         try {
             MockStreamTask mockTask =

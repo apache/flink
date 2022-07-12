@@ -20,7 +20,6 @@ package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
@@ -31,8 +30,10 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,6 +55,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @ExtendWith(TestLoggerExtension.class)
 public abstract class AbstractHAJobRunITCase {
+
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     @RegisterExtension
     @Order(1)
@@ -89,10 +95,11 @@ public abstract class AbstractHAJobRunITCase {
         final JobStatus jobStatus =
                 FutureUtils.retrySuccessfulWithDelay(
                                 () -> flinkCluster.getJobStatus(jobGraph.getJobID()),
-                                Time.milliseconds(10),
+                                Duration.ofMillis(10),
                                 deadline,
                                 status -> flinkCluster.isRunning() && status == JobStatus.FINISHED,
-                                TestingUtils.defaultScheduledExecutor())
+                                new ScheduledExecutorServiceAdapter(
+                                        EXECUTOR_RESOURCE.getExecutor()))
                         .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
         assertThat(jobStatus).isEqualTo(JobStatus.FINISHED);

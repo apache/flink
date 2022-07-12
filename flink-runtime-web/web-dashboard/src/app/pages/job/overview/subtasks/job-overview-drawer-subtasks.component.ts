@@ -20,10 +20,11 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { Subject } from 'rxjs';
 import { mergeMap, takeUntil } from 'rxjs/operators';
 
+import { JobSubTask } from '@flink-runtime-web/interfaces';
+import { JobService } from '@flink-runtime-web/services';
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
-import { JobSubTask } from 'interfaces';
-import { JobService } from 'services';
+import { JobLocalService } from '../../job-local.service';
 
 function createSortFn(selector: (item: JobSubTask) => number | string): NzTableSortFn<JobSubTask> {
   return (pre, next) => (selector(pre) > selector(next) ? 1 : -1);
@@ -56,13 +57,18 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   public ngOnInit(): void {
-    this.jobService.jobWithVertex$
+    this.jobLocalService
+      .jobWithVertexChanges()
       .pipe(
-        takeUntil(this.destroy$),
-        mergeMap(data => this.jobService.loadSubTasks(data.job.jid, data.vertex!.id))
+        mergeMap(data => this.jobService.loadSubTasks(data.job.jid, data.vertex!.id)),
+        takeUntil(this.destroy$)
       )
       .subscribe(
         data => {

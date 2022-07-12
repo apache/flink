@@ -584,6 +584,58 @@ option in the table configuration.
 Please refer to [Kafka watermark strategies]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}#watermark-strategies-and-the-kafka-connector)
 for more details.
 
+### Security
+In order to enable security configurations including encryption and authentication, you just need to setup security
+configurations with "properties." prefix in table options. The code snippet below shows configuring Kafka table to
+use PLAIN as SASL mechanism and provide JAAS configuration:
+```sql
+CREATE TABLE KafkaTable (
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING,
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp'
+) WITH (
+  'connector' = 'kafka',
+  ...
+  'properties.security.protocol' = 'SASL_PLAINTEXT',
+  'properties.sasl.mechanism' = 'PLAIN',
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";'
+)
+```
+For a more complex example, use SASL_SSL as the security protocol and use SCRAM-SHA-256 as SASL mechanism:
+```sql
+CREATE TABLE KafkaTable (
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING,
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp'
+) WITH (
+  'connector' = 'kafka',
+  ...
+  'properties.security.protocol' = 'SASL_SSL',
+  /* SSL configurations */
+  /* Configure the path of truststore (CA) provided by the server */
+  'properties.ssl.truststore.location' = '/path/to/kafka.client.truststore.jks',
+  'properties.ssl.truststore.password' = 'test1234',
+  /* Configure the path of keystore (private key) if client authentication is required */
+  'properties.ssl.keystore.location' = '/path/to/kafka.client.keystore.jks',
+  'properties.ssl.keystore.password' = 'test1234',
+  /* SASL configurations */
+  /* Set SASL mechanism as SCRAM-SHA-256 */
+  'properties.sasl.mechanism' = 'SCRAM-SHA-256',
+  /* Set JAAS configurations */
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.scram.ScramLoginModule required username=\"username\" password=\"password\";'
+)
+```
+
+Please note that the class path of the login module in `sasl.jaas.config` might be different if you relocate Kafka
+client dependencies, so you may need to rewrite it with the actual class path of the module in the JAR.
+For example if you are using SQL client JAR, which has relocate Kafka client dependencies to `org.apache.flink.kafka.shaded.org.apache.kafka`,
+the path of plain login module should be `org.apache.flink.kafka.shaded.org.apache.kafka.common.security.plain.PlainLoginModule` instead.
+
+For detailed explanations of security configurations, please refer to
+<a href="https://kafka.apache.org/documentation/#security">the "Security" section in Apache Kafka documentation</a>.
+
 Data Type Mapping
 ----------------
 
