@@ -859,7 +859,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testSplitIndex(): Unit = {
-    testSqlApi("split_index(f38, 'I', 0)", "AQ")
+    testAllApis('f38.splitIndex("I", 0), "split_index(f38, 'I', 0)", "AQ")
     testSqlApi("split_index(f38, 'I', 2)", "NULL")
     testSqlApi("split_index(f38, 'I', -1)", "NULL")
     testSqlApi("split_index(f38, CAST(null as VARCHAR), 0)", "NULL")
@@ -2589,8 +2589,11 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testStringToMap(): Unit = {
-    testSqlApi("STR_TO_MAP('k1=v1,k2=v2')", "{k1=v1, k2=v2}")
-    testSqlApi("STR_TO_MAP('k1:v1;k2: v2', ';', ':')", "{k1=v1, k2= v2}")
+    testAllApis("k1=v1,k2=v2".strToMap(), "STR_TO_MAP('k1=v1,k2=v2')", "{k1=v1, k2=v2}")
+    testAllApis(
+      "k1:v1;k2: v2".strToMap(";", ":"),
+      "STR_TO_MAP('k1:v1;k2: v2', ';', ':')",
+      "{k1=v1, k2= v2}")
     testSqlApi("STR_TO_MAP('k1$$v1|k2$$ v2', '\\|', '\\$\\$')", "{k1=v1, k2= v2}")
 
     // test empty

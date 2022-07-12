@@ -34,7 +34,6 @@ __all__ = [
     'JsonQueryOnEmptyOrError'
 ]
 
-
 _aggregation_doc = """
 {op_desc}
 
@@ -161,7 +160,7 @@ def _make_aggregation_doc():
         Expression.sum: "Returns the sum of the numeric field across all input values. "
                         "If all values are null, null is returned.",
         Expression.sum0: "Returns the sum of the numeric field across all input values. "
-                        "If all values are null, 0 is returned.",
+                         "If all values are null, 0 is returned.",
         Expression.min: "Returns the minimum value of field across all input values.",
         Expression.max: "Returns the maximum value of field across all input values.",
         Expression.count: "Returns the number of input rows for which the field is not null.",
@@ -1307,6 +1306,26 @@ class Expression(Generic[T]):
             >>>     .select(col('c'), col('a'), col('a').count.over(col('w')))
         """
         return _binary_op("over")(self, alias)
+
+    def split_index(self, separator: Union[str, 'Expression[str]'],
+                    index: Union[int, 'Expression[int]']) -> 'Expression[str]':
+        """
+        Split target string with custom separator and pick the index-th(start with 0) result.
+        """
+        return _ternary_op("splitIndex")(self, separator, index)
+
+    def str_to_map(self, list_delimiter: Union[str, 'Expression[str]'] = None,
+                   key_value_delimiter: Union[str, 'Expression[str]'] = None) -> 'Expression[dict]':
+        """
+        Creates a map by parsing text. Split text into key-value pairs using two delimiters. The
+        first delimiter separates pairs, and the second delimiter separates key and value. Both
+        list_delimiter and key_value_delimiter are treated as regular expressions.
+        Default delimiters are used: ',' as list_delimiter and '=' as key_value_delimiter.
+        """
+        if list_delimiter is None or key_value_delimiter is None:
+            return _unary_op("strToMap")(self)
+        else:
+            return _ternary_op("strToMap")(self, list_delimiter, key_value_delimiter)
 
     # ---------------------------- temporal functions ----------------------------------
 
