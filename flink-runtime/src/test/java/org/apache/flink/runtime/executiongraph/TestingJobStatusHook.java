@@ -20,35 +20,50 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
 
-import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /** {@link JobStatusHook} implementation for testing purposes. */
 public class TestingJobStatusHook implements JobStatusHook {
 
-    // Record job status changes.
-    private final List<String> jobStatus;
+    private Consumer<JobID> onCreatedConsumer = (jobID) -> {};
+    private Consumer<JobID> onFinishedConsumer = (jobID) -> {};
+    private BiConsumer<JobID, Throwable> onFailedConsumer = (jobID, throwable) -> {};
+    private Consumer<JobID> onCanceledConsumer = (jobID) -> {};
 
-    public TestingJobStatusHook(List<String> jobStatus) {
-        this.jobStatus = jobStatus;
+    public void setOnCreatedConsumer(Consumer<JobID> onCreatedConsumer) {
+        this.onCreatedConsumer = onCreatedConsumer;
+    }
+
+    public void setonFinishedConsumer(Consumer<JobID> onFinishedConsumer) {
+        this.onFinishedConsumer = onFinishedConsumer;
+    }
+
+    public void setOnFailedConsumer(BiConsumer<JobID, Throwable> onFailedConsumer) {
+        this.onFailedConsumer = onFailedConsumer;
+    }
+
+    public void setOnCanceledConsumer(Consumer<JobID> onCanceledConsumer) {
+        this.onCanceledConsumer = onCanceledConsumer;
     }
 
     @Override
     public void onCreated(JobID jobId) {
-        jobStatus.add("Created");
+        onCreatedConsumer.accept(jobId);
     }
 
     @Override
     public void onFinished(JobID jobId) {
-        jobStatus.add("Finished");
+        onFinishedConsumer.accept(jobId);
     }
 
     @Override
     public void onFailed(JobID jobId, Throwable throwable) {
-        jobStatus.add("Failed");
+        onFailedConsumer.accept(jobId, throwable);
     }
 
     @Override
     public void onCanceled(JobID jobId) {
-        jobStatus.add("Canceled");
+        onCanceledConsumer.accept(jobId);
     }
 }

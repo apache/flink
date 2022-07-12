@@ -1552,7 +1552,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         }
     }
 
-    private void notifyJobStatusHooks(JobStatus newState, Throwable cause) {
+    private void notifyJobStatusHooks(JobStatus newState, @Nullable Throwable cause) {
         JobID jobID = jobInformation.getJobId();
         for (JobStatusHook hook : jobStatusHooks) {
             try {
@@ -1570,8 +1570,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                         hook.onFinished(jobID);
                         break;
                 }
-            } catch (Throwable ignore) {
-                LOG.warn("Error while notifying JobStatusHook[{}]", hook.getClass(), ignore);
+            } catch (Throwable e) {
+                throw new RuntimeException(
+                        "Error while notifying JobStatusHook[" + hook.getClass() + "]", e);
             }
         }
     }

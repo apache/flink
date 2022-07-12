@@ -23,11 +23,21 @@ import org.apache.flink.api.common.JobID;
 
 import java.io.Serializable;
 
-/** Hooks provided by users on job status changing. */
+/**
+ * Hooks provided by users on job status changing. Triggered at the initial(CREATED) and final
+ * state(FINISHED/CANCELED/FAILED) of the job.
+ *
+ * <p>Usage examples: <code>
+ *     StreamGraph streamGraph = env.getStreamGraph();
+ *     streamGraph.registerJobStatusHook(myJobStatusHook);
+ *     streamGraph.setJobName("my_flink");
+ *     env.execute(streamGraph);
+ * </code>
+ */
 @Internal
 public interface JobStatusHook extends Serializable {
 
-    /** When Job become CREATED status. It would only be called one time. */
+    /** When Job become {@link JobStatus#CREATED} status, it would only be called one time. */
     void onCreated(JobID jobId);
 
     /** When job finished successfully. */

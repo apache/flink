@@ -99,7 +99,6 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
-import org.assertj.core.util.Lists;
 import org.hamcrest.collection.IsEmptyIterable;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.hamcrest.collection.IsIterableWithSize;
@@ -1625,9 +1624,17 @@ public class DefaultSchedulerTest extends TestLogger {
     @Test
     public void testJobStatusHookWithJobFailed() throws Exception {
         final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+
+        TestingJobStatusHook jobStatusHook = new TestingJobStatusHook();
+
+        final List<JobID> onCreatedJobList = new LinkedList<>();
+        jobStatusHook.setOnCreatedConsumer((jobId) -> onCreatedJobList.add(jobId));
+
+        final List<JobID> onFailedJobList = new LinkedList<>();
+        jobStatusHook.setOnFailedConsumer((jobID, throwable) -> onFailedJobList.add(jobID));
+
         List<JobStatusHook> jobStatusHooks = new ArrayList<>();
-        List<String> jobStatusList = new LinkedList<>();
-        jobStatusHooks.add(new TestingJobStatusHook(jobStatusList));
+        jobStatusHooks.add(jobStatusHook);
         jobGraph.setJobStatusHooks(jobStatusHooks);
 
         testRestartBackoffTimeStrategy.setCanRestart(false);
@@ -1649,16 +1656,30 @@ public class DefaultSchedulerTest extends TestLogger {
 
         waitForTermination(scheduler);
         final JobStatus jobStatus = scheduler.requestJobStatus();
-        assertThat(jobStatus, is(equalTo(JobStatus.FAILED)));
-        assertEquals(Lists.newArrayList("Created", "Failed"), jobStatusList);
+        org.assertj.core.api.Assertions.assertThat(jobStatus).isEqualTo(JobStatus.FAILED);
+        org.assertj.core.api.Assertions.assertThat(onCreatedJobList).hasSize(1);
+        org.assertj.core.api.Assertions.assertThat(onCreatedJobList.get(0))
+                .isEqualTo(jobGraph.getJobID());
+
+        org.assertj.core.api.Assertions.assertThat(onFailedJobList).hasSize(1);
+        org.assertj.core.api.Assertions.assertThat(onFailedJobList.get(0))
+                .isEqualTo(jobGraph.getJobID());
     }
 
     @Test
     public void testJobStatusHookWithJobCanceled() throws Exception {
         final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+
+        TestingJobStatusHook jobStatusHook = new TestingJobStatusHook();
+
+        final List<JobID> onCreatedJobList = new LinkedList<>();
+        jobStatusHook.setOnCreatedConsumer((jobId) -> onCreatedJobList.add(jobId));
+
+        final List<JobID> onCancelJobList = new LinkedList<>();
+        jobStatusHook.setOnCanceledConsumer(((jobID) -> onCancelJobList.add(jobID)));
+
         List<JobStatusHook> jobStatusHooks = new ArrayList<>();
-        List<String> jobStatusList = new LinkedList<>();
-        jobStatusHooks.add(new TestingJobStatusHook(jobStatusList));
+        jobStatusHooks.add(jobStatusHook);
         jobGraph.setJobStatusHooks(jobStatusHooks);
 
         final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
@@ -1681,16 +1702,30 @@ public class DefaultSchedulerTest extends TestLogger {
 
         waitForTermination(scheduler);
         final JobStatus jobStatus = scheduler.requestJobStatus();
-        assertThat(jobStatus, is(equalTo(JobStatus.CANCELED)));
-        assertEquals(Lists.newArrayList("Created", "Canceled"), jobStatusList);
+        org.assertj.core.api.Assertions.assertThat(jobStatus).isEqualTo(JobStatus.CANCELED);
+        org.assertj.core.api.Assertions.assertThat(onCreatedJobList).hasSize(1);
+        org.assertj.core.api.Assertions.assertThat(onCreatedJobList.get(0))
+                .isEqualTo(jobGraph.getJobID());
+
+        org.assertj.core.api.Assertions.assertThat(onCancelJobList).hasSize(1);
+        org.assertj.core.api.Assertions.assertThat(onCancelJobList.get(0))
+                .isEqualTo(jobGraph.getJobID());
     }
 
     @Test
     public void testJobStatusHookWithJobFinished() throws Exception {
         final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+
+        TestingJobStatusHook jobStatusHook = new TestingJobStatusHook();
+
+        final List<JobID> onCreatedJobList = new LinkedList<>();
+        jobStatusHook.setOnCreatedConsumer((jobId) -> onCreatedJobList.add(jobId));
+
+        final List<JobID> onFinishJobList = new LinkedList<>();
+        jobStatusHook.setonFinishedConsumer((jobID) -> onFinishJobList.add(jobID));
+
         List<JobStatusHook> jobStatusHooks = new ArrayList<>();
-        List<String> jobStatusList = new LinkedList<>();
-        jobStatusHooks.add(new TestingJobStatusHook(jobStatusList));
+        jobStatusHooks.add(jobStatusHook);
         jobGraph.setJobStatusHooks(jobStatusHooks);
 
         final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
@@ -1711,8 +1746,14 @@ public class DefaultSchedulerTest extends TestLogger {
 
         waitForTermination(scheduler);
         final JobStatus jobStatus = scheduler.requestJobStatus();
-        assertThat(jobStatus, is(equalTo(JobStatus.FINISHED)));
-        assertEquals(Lists.newArrayList("Created", "Finished"), jobStatusList);
+        org.assertj.core.api.Assertions.assertThat(jobStatus).isEqualTo(JobStatus.FINISHED);
+        org.assertj.core.api.Assertions.assertThat(onCreatedJobList).hasSize(1);
+        org.assertj.core.api.Assertions.assertThat(onCreatedJobList.get(0))
+                .isEqualTo(jobGraph.getJobID());
+
+        org.assertj.core.api.Assertions.assertThat(onFinishJobList).hasSize(1);
+        org.assertj.core.api.Assertions.assertThat(onFinishJobList.get(0))
+                .isEqualTo(jobGraph.getJobID());
     }
 
     /**

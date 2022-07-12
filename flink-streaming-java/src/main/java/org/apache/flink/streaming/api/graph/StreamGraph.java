@@ -1040,9 +1040,7 @@ public class StreamGraph implements Pipeline {
 
     /** Registers the JobStatusHook. */
     public void registerJobStatusHook(JobStatusHook hook) {
-        if (hook == null) {
-            throw new IllegalArgumentException();
-        }
+        checkNotNull(hook, "Registering a null JobStatusHook is not allowed. ");
         if (!jobStatusHooks.contains(hook)) {
             this.jobStatusHooks.add(hook);
         }

@@ -120,7 +120,7 @@ public class JobGraph implements Serializable {
     private List<URL> classpaths = Collections.emptyList();
 
     /** List of user-defined job status change hooks. */
-    private final List<JobStatusHook> jobStatusHooks = new ArrayList<>();
+    private List<JobStatusHook> jobStatusHooks = Collections.emptyList();
 
     // --------------------------------------------------------------------------------------------
 
@@ -646,8 +646,7 @@ public class JobGraph implements Serializable {
     }
 
     public void setJobStatusHooks(List<JobStatusHook> hooks) {
-        this.jobStatusHooks.clear();
-        this.jobStatusHooks.addAll(hooks);
+        this.jobStatusHooks = hooks;
     }
 
     public List<JobStatusHook> getJobStatusHooks() {
