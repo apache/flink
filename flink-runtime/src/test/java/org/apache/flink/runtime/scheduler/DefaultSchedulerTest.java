@@ -46,6 +46,8 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.JobStatusHook;
+import org.apache.flink.runtime.executiongraph.TestingJobStatusHook;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartAllFailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
@@ -97,6 +99,7 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
+import org.assertj.core.util.Lists;
 import org.hamcrest.collection.IsEmptyIterable;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.hamcrest.collection.IsIterableWithSize;
@@ -114,6 +117,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -1616,6 +1620,99 @@ public class DefaultSchedulerTest extends TestLogger {
         } finally {
             executorService.shutdownNow();
         }
+    }
+
+    @Test
+    public void testJobStatusHookWithJobFailed() throws Exception {
+        final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+        List<JobStatusHook> jobStatusHooks = new ArrayList<>();
+        List<String> jobStatusList = new LinkedList<>();
+        jobStatusHooks.add(new TestingJobStatusHook(jobStatusList));
+        jobGraph.setJobStatusHooks(jobStatusHooks);
+
+        testRestartBackoffTimeStrategy.setCanRestart(false);
+
+        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+        final ArchivedExecutionVertex onlyExecutionVertex =
+                Iterables.getOnlyElement(
+                        scheduler
+                                .requestJob()
+                                .getArchivedExecutionGraph()
+                                .getAllExecutionVertices());
+        final ExecutionAttemptID attemptId =
+                onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
+
+        scheduler.updateTaskExecutionState(createFailedTaskExecutionState(attemptId));
+
+        taskRestartExecutor.triggerScheduledTasks();
+
+        waitForTermination(scheduler);
+        final JobStatus jobStatus = scheduler.requestJobStatus();
+        assertThat(jobStatus, is(equalTo(JobStatus.FAILED)));
+        assertEquals(Lists.newArrayList("Created", "Failed"), jobStatusList);
+    }
+
+    @Test
+    public void testJobStatusHookWithJobCanceled() throws Exception {
+        final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+        List<JobStatusHook> jobStatusHooks = new ArrayList<>();
+        List<String> jobStatusList = new LinkedList<>();
+        jobStatusHooks.add(new TestingJobStatusHook(jobStatusList));
+        jobGraph.setJobStatusHooks(jobStatusHooks);
+
+        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+        final ArchivedExecutionVertex onlyExecutionVertex =
+                Iterables.getOnlyElement(
+                        scheduler
+                                .requestJob()
+                                .getArchivedExecutionGraph()
+                                .getAllExecutionVertices());
+        final ExecutionAttemptID attemptId =
+                onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
+
+        scheduler.cancel();
+
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(attemptId, ExecutionState.CANCELED));
+
+        taskRestartExecutor.triggerScheduledTasks();
+
+        waitForTermination(scheduler);
+        final JobStatus jobStatus = scheduler.requestJobStatus();
+        assertThat(jobStatus, is(equalTo(JobStatus.CANCELED)));
+        assertEquals(Lists.newArrayList("Created", "Canceled"), jobStatusList);
+    }
+
+    @Test
+    public void testJobStatusHookWithJobFinished() throws Exception {
+        final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+        List<JobStatusHook> jobStatusHooks = new ArrayList<>();
+        List<String> jobStatusList = new LinkedList<>();
+        jobStatusHooks.add(new TestingJobStatusHook(jobStatusList));
+        jobGraph.setJobStatusHooks(jobStatusHooks);
+
+        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+        final ArchivedExecutionVertex onlyExecutionVertex =
+                Iterables.getOnlyElement(
+                        scheduler
+                                .requestJob()
+                                .getArchivedExecutionGraph()
+                                .getAllExecutionVertices());
+        final ExecutionAttemptID attemptId =
+                onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
+
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(attemptId, ExecutionState.FINISHED));
+
+        taskRestartExecutor.triggerScheduledTasks();
+
+        waitForTermination(scheduler);
+        final JobStatus jobStatus = scheduler.requestJobStatus();
+        assertThat(jobStatus, is(equalTo(JobStatus.FINISHED)));
+        assertEquals(Lists.newArrayList("Created", "Finished"), jobStatusList);
     }
 
     /**
