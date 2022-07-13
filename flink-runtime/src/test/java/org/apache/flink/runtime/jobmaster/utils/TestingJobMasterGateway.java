@@ -185,6 +185,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
     private final Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer;
 
+    private final Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
+            notifyNewBlockedNodesFunction;
+
     public TestingJobMasterGateway(
             @Nonnull String address,
             @Nonnull String hostname,
@@ -284,7 +287,10 @@ public class TestingJobMasterGateway implements JobMasterGateway {
                                     SerializedValue<CoordinationRequest>,
                                     CompletableFuture<CoordinationResponse>>
                             deliverCoordinationRequestFunction,
-            @Nonnull Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer) {
+            @Nonnull Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer,
+            @Nonnull
+                    Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
+                            notifyNewBlockedNodesFunction) {
         this.address = address;
         this.hostname = hostname;
         this.cancelFunction = cancelFunction;
@@ -314,6 +320,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
         this.operatorEventSender = operatorEventSender;
         this.deliverCoordinationRequestFunction = deliverCoordinationRequestFunction;
         this.notifyNotEnoughResourcesConsumer = notifyNotEnoughResourcesConsumer;
+        this.notifyNewBlockedNodesFunction = notifyNewBlockedNodesFunction;
     }
 
     @Override
@@ -540,6 +547,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
     @Override
     public CompletableFuture<Acknowledge> notifyNewBlockedNodes(Collection<BlockedNode> newNodes) {
-        return CompletableFuture.completedFuture(Acknowledge.get());
+        return notifyNewBlockedNodesFunction.apply(newNodes);
     }
 }
