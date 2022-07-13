@@ -21,12 +21,12 @@ import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
-import org.apache.calcite.rel.core.{Join, JoinRelType}
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.LogicalJoin
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexNode, RexUtil}
+import org.apache.calcite.util.ImmutableBitSet
 
-import scala.collection.JavaConversions._
-import scala.collection.mutable
+import java.util.function.Predicate
 
 /**
  * Planner Rule that extracts some sub-conditions in the Join OR condition that can be pushed
@@ -62,58 +62,18 @@ class JoinDependentConditionDerivationRule
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val join: LogicalJoin = call.rel(0)
-    val conjunctions = RelOptUtil.conjunctions(join.getCondition)
-
     val builder = call.builder()
-    val additionalConditions = new mutable.ArrayBuffer[RexNode]
+    val rexBuilder = builder.getRexBuilder
 
-    // and
-    conjunctions.foreach {
-      conjunctionRex =>
-        val disjunctions = RelOptUtil.disjunctions(conjunctionRex)
+    // assumed that cond is already simplified by SimplifyJoinConditionRule
+    val cond = join.getCondition
+    val leftCond = FlinkRexUtil.extract(rexBuilder, cond, isPushable(leftInputs(join)))
+    val rightCond = FlinkRexUtil.extract(rexBuilder, cond, isPushable(rightInputs(join)))
 
-        // Apart or: (A.f2 = 'aaa1' and B.f2 = 'bbb1') or (A.f2 = 'aaa2' and B.f2 = 'bbb2')
-        if (disjunctions.size() > 1) {
-
-          val leftDisjunctions = new mutable.ArrayBuffer[RexNode]
-          val rightDisjunctions = new mutable.ArrayBuffer[RexNode]
-          disjunctions.foreach {
-            disjunctionRex =>
-              val leftConjunctions = new mutable.ArrayBuffer[RexNode]
-              val rightConjunctions = new mutable.ArrayBuffer[RexNode]
-
-              // Apart and: A.f2 = 'aaa1' and B.f2 = 'bbb1'
-              RelOptUtil.conjunctions(disjunctionRex).foreach {
-                cond =>
-                  val rCols = RelOptUtil.InputFinder.bits(cond).map(_.intValue())
-
-                  // May have multi conditions, eg: A.f2 = 'aaa1' and A.f3 = 'aaa3' and B.f2 = 'bbb1'
-                  if (rCols.forall(fromJoinLeft(join, _))) {
-                    leftConjunctions += cond
-                  } else if (rCols.forall(!fromJoinLeft(join, _))) {
-                    rightConjunctions += cond
-                  }
-              }
-
-              // It is true if conjunction conditions is empty.
-              leftDisjunctions += builder.and(leftConjunctions)
-              rightDisjunctions += builder.and(rightConjunctions)
-          }
-
-          // TODO Consider whether it is worth doing a filter if we have histogram.
-          if (leftDisjunctions.nonEmpty) {
-            additionalConditions += builder.or(leftDisjunctions)
-          }
-          if (rightDisjunctions.nonEmpty) {
-            additionalConditions += builder.or(rightDisjunctions)
-          }
-        }
-    }
-
-    if (additionalConditions.nonEmpty) {
+    if (!(leftCond.isAlwaysTrue && rightCond.isAlwaysTrue)) {
       val newCondExp = FlinkRexUtil.simplify(
-        builder.getRexBuilder,
-        builder.and(conjunctions ++ additionalConditions),
+        rexBuilder,
+        builder.and(cond, leftCond, rightCond),
         join.getCluster.getPlanner.getExecutor)
 
       if (!newCondExp.equals(join.getCondition)) {
@@ -130,12 +90,21 @@ class JoinDependentConditionDerivationRule
     }
   }
 
-  /** Returns true if the given index is from join left, else false. */
-  private def fromJoinLeft(join: Join, index: Int): Boolean = {
-    require(join.getSystemFieldList.size() == 0)
-    index < join.getLeft.getRowType.getFieldCount
+  private def isPushable(sideInputs: ImmutableBitSet): Predicate[RexNode] = {
+    // deterministic rex containing inputs only from particular side(left or right)
+    (rex: RexNode) =>
+      RexUtil.isDeterministic(rex) && sideInputs.contains(RelOptUtil.InputFinder.bits(rex))
   }
 
+  private def leftInputs(join: LogicalJoin): ImmutableBitSet = {
+    require(join.getSystemFieldList.size() == 0)
+    ImmutableBitSet.range(0, join.getLeft.getRowType.getFieldCount)
+  }
+
+  private def rightInputs(join: LogicalJoin): ImmutableBitSet = {
+    require(join.getSystemFieldList.size() == 0)
+    ImmutableBitSet.range(join.getLeft.getRowType.getFieldCount, join.getRowType.getFieldCount)
+  }
 }
 
 object JoinDependentConditionDerivationRule {

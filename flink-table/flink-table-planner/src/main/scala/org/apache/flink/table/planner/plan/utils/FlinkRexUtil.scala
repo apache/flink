@@ -585,6 +585,11 @@ object FlinkRexUtil {
     }
     false
   }
+
+  /** Extracts sub-condition according AND/OR structure of condition. */
+  def extract(rexBuilder: RexBuilder, rex: RexNode, extractable: Predicate[RexNode]): RexNode = {
+    new FlinkRexExtract(rexBuilder).extract(rex, extractable)
+  }
 }
 
 /**

@@ -19,7 +19,8 @@ package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.Test
 
@@ -31,46 +32,39 @@ class JoinTest extends TableTestBase {
   @Test
   def testDependentConditionDerivationInnerJoin: Unit = {
     val util = streamTestUtil()
-    val left = util.addDataStream[(Long, Int, String)]("T1", 'a, 'b, 'c)
-
-    val right = util.addDataStream[(Long, Int, String)]("T2", 'd, 'e, 'f)
-
-    val resultTable = left
-      .join(right)
-      .where(('a === 1 && 'd === 1) || ('b === 2 && 'd === 5))
-      .select('a, 'b, 'd, 'e)
-
+    val resultTable = joinWhere(util, ('a === 1 && 'd === 1) || ('b === 2 && 'd === 5))
     util.verifyExecPlan(resultTable)
   }
 
   @Test
   def testDependentConditionDerivationInnerJoinWithTrue: Unit = {
     val util = streamTestUtil()
-    val left = util.addDataStream[(Long, Int, String)]("T1", 'a, 'b, 'c)
-
-    val right = util.addDataStream[(Long, Int, String)]("T2", 'd, 'e, 'f)
-
-    val resultTable = left
-      .join(right)
-      .where(('a === 0 && 'd === 3) || ('a === 1 && true))
-      .select('a, 'b, 'd, 'e)
-
+    val resultTable = joinWhere(util, ('a === 0 && 'd === 3) || ('a === 1 && true))
     util.verifyExecPlan(resultTable)
   }
 
   @Test
   def testDependentConditionDerivationInnerJoinWithNull: Unit = {
     val util = streamTestUtil()
-    val left = util.addDataStream[(Long, Int, String)]("T1", 'a, 'b, 'c)
-
-    val right = util.addDataStream[(Long, Int, String)]("T2", 'd, 'e, 'f)
-
-    val resultTable = left
-      .join(right)
-      .where(('a === 0 && 'd === 3) || ('a === 1 && 'f.isNull))
-      .select('a, 'b, 'd, 'e)
-
+    val resultTable = joinWhere(util, ('a === 0 && 'd === 3) || ('a === 1 && 'f.isNull))
     util.verifyExecPlan(resultTable)
+  }
+
+  @Test
+  def testDependentConditionDerivationInnerJoinDeepNested(): Unit = {
+    val util = streamTestUtil()
+    val predicate = (((('a === 0 && 'd === 3) || 'b === 2) && 'e === 4) || 'c === "A") && 'f === "B"
+    val resultTable = joinWhere(util, predicate)
+    util.verifyExecPlan(resultTable)
+  }
+
+  def joinWhere(util: StreamTableTestUtil, predicate: Expression): Table = {
+    val left = util.addDataStream[(Long, Int, String)]("T1", 'a, 'b, 'c)
+    val right = util.addDataStream[(Long, Int, String)]("T2", 'd, 'e, 'f)
+    left
+      .join(right)
+      .where(predicate)
+      .select('a, 'b, 'd, 'e)
   }
 
   // Tests for inner join

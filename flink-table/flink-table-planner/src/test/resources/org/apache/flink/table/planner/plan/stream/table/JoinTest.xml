@@ -102,6 +102,29 @@ Join(joinType=[InnerJoin], where=[(((a = 0) AND (d = 3)) OR SEARCH(a, Sarg[1]))]
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testDependentConditionDerivationInnerJoinDeepNested">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(OR(AND(OR(AND(=($0, 0), =($3, 3)), =($1, 2)), =($4, 4)), =($2, _UTF-16LE'A')), =($5, _UTF-16LE'B'))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, d, e])
++- Join(joinType=[InnerJoin], where=[(((((a = 0) AND (d = 3)) OR (b = 2)) AND (e = 4)) OR (c = 'A'))], select=[a, b, c, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[single])
+   :  +- Calc(select=[a, b, c], where=[((a = 0) OR (b = 2) OR (c = 'A'))])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[d, e], where=[(f = 'B')])
+         +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testLeftOuterJoinEquiAndLocalPred">
     <Resource name="ast">
       <![CDATA[
