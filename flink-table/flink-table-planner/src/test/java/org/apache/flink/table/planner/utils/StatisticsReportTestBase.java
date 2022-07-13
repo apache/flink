@@ -85,7 +85,7 @@ public abstract class StatisticsReportTestBase extends TestLogger {
 
     protected abstract String[] properties();
 
-    private Map<String, String> ddlTypesMap() {
+    protected Map<String, String> ddlTypesMap() {
         Map<String, String> ddlTypesMap = new LinkedHashMap<>();
         ddlTypesMap.put("boolean", "f_boolean");
         ddlTypesMap.put("tinyint", "f_tinyint");
@@ -113,7 +113,7 @@ public abstract class StatisticsReportTestBase extends TestLogger {
         return ddlTypesMap;
     }
 
-    private Map<String, List<Object>> getDataMap() {
+    protected Map<String, List<Object>> getDataMap() {
         Map<String, List<Object>> dataMap = new LinkedHashMap<>();
         dataMap.put("boolean", Stream.of(null, true, false).collect(toList()));
         dataMap.put("tinyint", Stream.of((byte) 1, (byte) 2, (byte) 3).collect(toList()));
