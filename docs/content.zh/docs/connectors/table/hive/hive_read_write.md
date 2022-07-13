@@ -63,7 +63,7 @@ Flink 支持以批和流两种模式从 Hive 表中读取数据。批读的时�
         <td style="word-wrap: break-word;">None</td>
         <td>Duration</td>
         <td>连续监控分区/文件的时间间隔。
-            注意: 默认情况下，流式读 Hive 的间隔为 '1 min'，但流读 Hive 的 temporal join 的默认时间间隔是 '60 min'，这是因为当前流读 Hive 的 temporal join 实现上有一个框架限制，即每个 TM 都要访问 Hive metaStore，这可能会对 metaStore 产生压力，这个问题将在未来得到改善。</td>
+            注意: 默认情况下，流式读 Hive 的间隔为 '1 min'，但流读 Hive 的 temporal join 的默认时间间隔是 '60 min'，这是因为当前流读 Hive 的 temporal join 实现上有一个框架限制，即每个 TM 都要访问 Hive metastore，这可能会对 metastore 产生压力，这个问题将在未来得到改善。</td>
     </tr>
     <tr>
         <td><h5>streaming-source.partition-order</h5></td>
