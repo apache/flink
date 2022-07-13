@@ -16,20 +16,19 @@
  * limitations under the License.
  */
 
-import { Injectable } from '@angular/core';
-import { Observable, ReplaySubject } from 'rxjs';
+import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
 
-import { TaskManagerDetail } from '@flink-runtime-web/interfaces';
+import { JobVertexAggregated } from '@flink-runtime-web/interfaces';
 
-@Injectable()
-export class TaskManagerLocalService {
-  private readonly taskManagerDetail$ = new ReplaySubject<TaskManagerDetail>(1);
+@Component({
+  selector: 'flink-table-aggregated-metrics',
+  templateUrl: './table-aggregated-metrics.component.html',
+  styleUrls: ['./table-aggregated-metrics.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class TableAggregatedMetricsComponent {
+  @Input() isLoading = false;
+  @Input() aggregated?: JobVertexAggregated;
 
-  public taskManagerDetailChanges(): Observable<TaskManagerDetail> {
-    return this.taskManagerDetail$.asObservable();
-  }
-
-  public setTaskManagerDetail(detail: TaskManagerDetail): void {
-    this.taskManagerDetail$.next(detail);
-  }
+  constructor() {}
 }

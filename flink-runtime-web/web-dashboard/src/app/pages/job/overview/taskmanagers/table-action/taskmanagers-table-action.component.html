@@ -16,16 +16,7 @@
   ~ limitations under the License.
   -->
 
-<span
-  *ngIf="
-    !taskManager ||
-      !taskManager['taskmanager-id'] ||
-      taskManager['taskmanager-id'] === '(unassigned)';
-    else hrefTpl
-  "
->
-  -
-</span>
+<span *ngIf="!taskManager; else hrefTpl">-</span>
 <ng-template #hrefTpl>
   <a nz-dropdown nzPlacement="bottomRight" [nzDropdownMenu]="menu">
     <i nz-icon nzType="ellipsis" nzTheme="outline"></i>
@@ -33,6 +24,26 @@
   <nz-dropdown-menu #menu="nzDropdownMenu">
     <ul nz-menu>
       <li nz-menu-item>
+        <a (click)="setModalVisible(true)">View Aggregated Metrics</a>
+        <nz-modal
+          [nzTitle]="taskManager['taskmanager-id']"
+          [(nzVisible)]="visible"
+          [nzFooter]="null"
+          [nzStyle]="{ top: '40px' }"
+          [nzWidth]="900"
+          (nzOnCancel)="setModalVisible(false)"
+        >
+          <ng-container *nzModalContent>
+            <flink-table-aggregated-metrics
+              [aggregated]="taskManager.aggregated"
+            ></flink-table-aggregated-metrics>
+          </ng-container>
+        </nz-modal>
+      </li>
+      <li
+        nz-menu-item
+        *ngIf="taskManager['taskmanager-id'] && taskManager['taskmanager-id'] !== '(unassigned)'"
+      >
         <a
           [routerLink]="['/task-manager', taskManager['taskmanager-id'], 'logs']"
           [queryParamsHandling]="'preserve'"

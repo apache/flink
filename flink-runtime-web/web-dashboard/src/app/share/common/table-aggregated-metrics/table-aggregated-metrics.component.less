@@ -15,24 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@import "theme";
 
-export interface JobSubTask {
-  attempt: number;
-  duration: number;
-  'end-time': number;
-  host: string;
-  start_time: number;
-  status: string;
-  subtask: number;
-  metrics: {
-    'read-bytes': number;
-    'read-bytes-complete': boolean;
-    'read-records': number;
-    'read-records-complete': boolean;
-    'write-bytes': number;
-    'write-bytes-complete': boolean;
-    'write-records': number;
-    'write-records-complete': boolean;
-  };
-  'taskmanager-id': string;
+:host {
+  display: block;
+  height: 100%;
+
+  nz-table,
+  nz-spin,
+  .ant-spin-container,
+  .ant-table {
+    height: 100%;
+  }
 }
