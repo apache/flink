@@ -594,7 +594,10 @@ public class HiveDialectITCase {
                                 CollectionUtil.iteratorToList(
                                         tableEnv.executeSql("select * from fact_daily WHERE ds='1'")
                                                 .collect()))
-                .satisfies(
+                .satisfiesAnyOf(
+                        anyCauseMatches(
+                                String.format(
+                                        "Not a file: file:%s", warehouse + "/fact_tz/ds=1/hr=1")),
                         anyCauseMatches(
                                 String.format(
                                         "Not a file: file:%s", warehouse + "/fact_tz/ds=1/hr=2")));
