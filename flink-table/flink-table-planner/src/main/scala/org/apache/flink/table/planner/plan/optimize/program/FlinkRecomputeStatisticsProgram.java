@@ -138,7 +138,7 @@ public class FlinkRecomputeStatisticsProgram implements FlinkOptimizeProgram<Bat
                 return newTableStat;
             }
         } else {
-            if (isPartitioned(table) && isUnknownTableStats(origTableStats)) {
+            if (isPartitionedTable(table) && isUnknownTableStats(origTableStats)) {
                 // if table is partition table, try to recompute stats by catalog.
                 origTableStats = getPartitionsTableStats(table, null);
             }
@@ -152,12 +152,10 @@ public class FlinkRecomputeStatisticsProgram implements FlinkOptimizeProgram<Bat
         }
     }
 
-    private boolean isPartitioned(TableSourceTable table) {
+    private boolean isPartitionedTable(TableSourceTable table) {
         return table.contextResolvedTable()
-                        .<ResolvedCatalogTable>getResolvedTable()
-                        .getPartitionKeys()
-                        .size()
-                != 0;
+                .<ResolvedCatalogTable>getResolvedTable()
+                .isPartitioned();
     }
 
     private boolean isUnknownTableStats(TableStats stats) {
