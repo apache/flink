@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.service;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
@@ -54,6 +55,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -68,6 +70,7 @@ import static org.apache.flink.types.RowKind.INSERT;
 import static org.apache.flink.types.RowKind.UPDATE_AFTER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -245,6 +248,34 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
 
         service.closeOperation(sessionHandle, operationHandle);
         assertEquals(0, sessionManager.getOperationCount(sessionHandle));
+    }
+
+    @Test
+    public void testExecuteSqlWithConfig() {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+        String key = "username";
+        String value = "Flink";
+        OperationHandle operationHandle =
+                service.executeStatement(
+                        sessionHandle,
+                        "SET",
+                        -1,
+                        Configuration.fromMap(Collections.singletonMap(key, value)));
+
+        Long token = 0L;
+        List<RowData> settings = new ArrayList<>();
+        while (token != null) {
+            ResultSet result =
+                    service.fetchResults(sessionHandle, operationHandle, token, Integer.MAX_VALUE);
+            settings.addAll(result.getData());
+            token = result.getNextToken();
+        }
+
+        assertThat(
+                settings,
+                hasItem(
+                        GenericRowData.of(
+                                StringData.fromString(key), StringData.fromString(value))));
     }
 
     // --------------------------------------------------------------------------------------------

@@ -172,35 +172,18 @@ public class ResultFetcherTest extends TestLogger {
 
     @Test
     public void testFetchResultInParallel() throws Exception {
-        int bufferSize = data.size() / 2;
         ResultFetcher fetcher =
-                buildResultFetcher(Collections.singletonList(data.iterator()), bufferSize);
-
-        AtomicReference<Boolean> isEqual = new AtomicReference<>(true);
-        int fetchThreadNum = 100;
-        CountDownLatch latch = new CountDownLatch(fetchThreadNum);
-
+                buildResultFetcher(Collections.singletonList(data.iterator()), data.size() / 2);
         CommonTestUtils.waitUtil(
                 () -> fetcher.getResultStore().getBufferedRecordSize() > 0,
                 Duration.ofSeconds(10),
                 "Failed to wait the buffer has data.");
-        List<RowData> firstFetch = fetcher.fetchResults(0, Integer.MAX_VALUE).getData();
-        for (int i = 0; i < fetchThreadNum; i++) {
-            threadFactory
-                    .newThread(
-                            () -> {
-                                ResultSet resultSet = fetcher.fetchResults(0, Integer.MAX_VALUE);
+        checkFetchResultInParallel(fetcher);
+    }
 
-                                if (!firstFetch.equals(resultSet.getData())) {
-                                    isEqual.set(false);
-                                }
-                                latch.countDown();
-                            })
-                    .start();
-        }
-
-        latch.await();
-        assertEquals(true, isEqual.get());
+    @Test
+    public void testFetchResultFromDummyStoreInParallel() throws Exception {
+        checkFetchResultInParallel(new ResultFetcher(OperationHandle.create(), schema, data));
     }
 
     @Test
@@ -221,7 +204,8 @@ public class ResultFetcherTest extends TestLogger {
 
         long testToken = token;
         AtomicReference<Boolean> meetEnd = new AtomicReference<>(false);
-        new Thread(
+        threadFactory
+                .newThread(
                         () -> {
                             // Should meet EOS in the end.
                             long nextToken = testToken;
@@ -347,6 +331,30 @@ public class ResultFetcherTest extends TestLogger {
 
         assertEquals(ResultSet.ResultType.EOS, checkNotNull(currentResult).getResultType());
         assertEquals(data, fetchedRows);
+    }
+
+    private void checkFetchResultInParallel(ResultFetcher fetcher) throws Exception {
+        AtomicReference<Boolean> isEqual = new AtomicReference<>(true);
+        int fetchThreadNum = 100;
+        CountDownLatch latch = new CountDownLatch(fetchThreadNum);
+
+        List<RowData> firstFetch = fetcher.fetchResults(0, Integer.MAX_VALUE).getData();
+        for (int i = 0; i < fetchThreadNum; i++) {
+            threadFactory
+                    .newThread(
+                            () -> {
+                                ResultSet resultSet = fetcher.fetchResults(0, Integer.MAX_VALUE);
+
+                                if (!firstFetch.equals(resultSet.getData())) {
+                                    isEqual.set(false);
+                                }
+                                latch.countDown();
+                            })
+                    .start();
+        }
+
+        latch.await();
+        assertEquals(true, isEqual.get());
     }
 
     // --------------------------------------------------------------------------------------------

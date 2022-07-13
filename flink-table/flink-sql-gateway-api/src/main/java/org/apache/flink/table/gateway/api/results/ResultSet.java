@@ -19,6 +19,7 @@
 package org.apache.flink.table.gateway.api.results;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
 
@@ -72,7 +73,23 @@ public class ResultSet {
         return nextToken;
     }
 
-    /** The schema of the data. */
+    /**
+     * The schema of the data.
+     *
+     * <p>The schema of the DDL, USE, EXPLAIN, SHOW and DESCRIBE align with the schema of the {@link
+     * TableResult#getResolvedSchema()}. The only differences is the schema of the `INSERT`
+     * statement.
+     *
+     * <p>The schema of INSERT:
+     *
+     * <pre>
+     * +-------------+-------------+----------+
+     * | column name | column type | comments |
+     * +-------------+-------------+----------+
+     * |   job id    |    string   |          |
+     * +- -----------+-------------+----------+
+     * </pre>
+     */
     public ResolvedSchema getResultSchema() {
         return resultSchema;
     }

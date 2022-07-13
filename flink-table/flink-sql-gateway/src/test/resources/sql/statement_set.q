@@ -15,15 +15,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-SET 'sql-client.execution.result-mode' = 'tableau';
-!output
-[INFO] Session property has been set.
-!info
-
 SET 'table.dml-sync' = 'true';
 !output
-[INFO] Session property has been set.
-!info
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
 
 create table src (
   id int,
@@ -32,8 +32,13 @@ create table src (
   'connector' = 'values'
 );
 !output
-[INFO] Execute statement succeed.
-!info
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
 
 # ==========================================================================
 # test statement set with streaming insert
@@ -41,8 +46,13 @@ create table src (
 
 SET 'execution.runtime-mode' = 'streaming';
 !output
-[INFO] Session property has been set.
-!info
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
 
 create table StreamingTable (
   id int,
@@ -53,8 +63,14 @@ create table StreamingTable (
   'format' = 'csv'
 );
 !output
-[INFO] Execute statement succeed.
-!info
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
 
 create table StreamingTable2 (
   id int,
@@ -65,8 +81,13 @@ create table StreamingTable2 (
   'format' = 'csv'
 );
 !output
-[INFO] Execute statement succeed.
-!info
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
 
 EXPLAIN STATEMENT SET BEGIN
 INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
@@ -97,7 +118,17 @@ Sink(table=[default_catalog.default_database.StreamingTable], fields=[EXPR$0, EX
 
 Sink(table=[default_catalog.default_database.StreamingTable], fields=[EXPR$0, EXPR$1])
 +- Reused(reference_id=[1])
+!ok
 
+# test only to verify the test job id.
+SET '$internal.pipeline.job-id' = 'a5513ca0a886c6c9bafaf3acac43bfa5';
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
 !ok
 
 EXECUTE STATEMENT SET BEGIN
@@ -105,63 +136,72 @@ INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), 
 INSERT INTO StreamingTable2 SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
 END;
 !output
-[INFO] Submitting SQL update statement to the cluster...
-[INFO] Execute statement in sync mode. Please wait for the execution finish...
-[INFO] Complete execution of the SQL update statement.
-!info
++----------------------------------+
+|                           job id |
++----------------------------------+
+| a5513ca0a886c6c9bafaf3acac43bfa5 |
++----------------------------------+
+1 row in set
+!ok
+
+RESET '$internal.pipeline.job-id';
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
 
 SELECT * FROM StreamingTable;
 !output
-+----+-------------+--------------------------------+
-| op |          id |                            str |
-+----+-------------+--------------------------------+
-| +I |           1 |                    Hello World |
-| +I |           2 |                             Hi |
-| +I |           2 |                             Hi |
-| +I |           3 |                          Hello |
-| +I |           3 |                          World |
-| +I |           4 |                            ADD |
-| +I |           5 |                           LINE |
-+----+-------------+--------------------------------+
-Received a total of 7 rows
++----+----+-------------+
+| op | id |         str |
++----+----+-------------+
+| +I |  1 | Hello World |
+| +I |  2 |          Hi |
+| +I |  2 |          Hi |
+| +I |  3 |       Hello |
+| +I |  3 |       World |
+| +I |  4 |         ADD |
+| +I |  5 |        LINE |
++----+----+-------------+
+7 rows in set
 !ok
 
 SELECT * FROM StreamingTable2;
 !output
-+----+-------------+--------------------------------+
-| op |          id |                            str |
-+----+-------------+--------------------------------+
-| +I |           1 |                    Hello World |
-| +I |           2 |                             Hi |
-| +I |           2 |                             Hi |
-| +I |           3 |                          Hello |
-| +I |           3 |                          World |
-| +I |           4 |                            ADD |
-| +I |           5 |                           LINE |
-+----+-------------+--------------------------------+
-Received a total of 7 rows
++----+----+-------------+
+| op | id |         str |
++----+----+-------------+
+| +I |  1 | Hello World |
+| +I |  2 |          Hi |
+| +I |  2 |          Hi |
+| +I |  3 |       Hello |
+| +I |  3 |       World |
+| +I |  4 |         ADD |
+| +I |  5 |        LINE |
++----+----+-------------+
+7 rows in set
 !ok
 
 EXPLAIN STATEMENT SET BEGIN
 END;
 !output
-[ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
-
 !error
 
 EXECUTE STATEMENT SET BEGIN
 END;
 !output
-[ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
-
 !error
 
 # ==========================================================================
@@ -170,8 +210,13 @@ Was expecting one of:
 
 SET 'execution.runtime-mode' = 'batch';
 !output
-[INFO] Session property has been set.
-!info
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
 
 create table BatchTable (
 id int,
@@ -182,8 +227,14 @@ str string
 'format' = 'csv'
 );
 !output
-[INFO] Execute statement succeed.
-!info
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
 
 create table BatchTable2 (
 id int,
@@ -194,8 +245,13 @@ str string
 'format' = 'csv'
 );
 !output
-[INFO] Execute statement succeed.
-!info
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
 
 EXPLAIN STATEMENT SET
 BEGIN
@@ -227,7 +283,17 @@ Sink(table=[default_catalog.default_database.BatchTable], fields=[EXPR$0, EXPR$1
 
 Sink(table=[default_catalog.default_database.BatchTable2], fields=[EXPR$0, EXPR$1])
 +- Reused(reference_id=[1])
+!ok
 
+# test only to verify the test job id.
+SET '$internal.pipeline.job-id' = '2e2dc0a5a6315296062ba81eba340668';
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
 !ok
 
 EXECUTE STATEMENT SET
@@ -236,10 +302,23 @@ INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 
 INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
 END;
 !output
-[INFO] Submitting SQL update statement to the cluster...
-[INFO] Execute statement in sync mode. Please wait for the execution finish...
-[INFO] Complete execution of the SQL update statement.
-!info
++----------------------------------+
+|                           job id |
++----------------------------------+
+| 2e2dc0a5a6315296062ba81eba340668 |
++----------------------------------+
+1 row in set
+!ok
+
+RESET '$internal.pipeline.job-id';
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
 
 SELECT * FROM BatchTable;
 !output
@@ -272,21 +351,17 @@ Empty set
 EXPLAIN STATEMENT SET BEGIN
 END;
 !output
-[ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
-
 !error
 
 EXECUTE STATEMENT SET BEGIN
 END;
 !output
-[ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
-
 !error

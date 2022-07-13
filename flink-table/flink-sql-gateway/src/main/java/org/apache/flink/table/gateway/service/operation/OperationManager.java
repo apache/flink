@@ -18,29 +18,29 @@
 
 package org.apache.flink.table.gateway.service.operation;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
-import org.apache.flink.util.CloseableIterator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /** Manager for the {@link Operation}. */
+@Internal
 public class OperationManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(OperationManager.class);
@@ -58,9 +58,9 @@ public class OperationManager {
     }
 
     /**
-     * Submit the operation to the {@link OperationManager}. The {@link OperationManager} manges the
-     * lifecycle of the {@link Operation}, including register resources, fire the execution and so
-     * on.
+     * Submit the operation to the {@link OperationManager}. The {@link OperationManager} manages
+     * the lifecycle of the {@link Operation}, including register resources, fire the execution and
+     * so on.
      *
      * @param operationType The type of the submitted operation.
      * @param executor Worker to execute.
@@ -75,19 +75,29 @@ public class OperationManager {
                         operationType,
                         () -> {
                             ResultSet resultSet = executor.call();
-                            List<RowData> rows = resultSet.getData();
                             return new ResultFetcher(
-                                    handle,
-                                    resultSet.getResultSchema(),
-                                    CloseableIterator.adapterForIterator(rows.iterator()),
-                                    rows.size());
+                                    handle, resultSet.getResultSchema(), resultSet.getData());
                         });
 
-        writeLock(
-                () -> {
-                    submittedOperations.put(handle, operation);
-                    operation.run(service);
-                });
+        submitOperationInternal(handle, operation);
+        return handle;
+    }
+
+    /**
+     * Submit the operation to the {@link OperationManager}. The {@link OperationManager} manges the
+     * lifecycle of the {@link Operation}, including register resources, fire the execution and so
+     * on.
+     *
+     * @param operationType The type of the submitted operation.
+     * @param fetcherSupplier offer the fetcher to get the results.
+     * @return OperationHandle to fetch the results or check the status.
+     */
+    public OperationHandle submitOperation(
+            OperationType operationType, Function<OperationHandle, ResultFetcher> fetcherSupplier) {
+        OperationHandle handle = OperationHandle.create();
+        Operation operation =
+                new Operation(handle, operationType, () -> fetcherSupplier.apply(handle));
+        submitOperationInternal(handle, operation);
         return handle;
     }
 
@@ -170,6 +180,14 @@ public class OperationManager {
                                         operationHandle));
                     }
                     return operation;
+                });
+    }
+
+    private void submitOperationInternal(OperationHandle handle, Operation operation) {
+        writeLock(
+                () -> {
+                    submittedOperations.put(handle, operation);
+                    operation.run(service);
                 });
     }
 

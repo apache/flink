@@ -47,6 +47,7 @@ import java.util.Optional;
 public class ResultFetcher {
 
     private static final Logger LOG = LoggerFactory.getLogger(ResultFetcher.class);
+    private static final int TABLE_RESULT_MAX_INITIAL_CAPACITY = 5000;
 
     private final OperationHandle operationHandle;
 
@@ -61,11 +62,27 @@ public class ResultFetcher {
     public ResultFetcher(
             OperationHandle operationHandle,
             ResolvedSchema resultSchema,
+            CloseableIterator<RowData> resultRows) {
+        this(operationHandle, resultSchema, resultRows, TABLE_RESULT_MAX_INITIAL_CAPACITY);
+    }
+
+    @VisibleForTesting
+    ResultFetcher(
+            OperationHandle operationHandle,
+            ResolvedSchema resultSchema,
             CloseableIterator<RowData> resultRows,
             int maxBufferSize) {
         this.operationHandle = operationHandle;
         this.resultSchema = resultSchema;
         this.resultStore = new ResultStore(resultRows, maxBufferSize);
+    }
+
+    public ResultFetcher(
+            OperationHandle operationHandle, ResolvedSchema resultSchema, List<RowData> rows) {
+        this.operationHandle = operationHandle;
+        this.resultSchema = resultSchema;
+        this.bufferedResults.addAll(rows);
+        this.resultStore = ResultStore.DUMMY_RESULT_STORE;
     }
 
     public void close() {
