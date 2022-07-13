@@ -97,7 +97,7 @@ public class OperationExecutor {
         } else {
             TableResultInternal result = tableEnv.executeInternal(op);
             return new ResultFetcher(
-                    handle, result.getResolvedSchema(), drill(result.collectInternal()));
+                    handle, result.getResolvedSchema(), collect(result.collectInternal()));
         }
     }
 
@@ -109,7 +109,7 @@ public class OperationExecutor {
             return new ResultFetcher(
                     handle,
                     TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
-                    drill(TableResultInternal.TABLE_RESULT_OK.collectInternal()));
+                    collect(TableResultInternal.TABLE_RESULT_OK.collectInternal()));
         } else if (!setOp.getKey().isPresent() && !setOp.getValue().isPresent()) {
             // show all properties
             Map<String, String> configMap = tableEnv.getConfig().getConfiguration().toMap();
@@ -118,7 +118,7 @@ public class OperationExecutor {
                     ResolvedSchema.of(
                             Column.physical(SET_KEY, DataTypes.STRING()),
                             Column.physical(SET_VALUE, DataTypes.STRING())),
-                    drill(
+                    collect(
                             configMap.entrySet().stream()
                                     .map(
                                             entry ->
@@ -145,7 +145,7 @@ public class OperationExecutor {
         return new ResultFetcher(
                 handle,
                 TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
-                drill(TableResultInternal.TABLE_RESULT_OK.collectInternal()));
+                collect(TableResultInternal.TABLE_RESULT_OK.collectInternal()));
     }
 
     private ResultFetcher callModifyOperations(
@@ -170,7 +170,7 @@ public class OperationExecutor {
                                                 .toString()))));
     }
 
-    private List<RowData> drill(Iterator<RowData> tableResult) {
+    private List<RowData> collect(Iterator<RowData> tableResult) {
         List<RowData> rows = new ArrayList<>();
         tableResult.forEachRemaining(rows::add);
         return rows;

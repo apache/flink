@@ -29,6 +29,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
@@ -98,7 +99,7 @@ public class SessionContext {
     /** Close resources, e.g. catalogs. */
     public void close() {
         for (String name : sessionState.catalogManager.listCatalogs()) {
-            sessionState.catalogManager.unregisterCatalog(name, true);
+            sessionState.catalogManager.getCatalog(name).ifPresent(Catalog::close);
         }
         try {
             userClassloader.close();
