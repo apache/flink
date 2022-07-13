@@ -431,8 +431,8 @@ public class AsyncWaitOperator<IN, OUT>
 
         /**
          * A guard similar to ResultHandler#complete to prevent repeated complete calls from
-         * ill-written AsyncFunction. This flag indicates a retry is in-flight, will reject new
-         * retry request if true. And wil be reset to false after the retry fired.
+         * ill-written AsyncFunction. This flag indicates a retry is in-flight, new retry will be
+         * rejected if it is ture, and it will be reset to false after the retry fired.
          */
         private final AtomicBoolean retryAwaiting = new AtomicBoolean(false);
 
