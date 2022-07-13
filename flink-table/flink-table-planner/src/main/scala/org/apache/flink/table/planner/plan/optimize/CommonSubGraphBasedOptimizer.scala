@@ -95,8 +95,11 @@ abstract class CommonSubGraphBasedOptimizer extends Optimizer {
     SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, unwrapTableConfig(roots.head))
   }
 
-  /** Post process for the physical [[RelNode]] dag, e.g., validation or rewriting purpose. */
-  protected def postOptimize(expanded: Seq[RelNode]): Seq[RelNode]
+  /**
+   * Post process for the physical [[RelNode]] dag, e.g., can be overloaded for validation or
+   * rewriting purpose.
+   */
+  protected def postOptimize(expanded: Seq[RelNode]): Seq[RelNode] = expanded
 
   /**
    * Decompose RelNode trees into multiple [[RelNodeBlock]]s, optimize recursively each
