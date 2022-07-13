@@ -1623,6 +1623,21 @@ public class DefaultSchedulerTest extends TestLogger {
 
     @Test
     public void testJobStatusHookWithJobFailed() throws Exception {
+        commonJobStatusHookTest(ExecutionState.FAILED, JobStatus.FAILED);
+    }
+
+    @Test
+    public void testJobStatusHookWithJobCanceled() throws Exception {
+        commonJobStatusHookTest(ExecutionState.CANCELED, JobStatus.CANCELED);
+    }
+
+    @Test
+    public void testJobStatusHookWithJobFinished() throws Exception {
+        commonJobStatusHookTest(ExecutionState.FINISHED, JobStatus.FINISHED);
+    }
+
+    private void commonJobStatusHookTest(
+            ExecutionState expectedExecutionState, JobStatus expectedJobStatus) throws Exception {
         final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
 
         TestingJobStatusHook jobStatusHook = new TestingJobStatusHook();
@@ -1630,8 +1645,21 @@ public class DefaultSchedulerTest extends TestLogger {
         final List<JobID> onCreatedJobList = new LinkedList<>();
         jobStatusHook.setOnCreatedConsumer((jobId) -> onCreatedJobList.add(jobId));
 
-        final List<JobID> onFailedJobList = new LinkedList<>();
-        jobStatusHook.setOnFailedConsumer((jobID, throwable) -> onFailedJobList.add(jobID));
+        final List<JobID> onJobStatusList = new LinkedList<>();
+        switch (expectedJobStatus) {
+            case FAILED:
+                jobStatusHook.setOnFailedConsumer((jobID, throwable) -> onJobStatusList.add(jobID));
+                break;
+            case CANCELED:
+                jobStatusHook.setOnCanceledConsumer((jobID) -> onJobStatusList.add(jobID));
+                break;
+            case FINISHED:
+                jobStatusHook.setOnFinishedConsumer((jobID) -> onJobStatusList.add(jobID));
+                break;
+            default:
+                throw new UnsupportedOperationException(
+                        "JobStatusHook test is not supported: " + expectedJobStatus);
+        }
 
         List<JobStatusHook> jobStatusHooks = new ArrayList<>();
         jobStatusHooks.add(jobStatusHook);
@@ -1650,109 +1678,23 @@ public class DefaultSchedulerTest extends TestLogger {
         final ExecutionAttemptID attemptId =
                 onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
 
-        scheduler.updateTaskExecutionState(createFailedTaskExecutionState(attemptId));
-
-        taskRestartExecutor.triggerScheduledTasks();
-
-        waitForTermination(scheduler);
-        final JobStatus jobStatus = scheduler.requestJobStatus();
-        org.assertj.core.api.Assertions.assertThat(jobStatus).isEqualTo(JobStatus.FAILED);
-        org.assertj.core.api.Assertions.assertThat(onCreatedJobList).hasSize(1);
-        org.assertj.core.api.Assertions.assertThat(onCreatedJobList.get(0))
-                .isEqualTo(jobGraph.getJobID());
-
-        org.assertj.core.api.Assertions.assertThat(onFailedJobList).hasSize(1);
-        org.assertj.core.api.Assertions.assertThat(onFailedJobList.get(0))
-                .isEqualTo(jobGraph.getJobID());
-    }
-
-    @Test
-    public void testJobStatusHookWithJobCanceled() throws Exception {
-        final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
-
-        TestingJobStatusHook jobStatusHook = new TestingJobStatusHook();
-
-        final List<JobID> onCreatedJobList = new LinkedList<>();
-        jobStatusHook.setOnCreatedConsumer((jobId) -> onCreatedJobList.add(jobId));
-
-        final List<JobID> onCancelJobList = new LinkedList<>();
-        jobStatusHook.setOnCanceledConsumer(((jobID) -> onCancelJobList.add(jobID)));
-
-        List<JobStatusHook> jobStatusHooks = new ArrayList<>();
-        jobStatusHooks.add(jobStatusHook);
-        jobGraph.setJobStatusHooks(jobStatusHooks);
-
-        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
-
-        final ArchivedExecutionVertex onlyExecutionVertex =
-                Iterables.getOnlyElement(
-                        scheduler
-                                .requestJob()
-                                .getArchivedExecutionGraph()
-                                .getAllExecutionVertices());
-        final ExecutionAttemptID attemptId =
-                onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
-
-        scheduler.cancel();
-
+        if (JobStatus.CANCELED == expectedJobStatus) {
+            scheduler.cancel();
+        }
         scheduler.updateTaskExecutionState(
-                new TaskExecutionState(attemptId, ExecutionState.CANCELED));
+                new TaskExecutionState(attemptId, expectedExecutionState));
 
         taskRestartExecutor.triggerScheduledTasks();
 
         waitForTermination(scheduler);
         final JobStatus jobStatus = scheduler.requestJobStatus();
-        org.assertj.core.api.Assertions.assertThat(jobStatus).isEqualTo(JobStatus.CANCELED);
+        org.assertj.core.api.Assertions.assertThat(jobStatus).isEqualTo(expectedJobStatus);
         org.assertj.core.api.Assertions.assertThat(onCreatedJobList).hasSize(1);
         org.assertj.core.api.Assertions.assertThat(onCreatedJobList.get(0))
                 .isEqualTo(jobGraph.getJobID());
 
-        org.assertj.core.api.Assertions.assertThat(onCancelJobList).hasSize(1);
-        org.assertj.core.api.Assertions.assertThat(onCancelJobList.get(0))
-                .isEqualTo(jobGraph.getJobID());
-    }
-
-    @Test
-    public void testJobStatusHookWithJobFinished() throws Exception {
-        final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
-
-        TestingJobStatusHook jobStatusHook = new TestingJobStatusHook();
-
-        final List<JobID> onCreatedJobList = new LinkedList<>();
-        jobStatusHook.setOnCreatedConsumer((jobId) -> onCreatedJobList.add(jobId));
-
-        final List<JobID> onFinishJobList = new LinkedList<>();
-        jobStatusHook.setonFinishedConsumer((jobID) -> onFinishJobList.add(jobID));
-
-        List<JobStatusHook> jobStatusHooks = new ArrayList<>();
-        jobStatusHooks.add(jobStatusHook);
-        jobGraph.setJobStatusHooks(jobStatusHooks);
-
-        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
-
-        final ArchivedExecutionVertex onlyExecutionVertex =
-                Iterables.getOnlyElement(
-                        scheduler
-                                .requestJob()
-                                .getArchivedExecutionGraph()
-                                .getAllExecutionVertices());
-        final ExecutionAttemptID attemptId =
-                onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
-
-        scheduler.updateTaskExecutionState(
-                new TaskExecutionState(attemptId, ExecutionState.FINISHED));
-
-        taskRestartExecutor.triggerScheduledTasks();
-
-        waitForTermination(scheduler);
-        final JobStatus jobStatus = scheduler.requestJobStatus();
-        org.assertj.core.api.Assertions.assertThat(jobStatus).isEqualTo(JobStatus.FINISHED);
-        org.assertj.core.api.Assertions.assertThat(onCreatedJobList).hasSize(1);
-        org.assertj.core.api.Assertions.assertThat(onCreatedJobList.get(0))
-                .isEqualTo(jobGraph.getJobID());
-
-        org.assertj.core.api.Assertions.assertThat(onFinishJobList).hasSize(1);
-        org.assertj.core.api.Assertions.assertThat(onFinishJobList.get(0))
+        org.assertj.core.api.Assertions.assertThat(onJobStatusList).hasSize(1);
+        org.assertj.core.api.Assertions.assertThat(onJobStatusList.get(0))
                 .isEqualTo(jobGraph.getJobID());
     }
 

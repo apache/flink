@@ -35,7 +35,7 @@ public class TestingJobStatusHook implements JobStatusHook {
         this.onCreatedConsumer = onCreatedConsumer;
     }
 
-    public void setonFinishedConsumer(Consumer<JobID> onFinishedConsumer) {
+    public void setOnFinishedConsumer(Consumer<JobID> onFinishedConsumer) {
         this.onFinishedConsumer = onFinishedConsumer;
     }
 

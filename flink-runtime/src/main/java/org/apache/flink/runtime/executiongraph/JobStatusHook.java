@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 
 import java.io.Serializable;
 
@@ -37,7 +38,7 @@ import java.io.Serializable;
 @Internal
 public interface JobStatusHook extends Serializable {
 
-    /** When Job become {@link JobStatus#CREATED} status, it would only be called one time. */
+    /** When Job becomes {@link JobStatus#CREATED} status, it would only be called one time. */
     void onCreated(JobID jobId);
 
     /** When job finished successfully. */

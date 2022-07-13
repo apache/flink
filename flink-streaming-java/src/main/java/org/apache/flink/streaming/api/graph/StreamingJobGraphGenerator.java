@@ -273,7 +273,7 @@ public class StreamingJobGraphGenerator {
             throw new FlinkRuntimeException("Error in serialization.", e);
         }
 
-        if (streamGraph.getJobStatusHooks().size() > 0) {
+        if (!streamGraph.getJobStatusHooks().isEmpty()) {
             jobGraph.setJobStatusHooks(streamGraph.getJobStatusHooks());
         }
 

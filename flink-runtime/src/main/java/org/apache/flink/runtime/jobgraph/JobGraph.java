@@ -646,6 +646,7 @@ public class JobGraph implements Serializable {
     }
 
     public void setJobStatusHooks(List<JobStatusHook> hooks) {
+        checkNotNull(hooks, "Setting the JobStatusHook list to null is not allowed.");
         this.jobStatusHooks = hooks;
     }
 
