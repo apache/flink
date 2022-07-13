@@ -25,39 +25,57 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.function.Function;
 
-/** . */
+/** Utility class for using DataStream connectors in Python. */
 public class PythonConnectorUtils {
 
+    /**
+     * Creates a selector that returns the first column of a row, and cast it to {@code clazz}.
+     * {@code T} should be a sub interface of {@link Function}, which accepts a {@link Row}.
+     *
+     * @param clazz The desired selector class to cast to, e.g. TopicSelector.class for Kafka.
+     * @param <T> An interface
+     */
     @SuppressWarnings("unchecked")
-    public static <T> T createFirstColumnTopicSelector(Class<T> clazz) {
+    public static <T> T createFirstColumnSelector(Class<T> clazz) {
         return (T)
                 Proxy.newProxyInstance(
                         clazz.getClassLoader(),
                         new Class[] {clazz},
-                        new FirstColumnTopicSelectorInvocationHandler());
+                        new FirstColumnSelectorInvocationHandler());
     }
 
-    /** . */
-    public static class FirstColumnTopicSelectorInvocationHandler
+    /** The serializable {@link InvocationHandler} as the proxy for first column selector. */
+    public static class FirstColumnSelectorInvocationHandler
             implements InvocationHandler, Serializable {
 
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
             Preconditions.checkArgument(method.getName().equals("apply"));
             Preconditions.checkArgument(args.length == 1);
+            Preconditions.checkArgument(args[0] instanceof Row);
             Row row = (Row) args[0];
-            Preconditions.checkArgument(row.getArity() == 2);
-            Preconditions.checkArgument(row.getField(0) instanceof String);
+            Preconditions.checkArgument(row.getArity() >= 1);
             return row.getField(0);
         }
     }
 
-    /** . */
+    /**
+     * A {@link SerializationSchema} for {@link Row} that only serialize the second column using a
+     * wrapped {@link SerializationSchema} for {@link T}.
+     *
+     * @param <T> The actual data type wrapped in the Row.
+     */
     public static class SecondColumnSerializationSchema<T> implements SerializationSchema<Row> {
 
         private final SerializationSchema<T> wrappedSchema;
 
+        /**
+         * The constructor.
+         *
+         * @param wrappedSchema The {@link SerializationSchema} to serialize {@link T} objects.
+         */
         public SecondColumnSerializationSchema(SerializationSchema<T> wrappedSchema) {
             this.wrappedSchema = wrappedSchema;
         }
@@ -70,7 +88,7 @@ public class PythonConnectorUtils {
         @SuppressWarnings("unchecked")
         @Override
         public byte[] serialize(Row row) {
-            Preconditions.checkArgument(row.getArity() == 2);
+            Preconditions.checkArgument(row.getArity() >= 2);
             return wrappedSchema.serialize((T) row.getField(1));
         }
     }

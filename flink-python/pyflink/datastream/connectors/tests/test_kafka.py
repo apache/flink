@@ -241,7 +241,7 @@ class KafkaSourceTests(PyFlinkStreamingTestCase):
             source, specified_offsets, KafkaOffsetResetStrategy.LATEST, False
         )
 
-    def test_set_value_only_deserialization_schema(self):
+    def test_set_value_only_deserializer(self):
         def _check(schema: DeserializationSchema, class_name: str):
             source = KafkaSource.builder() \
                 .set_bootstrap_servers('localhost:9092') \
