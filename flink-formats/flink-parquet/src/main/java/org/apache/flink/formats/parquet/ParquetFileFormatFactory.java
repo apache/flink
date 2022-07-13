@@ -238,14 +238,13 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
                     if (statistics instanceof IntStatistics) {
                         builder.setMin(((IntStatistics) statistics).getMin())
                                 .setMax(((IntStatistics) statistics).getMax());
-                        break;
                     } else if (statistics instanceof LongStatistics) {
                         builder.setMin(((LongStatistics) statistics).getMin())
                                 .setMax(((LongStatistics) statistics).getMax());
-                        break;
                     } else {
                         return null;
                     }
+                    break;
                 case DOUBLE:
                     if (statistics instanceof DoubleStatistics) {
                         builder.setMin(((DoubleStatistics) statistics).getMin())
@@ -317,7 +316,6 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
                     if (statistics instanceof LongStatistics) {
                         builder.setMin(new Timestamp(((LongStatistics) statistics).getMin()))
                                 .setMax(new Timestamp(((LongStatistics) statistics).getMax()));
-                        break;
                     } else if (statistics instanceof BinaryStatistics) {
                         Binary min = ((BinaryStatistics) statistics).genericGetMin();
                         Binary max = ((BinaryStatistics) statistics).genericGetMax();
@@ -331,19 +329,17 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
                         } else {
                             builder.setMax(null);
                         }
-                        break;
                     } else {
                         return null;
                     }
+                    break;
                 case DECIMAL:
                     if (statistics instanceof IntStatistics) {
                         builder.setMin(BigDecimal.valueOf(((IntStatistics) statistics).getMin()))
                                 .setMax(BigDecimal.valueOf(((IntStatistics) statistics).getMax()));
-                        break;
                     } else if (statistics instanceof LongStatistics) {
                         builder.setMin(BigDecimal.valueOf(((LongStatistics) statistics).getMin()))
                                 .setMax(BigDecimal.valueOf(((LongStatistics) statistics).getMax()));
-                        break;
                     } else if (statistics instanceof BinaryStatistics) {
                         Binary min = ((BinaryStatistics) statistics).genericGetMin();
                         Binary max = ((BinaryStatistics) statistics).genericGetMax();
@@ -359,10 +355,10 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
                         } else {
                             builder.setMax(null);
                         }
-                        break;
                     } else {
                         return null;
                     }
+                    break;
                 default:
                     return null;
             }
