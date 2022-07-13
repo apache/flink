@@ -45,6 +45,8 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
     rootBlocks
   }
 
+  override protected def postOptimize(expanded: Seq[RelNode]): Seq[RelNode] = expanded
+
   private def optimizeBlock(block: RelNodeBlock): Unit = {
     block.children.foreach {
       child =>

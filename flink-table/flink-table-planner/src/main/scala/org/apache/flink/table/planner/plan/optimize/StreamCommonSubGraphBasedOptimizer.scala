@@ -104,6 +104,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
     sinkBlocks
   }
 
+  override protected def postOptimize(expanded: Seq[RelNode]): Seq[RelNode] = expanded
+
   private def optimizeBlock(block: RelNodeBlock, isSinkBlock: Boolean): Unit = {
     block.children.foreach {
       child =>
