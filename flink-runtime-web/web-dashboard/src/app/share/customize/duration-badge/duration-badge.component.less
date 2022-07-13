@@ -16,20 +16,17 @@
  * limitations under the License.
  */
 
-import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
+@import "theme";
 
-import { JobVertexSubTask } from '@flink-runtime-web/interfaces';
+:host {
+  display: inline-block;
+  margin: 0 1px;
 
-export interface JobOverviewSubtasksTableAction {
-  subtask?: JobVertexSubTask;
-}
-
-@Component({
-  selector: 'flink-table-actions',
-  templateUrl: './subtasks-table-action.component.html',
-  styleUrls: ['./subtasks-table-action.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
-})
-export class SubtasksTableActionComponent implements JobOverviewSubtasksTableAction {
-  @Input() subtask?: JobVertexSubTask;
+  span {
+    padding: 1px @padding-xss;
+    color: @text-color-inverse;
+    font-weight: 500;
+    text-align: center;
+    cursor: default;
+  }
 }

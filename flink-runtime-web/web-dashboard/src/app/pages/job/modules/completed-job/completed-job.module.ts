@@ -21,10 +21,6 @@ import { NgModule } from '@angular/core';
 
 import { JOB_MODULE_CONFIG, JOB_MODULE_DEFAULT_CONFIG, JobModuleConfig } from '@flink-runtime-web/pages/job/job.config';
 import { CompletedJobRoutingModule } from '@flink-runtime-web/pages/job/modules/completed-job/completed-job-routing.module';
-import {
-  JOB_OVERVIEW_MODULE_CONFIG,
-  JobOverviewModuleConfig
-} from '@flink-runtime-web/pages/job/overview/job-overview.config';
 import { StatusService } from '@flink-runtime-web/services';
 import { ShareModule } from '@flink-runtime-web/share/share.module';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
@@ -36,16 +32,6 @@ import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 import { NzTableModule } from 'ng-zorro-antd/table';
 
 import { ClusterConfigComponent } from './cluster-config/cluster-config.component';
-
-const OVERRIDE_JOB_OVERVIEW_MODULE_CONFIG_FACTORY = (): JobOverviewModuleConfig => {
-  return {
-    routerTabs: [
-      { title: 'Detail', path: 'detail' },
-      { title: 'SubTasks', path: 'subtasks' },
-      { title: 'TaskManagers', path: 'taskmanagers' }
-    ]
-  };
-};
 
 const OVERRIDE_JOB_MODULE_CONFIG_FACTORY = (statusService: StatusService): JobModuleConfig => {
   const isHistoryServer = statusService.configuration.features['web-history'];
@@ -78,10 +64,6 @@ const OVERRIDE_JOB_MODULE_CONFIG_FACTORY = (statusService: StatusService): JobMo
     NzPipesModule
   ],
   providers: [
-    {
-      provide: JOB_OVERVIEW_MODULE_CONFIG,
-      useFactory: OVERRIDE_JOB_OVERVIEW_MODULE_CONFIG_FACTORY
-    },
     {
       provide: JOB_MODULE_CONFIG,
       useFactory: OVERRIDE_JOB_MODULE_CONFIG_FACTORY,

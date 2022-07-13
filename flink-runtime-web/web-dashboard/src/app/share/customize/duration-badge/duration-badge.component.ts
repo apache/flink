@@ -18,18 +18,24 @@
 
 import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
 
-import { JobVertexSubTask } from '@flink-runtime-web/interfaces';
-
-export interface JobOverviewSubtasksTableAction {
-  subtask?: JobVertexSubTask;
-}
+import { ColorKey, ConfigService } from '@flink-runtime-web/services';
 
 @Component({
-  selector: 'flink-table-actions',
-  templateUrl: './subtasks-table-action.component.html',
-  styleUrls: ['./subtasks-table-action.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  selector: 'flink-duration-badge',
+  templateUrl: './duration-badge.component.html',
+  styleUrls: ['./duration-badge.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '[style.backgroundColor]': 'backgroundColor'
+  }
 })
-export class SubtasksTableActionComponent implements JobOverviewSubtasksTableAction {
-  @Input() subtask?: JobVertexSubTask;
+export class DurationBadgeComponent {
+  @Input() public state: string;
+  @Input() public duration: number;
+
+  constructor(private readonly configService: ConfigService) {}
+
+  get backgroundColor(): string {
+    return this.configService.COLOR_MAP[this.state as ColorKey];
+  }
 }

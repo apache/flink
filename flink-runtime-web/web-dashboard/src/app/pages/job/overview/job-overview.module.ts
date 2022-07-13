@@ -26,6 +26,7 @@ import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzRadioModule } from 'ng-zorro-antd/radio';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
@@ -62,7 +63,8 @@ import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-
     NzSelectModule,
     NzDividerModule,
     NzTabsModule,
-    NzDropDownModule
+    NzDropDownModule,
+    NzModalModule
   ],
   declarations: [
     JobOverviewComponent,
