@@ -1164,6 +1164,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                     new EstablishedResourceManagerConnection(
                             resourceManagerGateway, resourceManagerResourceId);
 
+            blocklistHandler.registerBlocklistListener(resourceManagerGateway);
             slotPoolService.connectToResourceManager(resourceManagerGateway);
             partitionTracker.connectToResourceManager(resourceManagerGateway);
 
@@ -1214,6 +1215,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                 establishedResourceManagerConnection.getResourceManagerGateway();
         resourceManagerGateway.disconnectJobManager(
                 jobGraph.getJobID(), schedulerNG.requestJobStatus(), cause);
+        blocklistHandler.deregisterBlocklistListener(resourceManagerGateway);
         slotPoolService.disconnectResourceManager();
     }
 

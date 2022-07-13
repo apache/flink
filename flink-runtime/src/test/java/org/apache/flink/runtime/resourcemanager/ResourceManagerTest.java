@@ -32,11 +32,13 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitionTracker;
+import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
@@ -67,6 +69,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -541,6 +545,96 @@ class ResourceManagerTest {
                         new BlockedNode("node", "Test cause", System.currentTimeMillis())));
 
         triggerRequirementsCheckFuture.get();
+    }
+
+    @Test
+    void testNewlyAddedBlockedNodesWillBeSynchronizedToAllRegisteredJobMasters() throws Exception {
+        final JobID jobId1 = JobID.generate();
+        final JobID jobId2 = JobID.generate();
+
+        final Collection<BlockedNode> receivedBlockedNodes1 = new ArrayList<>();
+        final Collection<BlockedNode> receivedBlockedNodes2 = new ArrayList<>();
+
+        final JobMasterGateway jobMasterGateway1 = createJobMasterGateway(receivedBlockedNodes1);
+        final JobMasterGateway jobMasterGateway2 = createJobMasterGateway(receivedBlockedNodes2);
+
+        final JobLeaderIdService jobLeaderIdService =
+                TestingJobLeaderIdService.newBuilder()
+                        .setGetLeaderIdFunction(
+                                jobId -> {
+                                    JobMasterGateway leader;
+                                    if (jobId.equals(jobId1)) {
+                                        leader = jobMasterGateway1;
+                                    } else if (jobId.equals(jobId2)) {
+                                        leader = jobMasterGateway2;
+                                    } else {
+                                        throw new IllegalArgumentException("Unknown job");
+                                    }
+                                    return CompletableFuture.completedFuture(
+                                            leader.getFencingToken());
+                                })
+                        .build();
+
+        resourceManager =
+                new ResourceManagerBuilder()
+                        .withJobLeaderIdService(jobLeaderIdService)
+                        .withBlocklistHandlerFactory(
+                                new DefaultBlocklistHandler.Factory(Duration.ofMillis(100L)))
+                        .buildAndStart();
+
+        final ResourceManagerGateway resourceManagerGateway =
+                resourceManager.getSelfGateway(ResourceManagerGateway.class);
+
+        // register the two job masters
+        registerJobMasterToResourceManager(resourceManagerGateway, jobMasterGateway1, jobId1);
+        registerJobMasterToResourceManager(resourceManagerGateway, jobMasterGateway2, jobId2);
+
+        // add blocked node 1
+        BlockedNode blockedNode1 = new BlockedNode("node1", "Test exception", Long.MAX_VALUE);
+        resourceManagerGateway.notifyNewBlockedNodes(Collections.singleton(blockedNode1)).get();
+
+        assertThat(receivedBlockedNodes1).containsExactly(blockedNode1);
+        assertThat(receivedBlockedNodes2).containsExactly(blockedNode1);
+
+        // disconnect job master 1
+        resourceManagerGateway.disconnectJobManager(
+                jobId1, JobStatus.FINISHED, new FlinkException("Test exception"));
+
+        // add blocked node 2
+        BlockedNode blockedNode2 = new BlockedNode("node2", "Test exception", Long.MAX_VALUE);
+        resourceManagerGateway.notifyNewBlockedNodes(Collections.singleton(blockedNode2)).get();
+
+        assertThat(receivedBlockedNodes1).containsExactly(blockedNode1);
+        assertThat(receivedBlockedNodes2).containsExactlyInAnyOrder(blockedNode1, blockedNode2);
+    }
+
+    private JobMasterGateway createJobMasterGateway(Collection<BlockedNode> receivedBlockedNodes) {
+        final TestingJobMasterGateway jobMasterGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setNotifyNewBlockedNodesFunction(
+                                blockedNodes -> {
+                                    receivedBlockedNodes.addAll(blockedNodes);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .setAddress(UUID.randomUUID().toString())
+                        .build();
+        rpcService.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+        return jobMasterGateway;
+    }
+
+    private static void registerJobMasterToResourceManager(
+            ResourceManagerGateway resourceManagerGateway,
+            JobMasterGateway jobMasterGateway,
+            JobID jobId)
+            throws Exception {
+        resourceManagerGateway
+                .registerJobMaster(
+                        jobMasterGateway.getFencingToken(),
+                        ResourceID.generate(),
+                        jobMasterGateway.getAddress(),
+                        jobId,
+                        TIMEOUT)
+                .get();
     }
 
     private void testDisconnectJobManager(JobStatus jobStatus) throws Exception {

@@ -1924,8 +1924,7 @@ class JobMasterTest {
 
             jobMaster.start();
 
-            final JobMasterGateway jobMasterGateway =
-                    jobMaster.getSelfGateway(JobMasterGateway.class);
+            final JobMasterGateway jobMasterGateway = jobMaster.getGateway();
 
             final Collection<SlotOffer> slotOffers =
                     registerSlotsAtJobMaster(
@@ -1962,6 +1961,98 @@ class JobMasterTest {
             assertThat(freedSlotFuture1).isDone();
             assertThat(freedSlotFuture2).isNotDone();
         }
+    }
+
+    @Test
+    void testNewlyAddedBlockedNodesWillBeSynchronizedToResourceManager() throws Exception {
+        try (final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withConfiguration(configuration)
+                        .withHighAvailabilityServices(haServices)
+                        .withBlocklistHandlerFactory(
+                                new DefaultBlocklistHandler.Factory(Duration.ofMillis(100L)))
+                        .createJobMaster()) {
+
+            jobMaster.start();
+
+            final JobMasterGateway jobMasterGateway = jobMaster.getGateway();
+
+            CompletableFuture<Void> jobManagerRegistrationFutureA = new CompletableFuture<>();
+            CompletableFuture<Void> jobManagerRegistrationFutureB = new CompletableFuture<>();
+
+            CompletableFuture<Collection<BlockedNode>> firstReceivedBlockedNodeFutureOfA =
+                    new CompletableFuture<>();
+            CompletableFuture<Collection<BlockedNode>> secondReceivedBlockedNodeFutureOfA =
+                    new CompletableFuture<>();
+
+            CompletableFuture<Collection<BlockedNode>> firstReceivedBlockedNodeFutureOfB =
+                    new CompletableFuture<>();
+
+            final TestingResourceManagerGateway resourceManagerGatewayA =
+                    createResourceManagerGateway(
+                            firstReceivedBlockedNodeFutureOfA,
+                            secondReceivedBlockedNodeFutureOfA,
+                            jobManagerRegistrationFutureA);
+            final TestingResourceManagerGateway resourceManagerGatewayB =
+                    createResourceManagerGateway(
+                            firstReceivedBlockedNodeFutureOfB,
+                            new CompletableFuture<>(),
+                            jobManagerRegistrationFutureB);
+
+            // notify resource manager A as leader
+            notifyResourceManagerLeaderListeners(resourceManagerGatewayA);
+
+            // wait job manager register
+            jobManagerRegistrationFutureA.get();
+
+            // add blocked node 1
+            BlockedNode blockedNode1 = new BlockedNode("node1", "Test exception", Long.MAX_VALUE);
+            jobMasterGateway.notifyNewBlockedNodes(Collections.singleton(blockedNode1)).get();
+
+            assertThat(firstReceivedBlockedNodeFutureOfA.get()).containsExactly(blockedNode1);
+
+            // notify resource manager B as leader
+            notifyResourceManagerLeaderListeners(resourceManagerGatewayB);
+
+            // wait job manager register
+            jobManagerRegistrationFutureB.get();
+
+            // add blocked node 2
+            BlockedNode blockedNode2 = new BlockedNode("node2", "Test exception", Long.MAX_VALUE);
+            jobMasterGateway.notifyNewBlockedNodes(Collections.singleton(blockedNode2)).get();
+
+            assertThat(firstReceivedBlockedNodeFutureOfB.get())
+                    .containsExactlyInAnyOrder(blockedNode1, blockedNode2);
+            assertThat(secondReceivedBlockedNodeFutureOfA).isNotDone();
+        }
+    }
+
+    private TestingResourceManagerGateway createResourceManagerGateway(
+            CompletableFuture<Collection<BlockedNode>> firstReceivedBlockedNodeFuture,
+            CompletableFuture<Collection<BlockedNode>> secondReceivedBlockedNodeFuture,
+            CompletableFuture<Void> jobManagerRegistrationFuture) {
+        final TestingResourceManagerGateway resourceManagerGateway =
+                new TestingResourceManagerGateway();
+
+        rpcService.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
+
+        resourceManagerGateway.setNotifyNewBlockedNodesFunction(
+                blockedNodes -> {
+                    if (!firstReceivedBlockedNodeFuture.isDone()) {
+                        firstReceivedBlockedNodeFuture.complete(blockedNodes);
+                    } else if (!secondReceivedBlockedNodeFuture.isDone()) {
+                        secondReceivedBlockedNodeFuture.complete(blockedNodes);
+                    }
+                    return CompletableFuture.completedFuture(Acknowledge.get());
+                });
+
+        resourceManagerGateway.setRegisterJobManagerFunction(
+                (ignoredA, ignoredB, ignoredC, ignoredD) -> {
+                    jobManagerRegistrationFuture.complete(null);
+                    return CompletableFuture.completedFuture(
+                            resourceManagerGateway.getJobMasterRegistrationSuccess());
+                });
+        return resourceManagerGateway;
     }
 
     private void runJobFailureWhenTaskExecutorTerminatesTest(

@@ -124,6 +124,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private volatile Function<ResourceID, CompletableFuture<Void>> jobMasterHeartbeatFunction;
 
+    private volatile Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
+            notifyNewBlockedNodesFunction =
+                    ignored -> CompletableFuture.completedFuture(Acknowledge.get());
+
     public TestingResourceManagerGateway() {
         this(
                 ResourceManagerId.generate(),
@@ -237,6 +241,12 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
             BiFunction<JobMasterId, ResourceRequirements, CompletableFuture<Acknowledge>>
                     declareRequiredResourcesFunction) {
         this.declareRequiredResourcesFunction = declareRequiredResourcesFunction;
+    }
+
+    public void setNotifyNewBlockedNodesFunction(
+            Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
+                    notifyNewBlockedNodesFunction) {
+        this.notifyNewBlockedNodesFunction = notifyNewBlockedNodesFunction;
     }
 
     @Override
@@ -511,6 +521,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     @Override
     public CompletableFuture<Acknowledge> notifyNewBlockedNodes(Collection<BlockedNode> newNodes) {
-        return CompletableFuture.completedFuture(Acknowledge.get());
+        return notifyNewBlockedNodesFunction.apply(newNodes);
     }
 }

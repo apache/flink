@@ -900,6 +900,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         new JobManagerRegistration(jobId, jobManagerResourceId, jobMasterGateway);
                 jobManagerRegistrations.put(jobId, jobManagerRegistration);
                 jmResourceIdRegistrations.put(jobManagerResourceId, jobManagerRegistration);
+                blocklistHandler.registerBlocklistListener(jobMasterGateway);
             }
         } else {
             // new registration for the job
@@ -907,6 +908,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     new JobManagerRegistration(jobId, jobManagerResourceId, jobMasterGateway);
             jobManagerRegistrations.put(jobId, jobManagerRegistration);
             jmResourceIdRegistrations.put(jobManagerResourceId, jobManagerRegistration);
+            blocklistHandler.registerBlocklistListener(jobMasterGateway);
         }
 
         log.info(
@@ -1033,6 +1035,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             jobManagerHeartbeatManager.unmonitorTarget(jobManagerResourceId);
 
             jmResourceIdRegistrations.remove(jobManagerResourceId);
+            blocklistHandler.deregisterBlocklistListener(jobMasterGateway);
 
             if (resourceRequirementHandling == ResourceRequirementHandling.CLEAR) {
                 slotManager.clearResourceRequirements(jobId);
