@@ -160,6 +160,7 @@ under the License.
 
 		<!-- Tests -->
 
+		<!--Support ParquetFileSystemStatisticsReport using calcite verify plan methods, see FLINK-27990 -->
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
