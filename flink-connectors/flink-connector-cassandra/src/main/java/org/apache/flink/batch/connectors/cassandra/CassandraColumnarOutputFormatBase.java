@@ -24,9 +24,10 @@ import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
 
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
-import com.google.common.util.concurrent.ListenableFuture;
+import com.datastax.driver.core.ResultSetFuture;
 
 import java.time.Duration;
+import java.util.concurrent.CompletionStage;
 
 /**
  * CassandraColumnarOutputFormatBase is the common abstract class for writing into Apache Cassandra
@@ -51,15 +52,16 @@ abstract class CassandraColumnarOutputFormatBase<OUT>
     }
 
     @Override
-    public void open(int taskNumber, int numTasks) {
-        super.open(taskNumber, numTasks);
+    protected void postOpen() {
+        super.postOpen();
         this.prepared = session.prepare(insertQuery);
     }
 
     @Override
-    protected ListenableFuture<ResultSet> send(OUT record) {
+    protected CompletionStage<ResultSet> send(OUT record) {
         Object[] fields = extractFields(record);
-        return session.executeAsync(prepared.bind(fields));
+        final ResultSetFuture result = session.executeAsync(prepared.bind(fields));
+        return listenableFutureToCompletableFuture(result);
     }
 
     protected abstract Object[] extractFields(OUT record);

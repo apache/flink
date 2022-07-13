@@ -1,12 +1,13 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,14 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.batch.connectors.cassandra;
+package org.apache.flink.api.common.io;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import com.google.common.util.concurrent.ListenableFuture;
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
@@ -32,9 +32,7 @@ import java.time.Duration;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
@@ -173,7 +171,7 @@ class OutputFormatBaseTest {
 
     @Test
     void testReleaseOnThrowingSend() throws Exception {
-        Function<String, ListenableFuture<Void>> failingSendFunction =
+        Function<String, CompletionStage<Void>> failingSendFunction =
                 ignoredRecord -> {
                     throw new RuntimeException("expected");
                 };
@@ -236,7 +234,7 @@ class OutputFormatBaseTest {
     }
 
     private static TestOutputFormat createOpenedTestOutputFormat(
-            Function<String, ListenableFuture<Void>> sendFunction) {
+            Function<String, CompletionStage<Void>> sendFunction) {
         final TestOutputFormat testOutputFormat =
                 new TestOutputFormat(1, DEFAULT_MAX_CONCURRENT_REQUESTS_TIMEOUT, sendFunction);
         testOutputFormat.configure(new Configuration());
@@ -248,8 +246,8 @@ class OutputFormatBaseTest {
             implements AutoCloseable {
         private static final long serialVersionUID = 6646648756749403023L;
 
-        private final Queue<ListenableFuture<Void>> tasksQueue = new LinkedList<>();
-        @Nullable private final Function<String, ListenableFuture<Void>> sendFunction;
+        private final Queue<CompletionStage<Void>> tasksQueue = new LinkedList<>();
+        @Nullable private final Function<String, CompletionStage<Void>> sendFunction;
 
         private TestOutputFormat(int maxConcurrentRequests, Duration maxConcurrentRequestsTimeout) {
             super(maxConcurrentRequests, maxConcurrentRequestsTimeout);
@@ -259,61 +257,22 @@ class OutputFormatBaseTest {
         private TestOutputFormat(
                 int maxConcurrentRequests,
                 Duration maxConcurrentRequestsTimeout,
-                Function<String, ListenableFuture<Void>> sendFunction) {
+                Function<String, CompletionStage<Void>> sendFunction) {
             super(maxConcurrentRequests, maxConcurrentRequestsTimeout);
             this.sendFunction = sendFunction;
         }
 
         @Override
-        protected ListenableFuture<Void> send(String value) {
-            return sendFunction == null ? tasksQueue.poll() : sendFunction.apply(value);
+        protected CompletionStage<Void> send(String record) {
+            return sendFunction == null ? tasksQueue.poll() : sendFunction.apply(record);
         }
 
         void enqueueCompletableFuture(CompletableFuture<Void> completableFuture) {
             Preconditions.checkNotNull(completableFuture);
-            tasksQueue.offer(new ListenableCompletableFuture(completableFuture));
+            tasksQueue.offer(completableFuture);
         }
 
         @Override
         public void configure(Configuration parameters) {}
-    }
-
-    private static class ListenableCompletableFuture implements ListenableFuture<Void> {
-        private final CompletableFuture<Void> completableFuture;
-
-        public ListenableCompletableFuture(CompletableFuture<Void> completableFuture) {
-            this.completableFuture = completableFuture;
-        }
-
-        @Override
-        public boolean cancel(boolean b) {
-            return completableFuture.cancel(b);
-        }
-
-        @Override
-        public boolean isCancelled() {
-            return completableFuture.isCancelled();
-        }
-
-        @Override
-        public boolean isDone() {
-            return completableFuture.isDone();
-        }
-
-        @Override
-        public Void get() throws InterruptedException, ExecutionException {
-            return completableFuture.get();
-        }
-
-        @Override
-        public Void get(long timeout, TimeUnit unit)
-                throws InterruptedException, ExecutionException, TimeoutException {
-            return completableFuture.get(timeout, unit);
-        }
-
-        @Override
-        public void addListener(Runnable listener, Executor executor) {
-            completableFuture.whenComplete((result, error) -> listener.run());
-        }
     }
 }
