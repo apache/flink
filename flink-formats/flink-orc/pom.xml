@@ -109,6 +109,7 @@ under the License.
 
 		<!-- Tests -->
 
+		<!--Support OrcFileSystemStatisticsReport using calcite verify plan methods, see FLINK-27991 -->
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
