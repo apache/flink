@@ -75,7 +75,7 @@ Flink 支持以批和流两种模式从 Hive 表中读取数据。批读的时�
         <td><h5>streaming-source.consume-start-offset</h5></td>
         <td style="word-wrap: break-word;">None</td>
         <td>String</td>
-        <td>流模式起始消费偏移量。如何解析和比较偏移取决于你指定的顺序。对于 create-time 和 partition-time，会比较字符串类型的 timestamp (yyyy-[m]m-[d]d [hh:mm:ss])。对于 partition-time，将使用分区时间提取器从分区提取的时间。
+        <td>流模式起始消费偏移量。如何解析和比较偏移量取决于你指定的顺序。对于 create-time 和 partition-time，会比较时间戳 (yyyy-[m]m-[d]d [hh:mm:ss])。对于 partition-time，将使用分区时间提取器从分区名字中提取的时间。
          对于 partition-name，是字符串类型的分区名称(比如 pt_year=2020/pt_mon=10/pt_day=01)。</td>
     </tr>
   </tbody>
