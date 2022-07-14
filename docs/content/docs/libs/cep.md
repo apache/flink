@@ -35,7 +35,7 @@ This page describes the API calls available in Flink CEP. We start by presenting
 which allows you to specify the patterns that you want to detect in your stream, before presenting how you can
 [detect and act upon matching event sequences](#detecting-patterns). We then present the assumptions the CEP
 library makes when [dealing with lateness](#handling-lateness-in-event-time) in event time and how you can
-[migrate your job](#migrating-from-an-older-flink-versionpre-13) from an older Flink version to Flink-1.3.
+[migrate your job](#migrating-from-an-older-flink-versionpre-13) from an older Flink version to Flink-1.13.
 
 ## Getting Started
 
@@ -852,7 +852,7 @@ Pattern.begin("start").where(_.getName().equals("c"))
 {{< /tabs >}}
 
 Will generate the following matches for an input sequence: `C D A1 A2 A3 D A4 B`.
-with combinations enabled: `{C A1 B}`, `{C A1 A2 B}`, `{C A1 A3 B}`, `{C A1 A4 B}`, `{C A1 A2 A3 B}`, `{C A1 A2 A4 B}`, `{C A1 A3 A4 B}`, `{C A1 A2 A3 A4 B}`
+with combinations enabled: `{C A1 B}`, `{C A1 A2 B}`, `{C A1 A3 B}`, `{C A1 A4 B}`, `{C A1 A2 A3 B}`, `{C A1 A2 A4 B}`, `{C A1 A3 A4 B}`, `{C A1 A2 A3 A4 B}`, `{C A2 B}`, `{C A2 A3 B}`, `{C A2 A4 B}`, `{C A2 A3 A4 B}`, `{C A3 B}`, `{C A3 A4 B}`, `{C A4 B}`
 without combinations enabled: `{C A1 B}`, `{C A1 A2 B}`, `{C A1 A2 A3 B}`, `{C A1 A2 A3 A4 B}`.
 
 ### Groups of patterns
@@ -1290,8 +1290,7 @@ Pattern.begin("patternName", skipStrategy)
 {{< /tabs >}}
 
 {{< hint info >}}
-For `SKIP_TO_FIRST`/`LAST` there are two options how to handle cases when there are no elements mapped to
-the specified variable. By default a NO_SKIP strategy will be used in this case. The other option is to throw exception in such situation.
+For `SKIP_TO_FIRST`/`LAST` there are two options how to handle cases when there are no events mapped to the PatternName. By default a NO_SKIP strategy will be used in this case. The other option is to throw exception in such situation.
 One can enable this option by:
 {{< /hint >}}
 
