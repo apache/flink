@@ -28,7 +28,6 @@ import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
-import org.apache.flink.util.CloseableIterator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +36,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
@@ -176,6 +174,14 @@ public class OperationManager {
         } finally {
             stateLock.writeLock().unlock();
         }
+        // wait all operations closed
+        try {
+            operationLock.acquire();
+        } catch (Exception e) {
+            LOG.error("Failed to wait all operation closed.", e);
+        } finally {
+            operationLock.release();
+        }
         LOG.debug("Closes the Operation Manager.");
     }
 
@@ -193,7 +199,7 @@ public class OperationManager {
 
         private final Callable<ResultFetcher> resultSupplier;
 
-        private volatile Future<?> invocation;
+        private volatile FutureTask<?> invocation;
         private volatile ResultFetcher resultFetcher;
         private volatile SqlExecutionException operationError;
 
@@ -233,7 +239,7 @@ public class OperationManager {
                                 processThrowable(t);
                             }
                         };
-                // Please be careful: the returned future by the ExecutorService will not wrap the
+                // The returned future by the ExecutorService will not wrap the
                 // done method.
                 FutureTask<Void> copiedTask =
                         new FutureTask<Void>(work, null) {
@@ -369,8 +375,6 @@ public class OperationManager {
     }
 
     private void submitOperationInternal(OperationHandle handle, Operation operation) {
-        // It means to acquire two locks if put the operation.run() and submittedOperations.put(...)
-        // in the writeLock block, which may introduce the deadlock here.
         writeLock(() -> submittedOperations.put(handle, operation));
         operation.run();
     }

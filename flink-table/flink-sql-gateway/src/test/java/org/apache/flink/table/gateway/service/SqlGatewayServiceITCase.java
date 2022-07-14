@@ -419,7 +419,6 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                     .start();
         }
         startRunning.await();
-        // close session should not be blocked
         service.getSession(sessionHandle).getOperationManager().close();
         terminateRunning.countDown();
     }
