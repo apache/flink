@@ -900,6 +900,10 @@ public class HiveDialectITCase {
                         badMacroName);
     }
 
+    public void testADDResource() {
+        tableEnv.executeSql("Add jar \"xxdf\"         \"erttrsdf\"");
+    }
+
     @Test
     public void testUnsupportedOperation() {
         List<String> statements =

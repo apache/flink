@@ -403,6 +403,7 @@ TOK_OPERATOR;
 TOK_EXPRESSION;
 TOK_DETAIL;
 TOK_BLOCKING;
+TOK_ADD;
 }
 
 
@@ -734,6 +735,7 @@ catch (RecognitionException e) {
 statement
 	: explainStatement SEMICOLON? EOF
 	| execStatement SEMICOLON? EOF
+	| addResourceStatement EOF
 	;
 
 explainStatement
@@ -2892,3 +2894,11 @@ updateOrDelete
 /*
 END SQL Merge statement
 */
+
+
+addResourceStatement
+@init { pushMsg("add resource statement", state); }
+@after { popMsg(state); }
+  :
+  KW_ADD resType=resourceType .*
+  ;

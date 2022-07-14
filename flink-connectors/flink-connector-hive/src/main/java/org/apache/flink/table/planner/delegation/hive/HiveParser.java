@@ -151,7 +151,8 @@ public class HiveParser extends ParserImpl {
                                 HiveASTParser.TOK_RELOADFUNCTION,
                                 HiveASTParser.TOK_CREATEVIEW,
                                 HiveASTParser.TOK_ALTERDATABASE_LOCATION,
-                                HiveASTParser.TOK_CREATE_MATERIALIZED_VIEW));
+                                HiveASTParser.TOK_CREATE_MATERIALIZED_VIEW,
+                                HiveASTParser.KW_ADD));
     }
 
     private final PlannerContext plannerContext;

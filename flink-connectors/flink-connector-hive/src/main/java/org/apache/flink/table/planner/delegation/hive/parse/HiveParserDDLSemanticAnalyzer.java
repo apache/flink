@@ -67,6 +67,7 @@ import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
@@ -177,6 +178,7 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCA
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.NotNullConstraint;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.PrimaryKey;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.getColumns;
+import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.stripQuotes;
 
 /**
  * Ported hive's org.apache.hadoop.hive.ql.parse.DDLSemanticAnalyzer, and also incorporated
@@ -366,6 +368,9 @@ public class HiveParserDDLSemanticAnalyzer {
                 break;
             case HiveASTParser.TOK_DROPMACRO:
                 res = convertDropMacro(ast);
+                break;
+            case HiveASTParser.KW_ADD:
+                res = convertAddResourceOperation((HiveParserASTNode) ast.getParent());
                 break;
             case HiveASTParser.TOK_DESCFUNCTION:
             case HiveASTParser.TOK_DESCDATABASE:
@@ -2029,6 +2034,28 @@ public class HiveParserDDLSemanticAnalyzer {
                         props,
                         oldView.getComment());
         return new AlterViewPropertiesOperation(viewIdentifier, newView);
+    }
+
+    private Operation convertAddResourceOperation(HiveParserASTNode astNode)
+            throws SemanticException {
+        HiveParserASTNode resTypeNode = (HiveParserASTNode) astNode.getChild(1);
+        List<String> resources = new ArrayList<>();
+        for (int i = 2; i < astNode.getChildren().size() - 1; i++) {
+            resources.add(astNode.getChild(i).getText());
+        }
+        if (resources.size() > 1) {
+            throw new SemanticException("Add multiple resources isn't supported currently.");
+        }
+        switch (resTypeNode.getType()) {
+            case HiveASTParser.TOK_JAR:
+                return new AddJarOperation(resources.get(0));
+            case HiveASTParser.TOK_FILE:
+                throw new SemanticException("Add File is not supported.");
+            case HiveASTParser.TOK_ARCHIVE:
+                throw new SemanticException("Add archive is not supported.");
+            default:
+                throw new SemanticException("Unexpected token " + resTypeNode);
+        }
     }
 
     private CatalogBaseTable getAlteredTable(String tableName, boolean expectView) {
