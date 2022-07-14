@@ -41,7 +41,7 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 Flink's streaming connectors are not part of the binary distribution.
 See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
-{{< py_download_link "kafka" "flink-sql-kafka.jar" >}}
+{{< py_download_link "kafka" >}}
 
 ## Kafka Source
 {{< hint info >}}

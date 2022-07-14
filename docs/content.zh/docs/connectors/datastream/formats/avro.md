@@ -40,7 +40,7 @@ Flink 的序列化框架可以处理基于 Avro schemas 生成的类。为了能
 </dependency>
 ```
 
-{{< py_download_link "avro" "flink-sql-avro.jar" >}}
+{{< py_download_link "avro" >}}
 
 如果读取 Avro 文件数据，你必须指定 `AvroInputFormat`。
 

@@ -61,7 +61,7 @@ To read Avro records, you will need to add the `parquet-avro` dependency:
 </dependency>
 ```
 
-{{< py_download_link "parquet" "flink-sql-parquet.jar" >}}
+{{< py_download_link "parquet" >}}
 
 This format is compatible with the new Source that can be used in both batch and streaming execution modes.
 Thus, you can use this format for two kinds of data:

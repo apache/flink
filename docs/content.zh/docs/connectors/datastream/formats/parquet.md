@@ -62,7 +62,7 @@ Flink 支持读取 [Parquet](https://parquet.apache.org/) 文件并生成 {{< ja
 </dependency>
 ```
 
-{{< py_download_link "parquet" "flink-sql-parquet.jar" >}}
+{{< py_download_link "parquet" >}}
 
 此格式与新的 Source 兼容，可以同时在批和流模式下使用。
 因此，你可使用此格式处理以下两类数据：

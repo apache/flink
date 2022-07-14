@@ -1151,7 +1151,7 @@ class KafkaRecordSerializationSchemaBuilder(object):
                 self._require_row_type = require_row_type
 
             def apply(self, ds):
-                if self._require_row_type and isinstance(ds.get_type(), RowTypeInfo):
+                if self._require_row_type and not isinstance(ds.get_type(), RowTypeInfo):
                     raise TypeError('The serialization schema requires data type to be Row')
                 output_type = Types.ROW([Types.STRING(), ds.get_type()])
                 return ds.map(lambda v: Row(self._topic_selector.apply(v), v),

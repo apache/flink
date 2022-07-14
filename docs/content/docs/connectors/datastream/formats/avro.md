@@ -39,7 +39,7 @@ The serialization framework of Flink is able to handle classes generated from Av
 </dependency>
 ```
 
-{{< py_download_link "avro" "flink-sql-avro.jar" >}}
+{{< py_download_link "avro" >}}
 
 In order to read data from an Avro file, you have to specify an `AvroInputFormat`.
 

@@ -45,7 +45,7 @@ Apache Flink 集成了通用的 Kafka 连接器，它会尽力与 Kafka client �
 Flink 目前的流连接器还不是二进制发行版的一部分。
 [在此处]({{< ref "docs/dev/configuration/overview" >}})可以了解到如何链接它们，从而在集群中运行。
 
-{{< py_download_link "kafka" "flink-sql-kafka.jar" >}}
+{{< py_download_link "kafka" >}}
 
 ## Kafka Source
 {{< hint info >}}
