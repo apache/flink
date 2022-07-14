@@ -26,8 +26,9 @@ from pyflink.common import Types, Configuration
 from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream.formats.csv import CsvSchema, CsvReaderFormat
 from pyflink.datastream.functions import MapFunction
-from pyflink.datastream.connectors.file_system import FileSource
-from pyflink.datastream.formats.avro import AvroSchema, AvroInputFormat
+from pyflink.datastream.connectors.file_system import FileSource, FileSink
+from pyflink.datastream.formats.avro import AvroSchema, AvroInputFormat, GenericRecordAvroTypeInfo, \
+    AvroWriters
 from pyflink.datastream.formats.parquet import AvroParquetReaders, ParquetColumnarRowInputFormat
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
@@ -373,6 +374,29 @@ class FileSourceAvroInputFormatTests(PyFlinkStreamingTestCase):
         for r in records:
             j_file_writer.append(r)
         j_file_writer.close()
+
+
+class FileSinkAvroWritersTests(PyFlinkStreamingTestCase):
+
+    def test_avro_basic(self):
+        # avro_dir_name = tempfile.mkdtemp(dir=self.tempdir)
+        # print(avro_dir_name)
+        avro_dir_name = '/Users/vancior/Tmp/avro/'
+        record_schema = """
+        {
+            "type": "record",
+            "name": "test",
+            "fields": [
+                { "name": "boolean", "type": "boolean" },
+                { "name": "int", "type": "int" }
+            ]
+        }
+        """
+        schema = AvroSchema.parse_string(record_schema)
+        ds = self.env.from_collection([{'boolean': True, 'int': 1}])
+        sink = FileSink.for_bulk_format(avro_dir_name, AvroWriters.for_generic_record(schema)).build()
+        ds.map(lambda e: e, output_type=GenericRecordAvroTypeInfo(schema)).sink_to(sink)
+        self.env.execute()
 
 
 class PassThroughMapFunction(MapFunction):

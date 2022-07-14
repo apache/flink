@@ -18,9 +18,10 @@
 from py4j.java_gateway import get_java_class, JavaObject
 from pyflink.common.typeinfo import TypeInformation
 
-from pyflink.datastream.formats.base import InputFormat
+from pyflink.datastream.connectors.file_system import InputFormat, BulkWriterFactory
 from pyflink.datastream.utils import ResultTypeQueryable
 from pyflink.java_gateway import get_gateway
+from pyflink.util.java_utils import get_field_value
 
 
 class AvroSchema(object):
@@ -32,6 +33,12 @@ class AvroSchema(object):
 
     def __init__(self, j_schema):
         self._j_schema = j_schema
+        self._schema_string = None
+
+    def __str__(self):
+        if self._schema_string is None:
+            self._schema_string = get_field_value(self._j_schema, 'schema').toString()
+        return self._schema_string
 
     @staticmethod
     def parse_string(json_schema: str) -> 'AvroSchema':
@@ -106,3 +113,14 @@ class AvroInputFormat(InputFormat, ResultTypeQueryable):
 
     def get_produced_type(self) -> GenericRecordAvroTypeInfo:
         return self._type_info
+
+
+class AvroWriters(object):
+
+    @staticmethod
+    def for_generic_record(schema: 'AvroSchema') -> 'BulkWriterFactory':
+        jvm = get_gateway().jvm
+        j_bulk_writer_factory = jvm.org.apache.flink.formats.avro.AvroWriters.forGenericRecord(
+            schema._j_schema
+        )
+        return BulkWriterFactory(j_bulk_writer_factory)

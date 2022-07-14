@@ -34,7 +34,7 @@ from pyflink.common import Row, RowKind
 from pyflink.common.time import Instant
 from pyflink.datastream.window import CountWindow, TimeWindow, GlobalWindow
 from pyflink.fn_execution.formats.avro import FlinkAvroDecoder, FlinkAvroDatumReader, \
-    FlinkAvroBufferWrapper
+    FlinkAvroBufferWrapper, FlinkAvroEncoder, FlinkAvroDatumWriter
 from pyflink.fn_execution.ResettableIO import ResettableIO
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
 
@@ -950,12 +950,15 @@ cdef class AvroCoderImpl(FieldCoderImpl):
 
     def __init__(self, schema_string: str):
         self._buffer_wrapper = FlinkAvroBufferWrapper()
-        self._decoder = FlinkAvroDecoder(self._buffer_wrapper)
         self._schema = avro_schema.parse(schema_string)
+        self._decoder = FlinkAvroDecoder(self._buffer_wrapper)
+        self._encoder = FlinkAvroEncoder(self._buffer_wrapper)
         self._reader = FlinkAvroDatumReader(writer_schema=self._schema, reader_schema=self._schema)
+        self._writer = FlinkAvroDatumWriter(writer_schema=self._schema)
 
     cpdef encode_to_stream(self, value, OutputStream out_stream):
-        raise NotImplementedError()
+        self._buffer_wrapper.switch_stream(out_stream)
+        self._writer.write(value, self._encoder)
 
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
         self._buffer_wrapper.switch_stream(in_stream)

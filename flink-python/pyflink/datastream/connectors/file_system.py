@@ -20,6 +20,7 @@ import warnings
 from pyflink.common import Duration, Encoder
 from pyflink.datastream.functions import SinkFunction
 from pyflink.datastream.connectors import Source, Sink
+from pyflink.datastream.utils import JavaObjectWrapper
 from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import to_jarray
 
@@ -138,6 +139,22 @@ class BulkFormat(object):
 
     def __init__(self, j_bulk_format):
         self._j_bulk_format = j_bulk_format
+
+
+class InputFormat(JavaObjectWrapper):
+    """
+    The Python wrapper of Java InputFormat interface, which is the base interface for data sources
+    that produce records.
+    """
+
+    def __init__(self, j_input_format):
+        super().__init__(j_input_format)
+
+
+class BulkWriterFactory(JavaObjectWrapper):
+
+    def __init__(self, j_bulk_writer_factory):
+        super().__init__(j_bulk_writer_factory)
 
 
 class FileSourceBuilder(object):
@@ -535,6 +552,52 @@ class FileSink(Sink):
         return FileSink.RowFormatBuilder(
             JFileSink.forRowFormat(JPath(base_path), encoder._j_encoder))
 
+    class BulkFormatBuilder(object):
+        """
+        Builder for the vanilla FileSink using a bulk format.
+        """
+
+        def __init__(self, j_bulk_format_builder):
+            self._j_bulk_format_builder = j_bulk_format_builder
+
+        def with_bucket_check_interval(self, interval: int) -> 'FileSink.BulkFormatBuilder':
+            """
+            :param interval: The check interval in milliseconds.
+            """
+            self._j_bulk_format_builder.withBucketCheckInterval(interval)
+            return self
+
+        def with_bucket_assigner(self, bucket_assigner: BucketAssigner) \
+                -> 'FileSink.BulkFormatBuilder':
+            self._j_bulk_format_builder.withBucketAssigner(bucket_assigner._j_bucket_assigner)
+            return self
+
+        def with_rolling_policy(self, rolling_policy: RollingPolicy) \
+                -> 'FileSink.BulkFormatBuilder':
+            # TODO: restrict to checkpoint rolling policy
+            self._j_bulk_format_builder.withRollingPolicy(rolling_policy._j_rolling_policy)
+            return self
+
+        def with_output_file_config(self, output_file_config: OutputFileConfig) \
+                -> 'FileSink.BulkFormatBuilder':
+            self._j_bulk_format_builder.withOutputFileConfig(
+                output_file_config._j_output_file_config)
+            return self
+
+        def build(self) -> 'FileSink':
+            return FileSink(self._j_bulk_format_builder.build())
+
+    @staticmethod
+    def for_bulk_format(base_path: str, writer_factory: BulkWriterFactory) \
+            -> 'FileSink.BulkFormatBuilder':
+        jvm = get_gateway().jvm
+        j_path = jvm.org.apache.flink.core.fs.Path(base_path)
+        JFileSink = jvm.org.apache.flink.connector.file.sink.FileSink
+
+        return FileSink.BulkFormatBuilder(
+            JFileSink.forBulkFormat(j_path, writer_factory.get_java_object())
+        )
+
 
 # ---- StreamingFileSink ----
 
@@ -598,3 +661,20 @@ class StreamingFileSink(SinkFunction):
         j_default_row_format_builder = get_gateway().jvm.org.apache.flink.streaming.api.\
             functions.sink.filesystem.StreamingFileSink.forRowFormat(j_path, encoder._j_encoder)
         return StreamingFileSink.DefaultRowFormatBuilder(j_default_row_format_builder)
+
+    class DefaultBulkFormatBuilder(object):
+
+        def __init__(self, j_default_bulk_format_builder):
+            self._j_default_bulk_format_builder = j_default_bulk_format_builder
+
+        def build(self):
+            j_streaming_file_sink = self._j_default_bulk_format_builder.build()
+            return StreamingFileSink(j_streaming_file_sink)
+
+    @staticmethod
+    def for_bulk_format(base_path: str, writer_factory: BulkWriterFactory):
+        jvm = get_gateway().jvm
+        j_path = jvm.org.apache.flink.core.fs.Path(base_path)
+        j_default_bulk_format_builder = jvm.org.apache.flink.streaming.api.functions.sink.filesystem \
+            .StreamingFileSink.forBulkFormat(j_path, writer_factory.get_java_function())
+        return StreamingFileSink.DefaultBulkFormatBuilder(j_default_bulk_format_builder)
