@@ -239,6 +239,23 @@ class FileSystemCommitterTest {
         assertThat(new File(emptyPartitionFile, SUCCESS_FILE_NAME)).exists();
     }
 
+    @Test
+    void testPartitionPathNotExist() throws Exception {
+        Files.delete(path);
+        LinkedHashMap<String, String> staticPartitions = new LinkedHashMap<String, String>();
+        FileSystemCommitter committer =
+                new FileSystemCommitter(
+                        fileSystemFactory,
+                        metaStoreFactory,
+                        true,
+                        new Path(path.toString()),
+                        1,
+                        false,
+                        staticPartitions);
+        committer.commitPartitions();
+        assertThat(outputPath.toFile().list()).isEqualTo(new String[0]);
+    }
+
     static class TestMetaStoreFactory implements TableMetaStoreFactory {
         private static final long serialVersionUID = 1L;
 
