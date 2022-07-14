@@ -48,7 +48,21 @@ public class AvroWriters {
             Class<T> type) {
         String schemaString = SpecificData.get().getSchema(type).toString();
         AvroBuilder<T> builder =
-                (out) -> createAvroDataFileWriter(schemaString, SpecificDatumWriter::new, out);
+                new AvroBuilder<T>() {
+                    @Override
+                    public DataFileWriter<T> createWriter(OutputStream outputStream)
+                            throws IOException {
+                        return createAvroDataFileWriter(
+                                schemaString,
+                                new Function<Schema, DatumWriter<T>>() {
+                                    @Override
+                                    public DatumWriter<T> apply(Schema schema) {
+                                        return new SpecificDatumWriter<>(schema);
+                                    }
+                                },
+                                outputStream);
+                    }
+                };
         return new AvroWriterFactory<>(builder);
     }
 
@@ -61,7 +75,21 @@ public class AvroWriters {
     public static AvroWriterFactory<GenericRecord> forGenericRecord(Schema schema) {
         String schemaString = schema.toString();
         AvroBuilder<GenericRecord> builder =
-                (out) -> createAvroDataFileWriter(schemaString, GenericDatumWriter::new, out);
+                new AvroBuilder<GenericRecord>() {
+                    @Override
+                    public DataFileWriter<GenericRecord> createWriter(OutputStream outputStream)
+                            throws IOException {
+                        return createAvroDataFileWriter(
+                                schemaString,
+                                new Function<Schema, DatumWriter<GenericRecord>>() {
+                                    @Override
+                                    public DatumWriter<GenericRecord> apply(Schema schema) {
+                                        return new GenericDatumWriter<>(schema);
+                                    }
+                                },
+                                outputStream);
+                    }
+                };
         return new AvroWriterFactory<>(builder);
     }
 
@@ -74,7 +102,21 @@ public class AvroWriters {
     public static <T> AvroWriterFactory<T> forReflectRecord(Class<T> type) {
         String schemaString = ReflectData.get().getSchema(type).toString();
         AvroBuilder<T> builder =
-                (out) -> createAvroDataFileWriter(schemaString, ReflectDatumWriter::new, out);
+                new AvroBuilder<T>() {
+                    @Override
+                    public DataFileWriter<T> createWriter(OutputStream outputStream)
+                            throws IOException {
+                        return createAvroDataFileWriter(
+                                schemaString,
+                                new Function<Schema, DatumWriter<T>>() {
+                                    @Override
+                                    public DatumWriter<T> apply(Schema schema) {
+                                        return new ReflectDatumWriter<>(schema);
+                                    }
+                                },
+                                outputStream);
+                    }
+                };
         return new AvroWriterFactory<>(builder);
     }
 

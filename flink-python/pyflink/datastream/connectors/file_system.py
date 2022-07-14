@@ -152,6 +152,10 @@ class InputFormat(JavaObjectWrapper):
 
 
 class BulkWriterFactory(JavaObjectWrapper):
+    """
+    The Python wrapper of Java BulkWriter.Factory interface, which is the base interface for data
+    sinks that write records into files in a bulk manner.
+    """
 
     def __init__(self, j_bulk_writer_factory):
         super().__init__(j_bulk_writer_factory)
