@@ -134,7 +134,7 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
     private static final int MIN_TRANSFERRED_PER_INCREMENTAL_REHASH = 4;
 
     /** The serializer of the state. */
-    protected final TypeSerializer<S> stateSerializer;
+    protected TypeSerializer<S> stateSerializer;
 
     /**
      * An empty map shared by all zero-capacity maps (typically from default constructor). It is
@@ -792,6 +792,10 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
 
     public TypeSerializer<S> getStateSerializer() {
         return stateSerializer;
+    }
+
+    public void setStateSerializer(TypeSerializer<S> stateSerializer) {
+        this.stateSerializer = Preconditions.checkNotNull(stateSerializer);
     }
 
     // StateMapEntry

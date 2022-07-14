@@ -24,8 +24,11 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshot;
+import org.apache.flink.runtime.testutils.statemigration.TestType;
+import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -35,6 +38,39 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /** Test for {@link CopyOnWriteStateTable}. */
 public class CopyOnWriteStateTableTest {
+
+    /**
+     * This tests that Whether serializers are consistent between {@link StateTable} and {@link
+     * StateMap}.
+     */
+    @Test
+    public void testSerializerAfterMetaInfoChanged() {
+        RegisteredKeyValueStateBackendMetaInfo<Integer, TestType> originalMetaInfo =
+                new RegisteredKeyValueStateBackendMetaInfo<>(
+                        StateDescriptor.Type.VALUE,
+                        "test",
+                        IntSerializer.INSTANCE,
+                        new TestType.V1TestTypeSerializer());
+        InternalKeyContext<Integer> mockKeyContext =
+                new InternalKeyContextImpl<>(KeyGroupRange.of(0, 9), 10);
+        CopyOnWriteStateTable<Integer, Integer, TestType> table =
+                new CopyOnWriteStateTable<>(
+                        mockKeyContext, originalMetaInfo, IntSerializer.INSTANCE);
+
+        RegisteredKeyValueStateBackendMetaInfo<Integer, TestType> newMetaInfo =
+                new RegisteredKeyValueStateBackendMetaInfo<>(
+                        StateDescriptor.Type.VALUE,
+                        "test",
+                        IntSerializer.INSTANCE,
+                        new TestType.V2TestTypeSerializer());
+        table.setMetaInfo(newMetaInfo);
+        Preconditions.checkState(table.getState().length > 0);
+        for (StateMap<?, ?, ?> stateEntries : table.getState()) {
+            Assert.assertEquals(
+                    table.getStateSerializer(),
+                    ((CopyOnWriteStateMap<?, ?, ?>) stateEntries).getStateSerializer());
+        }
+    }
 
     /**
      * This tests that serializers used for snapshots are duplicates of the ones used in processing
