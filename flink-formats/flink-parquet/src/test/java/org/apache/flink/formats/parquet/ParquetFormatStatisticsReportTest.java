@@ -177,7 +177,6 @@ public class ParquetFormatStatisticsReportTest extends StatisticsReportTestBase 
         expectedColumnStatsMap.put(
                 "f_timestamp_ltz", new ColumnStats.Builder().setNullCount(nullCount).build());
 
-        // parquet writer support BINARY() and TIME() type.
         expectedColumnStatsMap.put("f_binary", new ColumnStats.Builder().setNullCount(0L).build());
         expectedColumnStatsMap.put(
                 "f_varbinary", new ColumnStats.Builder().setNullCount(nullCount).build());
@@ -188,12 +187,12 @@ public class ParquetFormatStatisticsReportTest extends StatisticsReportTestBase 
                         .setMin(Time.valueOf("12:12:43"))
                         .setNullCount(0L)
                         .build());
-        expectedColumnStatsMap.put(
-                "f_row", new ColumnStats.Builder().setNullCount(nullCount).build());
-        expectedColumnStatsMap.put(
-                "f_array", new ColumnStats.Builder().setNullCount(nullCount).build());
-        expectedColumnStatsMap.put(
-                "f_map", new ColumnStats.Builder().setNullCount(nullCount).build());
+
+        // For complex types: ROW, ARRAY, MAP. The returned statistics have wrong null count
+        // value, so now complex types stats return null.
+        expectedColumnStatsMap.put("f_row", null);
+        expectedColumnStatsMap.put("f_array", null);
+        expectedColumnStatsMap.put("f_map", null);
         assertThat(tableStats).isEqualTo(new TableStats(expectedRowCount, expectedColumnStatsMap));
     }
 }

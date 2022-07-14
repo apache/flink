@@ -223,13 +223,12 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
             ColumnStats.Builder builder =
                     new ColumnStats.Builder().setNullCount(statistics.getNumNulls());
 
+            // For complex types: ROW, ARRAY, MAP. The returned statistics have wrong null count
+            // value, so now complex types stats return null.
             switch (logicalType.getTypeRoot()) {
                 case BOOLEAN:
                 case BINARY:
                 case VARBINARY:
-                case ROW:
-                case ARRAY:
-                case MAP:
                     break;
                 case TINYINT:
                 case SMALLINT:
