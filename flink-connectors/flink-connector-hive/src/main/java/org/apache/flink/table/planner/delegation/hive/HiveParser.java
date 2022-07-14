@@ -36,6 +36,7 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.StatementSetOperation;
+import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
@@ -208,7 +209,9 @@ public class HiveParser extends ParserImpl {
             return super.parse(statement);
         }
 
-        Optional<Operation> nonSqlOperation = tryProcessHiveNonSqlStatement(statement);
+        Optional<Operation> nonSqlOperation =
+                tryProcessHiveNonSqlStatement(
+                        ((HiveCatalog) currentCatalog).getHiveConf(), statement);
         if (nonSqlOperation.isPresent()) {
             return Collections.singletonList(nonSqlOperation.get());
         }
@@ -231,16 +234,22 @@ public class HiveParser extends ParserImpl {
         }
     }
 
-    private Optional<Operation> tryProcessHiveNonSqlStatement(String statement) {
+    private Optional<Operation> tryProcessHiveNonSqlStatement(HiveConf hiveConf, String statement) {
         String[] commandTokens = statement.split("\\s+");
         HiveCommand hiveCommand = HiveCommand.find(commandTokens);
         if (hiveCommand != null) {
+            String cmdArgs = statement.substring(commandTokens[0].length()).trim();
+            // the command may end with ";" since it won't be removed by Flink SQL CLI,
+            // so, we need to remove ";"
+            if (cmdArgs.endsWith(";")) {
+                cmdArgs = cmdArgs.substring(0, cmdArgs.length() - 1);
+            }
             if (hiveCommand == HiveCommand.SET) {
-                return Optional.of(
-                        processSetCmd(
-                                statement, statement.substring(commandTokens[0].length()).trim()));
+                return Optional.of(processSetCmd(statement, cmdArgs));
             } else if (hiveCommand == HiveCommand.RESET) {
                 return Optional.of(super.parse(statement).get(0));
+            } else if (hiveCommand == HiveCommand.ADD) {
+                return Optional.of(processAddCmd(substituteVariables(hiveConf, cmdArgs)));
             } else {
                 throw new UnsupportedOperationException(
                         String.format("The Hive command %s is not supported.", hiveCommand));
@@ -250,29 +259,22 @@ public class HiveParser extends ParserImpl {
     }
 
     private Operation processSetCmd(String originCmd, String setCmdArgs) {
-        String nwcmd = setCmdArgs.trim();
-        // the set command may end with ";" since it won't be removed by Flink SQL CLI,
-        // so, we need to remove ";"
-        if (nwcmd.endsWith(";")) {
-            nwcmd = nwcmd.substring(0, nwcmd.length() - 1);
-        }
-
-        if (nwcmd.equals("")) {
+        if (setCmdArgs.equals("")) {
             return new HiveSetOperation();
         }
-        if (nwcmd.equals("-v")) {
+        if (setCmdArgs.equals("-v")) {
             return new HiveSetOperation(true);
         }
 
         String[] part = new String[2];
-        int eqIndex = nwcmd.indexOf('=');
-        if (nwcmd.contains("=")) {
-            if (eqIndex == nwcmd.length() - 1) { // x=
-                part[0] = nwcmd.substring(0, nwcmd.length() - 1);
+        int eqIndex = setCmdArgs.indexOf('=');
+        if (setCmdArgs.contains("=")) {
+            if (eqIndex == setCmdArgs.length() - 1) { // x=
+                part[0] = setCmdArgs.substring(0, setCmdArgs.length() - 1);
                 part[1] = "";
             } else { // x=y
-                part[0] = nwcmd.substring(0, eqIndex).trim();
-                part[1] = nwcmd.substring(eqIndex + 1).trim();
+                part[0] = setCmdArgs.substring(0, eqIndex).trim();
+                part[1] = setCmdArgs.substring(eqIndex + 1).trim();
                 if (!startWithHiveSpecialVariablePrefix(part[0])) {
                     // TODO:
                     // currently, for the command set key=value, we will fall to
@@ -294,7 +296,7 @@ public class HiveParser extends ParserImpl {
             }
             return new HiveSetOperation(part[0], part[1]);
         }
-        return new HiveSetOperation(nwcmd);
+        return new HiveSetOperation(setCmdArgs);
     }
 
     /**
@@ -304,6 +306,27 @@ public class HiveParser extends ParserImpl {
      */
     private String substituteVariables(HiveConf conf, String statement) {
         return new VariableSubstitution(() -> hiveVariables).substitute(conf, statement);
+    }
+
+    private Operation processAddCmd(String addCmdArgs) {
+        String[] tokens = addCmdArgs.split("\\s+");
+        SessionState.ResourceType resourceType = SessionState.find_resource_type(tokens[0]);
+        if (resourceType == SessionState.ResourceType.FILE) {
+            throw new UnsupportedOperationException(
+                    "ADD FILE is not supported yet. Usage: add JAR <value>");
+        } else if (resourceType == SessionState.ResourceType.ARCHIVE) {
+            throw new UnsupportedOperationException(
+                    "Add ARCHIVE is not supported yet. Usage: add JAR <value>");
+        } else if (resourceType == SessionState.ResourceType.JAR) {
+            if (tokens.length != 2) {
+                throw new UnsupportedOperationException(
+                        "Add multiple jar in one single statement is not supported yet. Usage: add JAR <value>");
+            }
+            return new AddJarOperation(tokens[1]);
+        } else {
+            throw new IllegalArgumentException(
+                    String.format("Unknown resource type: %s.", tokens[0]));
+        }
     }
 
     private List<Operation> processCmd(

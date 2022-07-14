@@ -61,6 +61,36 @@ CREATE TABLE foo as select 1;
 1 row in set
 !ok
 
+# test add jar
+ADD JAR $VAR_UDF_JAR_PATH;
+[INFO] The specified jar is added into session classloader.
+!info
+
+SHOW JARS;
+$VAR_UDF_JAR_PATH
+!ok
+
+CREATE FUNCTION hive_add_one as 'HiveAddOneFunc';
+[INFO] Execute statement succeed.
+!info
+
+SELECT hive_add_one(1);
++----+-------------+
+| op |      _o__c0 |
++----+-------------+
+| +I |           2 |
++----+-------------+
+Received a total of 1 row
+!ok
+
+REMOVE JAR '$VAR_UDF_JAR_PATH';
+[INFO] The specified jar is removed from session classloader.
+!info
+
+SHOW JARS;
+Empty set
+!ok
+
 # list the configured configuration
 set;
 'execution.attached' = 'true'
