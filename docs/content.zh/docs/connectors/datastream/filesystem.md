@@ -519,6 +519,21 @@ input.sinkTo(sink)
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+schema = AvroSchema.parse_string(JSON_SCHEMA)
+# The element could be vanilla Python data structure matching the schema,
+# which is annotated with Types.PICKLED_BYTE_ARRAY()
+data_stream = ...
+
+avro_type_info = GenericRecordAvroTypeInfo(schema)
+sink = FileSink \
+    .for_bulk_format(OUTPUT_BASE_PATH, AvroWriters.for_generic_record(schema)) \
+    .build()
+
+data_stream.map(lambda e: e, output_type=avro_type_info).sink_to(sink)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 对于自定义创建的 Avro writers，例如，支持压缩功能，用户需要创建 `AvroWriterFactory` 并且自定义实现 `AvroBuilder` 接口:
