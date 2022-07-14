@@ -23,8 +23,6 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -36,22 +34,14 @@ import org.apache.flink.table.client.resource.ClientResourceManager;
 import org.apache.flink.table.client.util.ClientClassloaderUtil;
 import org.apache.flink.table.client.util.ClientWrapperClassLoader;
 import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.resource.ResourceType;
-import org.apache.flink.table.resource.ResourceUri;
-import org.apache.flink.util.JarUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Context describing a session, it's mainly used for user to open a new session in the backend. If
@@ -248,21 +238,8 @@ public class SessionContext {
                 executionContext);
     }
 
-    public void addJar(String jarPath) {
-        checkJarPath(jarPath, "SQL Client only supports to add local jars.");
-        try {
-            sessionState.resourceManager.registerJarResources(
-                    Collections.singletonList(new ResourceUri(ResourceType.JAR, jarPath)));
-        } catch (Exception e) {
-            LOG.warn(String.format("Could not register the specified jar [%s].", jarPath), e);
-        }
-    }
-
     public void removeJar(String jarPath) {
-        // if is relative path, convert to absolute path
-        URL jarURL = checkJarPath(jarPath, "SQL Client only supports to remove local jars.");
-        // remove jar from resource manager
-        jarURL = sessionState.resourceManager.unregisterJarResource(jarURL.getPath());
+        URL jarURL = sessionState.resourceManager.unregisterJarResource(jarPath);
         if (jarURL == null) {
             LOG.warn(
                     String.format(
@@ -272,18 +249,6 @@ public class SessionContext {
         }
         // remove jar from classloader
         classLoader.removeURL(jarURL);
-    }
-
-    public List<String> listJars() {
-        List<String> jars =
-                sessionState.resourceManager.getResources().keySet().stream()
-                        .filter(
-                                resourceUri ->
-                                        ResourceType.JAR.equals(resourceUri.getResourceType()))
-                        .map(ResourceUri::getUri)
-                        .collect(Collectors.toList());
-        LOG.info(String.format("Registered jars: %s", jars));
-        return jars;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -319,28 +284,5 @@ public class SessionContext {
             sessionConfiguration.removeConfig(keyToDelete);
         }
         sessionConfiguration.addAll(defaultConf);
-    }
-
-    private URL checkJarPath(String jarPath, String message) {
-        Path path = new Path(jarPath);
-        String scheme = path.toUri().getScheme();
-        if (scheme != null && !scheme.equals("file")) {
-            throw new SqlExecutionException(message);
-        }
-
-        Path qualifiedPath = path.makeQualified(FileSystem.getLocalFileSystem());
-
-        try {
-            URL jarURL = qualifiedPath.toUri().toURL();
-            JarUtils.checkJarFile(jarURL);
-            return jarURL;
-        } catch (MalformedURLException e) {
-            throw new SqlExecutionException(
-                    String.format("Failed to parse the input jar path: %s", jarPath), e);
-        } catch (IOException e) {
-            throw new SqlExecutionException(
-                    String.format("Failed to get the jar file with specified path: %s", jarPath),
-                    e);
-        }
     }
 }

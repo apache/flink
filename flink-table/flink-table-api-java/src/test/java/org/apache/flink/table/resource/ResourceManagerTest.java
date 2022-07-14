@@ -160,7 +160,8 @@ public class ResourceManagerTest {
 
         CommonTestUtils.assertThrows(
                 String.format(
-                        "The registering jar resource [%s] must ends with '.jar' suffix.", jarDir),
+                        "The registering or unregistering jar resource [%s] must ends with '.jar' suffix.",
+                        jarDir),
                 ValidationException.class,
                 () -> {
                     resourceManager.registerJarResources(
@@ -174,7 +175,7 @@ public class ResourceManagerTest {
 
         CommonTestUtils.assertThrows(
                 String.format(
-                        "The registering jar resource [%s] is a directory that is not allowed.",
+                        "The registering or unregistering jar resource [%s] is a directory that is not allowed.",
                         jarPath),
                 ValidationException.class,
                 () -> {

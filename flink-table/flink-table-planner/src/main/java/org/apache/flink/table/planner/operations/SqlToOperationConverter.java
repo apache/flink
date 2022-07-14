@@ -1207,7 +1207,7 @@ public class SqlToOperationConverter {
     }
 
     private Operation convertAddJar(SqlAddJar sqlAddJar) {
-        return new AddJarOperation(sqlAddJar.getPath());
+        return new AddJarOperation(new ResourceUri(ResourceType.JAR, sqlAddJar.getPath()));
     }
 
     private Operation convertRemoveJar(SqlRemoveJar sqlRemoveJar) {
