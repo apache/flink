@@ -41,6 +41,7 @@ import org.apache.flink.table.functions.hive.HiveGenericUDTFTest;
 import org.apache.flink.table.functions.hive.util.TestSplitUDTFInitializeWithStructObjectInspector;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
 import org.apache.flink.table.operations.command.HelpOperation;
 import org.apache.flink.table.operations.command.QuitOperation;
@@ -1142,6 +1143,33 @@ public class HiveDialectITCase {
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("select '${env:PATH}'").collect());
         assertThat(result.toString()).isEqualTo(String.format("[+I[%s]]", path));
+    }
+
+    @Test
+    public void testAddCommand() {
+        TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
+        Parser parser = tableEnvInternal.getParser();
+
+        // test add jar
+        Operation operation = parser.parse("add jar test.jar").get(0);
+        assertThat(operation).isInstanceOf(AddJarOperation.class);
+        assertThat(((AddJarOperation) operation).getPath()).isEqualTo("test.jar");
+        // test add jar with variable substitute
+        operation = parser.parse("add jar \"${hiveconf:common-key}.jar\"").get(0);
+        assertThat(operation).isInstanceOf(AddJarOperation.class);
+        assertThat(((AddJarOperation) operation).getPath()).isEqualTo("\"common-val.jar\"");
+
+        // test unsupported add command
+        assertThatThrownBy(() -> tableEnv.executeSql("add jar t1.jar t2.jar"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage(
+                        "Add multiple jar in one single statement is not supported yet. Usage: add JAR <value>");
+        assertThatThrownBy(() -> tableEnv.executeSql("add File t1.txt"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage("ADD FILE is not supported yet. Usage: add JAR <value>");
+        assertThatThrownBy(() -> tableEnv.executeSql("add Archive t1.tgz"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage("Add ARCHIVE is not supported yet. Usage: add JAR <value>");
     }
 
     @Test
