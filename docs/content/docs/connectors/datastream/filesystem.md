@@ -478,6 +478,8 @@ To use the Avro writers in your application you need to add the following depend
 
 {{< artifact flink-avro >}}
 
+{{< py_download_link "avro" >}}
+
 A `FileSink` that writes data to Avro files can be created like this:
 
 {{< tabs "ee5f25e0-180e-43b1-ae91-277bf73d3a6c" >}}
