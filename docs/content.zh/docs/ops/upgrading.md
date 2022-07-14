@@ -46,7 +46,8 @@ Flink DataStream 程序通常设计为长时间运行，例如数周、数月甚
 ```
 这意味着应用程序在 Savepoint 完成后立即取消，即在 Savepoint 之后不进行其他 checkpoint。
 
-给定从应用程序获取的 Savepoint ，可以从该 Savepoint 启动相同或兼容的应用程序（请参阅下面的 [应用程序状态兼容性](#application-state-compatibility) 部分）。从 Savepoint 启动应用程序意味着其算子的状态被初始化为 Savepoint 中保存的算子状态。这是通过使用 Savepoint 启动应用程序来完成的。```bash
+给定从应用程序获取的 Savepoint ，可以从该 Savepoint 启动相同或兼容的应用程序（请参阅下面的 [应用程序状态兼容性](#application-state-compatibility) 部分）。从 Savepoint 启动应用程序意味着其算子的状态被初始化为 Savepoint 中保存的算子状态。这是通过使用 Savepoint 启动应用程序来完成的。
+```bash
 > ./bin/flink run -d -s [ Savepoint 的路径] ~/application.jar
 ```
  
