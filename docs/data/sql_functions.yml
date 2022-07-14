@@ -1002,3 +1002,8 @@ aggregate:
     description: Returns the last value in an ordered set of values.
   - sql: LISTAGG(expression [, separator])
     description: Concatenates the values of string expressions and places separator values between them. The separator is not added at the end of string. The default value of separator is ','.
+
+catalog:
+  - sql: CURRENT_DATABASE()
+    table: currentDatabase()
+    description: Return the current database.

@@ -50,7 +50,7 @@ import org.apache.flink.table.planner.plan.reuse.SubplanReuser
 import org.apache.flink.table.planner.plan.utils.SameRelObjectShuttle
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateTableSink}
-import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_START_EPOCH_TIME, TABLE_QUERY_START_LOCAL_TIME}
+import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_CURRENT_DATABASE, TABLE_QUERY_START_EPOCH_TIME, TABLE_QUERY_START_LOCAL_TIME}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.generated.CompileUtils
@@ -450,6 +450,9 @@ abstract class PlannerBase(
       TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(tableConfig)).getOffset(epochTime)
     tableConfig.set(TABLE_QUERY_START_LOCAL_TIME, localTime)
 
+    val currentDatabase = catalogManager.getCurrentDatabase
+    tableConfig.set(TABLE_QUERY_CURRENT_DATABASE, currentDatabase)
+
     // We pass only the configuration to avoid reconfiguration with the rootConfiguration
     getExecEnv.configure(tableConfig.getConfiguration, Thread.currentThread().getContextClassLoader)
 
@@ -466,6 +469,7 @@ abstract class PlannerBase(
     val configuration = tableConfig.getConfiguration
     configuration.removeConfig(TABLE_QUERY_START_EPOCH_TIME)
     configuration.removeConfig(TABLE_QUERY_START_LOCAL_TIME)
+    configuration.removeConfig(TABLE_QUERY_CURRENT_DATABASE)
 
     // Clean caches that might have filled up during optimization
     CompileUtils.cleanUp()

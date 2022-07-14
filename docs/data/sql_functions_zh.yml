@@ -1093,3 +1093,8 @@ aggregate:
     description: 返回一组有序值中的最后一个值。
   - sql: LISTAGG(expression [, separator])
     description: 连接字符串表达式的值并在它们之间放置分隔符值。字符串末尾不添加分隔符时则分隔符的默认值为“,”。
+
+catalog:
+  - sql: CURRENT_DATABASE()
+    table: currentDatabase()
+    description: 返回当前数据库。

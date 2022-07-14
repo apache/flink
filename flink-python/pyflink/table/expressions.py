@@ -25,8 +25,9 @@ from pyflink.table.udf import UserDefinedFunctionWrapper
 from pyflink.util.java_utils import to_jarray, load_java_class
 
 __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOUNDED_ROW',
-           'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_date', 'current_time',
-           'current_timestamp', 'current_watermark', 'local_time', 'local_timestamp',
+           'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_database',
+           'current_date', 'current_time', 'current_timestamp',
+           'current_watermark', 'local_time', 'local_timestamp',
            'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
@@ -206,6 +207,13 @@ all rows with the same sort key as the current row are included in the window.
 .. versionadded:: 1.12.0
 """
 CURRENT_RANGE = Expression("CURRENT_RANGE")  # type: Expression
+
+
+def current_database() -> Expression:
+    """
+    Returns the current database
+    """
+    return _leaf_op("currentDatabase")
 
 
 def current_date() -> Expression:

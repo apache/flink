@@ -51,6 +51,7 @@ public class HiveModule implements Module {
                                     "cume_dist",
                                     "current_date",
                                     "current_timestamp",
+                                    "current_database",
                                     "dense_rank",
                                     "first_value",
                                     "lag",

@@ -280,6 +280,14 @@ public final class Expressions {
     }
 
     /**
+     * Return the current database, the return type of this expression is {@link
+     * DataTypes#STRING()}.
+     */
+    public static ApiExpression currentDatabase() {
+        return apiCall(BuiltInFunctionDefinitions.CURRENT_DATABASE);
+    }
+
+    /**
      * Returns the current SQL time in local time zone, the return type of this expression is {@link
      * DataTypes#TIME()}, this is a synonym for {@link Expressions#currentTime()}.
      */
