@@ -16,39 +16,8 @@
   ~ limitations under the License.
   -->
 
-<div *ngIf="jobDetail && !isLoading" class="wrapper">
-  <div class="name">
-    <h2>{{ jobDetail.name }}</h2>
-    <nz-divider [nzType]="'vertical'"></nz-divider>
-    <flink-job-badge [state]="jobDetail.state"></flink-job-badge>
-    <nz-divider [nzType]="'vertical'"></nz-divider>
-    <flink-task-badge [tasks]="jobDetail['status-counts']"></flink-task-badge>
-  </div>
-  <div class="status">
-    <div class="field">
-      <div>ID:</div>
-      <div>{{ jobDetail.jid }}</div>
-    </div>
-    <nz-divider [nzType]="'vertical'"></nz-divider>
-    <div class="field">
-      <div>Start Time:</div>
-      <div>{{ jobDetail['start-time'] | date: 'yyyy-MM-dd HH:mm:ss' }}</div>
-    </div>
-    <nz-divider [nzType]="'vertical'"></nz-divider>
-    <ng-container *ngIf="jobDetail['end-time'] > -1">
-      <div class="field">
-        <div>End Time:</div>
-        <div>{{ jobDetail['end-time'] | date: 'yyyy-MM-dd HH:mm:ss' }}</div>
-      </div>
-      <nz-divider [nzType]="'vertical'"></nz-divider>
-    </ng-container>
-    <div class="field">
-      <div>Duration:</div>
-      <div>{{ jobDetail.duration | humanizeDuration }}</div>
-    </div>
-  </div>
-  <flink-navigation [listOfNavigation]="listOfNavigation"></flink-navigation>
-  <div class="operate">
+<ng-template #extraTpl>
+  <div class="operate-action">
     <span *ngIf="statusTips">{{ statusTips }}</span>
     <ng-container *ngIf="!statusTips">
       <a
@@ -68,5 +37,48 @@
       </a>
     </ng-container>
   </div>
-</div>
+</ng-template>
+
+<ng-container *ngIf="jobDetail && !isLoading">
+  <nz-descriptions
+    [nzTitle]="jobDetail.name"
+    [nzExtra]="extraTpl"
+    nzBordered
+    nzSize="small"
+    [nzColumn]="{ xxl: 3, xl: 3, lg: 2, md: 2, sm: 1, xs: 1 }"
+  >
+    <nz-descriptions-item nzTitle="Job ID">{{ jobDetail.jid }}</nz-descriptions-item>
+    <nz-descriptions-item nzTitle="Job State">
+      <div class="status-wrapper">
+        <flink-job-badge [state]="jobDetail.state"></flink-job-badge>
+        <nz-divider nzType="vertical"></nz-divider>
+        <flink-task-badge [tasks]="jobDetail['status-counts']"></flink-task-badge>
+      </div>
+    </nz-descriptions-item>
+    <nz-descriptions-item nzTitle="Actions">
+      <a
+        *ngIf="!isHistoryServer; else historyServerActions"
+        [routerLink]="['/job-manager', 'logs']"
+        [queryParamsHandling]="'preserve'"
+      >
+        Job Manager Log
+      </a>
+      <ng-template #historyServerActions>
+        <a [href]="jmLogUrl" *ngIf="!urlLoading">Job Manager Log</a>
+        <span *ngIf="urlLoading">-</span>
+      </ng-template>
+    </nz-descriptions-item>
+    <nz-descriptions-item nzTitle="Start Time">
+      {{ jobDetail['start-time'] | date: 'yyyy-MM-dd HH:mm:ss' }}
+    </nz-descriptions-item>
+    <nz-descriptions-item nzTitle="End Time" *ngIf="jobDetail['end-time'] > -1">
+      {{ jobDetail['end-time'] | date: 'yyyy-MM-dd HH:mm:ss' }}
+    </nz-descriptions-item>
+    <nz-descriptions-item nzTitle="Duration">
+      {{ jobDetail.duration | humanizeDuration }}
+    </nz-descriptions-item>
+  </nz-descriptions>
+
+  <flink-navigation [listOfNavigation]="listOfNavigation"></flink-navigation>
+</ng-container>
 <nz-skeleton [nzActive]="true" *ngIf="isLoading"></nz-skeleton>

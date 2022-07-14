@@ -21,17 +21,40 @@ import { NgModule } from '@angular/core';
 
 import { JOB_MODULE_CONFIG, JOB_MODULE_DEFAULT_CONFIG, JobModuleConfig } from '@flink-runtime-web/pages/job/job.config';
 import { CompletedJobRoutingModule } from '@flink-runtime-web/pages/job/modules/completed-job/completed-job-routing.module';
+import {
+  JOB_OVERVIEW_MODULE_CONFIG,
+  JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
+  JobOverviewModuleConfig
+} from '@flink-runtime-web/pages/job/overview/job-overview.config';
 import { StatusService } from '@flink-runtime-web/services';
 import { ShareModule } from '@flink-runtime-web/share/share.module';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzPipesModule } from 'ng-zorro-antd/pipes';
 import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTabsModule } from 'ng-zorro-antd/tabs';
 
 import { ClusterConfigComponent } from './cluster-config/cluster-config.component';
+import { CompletedJobSubtasksTableActionComponent } from './subtasks-table-action/completed-job-subtasks-table-action.component';
+import { CompletedJobTaskmanagersTableActionComponent } from './taskmanagers-table-action/completed-job-taskmanagers-table-action.component';
+
+const OVERRIDE_JOB_OVERVIEW_MODULE_CONFIG_FACTORY = (statusService: StatusService): JobOverviewModuleConfig => {
+  const isHistoryServer = statusService.configuration.features['web-history'];
+  return {
+    customComponents: isHistoryServer
+      ? {
+          ...JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents,
+          subtaskActionComponent: CompletedJobSubtasksTableActionComponent,
+          taskManagerActionComponent: CompletedJobTaskmanagersTableActionComponent
+        }
+      : JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents
+  };
+};
 
 const OVERRIDE_JOB_MODULE_CONFIG_FACTORY = (statusService: StatusService): JobModuleConfig => {
   const isHistoryServer = statusService.configuration.features['web-history'];
@@ -50,7 +73,11 @@ const OVERRIDE_JOB_MODULE_CONFIG_FACTORY = (statusService: StatusService): JobMo
 };
 
 @NgModule({
-  declarations: [ClusterConfigComponent],
+  declarations: [
+    ClusterConfigComponent,
+    CompletedJobSubtasksTableActionComponent,
+    CompletedJobTaskmanagersTableActionComponent
+  ],
   imports: [
     CommonModule,
     CompletedJobRoutingModule,
@@ -61,9 +88,17 @@ const OVERRIDE_JOB_MODULE_CONFIG_FACTORY = (statusService: StatusService): JobMo
     NzCardModule,
     NzTableModule,
     NzEmptyModule,
-    NzPipesModule
+    NzPipesModule,
+    NzDropDownModule,
+    NzModalModule,
+    NzTabsModule
   ],
   providers: [
+    {
+      provide: JOB_OVERVIEW_MODULE_CONFIG,
+      useFactory: OVERRIDE_JOB_OVERVIEW_MODULE_CONFIG_FACTORY,
+      deps: [StatusService]
+    },
     {
       provide: JOB_MODULE_CONFIG,
       useFactory: OVERRIDE_JOB_MODULE_CONFIG_FACTORY,
