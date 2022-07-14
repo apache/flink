@@ -46,7 +46,7 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchEx
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
             @Nullable List<RexNode> projectionOnTemporalTable,
             @Nullable RexNode filterOnTemporalTable,
-            @Nullable InputProperty inputProperty,
+            InputProperty inputProperty,
             RowType outputType,
             String description) {
         super(

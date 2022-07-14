@@ -316,6 +316,7 @@ object AsyncLookupJoinITCase {
       Array(JBoolean.TRUE, ROCKSDB_BACKEND, JBoolean.FALSE, AsyncOutputMode.ORDERED),
       Array(JBoolean.FALSE, HEAP_BACKEND, JBoolean.FALSE, AsyncOutputMode.ORDERED),
       Array(JBoolean.FALSE, HEAP_BACKEND, JBoolean.TRUE, AsyncOutputMode.ORDERED),
+      Array(JBoolean.FALSE, ROCKSDB_BACKEND, JBoolean.FALSE, AsyncOutputMode.ALLOW_UNORDERED),
       Array(JBoolean.FALSE, ROCKSDB_BACKEND, JBoolean.TRUE, AsyncOutputMode.ALLOW_UNORDERED)
     )
   }
