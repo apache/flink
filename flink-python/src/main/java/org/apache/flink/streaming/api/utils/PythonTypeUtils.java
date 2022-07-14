@@ -83,6 +83,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -97,6 +98,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -693,6 +695,475 @@ public class PythonTypeUtils {
                     String.format(
                             "Could not find type serializer for current type [%s].",
                             typeInformation.toString()));
+        }
+    }
+
+    /** Data Converter that converts the data to the format data which can be used in PemJa. */
+    public abstract static class DataConverter<IN, OUT> implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        public abstract IN toInternal(OUT value);
+
+        public abstract OUT toExternal(IN value);
+    }
+
+    /** Identity data converter. */
+    public static final class IdentityDataConverter<T> extends DataConverter<T, T> {
+
+        private static final long serialVersionUID = 1L;
+
+        public static final IdentityDataConverter INSTANCE = new IdentityDataConverter<>();
+
+        @Override
+        public T toInternal(T value) {
+            return value;
+        }
+
+        @Override
+        public T toExternal(T value) {
+            return value;
+        }
+    }
+
+    /**
+     * Python Long will be converted to Long in PemJa, so we need ByteDataConverter to convert Java
+     * Long to internal Byte.
+     */
+    public static final class ByteDataConverter extends DataConverter<Byte, Long> {
+
+        private static final long serialVersionUID = 1L;
+
+        public static final ByteDataConverter INSTANCE = new ByteDataConverter();
+
+        @Override
+        public Byte toInternal(Long value) {
+            if (value == null) {
+                return null;
+            }
+
+            return value.byteValue();
+        }
+
+        @Override
+        public Long toExternal(Byte value) {
+            if (value == null) {
+                return null;
+            }
+
+            return value.longValue();
+        }
+    }
+
+    /**
+     * Python Long will be converted to Long in PemJa, so we need ShortDataConverter to convert Java
+     * Long to internal Short.
+     */
+    public static final class ShortDataConverter extends DataConverter<Short, Long> {
+
+        private static final long serialVersionUID = 1L;
+
+        public static final ShortDataConverter INSTANCE = new ShortDataConverter();
+
+        @Override
+        public Short toInternal(Long value) {
+            if (value == null) {
+                return null;
+            }
+
+            return value.shortValue();
+        }
+
+        @Override
+        public Long toExternal(Short value) {
+            if (value == null) {
+                return null;
+            }
+
+            return value.longValue();
+        }
+    }
+
+    /**
+     * Python Long will be converted to Long in PemJa, so we need IntDataConverter to convert Java
+     * Long to internal Integer.
+     */
+    public static final class IntDataConverter extends DataConverter<Integer, Long> {
+
+        private static final long serialVersionUID = 1L;
+
+        public static final IntDataConverter INSTANCE = new IntDataConverter();
+
+        @Override
+        public Integer toInternal(Long value) {
+            if (value == null) {
+                return null;
+            }
+
+            return value.intValue();
+        }
+
+        @Override
+        public Long toExternal(Integer value) {
+            if (value == null) {
+                return null;
+            }
+
+            return value.longValue();
+        }
+    }
+
+    /**
+     * Python Float will be converted to Double in PemJa, so we need FloatDataConverter to convert
+     * Java Double to internal Float.
+     */
+    public static final class FloatDataConverter extends DataConverter<Float, Double> {
+
+        private static final long serialVersionUID = 1L;
+
+        public static final FloatDataConverter INSTANCE = new FloatDataConverter();
+
+        @Override
+        public Float toInternal(Double value) {
+            if (value == null) {
+                return null;
+            }
+
+            return value.floatValue();
+        }
+
+        @Override
+        public Double toExternal(Float value) {
+            if (value == null) {
+                return null;
+            }
+
+            return value.doubleValue();
+        }
+    }
+
+    /**
+     * Row Data will be converted to the Object Array [RowKind(as Long Object), Field Values(as
+     * Object Array)].
+     */
+    public static final class RowDataConverter extends DataConverter<Row, Object[]> {
+
+        private static final long serialVersionUID = 1L;
+
+        private final DataConverter[] fieldDataConverters;
+        private final Row reuseRow;
+        private final Object[] reuseExternalRow;
+        private final Object[] reuseExternalRowData;
+
+        RowDataConverter(DataConverter[] dataConverters) {
+            this.fieldDataConverters = dataConverters;
+            this.reuseRow = new Row(fieldDataConverters.length);
+            this.reuseExternalRowData = new Object[fieldDataConverters.length];
+            this.reuseExternalRow = new Object[2];
+            this.reuseExternalRow[1] = reuseExternalRowData;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public Row toInternal(Object[] value) {
+            if (value == null) {
+                return null;
+            }
+
+            RowKind rowKind = RowKind.fromByteValue(((Long) value[0]).byteValue());
+            reuseRow.setKind(rowKind);
+            Object[] fieldValues = (Object[]) value[1];
+            for (int i = 0; i < fieldValues.length; i++) {
+                reuseRow.setField(i, fieldDataConverters[i].toInternal(fieldValues[i]));
+            }
+            return reuseRow;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public Object[] toExternal(Row value) {
+            if (value == null) {
+                return null;
+            }
+
+            reuseExternalRow[0] = (long) value.getKind().toByteValue();
+            for (int i = 0; i < value.getArity(); i++) {
+                reuseExternalRowData[i] = fieldDataConverters[i].toExternal(value.getField(i));
+            }
+            return reuseExternalRow;
+        }
+    }
+
+    /** Tuple Data will be converted to the Object Array. */
+    public static final class TupleDataConverter extends DataConverter<Tuple, Object[]> {
+
+        private final DataConverter[] fieldDataConverters;
+        private final Tuple reuseTuple;
+        private final Object[] reuseExternalTuple;
+
+        TupleDataConverter(DataConverter[] dataConverters) {
+            this.fieldDataConverters = dataConverters;
+            this.reuseTuple = Tuple.newInstance(dataConverters.length);
+            this.reuseExternalTuple = new Object[dataConverters.length];
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public Tuple toInternal(Object[] value) {
+            if (value == null) {
+                return null;
+            }
+
+            for (int i = 0; i < value.length; i++) {
+                reuseTuple.setField(fieldDataConverters[i].toInternal(value[i]), i);
+            }
+            return reuseTuple;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public Object[] toExternal(Tuple value) {
+            if (value == null) {
+                return null;
+            }
+
+            for (int i = 0; i < value.getArity(); i++) {
+                reuseExternalTuple[i] = fieldDataConverters[i].toExternal(value.getField(i));
+            }
+            return reuseExternalTuple;
+        }
+    }
+
+    /**
+     * The element in the Object Array will be converted to the corresponding Data through element
+     * DataConverter.
+     */
+    public static final class ArrayDataConverter<T> extends DataConverter<T[], Object[]> {
+
+        private final DataConverter elementConverter;
+        private final Class<T> componentClass;
+
+        ArrayDataConverter(Class<T> componentClass, DataConverter elementConverter) {
+            this.componentClass = componentClass;
+            this.elementConverter = elementConverter;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public T[] toInternal(Object[] value) {
+            if (value == null) {
+                return null;
+            }
+
+            T[] array = (T[]) Array.newInstance(componentClass, value.length);
+
+            for (int i = 0; i < value.length; i++) {
+                array[i] = (T) elementConverter.toInternal(value[i]);
+            }
+
+            return array;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public Object[] toExternal(T[] value) {
+            if (value == null) {
+                return null;
+            }
+
+            Object[] array = new Object[value.length];
+
+            for (int i = 0; i < value.length; i++) {
+                array[i] = elementConverter.toExternal(value[i]);
+            }
+
+            return array;
+        }
+    }
+
+    /**
+     * The element in the List will be converted to the corresponding Data through element
+     * DataConverter.
+     */
+    public static final class ListDataConverter extends DataConverter<List, List> {
+
+        private final DataConverter elementConverter;
+
+        ListDataConverter(DataConverter elementConverter) {
+            this.elementConverter = elementConverter;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public List toInternal(List value) {
+            if (value == null) {
+                return null;
+            }
+
+            List<Object> list = new LinkedList<>();
+
+            for (Object item : value) {
+                list.add(elementConverter.toInternal(item));
+            }
+            return list;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public List toExternal(List value) {
+            if (value == null) {
+                return null;
+            }
+
+            List<Object> list = new LinkedList<>();
+
+            for (Object item : value) {
+                list.add(elementConverter.toExternal(item));
+            }
+            return list;
+        }
+    }
+
+    /**
+     * The key/value in the Map will be converted to the corresponding Data through key/value
+     * DataConverter.
+     */
+    public static final class MapDataConverter extends DataConverter<Map<?, ?>, Map<?, ?>> {
+
+        private final DataConverter keyConverter;
+        private final DataConverter valueConverter;
+
+        MapDataConverter(DataConverter keyConverter, DataConverter valueConverter) {
+            this.keyConverter = keyConverter;
+            this.valueConverter = valueConverter;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public Map<?, ?> toInternal(Map<?, ?> value) {
+            if (value == null) {
+                return null;
+            }
+
+            Map<Object, Object> map = new HashMap<>();
+
+            for (Map.Entry<?, ?> entry : value.entrySet()) {
+                map.put(
+                        keyConverter.toInternal(entry.getKey()),
+                        valueConverter.toInternal(entry.getValue()));
+            }
+
+            return map;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public Map<?, ?> toExternal(Map<?, ?> value) {
+            if (value == null) {
+                return null;
+            }
+
+            Map<Object, Object> map = new HashMap<>();
+
+            for (Map.Entry<?, ?> entry : value.entrySet()) {
+                map.put(
+                        keyConverter.toExternal(entry.getKey()),
+                        valueConverter.toExternal(entry.getValue()));
+            }
+            return map;
+        }
+    }
+
+    /** Get DataConverter according to the given typeInformation. */
+    public static class TypeInfoToDataConverter {
+        private static final Map<Class, DataConverter> typeInfoToDataConverterMap = new HashMap<>();
+
+        static {
+            typeInfoToDataConverterMap.put(
+                    BasicTypeInfo.INT_TYPE_INFO.getTypeClass(), IntDataConverter.INSTANCE);
+            typeInfoToDataConverterMap.put(
+                    BasicTypeInfo.SHORT_TYPE_INFO.getTypeClass(), ShortDataConverter.INSTANCE);
+            typeInfoToDataConverterMap.put(
+                    BasicTypeInfo.FLOAT_TYPE_INFO.getTypeClass(), FloatDataConverter.INSTANCE);
+            typeInfoToDataConverterMap.put(
+                    BasicTypeInfo.BYTE_TYPE_INFO.getTypeClass(), ByteDataConverter.INSTANCE);
+        }
+
+        @SuppressWarnings("unchecked")
+        public static <IN, OUT> DataConverter<IN, OUT> typeInfoDataConverter(
+                TypeInformation<IN> typeInformation) {
+            DataConverter<IN, OUT> dataConverter =
+                    typeInfoToDataConverterMap.get(typeInformation.getTypeClass());
+
+            if (dataConverter != null) {
+                return dataConverter;
+            } else {
+                if (typeInformation instanceof PickledByteArrayTypeInfo) {
+                    return IdentityDataConverter.INSTANCE;
+                }
+
+                if (typeInformation instanceof RowTypeInfo) {
+                    DataConverter[] fieldDataConverters =
+                            Arrays.stream(((RowTypeInfo) typeInformation).getFieldTypes())
+                                    .map(TypeInfoToDataConverter::typeInfoDataConverter)
+                                    .toArray(DataConverter[]::new);
+                    return (DataConverter<IN, OUT>) new RowDataConverter(fieldDataConverters);
+                }
+
+                if (typeInformation instanceof TupleTypeInfo) {
+                    Object[] fieldDataConverters =
+                            Arrays.stream(((TupleTypeInfo) typeInformation).getFieldTypes())
+                                    .map(TypeInfoToDataConverter::typeInfoDataConverter)
+                                    .toArray(DataConverter[]::new);
+                    return (DataConverter<IN, OUT>)
+                            new TupleDataConverter((DataConverter[]) fieldDataConverters);
+                }
+
+                if (typeInformation instanceof BasicArrayTypeInfo) {
+                    return (DataConverter<IN, OUT>)
+                            new ArrayDataConverter(
+                                    ((BasicArrayTypeInfo) typeInformation).getComponentTypeClass(),
+                                    TypeInfoToDataConverter.typeInfoDataConverter(
+                                            ((BasicArrayTypeInfo) typeInformation)
+                                                    .getComponentInfo()));
+                }
+
+                if (typeInformation instanceof ObjectArrayTypeInfo) {
+                    return (DataConverter<IN, OUT>)
+                            new ArrayDataConverter(
+                                    ((ObjectArrayTypeInfo) typeInformation)
+                                            .getComponentInfo()
+                                            .getTypeClass(),
+                                    TypeInfoToDataConverter.typeInfoDataConverter(
+                                            ((ObjectArrayTypeInfo) typeInformation)
+                                                    .getComponentInfo()));
+                }
+
+                if (typeInformation instanceof ListTypeInfo) {
+                    return (DataConverter<IN, OUT>)
+                            new ListDataConverter(
+                                    TypeInfoToDataConverter.typeInfoDataConverter(
+                                            ((ListTypeInfo) typeInformation).getElementTypeInfo()));
+                }
+
+                if (typeInformation instanceof MapTypeInfo) {
+                    return (DataConverter<IN, OUT>)
+                            new MapDataConverter(
+                                    TypeInfoToDataConverter.typeInfoDataConverter(
+                                            ((MapTypeInfo) typeInformation).getKeyTypeInfo()),
+                                    TypeInfoToDataConverter.typeInfoDataConverter(
+                                            ((MapTypeInfo) typeInformation).getValueTypeInfo()));
+                }
+
+                if (typeInformation instanceof ExternalTypeInfo) {
+                    return (DataConverter<IN, OUT>)
+                            TypeInfoToDataConverter.typeInfoDataConverter(
+                                    LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
+                                            ((ExternalTypeInfo<?>) typeInformation).getDataType()));
+                }
+            }
+
+            return IdentityDataConverter.INSTANCE;
         }
     }
 

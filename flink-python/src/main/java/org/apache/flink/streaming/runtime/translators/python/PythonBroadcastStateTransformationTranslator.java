@@ -19,8 +19,8 @@ package org.apache.flink.streaming.runtime.translators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.operators.python.PythonBatchCoBroadcastProcessOperator;
-import org.apache.flink.streaming.api.operators.python.PythonCoProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonBatchCoBroadcastProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonCoProcessOperator;
 import org.apache.flink.streaming.api.transformations.python.PythonBroadcastStateTransformation;
 import org.apache.flink.streaming.runtime.translators.AbstractTwoInputTransformationTranslator;
 import org.apache.flink.util.Preconditions;
@@ -29,8 +29,8 @@ import java.util.Collection;
 
 /**
  * A {@link org.apache.flink.streaming.api.graph.TransformationTranslator} that translates {@link
- * PythonBroadcastStateTransformation} into {@link PythonCoProcessOperator} or {@link
- * PythonBatchCoBroadcastProcessOperator}.
+ * PythonBroadcastStateTransformation} into {@link ExternalPythonCoProcessOperator} or {@link
+ * ExternalPythonBatchCoBroadcastProcessOperator}.
  */
 @Internal
 public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
@@ -43,8 +43,8 @@ public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
         Preconditions.checkNotNull(transformation);
         Preconditions.checkNotNull(context);
 
-        PythonBatchCoBroadcastProcessOperator<IN1, IN2, OUT> operator =
-                new PythonBatchCoBroadcastProcessOperator<>(
+        ExternalPythonBatchCoBroadcastProcessOperator operator =
+                new ExternalPythonBatchCoBroadcastProcessOperator(
                         transformation.getConfiguration(),
                         transformation.getDataStreamPythonFunctionInfo(),
                         transformation.getRegularInput().getOutputType(),
@@ -68,8 +68,8 @@ public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
         Preconditions.checkNotNull(transformation);
         Preconditions.checkNotNull(context);
 
-        PythonCoProcessOperator<IN1, IN2, OUT> operator =
-                new PythonCoProcessOperator<>(
+        ExternalPythonCoProcessOperator<IN1, IN2, OUT> operator =
+                new ExternalPythonCoProcessOperator<>(
                         transformation.getConfiguration(),
                         transformation.getDataStreamPythonFunctionInfo(),
                         transformation.getRegularInput().getOutputType(),

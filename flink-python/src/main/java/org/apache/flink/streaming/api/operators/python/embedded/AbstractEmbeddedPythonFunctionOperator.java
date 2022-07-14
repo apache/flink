@@ -16,17 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.python;
+package org.apache.flink.streaming.api.operators.python.embedded;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.embedded.EmbeddedPythonEnvironment;
 import org.apache.flink.python.env.embedded.EmbeddedPythonEnvironmentManager;
-import org.apache.flink.table.functions.python.PythonEnv;
+import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 
 import pemja.core.PythonInterpreter;
 import pemja.core.PythonInterpreterConfig;
@@ -35,7 +34,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
 import static org.apache.flink.python.env.AbstractPythonEnvironmentManager.PYTHON_WORKING_DIR;
 
 /**
@@ -52,10 +50,10 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
 
     private static final Map<JobID, Tuple2<String, Integer>> workingDirectories = new HashMap<>();
 
+    private transient EmbeddedPythonEnvironmentManager pythonEnvironmentManager;
+
     /** Every operator will hold the only python interpreter. */
     protected transient PythonInterpreter interpreter;
-
-    private transient EmbeddedPythonEnvironmentManager pythonEnvironmentManager;
 
     public AbstractEmbeddedPythonFunctionOperator(Configuration config) {
         super(config);
@@ -66,6 +64,7 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
         super.open();
         pythonEnvironmentManager = createPythonEnvironmentManager();
         pythonEnvironmentManager.open();
+
         EmbeddedPythonEnvironment environment =
                 (EmbeddedPythonEnvironment) pythonEnvironmentManager.createEnvironment();
 
@@ -101,7 +100,7 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
             }
         }
 
-        openPythonInterpreter(config.get(PYTHON_EXECUTABLE), env);
+        openPythonInterpreter();
     }
 
     @Override
@@ -146,12 +145,11 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
                 getRuntimeContext().getJobId());
     }
 
-    /** Setup method for Python Interpreter. It can be used for initialization work. */
-    public abstract void openPythonInterpreter(String pythonExecutable, Map<String, String> env);
+    @Override
+    protected void invokeFinishBundle() throws Exception {
+        // TODO: Support batches invoking.
+    }
 
-    /** Returns the {@link PythonEnv} used to create PythonEnvironmentManager. */
-    public abstract PythonEnv getPythonEnv();
-
-    /** Gets the proto representation of the Python user-defined functions to be executed. */
-    public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
+    /** Setup method for Python Interpreter. */
+    public abstract void openPythonInterpreter();
 }

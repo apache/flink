@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.python.aggregate.arrow;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
@@ -38,8 +39,7 @@ import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
 import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedFunctionProto;
+import static org.apache.flink.python.util.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
 
 /** The Abstract class of Arrow Aggregate Operator for Pandas {@link AggregateFunction}. */
 @Internal
@@ -148,15 +148,10 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
     }
 
     @Override
-    public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
-        FlinkFnApi.UserDefinedFunctions.Builder builder =
-                FlinkFnApi.UserDefinedFunctions.newBuilder();
-        // add udaf proto
-        for (PythonFunctionInfo pythonFunctionInfo : pandasAggFunctions) {
-            builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
-        }
-        builder.setMetricEnabled(config.get(PYTHON_METRIC_ENABLED));
-        builder.setProfileEnabled(config.get(PYTHON_PROFILE_ENABLED));
-        return builder.build();
+    public FlinkFnApi.UserDefinedFunctions createUserDefinedFunctionsProto() {
+        return ProtoUtils.createUserDefinedFunctionsProto(
+                pandasAggFunctions,
+                config.get(PYTHON_METRIC_ENABLED),
+                config.get(PYTHON_PROFILE_ENABLED));
     }
 }

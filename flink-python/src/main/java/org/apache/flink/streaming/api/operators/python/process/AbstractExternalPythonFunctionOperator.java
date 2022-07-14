@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.python;
+package org.apache.flink.streaming.api.operators.python.process;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
+import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunner;
 import org.apache.flink.table.functions.python.PythonEnv;
 
@@ -141,6 +142,9 @@ public abstract class AbstractExternalPythonFunctionOperator<OUT>
             emitResult(resultTuple);
         }
     }
+
+    /** Returns the {@link PythonEnv} used to create PythonEnvironmentManager.. */
+    public abstract PythonEnv getPythonEnv();
 
     /** Sends the execution result to the downstream operator. */
     public abstract void emitResult(Tuple3<String, byte[], Integer> resultTuple) throws Exception;

@@ -27,6 +27,7 @@ from pyflink.fn_execution.coders import from_proto, from_type_info_proto, TimeWi
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend, RemoteOperatorStateBackend
 
 import pyflink.fn_execution.datastream.operations as datastream_operations
+from pyflink.fn_execution.datastream.process import operations
 import pyflink.fn_execution.table.operations as table_operations
 
 try:
@@ -130,12 +131,12 @@ def create_data_stream_keyed_process_function(factory, transform_id, transform_p
         return _create_user_defined_function_operation(
             factory, transform_proto, consumers, payload,
             beam_operations.StatelessFunctionOperation,
-            datastream_operations.StatelessOperation)
+            operations.StatelessOperation)
     else:
         return _create_user_defined_function_operation(
             factory, transform_proto, consumers, payload,
             beam_operations.StatefulFunctionOperation,
-            datastream_operations.StatefulOperation)
+            operations.StatefulOperation)
 
 
 # ----------------- Utilities --------------------
@@ -193,7 +194,7 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             keyed_state_backend,
             operator_state_backend,
         )
-    elif internal_operation_cls == datastream_operations.StatefulOperation:
+    elif internal_operation_cls == operations.StatefulOperation:
         key_row_coder = from_type_info_proto(serialized_fn.key_type_info)
         keyed_state_backend = RemoteKeyedStateBackend(
             factory.state_handler,

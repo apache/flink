@@ -22,7 +22,7 @@ from typing import cast, Iterable
 from pyflink.common import Row
 from pyflink.common.constants import DEFAULT_OUTPUT_TAG
 from pyflink.datastream.output_tag import OutputTag
-from pyflink.fn_execution.datastream.timerservice_impl import InternalTimerServiceImpl
+from pyflink.fn_execution.datastream.process.timerservice_impl import InternalTimerServiceImpl
 
 
 class TimerType(Enum):

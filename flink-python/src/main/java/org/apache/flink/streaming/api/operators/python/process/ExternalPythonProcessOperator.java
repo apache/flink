@@ -1,12 +1,13 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,17 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.python;
+package org.apache.flink.streaming.api.operators.python.process;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
-import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -38,34 +39,30 @@ import static org.apache.flink.python.PythonOptions.STATE_CACHE_SIZE;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
- * The {@link PythonCoProcessOperator} is responsible for executing the Python CoProcess Function.
- *
- * @param <IN1> The input type of the first stream
- * @param <IN2> The input type of the second stream
- * @param <OUT> The output type of the CoProcess function
+ * {@link ExternalPythonProcessOperator} is responsible for launching beam runner which will start a
+ * python harness to execute user defined python ProcessFunction.
  */
 @Internal
-public class PythonCoProcessOperator<IN1, IN2, OUT>
-        extends AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT> {
+public class ExternalPythonProcessOperator<IN, OUT>
+        extends AbstractExternalOneInputPythonFunctionOperator<IN, OUT> {
 
     private static final long serialVersionUID = 2L;
 
     /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
     private transient long currentWatermark;
 
-    public PythonCoProcessOperator(
+    public ExternalPythonProcessOperator(
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
-            TypeInformation<IN1> inputTypeInfo1,
-            TypeInformation<IN2> inputTypeInfo2,
+            TypeInformation<IN> inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo) {
-        super(config, pythonFunctionInfo, inputTypeInfo1, inputTypeInfo2, outputTypeInfo);
+        super(config, pythonFunctionInfo, inputTypeInfo, outputTypeInfo);
     }
 
     @Override
     public void open() throws Exception {
         super.open();
-        this.currentWatermark = Long.MIN_VALUE;
+        currentWatermark = Long.MIN_VALUE;
     }
 
     @Override
@@ -110,13 +107,8 @@ public class PythonCoProcessOperator<IN1, IN2, OUT>
     }
 
     @Override
-    public void processElement1(StreamRecord<IN1> element) throws Exception {
-        processElement(true, element.getTimestamp(), currentWatermark, element.getValue());
-    }
-
-    @Override
-    public void processElement2(StreamRecord<IN2> element) throws Exception {
-        processElement(false, element.getTimestamp(), currentWatermark, element.getValue());
+    public void processElement(StreamRecord<IN> element) throws Exception {
+        processElement(element.getTimestamp(), currentWatermark, element.getValue());
     }
 
     @Override
@@ -126,13 +118,9 @@ public class PythonCoProcessOperator<IN1, IN2, OUT>
     }
 
     @Override
-    public <T> AbstractDataStreamPythonFunctionOperator<T> copy(
+    public <T> AbstractExternalDataStreamPythonFunctionOperator<T> copy(
             DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
-        return new PythonCoProcessOperator<>(
-                config,
-                pythonFunctionInfo,
-                getLeftInputType(),
-                getRightInputType(),
-                outputTypeInfo);
+        return new ExternalPythonProcessOperator<>(
+                config, pythonFunctionInfo, getInputTypeInfo(), outputTypeInfo);
     }
 }

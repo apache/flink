@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.python;
+package org.apache.flink.streaming.api.operators.python.process;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -34,21 +34,21 @@ import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionI
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.operators.python.collector.RunnerOutputCollector;
+import org.apache.flink.streaming.api.operators.python.process.collector.RunnerOutputCollector;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
+import static org.apache.flink.python.util.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
 import static org.apache.flink.streaming.api.utils.PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter;
 
 /**
- * {@link AbstractTwoInputPythonFunctionOperator} is responsible for launching beam runner which
- * will start a python harness to execute two-input user defined python function.
+ * {@link AbstractExternalTwoInputPythonFunctionOperator} is responsible for launching beam runner
+ * which will start a python harness to execute two-input user defined python function.
  */
 @Internal
-public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
-        extends AbstractDataStreamPythonFunctionOperator<OUT>
+public abstract class AbstractExternalTwoInputPythonFunctionOperator<IN1, IN2, OUT>
+        extends AbstractExternalDataStreamPythonFunctionOperator<OUT>
         implements TwoInputStreamOperator<IN1, IN2, OUT>, BoundedMultiInput {
 
     private static final long serialVersionUID = 1L;
@@ -78,7 +78,7 @@ public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
     private transient RunnerInputHandler runnerInputHandler;
     private transient RunnerOutputCollector<OUT> runnerOutputCollector;
 
-    public AbstractTwoInputPythonFunctionOperator(
+    public AbstractExternalTwoInputPythonFunctionOperator(
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
             TypeInformation<IN1> inputTypeInfo1,

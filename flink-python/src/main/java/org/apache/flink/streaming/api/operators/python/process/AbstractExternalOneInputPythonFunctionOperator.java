@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.python;
+package org.apache.flink.streaming.api.operators.python.process;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -33,24 +33,24 @@ import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionI
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.streaming.api.operators.python.collector.RunnerOutputCollector;
+import org.apache.flink.streaming.api.operators.python.process.collector.RunnerOutputCollector;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
+import static org.apache.flink.python.util.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
 
 /**
- * {@link AbstractOneInputPythonFunctionOperator} is responsible for launching beam runner which
- * will start a python harness to execute user defined python function.
+ * {@link AbstractExternalOneInputPythonFunctionOperator} is responsible for launching beam runner
+ * which will start a python harness to execute user defined python function.
  *
  * <p>The operator will buffer the timestamp of input elements in a queue, and set into the produced
  * output element.
  */
 @Internal
-public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
-        extends AbstractDataStreamPythonFunctionOperator<OUT>
+public abstract class AbstractExternalOneInputPythonFunctionOperator<IN, OUT>
+        extends AbstractExternalDataStreamPythonFunctionOperator<OUT>
         implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 
     private static final long serialVersionUID = 1L;
@@ -86,7 +86,7 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
 
     private transient RunnerOutputCollector<OUT> runnerOutputCollector;
 
-    public AbstractOneInputPythonFunctionOperator(
+    public AbstractExternalOneInputPythonFunctionOperator(
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
             TypeInformation<IN> inputTypeInfo,

@@ -167,7 +167,7 @@ class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
         BatchArrowPythonOverWindowAggregateFunctionOperator operator =
                 (BatchArrowPythonOverWindowAggregateFunctionOperator)
                         testHarness.getOneInputOperator();
-        FlinkFnApi.UserDefinedFunctions functionsProto = operator.getUserDefinedFunctionsProto();
+        FlinkFnApi.UserDefinedFunctions functionsProto = operator.createUserDefinedFunctionsProto();
         List<FlinkFnApi.OverWindow> windows = functionsProto.getWindowsList();
         assertThat(windows).hasSize(2);
 
@@ -311,7 +311,7 @@ class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
                     udfInputType,
                     udfOutputType,
                     getFunctionUrn(),
-                    getUserDefinedFunctionsProto(),
+                    createUserDefinedFunctionsProto(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     true);
         }

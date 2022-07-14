@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.python;
+package org.apache.flink.streaming.api.operators.python.process;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -25,32 +25,31 @@ import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 /**
- * The {@link PythonBatchCoBroadcastProcessOperator} is responsible for executing the Python
- * CoBroadcastProcess Function under BATCH mode, {@link PythonCoProcessOperator} is used under
- * STREAMING mode. This operator forces to run out data from broadcast side first, and then process
- * data from regular side.
+ * The {@link ExternalPythonBatchKeyedCoBroadcastProcessOperator} is responsible for executing the
+ * Python CoBroadcastProcess function under BATCH mode, {@link ExternalPythonKeyedCoProcessOperator}
+ * is used under STREAMING mode. This operator forces to run out data from broadcast side first, and
+ * then process data from regular side.
  *
- * @param <IN1> The input type of the regular stream
- * @param <IN2> The input type of the broadcast stream
  * @param <OUT> The output type of the CoBroadcastProcess function
  */
 @Internal
-public class PythonBatchCoBroadcastProcessOperator<IN1, IN2, OUT>
-        extends PythonCoProcessOperator<IN1, IN2, OUT>
+public class ExternalPythonBatchKeyedCoBroadcastProcessOperator<OUT>
+        extends ExternalPythonKeyedCoProcessOperator<OUT>
         implements BoundedMultiInput, InputSelectable {
 
     private static final long serialVersionUID = 1L;
 
     private transient volatile boolean isBroadcastSideDone = false;
 
-    public PythonBatchCoBroadcastProcessOperator(
+    public ExternalPythonBatchKeyedCoBroadcastProcessOperator(
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
-            TypeInformation<IN1> inputTypeInfo1,
-            TypeInformation<IN2> inputTypeInfo2,
+            TypeInformation<Row> inputTypeInfo1,
+            TypeInformation<Row> inputTypeInfo2,
             TypeInformation<OUT> outputTypeInfo) {
         super(config, pythonFunctionInfo, inputTypeInfo1, inputTypeInfo2, outputTypeInfo);
     }
@@ -72,7 +71,7 @@ public class PythonBatchCoBroadcastProcessOperator<IN1, IN2, OUT>
     }
 
     @Override
-    public void processElement1(StreamRecord<IN1> element) throws Exception {
+    public void processElement1(StreamRecord<Row> element) throws Exception {
         Preconditions.checkState(
                 isBroadcastSideDone,
                 "Should not process regular input before broadcast side is done.");

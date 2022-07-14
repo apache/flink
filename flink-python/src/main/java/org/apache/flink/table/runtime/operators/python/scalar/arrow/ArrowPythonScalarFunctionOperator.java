@@ -31,7 +31,7 @@ import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScal
 import org.apache.flink.table.types.logical.RowType;
 
 import static org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
+import static org.apache.flink.python.util.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
 
 /** Arrow Python {@link ScalarFunction} operator. */
 @Internal

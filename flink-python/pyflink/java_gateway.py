@@ -157,7 +157,8 @@ def import_flink_view(gateway):
     java_import(gateway.jvm, "org.apache.flink.python.PythonOptions")
     java_import(gateway.jvm, "org.apache.flink.client.python.PythonGatewayServer")
     java_import(gateway.jvm, "org.apache.flink.streaming.api.functions.python.*")
-    java_import(gateway.jvm, "org.apache.flink.streaming.api.operators.python.*")
+    java_import(gateway.jvm, "org.apache.flink.streaming.api.operators.python.process.*")
+    java_import(gateway.jvm, "org.apache.flink.streaming.api.operators.python.embedded.*")
     java_import(gateway.jvm, "org.apache.flink.streaming.api.typeinfo.python.*")
 
 

@@ -19,8 +19,8 @@ package org.apache.flink.streaming.runtime.translators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.operators.python.PythonBatchKeyedCoBroadcastProcessOperator;
-import org.apache.flink.streaming.api.operators.python.PythonKeyedCoProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonBatchKeyedCoBroadcastProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonKeyedCoProcessOperator;
 import org.apache.flink.streaming.api.transformations.python.PythonKeyedBroadcastStateTransformation;
 import org.apache.flink.streaming.runtime.translators.AbstractTwoInputTransformationTranslator;
 import org.apache.flink.types.Row;
@@ -30,8 +30,8 @@ import java.util.Collection;
 
 /**
  * A {@link org.apache.flink.streaming.api.graph.TransformationTranslator} that translates {@link
- * PythonKeyedBroadcastStateTransformation} into {@link PythonKeyedCoProcessOperator} or {@link
- * PythonBatchKeyedCoBroadcastProcessOperator}.
+ * PythonKeyedBroadcastStateTransformation} into {@link ExternalPythonKeyedCoProcessOperator} or
+ * {@link ExternalPythonBatchKeyedCoBroadcastProcessOperator}.
  */
 @Internal
 public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
@@ -44,8 +44,8 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
         Preconditions.checkNotNull(transformation);
         Preconditions.checkNotNull(context);
 
-        PythonKeyedCoProcessOperator<OUT> operator =
-                new PythonBatchKeyedCoBroadcastProcessOperator<>(
+        ExternalPythonKeyedCoProcessOperator<OUT> operator =
+                new ExternalPythonBatchKeyedCoBroadcastProcessOperator<>(
                         transformation.getConfiguration(),
                         transformation.getDataStreamPythonFunctionInfo(),
                         transformation.getRegularInput().getOutputType(),
@@ -69,8 +69,8 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
         Preconditions.checkNotNull(transformation);
         Preconditions.checkNotNull(context);
 
-        PythonKeyedCoProcessOperator<OUT> operator =
-                new PythonKeyedCoProcessOperator<>(
+        ExternalPythonKeyedCoProcessOperator<OUT> operator =
+                new ExternalPythonKeyedCoProcessOperator<>(
                         transformation.getConfiguration(),
                         transformation.getDataStreamPythonFunctionInfo(),
                         transformation.getRegularInput().getOutputType(),

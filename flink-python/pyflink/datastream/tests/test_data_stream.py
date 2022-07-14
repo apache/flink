@@ -18,9 +18,12 @@
 import datetime
 import decimal
 import os
+import sys
 import uuid
 from collections import defaultdict
 from typing import Tuple
+
+import pytest
 
 from pyflink.common import Row, Configuration
 from pyflink.common.time import Time
@@ -118,6 +121,54 @@ class DataStreamTests(object):
         expected = ["<Row('cfgs', 5, Decimal('3'))>",
                     "<Row('deeefg', 7, Decimal('4'))>"]
         self.assert_equals_sorted(expected, results)
+
+    def test_array_type_info(self):
+        ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
+                                       (2, [None, 2.2, 2.3], ['hello', None, 'flink']),
+                                       (3, [3.1, 3.2, None], ['hello', 'hi', None])],
+                                      type_info=Types.ROW([Types.INT(),
+                                                           Types.BASIC_ARRAY(Types.FLOAT()),
+                                                           Types.OBJECT_ARRAY(Types.STRING())]))
+
+        ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
+                                                   Types.BASIC_ARRAY(Types.FLOAT()),
+                                                   Types.OBJECT_ARRAY(Types.STRING())]))\
+            .add_sink(self.test_sink)
+        self.env.execute("test basic array type info")
+        results = self.test_sink.get_results()
+        expected = ['+I[1, [1.1, null, 1.3], [null, hi, flink]]',
+                    '+I[2, [null, 2.2, 2.3], [hello, null, flink]]',
+                    '+I[3, [3.1, 3.2, null], [hello, hi, null]]']
+        self.assert_equals_sorted(expected, results)
+
+    def test_partition_custom(self):
+        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2),
+                                       ('f', 7), ('g', 7), ('h', 8), ('i', 8), ('j', 9)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        expected_num_partitions = 5
+
+        def my_partitioner(key, num_partitions):
+            assert expected_num_partitions == num_partitions
+            return key % num_partitions
+
+        partitioned_stream = ds.map(lambda x: x, output_type=Types.ROW([Types.STRING(),
+                                                                        Types.INT()]))\
+            .set_parallelism(4).partition_custom(my_partitioner, lambda x: x[1])
+
+        JPartitionCustomTestMapFunction = get_gateway().jvm\
+            .org.apache.flink.python.util.PartitionCustomTestMapFunction
+        test_map_stream = DataStream(partitioned_stream
+                                     ._j_data_stream.map(JPartitionCustomTestMapFunction()))
+        test_map_stream.set_parallelism(expected_num_partitions).add_sink(self.test_sink)
+
+        self.env.execute('test_partition_custom')
+
+
+class ProcessDataStreamTests(DataStreamTests):
+    """
+    The tests only tested in Process Mode.
+    """
 
     def test_basic_co_operations(self):
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
@@ -1071,7 +1122,7 @@ class DataStreamTests(object):
         self.assert_equals_sorted(expected, self.test_sink.get_results())
 
 
-class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
+class StreamingModeDataStreamTests(ProcessDataStreamTests, PyFlinkStreamingTestCase):
     def test_data_stream_name(self):
         ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
         test_name = 'test_name'
@@ -1180,29 +1231,6 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         shuffle_node = exec_plan['nodes'][1]
         pre_ship_strategy = shuffle_node['predecessors'][0]['ship_strategy']
         self.assertEqual(pre_ship_strategy, 'SHUFFLE')
-
-    def test_partition_custom(self):
-        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2),
-                                       ('f', 7), ('g', 7), ('h', 8), ('i', 8), ('j', 9)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-
-        expected_num_partitions = 5
-
-        def my_partitioner(key, num_partitions):
-            assert expected_num_partitions == num_partitions
-            return key % num_partitions
-
-        partitioned_stream = ds.map(lambda x: x, output_type=Types.ROW([Types.STRING(),
-                                                                        Types.INT()]))\
-            .set_parallelism(4).partition_custom(my_partitioner, lambda x: x[1])
-
-        JPartitionCustomTestMapFunction = get_gateway().jvm\
-            .org.apache.flink.python.util.PartitionCustomTestMapFunction
-        test_map_stream = DataStream(partitioned_stream
-                                     ._j_data_stream.map(JPartitionCustomTestMapFunction()))
-        test_map_stream.set_parallelism(expected_num_partitions).add_sink(self.test_sink)
-
-        self.env.execute('test_partition_custom')
 
     def test_keyed_stream_partitioning(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)])
@@ -1501,7 +1529,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         self.assert_equals_sorted(expected, results)
 
 
-class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
+class BatchModeDataStreamTests(ProcessDataStreamTests, PyFlinkBatchTestCase):
 
     def test_timestamp_assigner_and_watermark_strategy(self):
         self.env.set_parallelism(1)
@@ -1673,6 +1701,14 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
         results = self.test_sink.get_results(False)
         expected = ['1']
         self.assert_equals_sorted(expected, results)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
+class EmbeddedDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
+    def setUp(self):
+        super(EmbeddedDataStreamTests, self).setUp()
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
+        config.setString("python.execution-mode", "thread")
 
 
 class MyKeySelector(KeySelector):

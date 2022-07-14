@@ -34,9 +34,10 @@ import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.python.AbstractDataStreamPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.DataStreamPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.process.AbstractExternalDataStreamPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.process.AbstractExternalOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
@@ -149,8 +150,8 @@ public class PythonConfigUtil {
                 final Transformation<?> upTransform =
                         Iterables.getOnlyElement(sideTransform.getInputs());
                 if (PythonConfigUtil.isPythonDataStreamOperator(upTransform)) {
-                    final AbstractDataStreamPythonFunctionOperator<?> upOperator =
-                            (AbstractDataStreamPythonFunctionOperator<?>)
+                    final AbstractExternalDataStreamPythonFunctionOperator<?> upOperator =
+                            (AbstractExternalDataStreamPythonFunctionOperator<?>)
                                     ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform))
                                             .getOperator();
                     upOperator.addSideOutputTag(sideTransform.getOutputTag());
@@ -178,7 +179,7 @@ public class PythonConfigUtil {
     }
 
     /**
-     * Configure the {@link AbstractOneInputPythonFunctionOperator} to be chained with the
+     * Configure the {@link AbstractExternalOneInputPythonFunctionOperator} to be chained with the
      * upstream/downstream operator by setting their parallelism, slot sharing group, co-location
      * group to be the same, and applying a {@link ForwardPartitioner}. 1. operator with name
      * "_keyed_stream_values_operator" should align with its downstream operator. 2. operator with
@@ -289,7 +290,7 @@ public class PythonConfigUtil {
             StreamOperatorFactory<?> streamOperatorFactory) {
         if (streamOperatorFactory instanceof SimpleOperatorFactory) {
             return ((SimpleOperatorFactory<?>) streamOperatorFactory).getOperator()
-                    instanceof AbstractDataStreamPythonFunctionOperator;
+                    instanceof DataStreamPythonFunctionOperator;
         } else {
             return false;
         }
@@ -312,17 +313,13 @@ public class PythonConfigUtil {
                                     AbstractPythonFunctionOperator<?> pythonFunctionOperator =
                                             getPythonOperator(input);
                                     if (pythonFunctionOperator
-                                            instanceof AbstractDataStreamPythonFunctionOperator) {
-                                        AbstractDataStreamPythonFunctionOperator<?>
+                                            instanceof DataStreamPythonFunctionOperator) {
+                                        DataStreamPythonFunctionOperator
                                                 pythonDataStreamFunctionOperator =
-                                                        (AbstractDataStreamPythonFunctionOperator<
-                                                                        ?>)
+                                                        (DataStreamPythonFunctionOperator)
                                                                 pythonFunctionOperator;
-                                        if (pythonDataStreamFunctionOperator
-                                                .containsPartitionCustom()) {
-                                            pythonDataStreamFunctionOperator.setNumPartitions(
-                                                    transformation.getParallelism());
-                                        }
+                                        pythonDataStreamFunctionOperator.setNumPartitions(
+                                                transformation.getParallelism());
                                     }
                                 });
 
