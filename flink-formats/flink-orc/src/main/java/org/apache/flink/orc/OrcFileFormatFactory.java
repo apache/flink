@@ -290,11 +290,10 @@ public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                 builder.setNullCount(totalRowCount - columnStatistics.getNumberOfValues());
             }
 
+            // For complex types: ROW, ARRAY, MAP. The returned statistics have wrong null count
+            // value, so now complex types stats return null.
             switch (logicalType.getTypeRoot()) {
                 case BOOLEAN:
-                case ROW:
-                case ARRAY:
-                case MAP:
                     break;
                 case TINYINT:
                 case SMALLINT:

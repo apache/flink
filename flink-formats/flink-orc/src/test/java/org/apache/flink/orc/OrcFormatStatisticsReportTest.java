@@ -224,12 +224,12 @@ public class OrcFormatStatisticsReportTest extends StatisticsReportTestBase {
                                         .toTimestamp())
                         .setNullCount(0L)
                         .build());
-        expectedColumnStatsMap.put(
-                "f_row", new ColumnStats.Builder().setNullCount(nullCount).build());
-        expectedColumnStatsMap.put(
-                "f_array", new ColumnStats.Builder().setNullCount(nullCount).build());
-        expectedColumnStatsMap.put(
-                "f_map", new ColumnStats.Builder().setNullCount(nullCount).build());
+
+        // For complex types: ROW, ARRAY, MAP. The returned statistics have wrong null count
+        // value, so now complex types stats return null.
+        expectedColumnStatsMap.put("f_row", null);
+        expectedColumnStatsMap.put("f_array", null);
+        expectedColumnStatsMap.put("f_map", null);
 
         assertThat(tableStats).isEqualTo(new TableStats(expectedRowCount, expectedColumnStatsMap));
     }
