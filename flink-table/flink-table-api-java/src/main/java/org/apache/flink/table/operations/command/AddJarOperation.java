@@ -19,22 +19,23 @@
 package org.apache.flink.table.operations.command;
 
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.resource.ResourceUri;
 
 /** Operation to describe an ADD JAR statement. */
 public class AddJarOperation implements Operation {
 
-    private final String path;
+    private final ResourceUri resourceUri;
 
-    public AddJarOperation(String path) {
-        this.path = path;
+    public AddJarOperation(ResourceUri resourceUri) {
+        this.resourceUri = resourceUri;
     }
 
-    public String getPath() {
-        return path;
+    public ResourceUri getResourceUri() {
+        return resourceUri;
     }
 
     @Override
     public String asSummaryString() {
-        return String.format("ADD JAR '%s'", path);
+        return String.format("ADD JAR '%s'", resourceUri.getUri());
     }
 }

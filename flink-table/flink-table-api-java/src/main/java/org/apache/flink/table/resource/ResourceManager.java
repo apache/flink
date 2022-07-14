@@ -192,31 +192,32 @@ public class ResourceManager implements Closeable {
         }
 
         for (ResourceUri resourceUri : resourceUris) {
-            // here can check whether the resource path is valid
-            Path path = new Path(resourceUri.getUri());
-            // file name should end with .jar suffix
-            String fileExtension = Files.getFileExtension(path.getName());
-            if (!fileExtension.toLowerCase().endsWith(JAR_SUFFIX)) {
-                throw new ValidationException(
-                        String.format(
-                                "The registering jar resource [%s] must ends with '.jar' suffix.",
-                                path));
-            }
+            checkJarPath(new Path(resourceUri.getUri()));
+        }
+    }
 
-            FileSystem fs = FileSystem.getUnguardedFileSystem(path.toUri());
-            // check resource exists firstly
-            if (!fs.exists(path)) {
-                throw new FileNotFoundException(
-                        String.format("Jar resource [%s] not found.", path));
-            }
+    protected void checkJarPath(Path path) throws IOException {
+        // file name should end with .jar suffix
+        String fileExtension = Files.getFileExtension(path.getName());
+        if (!fileExtension.toLowerCase().endsWith(JAR_SUFFIX)) {
+            throw new ValidationException(
+                    String.format(
+                            "The registering or unregistering jar resource [%s] must ends with '.jar' suffix.",
+                            path));
+        }
 
-            // register directory is not allowed for resource
-            if (fs.getFileStatus(path).isDir()) {
-                throw new ValidationException(
-                        String.format(
-                                "The registering jar resource [%s] is a directory that is not allowed.",
-                                path));
-            }
+        FileSystem fs = FileSystem.getUnguardedFileSystem(path.toUri());
+        // check resource exists firstly
+        if (!fs.exists(path)) {
+            throw new FileNotFoundException(String.format("Jar resource [%s] not found.", path));
+        }
+
+        // register directory is not allowed for resource
+        if (fs.getFileStatus(path).isDir()) {
+            throw new ValidationException(
+                    String.format(
+                            "The registering or unregistering jar resource [%s] is a directory that is not allowed.",
+                            path));
         }
     }
 
@@ -241,7 +242,7 @@ public class ResourceManager implements Closeable {
     }
 
     @VisibleForTesting
-    URL getURLFromPath(Path path) throws IOException {
+    protected URL getURLFromPath(Path path) throws IOException {
         // if scheme is null, rewrite it to file
         if (path.toUri().getScheme() == null) {
             path = path.makeQualified(FileSystem.getLocalFileSystem());

@@ -263,6 +263,7 @@ public final class FlinkDistribution {
             AutoClosableProcess.create(commands.toArray(new String[0]))
                     .setStdInputs(job.getSqlLines().toArray(new String[0]))
                     .setStdoutProcessor(LOG::info) // logging the SQL statements and error message
+                    .setEnv(job.getEnvProcessor())
                     .runBlocking(timeout);
         } else if (job.getClientMode() == SQLJobSubmission.ClientMode.HIVE_JDBC) {
             FutureTaskWithException<Void> future =

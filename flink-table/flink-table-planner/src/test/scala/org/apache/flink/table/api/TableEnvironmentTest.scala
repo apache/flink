@@ -36,7 +36,9 @@ import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.Simple
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.utils.UserDefinedFunctions.{GENERATED_LOWER_UDF_CLASS, GENERATED_LOWER_UDF_CODE}
 import org.apache.flink.types.Row
+import org.apache.flink.util.UserClassLoaderJarTestUtils
 
 import _root_.java.util
 import _root_.scala.collection.JavaConverters._
@@ -45,7 +47,12 @@ import org.apache.calcite.sql.SqlExplainLevel
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.{Rule, Test}
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
-import org.junit.rules.ExpectedException
+import org.junit.rules.{ExpectedException, TemporaryFolder}
+
+import java.io.File
+import java.util.UUID
+
+import scala.annotation.meta.getter
 
 class TableEnvironmentTest {
 
@@ -54,6 +61,9 @@ class TableEnvironmentTest {
 
   @Rule
   def thrown: ExpectedException = expectedException
+
+  @(Rule @getter)
+  val tempFolder: TemporaryFolder = new TemporaryFolder()
 
   val env = new StreamExecutionEnvironment(new LocalStreamEnvironment())
   val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -153,6 +163,48 @@ class TableEnvironmentTest {
     val tEnv = StreamTableEnvironment.create(execEnv, settings)
 
     verifyTableEnvironmentExecutionExplain(tEnv)
+  }
+
+  @Test
+  def testAddJarWithFullPath(): Unit = {
+    validateAddJar(true)
+  }
+
+  @Test
+  def testAddJarWithRelativePath(): Unit = {
+    validateAddJar(false)
+  }
+
+  @Test
+  def testAddIllegalJar(): Unit = {
+    try {
+      tableEnv.executeSql(String.format("ADD JAR '%s'", "/path/to/illegal.jar"))
+      fail("Should fail.")
+    } catch {
+      case _: TableException => // expected
+    }
+  }
+
+  private def validateAddJar(useFullPath: Boolean): Unit = {
+    val udfJar = UserClassLoaderJarTestUtils
+      .createJarFile(
+        tempFolder.newFolder(String.format("test-jar-%s", UUID.randomUUID)),
+        "test-classloader-udf.jar",
+        GENERATED_LOWER_UDF_CLASS,
+        String.format(GENERATED_LOWER_UDF_CODE, GENERATED_LOWER_UDF_CLASS)
+      )
+
+    val jarPath = if (useFullPath) {
+      udfJar.getPath
+    } else {
+      new File(".").getCanonicalFile.toPath.relativize(udfJar.toPath).toString
+    }
+
+    tableEnv.executeSql(String.format("ADD JAR '%s'", jarPath))
+    val tableResult = tableEnv.executeSql("SHOW JARS")
+
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(util.Arrays.asList(Row.of(udfJar.getPath)).iterator(), tableResult.collect())
   }
 
   private def verifyTableEnvironmentExecutionExplain(tEnv: TableEnvironment): Unit = {
