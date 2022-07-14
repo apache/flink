@@ -20,9 +20,10 @@ package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.python.AbstractEmbeddedPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.AbstractEmbeddedPythonFunctionOperator;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowDataWrappingCollector;
@@ -106,4 +107,7 @@ public abstract class AbstractEmbeddedStatelessFunctionOperator
     protected void invokeFinishBundle() throws Exception {
         // TODO: Support batches invoking.
     }
+
+    /** Gets the proto representation of the Python user-defined functions to be executed. */
+    public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
 }

@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.python;
+package org.apache.flink.streaming.api.operators.python.embedded;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.embedded.EmbeddedPythonEnvironment;
 import org.apache.flink.python.env.embedded.EmbeddedPythonEnvironmentManager;
+import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.table.functions.python.PythonEnv;
 
 import pemja.core.PythonInterpreter;
@@ -151,7 +151,4 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
 
     /** Returns the {@link PythonEnv} used to create PythonEnvironmentManager. */
     public abstract PythonEnv getPythonEnv();
-
-    /** Gets the proto representation of the Python user-defined functions to be executed. */
-    public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
 }

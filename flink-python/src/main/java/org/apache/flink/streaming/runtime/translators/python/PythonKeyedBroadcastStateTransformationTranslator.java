@@ -19,7 +19,7 @@ package org.apache.flink.streaming.runtime.translators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.operators.python.PythonBatchKeyedCoBroadcastProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.PythonBatchKeyedCoBroadcastProcessOperator;
 import org.apache.flink.streaming.api.operators.python.PythonKeyedCoProcessOperator;
 import org.apache.flink.streaming.api.transformations.python.PythonKeyedBroadcastStateTransformation;
 import org.apache.flink.streaming.runtime.translators.AbstractTwoInputTransformationTranslator;

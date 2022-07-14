@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.python;
+package org.apache.flink.streaming.api.operators.python.process;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -31,62 +30,69 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.streaming.api.operators.BoundedMultiInput;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.python.collector.RunnerOutputCollector;
+import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
-import static org.apache.flink.streaming.api.utils.PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter;
 
 /**
- * {@link AbstractTwoInputPythonFunctionOperator} is responsible for launching beam runner which
- * will start a python harness to execute two-input user defined python function.
+ * {@link AbstractExternalOneInputPythonFunctionOperator} is responsible for launching beam runner
+ * which will start a python harness to execute user defined python function.
+ *
+ * <p>The operator will buffer the timestamp of input elements in a queue, and set into the produced
+ * output element.
  */
 @Internal
-public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
-        extends AbstractDataStreamPythonFunctionOperator<OUT>
-        implements TwoInputStreamOperator<IN1, IN2, OUT>, BoundedMultiInput {
+public abstract class AbstractExternalOneInputPythonFunctionOperator<IN, OUT>
+        extends AbstractExternalDataStreamPythonFunctionOperator<OUT>
+        implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 
     private static final long serialVersionUID = 1L;
 
-    /** The left input type. */
-    private final TypeInformation<IN1> inputTypeInfo1;
+    /** The TypeInformation of input data. */
+    private final TypeInformation<IN> inputTypeInfo;
 
-    /** The right input type. */
-    private final TypeInformation<IN2> inputTypeInfo2;
-
-    /** The TypeInformation of python worker input data. */
+    /** The TypeInformation of runner input data. */
     private transient TypeInformation<Row> runnerInputTypeInfo;
 
+    /** The TypeInformation of runner output data. */
     private transient TypeInformation<Row> runnerOutputTypeInfo;
 
     /** The TypeSerializer of python worker input data. */
     private transient TypeSerializer<Row> runnerInputTypeSerializer;
 
-    /** The TypeSerializer of the runner output. */
+    /** The TypeSerializer of python worker output data. */
     private transient TypeSerializer<Row> runnerOutputTypeSerializer;
 
+    /** Reusable InputStream used to holding the execution results to be deserialized. */
     private transient ByteArrayInputStreamWithPos bais;
+
+    /** InputStream Wrapper. */
     private transient DataInputViewStreamWrapper baisWrapper;
+
+    /** Reusable OutputStream used to holding the serialized input elements. */
     protected transient ByteArrayOutputStreamWithPos baos;
+
+    /** OutputStream Wrapper. */
     protected transient DataOutputViewStreamWrapper baosWrapper;
 
     private transient RunnerInputHandler runnerInputHandler;
+
     private transient RunnerOutputCollector<OUT> runnerOutputCollector;
 
-    public AbstractTwoInputPythonFunctionOperator(
+    public AbstractExternalOneInputPythonFunctionOperator(
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
-            TypeInformation<IN1> inputTypeInfo1,
-            TypeInformation<IN2> inputTypeInfo2,
+            TypeInformation<IN> inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo) {
         super(config, pythonFunctionInfo, outputTypeInfo);
-        this.inputTypeInfo1 = Preconditions.checkNotNull(inputTypeInfo1);
-        this.inputTypeInfo2 = Preconditions.checkNotNull(inputTypeInfo2);
+        this.inputTypeInfo = Preconditions.checkNotNull(inputTypeInfo);
     }
 
     @Override
@@ -96,11 +102,14 @@ public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
         baos = new ByteArrayOutputStreamWithPos();
         baosWrapper = new DataOutputViewStreamWrapper(baos);
 
-        runnerInputTypeInfo =
-                RunnerInputHandler.getRunnerInputTypeInfo(inputTypeInfo1, inputTypeInfo2);
+        runnerInputTypeInfo = RunnerInputHandler.getRunnerInputTypeInfo(inputTypeInfo);
         runnerOutputTypeInfo = RunnerOutputCollector.getRunnerOutputTypeInfo(getProducedType());
-        runnerInputTypeSerializer = typeInfoSerializerConverter(runnerInputTypeInfo);
-        runnerOutputTypeSerializer = typeInfoSerializerConverter(runnerOutputTypeInfo);
+        runnerInputTypeSerializer =
+                PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
+                        runnerInputTypeInfo);
+        runnerOutputTypeSerializer =
+                PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
+                        runnerOutputTypeInfo);
 
         runnerInputHandler = new RunnerInputHandler();
         runnerOutputCollector = new RunnerOutputCollector<>(new TimestampedCollector<>(output));
@@ -109,7 +118,7 @@ public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
     }
 
     @Override
-    public void endInput(int inputId) throws Exception {
+    public void endInput() throws Exception {
         invokeFinishBundle();
     }
 
@@ -128,9 +137,8 @@ public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
         }
     }
 
-    public void processElement(boolean isLeft, long timestamp, long watermark, Object element)
-            throws Exception {
-        Row row = runnerInputHandler.buildRunnerInputData(isLeft, timestamp, watermark, element);
+    public void processElement(long timestamp, long watermark, Object element) throws Exception {
+        Row row = runnerInputHandler.buildRunnerInputData(timestamp, watermark, element);
         runnerInputTypeSerializer.serialize(row, baosWrapper);
         pythonFunctionRunner.process(baos.toByteArray());
         baos.reset();
@@ -159,52 +167,30 @@ public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
     // Getters
     // ----------------------------------------------------------------------
 
-    protected TypeInformation<IN1> getLeftInputType() {
-        return inputTypeInfo1;
-    }
-
-    protected TypeInformation<IN2> getRightInputType() {
-        return inputTypeInfo2;
+    public TypeInformation<IN> getInputTypeInfo() {
+        return inputTypeInfo;
     }
 
     private static final class RunnerInputHandler {
 
-        private final Row reusableElementData;
+        /** Reusable row for element data. */
         private final Row reusableRunnerInput;
 
         public RunnerInputHandler() {
-            this.reusableElementData = new Row(3);
             this.reusableRunnerInput = new Row(3);
-            this.reusableRunnerInput.setField(2, reusableElementData);
         }
 
-        public Row buildRunnerInputData(
-                boolean isLeft, long timestamp, long watermark, Object elementData) {
-            reusableElementData.setField(0, isLeft);
-            if (isLeft) {
-                // The input row is a tuple of key and value.
-                reusableElementData.setField(1, elementData);
-                // need to set null since it is a reuse row.
-                reusableElementData.setField(2, null);
-            } else {
-                // need to set null since it is a reuse row.
-                reusableElementData.setField(1, null);
-                // The input row is a tuple of key and value.
-                reusableElementData.setField(2, elementData);
-            }
-
+        public Row buildRunnerInputData(long timestamp, long watermark, Object elementData) {
             reusableRunnerInput.setField(0, timestamp);
             reusableRunnerInput.setField(1, watermark);
+            reusableRunnerInput.setField(2, elementData);
             return reusableRunnerInput;
         }
 
         public static TypeInformation<Row> getRunnerInputTypeInfo(
-                TypeInformation<?> leftInputType, TypeInformation<?> rightInputType) {
-            // structure: [timestamp, watermark, [isLeft, leftInput, rightInput]]
-            return Types.ROW(
-                    Types.LONG,
-                    Types.LONG,
-                    new RowTypeInfo(Types.BOOLEAN, leftInputType, rightInputType));
+                TypeInformation<?> elementDataTypeInfo) {
+            // structure: [timestamp, watermark, data]
+            return Types.ROW(Types.LONG, Types.LONG, elementDataTypeInfo);
         }
     }
 }

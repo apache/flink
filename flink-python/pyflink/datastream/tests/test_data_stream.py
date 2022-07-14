@@ -18,9 +18,12 @@
 import datetime
 import decimal
 import os
+import sys
 import uuid
 from collections import defaultdict
 from typing import Tuple
+
+import pytest
 
 from pyflink.common import Row, Configuration
 from pyflink.common.time import Time
@@ -1673,6 +1676,101 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
         results = self.test_sink.get_results(False)
         expected = ['1']
         self.assert_equals_sorted(expected, results)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
+class EmbeddedDataStreamTests(PyFlinkStreamingTestCase):
+    def setUp(self):
+        super(EmbeddedDataStreamTests, self).setUp()
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
+        config.setString("python.execution-mode", "thread")
+        config.setString("akka.ask.timeout", "20 s")
+        self.test_sink = DataStreamTestSinkFunction()
+
+    def tearDown(self) -> None:
+        self.test_sink.clear()
+
+    def assert_equals_sorted(self, expected, actual):
+        expected.sort()
+        actual.sort()
+        self.assertEqual(expected, actual)
+
+    def test_basic_operations(self):
+        ds = self.env.from_collection(
+            [('ab', Row('a', decimal.Decimal(1))),
+             ('bdc', Row('b', decimal.Decimal(2))),
+             ('cfgs', Row('c', decimal.Decimal(3))),
+             ('deeefg', Row('d', decimal.Decimal(4)))],
+            type_info=Types.TUPLE([Types.STRING(), Types.ROW([Types.STRING(), Types.BIG_DEC()])]))
+
+        class MyMapFunction(MapFunction):
+            def map(self, value):
+                return Row(value[0], value[1] + 1, value[2])
+
+        class MyFlatMapFunction(FlatMapFunction):
+            def flat_map(self, value):
+                if value[1] % 2 == 0:
+                    yield value
+
+        class MyFilterFunction(FilterFunction):
+            def filter(self, value):
+                return value[1] > 2
+
+        (ds.map(lambda i: (i[0], len(i[0]), i[1][1]),
+                output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
+           .flat_map(MyFlatMapFunction(),
+                     output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
+           .filter(MyFilterFunction())
+           .map(MyMapFunction(),
+                output_type=Types.ROW([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
+           .add_sink(self.test_sink))
+        self.env.execute('test_basic_operations')
+        results = self.test_sink.get_results()
+        expected = ["+I[cfgs, 5, 3]",
+                    "+I[deeefg, 7, 4]"]
+        self.assert_equals_sorted(expected, results)
+
+    def test_array_type_info(self):
+        ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
+                                       (2, [None, 2.2, 2.3], ['hello', None, 'flink']),
+                                       (3, [3.1, 3.2, None], ['hello', 'hi', None])],
+                                      type_info=Types.ROW([Types.INT(),
+                                                           Types.BASIC_ARRAY(Types.FLOAT()),
+                                                           Types.OBJECT_ARRAY(Types.STRING())]))
+
+        ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
+                                                   Types.BASIC_ARRAY(Types.FLOAT()),
+                                                   Types.OBJECT_ARRAY(Types.STRING())]))\
+            .add_sink(self.test_sink)
+        self.env.execute("test basic array type info")
+        results = self.test_sink.get_results()
+        expected = ['+I[1, [1.1, null, 1.3], [null, hi, flink]]',
+                    '+I[2, [null, 2.2, 2.3], [hello, null, flink]]',
+                    '+I[3, [3.1, 3.2, null], [hello, hi, null]]']
+        self.assert_equals_sorted(expected, results)
+
+    def test_partition_custom(self):
+        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2),
+                                       ('f', 7), ('g', 7), ('h', 8), ('i', 8), ('j', 9)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        expected_num_partitions = 5
+
+        def my_partitioner(key, num_partitions):
+            assert expected_num_partitions == num_partitions
+            return key % num_partitions
+
+        partitioned_stream = ds.map(lambda x: x, output_type=Types.ROW([Types.STRING(),
+                                                                        Types.INT()]))\
+            .set_parallelism(4).partition_custom(my_partitioner, lambda x: x[1])
+
+        JPartitionCustomTestMapFunction = get_gateway().jvm\
+            .org.apache.flink.python.util.PartitionCustomTestMapFunction
+        test_map_stream = DataStream(partitioned_stream
+                                     ._j_data_stream.map(JPartitionCustomTestMapFunction()))
+        test_map_stream.set_parallelism(expected_num_partitions).add_sink(self.test_sink)
+
+        self.env.execute('test_partition_custom')
 
 
 class MyKeySelector(KeySelector):

@@ -28,14 +28,17 @@ import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionI
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.operators.python.AbstractDataStreamPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.PythonCoProcessOperator;
-import org.apache.flink.streaming.api.operators.python.PythonKeyedCoProcessOperator;
-import org.apache.flink.streaming.api.operators.python.PythonKeyedProcessOperator;
-import org.apache.flink.streaming.api.operators.python.PythonProcessOperator;
+import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.AbstractEmbeddedDataStreamPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.AbstractExternalDataStreamPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonCoProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonKeyedCoProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonKeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonProcessOperator;
 import org.apache.flink.streaming.api.transformations.AbstractBroadcastStateTransformation;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
@@ -258,20 +261,46 @@ public class PythonOperatorChainingOptimizer {
         return chainInfo;
     }
 
+    @SuppressWarnings("unchecked")
     private static Transformation<?> createChainedTransformation(
             Transformation<?> upTransform, Transformation<?> downTransform) {
-        final AbstractDataStreamPythonFunctionOperator<?> upOperator =
-                (AbstractDataStreamPythonFunctionOperator<?>)
-                        ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform)).getOperator();
-        final PythonProcessOperator<?, ?> downOperator =
-                (PythonProcessOperator<?, ?>)
-                        ((SimpleOperatorFactory<?>) getOperatorFactory(downTransform))
-                                .getOperator();
+        StreamOperator<?> upOperator =
+                ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform)).getOperator();
 
-        final DataStreamPythonFunctionInfo upPythonFunctionInfo =
-                upOperator.getPythonFunctionInfo().copy();
-        final DataStreamPythonFunctionInfo downPythonFunctionInfo =
-                downOperator.getPythonFunctionInfo().copy();
+        StreamOperator<?> downOperator =
+                ((SimpleOperatorFactory<?>) getOperatorFactory(downTransform)).getOperator();
+
+        assert arePythonOperatorsInSameExecutionEnvironment(upOperator, downOperator);
+
+        final DataStreamPythonFunctionInfo upPythonFunctionInfo;
+
+        final DataStreamPythonFunctionInfo downPythonFunctionInfo;
+
+        if (upOperator instanceof AbstractExternalDataStreamPythonFunctionOperator) {
+            upPythonFunctionInfo =
+                    ((AbstractExternalDataStreamPythonFunctionOperator) upOperator)
+                            .getPythonFunctionInfo()
+                            .copy();
+            downPythonFunctionInfo =
+                    ((AbstractExternalDataStreamPythonFunctionOperator) downOperator)
+                            .getPythonFunctionInfo()
+                            .copy();
+        } else if (upOperator instanceof AbstractEmbeddedDataStreamPythonFunctionOperator) {
+            upPythonFunctionInfo =
+                    ((AbstractEmbeddedDataStreamPythonFunctionOperator) upOperator)
+                            .getPythonFunctionInfo()
+                            .copy();
+
+            downPythonFunctionInfo =
+                    ((AbstractEmbeddedDataStreamPythonFunctionOperator) downOperator)
+                            .getPythonFunctionInfo()
+                            .copy();
+        } else {
+            throw new RuntimeException(
+                    "The Operator should be the AbstractExternalDataStreamPythonFunctionOperator or "
+                            + "AbstractEmbeddedDataStreamPythonFunctionOperator, but it is "
+                            + upOperator);
+        }
 
         DataStreamPythonFunctionInfo headPythonFunctionInfoOfDownOperator = downPythonFunctionInfo;
         while (headPythonFunctionInfoOfDownOperator.getInputs().length != 0) {
@@ -282,16 +311,49 @@ public class PythonOperatorChainingOptimizer {
         headPythonFunctionInfoOfDownOperator.setInputs(
                 new DataStreamPythonFunctionInfo[] {upPythonFunctionInfo});
 
-        final AbstractDataStreamPythonFunctionOperator<?> chainedOperator =
-                upOperator.copy(downPythonFunctionInfo, downOperator.getProducedType());
-        chainedOperator.addSideOutputTags(downOperator.getSideOutputTags());
+        final AbstractPythonFunctionOperator chainedOperator;
+        if (upOperator instanceof AbstractExternalDataStreamPythonFunctionOperator) {
+            chainedOperator =
+                    ((AbstractExternalDataStreamPythonFunctionOperator) upOperator)
+                            .copy(
+                                    downPythonFunctionInfo,
+                                    ((AbstractExternalDataStreamPythonFunctionOperator)
+                                                    downOperator)
+                                            .getProducedType());
+            ((AbstractExternalDataStreamPythonFunctionOperator) chainedOperator)
+                    .addSideOutputTags(
+                            ((AbstractExternalDataStreamPythonFunctionOperator) downOperator)
+                                    .getSideOutputTags());
 
-        // set partition custom flag
-        chainedOperator.setContainsPartitionCustom(
-                downOperator.containsPartitionCustom() || upOperator.containsPartitionCustom());
+            // set partition custom flag
+            ((AbstractExternalDataStreamPythonFunctionOperator) chainedOperator)
+                    .setContainsPartitionCustom(
+                            ((AbstractExternalDataStreamPythonFunctionOperator) downOperator)
+                                            .containsPartitionCustom()
+                                    || ((AbstractExternalDataStreamPythonFunctionOperator)
+                                                    upOperator)
+                                            .containsPartitionCustom());
+        } else {
+            chainedOperator =
+                    ((AbstractEmbeddedDataStreamPythonFunctionOperator) upOperator)
+                            .copy(
+                                    downPythonFunctionInfo,
+                                    ((AbstractEmbeddedDataStreamPythonFunctionOperator)
+                                                    downOperator)
+                                            .getProducedType());
+
+            // set partition custom flag
+            ((AbstractEmbeddedDataStreamPythonFunctionOperator) chainedOperator)
+                    .setContainsPartitionCustom(
+                            ((AbstractEmbeddedDataStreamPythonFunctionOperator) downOperator)
+                                            .containsPartitionCustom()
+                                    || ((AbstractEmbeddedDataStreamPythonFunctionOperator)
+                                                    upOperator)
+                                            .containsPartitionCustom());
+        }
 
         PhysicalTransformation<?> chainedTransformation;
-        if (upOperator instanceof AbstractOneInputPythonFunctionOperator) {
+        if (upOperator instanceof OneInputStreamOperator) {
             chainedTransformation =
                     new OneInputTransformation(
                             upTransform.getInputs().get(0),
@@ -397,19 +459,31 @@ public class PythonOperatorChainingOptimizer {
             return false;
         }
 
-        final AbstractDataStreamPythonFunctionOperator<?> upOperator =
-                (AbstractDataStreamPythonFunctionOperator<?>)
-                        ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform)).getOperator();
-        final AbstractDataStreamPythonFunctionOperator<?> downOperator =
-                (AbstractDataStreamPythonFunctionOperator<?>)
-                        ((SimpleOperatorFactory<?>) getOperatorFactory(downTransform))
-                                .getOperator();
+        StreamOperator<?> upOperator =
+                ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform)).getOperator();
 
-        return downOperator instanceof PythonProcessOperator
-                && (upOperator instanceof PythonKeyedProcessOperator
-                        || upOperator instanceof PythonKeyedCoProcessOperator
-                        || upOperator instanceof PythonProcessOperator
-                        || upOperator instanceof PythonCoProcessOperator);
+        StreamOperator<?> downOperator =
+                ((SimpleOperatorFactory<?>) getOperatorFactory(downTransform)).getOperator();
+
+        if (!arePythonOperatorsInSameExecutionEnvironment(upOperator, downOperator)) {
+            return false;
+        }
+
+        return (downOperator instanceof ExternalPythonProcessOperator
+                        && (upOperator instanceof ExternalPythonKeyedProcessOperator
+                                || upOperator instanceof ExternalPythonKeyedCoProcessOperator
+                                || upOperator instanceof ExternalPythonProcessOperator
+                                || upOperator instanceof ExternalPythonCoProcessOperator))
+                || (downOperator instanceof EmbeddedPythonProcessOperator
+                        && upOperator instanceof EmbeddedPythonProcessOperator);
+    }
+
+    private static boolean arePythonOperatorsInSameExecutionEnvironment(
+            StreamOperator<?> upOperator, StreamOperator<?> downOperator) {
+        return upOperator instanceof AbstractExternalDataStreamPythonFunctionOperator
+                        && downOperator instanceof AbstractExternalDataStreamPythonFunctionOperator
+                || upOperator instanceof AbstractEmbeddedDataStreamPythonFunctionOperator
+                        && downOperator instanceof AbstractEmbeddedDataStreamPythonFunctionOperator;
     }
 
     private static boolean areOperatorsChainableByChainingStrategy(

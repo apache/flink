@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.python;
+package org.apache.flink.streaming.api.operators.python.process;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -40,9 +40,9 @@ import java.util.Map;
 
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
 
-/** Base class for all Python DataStream operators. */
+/** Base class for all Python DataStream operators executed in Python process. */
 @Internal
-public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
+public abstract class AbstractExternalDataStreamPythonFunctionOperator<OUT>
         extends AbstractExternalPythonFunctionOperator<OUT> implements ResultTypeQueryable<OUT> {
 
     private static final long serialVersionUID = 1L;
@@ -68,7 +68,7 @@ public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
 
     private transient Map<String, TypeSerializer<Row>> sideOutputSerializers;
 
-    public AbstractDataStreamPythonFunctionOperator(
+    public AbstractExternalDataStreamPythonFunctionOperator(
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
             TypeInformation<OUT> outputTypeInfo) {
@@ -100,7 +100,7 @@ public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
         return outputTypeInfo;
     }
 
-    public abstract <T> AbstractDataStreamPythonFunctionOperator<T> copy(
+    public abstract <T> AbstractExternalDataStreamPythonFunctionOperator<T> copy(
             DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo);
 
     public Map<String, String> getInternalParameters() {
