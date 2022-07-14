@@ -15,19 +15,27 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import glob
 import os
 import tempfile
 import unittest
 from typing import Tuple, List
 
+from avro.datafile import DataFileReader
+from avro.io import DatumReader
 from py4j.java_gateway import java_import, JavaObject
 
 from pyflink.common import Types, Configuration
 from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream.formats.csv import CsvSchema, CsvReaderFormat
 from pyflink.datastream.functions import MapFunction
-from pyflink.datastream.connectors.file_system import FileSource
-from pyflink.datastream.formats.avro import AvroSchema, AvroInputFormat
+from pyflink.datastream.connectors.file_system import FileSource, FileSink
+from pyflink.datastream.formats.avro import (
+    AvroInputFormat,
+    AvroSchema,
+    AvroWriters,
+    GenericRecordAvroTypeInfo,
+)
 from pyflink.datastream.formats.parquet import AvroParquetReaders, ParquetColumnarRowInputFormat
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
@@ -310,61 +318,56 @@ class FileSourceAvroInputFormatTests(PyFlinkStreamingTestCase):
     def setUp(self):
         super().setUp()
         self.test_sink = DataStreamTestSinkFunction()
+        self.avro_file_name = tempfile.mktemp(suffix='.avro', dir=self.tempdir)
         _import_avro_classes()
 
-    def test_avro_basic(self):
-        avro_file_name = tempfile.mktemp(suffix='.avro', dir=self.tempdir)
+    def test_avro_basic_read(self):
         schema, records = _create_basic_avro_schema_and_records()
-        self._create_avro_file(avro_file_name, schema, records)
-        self._build_avro_job(schema, avro_file_name)
-        self.env.execute("test_avro_basic")
+        self._create_avro_file(schema, records)
+        self._build_avro_job(schema)
+        self.env.execute('test_avro_basic_read')
         results = self.test_sink.get_results(True, False)
         _check_basic_avro_schema_results(self, results)
 
-    def test_avro_enum(self):
-        avro_file_name = tempfile.mktemp(suffix='.avro', dir=self.tempdir)
+    def test_avro_enum_read(self):
         schema, records = _create_enum_avro_schema_and_records()
-        self._create_avro_file(avro_file_name, schema, records)
-        self._build_avro_job(schema, avro_file_name)
-        self.env.execute("test_avro_enum")
+        self._create_avro_file(schema, records)
+        self._build_avro_job(schema)
+        self.env.execute('test_avro_enum_read')
         results = self.test_sink.get_results(True, False)
         _check_enum_avro_schema_results(self, results)
 
-    def test_avro_union(self):
-        avro_file_name = tempfile.mktemp(suffix='.avro', dir=self.tempdir)
+    def test_avro_union_read(self):
         schema, records = _create_union_avro_schema_and_records()
-        self._create_avro_file(avro_file_name, schema, records)
-        self._build_avro_job(schema, avro_file_name)
-        self.env.execute("test_avro_union")
+        self._create_avro_file(schema, records)
+        self._build_avro_job(schema)
+        self.env.execute('test_avro_union_read')
         results = self.test_sink.get_results(True, False)
         _check_union_avro_schema_results(self, results)
 
-    def test_avro_array(self):
-        avro_file_name = tempfile.mktemp(suffix='.avro', dir=self.tempdir)
+    def test_avro_array_read(self):
         schema, records = _create_array_avro_schema_and_records()
-        self._create_avro_file(avro_file_name, schema, records)
-        self._build_avro_job(schema, avro_file_name)
-        self.env.execute("test_avro_array")
+        self._create_avro_file(schema, records)
+        self._build_avro_job(schema)
+        self.env.execute('test_avro_array_read')
         results = self.test_sink.get_results(True, False)
         _check_array_avro_schema_results(self, results)
 
-    def test_avro_map(self):
-        avro_file_name = tempfile.mktemp(suffix='.avro', dir=self.tempdir)
+    def test_avro_map_read(self):
         schema, records = _create_map_avro_schema_and_records()
-        self._create_avro_file(avro_file_name, schema, records)
-        self._build_avro_job(schema, avro_file_name)
-        self.env.execute("test_avro_map")
+        self._create_avro_file(schema, records)
+        self._build_avro_job(schema)
+        self.env.execute('test_avro_map_read')
         results = self.test_sink.get_results(True, False)
         _check_map_avro_schema_results(self, results)
 
-    def _build_avro_job(self, record_schema, avro_file_name):
-        ds = self.env.create_input(AvroInputFormat(avro_file_name, record_schema))
+    def _build_avro_job(self, record_schema):
+        ds = self.env.create_input(AvroInputFormat(self.avro_file_name, record_schema))
         ds.map(PassThroughMapFunction()).add_sink(self.test_sink)
 
-    @staticmethod
-    def _create_avro_file(file_path: str, schema: AvroSchema, records: list):
+    def _create_avro_file(self, schema: AvroSchema, records: list):
         jvm = get_gateway().jvm
-        j_file = jvm.java.io.File(file_path)
+        j_file = jvm.java.io.File(self.avro_file_name)
         j_datum_writer = jvm.org.apache.flink.avro.shaded.org.apache.avro.generic \
             .GenericDatumWriter()
         j_file_writer = jvm.org.apache.flink.avro.shaded.org.apache.avro.file \
@@ -373,6 +376,64 @@ class FileSourceAvroInputFormatTests(PyFlinkStreamingTestCase):
         for r in records:
             j_file_writer.append(r)
         j_file_writer.close()
+
+
+class FileSinkAvroWritersTests(PyFlinkStreamingTestCase):
+
+    def setUp(self):
+        super().setUp()
+        # NOTE: parallelism == 1 is required to keep the order of results
+        self.env.set_parallelism(1)
+        self.avro_dir_name = tempfile.mkdtemp(dir=self.tempdir)
+
+    def test_avro_basic_write(self):
+        schema, objects = _create_basic_avro_schema_and_py_objects()
+        self._build_avro_job(schema, objects)
+        self.env.execute('test_avro_basic_write')
+        results = self._read_avro_file()
+        _check_basic_avro_schema_results(self, results)
+
+    def test_avro_enum_write(self):
+        schema, objects = _create_enum_avro_schema_and_py_objects()
+        self._build_avro_job(schema, objects)
+        self.env.execute('test_avro_enum_write')
+        results = self._read_avro_file()
+        _check_enum_avro_schema_results(self, results)
+
+    def test_avro_union_write(self):
+        schema, objects = _create_union_avro_schema_and_py_objects()
+        self._build_avro_job(schema, objects)
+        self.env.execute('test_avro_union_write')
+        results = self._read_avro_file()
+        _check_union_avro_schema_results(self, results)
+
+    def test_avro_array_write(self):
+        schema, objects = _create_array_avro_schema_and_py_objects()
+        self._build_avro_job(schema, objects)
+        self.env.execute('test_avro_array_write')
+        results = self._read_avro_file()
+        _check_array_avro_schema_results(self, results)
+
+    def test_avro_map_write(self):
+        schema, objects = _create_map_avro_schema_and_py_objects()
+        self._build_avro_job(schema, objects)
+        self.env.execute('test_avro_map_write')
+        results = self._read_avro_file()
+        _check_map_avro_schema_results(self, results)
+
+    def _build_avro_job(self, schema, objects):
+        ds = self.env.from_collection(objects)
+        sink = FileSink.for_bulk_format(
+            self.avro_dir_name, AvroWriters.for_generic_record(schema)
+        ).build()
+        ds.map(lambda e: e, output_type=GenericRecordAvroTypeInfo(schema)).sink_to(sink)
+
+    def _read_avro_file(self) -> List[dict]:
+        records = []
+        for file in glob.glob(os.path.join(os.path.join(self.avro_dir_name, '**/*'))):
+            for record in DataFileReader(open(file, 'rb'), DatumReader()):
+                records.append(record)
+        return records
 
 
 class PassThroughMapFunction(MapFunction):
@@ -389,26 +450,39 @@ def _import_avro_classes():
         java_import(jvm, prefix + cls)
 
 
+BASIC_SCHEMA = """
+{
+    "type": "record",
+    "name": "test",
+    "fields": [
+        { "name": "null", "type": "null" },
+        { "name": "boolean", "type": "boolean" },
+        { "name": "int", "type": "int" },
+        { "name": "long", "type": "long" },
+        { "name": "float", "type": "float" },
+        { "name": "double", "type": "double" },
+        { "name": "string", "type": "string" }
+    ]
+}
+"""
+
+
 def _create_basic_avro_schema_and_records() -> Tuple[AvroSchema, List[JavaObject]]:
-    record_schema = """
-    {
-        "type": "record",
-        "name": "test",
-        "fields": [
-            { "name": "null", "type": "null" },
-            { "name": "boolean", "type": "boolean" },
-            { "name": "int", "type": "int" },
-            { "name": "long", "type": "long" },
-            { "name": "float", "type": "float" },
-            { "name": "double", "type": "double" },
-            { "name": "string", "type": "string" }
-        ]
-    }
-    """
-    schema = AvroSchema.parse_string(record_schema)
+    schema = AvroSchema.parse_string(BASIC_SCHEMA)
     records = [_create_basic_avro_record(schema, True, 0, 1, 2, 3, 's1'),
                _create_basic_avro_record(schema, False, 4, 5, 6, 7, 's2')]
     return schema, records
+
+
+def _create_basic_avro_schema_and_py_objects() -> Tuple[AvroSchema, List[dict]]:
+    schema = AvroSchema.parse_string(BASIC_SCHEMA)
+    objects = [
+        {'null': None, 'boolean': True, 'int': 0, 'long': 1,
+         'float': 2., 'double': 3., 'string': 's1'},
+        {'null': None, 'boolean': False, 'int': 4, 'long': 5,
+         'float': 6., 'double': 7., 'string': 's2'},
+    ]
+    return schema, objects
 
 
 def _check_basic_avro_schema_results(test, results):
@@ -430,26 +504,37 @@ def _check_basic_avro_schema_results(test, results):
     test.assertEqual(result2['string'], 's2')
 
 
-def _create_enum_avro_schema_and_records() -> Tuple[AvroSchema, List[JavaObject]]:
-    record_schema = """
-    {
-        "type": "record",
-        "name": "test",
-        "fields": [
-            {
-                "name": "suit",
-                "type": {
-                    "type": "enum",
-                    "name": "Suit",
-                    "symbols" : ["SPADES", "HEARTS", "DIAMONDS", "CLUBS"]
-                }
+ENUM_SCHEMA = """
+{
+    "type": "record",
+    "name": "test",
+    "fields": [
+        {
+            "name": "suit",
+            "type": {
+                "type": "enum",
+                "name": "Suit",
+                "symbols" : ["SPADES", "HEARTS", "DIAMONDS", "CLUBS"]
             }
-        ]
-    }
-    """
-    schema = AvroSchema.parse_string(record_schema)
+        }
+    ]
+}
+"""
+
+
+def _create_enum_avro_schema_and_records() -> Tuple[AvroSchema, List[JavaObject]]:
+    schema = AvroSchema.parse_string(ENUM_SCHEMA)
     records = [_create_enum_avro_record(schema, 'SPADES'),
                _create_enum_avro_record(schema, 'DIAMONDS')]
+    return schema, records
+
+
+def _create_enum_avro_schema_and_py_objects() -> Tuple[AvroSchema, List[dict]]:
+    schema = AvroSchema.parse_string(ENUM_SCHEMA)
+    records = [
+        {'suit': 'SPADES'},
+        {'suit': 'DIAMONDS'},
+    ]
     return schema, records
 
 
@@ -458,23 +543,35 @@ def _check_enum_avro_schema_results(test, results):
     test.assertEqual(results[1]['suit'], 'DIAMONDS')
 
 
+UNION_SCHEMA = """
+{
+    "type": "record",
+    "name": "test",
+    "fields": [
+        {
+            "name": "union",
+            "type": [ "int", "double", "null" ]
+        }
+    ]
+}
+"""
+
+
 def _create_union_avro_schema_and_records() -> Tuple[AvroSchema, List[JavaObject]]:
-    record_schema = """
-    {
-        "type": "record",
-        "name": "test",
-        "fields": [
-            {
-                "name": "union",
-                "type": [ "int", "double", "null" ]
-            }
-        ]
-    }
-    """
-    schema = AvroSchema.parse_string(record_schema)
+    schema = AvroSchema.parse_string(UNION_SCHEMA)
     records = [_create_union_avro_record(schema, 1),
                _create_union_avro_record(schema, 2.),
                _create_union_avro_record(schema, None)]
+    return schema, records
+
+
+def _create_union_avro_schema_and_py_objects() -> Tuple[AvroSchema, List[dict]]:
+    schema = AvroSchema.parse_string(UNION_SCHEMA)
+    records = [
+        {'union': 1},
+        {'union': 2.},
+        {'union': None},
+    ]
     return schema, records
 
 
@@ -484,34 +581,45 @@ def _check_union_avro_schema_results(test, results):
     test.assertEqual(results[2]['union'], None)
 
 
-def _create_array_avro_schema_and_records() -> Tuple[AvroSchema, List[JavaObject]]:
-    # It seems there's bug when array item record contains only one field, which throws
-    # java.lang.ClassCastException: required ... is not a group when reading
-    record_schema = """
-    {
-        "type": "record",
-        "name": "test",
-        "fields": [
-            {
-                "name": "array",
-                "type": {
-                    "type": "array",
-                    "items": {
-                        "type": "record",
-                        "name": "item",
-                        "fields": [
-                            { "name": "int", "type": "int" },
-                            { "name": "double", "type": "double" }
-                        ]
-                    }
+# It seems there's bug when array item record contains only one field, which throws
+# java.lang.ClassCastException: required ... is not a group when reading
+ARRAY_SCHEMA = """
+{
+    "type": "record",
+    "name": "test",
+    "fields": [
+        {
+            "name": "array",
+            "type": {
+                "type": "array",
+                "items": {
+                    "type": "record",
+                    "name": "item",
+                    "fields": [
+                        { "name": "int", "type": "int" },
+                        { "name": "double", "type": "double" }
+                    ]
                 }
             }
-        ]
-    }
-    """
-    schema = AvroSchema.parse_string(record_schema)
+        }
+    ]
+}
+"""
+
+
+def _create_array_avro_schema_and_records() -> Tuple[AvroSchema, List[JavaObject]]:
+    schema = AvroSchema.parse_string(ARRAY_SCHEMA)
     records = [_create_array_avro_record(schema, [(1, 2.), (3, 4.)]),
                _create_array_avro_record(schema, [(5, 6.), (7, 8.)])]
+    return schema, records
+
+
+def _create_array_avro_schema_and_py_objects() -> Tuple[AvroSchema, List[dict]]:
+    schema = AvroSchema.parse_string(ARRAY_SCHEMA)
+    records = [
+        {'array': [{'int': 1, 'double': 2.}, {'int': 3, 'double': 4.}]},
+        {'array': [{'int': 5, 'double': 6.}, {'int': 7, 'double': 8.}]},
+    ]
     return schema, records
 
 
@@ -528,25 +636,36 @@ def _check_array_avro_schema_results(test, results):
     test.assertAlmostEqual(result2['array'][1]['double'], 8., delta=1e-3)
 
 
-def _create_map_avro_schema_and_records() -> Tuple[AvroSchema, List[JavaObject]]:
-    record_schema = """
-    {
-        "type": "record",
-        "name": "test",
-        "fields": [
-            {
-                "name": "map",
-                "type": {
-                    "type": "map",
-                    "values": "long"
-                }
+MAP_SCHEMA = """
+{
+    "type": "record",
+    "name": "test",
+    "fields": [
+        {
+            "name": "map",
+            "type": {
+                "type": "map",
+                "values": "long"
             }
-        ]
-    }
-    """
-    schema = AvroSchema.parse_string(record_schema)
+        }
+    ]
+}
+"""
+
+
+def _create_map_avro_schema_and_records() -> Tuple[AvroSchema, List[JavaObject]]:
+    schema = AvroSchema.parse_string(MAP_SCHEMA)
     records = [_create_map_avro_record(schema, {'a': 1, 'b': 2}),
                _create_map_avro_record(schema, {'c': 3, 'd': 4})]
+    return schema, records
+
+
+def _create_map_avro_schema_and_py_objects() -> Tuple[AvroSchema, List[dict]]:
+    schema = AvroSchema.parse_string(MAP_SCHEMA)
+    records = [
+        {'map': {'a': 1, 'b': 2}},
+        {'map': {'c': 3, 'd': 4}},
+    ]
     return schema, records
 
 

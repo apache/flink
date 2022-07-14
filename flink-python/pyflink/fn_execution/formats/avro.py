@@ -17,22 +17,35 @@
 ################################################################################
 import struct
 
-from avro.io import DatumReader, SchemaResolutionException, BinaryDecoder
+from avro.io import (
+    AvroTypeException,
+    BinaryDecoder,
+    BinaryEncoder,
+    DatumReader,
+    DatumWriter,
+    SchemaResolutionException,
+    Validate,
+)
 
 STRUCT_FLOAT = struct.Struct('>f')  # big-endian float
 STRUCT_DOUBLE = struct.Struct('>d')  # big-endian double
+STRUCT_INT = struct.Struct('>i')  # big-endian int
+STRUCT_LONG_LONG = struct.Struct('>q')  # big-endian long long
 
 
 class FlinkAvroBufferWrapper(object):
 
     def __init__(self):
-        self._in_stream = None
+        self._stream = None
 
-    def switch_stream(self, in_stream):
-        self._in_stream = in_stream
+    def switch_stream(self, stream):
+        self._stream = stream
 
     def read(self, n=1):
-        return self._in_stream.read(n)
+        return self._stream.read(n)
+
+    def write(self, data):
+        return self._stream.write(data)
 
 
 class FlinkAvroDecoder(BinaryDecoder):
@@ -42,23 +55,13 @@ class FlinkAvroDecoder(BinaryDecoder):
     """
 
     def __init__(self, reader):
-        super(FlinkAvroDecoder, self).__init__(reader)
+        super().__init__(reader)
 
     def read_int(self):
-        return ((ord(self.read(1)) << 24) +
-                (ord(self.read(1)) << 16) +
-                (ord(self.read(1)) << 8) +
-                ord(self.read(1)))
+        return STRUCT_INT.unpack(self.read(4))[0]
 
     def read_long(self):
-        return ((ord(self.read(1)) << 56) +
-                (ord(self.read(1)) << 48) +
-                (ord(self.read(1)) << 40) +
-                (ord(self.read(1)) << 32) +
-                (ord(self.read(1)) << 24) +
-                (ord(self.read(1)) << 16) +
-                (ord(self.read(1)) << 8) +
-                ord(self.read(1)))
+        return STRUCT_LONG_LONG.unpack(self.read(8))[0]
 
     def read_var_long(self):
         """
@@ -167,3 +170,65 @@ class FlinkAvroDatumReader(DatumReader):
                        % (index_of_schema, len(writer_schema.schemas))
             raise SchemaResolutionException(fail_msg, writer_schema)
         return self.skip_data(writer_schema.schemas[index_of_schema], decoder)
+
+
+class FlinkAvroEncoder(BinaryEncoder):
+
+    def __init__(self, writer):
+        super().__init__(writer)
+
+    def write_int(self, datum):
+        self.write(STRUCT_INT.pack(datum))
+
+    def write_long(self, datum):
+        self.write(STRUCT_LONG_LONG.pack(datum))
+
+    def write_var_long(self, datum):
+        while datum & 0x80 != 0:
+            self.write((datum & 0x80).to_bytes(1, 'big'))
+            datum <<= 7
+        self.write(datum.to_bytes(1, 'big'))
+
+    def write_float(self, datum):
+        self.write(STRUCT_FLOAT.pack(datum))
+
+    def write_double(self, datum):
+        self.write(STRUCT_DOUBLE.pack(datum))
+
+    def write_bytes(self, datum):
+        self.write_int(len(datum))
+        self.write(datum)
+
+
+class FlinkAvroDatumWriter(DatumWriter):
+
+    def __init__(self, writer_schema=None):
+        super().__init__(writer_schema=writer_schema)
+
+    def write_array(self, writer_schema, datum, encoder):
+        if len(datum) > 0:
+            encoder.write_var_long(len(datum))
+            for item in datum:
+                self.write_data(writer_schema.items, item, encoder)
+        encoder.write_long(0)
+
+    def write_map(self, writer_schema, datum, encoder):
+        if len(datum) > 0:
+            encoder.write_var_long(len(datum))
+            for key, val in datum.items():
+                encoder.write_utf8(key)
+                self.write_data(writer_schema.values, val, encoder)
+        encoder.write_var_long(0)
+
+    def write_union(self, writer_schema, datum, encoder):
+        # resolve union
+        index_of_schema = -1
+        for i, candidate_schema in enumerate(writer_schema.schemas):
+            if Validate(candidate_schema, datum):
+                index_of_schema = i
+        if index_of_schema < 0:
+            raise AvroTypeException(writer_schema, datum)
+
+        # write data
+        encoder.write_int(index_of_schema)
+        self.write_data(writer_schema.schemas[index_of_schema], datum, encoder)

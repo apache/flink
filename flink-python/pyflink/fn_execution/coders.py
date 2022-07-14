@@ -18,8 +18,10 @@
 
 import os
 from abc import ABC, abstractmethod
+from typing import Union
 
 import pytz
+from pyflink.datastream.formats.avro import GenericRecordAvroTypeInfo, AvroSchema
 
 from pyflink.common.typeinfo import TypeInformation, BasicTypeInfo, BasicType, DateTypeInfo, \
     TimeTypeInfo, TimestampTypeInfo, PrimitiveArrayTypeInfo, BasicArrayTypeInfo, TupleTypeInfo, \
@@ -608,8 +610,13 @@ class DataViewFilterCoder(FieldCoder):
 
 class AvroCoder(FieldCoder):
 
-    def __init__(self, schema_string: str):
-        self._schema_string = schema_string
+    def __init__(self, schema: Union[str, AvroSchema]):
+        if isinstance(schema, str):
+            self._schema_string = schema
+        elif isinstance(schema, AvroSchema):
+            self._schema_string = str(schema)
+        else:
+            raise ValueError('schema for AvroCoder must be string or AvroSchema')
 
     def get_impl(self):
         return coder_impl.AvroCoderImpl(self._schema_string)
@@ -770,5 +777,7 @@ def from_type_info(type_info: TypeInformation) -> FieldCoder:
             [f for f in type_info.get_field_names()])
     elif isinstance(type_info, ExternalTypeInfo):
         return from_type_info(type_info._type_info)
+    elif isinstance(type_info, GenericRecordAvroTypeInfo):
+        return AvroCoder(type_info._schema)
     else:
         raise ValueError("Unsupported type_info %s." % type_info)

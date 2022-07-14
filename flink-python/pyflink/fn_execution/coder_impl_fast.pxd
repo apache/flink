@@ -187,6 +187,8 @@ cdef class DataViewFilterCoderImpl(FieldCoderImpl):
 
 cdef class AvroCoderImpl(FieldCoderImpl):
     cdef object _buffer_wrapper
-    cdef object _decoder
     cdef object _schema
+    cdef object _decoder
+    cdef object _encoder
     cdef object _reader
+    cdef object _writer

@@ -34,6 +34,15 @@ class ResultTypeQueryable(object):
         pass
 
 
+class JavaObjectWrapper(object):
+
+    def __init__(self, j_object):
+        self._j_object = j_object
+
+    def get_java_object(self):
+        return self._j_object
+
+
 def convert_to_python_obj(data, type_info):
     if type_info == Types.PICKLED_BYTE_ARRAY():
         return pickle.loads(data)
