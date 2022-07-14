@@ -60,8 +60,8 @@ public class OperationManager {
     private final Map<OperationHandle, Operation> submittedOperations;
     private final ExecutorService service;
     /**
-     * Operation lock is used to control the execution among the {@link Operation}. The reason why
-     * using the lock to control the execution in sequence is the managers, e.g. CatalogManager are
+     * Operation lock is used to control the execution among the {@link Operation}s. The reason why
+     * using the lock to control the execution in sequence is the managers, e.g. CatalogManager is
      * not thread safe.
      */
     private final Semaphore operationLock;
