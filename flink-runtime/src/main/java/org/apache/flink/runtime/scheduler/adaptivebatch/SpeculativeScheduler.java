@@ -70,6 +70,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -145,6 +146,9 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
 
         this.blockSlowNodeDuration =
                 jobMasterConfiguration.get(JobManagerOptions.BLOCK_SLOW_NODE_DURATION);
+        checkArgument(
+                !blockSlowNodeDuration.isNegative(),
+                "The blocking duration should not be negative.");
 
         this.blocklistOperations = checkNotNull(blocklistOperations);
 
@@ -268,19 +272,9 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
 
     @Override
     public void notifySlowTasks(Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks) {
+
         // add slow nodes to blocklist before scheduling new speculative executions
-        final long blockedEndTimestamp =
-                System.currentTimeMillis() + blockSlowNodeDuration.toMillis();
-        final Collection<BlockedNode> nodesToBlock =
-                getSlowNodeIds(slowTasks).stream()
-                        .map(
-                                nodeId ->
-                                        new BlockedNode(
-                                                nodeId,
-                                                "Node is detected to be slow.",
-                                                blockedEndTimestamp))
-                        .collect(Collectors.toList());
-        blocklistOperations.addNewBlockedNodes(nodesToBlock);
+        blockSlowNodes(slowTasks);
 
         final List<Execution> newSpeculativeExecutions = new ArrayList<>();
         final Set<ExecutionVertexID> verticesToDeploy = new HashSet<>();
@@ -312,6 +306,23 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
         executionDeployer.allocateSlotsAndDeploy(
                 newSpeculativeExecutions,
                 executionVertexVersioner.getExecutionVertexVersions(verticesToDeploy));
+    }
+
+    private void blockSlowNodes(Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks) {
+        if (!blockSlowNodeDuration.isZero()) {
+            final long blockedEndTimestamp =
+                    System.currentTimeMillis() + blockSlowNodeDuration.toMillis();
+            final Collection<BlockedNode> nodesToBlock =
+                    getSlowNodeIds(slowTasks).stream()
+                            .map(
+                                    nodeId ->
+                                            new BlockedNode(
+                                                    nodeId,
+                                                    "Node is detected to be slow.",
+                                                    blockedEndTimestamp))
+                            .collect(Collectors.toList());
+            blocklistOperations.addNewBlockedNodes(nodesToBlock);
+        }
     }
 
     private Set<String> getSlowNodeIds(
