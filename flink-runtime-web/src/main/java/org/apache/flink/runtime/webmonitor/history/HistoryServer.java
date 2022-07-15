@@ -34,6 +34,7 @@ import org.apache.flink.runtime.rest.handler.job.GeneratedLogUrlHandler;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
 import org.apache.flink.runtime.rest.messages.JobManagerLogUrlHeaders;
+import org.apache.flink.runtime.rest.messages.TaskManagerLogUrlHeaders;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -304,7 +305,7 @@ public class HistoryServer {
                     .ifPresent(
                             pattern ->
                                     router.addGet(
-                                            JobManagerLogUrlHeaders.getInstance()
+                                            TaskManagerLogUrlHeaders.getInstance()
                                                     .getTargetRestEndpointURL(),
                                             new GeneratedLogUrlHandler(
                                                     CompletableFuture.completedFuture(pattern))));

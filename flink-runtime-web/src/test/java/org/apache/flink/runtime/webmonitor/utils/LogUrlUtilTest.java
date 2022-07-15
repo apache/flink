@@ -20,7 +20,7 @@ package org.apache.flink.runtime.webmonitor.utils;
 
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
@@ -29,36 +29,49 @@ import static org.apache.flink.configuration.HistoryServerOptions.HISTORY_SERVER
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LogUrlUtil}. */
-public class LogUrlUtilTest {
+class LogUrlUtilTest {
 
     private static final String PATTERN_WITHOUT_SCHEME =
             "my.testing-url?job=<jobid>&taskmanager=<tmid>";
 
     @Test
-    public void testGetValidLogUrlPatternHttp() {
+    void testGetValidLogUrlPatternHttp() {
         String pattern = "http://" + PATTERN_WITHOUT_SCHEME;
         testGetValidLogUrlPattern(pattern, Optional.of(pattern));
     }
 
     @Test
-    public void testGetValidLogUrlPatternHttps() {
+    void testGetValidLogUrlPatternHttps() {
         String pattern = "https://" + PATTERN_WITHOUT_SCHEME;
         testGetValidLogUrlPattern(pattern, Optional.of(pattern));
     }
 
     @Test
-    public void testGetValidLogUrlPatternNoScheme() {
+    void testGetValidLogUrlPatternNoScheme() {
         testGetValidLogUrlPattern(
                 PATTERN_WITHOUT_SCHEME, Optional.of("http://" + PATTERN_WITHOUT_SCHEME));
     }
 
     @Test
-    public void testGetValidLogUrlPatternUnsupportedScheme() {
+    void testGetValidLogUrlPatternUnsupportedScheme() {
         testGetValidLogUrlPattern("file://" + PATTERN_WITHOUT_SCHEME, Optional.empty());
     }
 
+    @Test
+    void testGetValidLogUrlPatternNotConfigured() {
+        Configuration config = new Configuration();
+        assertThat(
+                        LogUrlUtil.getValidLogUrlPattern(
+                                config, HISTORY_SERVER_JOBMANAGER_LOG_URL_PATTERN))
+                .isNotPresent();
+        assertThat(
+                        LogUrlUtil.getValidLogUrlPattern(
+                                config, HISTORY_SERVER_TASKMANAGER_LOG_URL_PATTERN))
+                .isNotPresent();
+    }
+
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private void testGetValidLogUrlPattern(
+    private static void testGetValidLogUrlPattern(
             String configuredPattern, Optional<String> expectedPattern) {
         Configuration config = new Configuration();
         config.set(HISTORY_SERVER_JOBMANAGER_LOG_URL_PATTERN, configuredPattern);
