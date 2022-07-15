@@ -20,6 +20,8 @@
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SlowTaskDetectorOptions;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -59,6 +61,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -394,13 +397,18 @@ class SpeculativeSchedulerTest {
 
     private DefaultSchedulerBuilder createSchedulerBuilder(
             final JobGraph jobGraph, final ComponentMainThreadExecutor mainThreadExecutor) {
+        // disable periodical slow task detection to avoid affecting the designed testing process
+        final Configuration configuration = new Configuration();
+        configuration.set(SlowTaskDetectorOptions.CHECK_INTERVAL, Duration.ofDays(1));
+
         return new DefaultSchedulerBuilder(
                         jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                 .setBlocklistOperations(testBlocklistOperations)
                 .setExecutionOperations(testExecutionOperations)
                 .setFutureExecutor(futureExecutor)
                 .setDelayExecutor(taskRestartExecutor)
-                .setRestartBackoffTimeStrategy(restartStrategy);
+                .setRestartBackoffTimeStrategy(restartStrategy)
+                .setJobMasterConfiguration(configuration);
     }
 
     private static void notifySlowTask(

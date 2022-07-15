@@ -307,7 +307,15 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
 
         return slowExecutions.stream()
                 .map(id -> getExecutionGraph().getRegisteredExecutions().get(id))
-                .map(Execution::getAssignedResourceLocation)
+                .map(
+                        e -> {
+                            checkNotNull(
+                                    e.getAssignedResource(),
+                                    "The reported slow node have not been assigned a slot. "
+                                            + "This is unexpected and indicates that there is "
+                                            + "something wrong with the slow task detector.");
+                            return e.getAssignedResourceLocation();
+                        })
                 .map(TaskManagerLocation::getNodeId)
                 .collect(Collectors.toSet());
     }
