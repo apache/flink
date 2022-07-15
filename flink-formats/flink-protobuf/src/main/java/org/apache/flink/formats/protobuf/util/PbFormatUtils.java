@@ -69,7 +69,7 @@ public class PbFormatUtils {
     }
 
     public static String getStrongCamelCaseJsonName(String name) {
-        return ProtobufInternalUtils.toCamelCase(name, true);
+        return ProtobufInternalUtils.underScoreToCamelCase(name, true);
     }
 
     public static String getOuterProtoPrefix(String name) {

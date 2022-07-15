@@ -23,8 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.table.data.RowData;
 
-import com.google.protobuf.AbstractMessage;
-
 /** Source Function for protobuf table factory test. */
 public class TestProtobufSourceFunction extends RichSourceFunction<RowData> {
     private final DeserializationSchema<RowData> deserializer;
@@ -41,9 +39,11 @@ public class TestProtobufSourceFunction extends RichSourceFunction<RowData> {
 
     @Override
     public void run(SourceContext<RowData> ctx) throws Exception {
-        for (AbstractMessage message : TestProtobufTestStore.sourcePbInputs) {
-            RowData rowData = deserializer.deserialize(message.toByteArray());
-            ctx.collect(rowData);
+        for (byte[] bytes : TestProtobufTestStore.sourcePbInputs) {
+            RowData rowData = deserializer.deserialize(bytes);
+            if (rowData != null) {
+                ctx.collect(rowData);
+            }
         }
     }
 

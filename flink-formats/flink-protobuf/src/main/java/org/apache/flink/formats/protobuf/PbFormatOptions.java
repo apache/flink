@@ -32,7 +32,7 @@ public class PbFormatOptions {
                                     + "must be located in the classpath both in client and task side");
 
     public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS =
-            ConfigOptions.key("ignore-parse-errors")
+            ConfigOptions.key("read-ignore-parse-errors")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(

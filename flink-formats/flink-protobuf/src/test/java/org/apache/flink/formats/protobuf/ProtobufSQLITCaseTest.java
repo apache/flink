@@ -24,16 +24,20 @@ import org.apache.flink.formats.protobuf.testproto.Pb3Test;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 
 import org.junit.Test;
 
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
 /** Integration SQL test for protobuf. */
-public class ProtobufSQLITCase extends BatchTestBase {
+public class ProtobufSQLITCaseTest extends BatchTestBase {
 
     private MapTest getProtoTestObject() {
         MapTest.InnerMessageTest innerMessageTest =
@@ -51,7 +55,7 @@ public class ProtobufSQLITCase extends BatchTestBase {
     @Test
     public void testSource() {
         TestProtobufTestStore.sourcePbInputs.clear();
-        TestProtobufTestStore.sourcePbInputs.add(getProtoTestObject());
+        TestProtobufTestStore.sourcePbInputs.add(getProtoTestObject().toByteArray());
 
         env().setParallelism(1);
         String sql =
@@ -78,11 +82,62 @@ public class ProtobufSQLITCase extends BatchTestBase {
     }
 
     @Test
+    public void testSourceNotIgnoreParseError() throws InterruptedException {
+        TestProtobufTestStore.sourcePbInputs.clear();
+        // pass an incompatible bytes
+        TestProtobufTestStore.sourcePbInputs.add(new byte[] {127, 127, 127, 127, 127});
+
+        env().setParallelism(1);
+        String sql =
+                "create table bigdata_source ( "
+                        + "	a int, "
+                        + "	map1 map<string,string>,"
+                        + " map2 map<string, row<a int, b bigint>>"
+                        + ")  with ("
+                        + "	'connector' = 'protobuf-test-connector', "
+                        + "	'format' = 'protobuf', "
+                        + " 'protobuf.message-class-name' = 'org.apache.flink.formats.protobuf.testproto.MapTest'"
+                        + ")";
+        tEnv().executeSql(sql);
+        TableResult result = tEnv().executeSql("select * from bigdata_source");
+        try {
+            result.await();
+        } catch (Exception ex) {
+            return;
+        }
+        fail("executeSql should raise exception");
+    }
+
+    @Test
+    public void testSourceIgnoreParseError() throws InterruptedException, ExecutionException {
+        TestProtobufTestStore.sourcePbInputs.clear();
+        // pass an incompatible bytes
+        TestProtobufTestStore.sourcePbInputs.add(new byte[] {127, 127, 127, 127, 127});
+
+        env().setParallelism(1);
+        String sql =
+                "create table bigdata_source ( "
+                        + "	a int, "
+                        + "	map1 map<string,string>,"
+                        + " map2 map<string, row<a int, b bigint>>"
+                        + ")  with ("
+                        + "	'connector' = 'protobuf-test-connector', "
+                        + "	'format' = 'protobuf', "
+                        + " 'protobuf.message-class-name' = 'org.apache.flink.formats.protobuf.testproto.MapTest',"
+                        + " 'protobuf.read-ignore-parse-errors' = 'true'"
+                        + ")";
+        tEnv().executeSql(sql);
+        TableResult result = tEnv().executeSql("select * from bigdata_source");
+        CloseableIterator<Row> iterator = result.collect();
+        assertFalse(iterator.hasNext());
+    }
+
+    @Test
     public void testSourceWithDefaultValueOfPb2WhenTrue() {
         MapTest mapTest = MapTest.newBuilder().build();
 
         TestProtobufTestStore.sourcePbInputs.clear();
-        TestProtobufTestStore.sourcePbInputs.add(mapTest);
+        TestProtobufTestStore.sourcePbInputs.add(mapTest.toByteArray());
 
         env().setParallelism(1);
         String sql =
@@ -107,7 +162,7 @@ public class ProtobufSQLITCase extends BatchTestBase {
         MapTest mapTest = MapTest.newBuilder().build();
 
         TestProtobufTestStore.sourcePbInputs.clear();
-        TestProtobufTestStore.sourcePbInputs.add(mapTest);
+        TestProtobufTestStore.sourcePbInputs.add(mapTest.toByteArray());
 
         env().setParallelism(1);
         String sql =
@@ -132,7 +187,7 @@ public class ProtobufSQLITCase extends BatchTestBase {
         Pb3Test pb3Test = Pb3Test.newBuilder().build();
 
         TestProtobufTestStore.sourcePbInputs.clear();
-        TestProtobufTestStore.sourcePbInputs.add(pb3Test);
+        TestProtobufTestStore.sourcePbInputs.add(pb3Test.toByteArray());
         env().setParallelism(1);
         String sql =
                 "create table bigdata_source ( "
@@ -157,7 +212,7 @@ public class ProtobufSQLITCase extends BatchTestBase {
         Pb3Test pb3Test = Pb3Test.newBuilder().build();
 
         TestProtobufTestStore.sourcePbInputs.clear();
-        TestProtobufTestStore.sourcePbInputs.add(pb3Test);
+        TestProtobufTestStore.sourcePbInputs.add(pb3Test.toByteArray());
         env().setParallelism(1);
         String sql =
                 "create table bigdata_source ( "
@@ -180,7 +235,7 @@ public class ProtobufSQLITCase extends BatchTestBase {
     @Test
     public void testSink() throws Exception {
         TestProtobufTestStore.sourcePbInputs.clear();
-        TestProtobufTestStore.sourcePbInputs.add(getProtoTestObject());
+        TestProtobufTestStore.sourcePbInputs.add(getProtoTestObject().toByteArray());
         TestProtobufTestStore.sinkResults.clear();
 
         env().setParallelism(1);
@@ -213,7 +268,7 @@ public class ProtobufSQLITCase extends BatchTestBase {
     @Test
     public void testSinkWithNullLiteral() throws Exception {
         TestProtobufTestStore.sourcePbInputs.clear();
-        TestProtobufTestStore.sourcePbInputs.add(getProtoTestObject());
+        TestProtobufTestStore.sourcePbInputs.add(getProtoTestObject().toByteArray());
         TestProtobufTestStore.sinkResults.clear();
 
         env().setParallelism(1);
@@ -245,7 +300,7 @@ public class ProtobufSQLITCase extends BatchTestBase {
     @Test
     public void testSinkWithNullLiteralWithEscape() throws Exception {
         TestProtobufTestStore.sourcePbInputs.clear();
-        TestProtobufTestStore.sourcePbInputs.add(getProtoTestObject());
+        TestProtobufTestStore.sourcePbInputs.add(getProtoTestObject().toByteArray());
         TestProtobufTestStore.sinkResults.clear();
 
         env().setParallelism(1);
