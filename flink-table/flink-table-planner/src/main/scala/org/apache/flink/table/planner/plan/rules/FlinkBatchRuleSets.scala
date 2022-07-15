@@ -128,6 +128,8 @@ object FlinkBatchRuleSets {
     CoreRules.FILTER_INTO_JOIN,
     // push filter into the children of a join
     CoreRules.JOIN_CONDITION_PUSH,
+    // push transitive predicates into the children of a join
+    CoreRules.JOIN_PUSH_TRANSITIVE_PREDICATES,
     // push filter through an aggregation
     CoreRules.FILTER_AGGREGATE_TRANSPOSE,
     // push a filter past a project
