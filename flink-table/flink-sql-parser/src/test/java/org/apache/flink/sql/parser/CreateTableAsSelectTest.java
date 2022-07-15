@@ -24,6 +24,7 @@ import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.junit.jupiter.api.Test;
 
@@ -39,7 +40,7 @@ class CreateTableAsSelectTest {
     void testNoOptions() throws Exception {
         SqlNode actualNode = createFlinkParser("CREATE TABLE t AS SELECT * FROM b").parseStmt();
 
-        assertThat(actualNode.toString()).isEqualTo("CREATE TABLE `t`\nSELECT *\nFROM `b`");
+        assertThat(actualNode.toString()).isEqualTo("CREATE TABLE `t`\nAS\nSELECT *\nFROM `b`");
     }
 
     @Test
@@ -49,7 +50,7 @@ class CreateTableAsSelectTest {
                         .parseStmt();
 
         assertThat(actualNode.toString())
-                .isEqualTo("CREATE TABLE `t` WITH (\n  'test' = 'zm'\n)\nSELECT *\nFROM `b`");
+                .isEqualTo("CREATE TABLE `t` WITH (\n  'test' = 'zm'\n)\nAS\nSELECT *\nFROM `b`");
     }
 
     @Test
@@ -66,38 +67,29 @@ class CreateTableAsSelectTest {
                                 + ") WITH (\n"
                                 + "  'test' = 'zm'\n"
                                 + ")\n"
-                                + "SELECT `col1`\n"
+                                + "AS\nSELECT `col1`\n"
                                 + "FROM `b`");
         assertThat(actualNode).isInstanceOf(SqlCreateTable.class);
         assertThatThrownBy(() -> ((SqlCreateTable) actualNode).validate())
                 .isInstanceOf(SqlValidateException.class)
                 .hasMessage(
-                        "CREATE TABLE AS SELECT syntax does not yet support Column/Partition/Constraints settings.");
+                        "CREATE TABLE AS SELECT syntax does not yet support to specific Column/Partition/Constraints.");
     }
 
     @Test
     void testCtasAndLike() throws Exception {
-        SqlNode actualNode =
+        SqlParser parser =
                 createFlinkParser(
-                                "CREATE TABLE t (col1 string) WITH ('test' = 'zm') like b AS SELECT col1 FROM b")
-                        .parseStmt();
+                        "CREATE TABLE t (col1 string) WITH ('test' = 'zm') like b AS SELECT col1 FROM b");
 
-        assertThat(actualNode.toString())
-                .isEqualTo(
-                        "CREATE TABLE `t` (\n"
-                                + "  `col1` STRING\n"
-                                + ") WITH (\n"
-                                + "  'test' = 'zm'\n"
-                                + ")\n"
-                                + "LIKE `b` (\n"
-                                + ")\n"
-                                + "SELECT `col1`\n"
-                                + "FROM `b`");
-        assertThat(actualNode).isInstanceOf(SqlCreateTable.class);
-        assertThatThrownBy(() -> ((SqlCreateTable) actualNode).validate())
-                .isInstanceOf(SqlValidateException.class)
-                .hasMessage(
-                        "CREATE TABLE AS SELECT and CREATE TABLE LIKE syntax cannot be used together.");
+        assertThatThrownBy(parser::parseStmt)
+                .isInstanceOf(SqlParseException.class)
+                .hasMessageStartingWith(
+                        "Encountered \"AS\" at line 1, column 58.\n"
+                                + "Was expecting one of:\n"
+                                + "    <EOF> \n"
+                                + "    \"(\" ...\n"
+                                + "    \".\" ...");
     }
 
     private SqlParser createFlinkParser(String expr) {

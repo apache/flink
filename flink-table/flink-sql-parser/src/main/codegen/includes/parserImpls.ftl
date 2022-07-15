@@ -1152,8 +1152,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
     [
         <LIKE>
         tableLike = SqlTableLike(getPos())
-    ]
-    [
+    |
         <AS>
         query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     ]

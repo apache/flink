@@ -195,12 +195,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             }
         }
 
-        if (query != null && tableLike != null) {
-            throw new SqlValidateException(
-                    pos,
-                    "CREATE TABLE AS SELECT and CREATE TABLE LIKE syntax cannot be used together.");
-        }
-
         if (tableLike != null) {
             tableLike.validate();
         }
@@ -211,7 +205,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
                         || partitionKeyList.size() > 0)) {
             throw new SqlValidateException(
                     pos,
-                    "CREATE TABLE AS SELECT syntax does not yet support Column/Partition/Constraints settings.");
+                    "CREATE TABLE AS SELECT syntax does not yet support to specific Column/Partition/Constraints.");
         }
     }
 
@@ -329,7 +323,9 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
         if (this.query != null) {
             writer.newlineAndIndent();
-            this.query.unparse(writer, 0, 0);
+            writer.keyword("AS");
+            writer.newlineAndIndent();
+            this.query.unparse(writer, leftPrec, rightPrec);
         }
     }
 
