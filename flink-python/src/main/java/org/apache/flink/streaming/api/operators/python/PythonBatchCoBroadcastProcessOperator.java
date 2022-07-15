@@ -42,7 +42,9 @@ public class PythonBatchCoBroadcastProcessOperator<IN1, IN2, OUT>
         extends PythonCoProcessOperator<IN1, IN2, OUT>
         implements BoundedMultiInput, InputSelectable {
 
-    private transient volatile boolean isBroadcastSideDone;
+    private static final long serialVersionUID = 1L;
+
+    private transient volatile boolean isBroadcastSideDone = false;
 
     public PythonBatchCoBroadcastProcessOperator(
             Configuration config,

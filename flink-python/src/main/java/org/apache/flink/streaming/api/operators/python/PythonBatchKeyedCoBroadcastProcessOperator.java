@@ -40,7 +40,9 @@ import org.apache.flink.util.Preconditions;
 public class PythonBatchKeyedCoBroadcastProcessOperator<OUT>
         extends PythonKeyedCoProcessOperator<OUT> implements BoundedMultiInput, InputSelectable {
 
-    private transient volatile boolean isBroadcastSideDone;
+    private static final long serialVersionUID = 1L;
+
+    private transient volatile boolean isBroadcastSideDone = false;
 
     public PythonBatchKeyedCoBroadcastProcessOperator(
             Configuration config,

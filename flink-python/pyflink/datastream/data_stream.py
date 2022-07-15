@@ -51,11 +51,10 @@ from pyflink.datastream.window import (CountTumblingWindowAssigner, CountSliding
                                        WindowAssigner, WindowOperationDescriptor,
                                        GlobalWindowSerializer, MergingWindowAssigner)
 from pyflink.java_gateway import get_gateway
+from pyflink.util.java_utils import to_jarray
 
 __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
            'DataStreamSink', 'CloseableIterator', 'BroadcastStream', 'BroadcastConnectedStream']
-
-from pyflink.util.java_utils import to_jarray
 
 WINDOW_STATE_NAME = 'window-contents'
 
@@ -511,7 +510,7 @@ class DataStream(object):
         :return: The ConnectedStreams or BroadcastConnectedStream.
 
         .. versionchanged:: 1.16.0
-            Support connect BroadcastStream
+           Support connect BroadcastStream
         """
         if isinstance(ds, BroadcastStream):
             return BroadcastConnectedStream(
@@ -621,7 +620,7 @@ class DataStream(object):
             the elements.
 
         .. versionchanged:: 1.16.0
-            Support return BroadcastStream
+           Support return BroadcastStream
         """
         if broadcast_state_descriptor is not None:
             args = [broadcast_state_descriptor]
@@ -1658,7 +1657,7 @@ class KeyedStream(DataStream):
         :return: The ConnectedStreams or BroadcastConnectedStream.
 
         .. versionchanged:: 1.16.0
-            Support connect BroadcastStream
+           Support connect BroadcastStream
         """
         return super().connect(ds)
 
