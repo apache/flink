@@ -128,8 +128,6 @@ object FlinkBatchRuleSets {
     CoreRules.FILTER_INTO_JOIN,
     // push filter into the children of a join
     CoreRules.JOIN_CONDITION_PUSH,
-    // push transitive predicates into the children of a join
-    CoreRules.JOIN_PUSH_TRANSITIVE_PREDICATES,
     // push filter through an aggregation
     CoreRules.FILTER_AGGREGATE_TRANSPOSE,
     // push a filter past a project
@@ -144,8 +142,12 @@ object FlinkBatchRuleSets {
 
   val JOIN_PREDICATE_REWRITE_RULES: RuleSet = RuleSets.ofList(
     (
-      RuleSets.ofList(JoinDependentConditionDerivationRule.INSTANCE).asScala ++
-        JOIN_NULL_FILTER_RULES.asScala
+      RuleSets
+        .ofList(
+          JoinDependentConditionDerivationRule.INSTANCE,
+          CoreRules.JOIN_PUSH_TRANSITIVE_PREDICATES)
+        .asScala
+        ++ JOIN_NULL_FILTER_RULES.asScala
     ).asJava)
 
   /** RuleSet to do predicate pushdown */

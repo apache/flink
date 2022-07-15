@@ -638,7 +638,7 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a
 :- Calc(select=[a, b, c], where=[((b > 10) AND NOT(LIKE(c, 'abc')))])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[d, e])
+   +- Calc(select=[d, e], where=[(e > 10)])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
@@ -708,15 +708,16 @@ LogicalProject(e=[$0])
       <![CDATA[
 Calc(select=[c])
 +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[((b = e) AND (a = d) AND (c = k))], select=[a, b, c], build=[right])
-   :- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :- Calc(select=[a, b, c], where=[(b < 50)])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[e, d, k])
-         +- NestedLoopJoin(joinType=[InnerJoin], where=[(e = j)], select=[e, d, j, k], build=[left])
-            :- Exchange(distribution=[broadcast])
-            :  +- Calc(select=[e, d], where=[(e < 50)])
-            :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-            +- Calc(select=[j, k], where=[(i > 10)])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+         +- NestedLoopJoin(joinType=[InnerJoin], where=[(e = j)], select=[e, d, j, k], build=[right])
+            :- Calc(select=[e, d], where=[(e < 50)])
+            :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+            +- Exchange(distribution=[broadcast])
+               +- Calc(select=[j, k], where=[((i > 10) AND (j < 50))])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -782,7 +783,7 @@ Calc(select=[c])
       +- Calc(select=[d, k])
          +- NestedLoopJoin(joinType=[RightOuterJoin], where=[(d = i)], select=[d, i, k], build=[left])
             :- Exchange(distribution=[broadcast])
-            :  +- Calc(select=[d])
+            :  +- Calc(select=[d], where=[(d > 10)])
             :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
             +- Calc(select=[i, k], where=[(i > 10)])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
@@ -1017,10 +1018,10 @@ LogicalProject(d=[$0])
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], build=[right])
-:- Calc(select=[a, b, c], where=[(b > 1)])
+:- Calc(select=[a, b, c], where=[((a > 10) AND (b > 1))])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[d, e], where=[(d > 10)])
+   +- Calc(select=[d, e], where=[((d > 10) AND (e > 1))])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>

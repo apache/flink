@@ -2045,9 +2045,10 @@ Calc(select=[rowtime, a, l_cnt, l_uv, r_cnt, r_uv, a0, b, c, rowtime0, PROCTIME_
    :                       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
    :                          +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])
    +- Exchange(distribution=[hash[a]])
-      +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-         +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable4]], fields=[a, b, c, rowtime])
+      +- Calc(select=[a, b, c, rowtime, proctime], where=[IS NOT NULL(a)])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+            +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable4]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -2211,9 +2212,10 @@ Calc(select=[rowtime, a, l_b, l_c, r_b, r_c, a0, b, c, rowtime0, PROCTIME_MATERI
    :                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
    :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
    +- Exchange(distribution=[hash[a]])
-      +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-         +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable3]], fields=[a, b, c, rowtime])
+      +- Calc(select=[a, b, c, rowtime, proctime], where=[IS NOT NULL(a)])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+            +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable3]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>

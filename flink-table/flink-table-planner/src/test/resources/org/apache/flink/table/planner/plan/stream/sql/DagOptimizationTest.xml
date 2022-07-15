@@ -163,7 +163,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a,
          :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
          :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
          +- Exchange(distribution=[hash[a]], changelogMode=[I])
-            +- Calc(select=[a], changelogMode=[I])
+            +- Calc(select=[a], where=[<=(a, 10)], changelogMode=[I])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b1], changelogMode=[NONE])
@@ -176,7 +176,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a,
          :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
          :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
          +- Exchange(distribution=[hash[a]], changelogMode=[I])
-            +- Calc(select=[a], changelogMode=[I])
+            +- Calc(select=[a], where=[<=(a, 10)], changelogMode=[I])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e], changelogMode=[I])
 ]]>
     </Resource>
@@ -282,7 +282,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a1
       :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
       :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
       +- Exchange(distribution=[hash[a2]], changelogMode=[I])
-         +- Calc(select=[a AS a2, c], where=[>=(b, 5)], changelogMode=[I])
+         +- Calc(select=[a AS a2, c], where=[AND(>=(b, 5), <=(a, 10))], changelogMode=[I])
             +- Calc(select=[a, b, c], where=[>=(a, 0)], changelogMode=[I])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 
@@ -301,7 +301,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a1
                   :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
                   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
                   +- Exchange(distribution=[hash[a2]], changelogMode=[I])
-                     +- Calc(select=[a AS a2, c], where=[>=(b, 5)], changelogMode=[I])
+                     +- Calc(select=[a AS a2, c], where=[AND(>=(b, 5), <=(a, 10))], changelogMode=[I])
                         +- Calc(select=[a, b, c], where=[>=(a, 0)], changelogMode=[I])
                            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
@@ -805,16 +805,16 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1,
 +- Calc(select=[a1, b, c1], changelogMode=[I])
    +- Join(joinType=[InnerJoin], where=[=(a1, a3)], select=[a3, c1, a1, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
       :- Exchange(distribution=[hash[a3]], changelogMode=[I])
-      :  +- Calc(select=[a AS a3, c AS c1], where=[AND(>=(a, 0), <(b, 5))], changelogMode=[I])
+      :  +- Calc(select=[a AS a3, c AS c1], where=[AND(SEARCH(a, Sarg[[0..10]]), SEARCH(b, Sarg[(-∞..5)]), IS NOT NULL(a))], changelogMode=[I])
       :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
       +- Exchange(distribution=[hash[a1]], changelogMode=[I])
          +- Calc(select=[a AS a1, b], changelogMode=[I])
             +- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, b, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
                :- Exchange(distribution=[hash[a]], changelogMode=[I])
-               :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
+               :  +- Calc(select=[a, b], where=[SEARCH(a, Sarg[[0..10]])], changelogMode=[I])
                :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
                +- Exchange(distribution=[hash[a2]], changelogMode=[I])
-                  +- Calc(select=[a AS a2], where=[AND(>=(a, 0), >=(b, 5))], changelogMode=[I])
+                  +- Calc(select=[a AS a2], where=[AND(SEARCH(a, Sarg[[0..10]]), SEARCH(b, Sarg[[5..+∞)]))], changelogMode=[I])
                      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
@@ -848,7 +848,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1,
          :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
          :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
          +- Exchange(distribution=[hash[a]], changelogMode=[I])
-            +- Calc(select=[a], changelogMode=[I])
+            +- Calc(select=[a], where=[<=(a, 10)], changelogMode=[I])
                +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e], changelogMode=[I])
 ]]>
     </Resource>
@@ -890,22 +890,22 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, 
 +- Calc(select=[a AS a1, b1, c1], changelogMode=[I])
    +- Join(joinType=[InnerJoin], where=[=(a, a3)], select=[a, a3, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
       :- Exchange(distribution=[hash[a]], changelogMode=[I])
-      :  +- Calc(select=[a], where=[<=(a, 10)], changelogMode=[I])
+      :  +- Calc(select=[a], where=[AND(SEARCH(a, Sarg[[0..10]]), IS NOT NULL(a))], changelogMode=[I])
       :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
       +- Exchange(distribution=[hash[a3]], changelogMode=[I])
          +- Calc(select=[a3, b AS b1, c1], changelogMode=[I])
             +- Join(joinType=[InnerJoin], where=[=(a1, a3)], select=[a3, c1, a1, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
                :- Exchange(distribution=[hash[a3]], changelogMode=[I])
-               :  +- Calc(select=[a AS a3, c AS c1], where=[AND(>=(a, 0), <(b, 5))], changelogMode=[I])
+               :  +- Calc(select=[a AS a3, c AS c1], where=[AND(SEARCH(a, Sarg[[0..10]]), SEARCH(b, Sarg[(-∞..5)]), IS NOT NULL(a))], changelogMode=[I])
                :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
                +- Exchange(distribution=[hash[a1]], changelogMode=[I])
                   +- Calc(select=[a AS a1, b], changelogMode=[I])
                      +- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, b, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
                         :- Exchange(distribution=[hash[a]], changelogMode=[I])
-                        :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
+                        :  +- Calc(select=[a, b], where=[SEARCH(a, Sarg[[0..10]])], changelogMode=[I])
                         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
                         +- Exchange(distribution=[hash[a2]], changelogMode=[I])
-                           +- Calc(select=[a AS a2], where=[AND(>=(a, 0), >=(b, 5))], changelogMode=[I])
+                           +- Calc(select=[a AS a2], where=[AND(SEARCH(a, Sarg[[0..10]]), SEARCH(b, Sarg[[5..+∞)]))], changelogMode=[I])
                               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>

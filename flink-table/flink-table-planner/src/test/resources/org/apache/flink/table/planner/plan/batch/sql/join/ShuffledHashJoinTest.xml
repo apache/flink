@@ -130,12 +130,12 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, g])
-+- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[d, g, a, c], build=[left])
++- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[d, g, a, c], build=[right])
    :- Exchange(distribution=[hash[d]])
    :  +- Calc(select=[d, g], where=[(d < 2)])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
    +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, c])
+      +- Calc(select=[a, c], where=[(a < 2)])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -176,12 +176,13 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[((a = d) AND (b < h))], select=[d, e, f, g, h, a, b, c], build=[left])
+HashJoin(joinType=[InnerJoin], where=[((a = d) AND (b < h))], select=[d, e, f, g, h, a, b, c], build=[right])
 :- Exchange(distribution=[hash[d]])
 :  +- Calc(select=[d, e, f, g, h], where=[(d < 2)])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 +- Exchange(distribution=[hash[a]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Calc(select=[a, b, c], where=[(a < 2)])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -201,12 +202,12 @@ LogicalProject(c=[$7], g=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, g])
-+- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[d, g, a, c], build=[left])
++- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[d, g, a, c], build=[right])
    :- Exchange(distribution=[hash[d]])
    :  +- Calc(select=[d, g], where=[(d < 2)])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
    +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, c])
+      +- Calc(select=[a, c], where=[(a < 2)])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
