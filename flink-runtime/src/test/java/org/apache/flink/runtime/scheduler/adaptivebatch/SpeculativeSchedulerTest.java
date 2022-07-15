@@ -45,6 +45,8 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.DefaultExecutionOperations;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.TestExecutionOperationsDecorator;
+import org.apache.flink.runtime.scheduler.TestExecutionSlotAllocator;
+import org.apache.flink.runtime.scheduler.TestExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
@@ -90,6 +92,8 @@ class SpeculativeSchedulerTest {
     private TestExecutionOperationsDecorator testExecutionOperations;
     private TestBlocklistOperations testBlocklistOperations;
     private TestRestartBackoffTimeStrategy restartStrategy;
+    private TestExecutionSlotAllocatorFactory testExecutionSlotAllocatorFactory;
+    private TestExecutionSlotAllocator testExecutionSlotAllocator;
 
     @BeforeEach
     void setUp() {
@@ -100,6 +104,9 @@ class SpeculativeSchedulerTest {
                 new TestExecutionOperationsDecorator(new DefaultExecutionOperations());
         testBlocklistOperations = new TestBlocklistOperations();
         restartStrategy = new TestRestartBackoffTimeStrategy(true, 0);
+        testExecutionSlotAllocatorFactory = new TestExecutionSlotAllocatorFactory();
+        testExecutionSlotAllocator =
+                testExecutionSlotAllocatorFactory.getTestExecutionSlotAllocator();
     }
 
     @AfterEach
@@ -213,7 +220,7 @@ class SpeculativeSchedulerTest {
     }
 
     @Test
-    void testCancelOtherCurrentExecutionsWhenAnyExecutionFinished() {
+    void testCancelOtherDeployedCurrentExecutionsWhenAnyExecutionFinished() {
         final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
@@ -224,6 +231,23 @@ class SpeculativeSchedulerTest {
                 new TaskExecutionState(attempt1.getAttemptId(), ExecutionState.FINISHED));
 
         assertThat(attempt2.getState()).isEqualTo(ExecutionState.CANCELING);
+    }
+
+    @Test
+    void testCancelOtherScheduledCurrentExecutionsWhenAnyExecutionFinished() {
+        testExecutionSlotAllocator.disableAutoCompletePendingRequests();
+
+        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
+        final Execution attempt1 = ev.getCurrentExecutionAttempt();
+
+        testExecutionSlotAllocator.completePendingRequest(attempt1.getAttemptId());
+        notifySlowTask(scheduler, attempt1);
+        final Execution attempt2 = getExecution(ev, 1);
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(attempt1.getAttemptId(), ExecutionState.FINISHED));
+
+        assertThat(attempt2.getState()).isEqualTo(ExecutionState.CANCELED);
     }
 
     @Test
@@ -408,6 +432,7 @@ class SpeculativeSchedulerTest {
                 .setFutureExecutor(futureExecutor)
                 .setDelayExecutor(taskRestartExecutor)
                 .setRestartBackoffTimeStrategy(restartStrategy)
+                .setExecutionSlotAllocatorFactory(testExecutionSlotAllocatorFactory)
                 .setJobMasterConfiguration(configuration);
     }
 
