@@ -44,7 +44,6 @@ import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -680,9 +679,9 @@ public final class FunctionCatalog {
     private void registerFunctionJarResource(String functionName, List<ResourceUri> resourceUris) {
         try {
             if (!resourceUris.isEmpty()) {
-                resourceManager.registerJarResource(resourceUris);
+                resourceManager.registerJarResources(resourceUris);
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new TableException(
                     String.format(
                             "Failed to register jar resource '%s' of function '%s'.",

@@ -65,7 +65,7 @@ public class ClientMutableURLClassLoader extends MutableURLClassLoader {
     public ClientMutableURLClassLoader(
             Configuration configuration, MutableURLClassLoader mutableURLClassLoader) {
         super(new URL[0], mutableURLClassLoader);
-        this.configuration = configuration;
+        this.configuration = new Configuration(configuration);
         this.currentClassLoader = mutableURLClassLoader;
     }
 

@@ -71,7 +71,7 @@ public class CompactManagedTableITCase extends BatchTestBase {
 
     @Override
     @Before
-    public void before() {
+    public void before() throws Exception {
         super.before();
         MANAGED_TABLES.put(tableIdentifier, new AtomicReference<>());
         referenceOfManagedTableFileEntries = new AtomicReference<>();

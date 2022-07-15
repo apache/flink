@@ -43,7 +43,6 @@ import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
-import org.apache.flink.table.resource.ResourceManagerTest;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
@@ -55,10 +54,9 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Test;
 
-import java.io.File;
 import java.lang.invoke.MethodHandle;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -69,10 +67,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
@@ -88,17 +90,24 @@ public class FunctionITCase extends StreamingTestBase {
 
     private static final String TEST_FUNCTION = TestUDF.class.getName();
 
-    private static String jarPath;
+    private static final Random random = new Random();
+    private String udfClassName;
+    private String jarPath;
 
-    @BeforeClass
-    public static void setup() throws Exception {
-        File jarFile =
+    @Before
+    @Override
+    public void before() throws Exception {
+        super.before();
+        udfClassName = GENERATED_LOWER_UDF_CLASS + random.nextInt(50);
+        jarPath =
                 UserClassLoaderJarTestUtils.createJarFile(
-                        TEMPORARY_FOLDER.newFolder("test-jar"),
-                        "test-classloader-udf.jar",
-                        ResourceManagerTest.LOWER_UDF_CLASS,
-                        ResourceManagerTest.LOWER_UDF_CODE);
-        jarPath = jarFile.toURI().toString();
+                                TEMPORARY_FOLDER.newFolder(
+                                        String.format("test-jar-%s", UUID.randomUUID())),
+                                "test-classloader-udf.jar",
+                                udfClassName,
+                                String.format(GENERATED_LOWER_UDF_CODE, udfClassName))
+                        .toURI()
+                        .toString();
     }
 
     @Test
@@ -220,7 +229,7 @@ public class FunctionITCase extends StreamingTestBase {
         String ddl =
                 String.format(
                         "CREATE TEMPORARY SYSTEM FUNCTION f10 AS '%s' USING JAR '%s'",
-                        ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
+                        udfClassName, jarPath);
         tEnv().executeSql(ddl);
         assertThat(Arrays.asList(tEnv().listFunctions())).contains("f10");
 
@@ -233,7 +242,7 @@ public class FunctionITCase extends StreamingTestBase {
         String ddl =
                 String.format(
                         "CREATE FUNCTION default_database.f11 AS '%s' USING JAR '%s'",
-                        ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
+                        udfClassName, jarPath);
         tEnv().executeSql(ddl);
         assertThat(Arrays.asList(tEnv().listFunctions())).contains("f11");
 
@@ -246,7 +255,7 @@ public class FunctionITCase extends StreamingTestBase {
         String ddl =
                 String.format(
                         "CREATE TEMPORARY FUNCTION default_database.f12 AS '%s' USING JAR '%s'",
-                        ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
+                        udfClassName, jarPath);
         tEnv().executeSql(ddl);
         assertThat(Arrays.asList(tEnv().listFunctions())).contains("f12");
 
@@ -427,7 +436,7 @@ public class FunctionITCase extends StreamingTestBase {
         String functionDDL =
                 String.format(
                         "create temporary system function lowerUdf as '%s' using jar '%s'",
-                        ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
+                        udfClassName, jarPath);
 
         String dropFunctionDDL = "drop temporary system function lowerUdf";
         testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
@@ -437,8 +446,7 @@ public class FunctionITCase extends StreamingTestBase {
     public void testUserDefinedRegularCatalogFunctionByUsingJar() throws Exception {
         String functionDDL =
                 String.format(
-                        "create function lowerUdf as '%s' using jar '%s'",
-                        ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
+                        "create function lowerUdf as '%s' using jar '%s'", udfClassName, jarPath);
 
         String dropFunctionDDL = "drop function lowerUdf";
         testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
@@ -449,7 +457,7 @@ public class FunctionITCase extends StreamingTestBase {
         String functionDDL =
                 String.format(
                         "create temporary function lowerUdf as '%s' using jar '%s'",
-                        ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
+                        udfClassName, jarPath);
 
         String dropFunctionDDL = "drop temporary function lowerUdf";
         testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);

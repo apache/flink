@@ -77,7 +77,7 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
         final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
         final ModuleManager moduleManager = new ModuleManager();
         final ResourceManager resourceManager =
-                ResourceUtils.createResourceManager(
+                ResourceManager.createResourceManager(
                         new URL[0],
                         Thread.currentThread().getContextClassLoader(),
                         tableConfig.getConfiguration());

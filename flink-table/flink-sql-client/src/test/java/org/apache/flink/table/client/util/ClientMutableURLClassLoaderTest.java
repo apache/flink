@@ -33,25 +33,27 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.table.client.gateway.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
-import static org.apache.flink.table.client.gateway.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
-import static org.apache.flink.table.client.gateway.utils.UserDefinedFunctions.GENERATED_UPPER_UDF_CLASS;
-import static org.apache.flink.table.client.gateway.utils.UserDefinedFunctions.GENERATED_UPPER_UDF_CODE;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_UDF_CLASS;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_UDF_CODE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for classloading and class loader utilities. */
 public class ClientMutableURLClassLoaderTest {
 
-    @TempDir private static File tempDir;
-
     private static File userJar;
 
     @BeforeAll
-    public static void prepare() throws Exception {
+    public static void prepare(@TempDir File tempDir) throws Exception {
         Map<String, String> classNameCodes = new HashMap<>();
-        classNameCodes.put(GENERATED_LOWER_UDF_CLASS, GENERATED_LOWER_UDF_CODE);
-        classNameCodes.put(GENERATED_UPPER_UDF_CLASS, GENERATED_UPPER_UDF_CODE);
+        classNameCodes.put(
+                GENERATED_LOWER_UDF_CLASS,
+                String.format(GENERATED_LOWER_UDF_CODE, GENERATED_LOWER_UDF_CLASS));
+        classNameCodes.put(
+                GENERATED_UPPER_UDF_CLASS,
+                String.format(GENERATED_UPPER_UDF_CODE, GENERATED_UPPER_UDF_CLASS));
         userJar =
                 UserClassLoaderJarTestUtils.createJarFile(
                         tempDir, "test-classloader.jar", classNameCodes);
@@ -72,7 +74,7 @@ public class ClientMutableURLClassLoaderTest {
         // add jar url to ClassLoader
         classLoader.addURL(userJar.toURI().toURL());
 
-        assertTrue(classLoader.getURLs().length == 1);
+        assertEquals(1, classLoader.getURLs().length);
 
         final Class<?> clazz1 = Class.forName(GENERATED_LOWER_UDF_CLASS, false, classLoader);
         final Class<?> clazz2 = Class.forName(GENERATED_LOWER_UDF_CLASS, false, classLoader);
@@ -132,11 +134,8 @@ public class ClientMutableURLClassLoaderTest {
     }
 
     private static class TestClientMutableURLClassLoader extends ClientMutableURLClassLoader {
-        public static boolean isParallelCapable;
 
-        static {
-            isParallelCapable = ClassLoader.registerAsParallelCapable();
-        }
+        public static boolean isParallelCapable = ClassLoader.registerAsParallelCapable();
 
         TestClientMutableURLClassLoader() {
             super(null, null);

@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -70,18 +71,25 @@ public class ResourceManager implements Closeable {
         this.userClassLoader = userClassLoader;
     }
 
+    public static ResourceManager createResourceManager(
+            URL[] urls, ClassLoader parent, Configuration configuration) {
+        MutableURLClassLoader mutableURLClassLoader =
+                MutableURLClassLoader.newInstance(urls, parent, configuration);
+        return new ResourceManager(configuration, mutableURLClassLoader);
+    }
+
     public URLClassLoader getUserClassLoader() {
         return userClassLoader;
     }
 
     /**
      * Due to anyone of the resource in list maybe fail during register, so we should stage it
-     * before actual register to guarantee transaction process. If all the resources are avaliable,
+     * before actual register to guarantee transaction process. If all the resources are available,
      * register them into the {@link ResourceManager}.
      */
-    public void registerJarResource(List<ResourceUri> resourceUris) throws IOException {
+    public void registerJarResources(List<ResourceUri> resourceUris) throws Exception {
         // check jar resource before register
-        checkJarResource(resourceUris);
+        checkJarResources(resourceUris);
 
         Map<ResourceUri, URL> stagingResourceLocalURLs = new HashMap<>();
         for (ResourceUri resourceUri : resourceUris) {
@@ -109,7 +117,7 @@ public class ResourceManager implements Closeable {
                 resourceUri = new ResourceUri(ResourceType.JAR, localUrl.getPath());
             }
 
-            // check the local jar file extra
+            // check the local jar file
             JarUtils.checkJarFile(localUrl);
 
             // add it to staging map
@@ -139,11 +147,11 @@ public class ResourceManager implements Closeable {
                 .collect(Collectors.toSet());
     }
 
-    private void checkJarResource(List<ResourceUri> resourceUris) throws IOException {
+    private void checkJarResources(List<ResourceUri> resourceUris) throws IOException {
         // only support register jar resource
         if (resourceUris.stream()
                 .anyMatch(resourceUri -> !ResourceType.JAR.equals(resourceUri.getResourceType()))) {
-            throw new IOException(
+            throw new ValidationException(
                     String.format(
                             "Only support to register jar resource, resource info:\n %s.",
                             resourceUris.stream()
@@ -157,7 +165,7 @@ public class ResourceManager implements Closeable {
             // file name should end with .jar suffix
             String fileExtension = Files.getFileExtension(path.getName());
             if (!fileExtension.toLowerCase().endsWith(JAR_SUFFIX)) {
-                throw new IOException(
+                throw new ValidationException(
                         String.format(
                                 "The registering jar resource [%s] must ends with '.jar' suffix.",
                                 path));
@@ -172,9 +180,9 @@ public class ResourceManager implements Closeable {
 
             // register directory is not allowed for resource
             if (fs.getFileStatus(path).isDir()) {
-                throw new IOException(
+                throw new ValidationException(
                         String.format(
-                                "The registering jar resource [%s] is a directory, however directory is not allowed to register.",
+                                "The registering jar resource [%s] is a directory that is not allowed.",
                                 path));
             }
         }
@@ -254,5 +262,10 @@ public class ResourceManager implements Closeable {
         if (exception != null) {
             throw exception;
         }
+    }
+
+    @VisibleForTesting
+    public Path getLocalResourceDir() {
+        return localResourceDir;
     }
 }

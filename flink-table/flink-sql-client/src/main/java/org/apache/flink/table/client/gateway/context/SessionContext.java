@@ -255,9 +255,9 @@ public class SessionContext {
     public void addJar(String jarPath) {
         checkJarPath(jarPath, "SQL Client only supports to add local jars.");
         try {
-            sessionState.resourceManager.registerJarResource(
+            sessionState.resourceManager.registerJarResources(
                     Collections.singletonList(new ResourceUri(ResourceType.JAR, jarPath)));
-        } catch (IOException e) {
+        } catch (Exception e) {
             LOG.warn(String.format("Could not register the specified jar [%s].", jarPath), e);
         }
     }
@@ -279,6 +279,16 @@ public class SessionContext {
     }
 
     public List<String> listJars() {
+        LOG.info(
+                String.format(
+                        "Jars: %s",
+                        sessionState.resourceManager.getResources().keySet().stream()
+                                .filter(
+                                        resourceUri ->
+                                                ResourceType.JAR.equals(
+                                                        resourceUri.getResourceType()))
+                                .map(ResourceUri::getUri)
+                                .collect(Collectors.toList())));
         return sessionState.resourceManager.getResources().keySet().stream()
                 .filter(resourceUri -> ResourceType.JAR.equals(resourceUri.getResourceType()))
                 .map(ResourceUri::getUri)

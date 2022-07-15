@@ -21,42 +21,44 @@ package org.apache.flink.table.planner.runtime.batch.sql;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
-import org.apache.flink.table.resource.ResourceManagerTest;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
+import java.util.UUID;
 
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for catalog and system functions in a table environment. */
 public class FunctionITCase extends BatchTestBase {
 
-    private static String jarPath;
-
-    @BeforeClass
-    public static void setup() throws Exception {
-        File jarFile =
-                UserClassLoaderJarTestUtils.createJarFile(
-                        TEMPORARY_FOLDER.newFolder("test-jar"),
-                        "test-classloader-udf.jar",
-                        ResourceManagerTest.LOWER_UDF_CLASS,
-                        ResourceManagerTest.LOWER_UDF_CODE);
-        jarPath = jarFile.toURI().toString();
-    }
+    private static final Random random = new Random();
+    private String udfClassName;
+    private String jarPath;
 
     @Before
     @Override
-    public void before() {
+    public void before() throws Exception {
         // override TableEnvironment for every test to clear register jar in ResourceManager first
         overrideTableEnv(null);
         super.before();
+        udfClassName = GENERATED_LOWER_UDF_CLASS + random.nextInt(50);
+        jarPath =
+                UserClassLoaderJarTestUtils.createJarFile(
+                                TEMPORARY_FOLDER.newFolder(
+                                        String.format("test-jar-%s", UUID.randomUUID())),
+                                "test-classloader-udf.jar",
+                                udfClassName,
+                                String.format(GENERATED_LOWER_UDF_CODE, udfClassName))
+                        .toURI()
+                        .toString();
     }
 
     @Test
@@ -64,11 +66,11 @@ public class FunctionITCase extends BatchTestBase {
         String ddl1 =
                 String.format(
                         "CREATE TEMPORARY SYSTEM FUNCTION f10 AS '%s' USING JAR '%s'",
-                        ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
+                        udfClassName, jarPath);
         String ddl2 =
                 String.format(
                         "CREATE TEMPORARY SYSTEM FUNCTION f11 AS '%s' USING JAR '%s'",
-                        ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
+                        udfClassName, jarPath);
         tEnv().executeSql(ddl1);
         tEnv().executeSql(ddl2);
 
@@ -89,7 +91,7 @@ public class FunctionITCase extends BatchTestBase {
         String ddl =
                 String.format(
                         "CREATE FUNCTION default_database.f11 AS '%s' USING JAR '%s'",
-                        ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
+                        udfClassName, jarPath);
         tEnv().executeSql(ddl);
         assertThat(Arrays.asList(tEnv().listFunctions())).contains("f11");
 
@@ -102,7 +104,7 @@ public class FunctionITCase extends BatchTestBase {
         String ddl =
                 String.format(
                         "CREATE TEMPORARY FUNCTION default_database.f12 AS '%s' USING JAR '%s'",
-                        ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
+                        udfClassName, jarPath);
         tEnv().executeSql(ddl);
         assertThat(Arrays.asList(tEnv().listFunctions())).contains("f12");
 
@@ -115,7 +117,7 @@ public class FunctionITCase extends BatchTestBase {
         String functionDDL =
                 String.format(
                         "create temporary system function lowerUdf as '%s' using jar '%s'",
-                        ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
+                        udfClassName, jarPath);
 
         String dropFunctionDDL = "drop temporary system function lowerUdf";
         testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
@@ -125,8 +127,7 @@ public class FunctionITCase extends BatchTestBase {
     public void testUserDefinedRegularCatalogFunctionByUsingJar() throws Exception {
         String functionDDL =
                 String.format(
-                        "create function lowerUdf as '%s' using jar '%s'",
-                        ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
+                        "create function lowerUdf as '%s' using jar '%s'", udfClassName, jarPath);
 
         String dropFunctionDDL = "drop function lowerUdf";
         testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
@@ -137,7 +138,7 @@ public class FunctionITCase extends BatchTestBase {
         String functionDDL =
                 String.format(
                         "create temporary function lowerUdf as '%s' using jar '%s'",
-                        ResourceManagerTest.LOWER_UDF_CLASS, jarPath);
+                        udfClassName, jarPath);
 
         String dropFunctionDDL = "drop temporary function lowerUdf";
         testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);

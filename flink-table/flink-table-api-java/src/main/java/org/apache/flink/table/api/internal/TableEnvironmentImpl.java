@@ -1871,7 +1871,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         }
     }
 
-    private static void mergePipelineJarsToConfig(Set<URL> jarUrls, Configuration configuration) {
+    private void mergePipelineJarsToConfig(Set<URL> jarUrls, Configuration configuration) {
         if (!jarUrls.isEmpty()) {
             ConfigUtils.mergeCollectionsToConfig(
                     configuration,

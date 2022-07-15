@@ -25,11 +25,17 @@ import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.MutableURLClassLoader;
 
+import javax.annotation.Nullable;
+
 import java.net.URL;
 
 /**
- * This is only used by SqlClient, which expose {@code removeURL} method to support {@code REMOVE
- * JAR} clause.
+ * The {@link ClientResourceManager} is able to remove the registered JAR resources with the
+ * specified jar path.
+ *
+ * <p>After removing the JAR resource, the {@link ResourceManager} is able to register the JAR
+ * resource with the same JAR path. Please notice that the removal doesn't promise the loaded {@link
+ * Class} from the removed jar is inaccessible.
  */
 @Internal
 public class ClientResourceManager extends ResourceManager {
@@ -38,11 +44,7 @@ public class ClientResourceManager extends ResourceManager {
         super(config, userClassLoader);
     }
 
-    /**
-     * The method is only used to SqlClient for supporting remove jar syntax. SqlClient must
-     * guarantee also remove the jar from userClassLoader because it is {@code
-     * ClientMutableURLClassLoader}.
-     */
+    @Nullable
     public URL unregisterJarResource(String jarPath) {
         return resourceInfos.remove(new ResourceUri(ResourceType.JAR, jarPath));
     }
