@@ -140,6 +140,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_REPLACE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPEAT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPLACE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REVERSE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RIGHT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ROUND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ROWTIME;
@@ -1149,6 +1150,15 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns a string that repeats the base string n times. */
     public OutType repeat(InType n) {
         return toApiSpecificExpression(unresolvedCall(REPEAT, toExpr(), objectToExpression(n)));
+    }
+
+    /**
+     * Reverse each character in current string.
+     *
+     * @return a new string which character order is reverse to current string.
+     */
+    public OutType reverse() {
+        return toApiSpecificExpression(unresolvedCall(REVERSE, toExpr()));
     }
 
     /**

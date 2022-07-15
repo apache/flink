@@ -850,8 +850,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testReverse(): Unit = {
-    testSqlApi("reverse(f38)", "==ABDIQA")
-    testSqlApi("reverse(f40)", "NULL")
+    testAllApis('f38.reverse(), "reverse(f38)", "==ABDIQA")
+    testAllApis('f40.reverse(), "reverse(f40)", "NULL")
     testSqlApi("reverse('hi')", "ih")
     testSqlApi("reverse('hhhi')", "ihhh")
     testSqlApi("reverse(CAST(null as VARCHAR))", "NULL")

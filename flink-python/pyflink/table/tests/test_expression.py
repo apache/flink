@@ -162,6 +162,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('rtrim(a)', str(expr1.rtrim))
         self.assertEqual('repeat(a, 3)', str(expr1.repeat(3)))
         self.assertEqual("over(a, 'w')", str(expr1.over('w')))
+        self.assertEqual('reverse(a)', str(expr1.reverse))
         self.assertEqual("splitIndex(a, ',', 3)", str(expr1.split_index(',', 3)))
         self.assertEqual("strToMap(a)", str(expr1.str_to_map()))
         self.assertEqual("strToMap(a, ';', ':')", str(expr1.str_to_map(';', ':')))

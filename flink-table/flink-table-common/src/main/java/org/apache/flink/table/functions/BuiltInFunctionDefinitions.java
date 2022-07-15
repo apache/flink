@@ -910,6 +910,14 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
                     .build();
 
+    public static final BuiltInFunctionDefinition REVERSE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("reverse")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .build();
+
     public static final BuiltInFunctionDefinition SPLIT_INDEX =
             BuiltInFunctionDefinition.newBuilder()
                     .name("splitIndex")

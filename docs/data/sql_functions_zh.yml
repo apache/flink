@@ -462,6 +462,7 @@ string:
       如果 string1 的任何（可能为空）子字符串与 Java 正则表达式 string2 匹配，则返回 TRUE，否则返回 FALSE。
       如果有任一参数为 `NULL`，则返回 `NULL`。
   - sql: REVERSE(string)
+    table: STRING.reverse()
     description: 返回反转的字符串。如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SPLIT_INDEX(string1, string2, integer1)
     table: STRING1.splitIndex(STRING2, INTEGER1)
