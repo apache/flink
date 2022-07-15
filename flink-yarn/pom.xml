@@ -33,7 +33,7 @@ under the License.
 	<properties>
 		<!-- for testing (will override Hadoop's default dependency on too low SDK versions that
 			do not work with our httpcomponents version) -->
-		<aws.sdk.version>1.11.171</aws.sdk.version>
+		<aws.sdk.version>1.12.319</aws.sdk.version>
 	</properties>
 
 	<dependencies>
