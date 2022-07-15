@@ -89,6 +89,11 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
         }
     }
 
+    @Override
+    protected String[] properties() {
+        return new String[0];
+    }
+
     @Test
     public void testMapRedCsvFormatHiveTableSourceStatisticsReport() {
         FlinkStatistic statistic =
@@ -191,13 +196,17 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
 
     @Override
     protected Map<String, String> ddlTypesMap() {
-        // hive table ddl
+        // hive table ddl now don't support type: TIMESTAMP(3), TIMESTAMP(9), TIMESTAMP WITHOUT TIME
+        // ZONE, TIMESTAMP WITH LOCAL TIME ZONE AND ROW. So we remove these types.
         Map<String, String> ddlTypesMap = super.ddlTypesMap();
         String timestampTypeName = ddlTypesMap.remove("timestamp(3)");
         ddlTypesMap.remove("timestamp(9)");
+        ddlTypesMap.remove("timestamp without time zone");
+        ddlTypesMap.remove("timestamp with local time zone");
         String binaryTypeName = ddlTypesMap.remove("binary(1)");
         ddlTypesMap.remove("varbinary(1)");
         ddlTypesMap.remove("time");
+        ddlTypesMap.remove("row<col1 string, col2 int>");
         ddlTypesMap.put("timestamp", timestampTypeName);
         ddlTypesMap.put("binary", binaryTypeName);
 
@@ -206,14 +215,17 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
 
     @Override
     protected Map<String, List<Object>> getDataMap() {
-        // now hive table source don't support TIME(), and VARBINARY() types, so we remove these
-        // types.
+        // hive table ddl now don't support type: TIMESTAMP(3), TIMESTAMP(9), TIMESTAMP WITHOUT TIME
+        // ZONE, TIMESTAMP WITH LOCAL TIME ZONE AND ROW. So we remove these types related data.
         Map<String, List<Object>> dataMap = super.getDataMap();
         List<Object> timestampDate = dataMap.remove("timestamp(3)");
         dataMap.remove("timestamp(9)");
+        dataMap.remove("timestamp without time zone");
+        dataMap.remove("timestamp with local time zone");
         List<Object> binaryDate = dataMap.remove("binary(1)");
         dataMap.remove("varbinary(1)");
         dataMap.remove("time");
+        dataMap.remove("row<col1 string, col2 int>");
         dataMap.put("timestamp", timestampDate);
         dataMap.put("binary", binaryDate);
 
@@ -223,67 +235,71 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
     private static void assertHiveTableOrcFormatTableStatsEquals(
             TableStats tableStats, int expectedRowCount, long nullCount) {
         Map<String, ColumnStats> expectedColumnStatsMap = new HashMap<>();
-        expectedColumnStatsMap.put("a", new ColumnStats.Builder().setNullCount(nullCount).build());
         expectedColumnStatsMap.put(
-                "b", new ColumnStats.Builder().setMax(3L).setMin(1L).setNullCount(0L).build());
+                "f_boolean", new ColumnStats.Builder().setNullCount(nullCount).build());
         expectedColumnStatsMap.put(
-                "c", new ColumnStats.Builder().setMax(128L).setMin(100L).setNullCount(0L).build());
+                "f_tinyint",
+                new ColumnStats.Builder().setMax(3L).setMin(1L).setNullCount(0L).build());
         expectedColumnStatsMap.put(
-                "d",
+                "f_smallint",
+                new ColumnStats.Builder().setMax(128L).setMin(100L).setNullCount(0L).build());
+        expectedColumnStatsMap.put(
+                "f_int",
                 new ColumnStats.Builder()
                         .setMax(45536L)
                         .setMin(31000L)
                         .setNullCount(nullCount)
                         .build());
         expectedColumnStatsMap.put(
-                "e",
+                "f_bigint",
                 new ColumnStats.Builder()
                         .setMax(1238123899121L)
                         .setMin(1238123899000L)
                         .setNullCount(0L)
                         .build());
         expectedColumnStatsMap.put(
-                "f",
+                "f_float",
                 new ColumnStats.Builder()
                         .setMax(33.33300018310547D)
                         .setMin(33.31100082397461D)
                         .setNullCount(nullCount)
                         .build());
         expectedColumnStatsMap.put(
-                "g", new ColumnStats.Builder().setMax(10.1D).setMin(1.1D).setNullCount(0L).build());
+                "f_double",
+                new ColumnStats.Builder().setMax(10.1D).setMin(1.1D).setNullCount(0L).build());
         expectedColumnStatsMap.put(
-                "h",
+                "f_string",
                 new ColumnStats.Builder().setMax("def").setMin("abcd").setNullCount(0L).build());
         expectedColumnStatsMap.put(
-                "i",
+                "f_decimal5",
                 new ColumnStats.Builder()
                         .setMax(new BigDecimal("223.45"))
                         .setMin(new BigDecimal("123.45"))
                         .setNullCount(0L)
                         .build());
         expectedColumnStatsMap.put(
-                "j",
+                "f_decimal14",
                 new ColumnStats.Builder()
                         .setMax(new BigDecimal("123333333355.33"))
                         .setMin(new BigDecimal("123333333333.33"))
                         .setNullCount(0L)
                         .build());
         expectedColumnStatsMap.put(
-                "k",
+                "f_decimal38",
                 new ColumnStats.Builder()
                         .setMax(new BigDecimal("123433343334333433343334333433343334.34"))
                         .setMin(new BigDecimal("123433343334333433343334333433343334.33"))
                         .setNullCount(nullCount)
                         .build());
         expectedColumnStatsMap.put(
-                "l",
+                "f_date",
                 new ColumnStats.Builder()
                         .setMax(Date.valueOf("1990-10-16"))
                         .setMin(Date.valueOf("1990-10-14"))
                         .setNullCount(0L)
                         .build());
         expectedColumnStatsMap.put(
-                "m",
+                "f_timestamp3",
                 new ColumnStats.Builder()
                         .setMax(
                                 DateTimeUtils.parseTimestampData("1990-10-16 12:12:43.123", 3)
@@ -293,7 +309,9 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
                                         .toTimestamp())
                         .setNullCount(0L)
                         .build());
-        expectedColumnStatsMap.put("o", null);
+        expectedColumnStatsMap.put("f_binary", null);
+        expectedColumnStatsMap.put("f_array", null);
+        expectedColumnStatsMap.put("f_map", null);
 
         assertThat(tableStats).isEqualTo(new TableStats(expectedRowCount, expectedColumnStatsMap));
     }
@@ -301,60 +319,64 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
     private static void assertHiveTableParquetFormatTableStatsEquals(
             TableStats tableStats, int expectedRowCount, long nullCount) {
         Map<String, ColumnStats> expectedColumnStatsMap = new HashMap<>();
-        expectedColumnStatsMap.put("a", new ColumnStats.Builder().setNullCount(nullCount).build());
         expectedColumnStatsMap.put(
-                "b", new ColumnStats.Builder().setMax(3).setMin(1).setNullCount(0L).build());
+                "f_boolean", new ColumnStats.Builder().setNullCount(nullCount).build());
         expectedColumnStatsMap.put(
-                "c", new ColumnStats.Builder().setMax(128).setMin(100).setNullCount(0L).build());
+                "f_tinyint",
+                new ColumnStats.Builder().setMax(3).setMin(1).setNullCount(0L).build());
         expectedColumnStatsMap.put(
-                "d",
+                "f_smallint",
+                new ColumnStats.Builder().setMax(128).setMin(100).setNullCount(0L).build());
+        expectedColumnStatsMap.put(
+                "f_int",
                 new ColumnStats.Builder()
                         .setMax(45536)
                         .setMin(31000)
                         .setNullCount(nullCount)
                         .build());
         expectedColumnStatsMap.put(
-                "e",
+                "f_bigint",
                 new ColumnStats.Builder()
                         .setMax(1238123899121L)
                         .setMin(1238123899000L)
                         .setNullCount(0L)
                         .build());
         expectedColumnStatsMap.put(
-                "f",
+                "f_float",
                 new ColumnStats.Builder()
                         .setMax(33.333F)
                         .setMin(33.311F)
                         .setNullCount(nullCount)
                         .build());
         expectedColumnStatsMap.put(
-                "g", new ColumnStats.Builder().setMax(10.1D).setMin(1.1D).setNullCount(0L).build());
+                "f_double",
+                new ColumnStats.Builder().setMax(10.1D).setMin(1.1D).setNullCount(0L).build());
         expectedColumnStatsMap.put(
-                "h",
+                "f_string",
                 new ColumnStats.Builder().setMax("def").setMin("abcd").setNullCount(0L).build());
         expectedColumnStatsMap.put(
-                "i",
+                "f_decimal5",
                 new ColumnStats.Builder()
                         .setMax(new BigDecimal("223.45"))
                         .setMin(new BigDecimal("123.45"))
                         .setNullCount(0L)
                         .build());
         expectedColumnStatsMap.put(
-                "j",
+                "f_decimal14",
                 new ColumnStats.Builder()
                         .setMax(new BigDecimal("123333333355.33"))
                         .setMin(new BigDecimal("123333333333.33"))
                         .setNullCount(0L)
                         .build());
         expectedColumnStatsMap.put(
-                "k",
+                "f_decimal38",
                 new ColumnStats.Builder()
                         .setMax(new BigDecimal("123433343334333433343334333433343334.34"))
                         .setMin(new BigDecimal("123433343334333433343334333433343334.33"))
                         .setNullCount(nullCount)
                         .build());
         expectedColumnStatsMap.put(
-                "l",
+                "f_date",
                 new ColumnStats.Builder()
                         .setMax(Date.valueOf("1990-10-16"))
                         .setMin(Date.valueOf("1990-10-14"))
@@ -362,10 +384,11 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
                         .build());
         // Now parquet store timestamp as type int96, and int96 now not support statistics, so
         // timestamp not support statistics now.
-        expectedColumnStatsMap.put("m", new ColumnStats.Builder().setNullCount(0L).build());
+        expectedColumnStatsMap.put("f_timestamp3", null);
 
-        // parquet writer support BINARY() type.
-        expectedColumnStatsMap.put("o", new ColumnStats.Builder().setNullCount(0L).build());
+        expectedColumnStatsMap.put("f_binary", new ColumnStats.Builder().setNullCount(0L).build());
+        expectedColumnStatsMap.put("f_array", null);
+        expectedColumnStatsMap.put("f_map", null);
         assertThat(tableStats).isEqualTo(new TableStats(expectedRowCount, expectedColumnStatsMap));
     }
 }

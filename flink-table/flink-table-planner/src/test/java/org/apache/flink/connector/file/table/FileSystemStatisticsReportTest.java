@@ -114,6 +114,11 @@ public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
         tEnv.executeSql(ddl3);
     }
 
+    @Override
+    protected String[] properties() {
+        return new String[0];
+    }
+
     private String createFileAndWriteData(File path, String fileName, List<String> data)
             throws IOException {
         String file = path.getAbsolutePath() + "/" + fileName;

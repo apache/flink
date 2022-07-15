@@ -36,6 +36,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -47,9 +48,16 @@ public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
     @BeforeEach
     public void setup(@TempDir File file) throws Exception {
         super.setup(file);
-        createFileSystemSource("csv");
+        createFileSystemSource();
         Configuration configuration = new Configuration();
         csvBulkDecodingFormat = new CsvFileFormatFactory.CsvBulkDecodingFormat(configuration);
+    }
+
+    @Override
+    protected String[] properties() {
+        List<String> ret = new ArrayList<>();
+        ret.add("'format' = 'csv'");
+        return ret.toArray(new String[0]);
     }
 
     @Test
@@ -99,6 +107,22 @@ public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
     public void testCsvFormatStatsReportWithEmptyFile() {
         TableStats tableStats = csvBulkDecodingFormat.reportStatistics(null, null);
         assertThat(tableStats).isEqualTo(TableStats.UNKNOWN);
+    }
+
+    @Override
+    protected Map<String, String> ddlTypesMap() {
+        // now Csv format don't support type MAP, so we remove this type.
+        Map<String, String> ddlTypes = super.ddlTypesMap();
+        ddlTypes.remove("map<string, int>");
+        return ddlTypes;
+    }
+
+    @Override
+    protected Map<String, List<Object>> getDataMap() {
+        // now Csv format don't support type MAP, so we remove data belong to this type.
+        Map<String, List<Object>> dataMap = super.getDataMap();
+        dataMap.remove("map<string, int>");
+        return dataMap;
     }
 
     private static Path createTempFile(String content) throws IOException {

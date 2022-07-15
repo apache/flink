@@ -294,7 +294,7 @@ public abstract class StatisticsReportTestBase extends TestLogger {
         }
     }
 
-    private static String[] ddlTypesMapToStringList(Map<String, String> ddlTypesMap) {
+    protected static String[] ddlTypesMapToStringList(Map<String, String> ddlTypesMap) {
         String[] types = new String[ddlTypesMap.size()];
         int i = 0;
         for (Map.Entry<String, String> entry : ddlTypesMap.entrySet()) {
