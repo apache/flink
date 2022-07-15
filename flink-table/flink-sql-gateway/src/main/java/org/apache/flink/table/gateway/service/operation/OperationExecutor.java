@@ -65,9 +65,7 @@ public class OperationExecutor {
 
     public ResultFetcher executeStatement(OperationHandle handle, String statement) {
         // Instantiate the TableEnvironment lazily
-        TableEnvironmentInternal tableEnv = sessionContext.createTableEnvironment();
-        tableEnv.getConfig().getConfiguration().addAll(executionConfig);
-
+        TableEnvironmentInternal tableEnv = getTableEnvironment();
         List<Operation> parsedOperations = tableEnv.getParser().parse(statement);
         if (parsedOperations.size() > 1) {
             throw new UnsupportedOperationException(
@@ -99,6 +97,13 @@ public class OperationExecutor {
             return new ResultFetcher(
                     handle, result.getResolvedSchema(), collect(result.collectInternal()));
         }
+    }
+
+    @VisibleForTesting
+    public TableEnvironmentInternal getTableEnvironment() {
+        TableEnvironmentInternal tableEnv = sessionContext.createTableEnvironment();
+        tableEnv.getConfig().getConfiguration().addAll(executionConfig);
+        return tableEnv;
     }
 
     private ResultFetcher callSetOperation(

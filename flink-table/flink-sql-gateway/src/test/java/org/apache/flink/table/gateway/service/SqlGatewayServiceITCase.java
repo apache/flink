@@ -21,7 +21,10 @@ package org.apache.flink.table.gateway.service;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -40,6 +43,7 @@ import org.apache.flink.table.gateway.service.session.SessionManager;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
+import org.apache.flink.table.planner.runtime.batch.sql.TestModule;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.RunnableWithException;
@@ -122,6 +126,33 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                         "Should contains (%s, %s) in the actual config.", k, v),
                                 actualConfig,
                                 Matchers.hasEntry(k, v)));
+    }
+
+    @Test
+    public void testOpenSessionWithEnvironment() throws Exception {
+        String catalogName = "default";
+        String databaseName = "testDb";
+        String moduleName = "testModule";
+        GenericInMemoryCatalog defaultCatalog = new GenericInMemoryCatalog(catalogName);
+        defaultCatalog.createDatabase(
+                databaseName, new CatalogDatabaseImpl(Collections.emptyMap(), null), true);
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .registerCatalog(catalogName, defaultCatalog)
+                        .registerModule(moduleName, new TestModule())
+                        .setDefaultCatalog(catalogName)
+                        .setDefaultDatabase(databaseName)
+                        .build();
+
+        SessionHandle sessionHandle = service.openSession(environment);
+        TableEnvironmentInternal tableEnv =
+                service.getSession(sessionHandle)
+                        .createExecutor(new Configuration())
+                        .getTableEnvironment();
+        assertEquals(catalogName, tableEnv.getCurrentCatalog());
+        assertEquals(databaseName, tableEnv.getCurrentDatabase());
+        assertTrue(new HashSet<>(Arrays.asList(tableEnv.listModules())).contains(moduleName));
     }
 
     @Test

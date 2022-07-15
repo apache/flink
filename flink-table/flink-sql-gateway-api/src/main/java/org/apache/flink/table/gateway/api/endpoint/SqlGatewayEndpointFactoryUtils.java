@@ -41,7 +41,7 @@ import static org.apache.flink.table.factories.FactoryUtil.PROPERTY_VERSION;
 @PublicEvolving
 public class SqlGatewayEndpointFactoryUtils {
 
-    private static final String GATEWAY_ENDPOINT_PREFIX = "sql-gateway.endpoint";
+    public static final String GATEWAY_ENDPOINT_PREFIX = "sql-gateway.endpoint";
 
     public static final ConfigOption<List<String>> SQL_GATEWAY_ENDPOINT_TYPE =
             ConfigOptions.key(String.format("%s.type", GATEWAY_ENDPOINT_PREFIX))

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.service.utils;
+package org.apache.flink.table.gateway.api.utils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
