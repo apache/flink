@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -59,7 +60,7 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchEx
                 lookupKeys,
                 projectionOnTemporalTable,
                 filterOnTemporalTable,
-                true,
+                ChangelogMode.insertOnly(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

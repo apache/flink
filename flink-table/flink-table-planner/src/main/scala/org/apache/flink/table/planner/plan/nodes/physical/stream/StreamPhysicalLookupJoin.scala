@@ -121,10 +121,9 @@ class StreamPhysicalLookupJoin(
       allLookupKeys.map(item => (Int.box(item._1), item._2)).asJava,
       projectionOnTemporalTable,
       filterOnTemporalTable,
-      ChangelogPlanUtils.inputInsertOnly(this),
+      inputChangelogMode,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      inputChangelogMode,
       getUpsertKey,
       upsertMaterialize,
       getRelDetailedDescription)

@@ -55,14 +55,9 @@ import java.util.Map;
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecLookupJoin extends CommonExecLookupJoin implements StreamExecNode<RowData> {
 
-    public static final String FIELD_NAME_INPUT_CHANGELOG_MODE = "inputChangelogMode";
-
     public static final String FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE = "requireUpsertMaterialize";
 
     public static final String FIELD_NAME_LEFT_UNIQUE_KEYS = "leftUniqueKeys";
-
-    @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODE)
-    private final ChangelogMode inputChangelogMode;
 
     @JsonProperty(FIELD_NAME_LEFT_UNIQUE_KEYS)
     private final List<int[]> leftUniqueKeys;
@@ -79,10 +74,9 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
             @Nullable List<RexNode> projectionOnTemporalTable,
             @Nullable RexNode filterOnTemporalTable,
-            boolean inputInsertOnly,
+            ChangelogMode inputChangelogMode,
             InputProperty inputProperty,
             RowType outputType,
-            ChangelogMode inputChangelogMode,
             List<int[]> leftUniqueKeys,
             boolean upsertMaterialize,
             String description) {
@@ -96,10 +90,9 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                 lookupKeys,
                 projectionOnTemporalTable,
                 filterOnTemporalTable,
-                inputInsertOnly,
+                inputChangelogMode,
                 Collections.singletonList(inputProperty),
                 outputType,
-                inputChangelogMode,
                 leftUniqueKeys,
                 upsertMaterialize,
                 description);
@@ -119,10 +112,10 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                     List<RexNode> projectionOnTemporalTable,
             @JsonProperty(FIELD_NAME_FILTER_ON_TEMPORAL_TABLE) @Nullable
                     RexNode filterOnTemporalTable,
-            @JsonProperty(FIELD_NAME_INPUT_INSERT_ONLY) @Nullable Boolean inputInsertOnly,
+            @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODE) @Nullable
+                    ChangelogMode inputChangelogMode,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODE) ChangelogMode inputChangelogMode,
             @JsonProperty(FIELD_NAME_LEFT_UNIQUE_KEYS) List<int[]> leftUniqueKeys,
             @JsonProperty(FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE) boolean upsertMaterialize,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -136,11 +129,10 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                 lookupKeys,
                 projectionOnTemporalTable,
                 filterOnTemporalTable,
-                inputInsertOnly,
+                inputChangelogMode,
                 inputProperties,
                 outputType,
                 description);
-        this.inputChangelogMode = inputChangelogMode;
         this.leftUniqueKeys = leftUniqueKeys;
         this.upsertMaterialize = upsertMaterialize;
     }
