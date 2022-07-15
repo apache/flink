@@ -49,6 +49,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -256,6 +257,11 @@ public class ExecutionVertex
 
     public Collection<Execution> getCurrentExecutions() {
         return Collections.singleton(currentExecution);
+    }
+
+    public Execution getCurrentExecution(int attemptNumber) {
+        checkArgument(attemptNumber == currentExecution.getAttemptNumber());
+        return currentExecution;
     }
 
     @Override
