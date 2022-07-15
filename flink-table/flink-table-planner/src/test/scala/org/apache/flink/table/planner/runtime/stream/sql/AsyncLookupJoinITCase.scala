@@ -252,6 +252,11 @@ class AsyncLookupJoinITCase(
 
   @Test
   def testAggAndAsyncLeftJoinTemporalTable(): Unit = {
+    // TODO remove this config after FLINK-28568 done
+    tEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_LOOKUP_JOIN_UPSERT_MATERIALIZE,
+      ExecutionConfigOptions.UpsertMaterialize.NONE)
+
     val sql1 = "SELECT max(id) as id, PROCTIME() as proctime FROM src AS T group by len"
 
     val table1 = tEnv.sqlQuery(sql1)
