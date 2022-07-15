@@ -24,9 +24,9 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
+import org.apache.flink.table.gateway.api.utils.ThreadUtils;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.gateway.service.context.SessionContext;
-import org.apache.flink.table.gateway.service.utils.ThreadUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -154,6 +154,12 @@ public class SessionManager {
                         environment.getSessionEndpointVersion(),
                         Configuration.fromMap(environment.getSessionConfig()),
                         operationExecutorService);
+
+        environment.getRegisteredCatalogs().forEach(sessionContext::registerCatalog);
+        environment.getRegisteredModules().forEach(sessionContext::registerModule);
+        environment.getDefaultCatalog().ifPresent(sessionContext::setCurrentCatalog);
+        environment.getDefaultDatabase().ifPresent(sessionContext::setCurrentDatabase);
+
         session = new Session(sessionContext);
         sessions.put(sessionId, session);
 
@@ -209,7 +215,7 @@ public class SessionManager {
     }
 
     @VisibleForTesting
-    int currentSessionCount() {
+    public int currentSessionCount() {
         return sessions.size();
     }
 

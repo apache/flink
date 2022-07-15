@@ -42,6 +42,7 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
+import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
@@ -97,20 +98,6 @@ public class SessionContext {
         this.operationManager = operationManager;
     }
 
-    /** Close resources, e.g. catalogs. */
-    public void close() {
-        operationManager.close();
-
-        for (String name : sessionState.catalogManager.listCatalogs()) {
-            sessionState.catalogManager.getCatalog(name).ifPresent(Catalog::close);
-        }
-        try {
-            userClassloader.close();
-        } catch (IOException e) {
-            LOG.debug("Error while closing class loader.", e);
-        }
-    }
-
     // --------------------------------------------------------------------------------------------
     // Getter/Setter
     // --------------------------------------------------------------------------------------------
@@ -121,6 +108,10 @@ public class SessionContext {
 
     public Map<String, String> getConfigMap() {
         return sessionConf.toMap();
+    }
+
+    public OperationManager getOperationManager() {
+        return operationManager;
     }
 
     public void set(String key, String value) {
@@ -158,8 +149,41 @@ public class SessionContext {
     // Method to execute commands
     // --------------------------------------------------------------------------------------------
 
+    public void registerCatalog(String catalogName, Catalog catalog) {
+        sessionState.catalogManager.registerCatalog(catalogName, catalog);
+    }
+
+    public void registerModule(String moduleName, Module module) {
+        sessionState.moduleManager.loadModule(moduleName, module);
+    }
+
+    public void setCurrentCatalog(String catalog) {
+        sessionState.catalogManager.setCurrentCatalog(catalog);
+    }
+
+    public void setCurrentDatabase(String database) {
+        sessionState.catalogManager.setCurrentDatabase(database);
+    }
+
     public OperationExecutor createOperationExecutor(Configuration executionConfig) {
         return new OperationExecutor(this, executionConfig);
+    }
+
+    /** Close resources, e.g. catalogs. */
+    public void close() {
+        operationManager.close();
+        for (String name : sessionState.catalogManager.listCatalogs()) {
+            try {
+                sessionState.catalogManager.getCatalog(name).ifPresent(Catalog::close);
+            } catch (Throwable t) {
+                LOG.error("Failed to close catalog %s.", t);
+            }
+        }
+        try {
+            userClassloader.close();
+        } catch (IOException e) {
+            LOG.debug("Error while closing class loader.", e);
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -253,11 +277,7 @@ public class SessionContext {
                 sessionState.functionCatalog);
     }
 
-    public OperationManager getOperationManager() {
-        return operationManager;
-    }
-
-    private static TableEnvironmentInternal createStreamTableEnvironment(
+    private TableEnvironmentInternal createStreamTableEnvironment(
             StreamExecutionEnvironment env,
             EnvironmentSettings settings,
             TableConfig tableConfig,

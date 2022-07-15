@@ -19,8 +19,6 @@
 package org.apache.flink.table.gateway.api.endpoint;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -36,19 +34,13 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.table.factories.FactoryUtil.PROPERTY_VERSION;
+import static org.apache.flink.table.factories.FactoryUtil.SQL_GATEWAY_ENDPOINT_TYPE;
 
 /** Util to discover the {@link SqlGatewayEndpoint}. */
 @PublicEvolving
 public class SqlGatewayEndpointFactoryUtils {
 
-    private static final String GATEWAY_ENDPOINT_PREFIX = "sql-gateway.endpoint";
-
-    public static final ConfigOption<List<String>> SQL_GATEWAY_ENDPOINT_TYPE =
-            ConfigOptions.key(String.format("%s.type", GATEWAY_ENDPOINT_PREFIX))
-                    .stringType()
-                    .asList()
-                    .noDefaultValue()
-                    .withDescription("Specify the endpoints that are used.");
+    public static final String GATEWAY_ENDPOINT_PREFIX = "sql-gateway.endpoint";
 
     /**
      * Attempts to discover the appropriate endpoint factory and creates the instance of the
@@ -105,6 +97,7 @@ public class SqlGatewayEndpointFactoryUtils {
      * @see #createEndpointFactoryHelper(SqlGatewayEndpointFactory,
      *     SqlGatewayEndpointFactory.Context)
      */
+    @PublicEvolving
     public static class EndpointFactoryHelper extends FactoryHelper<SqlGatewayEndpointFactory> {
 
         private EndpointFactoryHelper(

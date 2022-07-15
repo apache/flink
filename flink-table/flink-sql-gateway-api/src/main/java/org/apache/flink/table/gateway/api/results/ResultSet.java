@@ -135,6 +135,7 @@ public class ResultSet {
     }
 
     /** Describe the kind of the result. */
+    @PublicEvolving
     public enum ResultType {
         /** Indicate the result is not ready. */
         NOT_READY,
