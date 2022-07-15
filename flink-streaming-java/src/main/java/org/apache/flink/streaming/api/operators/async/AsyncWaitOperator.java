@@ -193,14 +193,12 @@ public class AsyncWaitOperator<IN, OUT>
             default:
                 throw new IllegalStateException("Unknown async mode: " + outputMode + '.');
         }
-        if (asyncRetryStrategy.getRetryPredicate().resultPredicate().isPresent()) {
+        if (retryEnabled) {
             this.retryResultPredicate =
                     asyncRetryStrategy
                             .getRetryPredicate()
                             .resultPredicate()
                             .orElse(ignore -> false);
-        }
-        if (asyncRetryStrategy.getRetryPredicate().exceptionPredicate().isPresent()) {
             this.retryExceptionPredicate =
                     asyncRetryStrategy
                             .getRetryPredicate()

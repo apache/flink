@@ -33,7 +33,7 @@ public class AsyncRetryStrategies {
     public static final NoRetryStrategy NO_RETRY_STRATEGY = new NoRetryStrategy();
 
     /** NoRetryStrategy. */
-    public static class NoRetryStrategy implements AsyncRetryStrategy {
+    private static class NoRetryStrategy implements AsyncRetryStrategy {
         private static final long serialVersionUID = 1L;
 
         private NoRetryStrategy() {}
