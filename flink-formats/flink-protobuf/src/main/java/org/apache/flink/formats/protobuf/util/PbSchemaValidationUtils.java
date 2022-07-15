@@ -34,7 +34,7 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 
 /** Validation class to verify protobuf definition and flink schema. */
-public class PbSchemaValidatorUtils {
+public class PbSchemaValidationUtils {
 
     private static final EnumMap<JavaType, EnumSet<LogicalTypeRoot>> TYPE_MATCH_MAP =
             new EnumMap<>(JavaType.class);

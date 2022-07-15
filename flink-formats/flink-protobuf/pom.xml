@@ -71,7 +71,6 @@ under the License.
 		</dependency>
 
 		<!-- test dependencies -->
-		<!-- JSON RowData schema test dependency -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
@@ -79,7 +78,6 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Filesystem format factory ITCase test dependency -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
@@ -114,6 +112,31 @@ under the License.
 							<inputDirectories>
 								<include>src/test/proto</include>
 							</inputDirectories>
+							<outputTargets>
+								<outputTarget>
+									<type>java</type>
+									<addSources>none</addSources>
+									<outputDirectory>target/test-proto-sources</outputDirectory>
+								</outputTarget>
+							</outputTargets>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<version>3.0.0</version>
+				<executions>
+					<execution>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>add-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>target/test-proto-sources</source>
+							</sources>
 						</configuration>
 					</execution>
 				</executions>

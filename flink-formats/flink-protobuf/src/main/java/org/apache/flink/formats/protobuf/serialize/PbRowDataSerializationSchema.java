@@ -21,7 +21,7 @@ package org.apache.flink.formats.protobuf.serialize;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
-import org.apache.flink.formats.protobuf.util.PbSchemaValidatorUtils;
+import org.apache.flink.formats.protobuf.util.PbSchemaValidationUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -47,7 +47,7 @@ public class PbRowDataSerializationSchema implements SerializationSchema<RowData
         this.pbFormatConfig = pbFormatConfig;
         Descriptors.Descriptor descriptor =
                 PbFormatUtils.getDescriptor(pbFormatConfig.getMessageClassName());
-        PbSchemaValidatorUtils.validate(descriptor, rowType);
+        PbSchemaValidationUtils.validate(descriptor, rowType);
     }
 
     @Override

@@ -43,7 +43,8 @@ public class SimpleRowToProtoTest {
                         StringData.fromString("hello"),
                         new byte[] {1},
                         StringData.fromString("IMAGES"),
-                        1);
+                        1,
+                        2);
 
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTest.class);
         SimpleTest simpleTest = SimpleTest.parseFrom(bytes);
@@ -63,7 +64,16 @@ public class SimpleRowToProtoTest {
     public void testNull() throws Exception {
         RowData row =
                 GenericRowData.of(
-                        null, 2L, false, 0.1f, 0.01, StringData.fromString("hello"), null, null, 1);
+                        null,
+                        2L,
+                        false,
+                        0.1f,
+                        0.01,
+                        StringData.fromString("hello"),
+                        null,
+                        null,
+                        1,
+                        2);
 
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTest.class);
         SimpleTest simpleTest = SimpleTest.parseFrom(bytes);
@@ -77,7 +87,7 @@ public class SimpleRowToProtoTest {
         RowData row =
                 GenericRowData.of(
                         null, null, null, null, null, null, null, 2, // CORPUS: IMAGE
-                        null);
+                        null, null);
 
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTest.class, true);
         SimpleTest simpleTest = SimpleTest.parseFrom(bytes);

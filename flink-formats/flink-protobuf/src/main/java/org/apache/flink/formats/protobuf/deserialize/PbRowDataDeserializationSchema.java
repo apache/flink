@@ -22,7 +22,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
-import org.apache.flink.formats.protobuf.util.PbSchemaValidatorUtils;
+import org.apache.flink.formats.protobuf.util.PbSchemaValidationUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -54,7 +54,7 @@ public class PbRowDataDeserializationSchema implements DeserializationSchema<Row
         this.resultTypeInfo = resultTypeInfo;
         this.formatConfig = formatConfig;
         // do it in client side to report error in the first place
-        PbSchemaValidatorUtils.validate(
+        PbSchemaValidationUtils.validate(
                 PbFormatUtils.getDescriptor(formatConfig.getMessageClassName()), rowType);
         // this step is only used to validate codegen in client side in the first place
     }

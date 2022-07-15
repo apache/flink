@@ -24,35 +24,10 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 
 import com.google.protobuf.Descriptors;
+import com.google.protobuf.ProtobufInternalUtils;
 
 /** Protobuf function util. */
 public class PbFormatUtils {
-
-    /**
-     * protobuf code has a bug that, f_abc_7d will be converted to fAbc7d in {@link
-     * Descriptors.FieldDescriptor#getJsonName()}, but actually we need fAbc7D.
-     */
-    public static String fieldNameToJsonName(String name) {
-        final int length = name.length();
-        StringBuilder result = new StringBuilder(length);
-        boolean isNextUpperCase = false;
-        for (int i = 0; i < length; i++) {
-            char ch = name.charAt(i);
-            if (ch == '_') {
-                isNextUpperCase = true;
-            } else if (isNextUpperCase) {
-                if ('a' <= ch && ch <= 'z') {
-                    ch = (char) (ch - 'a' + 'A');
-                    isNextUpperCase = false;
-                }
-                result.append(ch);
-            } else {
-                result.append(ch);
-            }
-        }
-        return result.toString();
-    }
-
     public static String getFullJavaName(Descriptors.Descriptor descriptor, String outerProtoName) {
         if (null != descriptor.getContainingType()) {
             // nested type
@@ -94,12 +69,7 @@ public class PbFormatUtils {
     }
 
     public static String getStrongCamelCaseJsonName(String name) {
-        String jsonName = fieldNameToJsonName(name);
-        if (jsonName.length() == 1) {
-            return jsonName.toUpperCase();
-        } else {
-            return jsonName.substring(0, 1).toUpperCase() + jsonName.substring(1);
-        }
+        return ProtobufInternalUtils.toCamelCase(name, true);
     }
 
     public static String getOuterProtoPrefix(String name) {

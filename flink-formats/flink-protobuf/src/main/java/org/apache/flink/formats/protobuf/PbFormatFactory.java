@@ -88,6 +88,7 @@ public class PbFormatFactory implements DeserializationFormatFactory, Serializat
         Set<ConfigOption<?>> result = new HashSet<>();
         result.add(PbFormatOptions.IGNORE_PARSE_ERRORS);
         result.add(PbFormatOptions.READ_DEFAULT_VALUES);
+        result.add(PbFormatOptions.WRITE_NULL_STRING_LITERAL);
         return result;
     }
 }

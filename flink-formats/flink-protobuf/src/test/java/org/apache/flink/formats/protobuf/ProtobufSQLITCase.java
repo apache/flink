@@ -241,4 +241,36 @@ public class ProtobufSQLITCase extends BatchTestBase {
         MapTest.InnerMessageTest innerMessageTest = mapTest.getMap2Map().get("b");
         assertEquals(MapTest.InnerMessageTest.getDefaultInstance(), innerMessageTest);
     }
+
+    @Test
+    public void testSinkWithNullLiteralWithEscape() throws Exception {
+        TestProtobufTestStore.sourcePbInputs.clear();
+        TestProtobufTestStore.sourcePbInputs.add(getProtoTestObject());
+        TestProtobufTestStore.sinkResults.clear();
+
+        env().setParallelism(1);
+        String sql =
+                "create table bigdata_sink ( "
+                        + "	a int, "
+                        + "	map1 map<string,string>,"
+                        + " map2 map<string, row<a int, b bigint>>"
+                        + ")  with ("
+                        + "	'connector' = 'protobuf-test-connector', "
+                        + "	'format' = 'protobuf', "
+                        + " 'protobuf.message-class-name' = 'org.apache.flink.formats.protobuf.testproto.MapTest', "
+                        + " 'protobuf.write-null-string-literal' = '\\\"NULL\\\"' "
+                        + ")";
+        tEnv().executeSql(sql);
+        TableResult tableResult =
+                tEnv().executeSql(
+                                "insert into bigdata_sink select 1, map['a', null], map['b', cast(null as row<a int, b bigint>)]");
+        tableResult.await();
+
+        byte[] bytes = TestProtobufTestStore.sinkResults.get(0);
+        MapTest mapTest = MapTest.parseFrom(bytes);
+        assertEquals(1, mapTest.getA());
+        assertEquals("\"NULL\"", mapTest.getMap1Map().get("a"));
+        MapTest.InnerMessageTest innerMessageTest = mapTest.getMap2Map().get("b");
+        assertEquals(MapTest.InnerMessageTest.getDefaultInstance(), innerMessageTest);
+    }
 }

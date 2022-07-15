@@ -42,7 +42,8 @@ public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
     }
 
     @Override
-    public String codegen(String resultVar, String flinkObjectCode, int indent) throws PbCodegenException {
+    public String codegen(String resultVar, String flinkObjectCode, int indent)
+            throws PbCodegenException {
         // the real value of flinkObjectCode may be String, Integer,
         // Long, Double, Float, Boolean, byte[].
         // The type of flinkObject is simple data type of flink, and flinkObject must not be null.

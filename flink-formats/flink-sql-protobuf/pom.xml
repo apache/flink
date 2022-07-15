@@ -36,7 +36,7 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-parquet</artifactId>
+			<artifactId>flink-protobuf</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
@@ -60,23 +60,6 @@ under the License.
 									<include>com.google.protobuf:protobuf-java</include>
 								</includes>
 							</artifactSet>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<!-- skip dependency convergence due to Hadoop dependency -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-enforcer-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>dependency-convergence</id>
-						<goals>
-							<goal>enforce</goal>
-						</goals>
-						<configuration>
-							<skip>true</skip>
 						</configuration>
 					</execution>
 				</executions>

@@ -44,11 +44,12 @@ public class SimpleProtoToRowTest {
                         .setG(ByteString.copyFrom(new byte[] {1}))
                         .setH(SimpleTest.Corpus.IMAGES)
                         .setFAbc7D(1) // test fieldNameToJsonName
+                        .setVpr6S(2)
                         .build();
 
         RowData row = ProtobufTestHelper.pbBytesToRow(SimpleTest.class, simple.toByteArray());
 
-        assertEquals(9, row.getArity());
+        assertEquals(10, row.getArity());
         assertEquals(1, row.getInt(0));
         assertEquals(2L, row.getLong(1));
         assertFalse(row.getBoolean(2));
@@ -58,6 +59,7 @@ public class SimpleProtoToRowTest {
         assertEquals(1, (row.getBinary(6))[0]);
         assertEquals("IMAGES", row.getString(7).toString());
         assertEquals(1, row.getInt(8));
+        assertEquals(2, row.getInt(9));
     }
 
     @Test

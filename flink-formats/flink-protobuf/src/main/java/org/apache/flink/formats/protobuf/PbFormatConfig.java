@@ -27,6 +27,8 @@ import static org.apache.flink.formats.protobuf.PbFormatOptions.WRITE_NULL_STRIN
 
 /** Config of protobuf configs. */
 public class PbFormatConfig implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private final String messageClassName;
     private final boolean ignoreParseErrors;
     private final boolean readDefaultValues;

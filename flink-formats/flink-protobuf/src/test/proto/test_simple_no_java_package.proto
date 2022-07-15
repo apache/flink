@@ -26,7 +26,7 @@ message SimpleTestNoJavaPackage {
     optional bool c = 3;
     optional float d = 4;
     optional double e = 5;
-    optional string f = 6 [default="f"];;
+    optional string f = 6 [default="f"];
     optional bytes g = 7;
     optional Corpus h = 8;
     //this is must because protobuf have some field name parse bug if number is after "_".
