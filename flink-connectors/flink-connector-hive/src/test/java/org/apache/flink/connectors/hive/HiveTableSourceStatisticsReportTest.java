@@ -120,7 +120,8 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
 
         // Hive to read Orc file
         FlinkStatistic statistic =
-                getStatisticsFromOptimizedPlan("select * from hive.db1.orcTable");
+                getStatisticsFromOptimizedPlan(
+                        "select * from hive.db1.orcTable where f_smallint > 100");
         assertHiveTableOrcFormatTableStatsEquals(statistic.getTableStats(), 3, 1L);
     }
 
@@ -142,7 +143,8 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
 
         // Hive to read Parquet file
         FlinkStatistic statistic =
-                getStatisticsFromOptimizedPlan("select * from hive.db1.parquetTable");
+                getStatisticsFromOptimizedPlan(
+                        "select * from hive.db1.parquetTable where f_smallint > 100");
         assertHiveTableParquetFormatTableStatsEquals(statistic.getTableStats(), 3, 1L);
     }
 
@@ -166,7 +168,8 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
 
         // Hive to read Orc file
         FlinkStatistic statistic =
-                getStatisticsFromOptimizedPlan("select * from hive.db1.orcTable");
+                getStatisticsFromOptimizedPlan(
+                        "select * from hive.db1.orcTable where f_smallint > 100");
         assertHiveTableOrcFormatTableStatsEquals(statistic.getTableStats(), 3, 1L);
     }
 
@@ -190,8 +193,23 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
 
         // Hive to read Parquet file.
         FlinkStatistic statistic =
-                getStatisticsFromOptimizedPlan("select * from hive.db1.parquetTable");
+                getStatisticsFromOptimizedPlan(
+                        "select * from hive.db1.parquetTable where f_smallint > 100");
         assertHiveTableParquetFormatTableStatsEquals(statistic.getTableStats(), 3, 1L);
+    }
+
+    @Test
+    public void testHiveTableSourceWithLimitPushDown() {
+        FlinkStatistic statistic =
+                getStatisticsFromOptimizedPlan(
+                        "select * from "
+                                + catalogName
+                                + "."
+                                + dbName
+                                + "."
+                                + sourceTable
+                                + " limit 1");
+        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(1));
     }
 
     @Override
