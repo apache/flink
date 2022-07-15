@@ -70,7 +70,7 @@ public class HistoryServerOptions {
                     .withDescription(
                             "Pattern of the log URL of TaskManager. The HistoryServer will generate actual URLs from it,"
                                     + " with replacing the special placeholders, `<jobid>` and `<tmid>`, to the id of job"
-                                    + " and TaskManager respectively.");
+                                    + " and TaskManager respectively. Only http / https schemes are supported.");
 
     /**
      * Pattern of the log URL of JobManager. The HistoryServer will generate actual URLs from it.
@@ -81,7 +81,8 @@ public class HistoryServerOptions {
                     .noDefaultValue()
                     .withDescription(
                             "Pattern of the log URL of JobManager. The HistoryServer will generate actual URLs from it,"
-                                    + " with replacing the special placeholders, `<jobid>`, to the id of job.");
+                                    + " with replacing the special placeholders, `<jobid>`, to the id of job."
+                                    + " Only http / https schemes are supported.");
 
     /** The local directory used by the HistoryServer web-frontend. */
     public static final ConfigOption<String> HISTORY_SERVER_WEB_DIR =
