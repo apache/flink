@@ -19,8 +19,12 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -31,6 +35,7 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rex.RexNode;
@@ -49,6 +54,23 @@ import java.util.Map;
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecLookupJoin extends CommonExecLookupJoin implements StreamExecNode<RowData> {
+
+    public static final String FIELD_NAME_INPUT_CHANGELOG_MODE = "inputChangelogMode";
+
+    public static final String FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE = "requireUpsertMaterialize";
+
+    public static final String FIELD_NAME_LEFT_UNIQUE_KEYS = "leftUniqueKeys";
+
+    @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODE)
+    private final ChangelogMode inputChangelogMode;
+
+    @JsonProperty(FIELD_NAME_LEFT_UNIQUE_KEYS)
+    private final List<int[]> leftUniqueKeys;
+
+    @JsonProperty(FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE)
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    private final boolean upsertMaterialize;
+
     public StreamExecLookupJoin(
             ReadableConfig tableConfig,
             FlinkJoinType joinType,
@@ -60,6 +82,9 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
             boolean inputInsertOnly,
             InputProperty inputProperty,
             RowType outputType,
+            ChangelogMode inputChangelogMode,
+            List<int[]> leftUniqueKeys,
+            boolean upsertMaterialize,
             String description) {
         this(
                 ExecNodeContext.newNodeId(),
@@ -74,6 +99,9 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                 inputInsertOnly,
                 Collections.singletonList(inputProperty),
                 outputType,
+                inputChangelogMode,
+                leftUniqueKeys,
+                upsertMaterialize,
                 description);
     }
 
@@ -94,6 +122,9 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
             @JsonProperty(FIELD_NAME_INPUT_INSERT_ONLY) @Nullable Boolean inputInsertOnly,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODE) ChangelogMode inputChangelogMode,
+            @JsonProperty(FIELD_NAME_LEFT_UNIQUE_KEYS) List<int[]> leftUniqueKeys,
+            @JsonProperty(FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE) boolean upsertMaterialize,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(
                 id,
@@ -109,5 +140,17 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                 inputProperties,
                 outputType,
                 description);
+        this.inputChangelogMode = inputChangelogMode;
+        this.leftUniqueKeys = leftUniqueKeys;
+        this.upsertMaterialize = upsertMaterialize;
+    }
+
+    @Override
+    public Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
+        if (!upsertMaterialize) {
+            return super.translateToPlanInternal(planner, config);
+        }
+        throw new UnsupportedOperationException("to be supported");
     }
 }

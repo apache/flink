@@ -305,8 +305,29 @@ public class ExecutionConfigOptions {
                             "Sets the window elements buffer size limit used in group window agg operator.");
 
     // ------------------------------------------------------------------------
-    //  Async Lookup Options
+    //  Lookup Options
     // ------------------------------------------------------------------------
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<UpsertMaterialize> TABLE_EXEC_LOOKUP_JOIN_UPSERT_MATERIALIZE =
+            key("table.exec.lookup-join.upsert-materialize")
+                    .enumType(UpsertMaterialize.class)
+                    .defaultValue(UpsertMaterialize.AUTO)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "In order to minimize the potential exceptions or data errors when many users use the update stream to lookup join an external "
+                                                    + "table (essentially due to the non-deterministic result based on processing-time to lookup external tables). "
+                                                    + "When update exists in the input stream and the lookup key does not contain the primary key of the external table, "
+                                                    + "FLINK automatically adds materialization of the update by default, so that it will only lookup the external table "
+                                                    + "when the insert or update_after message arrives, and when the delete or update_before message arrives, it will "
+                                                    + "directly querying the latest version of the locally materialized data and sent it to downstream operator.")
+                                    .linebreak()
+                                    .text(
+                                            "By default, the materialize operator will be added when an update stream lookup an external table without containing "
+                                                    + "its primary keys(includes no primary key defined). You can also choose no materialization(NONE) "
+                                                    + "or force materialization(FORCE).")
+                                    .build());
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY =
             key("table.exec.async-lookup.buffer-capacity")
@@ -555,17 +576,20 @@ public class ExecutionConfigOptions {
         }
     }
 
-    /** Upsert materialize strategy before sink. */
+    /** Upsert materialize strategy on specified operators. */
     @PublicEvolving
     public enum UpsertMaterialize {
 
-        /** In no case will materialize operator be added. */
+        /** In no case materialization will be added to operator. */
         NONE,
 
-        /** Add materialize operator when a distributed disorder occurs on unique keys. */
+        /**
+         * Add materialization to operator when a distributed disorder occurs on upsert keys or
+         * non-deterministic updates occurs on either upsert keys or no key scenario.
+         */
         AUTO,
 
-        /** Add materialize operator in any case. */
+        /** Add materialization to operator in any case. */
         FORCE
     }
 

@@ -17,12 +17,12 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.common
 
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, TableSchema}
 import org.apache.flink.table.catalog.ObjectIdentifier
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
-import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.schema.{IntermediateRelTable, LegacyTableSourceTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils.{ExpressionFormat, JoinTypeUtil, LookupJoinUtil, RelExplainUtil}
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
@@ -33,13 +33,14 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
+import org.apache.calcite.rel.core.{JoinInfo, JoinRelType, TableScan}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.{SqlExplainLevel, SqlKind}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.calcite.util.mapping.IntPair
 
+import java.util
 import java.util.Collections
 
 import scala.collection.JavaConverters._
@@ -78,7 +79,7 @@ abstract class CommonPhysicalLookupJoin(
     traitSet: RelTraitSet,
     input: RelNode,
     // TODO: refactor this into TableSourceTable, once legacy TableSource is removed
-    temporalTable: RelOptTable,
+    val temporalTable: RelOptTable,
     val calcOnTemporalTable: Option[RexProgram],
     val joinInfo: JoinInfo,
     val joinType: JoinRelType)
@@ -277,6 +278,75 @@ abstract class CommonPhysicalLookupJoin(
     }
     val fieldRefLookupKeys = joinKeyPairs.map(p => (p.target, new FieldRefLookupKey(p.source)))
     constantLookupKeys.toMap[Int, LookupKey] ++ fieldRefLookupKeys.toMap[Int, LookupKey]
+  }
+
+  /** Get final output pk indexes if exists, otherwise will get empty. */
+  def getOutputPrimaryKeyIndexes: Array[Int] = {
+    val temporalPkIdxs = getPrimaryKeyIndexesOfTemporalTable
+
+    val outputPkIdx = if (!temporalPkIdxs.isEmpty) {
+      if (calcOnTemporalTable.isDefined) {
+        val program = calcOnTemporalTable.get
+        val outputMapping = program.getProjectList.asScala.zipWithIndex
+          .map { case (ref, index) => (index, program.expandLocalRef(ref)) }
+          .map {
+            case (outIndex, ref) =>
+              ref match {
+                case inputRef: RexInputRef => (inputRef.getIndex, outIndex)
+                case _ => (-1, -1)
+              }
+          }
+          .toMap
+        val outputPk = temporalPkIdxs.forall(outputMapping.contains)
+        if (outputPk) {
+          // remapping pk index
+          temporalPkIdxs.map(outputMapping.get(_).get)
+        } else {
+          Array[Int]()
+        }
+      } else {
+        temporalPkIdxs
+      }
+    } else {
+      // temporal table has no pk, no uk produces
+      Array[Int]()
+    }
+
+    outputPkIdx
+  }
+
+  private def getPrimaryKeyIndexesOfTemporalTable: Array[Int] = {
+    // get primary key columns of lookup table if exists
+    val pkColumns = getPrimaryKeyColumnsOfTemporalTable
+    if (pkColumns.isDefined) {
+      val newSchema = temporalTable.getRowType.getFieldNames
+      pkColumns.get.toArray().map(col => newSchema.indexOf(col))
+    } else {
+      Array[Int]()
+    }
+  }
+
+  private def getPrimaryKeyColumnsOfTemporalTable: Option[util.List[String]] = {
+    val schema = temporalTable match {
+      case t: TableSourceTable =>
+        TableSchema.fromResolvedSchema(t.contextResolvedTable.getResolvedSchema)
+      case t: LegacyTableSourceTable[_] => t.catalogTable.getSchema
+      case t: IntermediateRelTable =>
+        t.relNode match {
+          case scan: TableScan =>
+            TableSchema.fromResolvedSchema(
+              scan.getTable.asInstanceOf[TableSourceTable].contextResolvedTable.getResolvedSchema)
+          case _ =>
+            throw new TableException(
+              "Unexpected exception: the node inside intermediate table must be a table source scan")
+        }
+    }
+    val constraint = schema.getPrimaryKey
+    if (constraint.isPresent) {
+      Option(constraint.get().getColumns)
+    } else {
+      Option.empty
+    }
   }
 
   // ----------------------------------------------------------------------------------------

@@ -552,7 +552,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[city_name, cu
       +- LogicalTableScan(table=[[default_catalog, default_database, source_city]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[city_name, customer_cnt], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.sink], fields=[city_name, customer_cnt], upsertMaterialize=[true], changelogMode=[NONE])
 +- Calc(select=[city_name, customer_cnt], changelogMode=[I,UB,UA,D])
    +- Join(joinType=[InnerJoin], where=[=(city_id, id)], select=[city_id, customer_cnt, id, city_name], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UB,UA,D])
       :- Exchange(distribution=[hash[city_id]], changelogMode=[I,UB,UA,D])
@@ -642,7 +642,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[city_id, city
       +- LogicalTableScan(table=[[default_catalog, default_database, source_city]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, customer_cnt], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, customer_cnt], upsertMaterialize=[true], changelogMode=[NONE])
 +- Calc(select=[city_id, city_name, customer_cnt], changelogMode=[I,UB,UA,D])
    +- Join(joinType=[InnerJoin], where=[=(city_id, id)], select=[city_id, customer_cnt, id, city_name], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UB,UA,D])
       :- Exchange(distribution=[hash[city_id]], changelogMode=[I,UB,UA,D])

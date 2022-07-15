@@ -23,6 +23,7 @@ import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
@@ -91,6 +92,34 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
                       |)
                       |""".stripMargin)
     }
+
+    val aggQuery = "SELECT b, max(a) as id, PROCTIME() as proctime FROM MyTable AS T group by b"
+    val aggTable = util.tableEnv.sqlQuery(aggQuery)
+    util.tableEnv.createTemporaryView("update_view1", aggTable)
+
+    util.addTable(s"""
+                     |CREATE TEMPORARY TABLE dimWithPk (
+                     |  `id` INT,
+                     |  `name` char(10),
+                     |  `age` INT,
+                     |  PRIMARY KEY (`id`) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
+
+    util.addTable(s"""
+                     |CREATE TEMPORARY TABLE cdc(
+                     |  `id` INT,
+                     |  `name` char(10),
+                     |  `age` INT,
+                     |  proctime AS PROCTIME(),
+                     |  PRIMARY KEY (`id`) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'changelog-mode' = 'I,UA,UB,D'
+                     |)
+                     |""".stripMargin)
   }
 
   @Test
@@ -540,6 +569,102 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |JOIN OtherLookupTable FOR SYSTEM_TIME AS OF MyLookupTable.proctime AS D
         |ON MyLookupTable.a = D.id AND D.age = 10
       """.stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testUpdateStreamJoinTemporalTableJoinKeyContainsPkOnly(): Unit = {
+    val sql = "SELECT * FROM update_view1 AS T JOIN dimWithPk " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id"
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testUpdateStreamJoinTemporalTableJoinKeyContainsPk(): Unit = {
+    val sql = "SELECT * FROM update_view1 AS T JOIN dimWithPk " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id AND D.age = 33"
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testUpdateStreamJoinTemporalTableJoinKeyNotContainsPk(): Unit = {
+    val sql = "SELECT * FROM update_view1 AS T JOIN dimWithPk " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.name AND D.age = 33"
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testCdcSourceJoinTemporalTableJoinKeyContainsPkOnly(): Unit = {
+    val sql = "SELECT * FROM cdc AS T JOIN dimWithPk " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id"
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testCdcSourceJoinTemporalTableJoinKeyContainsPk(): Unit = {
+    val sql = "SELECT * FROM cdc AS T JOIN dimWithPk " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id AND D.age = 33"
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testCdcSourceJoinTemporalTableJoinKeyNotContainsPk(): Unit = {
+    val sql = "SELECT * FROM cdc AS T JOIN dimWithPk " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.name = D.name AND D.age = 33"
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testAppendSourceJoinTemporalTableJoinKeyContainsPkOnly(): Unit = {
+    val sql = "SELECT * FROM MyTable AS T JOIN dimWithPk " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testAppendSourceJoinTemporalTableJoinKeyContainsPk(): Unit = {
+    val sql = "SELECT * FROM MyTable AS T JOIN dimWithPk " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND D.age = 33"
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testAppendSourceJoinTemporalTableJoinKeyNotContainsPk(): Unit = {
+    val sql = "SELECT * FROM MyTable AS T JOIN dimWithPk " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.name AND D.age = 33"
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testCdcSourceJoinNotContainsPkDisableUpsertMaterialize(): Unit = {
+    util.tableConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_LOOKUP_JOIN_UPSERT_MATERIALIZE,
+      ExecutionConfigOptions.UpsertMaterialize.NONE)
+
+    val sql = "SELECT * FROM cdc AS T JOIN dimWithPk " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.name = D.name AND D.age = 33"
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testCdcSourceJoinContainsPkForceUpsertMaterialize(): Unit = {
+    util.tableConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_LOOKUP_JOIN_UPSERT_MATERIALIZE,
+      ExecutionConfigOptions.UpsertMaterialize.FORCE)
+
+    val sql = "SELECT * FROM cdc AS T JOIN dimWithPk " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id AND D.age = 33"
 
     util.verifyExecPlan(sql)
   }

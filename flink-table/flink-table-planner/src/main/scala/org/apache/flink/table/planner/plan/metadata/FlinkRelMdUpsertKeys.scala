@@ -228,17 +228,20 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       join: CommonPhysicalLookupJoin,
       mq: RelMetadataQuery): util.Set[ImmutableBitSet] = {
     val left = join.getInput
-    val leftKeys = FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(left)
     val leftType = left.getRowType
     val leftJoinKeys = join.joinInfo.leftSet
+    // differs from regular join, here we do not filterKeys because there's no shuffle on join keys
+    // by default.
+    val leftUpsertKeys = FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(left)
+    val rightUpsertKeys = FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOfTemporalTable(join)
+
     FlinkRelMdUniqueKeys.INSTANCE.getJoinUniqueKeys(
       join.joinType,
       leftType,
-      filterKeys(leftKeys, leftJoinKeys),
-      null,
-      areColumnsUpsertKeys(leftKeys, leftJoinKeys),
-      // TODO get uniqueKeys from TableSchema of TableSource
-      null
+      leftUpsertKeys,
+      rightUpsertKeys,
+      areColumnsUpsertKeys(leftUpsertKeys, leftJoinKeys),
+      rightUpsertKeys != null
     )
   }
 

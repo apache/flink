@@ -349,7 +349,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[c, cnt])
       +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], upsertMaterialize=[true], changelogMode=[NONE])
 +- GroupAggregate(groupBy=[c], select=[c, COUNT(*) AS cnt], changelogMode=[I,UB,UA])
    +- Exchange(distribution=[hash[c]], changelogMode=[I])
       +- Calc(select=[c], changelogMode=[I])
@@ -374,7 +374,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[c, cnt])
          +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], upsertMaterialize=[true], changelogMode=[NONE])
 +- Calc(select=[c, cnt], changelogMode=[I,UB,UA])
    +- GroupAggregate(groupBy=[a, c], select=[a, c, COUNT(*) AS cnt], changelogMode=[I,UB,UA])
       +- Exchange(distribution=[hash[a, c]], changelogMode=[I])

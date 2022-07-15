@@ -53,6 +53,12 @@ By default no operator is disabled.</td>
             <td>Determines whether CAST will operate following the legacy behaviour or the new one that introduces various fixes and improvements.<br /><br />Possible values:<ul><li>"ENABLED": CAST will operate following the legacy behaviour.</li><li>"DISABLED": CAST will operate following the new correct behaviour.</li></ul></td>
         </tr>
         <tr>
+            <td><h5>table.exec.lookup-join.upsert-materialize</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">AUTO</td>
+            <td><p>Enum</p></td>
+            <td>In order to minimize the potential exceptions or data errors when many users use the update stream to lookup join an external table (essentially due to the non-deterministic result based on processing-time to lookup external tables). When update exists in the input stream and the lookup key does not contain the primary key of the external table, FLINK automatically adds materialization of the update by default, so that it will only lookup the external table when the insert or update_after message arrives, and when the delete or update_before message arrives, it will directly querying the latest version of the locally materialized data and sent it to downstream operator.<br />By default, the materialize operator will be added when an update stream lookup an external table without containing its primary keys(includes no primary key defined). You can also choose no materialization(NONE) or force materialization(FORCE).<br /><br />Possible values:<ul><li>"NONE"</li><li>"AUTO"</li><li>"FORCE"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.exec.mini-batch.allow-latency</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">0 ms</td>
             <td>Duration</td>
