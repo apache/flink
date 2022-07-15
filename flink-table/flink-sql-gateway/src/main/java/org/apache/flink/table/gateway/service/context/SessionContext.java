@@ -98,6 +98,8 @@ public class SessionContext {
 
     /** Close resources, e.g. catalogs. */
     public void close() {
+        operationManager.close();
+
         for (String name : sessionState.catalogManager.listCatalogs()) {
             sessionState.catalogManager.getCatalog(name).ifPresent(Catalog::close);
         }
@@ -106,8 +108,6 @@ public class SessionContext {
         } catch (IOException e) {
             LOG.debug("Error while closing class loader.", e);
         }
-
-        operationManager.close();
     }
 
     // --------------------------------------------------------------------------------------------

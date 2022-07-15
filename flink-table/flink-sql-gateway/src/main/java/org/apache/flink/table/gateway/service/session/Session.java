@@ -30,9 +30,6 @@ import java.util.Map;
 /**
  * Similar to HTTP Session, which could maintain user identity and store user-specific data during
  * multiple request/response interactions between a client and the gateway server.
- *
- * <p>TODO: make operation execution in sequence in
- * https://issues.apache.org/jira/browse/FLINK-28053
  */
 public class Session implements Closeable {
 
