@@ -108,7 +108,7 @@
     "org.apache.flink.sql.parser.utils.ParserResource"
     "org.apache.flink.sql.parser.validate.FlinkSqlConformance"
     "org.apache.flink.sql.parser.SqlProperty"
-    "org.apache.flink.sql.parser.SqlPair"
+    "org.apache.flink.sql.parser.SqlPartitionSpecProperty"
     "org.apache.calcite.sql.SqlAlienSystemTypeNameSpec"
     "org.apache.calcite.sql.SqlCreate"
     "org.apache.calcite.sql.SqlDrop"

@@ -2208,11 +2208,11 @@ SqlNode TryCastFunctionCall() :
 * Parses a partition key/value,
 * e.g. p or p = '10'.
 */
-SqlPair PartitionKeyValuePair():
+SqlPartitionSpecProperty PartitionSpecProperty():
 {
-    SqlIdentifier key;
+    final SqlParserPos pos;
+    final SqlIdentifier key;
     SqlNode value = null;
-    SqlParserPos pos;
 }
 {
     key = SimpleIdentifier() { pos = getPos(); }
@@ -2221,7 +2221,7 @@ SqlPair PartitionKeyValuePair():
         <EQ> value = Literal()
     ]
     {
-           return new SqlPair(key, value, pos);
+        return new SqlPartitionSpecProperty(key, value, pos);
     }
 }
 
@@ -2233,18 +2233,18 @@ SqlPair PartitionKeyValuePair():
 */
 void ExtendedPartitionSpecCommaList(SqlNodeList list) :
 {
-    SqlPair keyValuePair;
+    SqlPartitionSpecProperty property;
 }
 {
     <LPAREN>
-    keyValuePair = PartitionKeyValuePair()
+    property = PartitionSpecProperty()
     {
-       list.add(keyValuePair);
+       list.add(property);
     }
     (
-        <COMMA> keyValuePair = PartitionKeyValuePair()
+        <COMMA> property = PartitionSpecProperty()
         {
-            list.add(keyValuePair);
+            list.add(property);
         }
     )*
     <RPAREN>
@@ -2253,10 +2253,10 @@ void ExtendedPartitionSpecCommaList(SqlNodeList list) :
 /** Parses an ANALYZE TABLE statement. */
 SqlNode SqlAnalyzeTable():
 {
-       Span s;
-       SqlIdentifier tableName;
-       SqlNodeList partitionSpec = null;
-       SqlNodeList columns = null;
+       final Span s;
+       final SqlIdentifier tableName;
+       SqlNodeList partitionSpec = SqlNodeList.EMPTY;
+       SqlNodeList columns = SqlNodeList.EMPTY;
        boolean allColumns = false;
 }
 {

@@ -29,23 +29,26 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 import org.apache.calcite.util.NlsString;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
 /**
  * Properties of PartitionSpec, a key-value pair with key as component identifier and value as
- * string literal. Different from {@link SqlProperty}, {@link SqlPair} allows the value is null.
+ * string literal. Different from {@link SqlProperty}, {@link SqlPartitionSpecProperty} allows the
+ * value is null.
  */
-public class SqlPair extends SqlCall {
+public class SqlPartitionSpecProperty extends SqlCall {
 
     /** Use this operator only if you don't have a better one. */
     protected static final SqlOperator OPERATOR = new SqlSpecialOperator("Pair", SqlKind.OTHER);
 
     private final SqlIdentifier key;
-    private final SqlNode value;
+    private final @Nullable SqlNode value;
 
-    public SqlPair(SqlIdentifier key, SqlNode value, SqlParserPos pos) {
+    public SqlPartitionSpecProperty(SqlIdentifier key, @Nullable SqlNode value, SqlParserPos pos) {
         super(pos);
         this.key = requireNonNull(key, "Pair key is missing");
         this.value = value;
@@ -55,6 +58,7 @@ public class SqlPair extends SqlCall {
         return key;
     }
 
+    @Nullable
     public SqlNode getValue() {
         return value;
     }
@@ -63,6 +67,7 @@ public class SqlPair extends SqlCall {
         return key.toString();
     }
 
+    @Nullable
     public String getValueString() {
         return value != null ? ((NlsString) SqlLiteral.value(value)).getValue() : null;
     }
