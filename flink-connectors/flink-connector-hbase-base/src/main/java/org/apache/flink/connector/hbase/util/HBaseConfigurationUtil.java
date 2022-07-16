@@ -46,7 +46,12 @@ public class HBaseConfigurationUtil {
 
         // Instantiate an HBaseConfiguration to load the hbase-default.xml and hbase-site.xml from
         // the classpath.
-        Configuration result = HBaseConfiguration.create();
+
+        Configuration result = new Configuration();
+        result.setClassLoader(HBaseConfiguration.class.getClassLoader());
+        result.set("hbase.defaults.for.version.skip", "true");
+        HBaseConfiguration.addHbaseResources(result);
+
         boolean foundHBaseConfiguration = false;
 
         // We need to load both hbase-default.xml and hbase-site.xml to the hbase configuration
