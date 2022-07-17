@@ -26,7 +26,6 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.Preconditions;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,7 +92,13 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
             // Signal the coordinator that this reader has consumed all input and the
             // next source can potentially be activated.
             readerContext.sendSourceEventToCoordinator(
-                    new SourceReaderFinishedEvent(currentSourceIndex));
+                    // TODO: finishedSplits should also checkpoint into the state
+                    new SourceReaderFinishedEvent(
+                            currentSourceIndex,
+                            HybridSourceSplit.wrapSplits(
+                                    currentReader.getFinishedSplits(),
+                                    currentSourceIndex,
+                                    switchedSources)));
             if (!isFinalSource) {
                 // More splits may arrive for a subsequent reader.
                 // InputStatus.NOTHING_AVAILABLE suspends poll, requires completion of the

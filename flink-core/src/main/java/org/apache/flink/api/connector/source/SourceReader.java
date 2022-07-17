@@ -25,7 +25,10 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -102,6 +105,14 @@ public interface SourceReader<T, SplitT extends SourceSplit>
      * @param splits The splits assigned by the split enumerator.
      */
     void addSplits(List<SplitT> splits);
+
+    /**
+     * Gets a list of finished splits for this reader.
+     *
+     */
+    default List<SplitT> getFinishedSplits() {
+        return Collections.emptyList();
+    }
 
     /**
      * This method is called when the reader is notified that it will not receive any further

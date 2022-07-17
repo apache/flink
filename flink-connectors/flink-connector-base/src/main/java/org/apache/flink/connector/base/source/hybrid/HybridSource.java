@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.ClosureCleaner;
@@ -98,9 +99,9 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
     }
 
     /** Builder for {@link HybridSource}. */
-    public static <T, EnumT extends SplitEnumerator> HybridSourceBuilder<T, EnumT> builder(
-            Source<T, ?, ?> firstSource) {
-        HybridSourceBuilder<T, EnumT> builder = new HybridSourceBuilder<>();
+    public static <T, ToSplitT extends SourceSplit, ToEnumT extends SplitEnumerator<ToSplitT, ?>>
+            HybridSourceBuilder<T, ToSplitT, ToEnumT> builder(Source<T, ToSplitT, ?> firstSource) {
+        HybridSourceBuilder<T, ?, ?> builder = new HybridSourceBuilder<>();
         return builder.addSource(firstSource);
     }
 
@@ -158,8 +159,11 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
      * supplied in the future.
      */
     @PublicEvolving
-    public interface SourceSwitchContext<EnumT> {
+    public interface SourceSwitchContext<
+            SplitT extends SourceSplit, EnumT extends SplitEnumerator<SplitT, ?>> {
         EnumT getPreviousEnumerator();
+
+        List<SplitT> getPreviousSplits();
     }
 
     /**
@@ -181,14 +185,20 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
     @PublicEvolving
     @FunctionalInterface
     public interface SourceFactory<
-                    T, SourceT extends Source<T, ?, ?>, FromEnumT extends SplitEnumerator>
+                    T,
+                    SourceT extends Source<T, ?, ?>,
+                    FromSplitT extends SourceSplit,
+                    FromEnumT extends SplitEnumerator<FromSplitT, ?>>
             extends Serializable {
-        SourceT create(SourceSwitchContext<FromEnumT> context);
+        SourceT create(SourceSwitchContext<FromSplitT, FromEnumT> context);
     }
 
     private static class PassthroughSourceFactory<
-                    T, SourceT extends Source<T, ?, ?>, FromEnumT extends SplitEnumerator>
-            implements SourceFactory<T, SourceT, FromEnumT> {
+                    T,
+                    SourceT extends Source<T, ?, ?>,
+                    FromSplitT extends SourceSplit,
+                    FromEnumT extends SplitEnumerator<FromSplitT, ?>>
+            implements SourceFactory<T, SourceT, FromSplitT, FromEnumT> {
 
         private final SourceT source;
 
@@ -197,7 +207,7 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
         }
 
         @Override
-        public SourceT create(SourceSwitchContext<FromEnumT> context) {
+        public SourceT create(SourceSwitchContext<FromSplitT, FromEnumT> context) {
             return source;
         }
     }
@@ -219,7 +229,8 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
 
     /** Builder for HybridSource. */
     @PublicEvolving
-    public static class HybridSourceBuilder<T, EnumT extends SplitEnumerator>
+    public static class HybridSourceBuilder<
+                    T, SplitT extends SourceSplit, EnumT extends SplitEnumerator<SplitT, ?>>
             implements Serializable {
         private final List<SourceListEntry> sources;
 
@@ -228,15 +239,21 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
         }
 
         /** Add pre-configured source (without switch time modification). */
-        public <ToEnumT extends SplitEnumerator, NextSourceT extends Source<T, ?, ?>>
-                HybridSourceBuilder<T, ToEnumT> addSource(NextSourceT source) {
+        public <
+                        ToSplitT extends SourceSplit,
+                        ToEnumT extends SplitEnumerator<ToSplitT, ?>,
+                        NextSourceT extends Source<T, ToSplitT, ?>>
+                HybridSourceBuilder<T, ToSplitT, ToEnumT> addSource(NextSourceT source) {
             return addSource(new PassthroughSourceFactory<>(source), source.getBoundedness());
         }
 
         /** Add source with deferred instantiation based on previous enumerator. */
-        public <ToEnumT extends SplitEnumerator, NextSourceT extends Source<T, ?, ?>>
-                HybridSourceBuilder<T, ToEnumT> addSource(
-                        SourceFactory<T, NextSourceT, ? super EnumT> sourceFactory,
+        public <
+                        ToSplitT extends SourceSplit,
+                        ToEnumT extends SplitEnumerator<ToSplitT, ?>,
+                        NextSourceT extends Source<T, ToSplitT, ?>>
+                HybridSourceBuilder<T, ToSplitT, ToEnumT> addSource(
+                        SourceFactory<T, NextSourceT, ? super SplitT, ? super EnumT> sourceFactory,
                         Boundedness boundedness) {
             if (!sources.isEmpty()) {
                 Preconditions.checkArgument(

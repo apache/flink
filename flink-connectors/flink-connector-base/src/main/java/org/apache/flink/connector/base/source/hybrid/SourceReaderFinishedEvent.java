@@ -19,6 +19,12 @@
 package org.apache.flink.connector.base.source.hybrid;
 
 import org.apache.flink.api.connector.source.SourceEvent;
+import org.apache.flink.api.connector.source.SourceSplit;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * A source event sent from the HybridSourceReader to the enumerator to indicate that the current
@@ -28,6 +34,7 @@ public class SourceReaderFinishedEvent implements SourceEvent {
 
     private static final long serialVersionUID = 1L;
     private final int sourceIndex;
+    private final List<HybridSourceSplit> finishedSplits;
 
     /**
      * Constructor.
@@ -35,7 +42,16 @@ public class SourceReaderFinishedEvent implements SourceEvent {
      * @param sourceIndex
      */
     public SourceReaderFinishedEvent(int sourceIndex) {
+        this(sourceIndex, Collections.emptyList());
+    }
+
+    public SourceReaderFinishedEvent(int sourceIndex, List<HybridSourceSplit> finishedSplits) {
         this.sourceIndex = sourceIndex;
+        this.finishedSplits = finishedSplits;
+    }
+
+    public List<HybridSourceSplit> getFinishedSplits() {
+        return finishedSplits;
     }
 
     public int sourceIndex() {

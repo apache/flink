@@ -75,6 +75,9 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
     /** The state of the splits. */
     private final Map<String, SplitContext<T, SplitStateT>> splitStates;
 
+    /** The list of finished splits. */
+    private final List<SplitT> finishedSplits;
+
     /** The record emitter to handle the records read by the SplitReaders. */
     protected final RecordEmitter<E, T, SplitStateT> recordEmitter;
 
@@ -111,6 +114,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
         this.splitFetcherManager = splitFetcherManager;
         this.recordEmitter = recordEmitter;
         this.splitStates = new HashMap<>();
+        this.finishedSplits = new ArrayList<>();
         this.options = new SourceReaderOptions(config);
         this.config = config;
         this.context = context;
@@ -190,8 +194,10 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
             LOG.info("Finished reading split(s) {}", finishedSplits);
             Map<String, SplitStateT> stateOfFinishedSplits = new HashMap<>();
             for (String finishedSplitId : finishedSplits) {
+                SplitStateT splitState = splitStates.remove(finishedSplitId).state;
                 stateOfFinishedSplits.put(
-                        finishedSplitId, splitStates.remove(finishedSplitId).state);
+                        finishedSplitId, splitState);
+                this.finishedSplits.add(toSplitType(finishedSplitId, splitState));
                 output.releaseOutputForSplit(finishedSplitId);
             }
             onSplitFinished(stateOfFinishedSplits);
@@ -252,6 +258,11 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
     @Override
     public void handleSourceEvents(SourceEvent sourceEvent) {
         LOG.info("Received unhandled source event: {}", sourceEvent);
+    }
+
+    @Override
+    public List<SplitT> getFinishedSplits() {
+        return finishedSplits;
     }
 
     @Override

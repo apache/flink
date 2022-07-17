@@ -24,7 +24,6 @@ import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
 import org.apache.flink.connector.base.source.reader.mocks.MockSplitEnumerator;
-
 import org.junit.Test;
 
 import java.util.List;
@@ -65,22 +64,62 @@ public class HybridSourceTest {
 
     @Test
     public void testBuilderWithSourceFactory() {
-        HybridSource.SourceFactory<Integer, Source<Integer, ?, ?>, MockSplitEnumerator>
+        HybridSource.SourceFactory<
+                        Integer,
+                        Source<Integer, MockSourceSplit, ?>,
+                        MockSourceSplit,
+                        MockSplitEnumerator>
                 sourceFactory =
                         new HybridSource.SourceFactory<
-                                Integer, Source<Integer, ?, ?>, MockSplitEnumerator>() {
+                                Integer,
+                                Source<Integer, MockSourceSplit, ?>,
+                                MockSourceSplit,
+                                MockSplitEnumerator>() {
                             @Override
-                            public Source<Integer, ?, ?> create(
-                                    HybridSource.SourceSwitchContext<MockSplitEnumerator> context) {
+                            public Source<Integer, MockSourceSplit, ?> create(
+                                    HybridSource.SourceSwitchContext<
+                                                    MockSourceSplit, MockSplitEnumerator>
+                                            context) {
                                 MockSplitEnumerator enumerator = context.getPreviousEnumerator();
                                 return new MockBaseSource(1, 1, Boundedness.BOUNDED);
                             }
                         };
 
         HybridSource<Integer> source =
-                new HybridSource.HybridSourceBuilder<Integer, MockSplitEnumerator>()
-                        .<MockSplitEnumerator, Source<Integer, ?, ?>>addSource(
-                                new MockBaseSource(1, 1, Boundedness.BOUNDED))
+                new HybridSource.HybridSourceBuilder<
+                                Integer, MockSourceSplit, MockSplitEnumerator>()
+                        .<MockSourceSplit, MockSplitEnumerator, Source<Integer, MockSourceSplit, ?>>
+                                addSource(new MockBaseSource(1, 1, Boundedness.BOUNDED))
+                        .addSource(sourceFactory, Boundedness.BOUNDED)
+                        .build();
+        assertThat(source).isNotNull();
+    }
+
+    @Test
+    public void testBuilderWithEnumeratorSuperclass() {
+        HybridSource.SourceFactory<
+                        Integer,
+                        Source<Integer, MockSourceSplit, ?>,
+                        MockSourceSplit,
+                        MockSplitEnumerator>
+                sourceFactory =
+                        (HybridSource.SourceFactory<
+                                        Integer,
+                                        Source<Integer, MockSourceSplit, ?>,
+                                        MockSourceSplit,
+                                        MockSplitEnumerator>)
+                                context -> {
+                                    MockSplitEnumerator enumerator =
+                                            context.getPreviousEnumerator();
+                                    return new MockBaseSource(1, 1, Boundedness.BOUNDED);
+                                };
+
+        HybridSource<Integer> source =
+                new HybridSource.HybridSourceBuilder<
+                                Integer, MockSourceSplit, MockSplitEnumerator>()
+                        .<MockSourceSplit, ExtendedMockSplitEnumerator,
+                                Source<Integer, MockSourceSplit, ?>>
+                                addSource(new MockBaseSource(1, 1, Boundedness.BOUNDED))
                         .addSource(sourceFactory, Boundedness.BOUNDED)
                         .build();
         assertThat(source).isNotNull();
@@ -91,26 +130,5 @@ public class HybridSourceTest {
                 List<MockSourceSplit> splits, SplitEnumeratorContext<MockSourceSplit> context) {
             super(splits, context);
         }
-    }
-
-    @Test
-    public void testBuilderWithEnumeratorSuperclass() {
-        HybridSource.SourceFactory<Integer, Source<Integer, ?, ?>, MockSplitEnumerator>
-                sourceFactory =
-                        (HybridSource.SourceFactory<
-                                        Integer, Source<Integer, ?, ?>, MockSplitEnumerator>)
-                                context -> {
-                                    MockSplitEnumerator enumerator =
-                                            context.getPreviousEnumerator();
-                                    return new MockBaseSource(1, 1, Boundedness.BOUNDED);
-                                };
-
-        HybridSource<Integer> source =
-                new HybridSource.HybridSourceBuilder<Integer, MockSplitEnumerator>()
-                        .<ExtendedMockSplitEnumerator, Source<Integer, ?, ?>>addSource(
-                                new MockBaseSource(1, 1, Boundedness.BOUNDED))
-                        .addSource(sourceFactory, Boundedness.BOUNDED)
-                        .build();
-        assertThat(source).isNotNull();
     }
 }

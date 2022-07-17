@@ -28,7 +28,6 @@ import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 import org.apache.flink.util.Preconditions;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,6 +72,7 @@ public class HybridSourceSplitEnumerator
     // Splits that have been returned due to subtask reset
     private final Map<Integer, TreeMap<Integer, List<HybridSourceSplit>>> pendingSplits;
     private final Set<Integer> finishedReaders;
+    private final List<HybridSourceSplit> finishedSplits;
     private final Map<Integer, Integer> readerSourceIndex;
     private int currentSourceIndex;
     private HybridSourceEnumeratorState restoredEnumeratorState;
@@ -90,6 +90,7 @@ public class HybridSourceSplitEnumerator
         this.currentSourceIndex = initialSourceIndex;
         this.pendingSplits = new HashMap<>();
         this.finishedReaders = new HashSet<>();
+        this.finishedSplits = new ArrayList<>();
         this.readerSourceIndex = new HashMap<>();
         this.restoredEnumeratorState = restoredEnumeratorState;
     }
@@ -224,7 +225,9 @@ public class HybridSourceSplitEnumerator
             }
 
             // track readers that have finished processing for current enumerator
+            // TODO: should finishedReaders be reset after switching to a new numerator?
             finishedReaders.add(subtaskId);
+            finishedSplits.addAll(srfe.getFinishedSplits());
             if (finishedReaders.size() == context.currentParallelism()) {
                 LOG.debug("All readers finished, ready to switch enumerator!");
                 if (currentSourceIndex + 1 < sources.size()) {
@@ -258,11 +261,16 @@ public class HybridSourceSplitEnumerator
             currentSourceIndex++;
         }
 
-        HybridSource.SourceSwitchContext<?> switchContext =
-                new HybridSource.SourceSwitchContext<Object>() {
+        HybridSource.SourceSwitchContext<?, ?> switchContext =
+                new HybridSource.SourceSwitchContext<SourceSplit, SplitEnumerator>() {
                     @Override
-                    public Object getPreviousEnumerator() {
+                    public SplitEnumerator getPreviousEnumerator() {
                         return previousEnumerator;
+                    }
+
+                    @Override
+                    public List getPreviousSplits() {
+                        return finishedSplits;
                     }
                 };
 
