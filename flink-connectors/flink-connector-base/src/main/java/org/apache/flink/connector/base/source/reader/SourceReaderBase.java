@@ -26,18 +26,17 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.source.hybrid.DynamicHybridSourceReader;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -66,7 +65,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @PublicEvolving
 public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitStateT>
-        implements SourceReader<T, SplitT> {
+        implements DynamicHybridSourceReader<T, SplitT> {
     private static final Logger LOG = LoggerFactory.getLogger(SourceReaderBase.class);
 
     /** A queue to buffer the elements fetched by the fetcher thread. */
@@ -195,8 +194,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
             Map<String, SplitStateT> stateOfFinishedSplits = new HashMap<>();
             for (String finishedSplitId : finishedSplits) {
                 SplitStateT splitState = splitStates.remove(finishedSplitId).state;
-                stateOfFinishedSplits.put(
-                        finishedSplitId, splitState);
+                stateOfFinishedSplits.put(finishedSplitId, splitState);
                 this.finishedSplits.add(toSplitType(finishedSplitId, splitState));
                 output.releaseOutputForSplit(finishedSplitId);
             }

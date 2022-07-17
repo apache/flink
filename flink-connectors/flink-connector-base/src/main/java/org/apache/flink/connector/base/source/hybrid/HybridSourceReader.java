@@ -224,9 +224,15 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
 
     private List<HybridSourceSplit> snapshotFinishedSplits() {
         Preconditions.checkNotNull(currentReader, "Current reader should not be null.");
-        currentReaderFinishedSplits.addAll(currentReader.getFinishedSplits());
-        return HybridSourceSplit.wrapSplits(
-                currentReaderFinishedSplits, currentSourceIndex, switchedSources, true);
+        if (currentReader instanceof DynamicHybridSourceReader) {
+            currentReaderFinishedSplits.addAll(
+                    ((DynamicHybridSourceReader<T, SourceSplit>) currentReader)
+                            .getFinishedSplits());
+            return HybridSourceSplit.wrapSplits(
+                    currentReaderFinishedSplits, currentSourceIndex, switchedSources, true);
+        } else {
+            return Collections.emptyList();
+        }
     }
 
     private void setCurrentReader(int index) {
