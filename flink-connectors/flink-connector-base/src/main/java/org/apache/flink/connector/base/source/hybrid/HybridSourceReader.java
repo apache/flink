@@ -114,15 +114,17 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
 
     @Override
     public List<HybridSourceSplit> snapshotState(long checkpointId) {
-        List<HybridSourceSplit> wrappedState =
-                currentReader != null
-                        ? HybridSourceSplit.wrapSplits(
-                                currentReader.snapshotState(checkpointId),
-                                currentSourceIndex,
-                                switchedSources)
-                        : Collections.emptyList();
+        List<HybridSourceSplit> wrappedState = Collections.emptyList();
+        List<HybridSourceSplit> wrappedFinishedSplits = Collections.emptyList();
+        if (currentReader != null) {
+            wrappedState =
+                    HybridSourceSplit.wrapSplits(
+                            currentReader.snapshotState(checkpointId),
+                            currentSourceIndex,
+                            switchedSources);
 
-        List<HybridSourceSplit> wrappedFinishedSplits = snapshotFinishedSplits();
+            wrappedFinishedSplits = snapshotFinishedSplits();
+        }
 
         return Stream.concat(wrappedState.stream(), wrappedFinishedSplits.stream())
                 .collect(Collectors.toList());
@@ -223,7 +225,6 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
     }
 
     private List<HybridSourceSplit> snapshotFinishedSplits() {
-        Preconditions.checkNotNull(currentReader, "Current reader should not be null.");
         if (currentReader instanceof DynamicHybridSourceReader) {
             currentReaderFinishedSplits.addAll(
                     ((DynamicHybridSourceReader<T, SourceSplit>) currentReader)
