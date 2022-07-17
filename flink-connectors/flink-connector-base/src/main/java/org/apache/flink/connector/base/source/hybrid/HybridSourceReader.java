@@ -31,9 +31,13 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Hybrid source reader that delegates to the actual source reader.
@@ -56,7 +60,8 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
     private final SwitchedSources switchedSources = new SwitchedSources();
     private int currentSourceIndex = -1;
     private boolean isFinalSource;
-    private SourceReader<T, ? extends SourceSplit> currentReader;
+    private SourceReader<T, SourceSplit> currentReader;
+    private Set<SourceSplit> currentReaderFinishedSplits = new HashSet<>();
     private CompletableFuture<Void> availabilityFuture = new CompletableFuture<>();
     private List<HybridSourceSplit> restoredSplits = new ArrayList<>();
 
@@ -92,13 +97,7 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
             // Signal the coordinator that this reader has consumed all input and the
             // next source can potentially be activated.
             readerContext.sendSourceEventToCoordinator(
-                    // TODO: finishedSplits should also checkpoint into the state
-                    new SourceReaderFinishedEvent(
-                            currentSourceIndex,
-                            HybridSourceSplit.wrapSplits(
-                                    currentReader.getFinishedSplits(),
-                                    currentSourceIndex,
-                                    switchedSources)));
+                    new SourceReaderFinishedEvent(currentSourceIndex, snapshotFinishedSplits()));
             if (!isFinalSource) {
                 // More splits may arrive for a subsequent reader.
                 // InputStatus.NOTHING_AVAILABLE suspends poll, requires completion of the
@@ -115,11 +114,18 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
 
     @Override
     public List<HybridSourceSplit> snapshotState(long checkpointId) {
-        List<? extends SourceSplit> state =
+        List<HybridSourceSplit> wrappedState =
                 currentReader != null
-                        ? currentReader.snapshotState(checkpointId)
+                        ? HybridSourceSplit.wrapSplits(
+                                currentReader.snapshotState(checkpointId),
+                                currentSourceIndex,
+                                switchedSources)
                         : Collections.emptyList();
-        return HybridSourceSplit.wrapSplits(state, currentSourceIndex, switchedSources);
+
+        List<HybridSourceSplit> wrappedFinishedSplits = snapshotFinishedSplits();
+
+        return Stream.concat(wrappedState.stream(), wrappedFinishedSplits.stream())
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -160,7 +166,12 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
                         "Split %s while current source is %s",
                         split,
                         currentSourceIndex);
-                realSplits.add(HybridSourceSplit.unwrapSplit(split, switchedSources));
+                SourceSplit realSplit = HybridSourceSplit.unwrapSplit(split, switchedSources);
+                if (split.isFinished) {
+                    currentReaderFinishedSplits.add(realSplit);
+                } else {
+                    realSplits.add(realSplit);
+                }
             }
             currentReader.addSplits((List) realSplits);
         }
@@ -211,6 +222,13 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
                 currentReader);
     }
 
+    private List<HybridSourceSplit> snapshotFinishedSplits() {
+        Preconditions.checkNotNull(currentReader, "Current reader should not be null.");
+        currentReaderFinishedSplits.addAll(currentReader.getFinishedSplits());
+        return HybridSourceSplit.wrapSplits(
+                currentReaderFinishedSplits, currentSourceIndex, switchedSources, true);
+    }
+
     private void setCurrentReader(int index) {
         Preconditions.checkArgument(index != currentSourceIndex);
         if (currentReader != null) {
@@ -227,7 +245,7 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
         }
         // TODO: track previous readers splits till checkpoint
         Source source = switchedSources.sourceOf(index);
-        SourceReader<T, ?> reader;
+        SourceReader<T, SourceSplit> reader;
         try {
             reader = source.createReader(readerContext);
         } catch (Exception e) {
@@ -236,6 +254,7 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
         reader.start();
         currentSourceIndex = index;
         currentReader = reader;
+        currentReaderFinishedSplits.clear();
         currentReader
                 .isAvailable()
                 .whenComplete(

@@ -42,6 +42,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 /**
  * Wraps the actual split enumerators and facilitates source switching. Enumerators are created
@@ -250,6 +251,7 @@ public class HybridSourceSplitEnumerator
 
     private void switchEnumerator() {
 
+        Integer previousSourceIndex = currentSourceIndex;
         SplitEnumerator<SourceSplit, Object> previousEnumerator = currentEnumerator;
         if (currentEnumerator != null) {
             try {
@@ -261,6 +263,14 @@ public class HybridSourceSplitEnumerator
             currentSourceIndex++;
         }
 
+        List<SourceSplit> previousSplits =
+                finishedSplits.stream()
+                        .filter(
+                                split ->
+                                        split.isFinished
+                                                && split.sourceIndex() == previousSourceIndex)
+                        .map(split -> HybridSourceSplit.unwrapSplit(split, switchedSources))
+                        .collect(Collectors.toList());
         HybridSource.SourceSwitchContext<?, ?> switchContext =
                 new HybridSource.SourceSwitchContext<SourceSplit, SplitEnumerator>() {
                     @Override
@@ -270,7 +280,7 @@ public class HybridSourceSplitEnumerator
 
                     @Override
                     public List getPreviousSplits() {
-                        return finishedSplits;
+                        return previousSplits;
                     }
                 };
 

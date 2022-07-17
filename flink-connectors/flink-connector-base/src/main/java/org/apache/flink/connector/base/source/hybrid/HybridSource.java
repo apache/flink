@@ -159,8 +159,7 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
      * supplied in the future.
      */
     @PublicEvolving
-    public interface SourceSwitchContext<
-            SplitT extends SourceSplit, EnumT extends SplitEnumerator<SplitT, ?>> {
+    public interface SourceSwitchContext<SplitT, EnumT> {
         EnumT getPreviousEnumerator();
 
         List<SplitT> getPreviousSplits();

@@ -24,23 +24,30 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
 /** Source split that wraps the actual split type. */
 public class HybridSourceSplit implements SourceSplit {
 
+    final boolean isFinished;
     private final byte[] wrappedSplitBytes;
     private final int wrappedSplitSerializerVersion;
     private final int sourceIndex;
     private final String splitId;
 
     public HybridSourceSplit(
-            int sourceIndex, byte[] wrappedSplit, int serializerVersion, String splitId) {
+            int sourceIndex,
+            byte[] wrappedSplit,
+            int serializerVersion,
+            String splitId,
+            boolean isFinished) {
         this.sourceIndex = sourceIndex;
         this.wrappedSplitBytes = wrappedSplit;
         this.wrappedSplitSerializerVersion = serializerVersion;
         this.splitId = splitId;
+        this.isFinished = isFinished;
     }
 
     public int sourceIndex() {
@@ -70,7 +77,8 @@ public class HybridSourceSplit implements SourceSplit {
         }
         HybridSourceSplit that = (HybridSourceSplit) o;
         return sourceIndex == that.sourceIndex
-                && Arrays.equals(wrappedSplitBytes, that.wrappedSplitBytes);
+            && Arrays.equals(wrappedSplitBytes, that.wrappedSplitBytes)
+            && isFinished == that.isFinished;
     }
 
     @Override
@@ -80,26 +88,52 @@ public class HybridSourceSplit implements SourceSplit {
 
     @Override
     public String toString() {
-        return "HybridSourceSplit{" + "sourceIndex=" + sourceIndex + ", splitId=" + splitId + '}';
+        return "HybridSourceSplit{"
+            + "sourceIndex="
+            + sourceIndex
+            + ", splitId="
+            + splitId
+            + ", isFinished="
+            + isFinished
+            + "}";
     }
 
     public static List<HybridSourceSplit> wrapSplits(
-            List<? extends SourceSplit> state, int readerIndex, SwitchedSources switchedSources) {
+            Collection<? extends SourceSplit> state,
+            int readerIndex,
+            SwitchedSources switchedSources) {
+        return wrapSplits(state, readerIndex, switchedSources, false);
+    }
+
+    public static List<HybridSourceSplit> wrapSplits(
+            Collection<? extends SourceSplit> state,
+            int readerIndex,
+            SwitchedSources switchedSources,
+            boolean isFinished) {
         List<HybridSourceSplit> wrappedSplits = new ArrayList<>(state.size());
         for (SourceSplit split : state) {
-            wrappedSplits.add(wrapSplit(split, readerIndex, switchedSources));
+            wrappedSplits.add(wrapSplit(split, readerIndex, switchedSources, isFinished));
         }
+
         return wrappedSplits;
     }
 
     public static HybridSourceSplit wrapSplit(
             SourceSplit split, int sourceIndex, SwitchedSources switchedSources) {
+        return wrapSplit(split, sourceIndex, switchedSources, false);
+    }
+
+    public static HybridSourceSplit wrapSplit(
+            SourceSplit split,
+            int sourceIndex,
+            SwitchedSources switchedSources,
+            boolean isFinished) {
         try {
             SimpleVersionedSerializer<SourceSplit> serializer =
                     switchedSources.serializerOf(sourceIndex);
             byte[] serialized = serializer.serialize(split);
             return new HybridSourceSplit(
-                    sourceIndex, serialized, serializer.getVersion(), split.splitId());
+                    sourceIndex, serialized, serializer.getVersion(), split.splitId(), isFinished);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }

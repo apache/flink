@@ -29,11 +29,16 @@ import java.io.IOException;
 /** Serializes splits by delegating to the source-indexed underlying split serializer. */
 public class HybridSourceSplitSerializer implements SimpleVersionedSerializer<HybridSourceSplit> {
 
+    private static final int VERSION_0 = 0;
+    private static final int VERSION_1 = 1;
+
+    private static final int CURRENT_VERSION = VERSION_1;
+
     public HybridSourceSplitSerializer() {}
 
     @Override
     public int getVersion() {
-        return 0;
+        return CURRENT_VERSION;
     }
 
     @Override
@@ -45,6 +50,7 @@ public class HybridSourceSplitSerializer implements SimpleVersionedSerializer<Hy
             out.writeInt(split.wrappedSplitSerializerVersion());
             out.writeInt(split.wrappedSplitBytes().length);
             out.write(split.wrappedSplitBytes());
+            out.writeBoolean(split.isFinished);
             out.flush();
             return baos.toByteArray();
         }
@@ -52,13 +58,18 @@ public class HybridSourceSplitSerializer implements SimpleVersionedSerializer<Hy
 
     @Override
     public HybridSourceSplit deserialize(int version, byte[] serialized) throws IOException {
-        if (version == 0) {
-            return deserializeV0(serialized);
+        switch (version) {
+            case VERSION_0:
+                return deserializeV0or1(serialized, false);
+            case VERSION_1:
+                return deserializeV0or1(serialized, true);
+            default:
+                throw new IOException(String.format("Invalid version %d", version));
         }
-        throw new IOException(String.format("Invalid version %d", version));
     }
 
-    private HybridSourceSplit deserializeV0(byte[] serialized) throws IOException {
+    private HybridSourceSplit deserializeV0or1(byte[] serialized, boolean isVersion1)
+            throws IOException {
         try (ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
                 DataInputStream in = new DataInputStream(bais)) {
             int sourceIndex = in.readInt();
@@ -67,7 +78,10 @@ public class HybridSourceSplitSerializer implements SimpleVersionedSerializer<Hy
             int length = in.readInt();
             byte[] splitBytes = new byte[length];
             in.readFully(splitBytes);
-            return new HybridSourceSplit(sourceIndex, splitBytes, nestedVersion, splitId);
+            // isFinished is default to false for version 0 split
+            boolean isFinished = isVersion1 && in.readBoolean();
+            return new HybridSourceSplit(
+                    sourceIndex, splitBytes, nestedVersion, splitId, isFinished);
         }
     }
 }

@@ -113,7 +113,11 @@ public class HybridSourceITCase extends TestLogger {
                 HybridSource.builder(new MockBaseSource(2, 10, Boundedness.BOUNDED));
         return builder.addSource(
                         (context) -> {
-                            List<MockSourceSplit> finishedSplits = context.getPreviousSplits();
+                            List<MockSourceSplit> previousSplits = context.getPreviousSplits();
+                            assertThat(previousSplits.size()).isEqualTo(2);
+                            previousSplits.forEach(
+                                    split -> assertThat(split).isInstanceOf(MockSourceSplit.class));
+
                             // lazily create source here
                             return new MockBaseSource(2, 10, 20, Boundedness.BOUNDED);
                         },
