@@ -124,7 +124,7 @@ public class ProtobufSQLITCaseTest extends BatchTestBase {
                         + "	'connector' = 'protobuf-test-connector', "
                         + "	'format' = 'protobuf', "
                         + " 'protobuf.message-class-name' = 'org.apache.flink.formats.protobuf.testproto.MapTest',"
-                        + " 'protobuf.read-ignore-parse-errors' = 'true'"
+                        + " 'protobuf.ignore-parse-errors' = 'true'"
                         + ")";
         tEnv().executeSql(sql);
         TableResult result = tEnv().executeSql("select * from bigdata_source");

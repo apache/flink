@@ -32,11 +32,11 @@ public class PbFormatOptions {
                                     + "must be located in the classpath both in client and task side");
 
     public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS =
-            ConfigOptions.key("read-ignore-parse-errors")
+            ConfigOptions.key("ignore-parse-errors")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Optional flag to skip rows with parse errors instead of failing; false by default.");
+                            "Optional read flag to skip rows with parse errors instead of failing; false by default.");
 
     public static final ConfigOption<Boolean> READ_DEFAULT_VALUES =
             ConfigOptions.key("read-default-values")
