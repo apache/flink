@@ -26,18 +26,18 @@ import java.util.Deque;
 import java.util.List;
 import java.util.TreeMap;
 
-import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategyTestUtils.createBufferWithIdentitiesDeque;
-import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategyTestUtils.createBufferWithIdentitiesList;
+import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategyTestUtils.createBufferIndexAndChannelsDeque;
+import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategyTestUtils.createBufferIndexAndChannelsList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link HsSpillingStrategyUtils}. */
 class HsSpillingStrategyUtilsTest {
     @Test
     void testGetBuffersByConsumptionPriorityInOrderEmptyExpectedSize() {
-        TreeMap<Integer, Deque<BufferWithIdentity>> subpartitionToAllBuffers = new TreeMap<>();
-        subpartitionToAllBuffers.put(0, createBufferWithIdentitiesDeque(0, 0, 1));
-        subpartitionToAllBuffers.put(1, createBufferWithIdentitiesDeque(1, 2, 4));
-        TreeMap<Integer, List<BufferWithIdentity>> buffersByConsumptionPriorityInOrder =
+        TreeMap<Integer, Deque<BufferIndexAndChannel>> subpartitionToAllBuffers = new TreeMap<>();
+        subpartitionToAllBuffers.put(0, createBufferIndexAndChannelsDeque(0, 0, 1));
+        subpartitionToAllBuffers.put(1, createBufferIndexAndChannelsDeque(1, 2, 4));
+        TreeMap<Integer, List<BufferIndexAndChannel>> buffersByConsumptionPriorityInOrder =
                 HsSpillingStrategyUtils.getBuffersByConsumptionPriorityInOrder(
                         Arrays.asList(0, 1), subpartitionToAllBuffers, 0);
         assertThat(buffersByConsumptionPriorityInOrder).isEmpty();
@@ -51,17 +51,17 @@ class HsSpillingStrategyUtilsTest {
         final int progress1 = 10;
         final int progress2 = 20;
 
-        TreeMap<Integer, Deque<BufferWithIdentity>> subpartitionBuffers = new TreeMap<>();
-        List<BufferWithIdentity> subpartitionBuffers1 =
-                createBufferWithIdentitiesList(
+        TreeMap<Integer, Deque<BufferIndexAndChannel>> subpartitionBuffers = new TreeMap<>();
+        List<BufferIndexAndChannel> subpartitionBuffers1 =
+                createBufferIndexAndChannelsList(
                         subpartition1, progress1, progress1 + 2, progress1 + 6);
-        List<BufferWithIdentity> subpartitionBuffers2 =
-                createBufferWithIdentitiesList(
+        List<BufferIndexAndChannel> subpartitionBuffers2 =
+                createBufferIndexAndChannelsList(
                         subpartition2, progress2 + 1, progress2 + 2, progress2 + 5);
         subpartitionBuffers.put(subpartition1, new ArrayDeque<>(subpartitionBuffers1));
         subpartitionBuffers.put(subpartition2, new ArrayDeque<>(subpartitionBuffers2));
 
-        TreeMap<Integer, List<BufferWithIdentity>> buffersByConsumptionPriorityInOrder =
+        TreeMap<Integer, List<BufferIndexAndChannel>> buffersByConsumptionPriorityInOrder =
                 HsSpillingStrategyUtils.getBuffersByConsumptionPriorityInOrder(
                         Arrays.asList(progress1, progress2), subpartitionBuffers, 5);
 

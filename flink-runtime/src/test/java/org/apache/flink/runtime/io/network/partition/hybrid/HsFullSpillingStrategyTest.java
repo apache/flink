@@ -27,8 +27,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategyTestUtils.createBuffer;
-import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategyTestUtils.createBufferWithIdentitiesList;
+import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategyTestUtils.createBufferIndexAndChannelsList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link HsFullSpillingStrategy}. */
@@ -67,9 +66,9 @@ class HsFullSpillingStrategyTest {
 
     @Test
     void testOnBufferConsumed() {
-        BufferWithIdentity bufferWithIdentity = new BufferWithIdentity(createBuffer(), 0, 0);
+        BufferIndexAndChannel bufferIndexAndChannel = new BufferIndexAndChannel(0, 0);
         Optional<Decision> bufferConsumedDecision =
-                spillStrategy.onBufferConsumed(bufferWithIdentity);
+                spillStrategy.onBufferConsumed(bufferIndexAndChannel);
         assertThat(bufferConsumedDecision).hasValue(Decision.NO_ACTION);
     }
 
@@ -96,16 +95,16 @@ class HsFullSpillingStrategyTest {
         final int progress1 = 10;
         final int progress2 = 20;
 
-        List<BufferWithIdentity> subpartitionBuffers1 =
-                createBufferWithIdentitiesList(
+        List<BufferIndexAndChannel> subpartitionBuffers1 =
+                createBufferIndexAndChannelsList(
                         subpartition1,
                         progress1,
                         progress1 + 2,
                         progress1 + 4,
                         progress1 + 6,
                         progress1 + 8);
-        List<BufferWithIdentity> subpartitionBuffers2 =
-                createBufferWithIdentitiesList(
+        List<BufferIndexAndChannel> subpartitionBuffers2 =
+                createBufferIndexAndChannelsList(
                         subpartition2,
                         progress2 + 1,
                         progress2 + 3,
@@ -132,13 +131,13 @@ class HsFullSpillingStrategyTest {
         Decision decision = spillStrategy.decideActionWithGlobalInfo(spillInfoProvider);
 
         // all not spilled buffers need to spill.
-        ArrayList<BufferWithIdentity> expectedSpillBuffers =
+        ArrayList<BufferIndexAndChannel> expectedSpillBuffers =
                 new ArrayList<>(subpartitionBuffers1.subList(4, 5));
         expectedSpillBuffers.add(subpartitionBuffers2.get(0));
         expectedSpillBuffers.addAll(subpartitionBuffers2.subList(4, 5));
         assertThat(decision.getBufferToSpill()).isEqualTo(expectedSpillBuffers);
 
-        ArrayList<BufferWithIdentity> expectedReleaseBuffers = new ArrayList<>();
+        ArrayList<BufferIndexAndChannel> expectedReleaseBuffers = new ArrayList<>();
         // all consumed spill buffers should release.
         expectedReleaseBuffers.addAll(subpartitionBuffers1.subList(0, 2));
         // priority higher buffers should release.
@@ -154,8 +153,8 @@ class HsFullSpillingStrategyTest {
     @Test
     void testDecideActionWithGlobalInfoAllConsumedSpillBufferShouldRelease() {
         final int subpartitionId = 0;
-        List<BufferWithIdentity> subpartitionBuffers =
-                createBufferWithIdentitiesList(subpartitionId, 0, 1, 2, 3, 4);
+        List<BufferIndexAndChannel> subpartitionBuffers =
+                createBufferIndexAndChannelsList(subpartitionId, 0, 1, 2, 3, 4);
 
         final int poolSize = 5;
         TestingSpillingInfoProvider spillInfoProvider =

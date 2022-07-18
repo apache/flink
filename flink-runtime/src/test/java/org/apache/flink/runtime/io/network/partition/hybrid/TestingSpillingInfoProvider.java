@@ -42,7 +42,7 @@ public class TestingSpillingInfoProvider implements HsSpillingInfoProvider {
 
     private final Supplier<Integer> getNumSubpartitionsSupplier;
 
-    private final Map<Integer, List<BufferWithIdentity>> allBuffers;
+    private final Map<Integer, List<BufferIndexAndChannel>> allBuffers;
 
     private final Map<Integer, Set<Integer>> spillBufferIndexes;
 
@@ -54,7 +54,7 @@ public class TestingSpillingInfoProvider implements HsSpillingInfoProvider {
             Supplier<Integer> getNumTotalRequestedBuffersSupplier,
             Supplier<Integer> getPoolSizeSupplier,
             Supplier<Integer> getNumSubpartitionsSupplier,
-            Map<Integer, List<BufferWithIdentity>> allBuffers,
+            Map<Integer, List<BufferIndexAndChannel>> allBuffers,
             Map<Integer, Set<Integer>> spillBufferIndexes,
             Map<Integer, Set<Integer>> consumedBufferIndexes) {
         this.getNextBufferIndexToConsumeSupplier = getNextBufferIndexToConsumeSupplier;
@@ -78,11 +78,11 @@ public class TestingSpillingInfoProvider implements HsSpillingInfoProvider {
     }
 
     @Override
-    public Deque<BufferWithIdentity> getBuffersInOrder(
+    public Deque<BufferIndexAndChannel> getBuffersInOrder(
             int subpartitionId, SpillStatus spillStatus, ConsumeStatus consumeStatus) {
-        Deque<BufferWithIdentity> buffersInOrder = new ArrayDeque<>();
+        Deque<BufferIndexAndChannel> buffersInOrder = new ArrayDeque<>();
 
-        List<BufferWithIdentity> subpartitionBuffers = allBuffers.get(subpartitionId);
+        List<BufferIndexAndChannel> subpartitionBuffers = allBuffers.get(subpartitionId);
         if (subpartitionBuffers == null) {
             return buffersInOrder;
         }
@@ -159,7 +159,7 @@ public class TestingSpillingInfoProvider implements HsSpillingInfoProvider {
 
         private Supplier<Integer> getNumSubpartitionsSupplier = () -> 0;
 
-        private final Map<Integer, List<BufferWithIdentity>> allBuffers = new HashMap<>();
+        private final Map<Integer, List<BufferIndexAndChannel>> allBuffers = new HashMap<>();
 
         private final Map<Integer, Set<Integer>> spillBufferIndexes = new HashMap<>();
 
@@ -197,7 +197,7 @@ public class TestingSpillingInfoProvider implements HsSpillingInfoProvider {
         }
 
         public Builder addSubpartitionBuffers(
-                int subpartitionId, List<BufferWithIdentity> subpartitionBuffers) {
+                int subpartitionId, List<BufferIndexAndChannel> subpartitionBuffers) {
             allBuffers.computeIfAbsent(subpartitionId, ArrayList::new).addAll(subpartitionBuffers);
             return this;
         }

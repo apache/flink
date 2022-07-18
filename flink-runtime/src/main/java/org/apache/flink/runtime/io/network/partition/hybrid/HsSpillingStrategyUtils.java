@@ -45,10 +45,11 @@ public class HsSpillingStrategyUtils {
      * @return mapping for subpartitionId to buffers, the value of map entry must be order by
      *     bufferIndex ascending.
      */
-    public static TreeMap<Integer, List<BufferWithIdentity>> getBuffersByConsumptionPriorityInOrder(
-            List<Integer> nextBufferIndexToConsume,
-            TreeMap<Integer, Deque<BufferWithIdentity>> subpartitionToAllBuffers,
-            int expectedSize) {
+    public static TreeMap<Integer, List<BufferIndexAndChannel>>
+            getBuffersByConsumptionPriorityInOrder(
+                    List<Integer> nextBufferIndexToConsume,
+                    TreeMap<Integer, Deque<BufferIndexAndChannel>> subpartitionToAllBuffers,
+                    int expectedSize) {
         if (expectedSize <= 0) {
             return new TreeMap<>();
         }
@@ -63,17 +64,17 @@ public class HsSpillingStrategyUtils {
                     }
                 });
 
-        TreeMap<Integer, List<BufferWithIdentity>> subpartitionToHighPriorityBuffers =
+        TreeMap<Integer, List<BufferIndexAndChannel>> subpartitionToHighPriorityBuffers =
                 new TreeMap<>();
         for (int i = 0; i < expectedSize; i++) {
             if (heap.isEmpty()) {
                 break;
             }
             BufferConsumptionPriorityIterator bufferConsumptionPriorityIterator = heap.poll();
-            BufferWithIdentity bufferWithIdentity = bufferConsumptionPriorityIterator.next();
+            BufferIndexAndChannel bufferIndexAndChannel = bufferConsumptionPriorityIterator.next();
             subpartitionToHighPriorityBuffers
-                    .computeIfAbsent(bufferWithIdentity.getChannelIndex(), ArrayList::new)
-                    .add(bufferWithIdentity);
+                    .computeIfAbsent(bufferIndexAndChannel.getChannel(), ArrayList::new)
+                    .add(bufferIndexAndChannel);
             // if this iterator has next, re-added it.
             if (bufferConsumptionPriorityIterator.hasNext()) {
                 heap.add(bufferConsumptionPriorityIterator);
@@ -89,24 +90,25 @@ public class HsSpillingStrategyUtils {
 
     /**
      * Special {@link Iterator} for hybrid shuffle mode that wrapped a deque of {@link
-     * BufferWithIdentity}. Tow iterator can compare by compute consumption priority of peek
+     * BufferIndexAndChannel}. Tow iterator can compare by compute consumption priority of peek
      * element.
      */
     private static class BufferConsumptionPriorityIterator
-            implements Comparable<BufferConsumptionPriorityIterator>, Iterator<BufferWithIdentity> {
+            implements Comparable<BufferConsumptionPriorityIterator>,
+                    Iterator<BufferIndexAndChannel> {
 
         private final int consumptionProgress;
 
-        private final PeekingIterator<BufferWithIdentity> bufferIterator;
+        private final PeekingIterator<BufferIndexAndChannel> bufferIterator;
 
         public BufferConsumptionPriorityIterator(
-                Deque<BufferWithIdentity> bufferQueue, int consumptionProgress) {
+                Deque<BufferIndexAndChannel> bufferQueue, int consumptionProgress) {
             this.consumptionProgress = consumptionProgress;
             this.bufferIterator = Iterators.peekingIterator(bufferQueue.descendingIterator());
         }
 
         // move the iterator to next item.
-        public BufferWithIdentity next() {
+        public BufferIndexAndChannel next() {
             return bufferIterator.next();
         }
 

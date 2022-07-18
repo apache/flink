@@ -48,7 +48,7 @@ public interface HsSpillingInfoProvider {
      *     according to bufferIndex from small to large, in other words, head is the buffer with the
      *     minimum bufferIndex in the current subpartition.
      */
-    Deque<BufferWithIdentity> getBuffersInOrder(
+    Deque<BufferIndexAndChannel> getBuffersInOrder(
             int subpartitionId, SpillStatus spillStatus, ConsumeStatus consumeStatus);
 
     /** Get total number of not decided to spill buffers. */

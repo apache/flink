@@ -57,7 +57,7 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
 
     // For the case of buffer consumed, there is no need to take action for HsFullSpillingStrategy.
     @Override
-    public Optional<Decision> onBufferConsumed(BufferWithIdentity consumedBuffer) {
+    public Optional<Decision> onBufferConsumed(BufferIndexAndChannel consumedBuffer) {
         return Optional.of(Decision.NO_ACTION);
     }
 
@@ -85,7 +85,7 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
             return;
         }
         // Spill all not spill buffers.
-        List<BufferWithIdentity> unSpillBuffers = new ArrayList<>();
+        List<BufferIndexAndChannel> unSpillBuffers = new ArrayList<>();
         for (int i = 0; i < spillingInfoProvider.getNumSubpartitions(); i++) {
             unSpillBuffers.addAll(
                     spillingInfoProvider.getBuffersInOrder(
@@ -105,13 +105,13 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
         int releaseNum = (int) (spillingInfoProvider.getPoolSize() * releaseBufferRatio);
 
         // first, release all consumed buffers
-        TreeMap<Integer, Deque<BufferWithIdentity>> consumedBuffersToRelease = new TreeMap<>();
+        TreeMap<Integer, Deque<BufferIndexAndChannel>> consumedBuffersToRelease = new TreeMap<>();
         int numConsumedBuffers = 0;
         for (int subpartitionId = 0;
                 subpartitionId < spillingInfoProvider.getNumSubpartitions();
                 subpartitionId++) {
 
-            Deque<BufferWithIdentity> consumedSpillSubpartitionBuffers =
+            Deque<BufferIndexAndChannel> consumedSpillSubpartitionBuffers =
                     spillingInfoProvider.getBuffersInOrder(
                             subpartitionId, SpillStatus.SPILL, ConsumeStatus.CONSUMED);
             numConsumedBuffers += consumedSpillSubpartitionBuffers.size();
@@ -119,9 +119,9 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
         }
 
         // make up the releaseNum with unconsumed buffers, if needed, w.r.t. the consuming priority
-        TreeMap<Integer, List<BufferWithIdentity>> unconsumedBufferToRelease = new TreeMap<>();
+        TreeMap<Integer, List<BufferIndexAndChannel>> unconsumedBufferToRelease = new TreeMap<>();
         if (releaseNum > numConsumedBuffers) {
-            TreeMap<Integer, Deque<BufferWithIdentity>> unconsumedBuffers = new TreeMap<>();
+            TreeMap<Integer, Deque<BufferIndexAndChannel>> unconsumedBuffers = new TreeMap<>();
             for (int subpartitionId = 0;
                     subpartitionId < spillingInfoProvider.getNumSubpartitions();
                     subpartitionId++) {
@@ -138,7 +138,7 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
         }
 
         // collect results in order
-        List<BufferWithIdentity> toRelease = new ArrayList<>();
+        List<BufferIndexAndChannel> toRelease = new ArrayList<>();
         for (int i = 0; i < spillingInfoProvider.getNumSubpartitions(); i++) {
             toRelease.addAll(consumedBuffersToRelease.getOrDefault(i, new ArrayDeque<>()));
             toRelease.addAll(unconsumedBufferToRelease.getOrDefault(i, new ArrayList<>()));
