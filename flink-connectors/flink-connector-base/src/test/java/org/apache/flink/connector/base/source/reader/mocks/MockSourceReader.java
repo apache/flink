@@ -71,7 +71,10 @@ public class MockSourceReader
 
     @Override
     protected MockSourceSplit toSplitType(String splitId, MockSplitState splitState) {
-        return new MockSourceSplit(Integer.parseInt(splitId), splitState.getRecordIndex());
+        return new MockSourceSplit(
+                Integer.parseInt(splitId),
+                splitState.getRecordIndex(),
+                splitState.getEndRecordIndex());
     }
 
     @Override

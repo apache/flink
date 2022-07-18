@@ -19,6 +19,7 @@
 package org.apache.flink.connector.base.source.hybrid;
 
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -28,13 +29,17 @@ import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.mock.Whitebox;
-
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -57,7 +62,7 @@ public class HybridSourceReaderTest {
 
         assertThat(readerContext.getSentEvents()).isEmpty();
         reader.start();
-        assertAndClearSourceReaderFinishedEvent(readerContext, -1);
+        assertAndClearSourceReaderFinishedEvent(readerContext, -1, 0);
         assertThat(currentReader(reader)).isNull();
         assertThat(reader.pollNext(readerOutput)).isEqualTo(InputStatus.NOTHING_AVAILABLE);
 
@@ -80,11 +85,14 @@ public class HybridSourceReaderTest {
         reader.addSplits(Collections.singletonList(hybridSplit));
 
         // drain splits
-        InputStatus status = reader.pollNext(readerOutput);
-        while (readerOutput.getEmittedRecords().isEmpty() || status == InputStatus.MORE_AVAILABLE) {
-            status = reader.pollNext(readerOutput);
-            Thread.sleep(10);
-        }
+        pollUntil(
+                reader,
+                readerOutput,
+                status ->
+                        !readerOutput.getEmittedRecords().isEmpty()
+                                && status != InputStatus.MORE_AVAILABLE,
+                "Splits are not drained before timeout.");
+
         assertThat(readerOutput.getEmittedRecords()).contains(0);
         reader.pollNext(readerOutput);
         assertThat(reader.pollNext(readerOutput))
@@ -93,7 +101,7 @@ public class HybridSourceReaderTest {
 
         reader.notifyNoMoreSplits();
         reader.pollNext(readerOutput);
-        assertAndClearSourceReaderFinishedEvent(readerContext, 0);
+        assertAndClearSourceReaderFinishedEvent(readerContext, 0, 1);
 
         assertThat(currentReader(reader))
                 .as("reader before switch source event")
@@ -124,38 +132,104 @@ public class HybridSourceReaderTest {
     public void testReaderRecovery() throws Exception {
         TestingReaderContext readerContext = new TestingReaderContext();
         TestingReaderOutput<Integer> readerOutput = new TestingReaderOutput<>();
-        MockBaseSource source = new MockBaseSource(1, 1, Boundedness.BOUNDED);
+        MockBaseSource source = new MockBaseSource(2, 10, Boundedness.BOUNDED);
 
         HybridSourceReader<Integer> reader = new HybridSourceReader<>(readerContext);
 
         reader.start();
-        assertAndClearSourceReaderFinishedEvent(readerContext, -1);
+        assertAndClearSourceReaderFinishedEvent(readerContext, -1, 0);
         reader.handleSourceEvents(new SwitchSourceEvent(0, source, false));
 
-        MockSourceSplit mockSplit = new MockSourceSplit(0, 0, 2147483647);
+        Integer numRecordsUntilFinished = 10;
+        MockSourceSplit mockSplit = new MockSourceSplit(0, 0, numRecordsUntilFinished * 2);
+        MockSourceSplit mockFinishedSplit = new MockSourceSplit(1, 0, numRecordsUntilFinished);
+
+        List<MockSourceSplit> mockSplits = new ArrayList<>();
+        mockSplits.add(mockSplit);
+        mockSplits.add(mockFinishedSplit);
+        for (MockSourceSplit split : mockSplits) {
+            addRecords(split, numRecordsUntilFinished, 0);
+        }
 
         SwitchedSources switchedSources = new SwitchedSources();
         switchedSources.put(0, source);
-        HybridSourceSplit hybridSplit = HybridSourceSplit.wrapSplit(mockSplit, 0, switchedSources);
-        reader.addSplits(Collections.singletonList(hybridSplit));
+
+        List<HybridSourceSplit> hybridSplits =
+                HybridSourceSplit.wrapSplits(mockSplits, 0, switchedSources);
+        reader.addSplits(hybridSplits);
+
+        pollUntil(
+                reader,
+                readerOutput,
+                status ->
+                        readerOutput.getEmittedRecords().size() == numRecordsUntilFinished * 2
+                                && status == InputStatus.NOTHING_AVAILABLE,
+                "Not enough records are pulled before time out.");
+        reader.pollNext(readerOutput);
 
         List<HybridSourceSplit> snapshot = reader.snapshotState(0);
-        assertThat(snapshot).contains(hybridSplit);
+
+        MockSourceSplit snapshotMockSplit =
+                new MockSourceSplit(0, numRecordsUntilFinished, numRecordsUntilFinished * 2);
+        MockSourceSplit snapshotMockFinishedSplit =
+                new MockSourceSplit(1, numRecordsUntilFinished, numRecordsUntilFinished);
+        List<HybridSourceSplit> snapshotHybridSplits = new ArrayList<>();
+        snapshotHybridSplits.add(
+                HybridSourceSplit.wrapSplit(snapshotMockSplit, 0, switchedSources));
+        snapshotHybridSplits.add(
+                HybridSourceSplit.wrapSplit(snapshotMockFinishedSplit, 0, switchedSources, true));
+
+        assertThat(snapshot.size()).isEqualTo(2);
+        assertThat(snapshot).hasSameElementsAs(snapshotHybridSplits);
+
+        reader.close();
 
         // reader recovery
         readerContext.clearSentEvents();
+        readerOutput.clearEmittedRecords();
         reader = new HybridSourceReader<>(readerContext);
 
-        reader.addSplits(snapshot);
+        List<HybridSourceSplit> snapshotWithRecords = new ArrayList<>();
+        for (HybridSourceSplit split : snapshot) {
+            if (!split.isFinished) {
+                MockSourceSplit mockSplitWithRecords =
+                        (MockSourceSplit) HybridSourceSplit.unwrapSplit(split, switchedSources);
+                addRecords(mockSplitWithRecords, numRecordsUntilFinished, 10);
+
+                snapshotWithRecords.add(
+                        HybridSourceSplit.wrapSplit(mockSplitWithRecords, 0, switchedSources));
+            } else {
+                snapshotWithRecords.add(split);
+            }
+        }
+
+        reader.addSplits(snapshotWithRecords);
         assertThat(currentReader(reader)).isNull();
 
         reader.start();
         assertThat(currentReader(reader)).isNull();
 
-        assertAndClearSourceReaderFinishedEvent(readerContext, -1);
+        assertAndClearSourceReaderFinishedEvent(readerContext, -1, 0);
         reader.handleSourceEvents(new SwitchSourceEvent(0, source, false));
         assertThat(currentReader(reader)).isNotNull();
-        assertThat(reader.snapshotState(1)).contains(hybridSplit);
+
+        snapshot = reader.snapshotState(1);
+        assertThat(snapshot.size()).isEqualTo(2);
+        assertThat(snapshot).hasSameElementsAs(snapshotHybridSplits);
+
+        // pull all records from the remaining split, and check that
+        // finished splits before recovery can be sent with the new finished splits
+        pollUntil(
+                reader,
+                readerOutput,
+                status ->
+                        readerOutput.getEmittedRecords().size() == numRecordsUntilFinished
+                                && status == InputStatus.NOTHING_AVAILABLE,
+                "Not enough records are pulled before time out.");
+
+        reader.notifyNoMoreSplits();
+        reader.pollNext(readerOutput);
+        assertAndClearSourceReaderFinishedEvent(readerContext, 0, 2);
 
         reader.close();
     }
@@ -176,7 +250,7 @@ public class HybridSourceReaderTest {
         HybridSourceReader<Integer> reader = new HybridSourceReader<>(readerContext);
 
         reader.start();
-        assertAndClearSourceReaderFinishedEvent(readerContext, -1);
+        assertAndClearSourceReaderFinishedEvent(readerContext, -1, 0);
         reader.handleSourceEvents(new SwitchSourceEvent(0, source, false));
         SourceReader<Integer, MockSourceSplit> underlyingReader = currentReader(reader);
 
@@ -195,10 +269,41 @@ public class HybridSourceReaderTest {
     }
 
     private static void assertAndClearSourceReaderFinishedEvent(
-            TestingReaderContext context, int sourceIndex) {
+            TestingReaderContext context, int sourceIndex, int numFinishedSplits) {
         assertThat(context.getSentEvents()).hasSize(1);
-        assertThat(((SourceReaderFinishedEvent) context.getSentEvents().get(0)).sourceIndex())
-                .isEqualTo(sourceIndex);
+        SourceReaderFinishedEvent event =
+                (SourceReaderFinishedEvent) context.getSentEvents().get(0);
+        assertThat(event.sourceIndex()).isEqualTo(sourceIndex);
+        assertThat(event.getFinishedSplits().size()).isEqualTo(numFinishedSplits);
+        event.getFinishedSplits().forEach(split -> assertThat(split.isFinished).isTrue());
         context.clearSentEvents();
+    }
+
+    private void addRecords(MockSourceSplit split, Integer numRecords, Integer startIndex) {
+        for (int i = startIndex; i < startIndex + numRecords; i++) {
+            split.addRecord(i);
+        }
+    }
+
+    private static void pollUntil(
+            HybridSourceReader<Integer> reader,
+            ReaderOutput<Integer> output,
+            Function<InputStatus, Boolean> condition,
+            String errorMessage)
+            throws InterruptedException, TimeoutException {
+        CommonTestUtils.waitUtil(
+                () -> {
+                    InputStatus status;
+                    try {
+                        status = reader.pollNext(output);
+                    } catch (Exception exception) {
+                        throw new RuntimeException(
+                                "Caught unexpected exception when polling from the reader",
+                                exception);
+                    }
+                    return condition.apply(status);
+                },
+                Duration.ofSeconds(Integer.MAX_VALUE),
+                errorMessage);
     }
 }
