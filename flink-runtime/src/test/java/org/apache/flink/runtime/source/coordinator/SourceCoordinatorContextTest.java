@@ -62,7 +62,7 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         sourceReady();
         List<ReaderInfo> readerInfo = registerReaders();
 
-        sourceCoordinator.subtaskFailed(0, null);
+        sourceCoordinator.executionAttemptFailed(0, 0, null);
         waitForCoordinatorToProcessActions();
 
         assertThat(context.registeredReaders())
@@ -235,6 +235,7 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         for (ReaderInfo info : infos) {
             sourceCoordinator.handleEventFromOperator(
                     info.getSubtaskId(),
+                    0,
                     new ReaderRegistrationEvent(info.getSubtaskId(), info.getLocation()));
         }
         waitForCoordinatorToProcessActions();

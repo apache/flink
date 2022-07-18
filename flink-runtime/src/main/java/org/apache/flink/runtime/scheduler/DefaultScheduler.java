@@ -283,8 +283,11 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             final Execution execution, @Nullable final Throwable error) {
         final ExecutionJobVertex jobVertex = execution.getVertex().getJobVertex();
         final int subtaskIndex = execution.getParallelSubtaskIndex();
+        final int attemptNumber = execution.getAttemptNumber();
 
-        jobVertex.getOperatorCoordinators().forEach(c -> c.subtaskFailed(subtaskIndex, error));
+        jobVertex
+                .getOperatorCoordinators()
+                .forEach(c -> c.executionAttemptFailed(subtaskIndex, attemptNumber, error));
     }
 
     @Override

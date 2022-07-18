@@ -200,14 +200,15 @@ public class OperatorCoordinatorHolder
         context.unInitialize();
     }
 
-    public void handleEventFromOperator(int subtask, OperatorEvent event) throws Exception {
+    public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event)
+            throws Exception {
         mainThreadExecutor.assertRunningInMainThread();
-        coordinator.handleEventFromOperator(subtask, event);
+        coordinator.handleEventFromOperator(subtask, attemptNumber, event);
     }
 
-    public void subtaskFailed(int subtask, @Nullable Throwable reason) {
+    public void executionAttemptFailed(int subtask, int attemptNumber, @Nullable Throwable reason) {
         mainThreadExecutor.assertRunningInMainThread();
-        coordinator.subtaskFailed(subtask, reason);
+        coordinator.executionAttemptFailed(subtask, attemptNumber, reason);
     }
 
     @Override
@@ -409,7 +410,8 @@ public class OperatorCoordinatorHolder
 
     private void notifySubtaskReady(int subtask, OperatorCoordinator.SubtaskGateway gateway) {
         try {
-            coordinator.subtaskReady(subtask, gateway);
+            coordinator.executionAttemptReady(
+                    subtask, gateway.getExecution().getAttemptNumber(), gateway);
         } catch (Throwable t) {
             ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
             globalFailureHandler.handleGlobalFailure(

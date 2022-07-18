@@ -219,7 +219,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     }
 
     @Override
-    public void handleEventFromOperator(int subtask, OperatorEvent event) {
+    public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event) {
         runInEventLoop(
                 () -> {
                     if (event instanceof RequestSplitEvent) {
@@ -261,7 +261,8 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     }
 
     @Override
-    public void subtaskFailed(int subtaskId, @Nullable Throwable reason) {
+    public void executionAttemptFailed(
+            int subtaskId, int attemptNumber, @Nullable Throwable reason) {
         runInEventLoop(
                 () -> {
                     LOG.info(
@@ -299,7 +300,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     }
 
     @Override
-    public void subtaskReady(int subtask, SubtaskGateway gateway) {
+    public void executionAttemptReady(int subtask, int attemptNumber, SubtaskGateway gateway) {
         assert subtask == gateway.getSubtask();
 
         runInEventLoop(

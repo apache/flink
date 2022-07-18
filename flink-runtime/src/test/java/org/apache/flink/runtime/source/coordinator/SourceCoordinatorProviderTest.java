@@ -77,13 +77,13 @@ public class SourceCoordinatorProviderTest {
         // Start the coordinator.
         coordinator.start();
         // register reader 0 and take a checkpoint.
-        coordinator.handleEventFromOperator(0, new ReaderRegistrationEvent(0, "location"));
+        coordinator.handleEventFromOperator(0, 0, new ReaderRegistrationEvent(0, "location"));
         CompletableFuture<byte[]> future = new CompletableFuture<>();
         coordinator.checkpointCoordinator(0L, future);
         byte[] bytes = future.get();
 
         // Register reader 1.
-        coordinator.handleEventFromOperator(1, new ReaderRegistrationEvent(1, "location"));
+        coordinator.handleEventFromOperator(1, 0, new ReaderRegistrationEvent(1, "location"));
         // Wait until the coordinator context is updated with registration of reader 1.
         while (sourceCoordinator.getContext().registeredReaders().size() < 2) {
             Thread.sleep(1);
