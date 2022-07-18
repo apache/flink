@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint.metadata;
 import org.apache.flink.annotation.Internal;
 
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
@@ -48,5 +49,12 @@ public class MetadataV1Serializer implements MetadataSerializer {
             DataInputStream dis, ClassLoader cl, String externalPointer) throws IOException {
         throw new IOException(
                 "This savepoint / checkpoint version (Flink 1.1 / 1.2) is no longer supported.");
+    }
+
+    @Override
+    public void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
+            throws IOException {
+        throw new UnsupportedOperationException(
+                "Serialization in v" + getVersion() + " is no longer supported");
     }
 }

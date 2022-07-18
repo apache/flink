@@ -183,7 +183,8 @@ public interface ChangelogStateBackendHandle
                 stateRegistry.registerReference(
                         new SharedStateRegistryKey(keyedStateHandle.getStateHandleId().toString()),
                         new StreamStateHandleWrapper(keyedStateHandle),
-                        checkpointID);
+                        checkpointID,
+                        true);
             }
             stateRegistry.registerAll(materialized, checkpointID);
             stateRegistry.registerAll(nonMaterialized, checkpointID);
