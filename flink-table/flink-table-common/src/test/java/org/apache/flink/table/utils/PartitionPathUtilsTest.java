@@ -78,4 +78,13 @@ class PartitionPathUtilsTest {
         assertThat(actual).isEqualTo(expected);
         assertThat(PartitionPathUtils.unescapePathName(actual)).isEqualTo(origin);
     }
+
+    @Test
+    void testEscapePathNameWithCurlyBraces() {
+        String origin = "{partName}";
+        String expected = "%7BpartName%7D";
+        String actual = PartitionPathUtils.escapePathName(origin);
+        assertThat(actual).isEqualTo(expected);
+        assertThat(PartitionPathUtils.unescapePathName(actual)).isEqualTo(origin);
+    }
 }
