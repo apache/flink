@@ -36,6 +36,7 @@ under the License.
 			<useProjectAttachments>false</useProjectAttachments>
 			<useTransitiveDependencies>true</useTransitiveDependencies>
 			<useTransitiveFiltering>true</useTransitiveFiltering>
+			<scope>provided</scope>
 
 			<includes>
 				<include>org.apache.logging.log4j:log4j-api</include>
