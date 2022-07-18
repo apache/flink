@@ -89,7 +89,6 @@ public class HsMemoryDataSpiller implements AutoCloseable {
             // complete spill future when buffers are written to disk successfully.
             // note that the ownership of these buffers is transferred to the MemoryDataManager,
             // which controls data's life cycle.
-            // TODO update file data index and handle buffers release in future ticket.
             spilledFuture.complete(spilledBuffers);
         } catch (IOException exception) {
             // if spilling is failed, throw exception directly to uncaughtExceptionHandler.
