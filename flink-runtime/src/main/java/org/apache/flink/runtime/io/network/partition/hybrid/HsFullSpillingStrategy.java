@@ -85,13 +85,12 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
             return;
         }
         // Spill all not spill buffers.
-        List<BufferIndexAndChannel> unSpillBuffers = new ArrayList<>();
         for (int i = 0; i < spillingInfoProvider.getNumSubpartitions(); i++) {
-            unSpillBuffers.addAll(
+            builder.addBufferToSpill(
+                    i,
                     spillingInfoProvider.getBuffersInOrder(
                             i, SpillStatus.NOT_SPILL, ConsumeStatus.ALL));
         }
-        builder.addBufferToSpill(unSpillBuffers);
     }
 
     private void checkRelease(
@@ -138,11 +137,11 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
         }
 
         // collect results in order
-        List<BufferIndexAndChannel> toRelease = new ArrayList<>();
         for (int i = 0; i < spillingInfoProvider.getNumSubpartitions(); i++) {
+            List<BufferIndexAndChannel> toRelease = new ArrayList<>();
             toRelease.addAll(consumedBuffersToRelease.getOrDefault(i, new ArrayDeque<>()));
             toRelease.addAll(unconsumedBufferToRelease.getOrDefault(i, new ArrayList<>()));
+            builder.addBufferToRelease(i, toRelease);
         }
-        builder.addBufferToRelease(toRelease);
     }
 }

@@ -24,11 +24,14 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategyTestUtils.createBufferIndexAndChannelsList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 /** Tests for {@link HsFullSpillingStrategy}. */
 class HsFullSpillingStrategyTest {
@@ -131,21 +134,24 @@ class HsFullSpillingStrategyTest {
         Decision decision = spillStrategy.decideActionWithGlobalInfo(spillInfoProvider);
 
         // all not spilled buffers need to spill.
-        ArrayList<BufferIndexAndChannel> expectedSpillBuffers =
-                new ArrayList<>(subpartitionBuffers1.subList(4, 5));
-        expectedSpillBuffers.add(subpartitionBuffers2.get(0));
-        expectedSpillBuffers.addAll(subpartitionBuffers2.subList(4, 5));
+        Map<Integer, List<BufferIndexAndChannel>> expectedSpillBuffers = new HashMap<>();
+        expectedSpillBuffers.put(subpartition1, subpartitionBuffers1.subList(4, 5));
+        expectedSpillBuffers.put(
+                subpartition2, new ArrayList<>(subpartitionBuffers2.subList(0, 1)));
+        expectedSpillBuffers.get(subpartition2).addAll(subpartitionBuffers2.subList(4, 5));
         assertThat(decision.getBufferToSpill()).isEqualTo(expectedSpillBuffers);
 
-        ArrayList<BufferIndexAndChannel> expectedReleaseBuffers = new ArrayList<>();
+        Map<Integer, List<BufferIndexAndChannel>> expectedReleaseBuffers = new HashMap<>();
         // all consumed spill buffers should release.
-        expectedReleaseBuffers.addAll(subpartitionBuffers1.subList(0, 2));
+        expectedReleaseBuffers.put(
+                subpartition1, new ArrayList<>(subpartitionBuffers1.subList(0, 2)));
         // priority higher buffers should release.
-        expectedReleaseBuffers.addAll(subpartitionBuffers1.subList(3, 4));
+        expectedReleaseBuffers.get(subpartition1).addAll(subpartitionBuffers1.subList(3, 4));
         // all consumed spill buffers should release.
-        expectedReleaseBuffers.addAll(subpartitionBuffers2.subList(1, 2));
+        expectedReleaseBuffers.put(
+                subpartition2, new ArrayList<>(subpartitionBuffers2.subList(1, 2)));
         // priority higher buffers should release.
-        expectedReleaseBuffers.addAll(subpartitionBuffers2.subList(2, 4));
+        expectedReleaseBuffers.get(subpartition2).addAll(subpartitionBuffers2.subList(2, 4));
         assertThat(decision.getBufferToRelease()).isEqualTo(expectedReleaseBuffers);
     }
 
@@ -172,7 +178,8 @@ class HsFullSpillingStrategyTest {
         Decision decision = spillStrategy.decideActionWithGlobalInfo(spillInfoProvider);
         assertThat(decision.getBufferToSpill()).isEmpty();
         assertThat(decision.getBufferToRelease())
-                .isEqualTo(subpartitionBuffers.subList(0, 4))
-                .hasSizeGreaterThan(numReleaseBuffer);
+                .containsOnly(entry(subpartitionId, subpartitionBuffers.subList(0, 4)))
+                .extractingByKey(subpartitionId)
+                .satisfies((buffers) -> assertThat(buffers).hasSizeGreaterThan(numReleaseBuffer));
     }
 }
