@@ -305,20 +305,32 @@ public class HiveTableSource
                     HiveSourceFileEnumerator.createInputSplits(
                             0, hivePartitionsToRead, threadNum, jobConf);
             if (inputSplits.size() != 0) {
+                TableStats tableStats;
                 if (defaultBulkFormat instanceof FileBasedStatisticsReportableInputFormat) {
                     // If HiveInputFormat's variable useMapRedReader is false, Hive using Flink's
                     // InputFormat to read data.
-                    return ((FileBasedStatisticsReportableInputFormat) defaultBulkFormat)
-                            .reportStatistics(
-                                    inputSplits.stream()
-                                            .map(FileSourceSplit::path)
-                                            .collect(Collectors.toList()),
-                                    catalogTable.getSchema().toRowDataType());
+                    tableStats =
+                            ((FileBasedStatisticsReportableInputFormat) defaultBulkFormat)
+                                    .reportStatistics(
+                                            inputSplits.stream()
+                                                    .map(FileSourceSplit::path)
+                                                    .collect(Collectors.toList()),
+                                            catalogTable.getSchema().toRowDataType());
                 } else {
                     // If HiveInputFormat's variable useMapRedReader is true, Hive using MapRed
                     // InputFormat to read data.
-                    return getMapRedInputFormatStatistics(
-                            inputSplits, catalogTable.getSchema().toRowDataType());
+                    tableStats =
+                            getMapRedInputFormatStatistics(
+                                    inputSplits, catalogTable.getSchema().toRowDataType());
+                }
+                if (limit == null) {
+                    // If no limit push down, return recompute table stats.
+                    return tableStats;
+                } else {
+                    // If table have limit push down, return new table stats without table column
+                    // stats.
+                    long newRowCount = Math.min(limit, tableStats.getRowCount());
+                    return new TableStats(newRowCount);
                 }
             } else {
                 return TableStats.UNKNOWN;

@@ -189,6 +189,13 @@ public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
     }
 
     @Test
+    public void testLimitPushDownAndCatalogStatisticsDoNotExist() {
+        FlinkStatistic statistic =
+                getStatisticsFromOptimizedPlan("select * from NonPartTable limit 1");
+        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(1));
+    }
+
+    @Test
     public void testNoPartitionPushDownAndCatalogStatisticsExist() throws Exception {
         tEnv.getCatalog(tEnv.getCurrentCatalog())
                 .orElseThrow(Exception::new)

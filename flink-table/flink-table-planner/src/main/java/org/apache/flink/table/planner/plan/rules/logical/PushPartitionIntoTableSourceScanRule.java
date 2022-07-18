@@ -185,7 +185,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
         TableSourceTable newTableSourceTable =
                 tableSourceTable.copy(
                         dynamicTableSource,
-                        // the statistics will be updated in FlinkCollectStatisticsProgram
+                        // The statistics will be updated in FlinkRecomputeStatisticsProgram.
                         tableSourceTable.getStatistic(),
                         new SourceAbilitySpec[] {partitionPushDownSpec});
         LogicalTableScan newScan =

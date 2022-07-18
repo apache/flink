@@ -359,11 +359,19 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                     splits.stream().map(FileSourceSplit::path).collect(Collectors.toList());
 
             if (bulkReaderFormat instanceof FileBasedStatisticsReportableInputFormat) {
-                return ((FileBasedStatisticsReportableInputFormat) bulkReaderFormat)
-                        .reportStatistics(files, producedDataType);
+                TableStats tableStats =
+                        ((FileBasedStatisticsReportableInputFormat) bulkReaderFormat)
+                                .reportStatistics(files, producedDataType);
+                return limit == null
+                        ? tableStats
+                        : new TableStats(Math.min(limit, tableStats.getRowCount()));
             } else if (deserializationFormat instanceof FileBasedStatisticsReportableInputFormat) {
-                return ((FileBasedStatisticsReportableInputFormat) deserializationFormat)
-                        .reportStatistics(files, producedDataType);
+                TableStats tableStats =
+                        ((FileBasedStatisticsReportableInputFormat) deserializationFormat)
+                                .reportStatistics(files, producedDataType);
+                return limit == null
+                        ? tableStats
+                        : new TableStats(Math.min(limit, tableStats.getRowCount()));
             } else {
                 return TableStats.UNKNOWN;
             }

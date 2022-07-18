@@ -849,7 +849,6 @@ under the License.
 		</dependency>
 
 
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils</artifactId>
@@ -966,6 +965,7 @@ under the License.
 									<include>org.apache.flink:flink-orc-nohive</include>
 									<include>org.apache.flink:flink-hadoop-compatibility_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-parquet</include>
+									<include>org.apache.flink:flink-csv</include>
 									<include>org.apache.flink:flink-hadoop-bulk</include>
 									<include>org.apache.parquet:parquet-hadoop</include>
 									<include>org.apache.parquet:parquet-format</include>
