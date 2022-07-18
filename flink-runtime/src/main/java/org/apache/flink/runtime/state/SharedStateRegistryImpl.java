@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.SnapshotType.SharingFilesStrategy;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.util.concurrent.Executors;
 
@@ -40,6 +41,7 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 
+import static org.apache.flink.runtime.checkpoint.SnapshotType.SharingFilesStrategy.NO_SHARING;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -51,6 +53,9 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
 
     /** All registered state objects by an artificial key */
     private final Map<SharedStateRegistryKey, SharedStateEntry> registeredStates;
+
+    private final Map<Long, Optional<SharingFilesStrategy>> restoredCheckpointSharingStrategies =
+            new HashMap<>();
 
     /** This flag indicates whether or not the registry is open or if close() was called */
     private boolean open;
@@ -72,8 +77,12 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
         this.open = true;
     }
 
+    @Override
     public StreamStateHandle registerReference(
-            SharedStateRegistryKey registrationKey, StreamStateHandle state, long checkpointID) {
+            SharedStateRegistryKey registrationKey,
+            StreamStateHandle state,
+            long checkpointID,
+            boolean preventDiscardingCreatedCheckpoint) {
 
         checkNotNull(state);
 
@@ -135,6 +144,9 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
                         entry.lastUsedCheckpointID,
                         checkpointID);
                 entry.advanceLastUsingCheckpointID(checkpointID);
+                if (preventDiscardingCreatedCheckpoint) {
+                    entry.preventDiscardingCreatedCheckpoint();
+                }
             }
         }
 
@@ -162,7 +174,14 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
                         subsumed.add(entry.stateHandle);
                     }
                     it.remove();
-                } else {
+                } else if (preventsDiscardingCreatedCheckpoint(entry)) {
+                    // Newly created checkpoints can be discarded right after subsumption. But the
+                    // initial checkpoint needs to be kept until all of its private AND shared state
+                    // is not in use. This is to enable recovery in CLAIM mode from:
+                    // - native incremental savepoints
+                    // - non-changelog checkpoints with changelog enabled
+                    // Keeping any checkpoint for longer leaves its folder undeleted on job
+                    // cancellation (and also on crash or JM failover).
                     checkpointInUse.add(entry.createdByCheckpointID);
                 }
             }
@@ -192,6 +211,11 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
     @Override
     public void registerAllAfterRestored(CompletedCheckpoint checkpoint, RestoreMode mode) {
         registerAll(checkpoint.getOperatorStates().values(), checkpoint.getCheckpointID());
+        restoredCheckpointSharingStrategies.put(
+                checkpoint.getCheckpointID(),
+                checkpoint
+                        .getRestoredProperties()
+                        .map(props -> props.getCheckpointType().getSharingFilesStrategy()));
         // In NO_CLAIM and LEGACY restore modes, shared state of the initial checkpoints must be
         // preserved. This is achieved by advancing highestRetainCheckpointID here, and then
         // checking entry.createdByCheckpointID against it on checkpoint subsumption.
@@ -277,6 +301,12 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
     /** An entry in the registry, tracking the handle and the corresponding reference count. */
     private static final class SharedStateEntry {
 
+        /**
+         * Whether usage of this state should prevent deletion of the checkpoint that created this
+         * state.
+         */
+        private boolean preventDiscardingCreatedCheckpoint = false;
+
         /** The shared state handle */
         StreamStateHandle stateHandle;
 
@@ -307,6 +337,14 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
 
         private void advanceLastUsingCheckpointID(long checkpointID) {
             lastUsedCheckpointID = Math.max(checkpointID, lastUsedCheckpointID);
+        }
+
+        private void preventDiscardingCreatedCheckpoint() {
+            // Changed from false to true when a newer checkpoint starts reusing this state entry
+            // after recovery. This is to delay discarding the checkpoint until all of its
+            // state (both shared and private) is not used. That allows to handle transition from
+            // changelog off to on in CLAIM mode.
+            this.preventDiscardingCreatedCheckpoint = true;
         }
     }
 
@@ -364,5 +402,25 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
         public String toString() {
             return "EmptyDiscardStateObject{" + stateHandleID + '}';
         }
+    }
+
+    private boolean preventsDiscardingCreatedCheckpoint(SharedStateEntry entry) {
+        // explicitly set by the backend, e.g. private state is reused
+        if (entry.preventDiscardingCreatedCheckpoint
+                && restoredCheckpointSharingStrategies.containsKey(entry.createdByCheckpointID)) {
+            return true;
+        }
+        // With NO_SHARING strategy, shared state, if any, is bundled inside the checkpoint folder.
+        // So the folder deletion should be delayed as long as some shared state is still in use.
+        // That allows to recover from Incremental RocksDB Native Savepoint in CLAIM mode.
+        // noinspection RedundantIfStatement
+        if (restoredCheckpointSharingStrategies
+                .getOrDefault(entry.createdByCheckpointID, Optional.empty())
+                .filter(sharingFilesStrategy -> sharingFilesStrategy == NO_SHARING)
+                .isPresent()) {
+            return true;
+        }
+
+        return false;
     }
 }
