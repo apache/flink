@@ -20,6 +20,9 @@ package org.apache.flink.runtime.io.network.partition.hybrid;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 
 import java.util.ArrayDeque;
@@ -27,8 +30,8 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 
-/** Test utils for {@link HsSpillingStrategy}. */
-public class HsSpillingStrategyTestUtils {
+/** Test utils for hybrid shuffle mode. */
+public class HybridShuffleTestUtils {
     public static final int MEMORY_SEGMENT_SIZE = 128;
 
     public static List<BufferIndexAndChannel> createBufferIndexAndChannelsList(
@@ -50,5 +53,19 @@ public class HsSpillingStrategyTestUtils {
             bufferIndexAndChannels.add(new BufferIndexAndChannel(bufferIndex, subpartitionId));
         }
         return bufferIndexAndChannels;
+    }
+
+    public static Buffer createBuffer(int bufferSize, boolean isEvent) {
+        return new NetworkBuffer(
+                MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
+                FreeingBufferRecycler.INSTANCE,
+                isEvent ? Buffer.DataType.EVENT_BUFFER : Buffer.DataType.DATA_BUFFER,
+                bufferSize);
+    }
+
+    public static BufferBuilder createBufferBuilder(int bufferSize) {
+        return new BufferBuilder(
+                MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
+                FreeingBufferRecycler.INSTANCE);
     }
 }
