@@ -43,6 +43,12 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment
 var executionConfig = env.getConfig
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+execution_config = env.get_config()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 The following configuration options are available: (the default is bold)
