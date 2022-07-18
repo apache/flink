@@ -31,8 +31,8 @@ import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,10 +44,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** The test base for SourceCoordinator related tests. */
-public abstract class SourceCoordinatorTestBase {
+abstract class SourceCoordinatorTestBase {
 
     protected static final String OPERATOR_NAME = "TestOperator";
     protected static final OperatorID TEST_OPERATOR_ID = new OperatorID(1234L, 5678L);
@@ -69,8 +69,8 @@ public abstract class SourceCoordinatorTestBase {
 
     // ------------------------------------------------------------------------
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setup() {
         receivingTasks = EventReceivingTasks.createForRunningTasks();
         operatorCoordinatorContext =
                 new MockOperatorCoordinatorContext(TEST_OPERATOR_ID, NUM_SUBTASKS);
@@ -85,8 +85,8 @@ public abstract class SourceCoordinatorTestBase {
         context = sourceCoordinator.getContext();
     }
 
-    @After
-    public void cleanUp() throws InterruptedException, TimeoutException {
+    @AfterEach
+    void cleanUp() throws InterruptedException, TimeoutException {
         coordinatorExecutor.shutdown();
         if (!coordinatorExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
             throw new TimeoutException("Failed to close the CoordinatorExecutor before timeout.");
@@ -99,7 +99,7 @@ public abstract class SourceCoordinatorTestBase {
         if (enumerator == null) {
             enumerator =
                     (TestingSplitEnumerator<MockSourceSplit>) sourceCoordinator.getEnumerator();
-            assertNotNull("source was not started", enumerator);
+            assertThat(enumerator).as("source was not started").isNotNull();
         }
         return enumerator;
     }
