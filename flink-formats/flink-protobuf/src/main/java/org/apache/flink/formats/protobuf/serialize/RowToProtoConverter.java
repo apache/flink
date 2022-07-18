@@ -97,7 +97,7 @@ public class RowToProtoConverter {
             LOG.debug("Protobuf encode codegen: \n" + printCode);
             Class generatedClass =
                     PbCodegenUtils.compileClass(
-                            this.getClass().getClassLoader(),
+                            Thread.currentThread().getContextClassLoader(),
                             generatedPackageName + "." + generatedClassName,
                             codegenAppender.code());
             encodeMethod =
