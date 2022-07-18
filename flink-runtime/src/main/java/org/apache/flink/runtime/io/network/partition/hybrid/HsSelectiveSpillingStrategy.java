@@ -95,13 +95,11 @@ public class HsSelectiveSpillingStrategy implements HsSpillingStrategy {
                         spillNum);
 
         Decision.Builder builder = Decision.builder();
-        subpartitionToHighPriorityBuffers
-                .values()
-                .forEach(
-                        buffers -> {
-                            builder.addBufferToSpill(buffers);
-                            builder.addBufferToRelease(buffers);
-                        });
+        subpartitionToHighPriorityBuffers.forEach(
+                (subpartitionId, buffers) -> {
+                    builder.addBufferToSpill(subpartitionId, buffers);
+                    builder.addBufferToRelease(subpartitionId, buffers);
+                });
         return builder.build();
     }
 }

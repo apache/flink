@@ -22,10 +22,11 @@ import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategy.D
 
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategyTestUtils.createBufferIndexAndChannelsList;
@@ -61,8 +62,12 @@ class HsSelectiveSpillingStrategyTest {
                         (decision -> {
                             assertThat(decision.getBufferToRelease())
                                     .hasSize(1)
-                                    .element(0)
-                                    .isEqualTo(bufferIndexAndChannel);
+                                    .hasEntrySatisfying(
+                                            0,
+                                            (list) ->
+                                                    assertThat(list)
+                                                            .containsExactly(
+                                                                    bufferIndexAndChannel));
                             assertThat(decision.getBufferToSpill()).isEmpty();
                         }));
     }
@@ -120,10 +125,10 @@ class HsSelectiveSpillingStrategyTest {
         // progress1 + 9 has the highest priority, but it cannot be decided to spill, as its
         // spillStatus is SPILL. expected buffer's index : progress1 + 6, progress2 + 7, progress3 +
         // 8
-        List<BufferIndexAndChannel> expectedBuffers = new ArrayList<>();
-        expectedBuffers.addAll(subpartitionBuffer1.subList(2, 3));
-        expectedBuffers.addAll(subpartitionBuffer2.subList(2, 3));
-        expectedBuffers.addAll(subpartitionBuffer3.subList(2, 3));
+        Map<Integer, List<BufferIndexAndChannel>> expectedBuffers = new HashMap<>();
+        expectedBuffers.put(subpartition1, subpartitionBuffer1.subList(2, 3));
+        expectedBuffers.put(subpartition2, subpartitionBuffer2.subList(2, 3));
+        expectedBuffers.put(subpartition3, subpartitionBuffer3.subList(2, 3));
 
         assertThat(globalDecision.getBufferToSpill()).isEqualTo(expectedBuffers);
         assertThat(globalDecision.getBufferToRelease()).isEqualTo(expectedBuffers);
