@@ -57,7 +57,8 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     rowOf(22, 2L, "Jark", "cat"),
     rowOf(33, 3L, "Fabian", "golden fish"),
     rowOf(11, 4L, "Hello world", "tiger"),
-    rowOf(11, 5L, "Hello world", "ant"))
+    rowOf(11, 5L, "Hello world", "ant")
+  )
 
   val userDataWithNull = List(
     rowOf(11, 1L, "Julian", "dog"),

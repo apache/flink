@@ -375,7 +375,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
   }
 
   @Test
-  def testTemporalTableFilterPushDownWithUdf(): Unit ={
+  def testTemporalTableFilterPushDownWithUdf(): Unit = {
     val sql =
       """
         |SELECT * FROM MyTable as T
