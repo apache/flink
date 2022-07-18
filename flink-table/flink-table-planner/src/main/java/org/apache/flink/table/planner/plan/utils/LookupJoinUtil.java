@@ -148,6 +148,16 @@ public final class LookupJoinUtil {
     /** Gets LookupFunction from temporal table according to the given lookup keys. */
     public static UserDefinedFunction getLookupFunction(
             RelOptTable temporalTable, Collection<Integer> lookupKeys) {
+        return getLookupFunction(temporalTable, lookupKeys, false);
+    }
+
+    /**
+     * Gets LookupFunction from temporal table according to the given lookup keys. If specifies
+     * requireSyncLookup, then only sync function will be created or raise an error if not
+     * implemented.
+     */
+    public static UserDefinedFunction getLookupFunction(
+            RelOptTable temporalTable, Collection<Integer> lookupKeys, boolean requireSyncLookup) {
 
         int[] lookupKeyIndicesInOrder = getOrderedLookupKeys(lookupKeys);
 
@@ -164,6 +174,14 @@ public final class LookupJoinUtil {
                     new LookupRuntimeProviderContext(indices);
             LookupTableSource.LookupRuntimeProvider provider =
                     tableSource.getLookupRuntimeProvider(providerContext);
+
+            if (requireSyncLookup && !(provider instanceof TableFunctionProvider)) {
+                throw new TableException(
+                        String.format(
+                                "Require a synchronous TableFunction due to planner's requirement but no TableFunctionProvider "
+                                        + "found in TableSourceTable: %s, please check the code to ensure a proper TableFunctionProvider is specified.",
+                                temporalTable.getQualifiedName()));
+            }
             if (provider instanceof TableFunctionProvider) {
                 return ((TableFunctionProvider<?>) provider).createTableFunction();
             } else if (provider instanceof AsyncTableFunctionProvider) {
@@ -180,10 +198,19 @@ public final class LookupJoinUtil {
                     (LegacyTableSourceTable<?>) temporalTable;
             LookupableTableSource<?> tableSource =
                     (LookupableTableSource<?>) legacyTableSourceTable.tableSource();
-            if (tableSource.isAsyncEnabled()) {
+            if (!requireSyncLookup && tableSource.isAsyncEnabled()) {
                 return tableSource.getAsyncLookupFunction(lookupFieldNamesInOrder);
             } else {
-                return tableSource.getLookupFunction(lookupFieldNamesInOrder);
+                UserDefinedFunction lookupFunc =
+                        tableSource.getLookupFunction(lookupFieldNamesInOrder);
+                if (null == lookupFunc) {
+                    throw new TableException(
+                            String.format(
+                                    "Require a synchronous TableFunction due to planner's requirement but can not create one from "
+                                            + "LegacyTableSourceTable: %s, please check the code to ensure getLookupFunction is implemented.",
+                                    temporalTable.getQualifiedName()));
+                }
+                return lookupFunc;
             }
         }
         throw new TableException(

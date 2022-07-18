@@ -57,10 +57,11 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
 
     public static final String FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE = "requireUpsertMaterialize";
 
-    public static final String FIELD_NAME_LEFT_UNIQUE_KEYS = "leftUniqueKeys";
+    public static final String FIELD_NAME_LOOKUP_KEY_CONTAINS_PRIMARY_KEY =
+            "lookupKeyContainsPrimaryKey";
 
-    @JsonProperty(FIELD_NAME_LEFT_UNIQUE_KEYS)
-    private final List<int[]> leftUniqueKeys;
+    @JsonProperty(FIELD_NAME_LOOKUP_KEY_CONTAINS_PRIMARY_KEY)
+    private final boolean lookupKeyContainsPrimaryKey;
 
     @JsonProperty(FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE)
     @JsonInclude(JsonInclude.Include.NON_DEFAULT)
@@ -77,7 +78,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
             ChangelogMode inputChangelogMode,
             InputProperty inputProperty,
             RowType outputType,
-            List<int[]> leftUniqueKeys,
+            boolean lookupKeyContainsPrimaryKey,
             boolean upsertMaterialize,
             String description) {
         this(
@@ -93,7 +94,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                 inputChangelogMode,
                 Collections.singletonList(inputProperty),
                 outputType,
-                leftUniqueKeys,
+                lookupKeyContainsPrimaryKey,
                 upsertMaterialize,
                 description);
     }
@@ -116,7 +117,8 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                     ChangelogMode inputChangelogMode,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_LEFT_UNIQUE_KEYS) List<int[]> leftUniqueKeys,
+            @JsonProperty(FIELD_NAME_LOOKUP_KEY_CONTAINS_PRIMARY_KEY)
+                    boolean lookupKeyContainsPrimaryKey,
             @JsonProperty(FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE) boolean upsertMaterialize,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(
@@ -133,16 +135,19 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                 inputProperties,
                 outputType,
                 description);
-        this.leftUniqueKeys = leftUniqueKeys;
+        this.lookupKeyContainsPrimaryKey = lookupKeyContainsPrimaryKey;
         this.upsertMaterialize = upsertMaterialize;
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
-        if (!upsertMaterialize) {
-            return super.translateToPlanInternal(planner, config);
-        }
-        throw new UnsupportedOperationException("to be supported");
+        return createJoinTransformation(
+                planner,
+                config,
+                ChangelogMode.insertOnly(),
+                upsertMaterialize,
+                lookupKeyContainsPrimaryKey);
     }
 }

@@ -280,6 +280,14 @@ abstract class CommonPhysicalLookupJoin(
     constantLookupKeys.toMap[Int, LookupKey] ++ fieldRefLookupKeys.toMap[Int, LookupKey]
   }
 
+  /** Check if lookup key contains primary key, include constant lookup keys. */
+  def lookupKeyContainsPrimaryKey(): Boolean = {
+    val outputPkIdx = getOutputPrimaryKeyIndexes
+    // use allLookupKeys instead of joinInfo.rightSet because there may exists constant
+    // lookup key(s) which are not included in joinInfo.rightKeys.
+    outputPkIdx.nonEmpty && outputPkIdx.forall(index => !allLookupKeys.contains(index))
+  }
+
   /** Get final output pk indexes if exists, otherwise will get empty. */
   def getOutputPrimaryKeyIndexes: Array[Int] = {
     val temporalPkIdxs = getPrimaryKeyIndexesOfTemporalTable

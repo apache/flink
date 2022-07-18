@@ -18,7 +18,6 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin
@@ -31,11 +30,9 @@ import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rex.RexProgram
-import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
 
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 /** Stream physical RelNode for temporal table join that implemented by lookup. */
@@ -84,24 +81,6 @@ class StreamPhysicalLookupJoin(
       upsertMaterialize)
   }
 
-  private def getUpsertKey(): List[Array[Int]] = {
-    val inputUpsertKeys = FlinkRelMetadataQuery
-      .reuseOrCreate(cluster.getMetadataQuery)
-      .getUpsertKeys(input)
-
-    if (inputUpsertKeys != null && !inputUpsertKeys.isEmpty) {
-      val upsertKeys: Set[ImmutableBitSet] = if (upsertMaterialize) {
-        // input data distribution will follow leftJoinKeys
-        inputUpsertKeys.asScala.filter(uk => uk.contains(joinInfo.leftSet)).toSet
-      } else {
-        inputUpsertKeys.toSet
-      }
-      upsertKeys.map(_.asList.map(_.intValue).toArray).toList
-    } else {
-      List.empty
-    }
-  }
-
   override def translateToExecNode(): ExecNode[_] = {
     val (projectionOnTemporalTable, filterOnTemporalTable) = calcOnTemporalTable match {
       case Some(program) =>
@@ -124,7 +103,7 @@ class StreamPhysicalLookupJoin(
       inputChangelogMode,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getUpsertKey,
+      lookupKeyContainsPrimaryKey(),
       upsertMaterialize,
       getRelDetailedDescription)
   }

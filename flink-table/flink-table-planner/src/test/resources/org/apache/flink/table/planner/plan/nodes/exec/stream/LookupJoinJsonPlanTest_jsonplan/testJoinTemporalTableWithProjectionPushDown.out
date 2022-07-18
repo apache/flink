@@ -301,7 +301,7 @@
         "fieldType" : "INT"
       } ]
     },
-    "leftUniqueKeys" : [ ],
+    "lookupKeyContainsPrimaryKey" : false,
     "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id])"
   }, {
     "id" : 5,

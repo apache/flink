@@ -209,10 +209,12 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         return temporalTableSourceSpec;
     }
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public Transformation<RowData> translateToPlanInternal(
-            PlannerBase planner, ExecNodeConfig config) {
+    protected Transformation<RowData> createJoinTransformation(
+            PlannerBase planner,
+            ExecNodeConfig config,
+            ChangelogMode inputChangelogMode,
+            boolean upsertMaterialize,
+            boolean lookupKeyContainsPrimaryKey) {
         RelOptTable temporalTable =
                 temporalTableSourceSpec.getTemporalTable(
                         planner.getFlinkContext(), unwrapTypeFactory(planner));
@@ -224,54 +226,109 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         RowType resultRowType = (RowType) getOutputType();
         validateLookupKeyType(lookupKeys, inputRowType, tableSourceRowType);
 
-        boolean isAsyncEnabled = false;
-        UserDefinedFunction userDefinedFunction =
-                LookupJoinUtil.getLookupFunction(temporalTable, lookupKeys.keySet());
-        UserDefinedFunctionHelper.prepareInstance(config, userDefinedFunction);
-
-        if (userDefinedFunction instanceof AsyncTableFunction) {
-            isAsyncEnabled = true;
-        }
-
         boolean isLeftOuterJoin = joinType == FlinkJoinType.LEFT;
-        StreamOperatorFactory<RowData> operatorFactory;
-        if (isAsyncEnabled) {
-            operatorFactory =
-                    createAsyncLookupJoin(
-                            temporalTable,
-                            config,
-                            planner.getFlinkContext().getClassLoader(),
-                            lookupKeys,
-                            (AsyncTableFunction<Object>) userDefinedFunction,
-                            planner.createRelBuilder(),
-                            inputRowType,
-                            tableSourceRowType,
-                            resultRowType,
-                            isLeftOuterJoin);
-        } else {
-            operatorFactory =
-                    createSyncLookupJoin(
-                            temporalTable,
-                            config,
-                            planner.getFlinkContext().getClassLoader(),
-                            lookupKeys,
-                            (TableFunction<Object>) userDefinedFunction,
-                            planner.createRelBuilder(),
-                            inputRowType,
-                            tableSourceRowType,
-                            resultRowType,
-                            isLeftOuterJoin,
-                            planner.getExecEnv().getConfig().isObjectReuseEnabled());
-        }
+        boolean isAsyncEnabled = false;
+        UserDefinedFunction userDefinedFunction;
+        boolean inputInsertOnly = inputChangelogMode.containsOnly(RowKind.INSERT);
 
-        Transformation<RowData> inputTransformation =
-                (Transformation<RowData>) inputEdge.translateToPlan(planner);
-        return ExecNodeUtil.createOneInputTransformation(
-                inputTransformation,
-                createTransformationMeta(LOOKUP_JOIN_TRANSFORMATION, config),
-                operatorFactory,
-                InternalTypeInfo.of(resultRowType),
-                inputTransformation.getParallelism());
+        // upsertMaterialize only works on sync lookup mode, async lookup is unsupported.
+        if (!inputInsertOnly && upsertMaterialize) {
+            userDefinedFunction =
+                    LookupJoinUtil.getLookupFunction(temporalTable, lookupKeys.keySet(), true);
+            UserDefinedFunctionHelper.prepareInstance(config, userDefinedFunction);
+
+            return createSyncLookupJoinWithState(
+                    temporalTable,
+                    config,
+                    planner.getFlinkContext().getClassLoader(),
+                    lookupKeys,
+                    (TableFunction<Object>) userDefinedFunction,
+                    planner.createRelBuilder(),
+                    inputRowType,
+                    tableSourceRowType,
+                    resultRowType,
+                    isLeftOuterJoin,
+                    planner.getExecEnv().getConfig().isObjectReuseEnabled(),
+                    lookupKeyContainsPrimaryKey);
+        } else {
+            userDefinedFunction =
+                    LookupJoinUtil.getLookupFunction(temporalTable, lookupKeys.keySet());
+            if (userDefinedFunction instanceof AsyncTableFunction) {
+                isAsyncEnabled = true;
+            }
+            UserDefinedFunctionHelper.prepareInstance(config, userDefinedFunction);
+            StreamOperatorFactory<RowData> operatorFactory;
+            if (isAsyncEnabled) {
+                operatorFactory =
+                        createAsyncLookupJoin(
+                                temporalTable,
+                                config,
+                                planner.getFlinkContext().getClassLoader(),
+                                lookupKeys,
+                                (AsyncTableFunction<Object>) userDefinedFunction,
+                                planner.createRelBuilder(),
+                                inputRowType,
+                                tableSourceRowType,
+                                resultRowType,
+                                isLeftOuterJoin);
+            } else {
+                operatorFactory =
+                        createSyncLookupJoin(
+                                temporalTable,
+                                config,
+                                planner.getFlinkContext().getClassLoader(),
+                                lookupKeys,
+                                (TableFunction<Object>) userDefinedFunction,
+                                planner.createRelBuilder(),
+                                inputRowType,
+                                tableSourceRowType,
+                                resultRowType,
+                                isLeftOuterJoin,
+                                planner.getExecEnv().getConfig().isObjectReuseEnabled());
+            }
+
+            Transformation<RowData> inputTransformation =
+                    (Transformation<RowData>) inputEdge.translateToPlan(planner);
+            return ExecNodeUtil.createOneInputTransformation(
+                    inputTransformation,
+                    createTransformationMeta(LOOKUP_JOIN_TRANSFORMATION, config),
+                    operatorFactory,
+                    InternalTypeInfo.of(resultRowType),
+                    inputTransformation.getParallelism());
+        }
+    }
+
+    private Transformation<RowData> createSyncLookupJoinWithState(
+            RelOptTable temporalTable,
+            ExecNodeConfig config,
+            ClassLoader classLoader,
+            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            TableFunction<?> syncLookupFunction,
+            RelBuilder relBuilder,
+            RowType inputRowType,
+            RowType tableSourceRowType,
+            RowType resultRowType,
+            boolean isLeftOuterJoin,
+            boolean isObjectReuseEnabled,
+            boolean lookupKeyContainsPrimaryKey) {
+
+        // create lookup function first
+        ProcessFunction<RowData, RowData> processFunction =
+                createSyncLookupJoinFunction(
+                        temporalTable,
+                        config,
+                        classLoader,
+                        allLookupKeys,
+                        syncLookupFunction,
+                        relBuilder,
+                        inputRowType,
+                        tableSourceRowType,
+                        resultRowType,
+                        isLeftOuterJoin,
+                        isObjectReuseEnabled);
+
+        // TODO then wrapper it into a keyed lookup function with state
+        throw new UnsupportedOperationException("to be supported");
     }
 
     protected void validateLookupKeyType(
@@ -424,6 +481,34 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
             RowType resultRowType,
             boolean isLeftOuterJoin,
             boolean isObjectReuseEnabled) {
+        return SimpleOperatorFactory.of(
+                new ProcessOperator<>(
+                        createSyncLookupJoinFunction(
+                                temporalTable,
+                                config,
+                                classLoader,
+                                allLookupKeys,
+                                syncLookupFunction,
+                                relBuilder,
+                                inputRowType,
+                                tableSourceRowType,
+                                resultRowType,
+                                isLeftOuterJoin,
+                                isObjectReuseEnabled)));
+    }
+
+    private ProcessFunction<RowData, RowData> createSyncLookupJoinFunction(
+            RelOptTable temporalTable,
+            ExecNodeConfig config,
+            ClassLoader classLoader,
+            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            TableFunction<?> syncLookupFunction,
+            RelBuilder relBuilder,
+            RowType inputRowType,
+            RowType tableSourceRowType,
+            RowType resultRowType,
+            boolean isLeftOuterJoin,
+            boolean isObjectReuseEnabled) {
 
         DataTypeFactory dataTypeFactory =
                 ShortcutUtils.unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
@@ -491,7 +576,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                             isLeftOuterJoin,
                             rightRowType.getFieldCount());
         }
-        return SimpleOperatorFactory.of(new ProcessOperator<>(processFunc));
+        return processFunc;
     }
 
     // ----------------------------------------------------------------------------------------

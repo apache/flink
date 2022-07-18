@@ -906,16 +906,12 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       val inputChangelogMode =
         ChangelogPlanUtils.getChangelogMode(lookupJoin.getInput.asInstanceOf[StreamPhysicalRel]).get
       val hasUpdates = !inputChangelogMode.containsOnly(RowKind.INSERT)
-      val outputPkIdx = lookupJoin.getOutputPrimaryKeyIndexes
       val upsertMaterialize = {
         tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_LOOKUP_JOIN_UPSERT_MATERIALIZE) match {
           case UpsertMaterialize.FORCE => hasUpdates
           case UpsertMaterialize.NONE => false
           case UpsertMaterialize.AUTO =>
-            // use allLookupKeys instead of joinInfo.rightSet because there may exists constant
-            // lookup key(s) which are not included in joinInfo.rightKeys.
-            hasUpdates && (outputPkIdx.isEmpty || outputPkIdx.exists(
-              index => !lookupJoin.allLookupKeys.contains(index)))
+            hasUpdates && !lookupJoin.lookupKeyContainsPrimaryKey()
         }
       }
       upsertMaterialize
