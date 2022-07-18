@@ -210,12 +210,6 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-csv</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
 		<!-- File systems -->
 
 		<dependency>
@@ -848,6 +842,13 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- TODO: move to flink-connector-hive-test end-to-end test module once it's setup -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-csv</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -965,7 +966,6 @@ under the License.
 									<include>org.apache.flink:flink-orc-nohive</include>
 									<include>org.apache.flink:flink-hadoop-compatibility_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-parquet</include>
-									<include>org.apache.flink:flink-csv</include>
 									<include>org.apache.flink:flink-hadoop-bulk</include>
 									<include>org.apache.parquet:parquet-hadoop</include>
 									<include>org.apache.parquet:parquet-format</include>

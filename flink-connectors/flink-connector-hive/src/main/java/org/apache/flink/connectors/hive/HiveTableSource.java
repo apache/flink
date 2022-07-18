@@ -35,7 +35,6 @@ import org.apache.flink.connectors.hive.read.HivePartitionFetcherContextBase;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.formats.csv.util.CsvFormatStatisticsReportUtil;
 import org.apache.flink.formats.parquet.utils.ParquetFormatStatisticsReportUtil;
 import org.apache.flink.orc.util.OrcFormatStatisticsReportUtil;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -362,7 +361,8 @@ public class HiveTableSource
             return OrcFormatStatisticsReportUtil.getTableStatistics(
                     files, producedDataType, jobConf);
         } else {
-            return CsvFormatStatisticsReportUtil.getTableStatistics(files);
+            // Now, only support Orc and Parquet Formats.
+            return TableStats.UNKNOWN;
         }
     }
 

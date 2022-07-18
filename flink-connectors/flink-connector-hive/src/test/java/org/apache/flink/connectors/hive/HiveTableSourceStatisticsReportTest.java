@@ -99,7 +99,7 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
         FlinkStatistic statistic =
                 getStatisticsFromOptimizedPlan(
                         "select * from " + catalogName + "." + dbName + "." + sourceTable);
-        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(3));
+        assertThat(statistic.getTableStats()).isEqualTo(TableStats.UNKNOWN);
     }
 
     @Test
