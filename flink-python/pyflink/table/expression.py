@@ -1307,6 +1307,13 @@ class Expression(Generic[T]):
         """
         return _binary_op("over")(self, alias)
 
+    @property
+    def reverse(self) -> 'Expression[str]':
+        """
+        Reverse each character in current string.
+        """
+        return _unary_op("reverse")(self)
+
     def split_index(self, separator: Union[str, 'Expression[str]'],
                     index: Union[int, 'Expression[int]']) -> 'Expression[str]':
         """
