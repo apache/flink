@@ -61,6 +61,15 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
     /** Checkpoint ID below which no state is discarded, inclusive. */
     private long highestNotClaimedCheckpointID = -1L;
 
+    /**
+     * Checkpoint ID below which all state was restored (as opposed to created by this run),
+     * inclusive. If such a state is in use then it will prevent the checkpoint that created it from
+     * being deleted.
+     *
+     * @see #unregisterUnusedState(long)
+     */
+    private long highestRestoredCheckpointID = -1L;
+
     /** Default uses direct executor to delete unreferenced state */
     public SharedStateRegistryImpl() {
         this(Executors.directExecutor());
@@ -162,7 +171,14 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
                         subsumed.add(entry.stateHandle);
                     }
                     it.remove();
-                } else {
+                } else if (entry.createdByCheckpointID <= highestRestoredCheckpointID) {
+                    // Newly created checkpoints can be discarded right after subsumption. But the
+                    // initial checkpoint needs to be kept until all of its private AND shared state
+                    // is not in use. This is to enable recovery in CLAIM mode from:
+                    // - native incremental savepoints
+                    // - non-changelog checkpoints with changelog enabled
+                    // Keeping any checkpoint for longer leaves its folder undeleted on job
+                    // cancellation (and also on crash or JM failover).
                     checkpointInUse.add(entry.createdByCheckpointID);
                 }
             }
@@ -192,6 +208,8 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
     @Override
     public void registerAllAfterRestored(CompletedCheckpoint checkpoint, RestoreMode mode) {
         registerAll(checkpoint.getOperatorStates().values(), checkpoint.getCheckpointID());
+        highestRestoredCheckpointID =
+                Math.max(highestRestoredCheckpointID, checkpoint.getCheckpointID());
         // In NO_CLAIM and LEGACY restore modes, shared state of the initial checkpoints must be
         // preserved. This is achieved by advancing highestRetainCheckpointID here, and then
         // checking entry.createdByCheckpointID against it on checkpoint subsumption.
