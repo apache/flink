@@ -57,7 +57,7 @@ public interface HsSpillingStrategy {
      * @return A {@link Decision} based on the provided information, or {@link Optional#empty()} if
      *     the decision cannot be made, which indicates global information is needed.
      */
-    Optional<Decision> onBufferConsumed(BufferWithIdentity consumedBuffer);
+    Optional<Decision> onBufferConsumed(BufferIndexAndChannel consumedBuffer);
 
     /**
      * Make a decision based on global information. Because this method will directly touch the
@@ -74,25 +74,26 @@ public interface HsSpillingStrategy {
      */
     class Decision {
         /** A collection of buffer that needs to be spilled to disk. */
-        private final List<BufferWithIdentity> bufferToSpill;
+        private final List<BufferIndexAndChannel> bufferToSpill;
 
         /** A collection of buffer that needs to be released. */
-        private final List<BufferWithIdentity> bufferToRelease;
+        private final List<BufferIndexAndChannel> bufferToRelease;
 
         public static final Decision NO_ACTION =
                 new Decision(Collections.emptyList(), Collections.emptyList());
 
         private Decision(
-                List<BufferWithIdentity> bufferToSpill, List<BufferWithIdentity> bufferToRelease) {
+                List<BufferIndexAndChannel> bufferToSpill,
+                List<BufferIndexAndChannel> bufferToRelease) {
             this.bufferToSpill = bufferToSpill;
             this.bufferToRelease = bufferToRelease;
         }
 
-        public List<BufferWithIdentity> getBufferToSpill() {
+        public List<BufferIndexAndChannel> getBufferToSpill() {
             return bufferToSpill;
         }
 
-        public List<BufferWithIdentity> getBufferToRelease() {
+        public List<BufferIndexAndChannel> getBufferToRelease() {
             return bufferToRelease;
         }
 
@@ -103,29 +104,29 @@ public interface HsSpillingStrategy {
         /** Builder for {@link Decision}. */
         static class Builder {
             /** A collection of buffer that needs to be spilled to disk. */
-            private final List<BufferWithIdentity> bufferToSpill = new ArrayList<>();
+            private final List<BufferIndexAndChannel> bufferToSpill = new ArrayList<>();
 
             /** A collection of buffer that needs to be released. */
-            private final List<BufferWithIdentity> bufferToRelease = new ArrayList<>();
+            private final List<BufferIndexAndChannel> bufferToRelease = new ArrayList<>();
 
             private Builder() {}
 
-            public Builder addBufferToSpill(BufferWithIdentity buffer) {
+            public Builder addBufferToSpill(BufferIndexAndChannel buffer) {
                 bufferToSpill.add(buffer);
                 return this;
             }
 
-            public Builder addBufferToSpill(List<BufferWithIdentity> buffers) {
+            public Builder addBufferToSpill(List<BufferIndexAndChannel> buffers) {
                 bufferToSpill.addAll(buffers);
                 return this;
             }
 
-            public Builder addBufferToRelease(BufferWithIdentity buffer) {
+            public Builder addBufferToRelease(BufferIndexAndChannel buffer) {
                 bufferToRelease.add(buffer);
                 return this;
             }
 
-            public Builder addBufferToRelease(List<BufferWithIdentity> buffers) {
+            public Builder addBufferToRelease(List<BufferIndexAndChannel> buffers) {
                 bufferToRelease.addAll(buffers);
                 return this;
             }

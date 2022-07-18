@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition.hybrid;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 
 import java.util.ArrayDeque;
@@ -32,30 +31,24 @@ import java.util.List;
 public class HsSpillingStrategyTestUtils {
     public static final int MEMORY_SEGMENT_SIZE = 128;
 
-    public static List<BufferWithIdentity> createBufferWithIdentitiesList(
+    public static List<BufferIndexAndChannel> createBufferIndexAndChannelsList(
             int subpartitionId, int... bufferIndexes) {
-        List<BufferWithIdentity> bufferWithIdentityList = new ArrayList<>();
+        List<BufferIndexAndChannel> bufferIndexAndChannels = new ArrayList<>();
         for (int bufferIndex : bufferIndexes) {
             MemorySegment segment =
                     MemorySegmentFactory.allocateUnpooledSegment(MEMORY_SEGMENT_SIZE);
             NetworkBuffer buffer = new NetworkBuffer(segment, (ignore) -> {});
-            bufferWithIdentityList.add(new BufferWithIdentity(buffer, bufferIndex, subpartitionId));
+            bufferIndexAndChannels.add(new BufferIndexAndChannel(bufferIndex, subpartitionId));
         }
-        return bufferWithIdentityList;
+        return bufferIndexAndChannels;
     }
 
-    public static Deque<BufferWithIdentity> createBufferWithIdentitiesDeque(
+    public static Deque<BufferIndexAndChannel> createBufferIndexAndChannelsDeque(
             int subpartitionId, int... bufferIndexes) {
-        Deque<BufferWithIdentity> bufferWithIdentityList = new ArrayDeque<>();
+        Deque<BufferIndexAndChannel> bufferIndexAndChannels = new ArrayDeque<>();
         for (int bufferIndex : bufferIndexes) {
-            Buffer buffer = createBuffer();
-            bufferWithIdentityList.add(new BufferWithIdentity(buffer, bufferIndex, subpartitionId));
+            bufferIndexAndChannels.add(new BufferIndexAndChannel(bufferIndex, subpartitionId));
         }
-        return bufferWithIdentityList;
-    }
-
-    public static Buffer createBuffer() {
-        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(MEMORY_SEGMENT_SIZE);
-        return new NetworkBuffer(segment, (ignore) -> {});
+        return bufferIndexAndChannels;
     }
 }
