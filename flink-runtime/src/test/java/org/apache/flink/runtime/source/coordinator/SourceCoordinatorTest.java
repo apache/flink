@@ -77,11 +77,11 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                 failureMessage,
                 "The coordinator has not started yet.");
         verifyException(
-                () -> sourceCoordinator.handleEventFromOperator(0, null),
+                () -> sourceCoordinator.handleEventFromOperator(0, 0, null),
                 failureMessage,
                 "The coordinator has not started yet.");
         verifyException(
-                () -> sourceCoordinator.subtaskFailed(0, null),
+                () -> sourceCoordinator.executionAttemptFailed(0, 0, null),
                 failureMessage,
                 "The coordinator has not started yet.");
         verifyException(
@@ -120,7 +120,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         sourceReady();
 
         SourceEvent sourceEvent = new SourceEvent() {};
-        sourceCoordinator.handleEventFromOperator(0, new SourceEventWrapper(sourceEvent));
+        sourceCoordinator.handleEventFromOperator(0, 0, new SourceEventWrapper(sourceEvent));
         waitForCoordinatorToProcessActions();
 
         assertThat(getEnumerator().getHandledSourceEvent()).hasSize(1);
@@ -183,7 +183,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                 splitSplitAssignmentTracker.assignmentsByCheckpointId(101L).get(0));
 
         // none of the checkpoints is confirmed, we fail and revert to the previous one
-        sourceCoordinator.subtaskFailed(0, null);
+        sourceCoordinator.executionAttemptFailed(0, 0, null);
         sourceCoordinator.subtaskReset(0, 99L);
         waitForCoordinatorToProcessActions();
 
@@ -216,7 +216,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         sourceCoordinator.checkpointCoordinator(100L, new CompletableFuture<>());
         sourceCoordinator.notifyCheckpointComplete(100L);
 
-        sourceCoordinator.subtaskFailed(0, null);
+        sourceCoordinator.executionAttemptFailed(0, 0, null);
 
         waitForCoordinatorToProcessActions();
 
@@ -298,7 +298,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED)) {
 
             coordinator.start();
-            coordinator.handleEventFromOperator(1, new SourceEventWrapper(new SourceEvent() {}));
+            coordinator.handleEventFromOperator(1, 0, new SourceEventWrapper(new SourceEvent() {}));
 
             waitUtil(
                     () -> operatorCoordinatorContext.isJobFailed(),
@@ -340,7 +340,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 new CoordinatorStoreImpl())) {
 
             coordinator.start();
-            coordinator.handleEventFromOperator(1, new SourceEventWrapper(new SourceEvent() {}));
+            coordinator.handleEventFromOperator(1, 0, new SourceEventWrapper(new SourceEvent() {}));
             // Wait until the coordinator executor blocks.
             latch.await();
 

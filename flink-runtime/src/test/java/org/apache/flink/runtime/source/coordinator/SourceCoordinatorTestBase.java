@@ -115,7 +115,8 @@ abstract class SourceCoordinatorTestBase {
 
     protected void setAllReaderTasksReady(SourceCoordinator<?, ?> sourceCoordinator) {
         for (int i = 0; i < NUM_SUBTASKS; i++) {
-            sourceCoordinator.subtaskReady(i, receivingTasks.createGatewayForSubtask(i));
+            sourceCoordinator.executionAttemptReady(
+                    i, 0, receivingTasks.createGatewayForSubtask(i));
         }
     }
 
@@ -130,7 +131,7 @@ abstract class SourceCoordinatorTestBase {
 
     protected void registerReader(int subtask) {
         sourceCoordinator.handleEventFromOperator(
-                subtask, new ReaderRegistrationEvent(subtask, "location_" + subtask));
+                subtask, 0, new ReaderRegistrationEvent(subtask, "location_" + subtask));
     }
 
     protected void waitForCoordinatorToProcessActions() {
