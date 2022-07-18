@@ -184,18 +184,47 @@ public class SharedStateRegistryTest {
     @Test
     public void testUnregisterUnusedState() {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
-        TestingStreamStateHandle handle = new TestingStreamStateHandle();
-        sharedStateRegistry.registerReference(new SharedStateRegistryKey("first"), handle, 1L);
-        sharedStateRegistry.registerReference(new SharedStateRegistryKey("first"), handle, 2L);
-        sharedStateRegistry.registerReference(new SharedStateRegistryKey("first"), handle, 3L);
-        sharedStateRegistry.registerReference(
-                new SharedStateRegistryKey("second"), new TestingStreamStateHandle(), 4L);
+        TestingStreamStateHandle sst1 = new TestingStreamStateHandle();
+        TestingStreamStateHandle sst2 = new TestingStreamStateHandle();
+        TestingStreamStateHandle sst3 = new TestingStreamStateHandle();
+        // cp1: sst1
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("sst1"), sst1, 1L);
+        // cp2: sst1, sst2
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("sst1"), sst1, 2L);
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("sst2"), sst2, 2L);
+        // cp3: sst1, sst2, sst3
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("sst1"), sst1, 3L);
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("sst2"), sst2, 3L);
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("sst3"), sst3, 3L);
         Set<Long> stillInUse = sharedStateRegistry.unregisterUnusedState(3);
-        Set<Long> expectedInUse = new HashSet<>(Arrays.asList(1L, 4L));
+        // cp1 and cp2 are in use, because sst1 and sst2 are used by cp3.
+        Set<Long> expectedInUse = new HashSet<>(Arrays.asList(1L, 2L, 3L));
         assertEquals(expectedInUse, stillInUse);
+    }
 
-        stillInUse = sharedStateRegistry.unregisterUnusedState(4);
-        assertEquals(Collections.singleton(4L), stillInUse);
+    @Test
+    public void testUnregisterPlaceholderState() {
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
+        TestingStreamStateHandle sst1 = new TestingStreamStateHandle();
+        TestingStreamStateHandle sst2 = new TestingStreamStateHandle();
+        TestingStreamStateHandle sst3 = new TestingStreamStateHandle();
+        // cp1: sst1
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("sst1"), sst1, 1L);
+        // cp2: sst1(placeholder), sst2
+        sharedStateRegistry.registerReference(
+                new SharedStateRegistryKey("sst1"), new PlaceholderStreamStateHandle(0), 2L);
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("sst2"), sst2, 2L);
+        // cp3: sst1(placeholder), sst2(placeholder), sst3
+        sharedStateRegistry.registerReference(
+                new SharedStateRegistryKey("sst1"), new PlaceholderStreamStateHandle(0), 3L);
+        sharedStateRegistry.registerReference(
+                new SharedStateRegistryKey("sst2"), new PlaceholderStreamStateHandle(0), 3L);
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("sst3"), sst3, 3L);
+        Set<Long> stillInUse = sharedStateRegistry.unregisterUnusedState(3);
+        // cp1 and cp2 are not in use, because we do not update the lastUsedCheckpointFolderID of
+        // PlaceholderStreamStateHandle.
+        Set<Long> expectedInUse = new HashSet<>(Arrays.asList(3L));
+        assertEquals(expectedInUse, stillInUse);
     }
 
     private static class TestSharedState implements TestStreamStateHandle {

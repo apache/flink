@@ -121,6 +121,7 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
                         // So we use a new entry and discard the old one:
                         scheduledStateDeletion = entry.stateHandle;
                         entry.stateHandle = state;
+                        entry.advanceLastUsingCheckpointFolderID(checkpointID);
                     }
                     LOG.trace(
                             "Identified duplicate state registration under key {}. New state {} was determined to "
@@ -128,6 +129,8 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
                             registrationKey,
                             state,
                             entry.stateHandle);
+                } else {
+                    entry.advanceLastUsingCheckpointFolderID(checkpointID);
                 }
                 LOG.trace(
                         "Updating last checkpoint for {} from {} to {}",
@@ -163,7 +166,9 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
                     }
                     it.remove();
                 } else {
-                    checkpointInUse.add(entry.createdByCheckpointID);
+                    if (entry.lastUsedCheckpointFolderID >= lowestCheckpointID) {
+                        checkpointInUse.add(entry.createdByCheckpointID);
+                    }
                 }
             }
         }
@@ -242,7 +247,7 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
         }
     }
 
-    private boolean isPlaceholder(StreamStateHandle stateHandle) {
+    private static boolean isPlaceholder(StreamStateHandle stateHandle) {
         return stateHandle instanceof PlaceholderStreamStateHandle;
     }
 
@@ -284,6 +289,8 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
 
         private long lastUsedCheckpointID;
 
+        private long lastUsedCheckpointFolderID;
+
         /** Whether this entry is included into a confirmed checkpoint. */
         private boolean confirmed;
 
@@ -291,6 +298,7 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
             this.stateHandle = value;
             this.createdByCheckpointID = checkpointID;
             this.lastUsedCheckpointID = checkpointID;
+            this.lastUsedCheckpointFolderID = checkpointID;
         }
 
         @Override
@@ -307,6 +315,10 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
 
         private void advanceLastUsingCheckpointID(long checkpointID) {
             lastUsedCheckpointID = Math.max(checkpointID, lastUsedCheckpointID);
+        }
+
+        private void advanceLastUsingCheckpointFolderID(long checkpointID) {
+            lastUsedCheckpointFolderID = Math.max(checkpointID, lastUsedCheckpointFolderID);
         }
     }
 
