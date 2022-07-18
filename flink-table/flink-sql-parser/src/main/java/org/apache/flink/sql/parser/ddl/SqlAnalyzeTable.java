@@ -76,7 +76,7 @@ public class SqlAnalyzeTable extends SqlCall {
         for (SqlNode node : partitions.getList()) {
             SqlPartitionSpecProperty property = (SqlPartitionSpecProperty) node;
             final String value;
-            if (property.getValue() != null) {
+            if (property.getValue() == null) {
                 value = null;
             } else {
                 Comparable<?> comparable = SqlLiteral.value(property.getValue());
