@@ -115,6 +115,21 @@ tEnv.getConfig.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
 tEnv.getConfig.setLocalTimeZone(ZoneId.of("America/Los_Angeles"))
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env_setting = EnvironmentSettings.in_streaming_mode()
+t_env = TableEnvironment.create(env_setting)
+
+# set to UTC time zone
+t_env.get_config().set_local_timezone("UTC")
+
+# set to Shanghai time zone
+t_env.get_config().set_local_timezone("Asia/Shanghai")
+
+# set to Los_Angeles time zone
+t_env.get_config().set_local_timezone("America/Los_Angeles")
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 session（会话）的时区设置在 Flink SQL 中非常有用， 它的主要用法如下:

@@ -471,6 +471,11 @@ class TimeLagWatermarkGenerator extends WatermarkGenerator[MyEvent] {
 }
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ### Writing a Punctuated WatermarkGenerator
@@ -515,6 +520,11 @@ class PunctuatedAssigner extends WatermarkGenerator[MyEvent] {
         // don't need to do anything because we emit in reaction to events above
     }
 }
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -570,6 +580,17 @@ kafkaSource.assignTimestampsAndWatermarks(
     .forBoundedOutOfOrderness(Duration.ofSeconds(20)))
 
 val stream: DataStream[MyType] = env.addSource(kafkaSource)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+kafka_source = FlinkKafkaConsumer("timer-stream-source", schema, props)
+
+stream = env
+    .add_source(kafka_source)
+    .assign_timestamps_and_watermarks(
+        WatermarkStrategy
+            .for_bounded_out_of_orderness(Duration.of_seconds(20)))
 ```
 {{< /tab >}}
 {{< /tabs >}}
