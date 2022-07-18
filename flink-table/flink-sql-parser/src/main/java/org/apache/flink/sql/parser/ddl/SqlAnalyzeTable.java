@@ -126,12 +126,12 @@ public class SqlAnalyzeTable extends SqlCall {
 
         writer.keyword("COMPUTE STATISTICS");
 
-        if (columns.size() > 0) {
-            writer.keyword("FOR COLUMNS");
-            columns.unparse(writer, opLeft, opRight);
-        }
         if (allColumns) {
             writer.keyword("FOR ALL COLUMNS");
+        } else if (columns.size() > 0) {
+            writer.keyword("FOR COLUMNS");
+            // use 0 to disable parentheses
+            columns.unparse(writer, 0, 0);
         }
     }
 }

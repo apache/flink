@@ -2250,6 +2250,19 @@ void ExtendedPartitionSpecCommaList(SqlNodeList list) :
     <RPAREN>
 }
 
+/** Parses a comma-separated list of simple identifiers with position. */
+SqlNodeList SimpleIdentifierCommaListWithPosition() :
+{
+    final Span s;
+    final List<SqlNode> list = new ArrayList<SqlNode>();
+}
+{
+    { s = span(); }
+    SimpleIdentifierCommaList(list) {
+        return new SqlNodeList(list, s.end(this));
+    }
+}
+
 /** Parses an ANALYZE TABLE statement. */
 SqlNode SqlAnalyzeTable():
 {
@@ -2269,11 +2282,11 @@ SqlNode SqlAnalyzeTable():
         }
     ]
 
-    <COMPUTE> <STATISTICS> [
+    <COMPUTE> <STATISTICS> [ <FOR>
         (
-           LOOKAHEAD(2) <FOR> <COLUMNS> { columns = ParenthesizedSimpleIdentifierList(); }
+           <COLUMNS> { columns = SimpleIdentifierCommaListWithPosition(); }
         |
-           LOOKAHEAD(3) <FOR> <ALL> <COLUMNS> { allColumns = true; }
+           <ALL> <COLUMNS> { allColumns = true; }
         )
     ]
 

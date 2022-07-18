@@ -1866,12 +1866,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok("ANALYZE TABLE `EMPS` PARTITION (`X` = 'ab') COMPUTE STATISTICS");
         sql("analyze table emps partition(x='ab', y='bc') compute statistics")
                 .ok("ANALYZE TABLE `EMPS` PARTITION (`X` = 'ab', `Y` = 'bc') COMPUTE STATISTICS");
-        sql("analyze table emps compute statistics for columns (^)^")
-                .fails("(?s).*Encountered \"\\)\" at line 1, column 52.\n.*");
-        sql("analyze table emps compute statistics for columns (a)")
-                .ok("ANALYZE TABLE `EMPS` COMPUTE STATISTICS FOR COLUMNS (`A`)");
-        sql("analyze table emps compute statistics for columns (a, b)")
-                .ok("ANALYZE TABLE `EMPS` COMPUTE STATISTICS FOR COLUMNS (`A`, `B`)");
+        sql("analyze table emps compute statistics for column^s^")
+                .fails("(?s).*Encountered \"<EOF>\" at line 1, column 49.\n.*");
+        sql("analyze table emps compute statistics for columns a")
+                .ok("ANALYZE TABLE `EMPS` COMPUTE STATISTICS FOR COLUMNS `A`");
+        sql("analyze table emps compute statistics for columns a, b")
+                .ok("ANALYZE TABLE `EMPS` COMPUTE STATISTICS FOR COLUMNS `A`, `B`");
         sql("analyze table emps compute statistics for all columns")
                 .ok("ANALYZE TABLE `EMPS` COMPUTE STATISTICS FOR ALL COLUMNS");
         sql("analyze table emps partition(x, y) compute statistics for all columns")
