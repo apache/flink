@@ -26,6 +26,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.TreeMap;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategyTestUtils.createBufferWithIdentitiesDeque;
 import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategyTestUtils.createBufferWithIdentitiesList;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,9 +34,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class HsSpillingStrategyUtilsTest {
     @Test
     void testGetBuffersByConsumptionPriorityInOrderEmptyExpectedSize() {
+        TreeMap<Integer, Deque<BufferWithIdentity>> subpartitionToAllBuffers = new TreeMap<>();
+        subpartitionToAllBuffers.put(0, createBufferWithIdentitiesDeque(0, 0, 1));
+        subpartitionToAllBuffers.put(1, createBufferWithIdentitiesDeque(1, 2, 4));
         TreeMap<Integer, List<BufferWithIdentity>> buffersByConsumptionPriorityInOrder =
                 HsSpillingStrategyUtils.getBuffersByConsumptionPriorityInOrder(
-                        Arrays.asList(0, 1), new TreeMap<>(), 0);
+                        Arrays.asList(0, 1), subpartitionToAllBuffers, 0);
         assertThat(buffersByConsumptionPriorityInOrder).isEmpty();
     }
 
