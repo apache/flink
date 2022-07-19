@@ -285,7 +285,7 @@ abstract class CommonPhysicalLookupJoin(
     val outputPkIdx = getOutputPrimaryKeyIndexes
     // use allLookupKeys instead of joinInfo.rightSet because there may exists constant
     // lookup key(s) which are not included in joinInfo.rightKeys.
-    outputPkIdx.nonEmpty && outputPkIdx.forall(index => !allLookupKeys.contains(index))
+    outputPkIdx.nonEmpty && outputPkIdx.forall(index => allLookupKeys.contains(index))
   }
 
   /** Get final output pk indexes if exists, otherwise will get empty. */
