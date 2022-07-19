@@ -35,6 +35,7 @@ import java.util.Set;
 
 import static java.time.Instant.ofEpochMilli;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /** Test for {@link HadoopFSDelegationTokenProvider}. */
 class HadoopFSDelegationTokenProviderITCase {
@@ -64,6 +65,24 @@ class HadoopFSDelegationTokenProviderITCase {
         public long renew(Configuration conf) {
             return newExpiration;
         }
+    }
+
+    @Test
+    public void getRenewerShouldReturnNullByDefault() throws Exception {
+        HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
+        provider.init(new org.apache.flink.configuration.Configuration());
+        assertNull(provider.getRenewer());
+    }
+
+    @Test
+    public void getRenewerShouldReturnConfiguredRenewer() throws Exception {
+        String renewer = "testRenewer";
+        HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
+        org.apache.flink.configuration.Configuration configuration =
+                new org.apache.flink.configuration.Configuration();
+        configuration.setString("security.kerberos.token.provider.hadoopfs.renewer", renewer);
+        provider.init(configuration);
+        assertEquals(renewer, provider.getRenewer());
     }
 
     @Test

@@ -78,7 +78,7 @@ public class HadoopFSDelegationTokenProvider implements DelegationTokenProvider 
         Clock clock = Clock.systemDefaultZone();
         Set<FileSystem> fileSystemsToAccess = getFileSystemsToAccess();
 
-        obtainDelegationTokens(null, fileSystemsToAccess, credentials);
+        obtainDelegationTokens(getRenewer(), fileSystemsToAccess, credentials);
 
         // Get the token renewal interval if it is not set. It will be called only once.
         if (tokenRenewalInterval == null) {
@@ -86,6 +86,13 @@ public class HadoopFSDelegationTokenProvider implements DelegationTokenProvider 
         }
         return tokenRenewalInterval.flatMap(
                 interval -> getTokenRenewalDate(clock, credentials, interval));
+    }
+
+    @VisibleForTesting
+    @Nullable
+    String getRenewer() {
+        return flinkConfiguration.getString(
+                String.format("security.kerberos.token.provider.%s.renewer", serviceName()), null);
     }
 
     private Set<FileSystem> getFileSystemsToAccess() throws IOException {
@@ -155,6 +162,7 @@ public class HadoopFSDelegationTokenProvider implements DelegationTokenProvider 
                 });
     }
 
+    @VisibleForTesting
     Optional<Long> getTokenRenewalInterval(Clock clock, Set<FileSystem> fileSystemsToAccess)
             throws IOException {
         // We cannot use the tokens generated with renewer yarn
