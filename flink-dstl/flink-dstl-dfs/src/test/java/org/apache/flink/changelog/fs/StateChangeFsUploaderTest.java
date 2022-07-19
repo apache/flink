@@ -19,17 +19,29 @@
 package org.apache.flink.changelog.fs;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.local.LocalDataOutputStream;
+import org.apache.flink.core.fs.local.LocalFileSystem;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link StateChangeFsUploader} test. */
 class StateChangeFsUploaderTest {
+
+    @TempDir java.nio.file.Path tempFolder;
 
     @Test
     void testBasePath() throws IOException {
@@ -50,10 +62,63 @@ class StateChangeFsUploaderTest {
                         metrics,
                         TaskChangelogRegistry.NO_OP);
 
-        assertEquals(
-                uploader.getBasePath().getPath(),
-                String.format(
-                        "%s/%s/%s",
-                        rootPath, jobID.toHexString(), StateChangeFsUploader.PATH_SUB_DIR));
+        assertThat(uploader.getBasePath().getPath())
+                .isEqualTo(
+                        String.format(
+                                "%s/%s/%s",
+                                rootPath, jobID.toHexString(), StateChangeFsUploader.PATH_SUB_DIR));
+    }
+
+    @Test
+    void testCompression() throws IOException {
+        AtomicBoolean outputStreamClosed = new AtomicBoolean(false);
+
+        FileSystem wrappedFileSystem =
+                new LocalFileSystem() {
+                    @Override
+                    public FSDataOutputStream create(Path filePath, WriteMode overwrite)
+                            throws IOException {
+                        checkNotNull(filePath, "filePath");
+
+                        if (exists(filePath) && overwrite == WriteMode.NO_OVERWRITE) {
+                            throw new FileAlreadyExistsException(
+                                    "File already exists: " + filePath);
+                        }
+
+                        final Path parent = filePath.getParent();
+                        if (parent != null && !mkdirs(parent)) {
+                            throw new IOException("Mkdirs failed to create " + parent);
+                        }
+
+                        final File file = pathToFile(filePath);
+                        return new LocalDataOutputStream(file) {
+                            @Override
+                            public void close() throws IOException {
+                                super.close();
+                                outputStreamClosed.set(true);
+                            }
+                        };
+                    }
+                };
+
+        StateChangeFsUploader uploader = createUploader(wrappedFileSystem, false);
+        uploader.upload(Collections.emptyList());
+        assertThat(outputStreamClosed.get()).isTrue();
+
+        outputStreamClosed.set(false);
+        uploader = createUploader(wrappedFileSystem, true);
+        uploader.upload(Collections.emptyList());
+        assertThat(outputStreamClosed.get()).isTrue();
+    }
+
+    private StateChangeFsUploader createUploader(FileSystem fileSystem, boolean compression) {
+        return new StateChangeFsUploader(
+                JobID.generate(),
+                new Path(tempFolder.toUri()),
+                fileSystem,
+                compression,
+                4096,
+                new ChangelogStorageMetricGroup(createUnregisteredTaskManagerJobMetricGroup()),
+                TaskChangelogRegistry.NO_OP);
     }
 }
