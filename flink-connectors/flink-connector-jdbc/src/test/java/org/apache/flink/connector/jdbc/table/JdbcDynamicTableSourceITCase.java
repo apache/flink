@@ -44,9 +44,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 /** ITCase for {@link JdbcDynamicTableSource}. */
 public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
@@ -277,13 +274,12 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         Set<String> expected = new HashSet<>();
         expected.add(
                 "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
-        assertEquals(1, result.size());
-        assertTrue(expected.containsAll(result));
-        assertTrue(
-                explain.contains(
-                        String.format(
-                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
-                                INPUT_TABLE, "=(id, 1:BIGINT)")));
+        assertThat(result).hasSize(1);
+        assertThat(expected).containsAll(result);
+        assertThat(explain).contains(
+                String.format(
+                        "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                        INPUT_TABLE, "=(id, 1:BIGINT)"));
 
         querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id <> 1";
         explain = tEnv.explainSql(querySql);
@@ -296,13 +292,12 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         expected = new HashSet<>();
         expected.add(
                 "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
-        assertTrue(result.size() > 0);
-        assertFalse(result.containsAll(expected));
-        assertTrue(
-                explain.contains(
-                        String.format(
-                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
-                                INPUT_TABLE, "<>(id, 1:BIGINT)")));
+        assertThat(result).size().isGreaterThan(0);
+        assertThat(result).isNotIn(expected);
+        assertThat(explain).contains(
+                String.format(
+                        "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                        INPUT_TABLE, "<>(id, 1:BIGINT)"));
 
         querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id > 1";
         explain = tEnv.explainSql(querySql);
@@ -315,13 +310,12 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         expected = new HashSet<>();
         expected.add(
                 "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
-        assertTrue(result.size() > 0);
-        assertFalse(result.containsAll(expected));
-        assertTrue(
-                explain.contains(
-                        String.format(
-                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
-                                INPUT_TABLE, ">(id, 1)")));
+        assertThat(result).size().isGreaterThan(0);
+        assertThat(result).isNotIn(expected);
+        assertThat(explain).contains(
+                String.format(
+                        "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                        INPUT_TABLE, ">(id, 1)"));
 
         querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id >= 1";
         explain = tEnv.explainSql(querySql);
@@ -334,13 +328,12 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         expected = new HashSet<>();
         expected.add(
                 "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
-        assertTrue(result.size() > 1);
-        assertTrue(result.containsAll(expected));
-        assertTrue(
-                explain.contains(
-                        String.format(
-                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
-                                INPUT_TABLE, ">=(id, 1)")));
+        assertThat(result).size().isGreaterThan(1);
+        assertThat(result).containsAll(expected);
+        assertThat(explain).contains(
+                String.format(
+                        "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                        INPUT_TABLE, ">=(id, 1)"));
 
         querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id < 2";
         explain = tEnv.explainSql(querySql);
@@ -353,13 +346,12 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         expected = new HashSet<>();
         expected.add(
                 "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
-        assertTrue(result.size() == 1);
-        assertTrue(expected.containsAll(result));
-        assertTrue(
-                explain.contains(
-                        String.format(
-                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
-                                INPUT_TABLE, "<(id, 2)")));
+        assertThat(result).hasSize(1);
+        assertThat(expected).containsAll(result);
+        assertThat(explain).contains(
+                String.format(
+                        "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                        INPUT_TABLE, "<(id, 2)"));
 
         querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id <= 2";
         explain = tEnv.explainSql(querySql);
@@ -372,13 +364,12 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         expected = new HashSet<>();
         expected.add(
                 "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]");
-        assertTrue(result.size() > 1);
-        assertTrue(result.containsAll(expected));
-        assertTrue(
-                explain.contains(
-                        String.format(
-                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
-                                INPUT_TABLE, "<=(id, 2)")));
+        assertThat(result).size().isGreaterThan(1);
+        assertThat(result).containsAll(expected);
+        assertThat(explain).contains(
+                String.format(
+                        "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                        INPUT_TABLE, "<=(id, 2)"));
 
         querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id IS NULL";
         explain = tEnv.explainSql(querySql);
@@ -388,12 +379,11 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
                         .map(Row::toString)
                         .sorted()
                         .collect(Collectors.toList());
-        assertTrue(result.size() == 0);
-        assertTrue(
-                explain.contains(
-                        String.format(
-                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
-                                INPUT_TABLE, "IS NULL(id)")));
+        assertThat(result).hasSize(0);
+        assertThat(explain).contains(
+                String.format(
+                        "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                        INPUT_TABLE, "IS NULL(id)"));
 
         querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id IS NOT NULL";
         explain = tEnv.explainSql(querySql);
@@ -408,12 +398,11 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
                 "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
         expected.add(
                 "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]");
-        assertEquals(2, result.size());
-        assertTrue(
-                explain.contains(
-                        String.format(
-                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
-                                INPUT_TABLE, "IS NOT NULL(id)")));
+        assertThat(result).hasSize(2);
+        assertThat(explain).contains(
+                String.format(
+                        "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                        INPUT_TABLE, "IS NOT NULL(id)"));
 
         querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id IN (2,3)";
         explain = tEnv.explainSql(querySql);
@@ -426,12 +415,11 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         expected = new HashSet<>();
         expected.add(
                 "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]");
-        assertEquals(1, result.size());
-        assertTrue(
-                explain.contains(
-                        String.format(
-                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
-                                INPUT_TABLE, "OR(=(id, 2:BIGINT), =(id, 3:BIGINT))")));
+        assertThat(result).hasSize(1);
+        assertThat(explain).contains(
+                String.format(
+                        "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                        INPUT_TABLE, "OR(=(id, 2:BIGINT), =(id, 3:BIGINT))"));
 
         querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id NOT IN (2,3)";
         explain = tEnv.explainSql(querySql);
@@ -444,12 +432,11 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         expected = new HashSet<>();
         expected.add(
                 "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
-        assertEquals(1, result.size());
-        assertTrue(
-                explain.contains(
-                        String.format(
-                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
-                                INPUT_TABLE, "and(<>(id, 2:BIGINT), <>(id, 3:BIGINT))")));
+        assertThat(result).hasSize(1);
+        assertThat(explain).contains(
+                String.format(
+                        "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                        INPUT_TABLE, "and(<>(id, 2:BIGINT), <>(id, 3:BIGINT))"));
 
         querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE NOT id = 1";
         explain = tEnv.explainSql(querySql);
@@ -462,12 +449,11 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         expected = new HashSet<>();
         expected.add(
                 "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
-        assertEquals(1, result.size());
-        assertTrue(
-                explain.contains(
-                        String.format(
-                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
-                                INPUT_TABLE, "<>(id, 1:BIGINT)")));
+        assertThat(result).hasSize(1);
+        assertThat(explain).contains(
+                String.format(
+                        "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                        INPUT_TABLE, "<>(id, 1:BIGINT)"));
 
         querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id = 1 AND decimal_col = 100.1234";
         explain = tEnv.explainSql(querySql);
@@ -480,12 +466,11 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         expected = new HashSet<>();
         expected.add(
                 "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
-        assertEquals(1, result.size());
-        assertTrue(
-                explain.contains(
-                        String.format(
-                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
-                                INPUT_TABLE, "and(=(id, 1:BIGINT), =(decimal_col, 100.1234:DECIMAL(10, 4)))")));
+        assertThat(result).hasSize(1);
+        assertThat(explain).contains(
+                String.format(
+                        "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                        INPUT_TABLE, "and(=(id, 1:BIGINT), =(decimal_col, 100.1234:DECIMAL(10, 4)))"));
 
         querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id = 1 OR decimal_col = 100.1234";
         explain = tEnv.explainSql(querySql);
@@ -498,12 +483,11 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         expected = new HashSet<>();
         expected.add(
                 "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
-        assertEquals(1, result.size());
-        assertTrue(
-                explain.contains(
-                        String.format(
-                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
-                                INPUT_TABLE, "OR(=(id, 1:BIGINT), =(decimal_col, 100.1234:DECIMAL(10, 4)))")));
+        assertThat(result).hasSize(1);
+        assertThat(explain).contains(
+                String.format(
+                        "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                        INPUT_TABLE, "OR(=(id, 1:BIGINT), =(decimal_col, 100.1234:DECIMAL(10, 4)))"));
 
         querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id BETWEEN 2 AND 3";
         explain = tEnv.explainSql(querySql);
@@ -516,12 +500,11 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         expected = new HashSet<>();
         expected.add(
                 "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]");
-        assertEquals(1, result.size());
-        assertTrue(
-                explain.contains(
-                        String.format(
-                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
-                                INPUT_TABLE,
-                                "and(>=(id, 2), <=(id, 3))")));
+        assertThat(result).hasSize(1);
+        assertThat(explain).contains(
+                String.format(
+                        "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                        INPUT_TABLE,
+                        "and(>=(id, 2), <=(id, 3))"));
     }
 }
