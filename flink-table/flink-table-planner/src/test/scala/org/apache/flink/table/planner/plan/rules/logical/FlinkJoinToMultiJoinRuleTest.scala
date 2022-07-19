@@ -27,7 +27,7 @@ import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
-/** Tests for [[org.apache.calcite.rel.rules.JoinToMultiJoinRule]]. */
+/** Tests for [[org.apache.flink.table.planner.plan.rules.logical.FlinkJoinToMultiJoinRule]]. */
 class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
   private val util = batchTestUtil()
 
@@ -40,13 +40,43 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(CoreRules.JOIN_TO_MULTI_JOIN, CoreRules.PROJECT_MULTI_JOIN_MERGE))
+        .add(RuleSets.ofList(FlinkJoinToMultiJoinRule.INSTANCE, CoreRules.PROJECT_MULTI_JOIN_MERGE))
         .build()
     )
 
     util.addTableSource[(Int, Long)]("T1", 'a, 'b)
     util.addTableSource[(Int, Long)]("T2", 'c, 'd)
     util.addTableSource[(Int, Long)]("T3", 'e, 'f)
+  }
+
+  @Test
+  def testInnerJoinToMultiJoin(): Unit = {
+    // Can translate join to multi join.
+    val sqlQuery = "SELECT * FROM T1, T2, T3 WHERE a = c AND a = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testLeftOuterJoinLeftOuterJoinToMultiJoin(): Unit = {
+    // Can translate join to multi join.
+    val sqlQuery =
+      "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c LEFT OUTER JOIN (SELECT * FROM T3) ON a = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testDoesNotMatchLeftOuterJoinRightOuterJoin(): Unit = {
+    // Cannot translate join to multi join.
+    val sqlQuery =
+      "SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c LEFT OUTER JOIN (SELECT * FROM T3) ON a = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testDoesNotMatchFullOuterJoin(): Unit = {
+    // Cannot translate join to multi join.
+    val sqlQuery = "SELECT * FROM T1 FULL OUTER JOIN T2 ON a = c, T3 WHERE a = e"
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
