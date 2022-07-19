@@ -35,7 +35,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -105,9 +104,7 @@ class StateChangeFsUploader implements StateChangeUploader {
     }
 
     private UploadTasksResult upload(Path path, Collection<UploadTask> tasks) throws IOException {
-        boolean wrappedStreamClosed = false;
-        FSDataOutputStream fsStream = fileSystem.create(path, NO_OVERWRITE);
-        try {
+        try (FSDataOutputStream fsStream = fileSystem.create(path, NO_OVERWRITE)) {
             fsStream.write(compression ? 1 : 0);
             try (OutputStreamWithPos stream = wrap(fsStream)) {
                 final Map<UploadTask, Map<StateChangeSet, Long>> tasksOffsets = new HashMap<>();
@@ -118,12 +115,6 @@ class StateChangeFsUploader implements StateChangeUploader {
                 // WARN: streams have to be closed before returning the results
                 // otherwise JM may receive invalid handles
                 return new UploadTasksResult(tasksOffsets, handle);
-            } finally {
-                wrappedStreamClosed = true;
-            }
-        } finally {
-            if (!wrappedStreamClosed) {
-                fsStream.close();
             }
         }
     }
@@ -133,9 +124,8 @@ class StateChangeFsUploader implements StateChangeUploader {
                 compression
                         ? SnappyStreamCompressionDecorator.INSTANCE
                         : UncompressedStreamCompressionDecorator.INSTANCE;
-        OutputStream compressed =
-                compression ? instance.decorateWithCompression(fsStream) : fsStream;
-        return new OutputStreamWithPos(new BufferedOutputStream(compressed, bufferSize));
+        return new OutputStreamWithPos(
+                new BufferedOutputStream(instance.decorateWithCompression(fsStream), bufferSize));
     }
 
     private String generateFileName() {
