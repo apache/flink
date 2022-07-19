@@ -40,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for classloading and class loader utilities. */
-public class ClientMutableURLClassLoaderTest {
+public class ClientWrapperClassLoaderTest {
 
     private static File userJar;
 
@@ -61,13 +61,13 @@ public class ClientMutableURLClassLoaderTest {
     @Test
     public void testClassLoadingByAddURL() throws Exception {
         Configuration configuration = new Configuration();
-        final ClientMutableURLClassLoader classLoader =
-                new ClientMutableURLClassLoader(
-                        configuration,
-                        ClassloaderUtil.buildClassLoader(
+        final ClientWrapperClassLoader classLoader =
+                new ClientWrapperClassLoader(
+                        ClientClassloaderUtil.buildUserClassLoader(
                                 Collections.emptyList(),
                                 getClass().getClassLoader(),
-                                configuration));
+                                configuration),
+                        configuration);
 
         // test class loader before add jar url to ClassLoader
         assertClassNotFoundException(GENERATED_LOWER_UDF_CLASS, classLoader);
@@ -89,13 +89,13 @@ public class ClientMutableURLClassLoaderTest {
     public void testClassLoadingByRemoveURL() throws Exception {
         URL jarURL = userJar.toURI().toURL();
         Configuration configuration = new Configuration();
-        final ClientMutableURLClassLoader classLoader =
-                new ClientMutableURLClassLoader(
-                        configuration,
-                        ClassloaderUtil.buildClassLoader(
+        final ClientWrapperClassLoader classLoader =
+                new ClientWrapperClassLoader(
+                        ClientClassloaderUtil.buildUserClassLoader(
                                 Collections.singletonList(jarURL),
                                 getClass().getClassLoader(),
-                                configuration));
+                                configuration),
+                        configuration);
 
         final Class<?> clazz1 = Class.forName(GENERATED_LOWER_UDF_CLASS, false, classLoader);
         final Class<?> clazz2 = Class.forName(GENERATED_LOWER_UDF_CLASS, false, classLoader);
@@ -125,7 +125,7 @@ public class ClientMutableURLClassLoaderTest {
     public void testParallelCapable() {
         // It will be true only if all the super classes (except class Object) of the caller are
         // registered as parallel capable.
-        assertTrue(TestClientMutableURLClassLoader.IS_PARALLEL_CAPABLE);
+        assertTrue(TestClientWrapperClassLoader.IS_PARALLEL_CAPABLE);
     }
 
     private void assertClassNotFoundException(String className, ClassLoader classLoader) {
@@ -135,17 +135,17 @@ public class ClientMutableURLClassLoaderTest {
                 () -> Class.forName(className, false, classLoader));
     }
 
-    private static class TestClientMutableURLClassLoader extends ClientMutableURLClassLoader {
+    private static class TestClientWrapperClassLoader extends ClientWrapperClassLoader {
 
         public static final boolean IS_PARALLEL_CAPABLE = ClassLoader.registerAsParallelCapable();
 
-        TestClientMutableURLClassLoader() {
+        TestClientWrapperClassLoader() {
             super(
-                    new Configuration(),
-                    ClassloaderUtil.buildClassLoader(
+                    ClientClassloaderUtil.buildUserClassLoader(
                             Collections.emptyList(),
-                            TestClientMutableURLClassLoader.class.getClassLoader(),
-                            new Configuration()));
+                            TestClientWrapperClassLoader.class.getClassLoader(),
+                            new Configuration()),
+                    new Configuration());
         }
     }
 }

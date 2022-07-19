@@ -44,6 +44,7 @@ import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.MutableURLClassLoader;
 
 import org.slf4j.Logger;
@@ -185,7 +186,7 @@ public class SessionContext {
         // --------------------------------------------------------------------------------------------------------------
 
         final MutableURLClassLoader userClassLoader =
-                MutableURLClassLoader.newInstance(
+                FlinkUserCodeClassLoaders.create(
                         new URL[0], SessionContext.class.getClassLoader(), configuration);
 
         // --------------------------------------------------------------------------------------------------------------

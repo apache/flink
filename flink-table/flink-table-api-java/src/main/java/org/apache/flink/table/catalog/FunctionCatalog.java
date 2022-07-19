@@ -647,7 +647,7 @@ public final class FunctionCatalog {
         } else if (function.getFunctionLanguage() == FunctionLanguage.JAVA) {
             // If the jar resource of UDF used is not empty, register it to classloader before
             // validate.
-            registerFunctionJarResource(name, function.getFunctionResources());
+            registerFunctionJarResources(name, function.getFunctionResources());
 
             UserDefinedFunctionHelper.validateClass(
                     (Class<? extends UserDefinedFunction>)
@@ -666,7 +666,7 @@ public final class FunctionCatalog {
         }
         // If the jar resource of UDF used is not empty, register it to classloader before
         // validate.
-        registerFunctionJarResource(name, function.getFunctionResources());
+        registerFunctionJarResources(name, function.getFunctionResources());
 
         return UserDefinedFunctionHelper.instantiateFunction(
                 resourceManager.getUserClassLoader(),
@@ -676,7 +676,7 @@ public final class FunctionCatalog {
                 function);
     }
 
-    private void registerFunctionJarResource(String functionName, List<ResourceUri> resourceUris) {
+    private void registerFunctionJarResources(String functionName, List<ResourceUri> resourceUris) {
         try {
             if (!resourceUris.isEmpty()) {
                 resourceManager.registerJarResources(resourceUris);

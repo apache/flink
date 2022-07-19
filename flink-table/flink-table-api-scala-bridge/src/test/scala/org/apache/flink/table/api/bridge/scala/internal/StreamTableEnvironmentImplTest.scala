@@ -75,7 +75,7 @@ class StreamTableEnvironmentImplTest {
     val resourceManager = ResourceManager.createResourceManager(
       new Array[URL](0),
       Thread.currentThread.getContextClassLoader,
-      tableConfig.getConfiguration);
+      tableConfig.getConfiguration)
 
     new StreamTableEnvironmentImpl(
       catalogManager,

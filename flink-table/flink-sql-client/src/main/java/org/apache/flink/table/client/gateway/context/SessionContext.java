@@ -33,8 +33,8 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.resource.ClientResourceManager;
-import org.apache.flink.table.client.util.ClassloaderUtil;
-import org.apache.flink.table.client.util.ClientMutableURLClassLoader;
+import org.apache.flink.table.client.util.ClientClassloaderUtil;
+import org.apache.flink.table.client.util.ClientWrapperClassLoader;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
@@ -69,14 +69,14 @@ public class SessionContext {
     private final Configuration sessionConfiguration;
 
     private final SessionState sessionState;
-    private final ClientMutableURLClassLoader classLoader;
+    private final ClientWrapperClassLoader classLoader;
     private ExecutionContext executionContext;
 
     private SessionContext(
             DefaultContext defaultContext,
             String sessionId,
             Configuration sessionConfiguration,
-            ClientMutableURLClassLoader classLoader,
+            ClientWrapperClassLoader classLoader,
             SessionState sessionState,
             ExecutionContext executionContext) {
         this.defaultContext = defaultContext;
@@ -177,11 +177,7 @@ public class SessionContext {
                 sessionState.catalogManager.getCatalog(name).ifPresent(Catalog::close);
             }
         }
-        try {
-            classLoader.close();
-        } catch (IOException e) {
-            LOG.debug("Error while closing class loader.", e);
-        }
+        classLoader.close();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -200,13 +196,13 @@ public class SessionContext {
         // --------------------------------------------------------------------------------------------------------------
 
         // here use ClientMutableURLClassLoader to support remove jar
-        final ClientMutableURLClassLoader userClassLoader =
-                new ClientMutableURLClassLoader(
-                        configuration,
-                        ClassloaderUtil.buildClassLoader(
+        final ClientWrapperClassLoader userClassLoader =
+                new ClientWrapperClassLoader(
+                        ClientClassloaderUtil.buildUserClassLoader(
                                 defaultContext.getDependencies(),
                                 SessionContext.class.getClassLoader(),
-                                new Configuration(configuration)));
+                                new Configuration(configuration)),
+                        configuration);
 
         // --------------------------------------------------------------------------------------------------------------
         // Init session state

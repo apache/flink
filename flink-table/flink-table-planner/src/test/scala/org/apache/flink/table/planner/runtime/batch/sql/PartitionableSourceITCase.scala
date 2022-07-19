@@ -30,7 +30,6 @@ import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-import java.io.File
 import java.util
 import java.util.Collections
 
@@ -189,8 +188,8 @@ class PartitionableSourceITCase(val sourceFetchPartitions: Boolean, val useCatal
          |   }
          |}
          |""".stripMargin
-    val tmpDir: File = TEMPORARY_FOLDER.newFolder()
-    val udfJarFile: File =
+    val tmpDir = TEMPORARY_FOLDER.newFolder()
+    val udfJarFile =
       UserClassLoaderJarTestUtils.createJarFile(
         tmpDir,
         "flink-test-udf.jar",

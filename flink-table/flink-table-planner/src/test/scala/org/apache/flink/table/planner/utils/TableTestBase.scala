@@ -65,7 +65,7 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
-import org.apache.flink.util.MutableURLClassLoader
+import org.apache.flink.util.{FlinkUserCodeClassLoaders, MutableURLClassLoader}
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
@@ -1513,8 +1513,10 @@ object TestingTableEnvironment {
       tableConfig: TableConfig): TestingTableEnvironment = {
 
     val userClassLoader: MutableURLClassLoader =
-      MutableURLClassLoader
-        .newInstance(new Array[URL](0), settings.getUserClassLoader, settings.getConfiguration)
+      FlinkUserCodeClassLoaders.create(
+        new Array[URL](0),
+        settings.getUserClassLoader,
+        settings.getConfiguration)
 
     val executorFactory = FactoryUtil.discoverFactory(
       userClassLoader,

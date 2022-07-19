@@ -21,6 +21,7 @@ package org.apache.flink.table.client.util;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.util.FlinkUserCodeClassLoader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,24 +30,23 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.util.FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader;
+/** Utilities for {@link ClientWrapperClassLoader}. */
+public class ClientClassloaderUtil {
 
-/** Utilities for {@link SafetyNetWrapperClassLoader}. */
-public class ClassloaderUtil {
+    private static final Logger LOG = LoggerFactory.getLogger(ClientClassloaderUtil.class);
 
-    private static final Logger LOG = LoggerFactory.getLogger(ClassloaderUtil.class);
-
-    public static SafetyNetWrapperClassLoader buildClassLoader(
+    public static FlinkUserCodeClassLoader buildUserClassLoader(
             List<URL> jarUrls, ClassLoader parentClassLoader, Configuration conf) {
-        // override to use SafetyNetWrapperClassLoader
-        LOG.info(
-                "Set option 'classloader.check-leaked-classloader' value to 'true' to use SafetyNetWrapperClassLoader.");
-        conf.set(CoreOptions.CHECK_LEAKED_CLASSLOADER, true);
-        return (SafetyNetWrapperClassLoader)
+        LOG.debug(
+                String.format(
+                        "Set option '%s' to 'false' to use %s.",
+                        CoreOptions.CHECK_LEAKED_CLASSLOADER.key(),
+                        ClientWrapperClassLoader.class.getSimpleName()));
+        conf.set(CoreOptions.CHECK_LEAKED_CLASSLOADER, false);
+        return (FlinkUserCodeClassLoader)
                 ClientUtils.buildUserCodeClassLoader(
                         jarUrls, Collections.emptyList(), parentClassLoader, conf);
     }
 
-    /** Private constructor to prevent instantiation. */
-    private ClassloaderUtil() {}
+    private ClientClassloaderUtil() {}
 }

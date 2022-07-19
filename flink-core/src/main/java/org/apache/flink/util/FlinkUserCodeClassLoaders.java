@@ -19,6 +19,7 @@
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 
 import org.slf4j.Logger;
@@ -28,6 +29,8 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.function.Consumer;
+
+import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 
 /** Gives the URLClassLoader a nicer name for debugging purposes. */
 @Internal
@@ -55,6 +58,25 @@ public class FlinkUserCodeClassLoaders {
                 new ChildFirstClassLoader(
                         urls, parent, alwaysParentFirstPatterns, classLoadingExceptionHandler);
         return wrapWithSafetyNet(classLoader, checkClassLoaderLeak);
+    }
+
+    public static MutableURLClassLoader create(
+            final URL[] urls, final ClassLoader parent, final Configuration configuration) {
+        final String[] alwaysParentFirstLoaderPatterns =
+                CoreOptions.getParentFirstLoaderPatterns(configuration);
+        final String classLoaderResolveOrder =
+                configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+        final FlinkUserCodeClassLoaders.ResolveOrder resolveOrder =
+                FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
+        final boolean checkClassloaderLeak =
+                configuration.getBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER);
+        return create(
+                resolveOrder,
+                urls,
+                parent,
+                alwaysParentFirstLoaderPatterns,
+                NOOP_EXCEPTION_HANDLER,
+                checkClassloaderLeak);
     }
 
     public static MutableURLClassLoader create(
@@ -134,9 +156,9 @@ public class FlinkUserCodeClassLoaders {
         private static final Logger LOG =
                 LoggerFactory.getLogger(SafetyNetWrapperClassLoader.class);
 
-        private volatile FlinkUserCodeClassLoader inner;
+        protected volatile FlinkUserCodeClassLoader inner;
 
-        SafetyNetWrapperClassLoader(FlinkUserCodeClassLoader inner, ClassLoader parent) {
+        protected SafetyNetWrapperClassLoader(FlinkUserCodeClassLoader inner, ClassLoader parent) {
             super(new URL[0], parent);
             this.inner = inner;
         }
@@ -173,7 +195,7 @@ public class FlinkUserCodeClassLoaders {
         }
 
         @Override
-        public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
             // called for dynamic class loading
             return ensureInner().loadClass(name, resolve);
         }

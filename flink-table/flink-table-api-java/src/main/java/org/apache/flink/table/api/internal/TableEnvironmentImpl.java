@@ -158,6 +158,7 @@ import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
 
@@ -267,7 +268,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     public static TableEnvironmentImpl create(EnvironmentSettings settings) {
         final MutableURLClassLoader userClassLoader =
-                MutableURLClassLoader.newInstance(
+                FlinkUserCodeClassLoaders.create(
                         new URL[0], settings.getUserClassLoader(), settings.getConfiguration());
 
         final ExecutorFactory executorFactory =

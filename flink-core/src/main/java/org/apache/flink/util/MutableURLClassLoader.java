@@ -19,13 +19,9 @@
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 
 import java.net.URL;
 import java.net.URLClassLoader;
-
-import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 
 /** URL class loader that exposes the `addURL` method in URLClassLoader. */
 @Internal
@@ -33,29 +29,6 @@ public abstract class MutableURLClassLoader extends URLClassLoader {
 
     static {
         ClassLoader.registerAsParallelCapable();
-    }
-
-    /**
-     * Creates a new instance of MutableURLClassLoader for the specified URLs, parent class loader
-     * and configuration.
-     */
-    public static MutableURLClassLoader newInstance(
-            final URL[] urls, final ClassLoader parent, final Configuration configuration) {
-        final String[] alwaysParentFirstLoaderPatterns =
-                CoreOptions.getParentFirstLoaderPatterns(configuration);
-        final String classLoaderResolveOrder =
-                configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
-        final FlinkUserCodeClassLoaders.ResolveOrder resolveOrder =
-                FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
-        final boolean checkClassloaderLeak =
-                configuration.getBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER);
-        return FlinkUserCodeClassLoaders.create(
-                resolveOrder,
-                urls,
-                parent,
-                alwaysParentFirstLoaderPatterns,
-                NOOP_EXCEPTION_HANDLER,
-                checkClassloaderLeak);
     }
 
     public MutableURLClassLoader(URL[] urls, ClassLoader parent) {

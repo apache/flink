@@ -27,6 +27,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.JarUtils;
 import org.apache.flink.util.MutableURLClassLoader;
 
@@ -65,7 +66,7 @@ public class ResourceManager implements Closeable {
     public static ResourceManager createResourceManager(
             URL[] urls, ClassLoader parent, Configuration configuration) {
         MutableURLClassLoader mutableURLClassLoader =
-                MutableURLClassLoader.newInstance(urls, parent, configuration);
+                FlinkUserCodeClassLoaders.create(urls, parent, configuration);
         return new ResourceManager(configuration, mutableURLClassLoader);
     }
 
