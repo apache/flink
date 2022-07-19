@@ -25,6 +25,8 @@ import org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.service.session.SessionManager;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.hive.common.auth.HiveAuthUtils;
 import org.apache.hive.service.rpc.thrift.TCLIService;
@@ -50,15 +52,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** ITCase for {@link HiveServer2Endpoint}. */
-public class HiveServer2EndpointITCase {
+public class HiveServer2EndpointITCase extends TestLogger {
 
     @RegisterExtension
     @Order(1)
-    public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
-            new SqlGatewayServiceExtension();
+    public static final MiniClusterExtension MINI_CLUSTER = new MiniClusterExtension();
 
     @RegisterExtension
     @Order(2)
+    public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
+            new SqlGatewayServiceExtension(MINI_CLUSTER::getClientConfiguration);
+
+    @RegisterExtension
+    @Order(3)
     public static final HiveServer2EndpointExtension ENDPOINT_EXTENSION =
             new HiveServer2EndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
 
