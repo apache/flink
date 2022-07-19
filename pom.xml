@@ -2171,6 +2171,8 @@ under the License.
 								<exclude>org.apache.flink.metrics.Meter#getMetricType()</exclude>
 								<exclude>org.apache.flink.metrics.Gauge#getMetricType()</exclude>
 								<exclude>org.apache.flink.metrics.Histogram#getMetricType()</exclude>
+								<exclude>org.apache.flink.api.connector.source.SplitEnumeratorContext#sendEventToSourceReader(int,int,org.apache.flink.api.connector.source.SourceEvent)</exclude>
+								<exclude>org.apache.flink.api.connector.source.SplitEnumeratorContext#registeredReadersOfAttempts()</exclude>
 							</excludes>
 							<accessModifier>public</accessModifier>
 							<breakBuildOnModifications>false</breakBuildOnModifications>
