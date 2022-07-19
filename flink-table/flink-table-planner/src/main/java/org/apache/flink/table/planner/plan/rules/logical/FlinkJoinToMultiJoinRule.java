@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelRule;
@@ -152,12 +151,13 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
 
         // add on the join field reference counts for the join condition
         // associated with this LogicalJoin
-        final ImmutableMap<Integer, ImmutableIntList> newJoinFieldRefCountsMap =
-                addOnJoinFieldRefCounts(
-                        newInputs,
-                        origJoin.getRowType().getFieldCount(),
-                        origJoin.getCondition(),
-                        joinFieldRefCountsList);
+        final com.google.common.collect.ImmutableMap<Integer, ImmutableIntList>
+                newJoinFieldRefCountsMap =
+                        addOnJoinFieldRefCounts(
+                                newInputs,
+                                origJoin.getRowType().getFieldCount(),
+                                origJoin.getCondition(),
+                                joinFieldRefCountsList);
 
         List<RexNode> newPostJoinFilters = combinePostJoinFilters(origJoin, left, right);
 
@@ -446,11 +446,12 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
      * @param origJoinFieldRefCounts existing join condition reference counts
      * @return Map containing the new join condition
      */
-    private ImmutableMap<Integer, ImmutableIntList> addOnJoinFieldRefCounts(
-            List<RelNode> multiJoinInputs,
-            int nTotalFields,
-            RexNode joinCondition,
-            List<int[]> origJoinFieldRefCounts) {
+    private com.google.common.collect.ImmutableMap<Integer, ImmutableIntList>
+            addOnJoinFieldRefCounts(
+                    List<RelNode> multiJoinInputs,
+                    int nTotalFields,
+                    RexNode joinCondition,
+                    List<int[]> origJoinFieldRefCounts) {
         // count the input references in the join condition
         int[] joinCondRefCounts = new int[nTotalFields];
         joinCondition.accept(new InputReferenceCounter(joinCondRefCounts));
@@ -483,7 +484,8 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
             refCounts[i - startField] += joinCondRefCounts[i];
         }
 
-        final ImmutableMap.Builder<Integer, ImmutableIntList> builder = ImmutableMap.builder();
+        final com.google.common.collect.ImmutableMap.Builder<Integer, ImmutableIntList> builder =
+                com.google.common.collect.ImmutableMap.builder();
         for (Map.Entry<Integer, int[]> entry : refCountsMap.entrySet()) {
             builder.put(entry.getKey(), ImmutableIntList.of(entry.getValue()));
         }
