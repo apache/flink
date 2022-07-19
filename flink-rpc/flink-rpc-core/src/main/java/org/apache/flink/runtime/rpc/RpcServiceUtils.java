@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /** These RPC utilities contain helper methods around RPC use. */
 public class RpcServiceUtils {
-    private static final AtomicLong nextNameOffset = new AtomicLong(0L);
+    private static final AtomicLong NEXT_NAME_OFFSET = new AtomicLong(0L);
 
     /**
      * Creates a random name of the form prefix_X, where X is an increasing number.
@@ -38,8 +38,8 @@ public class RpcServiceUtils {
 
         // obtain the next name offset by incrementing it atomically
         do {
-            nameOffset = nextNameOffset.get();
-        } while (!nextNameOffset.compareAndSet(nameOffset, nameOffset + 1L));
+            nameOffset = NEXT_NAME_OFFSET.get();
+        } while (!NEXT_NAME_OFFSET.compareAndSet(nameOffset, nameOffset + 1L));
 
         return prefix + '_' + nameOffset;
     }
