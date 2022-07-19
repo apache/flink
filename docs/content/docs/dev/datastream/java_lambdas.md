@@ -120,7 +120,7 @@ public static class MyTuple2Mapper extends MapFunction<Integer, Tuple2<Integer, 
 
 // use an anonymous class instead
 env.fromElements(1, 2, 3)
-    .map(new MapFunction<Integer, Tuple2<Integer, Integer>> {
+    .map(new MapFunction<Integer, Tuple2<Integer, Integer>>() {
         @Override
         public Tuple2<Integer, Integer> map(Integer i) {
             return Tuple2.of(i, i);
