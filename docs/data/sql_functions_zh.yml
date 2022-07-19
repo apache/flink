@@ -687,6 +687,8 @@ conditional:
     description: 返回所有输入参数的最大值，如果输入参数中包含 NULL，则返回 NULL。
   - sql: LEAST(value1[, value2]*)
     description: 返回所有输入参数的最小值，如果输入参数中包含 NULL，则返回 NULL。
+  - sql: NVL(input, null_replacement)
+    description: 如果输入为 `NULL`，则返回 null_replacement；否则返回输入。
 
 conversion:
   - sql: CAST(value AS type)

@@ -43,6 +43,9 @@ public final class SpecificTypeStrategies {
     /** See {@link IfNullTypeStrategy}. */
     public static final TypeStrategy IF_NULL = new IfNullTypeStrategy();
 
+    /** See {@link NvlTypeStrategy}. */
+    public static final TypeStrategy NVL = new NvlTypeStrategy();
+
     /** See {@link StringConcatTypeStrategy}. */
     public static final TypeStrategy STRING_CONCAT = new StringConcatTypeStrategy();
 

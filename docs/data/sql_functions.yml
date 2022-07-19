@@ -571,7 +571,8 @@ conditional:
     description: Returns the greatest value of the list of arguments. Returns NULL if any argument is NULL.
   - sql: LEAST(value1[, value2]*)
     description: Returns the least value of the list of arguments. Returns NULL if any argument is NULL.
-
+  - sql: NVL(input, null_replacement)
+    description: Returns null_replacement if input is NULL; otherwise input is returned.
 conversion:
   - sql: CAST(value AS type)
     table: ANY.cast(TYPE)

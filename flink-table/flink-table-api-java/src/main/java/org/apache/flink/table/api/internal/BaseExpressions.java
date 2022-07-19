@@ -124,6 +124,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MOD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT_BETWEEN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT_EQUALS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NVL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_ASC;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_DESC;
@@ -373,6 +374,15 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType ifNull(InType nullReplacement) {
         return toApiSpecificExpression(
                 unresolvedCall(IF_NULL, toExpr(), objectToExpression(nullReplacement)));
+    }
+
+    /**
+     * Returns {@code nullReplacement} if the given expression is NULL; otherwise the expression is
+     * returned.
+     */
+    public OutType nvl(InType nullReplacement) {
+        return toApiSpecificExpression(
+                unresolvedCall(NVL, toExpr(), objectToExpression(nullReplacement)));
     }
 
     /** Returns true if the given expression is null. */
