@@ -20,6 +20,7 @@ package org.apache.flink.connector.jdbc.dialect;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
+import org.apache.flink.connector.jdbc.internal.filter.FilterVisitor;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -57,6 +58,15 @@ public interface JdbcDialect extends Serializable {
      * @return the limit clause.
      */
     String getLimitClause(long limit);
+
+    /**
+     * Get filter visitor to limit the number of emitted row from the jdbc source.
+     *
+     * @return the filter clause.
+     */
+    default FilterVisitor filterVisitor() {
+        return new FilterVisitor(this::quoteIdentifier);
+    }
 
     /**
      * Check if this dialect instance support a specific data type in table schema.
@@ -142,4 +152,5 @@ public interface JdbcDialect extends Serializable {
      */
     String getSelectFromStatement(
             String tableName, String[] selectFields, String[] conditionFields);
+
 }

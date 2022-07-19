@@ -44,6 +44,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** ITCase for {@link JdbcDynamicTableSource}. */
 public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
@@ -234,5 +237,291 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         assertThat(expected)
                 .as("The actual output is not a subset of the expected set.")
                 .containsAll(result);
+    }
+
+    @Test
+    public void testFilter() {
+        tEnv.executeSql(
+                "CREATE TABLE "
+                        + INPUT_TABLE
+                        + "(\n"
+                        + "id BIGINT,\n"
+                        + "timestamp6_col TIMESTAMP(6),\n"
+                        + "timestamp9_col TIMESTAMP(9),\n"
+                        + "time_col TIME,\n"
+                        + "real_col FLOAT,\n"
+                        + "double_col DOUBLE,\n"
+                        + "decimal_col DECIMAL(10, 4)\n"
+                        + ") WITH (\n"
+                        + "  'connector'='jdbc',\n"
+                        + "  'url'='"
+                        + DB_URL
+                        + "',\n"
+                        + "  'table-name'='"
+                        + INPUT_TABLE
+                        + "',\n"
+                        + "  'scan.partition.column'='id',\n"
+                        + "  'scan.partition.num'='2',\n"
+                        + "  'scan.partition.lower-bound'='1',\n"
+                        + "  'scan.partition.upper-bound'='2'\n"
+                        + ")");
+
+        String querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id = 1";
+        String explain = tEnv.explainSql(querySql);
+        Iterator<Row> collected = tEnv.executeSql(querySql).collect();
+        List<String> result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        Set<String> expected = new HashSet<>();
+        expected.add(
+                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
+        assertEquals(1, result.size());
+        assertTrue(expected.containsAll(result));
+        assertTrue(
+                explain.contains(
+                        String.format(
+                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                                INPUT_TABLE, "=(id, 1:BIGINT)")));
+
+        querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id <> 1";
+        explain = tEnv.explainSql(querySql);
+        collected = tEnv.executeSql(querySql).collect();
+        result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        expected = new HashSet<>();
+        expected.add(
+                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
+        assertTrue(result.size() > 0);
+        assertFalse(result.containsAll(expected));
+        assertTrue(
+                explain.contains(
+                        String.format(
+                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                                INPUT_TABLE, "<>(id, 1:BIGINT)")));
+
+        querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id > 1";
+        explain = tEnv.explainSql(querySql);
+        collected = tEnv.executeSql(querySql).collect();
+        result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        expected = new HashSet<>();
+        expected.add(
+                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
+        assertTrue(result.size() > 0);
+        assertFalse(result.containsAll(expected));
+        assertTrue(
+                explain.contains(
+                        String.format(
+                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                                INPUT_TABLE, ">(id, 1)")));
+
+        querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id >= 1";
+        explain = tEnv.explainSql(querySql);
+        collected = tEnv.executeSql(querySql).collect();
+        result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        expected = new HashSet<>();
+        expected.add(
+                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
+        assertTrue(result.size() > 1);
+        assertTrue(result.containsAll(expected));
+        assertTrue(
+                explain.contains(
+                        String.format(
+                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                                INPUT_TABLE, ">=(id, 1)")));
+
+        querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id < 2";
+        explain = tEnv.explainSql(querySql);
+        collected = tEnv.executeSql(querySql).collect();
+        result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        expected = new HashSet<>();
+        expected.add(
+                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
+        assertTrue(result.size() == 1);
+        assertTrue(expected.containsAll(result));
+        assertTrue(
+                explain.contains(
+                        String.format(
+                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                                INPUT_TABLE, "<(id, 2)")));
+
+        querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id <= 2";
+        explain = tEnv.explainSql(querySql);
+        collected = tEnv.executeSql(querySql).collect();
+        result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        expected = new HashSet<>();
+        expected.add(
+                "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]");
+        assertTrue(result.size() > 1);
+        assertTrue(result.containsAll(expected));
+        assertTrue(
+                explain.contains(
+                        String.format(
+                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                                INPUT_TABLE, "<=(id, 2)")));
+
+        querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id IS NULL";
+        explain = tEnv.explainSql(querySql);
+        collected = tEnv.executeSql(querySql).collect();
+        result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        assertTrue(result.size() == 0);
+        assertTrue(
+                explain.contains(
+                        String.format(
+                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                                INPUT_TABLE, "IS NULL(id)")));
+
+        querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id IS NOT NULL";
+        explain = tEnv.explainSql(querySql);
+        collected = tEnv.executeSql(querySql).collect();
+        result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        expected = new HashSet<>();
+        expected.add(
+                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
+        expected.add(
+                "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]");
+        assertEquals(2, result.size());
+        assertTrue(
+                explain.contains(
+                        String.format(
+                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                                INPUT_TABLE, "IS NOT NULL(id)")));
+
+        querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id IN (2,3)";
+        explain = tEnv.explainSql(querySql);
+        collected = tEnv.executeSql(querySql).collect();
+        result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        expected = new HashSet<>();
+        expected.add(
+                "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]");
+        assertEquals(1, result.size());
+        assertTrue(
+                explain.contains(
+                        String.format(
+                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                                INPUT_TABLE, "OR(=(id, 2:BIGINT), =(id, 3:BIGINT))")));
+
+        querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id NOT IN (2,3)";
+        explain = tEnv.explainSql(querySql);
+        collected = tEnv.executeSql(querySql).collect();
+        result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        expected = new HashSet<>();
+        expected.add(
+                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
+        assertEquals(1, result.size());
+        assertTrue(
+                explain.contains(
+                        String.format(
+                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                                INPUT_TABLE, "and(<>(id, 2:BIGINT), <>(id, 3:BIGINT))")));
+
+        querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE NOT id = 1";
+        explain = tEnv.explainSql(querySql);
+        collected = tEnv.executeSql(querySql).collect();
+        result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        expected = new HashSet<>();
+        expected.add(
+                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
+        assertEquals(1, result.size());
+        assertTrue(
+                explain.contains(
+                        String.format(
+                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                                INPUT_TABLE, "<>(id, 1:BIGINT)")));
+
+        querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id = 1 AND decimal_col = 100.1234";
+        explain = tEnv.explainSql(querySql);
+        collected = tEnv.executeSql(querySql).collect();
+        result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        expected = new HashSet<>();
+        expected.add(
+                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
+        assertEquals(1, result.size());
+        assertTrue(
+                explain.contains(
+                        String.format(
+                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                                INPUT_TABLE, "and(=(id, 1:BIGINT), =(decimal_col, 100.1234:DECIMAL(10, 4)))")));
+
+        querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id = 1 OR decimal_col = 100.1234";
+        explain = tEnv.explainSql(querySql);
+        collected = tEnv.executeSql(querySql).collect();
+        result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        expected = new HashSet<>();
+        expected.add(
+                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
+        assertEquals(1, result.size());
+        assertTrue(
+                explain.contains(
+                        String.format(
+                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                                INPUT_TABLE, "OR(=(id, 1:BIGINT), =(decimal_col, 100.1234:DECIMAL(10, 4)))")));
+
+        querySql = "SELECT * FROM " + INPUT_TABLE + " WHERE id BETWEEN 2 AND 3";
+        explain = tEnv.explainSql(querySql);
+        collected = tEnv.executeSql(querySql).collect();
+        result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+        expected = new HashSet<>();
+        expected.add(
+                "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]");
+        assertEquals(1, result.size());
+        assertTrue(
+                explain.contains(
+                        String.format(
+                                "TableSourceScan(table=[[default_catalog, default_database, %s, filter=[%s]]]",
+                                INPUT_TABLE,
+                                "and(>=(id, 2), <=(id, 3))")));
     }
 }

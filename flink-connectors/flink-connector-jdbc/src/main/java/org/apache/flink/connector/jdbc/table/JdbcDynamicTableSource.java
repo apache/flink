@@ -18,8 +18,14 @@
 
 package org.apache.flink.connector.jdbc.table;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import java.util.Optional;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
+import org.apache.flink.connector.jdbc.internal.filter.FilterVisitor;
 import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
@@ -31,10 +37,13 @@ import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
@@ -45,13 +54,15 @@ public class JdbcDynamicTableSource
         implements ScanTableSource,
                 LookupTableSource,
                 SupportsProjectionPushDown,
+                SupportsFilterPushDown,
                 SupportsLimitPushDown {
 
     private final JdbcConnectorOptions options;
     private final JdbcReadOptions readOptions;
     private final JdbcLookupOptions lookupOptions;
     private DataType physicalRowDataType;
-    private final String dialectName;
+    private final JdbcDialect jdbcDialect;
+    private List<String> filters;
     private long limit = -1;
 
     public JdbcDynamicTableSource(
@@ -63,7 +74,17 @@ public class JdbcDynamicTableSource
         this.readOptions = readOptions;
         this.lookupOptions = lookupOptions;
         this.physicalRowDataType = physicalRowDataType;
-        this.dialectName = options.getDialect().dialectName();
+        this.jdbcDialect = options.getDialect();
+    }
+
+    private JdbcDynamicTableSource(JdbcDynamicTableSource copy) {
+        this.options = copy.options;
+        this.readOptions = copy.readOptions;
+        this.lookupOptions = copy.lookupOptions;
+        this.physicalRowDataType = copy.physicalRowDataType;
+        this.jdbcDialect = copy.jdbcDialect;
+        this.filters = copy.filters;
+        this.limit = copy.limit;
     }
 
     @Override
@@ -107,6 +128,7 @@ public class JdbcDynamicTableSource
                         options.getTableName(),
                         DataType.getFieldNames(physicalRowDataType).toArray(new String[0]),
                         new String[0]);
+        String conditionVerb = " WHERE ";
         if (readOptions.getPartitionColumnName().isPresent()) {
             long lowerBound = readOptions.getPartitionLowerBound().get();
             long upperBound = readOptions.getPartitionUpperBound().get();
@@ -118,6 +140,10 @@ public class JdbcDynamicTableSource
                     " WHERE "
                             + dialect.quoteIdentifier(readOptions.getPartitionColumnName().get())
                             + " BETWEEN ? AND ?";
+            conditionVerb = " AND ";
+        }
+        if (!CollectionUtil.isNullOrEmpty(filters)) {
+            query += conditionVerb + String.join(" AND ", filters);
         }
         if (limit >= 0) {
             query = String.format("%s %s", query, dialect.getLimitClause(limit));
@@ -149,12 +175,12 @@ public class JdbcDynamicTableSource
 
     @Override
     public DynamicTableSource copy() {
-        return new JdbcDynamicTableSource(options, readOptions, lookupOptions, physicalRowDataType);
+        return new JdbcDynamicTableSource(this);
     }
 
     @Override
     public String asSummaryString() {
-        return "JDBC:" + dialectName;
+        return "JDBC:" + jdbcDialect.dialectName();
     }
 
     @Override
@@ -170,14 +196,34 @@ public class JdbcDynamicTableSource
                 && Objects.equals(readOptions, that.readOptions)
                 && Objects.equals(lookupOptions, that.lookupOptions)
                 && Objects.equals(physicalRowDataType, that.physicalRowDataType)
-                && Objects.equals(dialectName, that.dialectName)
+                && Objects.equals(jdbcDialect.dialectName(), that.jdbcDialect.dialectName())
+                && Objects.equals(filters, that.filters)
                 && Objects.equals(limit, that.limit);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                options, readOptions, lookupOptions, physicalRowDataType, dialectName, limit);
+                options, readOptions, lookupOptions, physicalRowDataType,
+                jdbcDialect.dialectName(), filters, limit);
+    }
+
+    @Override
+    public SupportsFilterPushDown.Result applyFilters(List<ResolvedExpression> flinkFilters) {
+        List<String> sqlFilters = new ArrayList<>();
+        List<ResolvedExpression> acceptedFilters = new ArrayList<>();
+        FilterVisitor filterVisitor = jdbcDialect.filterVisitor();
+
+        for (ResolvedExpression flinkFilter : flinkFilters) {
+            Optional<String> optional = flinkFilter.accept(filterVisitor);
+            if (optional.isPresent()) {
+                sqlFilters.add(optional.get());
+                acceptedFilters.add(flinkFilter);
+            }
+        }
+
+        this.filters = sqlFilters;
+        return SupportsFilterPushDown.Result.of(acceptedFilters, flinkFilters);
     }
 
     @Override
