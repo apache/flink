@@ -75,7 +75,7 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 
     @Test
     void testUnregisterUnregisteredReader() {
-        context.unregisterSourceReader(0);
+        context.unregisterSourceReader(0, 0);
     }
 
     @Test

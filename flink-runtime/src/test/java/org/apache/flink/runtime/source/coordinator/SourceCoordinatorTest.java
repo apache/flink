@@ -38,6 +38,9 @@ import org.apache.flink.runtime.operators.coordination.ComponentClosingUtils;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
+import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -48,6 +51,7 @@ import javax.annotation.Nullable;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -442,6 +446,63 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         assertThat(restoredEnumerator.getUnassignedSplits()).isEqualTo(splits);
         assertThat(restoredEnumerator.getHandledSourceEvent()).isEmpty();
         assertThat(restoredContext.registeredReaders()).isEmpty();
+    }
+
+    @Test
+    public void testSubtaskRestartAndRequestSplitsAgain() throws Exception {
+        sourceCoordinator.start();
+
+        final List<MockSourceSplit> splits = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            splits.add(new MockSourceSplit(i));
+        }
+        getEnumerator().addNewSplits(splits);
+
+        int attemptNumber = 0;
+        setReaderTaskReady(sourceCoordinator, 0, attemptNumber);
+        registerReader(0, attemptNumber);
+        sourceCoordinator.handleEventFromOperator(0, attemptNumber, new RequestSplitEvent());
+        waitForSentEvents(1);
+
+        sourceCoordinator.handleEventFromOperator(0, attemptNumber, new RequestSplitEvent());
+        waitForSentEvents(2);
+
+        sourceCoordinator.checkpointCoordinator(100L, new CompletableFuture<>());
+
+        sourceCoordinator.handleEventFromOperator(0, attemptNumber, new RequestSplitEvent());
+        waitForSentEvents(3);
+
+        assertThat(getEnumerator().getUnassignedSplits()).isEmpty();
+
+        // none of the checkpoints is confirmed, we fail and revert to the previous one
+        sourceCoordinator.executionAttemptFailed(0, attemptNumber, null);
+        sourceCoordinator.subtaskReset(0, 99L);
+
+        waitUtilNumberReached(() -> getEnumerator().getUnassignedSplits().size(), 2);
+
+        attemptNumber++;
+        setReaderTaskReady(sourceCoordinator, 0, attemptNumber);
+        registerReader(0, attemptNumber);
+
+        sourceCoordinator.handleEventFromOperator(0, attemptNumber, new RequestSplitEvent());
+        waitForSentEvents(4);
+
+        sourceCoordinator.handleEventFromOperator(0, attemptNumber, new RequestSplitEvent());
+        waitForSentEvents(5);
+
+        sourceCoordinator.handleEventFromOperator(0, attemptNumber, new RequestSplitEvent());
+        waitForSentEvents(6);
+
+        assertThat(getEnumerator().getUnassignedSplits()).isEmpty();
+
+        final List<OperatorEvent> events = receivingTasks.getSentEventsForSubtask(0);
+        assertAddSplitEvent(events.get(0), Collections.singletonList(splits.get(0)));
+        assertAddSplitEvent(events.get(1), Collections.singletonList(splits.get(1)));
+        assertAddSplitEvent(events.get(3), Collections.singletonList(splits.get(0)));
+        assertAddSplitEvent(events.get(4), Collections.singletonList(splits.get(1)));
+
+        assertThat(events.get(2)).isInstanceOf(NoMoreSplitsEvent.class);
+        assertThat(events.get(5)).isInstanceOf(NoMoreSplitsEvent.class);
     }
 
     // ------------------------------------------------------------------------

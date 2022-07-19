@@ -104,6 +104,11 @@ public class TestingSplitEnumeratorContext<SplitT extends SourceSplit>
     }
 
     @Override
+    public void sendEventToSourceReader(int subtaskId, int attemptNumber, SourceEvent event) {
+        sendEventToSourceReader(subtaskId, event);
+    }
+
+    @Override
     public int currentParallelism() {
         return parallelism;
     }
