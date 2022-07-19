@@ -840,6 +840,7 @@ done
 skip_checks=0
 
 if [[ ${CLEAN_UP_FLAG} -eq 1 ]]; then
+    printf "clean up python environment"
     rm -rf ${CONDA_HOME}
     rm -rf ${STAGE_FILE}
     rm -rf ${FLINK_PYTHON_DIR}/.tox
@@ -864,7 +865,9 @@ else
 fi
 
 # install environment
-install_environment
+if [[ ${CLEAN_UP_FLAG} -eq 0 ]]; then
+    install_environment
+fi
 
 pushd "$FLINK_PYTHON_DIR" &> /dev/null
 # exec all selected checks
