@@ -28,7 +28,7 @@ import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
 import org.apache.flink.connector.base.source.reader.mocks.MockSplitEnumerator;
 import org.apache.flink.mock.Whitebox;
-
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -52,6 +52,7 @@ public class HybridSourceSplitEnumeratorTest {
     private HybridSourceSplitEnumerator enumerator;
     private HybridSourceSplit splitFromSource0;
     private HybridSourceSplit splitFromSource1;
+    private static SwitchedSources switchedSources;
 
     private void setupEnumeratorAndTriggerSourceSwitch() {
         context = new MockSplitEnumeratorContext<>(2);
@@ -74,10 +75,27 @@ public class HybridSourceSplitEnumeratorTest {
         assertThat(getCurrentSourceIndex(enumerator)).isEqualTo(0);
 
         // trigger source switch
-        enumerator.handleSourceEvent(SUBTASK0, new SourceReaderFinishedEvent(0));
+        switchedSources.put(0, MOCK_SOURCE);
+        HybridSourceSplit finishedHybridSourceSplit =
+                HybridSourceSplit.wrapSplit(
+                        UnderlyingEnumeratorWrapper.SPLIT_1, 0, switchedSources);
+
+        enumerator.handleSourceEvent(
+                SUBTASK0,
+                new SourceReaderFinishedEvent(
+                        0, Collections.singletonList(finishedHybridSourceSplit)));
         assertThat(getCurrentSourceIndex(enumerator)).as("one reader finished").isEqualTo(0);
-        enumerator.handleSourceEvent(SUBTASK1, new SourceReaderFinishedEvent(0));
+        assertThat(getFinishedSplits(enumerator).size())
+                .as("received finished splits from one reader")
+                .isEqualTo(1);
+        enumerator.handleSourceEvent(
+                SUBTASK1,
+                new SourceReaderFinishedEvent(
+                        0, Collections.singletonList(finishedHybridSourceSplit)));
         assertThat(getCurrentSourceIndex(enumerator)).as("both readers finished").isEqualTo(1);
+        assertThat(getFinishedSplits(enumerator).size())
+                .as("received finished splits from both readers")
+                .isEqualTo(2);
         assertThat(context.getSplitsAssignmentSequence())
                 .as("switch triggers split assignment")
                 .hasSize(2);
@@ -86,6 +104,11 @@ public class HybridSourceSplitEnumeratorTest {
         assertThat(splitFromSource1.sourceIndex()).isEqualTo(1);
         enumerator.handleSourceEvent(SUBTASK1, new SourceReaderFinishedEvent(SUBTASK1));
         assertThat(getCurrentSourceIndex(enumerator)).as("reader without assignment").isEqualTo(1);
+    }
+
+    @BeforeClass
+    public static void setup() throws Throwable {
+        switchedSources = new SwitchedSources();
     }
 
     @Test
@@ -139,7 +162,6 @@ public class HybridSourceSplitEnumeratorTest {
         assertThat(underlyingEnumeratorWrapper.handleSplitRequests).isEmpty();
         enumerator.handleSplitRequest(SUBTASK0, "fakehostname");
 
-        SwitchedSources switchedSources = new SwitchedSources();
         switchedSources.put(1, MOCK_SOURCE);
 
         assertSplitAssignment(
@@ -267,6 +289,11 @@ public class HybridSourceSplitEnumeratorTest {
 
     private static int getCurrentSourceIndex(HybridSourceSplitEnumerator enumerator) {
         return (int) Whitebox.getInternalState(enumerator, "currentSourceIndex");
+    }
+
+    private static List<HybridSourceSplit> getFinishedSplits(
+            HybridSourceSplitEnumerator enumerator) {
+        return (List<HybridSourceSplit>) Whitebox.getInternalState(enumerator, "finishedSplits");
     }
 
     private static MockSplitEnumerator getCurrentEnumerator(
