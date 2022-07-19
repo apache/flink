@@ -553,6 +553,11 @@ public final class SliceAssigners {
         public final long assignSliceEnd(RowData element, ClockService clock) {
             final long timestamp;
             if (rowtimeIndex >= 0) {
+                if (element.isNullAt(rowtimeIndex)) {
+                    throw new RuntimeException(
+                            "RowTime field should not be null,"
+                                    + " please convert it to a non-null long value.");
+                }
                 // Precision for row timestamp is always 3
                 TimestampData rowTime = element.getTimestamp(rowtimeIndex, 3);
                 timestamp = toUtcTimestampMills(rowTime.getMillisecond(), shiftTimeZone);
