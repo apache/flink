@@ -113,6 +113,6 @@ public class JavaFieldPredicates {
                                                 annotation
                                                         .getRawType()
                                                         .isEquivalentTo(annotationType))
-                                .reduce(false, (a, b) -> a || b));
+                                .reduce(false, Boolean::logicalOr));
     }
 }
