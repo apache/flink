@@ -77,8 +77,8 @@ public class HybridSourceSplit implements SourceSplit {
         }
         HybridSourceSplit that = (HybridSourceSplit) o;
         return sourceIndex == that.sourceIndex
-            && Arrays.equals(wrappedSplitBytes, that.wrappedSplitBytes)
-            && isFinished == that.isFinished;
+                && Arrays.equals(wrappedSplitBytes, that.wrappedSplitBytes)
+                && isFinished == that.isFinished;
     }
 
     @Override
@@ -89,13 +89,13 @@ public class HybridSourceSplit implements SourceSplit {
     @Override
     public String toString() {
         return "HybridSourceSplit{"
-            + "sourceIndex="
-            + sourceIndex
-            + ", splitId="
-            + splitId
-            + ", isFinished="
-            + isFinished
-            + "}";
+                + "sourceIndex="
+                + sourceIndex
+                + ", splitId="
+                + splitId
+                + ", isFinished="
+                + isFinished
+                + "}";
     }
 
     public static List<HybridSourceSplit> wrapSplits(

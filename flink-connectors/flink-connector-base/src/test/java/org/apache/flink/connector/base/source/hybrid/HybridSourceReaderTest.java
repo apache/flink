@@ -31,6 +31,7 @@ import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.mock.Whitebox;
+
 import org.junit.Test;
 import org.mockito.Mockito;
 
