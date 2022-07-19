@@ -26,16 +26,16 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,27 +50,31 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 /** Tests for {@link ResourceManager}. */
 public class ResourceManagerTest {
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
-
+    @TempDir private static File tempFolder;
     private static File udfJar;
 
     private ResourceManager resourceManager;
 
-    @BeforeClass
+    @BeforeAll
     public static void prepare() throws Exception {
         udfJar =
                 UserClassLoaderJarTestUtils.createJarFile(
-                        temporaryFolder.newFolder("test-jar"),
+                        tempFolder,
                         "test-classloader-udf.jar",
                         GENERATED_LOWER_UDF_CLASS,
                         String.format(GENERATED_LOWER_UDF_CODE, GENERATED_LOWER_UDF_CLASS));
     }
 
-    @Before
+    @BeforeEach
     public void before() {
         resourceManager =
                 ResourceManager.createResourceManager(
                         new URL[0], getClass().getClassLoader(), new Configuration());
+    }
+
+    @AfterEach
+    public void after() throws Exception {
+        resourceManager.close();
     }
 
     @Test
@@ -79,7 +83,7 @@ public class ResourceManagerTest {
 
         // test class loading before register resource
         CommonTestUtils.assertThrows(
-                String.format("LowerUDF"),
+                "LowerUDF",
                 ClassNotFoundException.class,
                 () -> Class.forName(GENERATED_LOWER_UDF_CLASS, false, userClassLoader));
 
@@ -139,8 +143,7 @@ public class ResourceManagerTest {
 
     @Test
     public void testRegisterInvalidResource() throws Exception {
-        // test register non-exist file
-        final String fileUri = temporaryFolder.getRoot().getPath() + Path.SEPARATOR + "test-file";
+        final String fileUri = tempFolder.getAbsolutePath() + Path.SEPARATOR + "test-file";
 
         CommonTestUtils.assertThrows(
                 String.format(
@@ -153,7 +156,7 @@ public class ResourceManagerTest {
                 });
 
         // test register directory for jar resource
-        final String jarDir = temporaryFolder.newFolder("test-jar-dir").getPath();
+        final String jarDir = tempFolder.getPath();
 
         CommonTestUtils.assertThrows(
                 String.format(
@@ -166,16 +169,17 @@ public class ResourceManagerTest {
                 });
 
         // test register directory for jar resource
-        final String jarUri = temporaryFolder.newFolder("test-jar.jar").getPath();
+        String jarPath =
+                Files.createDirectory(Paths.get(tempFolder.getPath(), "test-jar.jar")).toString();
 
         CommonTestUtils.assertThrows(
                 String.format(
                         "The registering jar resource [%s] is a directory that is not allowed.",
-                        jarUri),
+                        jarPath),
                 ValidationException.class,
                 () -> {
                     resourceManager.registerJarResources(
-                            Collections.singletonList(new ResourceUri(ResourceType.JAR, jarUri)));
+                            Collections.singletonList(new ResourceUri(ResourceType.JAR, jarPath)));
                     return null;
                 });
     }
@@ -192,11 +196,9 @@ public class ResourceManagerTest {
         assertArrayEquals(expected, actual);
     }
 
-    @After
-    public void after() throws Exception {
+    @Test
+    public void testCloseResourceManagerCleanDownloadedResources() throws Exception {
         resourceManager.close();
-
-        // assert the sub dir deleted
         FileSystem fileSystem = FileSystem.getLocalFileSystem();
         assertFalse(fileSystem.exists(resourceManager.getLocalResourceDir()));
     }

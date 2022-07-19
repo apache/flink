@@ -62,6 +62,13 @@ public class ResourceManager implements Closeable {
     protected final Map<ResourceUri, URL> resourceInfos;
     protected final MutableURLClassLoader userClassLoader;
 
+    public static ResourceManager createResourceManager(
+            URL[] urls, ClassLoader parent, Configuration configuration) {
+        MutableURLClassLoader mutableURLClassLoader =
+                MutableURLClassLoader.newInstance(urls, parent, configuration);
+        return new ResourceManager(configuration, mutableURLClassLoader);
+    }
+
     public ResourceManager(Configuration config, MutableURLClassLoader userClassLoader) {
         this.localResourceDir =
                 new Path(
@@ -71,23 +78,12 @@ public class ResourceManager implements Closeable {
         this.userClassLoader = userClassLoader;
     }
 
-    public static ResourceManager createResourceManager(
-            URL[] urls, ClassLoader parent, Configuration configuration) {
-        MutableURLClassLoader mutableURLClassLoader =
-                MutableURLClassLoader.newInstance(urls, parent, configuration);
-        return new ResourceManager(configuration, mutableURLClassLoader);
-    }
-
-    public URLClassLoader getUserClassLoader() {
-        return userClassLoader;
-    }
-
     /**
      * Due to anyone of the resource in list maybe fail during register, so we should stage it
      * before actual register to guarantee transaction process. If all the resources are available,
      * register them into the {@link ResourceManager}.
      */
-    public void registerJarResources(List<ResourceUri> resourceUris) throws Exception {
+    public void registerJarResources(List<ResourceUri> resourceUris) throws IOException {
         // check jar resource before register
         checkJarResources(resourceUris);
 
@@ -136,15 +132,50 @@ public class ResourceManager implements Closeable {
                 });
     }
 
+    public URLClassLoader getUserClassLoader() {
+        return userClassLoader;
+    }
+
     public Map<ResourceUri, URL> getResources() {
         return Collections.unmodifiableMap(resourceInfos);
     }
 
-    public Set<URL> getJarResourceURLs() {
+    /**
+     * Get the local jars' URL. Return the URL corresponding to downloaded jars in the local file
+     * system for the remote jar. For the local jar, return the registered URL.
+     */
+    public Set<URL> getLocalJarResources() {
         return resourceInfos.entrySet().stream()
                 .filter(entry -> ResourceType.JAR.equals(entry.getKey().getResourceType()))
                 .map(Map.Entry::getValue)
                 .collect(Collectors.toSet());
+    }
+
+    @Override
+    public void close() throws IOException {
+        resourceInfos.clear();
+
+        IOException exception = null;
+        try {
+            userClassLoader.close();
+        } catch (IOException e) {
+            LOG.debug("Error while closing user classloader.", e);
+            exception = e;
+        }
+
+        FileSystem fileSystem = FileSystem.getLocalFileSystem();
+        try {
+            if (fileSystem.exists(localResourceDir)) {
+                fileSystem.delete(localResourceDir, true);
+            }
+        } catch (IOException ioe) {
+            LOG.debug(String.format("Error while delete directory [%s].", localResourceDir), ioe);
+            exception = ExceptionUtils.firstOrSuppressed(ioe, exception);
+        }
+
+        if (exception != null) {
+            throw exception;
+        }
     }
 
     private void checkJarResources(List<ResourceUri> resourceUris) throws IOException {
@@ -189,7 +220,7 @@ public class ResourceManager implements Closeable {
     }
 
     @VisibleForTesting
-    protected URL downloadResource(Path remotePath) throws IOException {
+    URL downloadResource(Path remotePath) throws IOException {
         // get local resource path
         Path localPath = getResourceLocalPath(remotePath);
         try {
@@ -208,6 +239,20 @@ public class ResourceManager implements Closeable {
         return getURLFromPath(localPath);
     }
 
+    @VisibleForTesting
+    URL getURLFromPath(Path path) throws IOException {
+        // if scheme is null, rewrite it to file
+        if (path.toUri().getScheme() == null) {
+            path = path.makeQualified(FileSystem.getLocalFileSystem());
+        }
+        return path.toUri().toURL();
+    }
+
+    @VisibleForTesting
+    Path getLocalResourceDir() {
+        return localResourceDir;
+    }
+
     private Path getResourceLocalPath(Path remotePath) {
         String fileName = remotePath.getName();
         String fileExtension = Files.getFileExtension(fileName);
@@ -224,48 +269,5 @@ public class ResourceManager implements Closeable {
                             fileExtension);
         }
         return new Path(localResourceDir, fileNameWithUUID);
-    }
-
-    @VisibleForTesting
-    protected URL getURLFromPath(Path path) throws IOException {
-        // if scheme is null, rewrite it to file
-        if (path.toUri().getScheme() == null) {
-            path = path.makeQualified(FileSystem.getLocalFileSystem());
-        }
-        return path.toUri().toURL();
-    }
-
-    @Override
-    public void close() throws IOException {
-        // clear the map
-        resourceInfos.clear();
-
-        IOException exception = null;
-        // close classloader
-        try {
-            userClassLoader.close();
-        } catch (IOException e) {
-            LOG.debug("Error while closing user classloader.", e);
-            exception = e;
-        }
-        // delete the local resource
-        FileSystem fileSystem = FileSystem.getLocalFileSystem();
-        try {
-            if (fileSystem.exists(localResourceDir)) {
-                fileSystem.delete(localResourceDir, true);
-            }
-        } catch (IOException ioe) {
-            LOG.debug(String.format("Error while delete directory [%s].", localResourceDir), ioe);
-            exception = ExceptionUtils.firstOrSuppressed(ioe, exception);
-        }
-
-        if (exception != null) {
-            throw exception;
-        }
-    }
-
-    @VisibleForTesting
-    public Path getLocalResourceDir() {
-        return localResourceDir;
     }
 }

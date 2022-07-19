@@ -55,8 +55,6 @@ import org.apache.calcite.sql.parser.SqlParseException
 import org.junit.{After, Assert, Before}
 import org.junit.Assert._
 
-import javax.annotation.Nullable
-
 class BatchTestBase extends BatchAbstractTestBase {
 
   protected var settings = EnvironmentSettings.newInstance().inBatchMode().build()
@@ -73,17 +71,6 @@ class BatchTestBase extends BatchAbstractTestBase {
   val LINE_COL_TWICE_PATTERN: Pattern = Pattern.compile(
     "(?s)From line ([0-9]+),"
       + " column ([0-9]+) to line ([0-9]+), column ([0-9]+): (.*)")
-
-  def overrideTableEnv(@Nullable classLoader: ClassLoader): Unit = {
-    settings = EnvironmentSettings.newInstance().inBatchMode().withClassLoader(classLoader).build()
-    testingTableEnv = TestingTableEnvironment
-      .create(settings, catalogManager = None, TableConfig.getDefault)
-    tEnv = testingTableEnv
-    planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
-    env = planner.getExecEnv
-    env.getConfig.enableObjectReuse()
-    tableConfig = tEnv.getConfig
-  }
 
   @throws(classOf[Exception])
   @Before

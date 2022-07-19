@@ -803,7 +803,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
         // Merge user jars to table configuration
         mergePipelineJarsToConfig(
-                resourceManager.getJarResourceURLs(), tableConfig.getConfiguration());
+                resourceManager.getLocalJarResources(), tableConfig.getConfiguration());
 
         // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
@@ -839,7 +839,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
         // Merge user jars to table configuration
         mergePipelineJarsToConfig(
-                resourceManager.getJarResourceURLs(), tableConfig.getConfiguration());
+                resourceManager.getLocalJarResources(), tableConfig.getConfiguration());
 
         // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
@@ -1872,14 +1872,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     private void mergePipelineJarsToConfig(Set<URL> jarUrls, Configuration configuration) {
-        if (!jarUrls.isEmpty()) {
-            ConfigUtils.mergeCollectionsToConfig(
-                    configuration,
-                    PipelineOptions.JARS,
-                    jarUrls.stream().map(URL::toString).collect(Collectors.toSet()),
-                    String::toString,
-                    String::toString);
-        }
+        ConfigUtils.mergeCollectionsToConfig(
+                configuration,
+                PipelineOptions.JARS,
+                jarUrls.stream().map(URL::toString).collect(Collectors.toSet()),
+                String::toString,
+                String::toString);
     }
 
     @VisibleForTesting

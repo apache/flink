@@ -1450,6 +1450,8 @@ class TestingTableEnvironment private (
     planner,
     isStreamingMode) {
 
+  def getResourceManager: ResourceManager = resourceManager
+
   // just for testing, remove this method while
   // `<T, ACC> void registerFunction(String name, AggregateFunction<T, ACC> aggregateFunction);`
   // is added into TableEnvironment

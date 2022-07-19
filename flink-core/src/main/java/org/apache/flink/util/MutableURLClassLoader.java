@@ -63,11 +63,6 @@ public abstract class MutableURLClassLoader extends URLClassLoader {
     }
 
     @Override
-    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-        return super.loadClass(name, resolve);
-    }
-
-    @Override
     public void addURL(URL url) {
         super.addURL(url);
     }

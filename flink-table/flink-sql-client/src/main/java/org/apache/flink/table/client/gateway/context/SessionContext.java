@@ -33,12 +33,12 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.resource.ClientResourceManager;
+import org.apache.flink.table.client.util.ClassloaderUtil;
+import org.apache.flink.table.client.util.ClientMutableURLClassLoader;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
-import org.apache.flink.util.ClientMutableURLClassLoader;
 import org.apache.flink.util.JarUtils;
-import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.slf4j.Logger;
@@ -109,7 +109,7 @@ public class SessionContext {
 
     @VisibleForTesting
     Set<URL> getDependencies() {
-        return sessionState.resourceManager.getJarResourceURLs();
+        return sessionState.resourceManager.getLocalJarResources();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -203,10 +203,10 @@ public class SessionContext {
         final ClientMutableURLClassLoader userClassLoader =
                 new ClientMutableURLClassLoader(
                         configuration,
-                        MutableURLClassLoader.newInstance(
-                                defaultContext.getDependencies().toArray(new URL[0]),
+                        ClassloaderUtil.buildClassLoader(
+                                defaultContext.getDependencies(),
                                 SessionContext.class.getClassLoader(),
-                                configuration));
+                                new Configuration(configuration)));
 
         // --------------------------------------------------------------------------------------------------------------
         // Init session state
@@ -279,20 +279,15 @@ public class SessionContext {
     }
 
     public List<String> listJars() {
-        LOG.info(
-                String.format(
-                        "Jars: %s",
-                        sessionState.resourceManager.getResources().keySet().stream()
-                                .filter(
-                                        resourceUri ->
-                                                ResourceType.JAR.equals(
-                                                        resourceUri.getResourceType()))
-                                .map(ResourceUri::getUri)
-                                .collect(Collectors.toList())));
-        return sessionState.resourceManager.getResources().keySet().stream()
-                .filter(resourceUri -> ResourceType.JAR.equals(resourceUri.getResourceType()))
-                .map(ResourceUri::getUri)
-                .collect(Collectors.toList());
+        List<String> jars =
+                sessionState.resourceManager.getResources().keySet().stream()
+                        .filter(
+                                resourceUri ->
+                                        ResourceType.JAR.equals(resourceUri.getResourceType()))
+                        .map(ResourceUri::getUri)
+                        .collect(Collectors.toList());
+        LOG.info(String.format("Registered jars: %s", jars));
+        return jars;
     }
 
     // --------------------------------------------------------------------------------------------

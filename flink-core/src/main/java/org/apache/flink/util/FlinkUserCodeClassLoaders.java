@@ -129,7 +129,8 @@ public class FlinkUserCodeClassLoaders {
      * delegate is nulled and can be garbage collected. Additional class resolution will be resolved
      * solely through the bootstrap classloader and most likely result in ClassNotFound exceptions.
      */
-    private static class SafetyNetWrapperClassLoader extends MutableURLClassLoader {
+    @Internal
+    public static class SafetyNetWrapperClassLoader extends MutableURLClassLoader {
         private static final Logger LOG =
                 LoggerFactory.getLogger(SafetyNetWrapperClassLoader.class);
 
@@ -172,7 +173,7 @@ public class FlinkUserCodeClassLoaders {
         }
 
         @Override
-        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
             // called for dynamic class loading
             return ensureInner().loadClass(name, resolve);
         }

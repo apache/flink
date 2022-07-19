@@ -1,26 +1,27 @@
 /*
- *  Licensed to the Apache Software Foundation (ASF) under one
- *  or more contributor license agreements.  See the NOTICE file
- *  distributed with this work for additional information
- *  regarding copyright ownership.  The ASF licenses this file
- *  to you under the Apache License, Version 2.0 (the
- *  "License"); you may not use this file except in compliance
- *  with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-package org.apache.flink.util;
+package org.apache.flink.table.client.util;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.MutableURLClassLoader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.apache.flink.util.FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader;
 
 /**
  * This class loader extends {@link MutableURLClassLoader}, upon the {@code addURL} method, it also
@@ -59,11 +62,11 @@ public class ClientMutableURLClassLoader extends MutableURLClassLoader {
     }
 
     private final Configuration configuration;
-    private final List<MutableURLClassLoader> oldClassLoaders = new ArrayList<>();
-    private MutableURLClassLoader currentClassLoader;
+    private final List<SafetyNetWrapperClassLoader> oldClassLoaders = new ArrayList<>();
+    private SafetyNetWrapperClassLoader currentClassLoader;
 
     public ClientMutableURLClassLoader(
-            Configuration configuration, MutableURLClassLoader mutableURLClassLoader) {
+            Configuration configuration, SafetyNetWrapperClassLoader mutableURLClassLoader) {
         super(new URL[0], mutableURLClassLoader);
         this.configuration = new Configuration(configuration);
         this.currentClassLoader = mutableURLClassLoader;
@@ -96,8 +99,8 @@ public class ClientMutableURLClassLoader extends MutableURLClassLoader {
         registeredUrls.remove(url);
         // update current classloader point to a new MutableURLClassLoader instance
         currentClassLoader =
-                MutableURLClassLoader.newInstance(
-                        registeredUrls.toArray(new URL[0]),
+                ClassloaderUtil.buildClassLoader(
+                        new ArrayList<>(registeredUrls),
                         currentClassLoader.getParent(),
                         configuration);
     }
@@ -109,32 +112,9 @@ public class ClientMutableURLClassLoader extends MutableURLClassLoader {
 
     @Override
     public void close() throws IOException {
-        IOException exception = null;
-        try {
-            // close current classloader
-            currentClassLoader.close();
-        } catch (IOException e) {
-            LOG.debug("Error while closing class loader in ClientMutableURLClassLoader.", e);
-            exception = e;
-        }
-
+        currentClassLoader.close();
         // close other classloader in the list
-        for (MutableURLClassLoader classLoader : oldClassLoaders) {
-            try {
-                classLoader.close();
-            } catch (IOException ioe) {
-                LOG.debug(
-                        "Error while closing older class loader in ClientMutableURLClassLoader.",
-                        ioe);
-                exception = ExceptionUtils.firstOrSuppressed(ioe, exception);
-            }
-        }
-
-        // clear the list
+        oldClassLoaders.forEach(SafetyNetWrapperClassLoader::close);
         oldClassLoaders.clear();
-
-        if (exception != null) {
-            throw exception;
-        }
     }
 }

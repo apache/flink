@@ -82,7 +82,7 @@ import static org.assertj.core.api.Assertions.fail;
 /**
  * Tests for catalog and system functions in a table environment.
  *
- * <p>Note: This class is meant for testing the core function support. Use {@link
+ * <p>Note: This class is meant for testing the core function support. Use {@code
  * org.apache.flink.table.planner.functions.BuiltInFunctionTestBase} for testing individual function
  * implementations.
  */
