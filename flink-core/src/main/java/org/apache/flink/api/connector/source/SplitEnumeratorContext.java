@@ -51,6 +51,24 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
     void sendEventToSourceReader(int subtaskId, SourceEvent event);
 
     /**
+     * Send a source event to a source reader. The source reader is identified by its subtask id and
+     * attempt number. It is similar to {@link #sendEventToSourceReader(int, SourceEvent)} but it is
+     * aware of the subtask execution attempt to send this event to.
+     *
+     * <p>The {@link SplitEnumerator} must invoke this method instead of {@link
+     * #sendEventToSourceReader(int, SourceEvent)} if it is used in cases that a subtask can have
+     * multiple concurrent execution attempts, e.g. if speculative execution is enabled. Otherwise
+     * an error will be thrown when the split enumerator tries to send a custom source event.
+     *
+     * @param subtaskId the subtask id of the source reader to send this event to.
+     * @param attemptNumber the attempt number of the source reader to send this event to.
+     * @param event the source event to send.
+     */
+    default void sendEventToSourceReader(int subtaskId, int attemptNumber, SourceEvent event) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
      * Get the current parallelism of this Source. Note that due to auto-scaling, the parallelism
      * may change over time. Therefore the SplitEnumerator should not cache the return value of this
      * method, but always invoke this method to get the latest parallelism.
@@ -62,9 +80,23 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
     /**
      * Get the currently registered readers. The mapping is from subtask id to the reader info.
      *
+     * <p>Note that if a subtask has multiple concurrent attempts, the map will contain the earliest
+     * attempt of that subtask. This is for compatibility purpose. It's recommended to use {@link
+     * #registeredReadersOfAttempts()} instead.
+     *
      * @return the currently registered readers.
      */
     Map<Integer, ReaderInfo> registeredReaders();
+
+    /**
+     * Get the currently registered readers of all the subtask attempts. The mapping is from subtask
+     * id to a map which maps an attempt to its reader info.
+     *
+     * @return the currently registered readers.
+     */
+    default Map<Integer, Map<Integer, ReaderInfo>> registeredReadersOfAttempts() {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Assign the splits.

@@ -92,7 +92,17 @@ public class TestingSplitEnumerator<SplitT extends SourceSplit>
     }
 
     @Override
-    public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {}
+    public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
+        context.runInCoordinatorThread(
+                () -> {
+                    if (splits.isEmpty()) {
+                        context.signalNoMoreSplits(subtaskId);
+                    } else {
+                        final SplitT split = splits.poll();
+                        context.assignSplit(split, subtaskId);
+                    }
+                });
+    }
 
     @Override
     public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
@@ -207,7 +217,7 @@ public class TestingSplitEnumerator<SplitT extends SourceSplit>
     }
 
     @SuppressWarnings("serial")
-    private static final class FactorySource<T, SplitT extends SourceSplit>
+    static class FactorySource<T, SplitT extends SourceSplit>
             implements Source<T, SplitT, Set<SplitT>> {
 
         private final SimpleVersionedSerializer<SplitT> splitSerializer;

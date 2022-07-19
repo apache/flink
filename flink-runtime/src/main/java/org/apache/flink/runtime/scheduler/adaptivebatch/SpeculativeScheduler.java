@@ -338,10 +338,14 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                         executionVertex.getID(),
                         newSpeculativeExecutionsToDeploy);
 
+                final Collection<Execution> attempts =
+                        IntStream.range(0, newSpeculativeExecutionsToDeploy)
+                                .mapToObj(executionVertex::createNewSpeculativeExecution)
+                                .collect(Collectors.toList());
+
+                setupSubtaskGatewayForAttempts(executionVertex, attempts);
                 verticesToDeploy.add(executionVertexId);
-                IntStream.range(0, newSpeculativeExecutionsToDeploy)
-                        .mapToObj(executionVertex::createNewSpeculativeExecution)
-                        .forEach(newSpeculativeExecutions::add);
+                newSpeculativeExecutions.addAll(attempts);
             }
         }
 
@@ -385,6 +389,22 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                         })
                 .map(TaskManagerLocation::getNodeId)
                 .collect(Collectors.toSet());
+    }
+
+    private void setupSubtaskGatewayForAttempts(
+            final SpeculativeExecutionVertex executionVertex,
+            final Collection<Execution> attempts) {
+
+        final Set<Integer> attemptNumbers =
+                attempts.stream().map(Execution::getAttemptNumber).collect(Collectors.toSet());
+
+        executionVertex
+                .getJobVertex()
+                .getOperatorCoordinators()
+                .forEach(
+                        operatorCoordinator ->
+                                operatorCoordinator.setupSubtaskGatewayForAttempts(
+                                        executionVertex.getParallelSubtaskIndex(), attemptNumbers));
     }
 
     @VisibleForTesting

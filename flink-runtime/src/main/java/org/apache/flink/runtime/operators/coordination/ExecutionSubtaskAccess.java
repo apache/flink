@@ -28,8 +28,10 @@ import org.apache.flink.runtime.operators.coordination.util.IncompleteFuturesTra
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 
+import java.util.Collection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -114,15 +116,26 @@ final class ExecutionSubtaskAccess implements SubtaskAccess {
         }
 
         @Override
-        public SubtaskAccess getAccessForSubtask(int subtask) {
-            if (subtask < 0 || subtask >= ejv.getParallelism()) {
+        public Collection<SubtaskAccess> getAccessesForSubtask(int subtaskIndex) {
+            checkSubtaskIndex(subtaskIndex);
+            return ejv.getTaskVertices()[subtaskIndex].getCurrentExecutions().stream()
+                    .map(e -> new ExecutionSubtaskAccess(e, operator))
+                    .collect(Collectors.toList());
+        }
+
+        @Override
+        public SubtaskAccess getAccessForAttempt(int subtaskIndex, int attemptNumber) {
+            checkSubtaskIndex(subtaskIndex);
+            final Execution execution =
+                    ejv.getTaskVertices()[subtaskIndex].getCurrentExecution(attemptNumber);
+            return new ExecutionSubtaskAccess(execution, operator);
+        }
+
+        private void checkSubtaskIndex(int subtaskIndex) {
+            if (subtaskIndex < 0 || subtaskIndex >= ejv.getParallelism()) {
                 throw new IllegalArgumentException(
                         "Subtask index out of bounds [0, " + ejv.getParallelism() + ')');
             }
-
-            final Execution taskExecution =
-                    ejv.getTaskVertices()[subtask].getCurrentExecutionAttempt();
-            return new ExecutionSubtaskAccess(taskExecution, operator);
         }
     }
 }

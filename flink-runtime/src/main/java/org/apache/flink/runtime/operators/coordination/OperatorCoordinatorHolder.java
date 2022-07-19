@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -379,9 +380,18 @@ public class OperatorCoordinatorHolder
     }
 
     private void setupSubtaskGateway(int subtask) {
-        // this gets an access to the latest task execution attempt.
-        final SubtaskAccess sta = taskAccesses.getAccessForSubtask(subtask);
+        for (SubtaskAccess sta : taskAccesses.getAccessesForSubtask(subtask)) {
+            setupSubtaskGateway(sta);
+        }
+    }
 
+    public void setupSubtaskGatewayForAttempts(int subtask, Set<Integer> attemptNumbers) {
+        for (int attemptNumber : attemptNumbers) {
+            setupSubtaskGateway(taskAccesses.getAccessForAttempt(subtask, attemptNumber));
+        }
+    }
+
+    private void setupSubtaskGateway(final SubtaskAccess sta) {
         final OperatorCoordinator.SubtaskGateway gateway =
                 new SubtaskGatewayImpl(sta, eventValve, mainThreadExecutor, unconfirmedEvents);
 
@@ -403,15 +413,15 @@ public class OperatorCoordinatorHolder
 
                                     // see bigger comment above
                                     if (sta.isStillRunning()) {
-                                        notifySubtaskReady(subtask, gateway);
+                                        notifySubtaskReady(gateway);
                                     }
                                 }));
     }
 
-    private void notifySubtaskReady(int subtask, OperatorCoordinator.SubtaskGateway gateway) {
+    private void notifySubtaskReady(OperatorCoordinator.SubtaskGateway gateway) {
         try {
             coordinator.executionAttemptReady(
-                    subtask, gateway.getExecution().getAttemptNumber(), gateway);
+                    gateway.getSubtask(), gateway.getExecution().getAttemptNumber(), gateway);
         } catch (Throwable t) {
             ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
             globalFailureHandler.handleGlobalFailure(
