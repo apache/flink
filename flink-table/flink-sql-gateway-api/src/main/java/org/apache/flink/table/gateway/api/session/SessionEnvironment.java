@@ -136,6 +136,7 @@ public class SessionEnvironment {
     }
 
     /** Builder to build the {@link SessionEnvironment}. */
+    @PublicEvolving
     public static class Builder {
         private @Nullable String sessionName;
         private EndpointVersion version;

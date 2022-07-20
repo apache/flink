@@ -47,8 +47,8 @@ import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOpti
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.THRIFT_WORKER_THREADS_MAX;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.THRIFT_WORKER_THREADS_MIN;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointFactory.IDENTIFIER;
+import static org.apache.flink.table.factories.FactoryUtil.SQL_GATEWAY_ENDPOINT_TYPE;
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.GATEWAY_ENDPOINT_PREFIX;
-import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.SQL_GATEWAY_ENDPOINT_TYPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for {@link HiveServer2EndpointFactory}. */

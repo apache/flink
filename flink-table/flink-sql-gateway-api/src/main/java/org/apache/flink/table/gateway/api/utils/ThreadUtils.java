@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.gateway.api.utils;
 
+import org.apache.flink.annotation.Internal;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +28,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /** Utils for thread pool executor. */
+@Internal
 public class ThreadUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(ThreadUtils.class);

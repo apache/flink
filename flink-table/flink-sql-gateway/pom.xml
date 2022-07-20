@@ -32,6 +32,8 @@
     <artifactId>flink-sql-gateway</artifactId>
     <name>Flink : Table : SQL Gateway</name>
 
+    <packaging>jar</packaging>
+
     <dependencies>
         <!-- Flink client to submit jobs -->
         <dependency>
