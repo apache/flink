@@ -317,8 +317,8 @@ kafka_producer = FlinkKafkaProducer(
 ds.add_sink(kafka_producer)
 ```
 
-<span class="label label-info">Note</span> It currently only supports FlinkKafkaProducer,
-JdbcSink and StreamingFileSink to be used as DataStream sink connectors with method `add_sink`.
+<span class="label label-info">Note</span> It currently only supports FlinkKafkaProducer and
+JdbcSink to be used as DataStream sink connectors with method `add_sink`.
 
 <span class="label label-info">Note</span> The method `add_sink` could only be used in `streaming`
 executing mode.
