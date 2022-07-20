@@ -217,7 +217,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     @Override
     public void start() throws Exception {
-        initialize();
+        buildTThreadPoolServer();
         serverThread.start();
     }
 
@@ -234,7 +234,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     @Override
     public TOpenSessionResp OpenSession(TOpenSessionReq tOpenSessionReq) throws TException {
-        LOG.debug("Client protocol version: " + tOpenSessionReq.getClient_protocol());
+        LOG.debug("Client protocol version: {}.", tOpenSessionReq.getClient_protocol());
         TOpenSessionResp resp = new TOpenSessionResp();
         try {
             // negotiate connection protocol version
@@ -296,7 +296,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             service.closeSession(sessionHandle);
             resp.setStatus(OK_STATUS);
         } catch (Throwable t) {
-            LOG.warn("Error closing session: ", t);
+            LOG.error("Failed to closeSession.", t);
             resp.setStatus(toTStatus(t));
         }
         return resp;
@@ -416,6 +416,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             return false;
         }
         HiveServer2Endpoint that = (HiveServer2Endpoint) o;
+
         return minWorkerThreads == that.minWorkerThreads
                 && maxWorkerThreads == that.maxWorkerThreads
                 && requestTimeoutMs == that.requestTimeoutMs
@@ -426,6 +427,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                 && Objects.equals(catalogName, that.catalogName)
                 && Objects.equals(defaultDatabase, that.defaultDatabase)
                 && Objects.equals(hiveConfPath, that.hiveConfPath)
+                && Objects.equals(allowEmbedded, that.allowEmbedded)
                 && Objects.equals(moduleName, that.moduleName);
     }
 
@@ -442,26 +444,27 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                 catalogName,
                 defaultDatabase,
                 hiveConfPath,
+                allowEmbedded,
                 moduleName);
     }
 
     @Override
     public void run() {
         try {
+            LOG.info("HiveServer2 Endpoint begins to listen on {}.", port);
             server.serve();
         } catch (Throwable t) {
-            LOG.info("Exception caught by " + this.getClass().getSimpleName() + ". Exiting.", t);
+            LOG.error("Exception caught by " + getClass().getSimpleName() + ". Exiting.", t);
         }
     }
 
-    private void initialize() {
+    private void buildTThreadPoolServer() {
         executor =
                 ThreadUtils.newThreadPool(
                         minWorkerThreads,
                         maxWorkerThreads,
                         workerKeepAliveTime.toMillis(),
                         "hiveserver2-endpoint-thread-pool");
-
         try {
             server =
                     new TThreadPoolServer(
@@ -483,10 +486,8 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                                     .beBackoffSlotLength(backOffSlotLengthMs)
                                     .beBackoffSlotLengthUnit(TimeUnit.MILLISECONDS)
                                     .executorService(executor));
-
-            LOG.info(String.format("HiveServer2 Endpoint begins to listen on %s.", port));
         } catch (Exception e) {
-            throw new SqlGatewayException("Failed to start endpoint.", e);
+            throw new SqlGatewayException("Failed to build the server.", e);
         }
     }
 }

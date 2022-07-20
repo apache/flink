@@ -173,7 +173,11 @@ public class SessionContext {
     public void close() {
         operationManager.close();
         for (String name : sessionState.catalogManager.listCatalogs()) {
-            sessionState.catalogManager.getCatalog(name).ifPresent(Catalog::close);
+            try {
+                sessionState.catalogManager.getCatalog(name).ifPresent(Catalog::close);
+            } catch (Throwable t) {
+                LOG.error("Failed to close catalog %s.", t);
+            }
         }
         try {
             userClassloader.close();

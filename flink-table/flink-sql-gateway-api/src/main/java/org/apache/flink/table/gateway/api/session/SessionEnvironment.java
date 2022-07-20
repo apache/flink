@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.api.session;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.module.Module;
@@ -161,11 +162,6 @@ public class SessionEnvironment {
             return this;
         }
 
-        public Builder registerCatalog(String catalogName, Catalog catalog) {
-            this.registeredCatalogs.put(catalogName, catalog);
-            return this;
-        }
-
         public Builder setDefaultCatalog(@Nullable String defaultCatalog) {
             this.defaultCatalog = defaultCatalog;
             return this;
@@ -176,7 +172,21 @@ public class SessionEnvironment {
             return this;
         }
 
+        public Builder registerCatalog(String catalogName, Catalog catalog) {
+            if (registeredCatalogs.containsKey(catalogName)) {
+                throw new ValidationException(
+                        String.format("A catalog with name '%s' already exists.", catalogName));
+            }
+            this.registeredCatalogs.put(catalogName, catalog);
+            return this;
+        }
+
         public Builder registerModule(String moduleName, Module module) {
+            if (registeredModules.containsKey(moduleName)) {
+                throw new ValidationException(
+                        String.format("A module with name '%s' already exists", moduleName));
+            }
+
             this.registeredModules.put(moduleName, module);
             return this;
         }

@@ -102,13 +102,13 @@ public class HiveServer2EndpointFactory implements SqlGatewayEndpointFactory {
         if (configuration.get(THRIFT_WORKER_THREADS_MIN) <= 0) {
             throw new ValidationException(
                     String.format(
-                            "The specified min thrift worker thread number is %s, which is not larger than 0.",
+                            "The specified min thrift worker thread number is %s, which should be larger than 0.",
                             configuration.get(THRIFT_WORKER_THREADS_MIN)));
         }
         if (configuration.get(THRIFT_WORKER_THREADS_MAX) <= 0) {
             throw new ValidationException(
                     String.format(
-                            "The specified max thrift worker thread number is %s, which is not larger than 0.",
+                            "The specified max thrift worker thread number is %s, which should be larger than 0.",
                             configuration.get(THRIFT_WORKER_THREADS_MAX)));
         }
         if (configuration.get(THRIFT_LOGIN_TIMEOUT).toMillis() > Integer.MAX_VALUE

@@ -97,11 +97,11 @@ class HiveServer2EndpointFactoryTest {
                         new TestSpec<>(
                                 THRIFT_WORKER_THREADS_MIN,
                                 -1,
-                                "The specified min thrift worker thread number is -1, which is not larger than 0."),
+                                "The specified min thrift worker thread number is -1, which should be larger than 0."),
                         new TestSpec<>(
                                 THRIFT_WORKER_THREADS_MAX,
                                 0,
-                                "The specified max thrift worker thread number is 0, which is not larger than 0."),
+                                "The specified max thrift worker thread number is 0, which should be larger than 0."),
                         new TestSpec<>(
                                 THRIFT_PORT,
                                 1008668001,

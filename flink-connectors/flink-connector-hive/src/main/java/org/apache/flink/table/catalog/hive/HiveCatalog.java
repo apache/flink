@@ -189,7 +189,7 @@ public class HiveCatalog extends AbstractCatalog {
             @Nullable String hiveVersion) {
         this(
                 catalogName,
-                defaultDatabase == null ? DEFAULT_DB : defaultDatabase,
+                defaultDatabase,
                 hiveConf,
                 isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion,
                 false);
