@@ -319,10 +319,10 @@ public class Execution
         }
     }
 
-    public InputSplit getNextInputSplit() {
+    public Optional<InputSplit> getNextInputSplit() {
         final LogicalSlot slot = this.getAssignedResource();
         final String host = slot != null ? slot.getTaskManagerLocation().getHostname() : null;
-        return this.vertex.getNextInputSplit(host);
+        return this.vertex.getNextInputSplit(host, getAttemptNumber());
     }
 
     @Override

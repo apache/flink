@@ -238,16 +238,14 @@ public class ExecutionVertex
         return allConsumedPartitions.get(input);
     }
 
-    public InputSplit getNextInputSplit(String host) {
-        final int taskId = getParallelSubtaskIndex();
-        synchronized (inputSplits) {
-            final InputSplit nextInputSplit =
-                    jobVertex.getSplitAssigner().getNextInputSplit(host, taskId);
-            if (nextInputSplit != null) {
-                inputSplits.add(nextInputSplit);
-            }
-            return nextInputSplit;
+    public Optional<InputSplit> getNextInputSplit(String host, int attemptNumber) {
+        final int subtaskIndex = getParallelSubtaskIndex();
+        final InputSplit nextInputSplit =
+                jobVertex.getSplitAssigner().getNextInputSplit(host, subtaskIndex);
+        if (nextInputSplit != null) {
+            inputSplits.add(nextInputSplit);
         }
+        return Optional.ofNullable(nextInputSplit);
     }
 
     @Override
