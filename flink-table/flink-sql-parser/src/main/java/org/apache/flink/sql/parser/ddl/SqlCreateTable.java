@@ -76,8 +76,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
     private final boolean isTemporary;
 
-    private final SqlNode query;
-
     public SqlCreateTable(
             SqlParserPos pos,
             SqlIdentifier tableName,
@@ -89,8 +87,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             @Nullable SqlCharStringLiteral comment,
             @Nullable SqlTableLike tableLike,
             boolean isTemporary,
-            boolean ifNotExists,
-            @Nullable SqlNode query) {
+            boolean ifNotExists) {
         super(OPERATOR, pos, false, ifNotExists);
         this.tableName = requireNonNull(tableName, "tableName should not be null");
         this.columnList = requireNonNull(columnList, "columnList should not be null");
@@ -103,7 +100,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         this.comment = comment;
         this.tableLike = tableLike;
         this.isTemporary = isTemporary;
-        this.query = query;
     }
 
     @Override
@@ -121,8 +117,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
                 partitionKeyList,
                 watermark,
                 comment,
-                tableLike,
-                query);
+                tableLike);
     }
 
     public SqlIdentifier getTableName() {
@@ -165,10 +160,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         return isTemporary;
     }
 
-    public Optional<SqlNode> getQuery() {
-        return Optional.ofNullable(query);
-    }
-
     @Override
     public void validate() throws SqlValidateException {
 
@@ -197,15 +188,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
         if (tableLike != null) {
             tableLike.validate();
-        }
-
-        if (query != null
-                && (columnList.size() > 0
-                        || constraints.size() > 0
-                        || partitionKeyList.size() > 0)) {
-            throw new SqlValidateException(
-                    pos,
-                    "CREATE TABLE AS SELECT syntax does not yet support to specific Column/Partition/Constraints.");
         }
     }
 
@@ -319,13 +301,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         if (this.tableLike != null) {
             writer.newlineAndIndent();
             this.tableLike.unparse(writer, leftPrec, rightPrec);
-        }
-
-        if (this.query != null) {
-            writer.newlineAndIndent();
-            writer.keyword("AS");
-            writer.newlineAndIndent();
-            this.query.unparse(writer, leftPrec, rightPrec);
         }
     }
 
