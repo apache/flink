@@ -202,8 +202,8 @@ public class FlinkRecomputeStatisticsProgram implements FlinkOptimizeProgram<Bat
 
             return Optional.of(
                     convertToAccumulatedTableStates(
-                            catalog.getTableStatistics(tablePath, partitionSpecs),
-                            catalog.getTableColumnStatistics(tablePath, partitionSpecs)));
+                            catalog.bulkGetPartitionStatistics(tablePath, partitionSpecs),
+                            catalog.bulkGetPartitionColumnStatistics(tablePath, partitionSpecs)));
         } catch (PartitionNotExistException e) {
             return Optional.empty();
         }
