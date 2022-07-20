@@ -30,7 +30,6 @@ import org.apache.flink.table.functions.hive.HiveGenericUDAF;
 import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseDriver;
-import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.GenericUDAFInfo;
@@ -1411,8 +1410,6 @@ public class HiveParserUtils {
                         || qb.isCTAS()
                         || qb.isMaterializedView()
                         || !queryProperties.hasMultiDestQuery();
-        boolean noBadTokens =
-                !HiveASTParseUtils.containsTokenOfType(ast, HiveASTParser.TOK_TABLESPLITSAMPLE);
 
         if (!isSupportedRoot) {
             throw new SemanticException(
@@ -1421,10 +1418,6 @@ public class HiveParserUtils {
         if (!isSupportedType) {
             throw new SemanticException(
                     "HiveParser doesn't support the SQL statement due to unsupported query type");
-        }
-        if (!noBadTokens) {
-            throw new SemanticException(
-                    "HiveParser doesn't support the SQL statement because AST contains unsupported tokens");
         }
 
         // Now check HiveParserQB in more detail.
