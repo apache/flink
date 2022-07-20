@@ -47,8 +47,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Planner rule to flatten a tree of {@link LogicalJoin}s into a single {@link MultiJoin} with N
- * inputs.
+ * Flink Planner rule to flatten a tree of {@link LogicalJoin}s into a single {@link MultiJoin} with
+ * N inputs.
  *
  * <p>An input is not flattened if the input is a null generating input in an outer join, i.e.,
  * either input in a full outer join, the right hand side of a left outer join, or the left hand
@@ -60,7 +60,7 @@ import java.util.Map;
  * <p>Outer join information is also stored in the {@link MultiJoin}. A boolean flag indicates if
  * the join is a full outer join, and in the case of left and right outer joins, the join type and
  * outer join conditions are stored in arrays in the {@link MultiJoin}. This outer join information
- * is associated with the null generating input in the outer join. So, in the case of a a left outer
+ * is associated with the null generating input in the outer join. So, in the case of a left outer
  * join between A and B, the information is associated with B, not A.
  *
  * <p>Here are examples of the {@link MultiJoin}s constructed after this rule has been applied on
@@ -131,26 +131,23 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
         final RelNode left = call.rel(1);
         final RelNode right = call.rel(2);
 
-        // combine the children MultiJoin inputs into an array of inputs
-        // for the new MultiJoin
+        // Combine the children MultiJoin inputs into an array of inputs for the new MultiJoin.
         final List<ImmutableBitSet> projFieldsList = new ArrayList<>();
         final List<int[]> joinFieldRefCountsList = new ArrayList<>();
         final List<RelNode> newInputs =
                 combineInputs(origJoin, left, right, projFieldsList, joinFieldRefCountsList);
 
-        // combine the outer join information from the left and right
-        // inputs, and include the outer join information from the current
-        // join, if it's a left/right outer join
+        // Combine the outer join information from the left and right inputs, and include the outer
+        // join information from the current join, if it's a left/right outer join.
         final List<Pair<JoinRelType, RexNode>> joinSpecs = new ArrayList<>();
         combineOuterJoins(origJoin, newInputs, left, right, joinSpecs);
 
-        // pull up the join filters from the children MultiJoinRels and
-        // combine them with the join filter associated with this LogicalJoin to
-        // form the join filter for the new MultiJoin
+        // Pull up the join filters from the children MultiJoinRels and combine them with the join
+        // filter associated with this LogicalJoin to form the join filter for the new MultiJoin.
         List<RexNode> newJoinFilters = combineJoinFilters(origJoin, left, right);
 
-        // add on the join field reference counts for the join condition
-        // associated with this LogicalJoin
+        // Add on the join field reference counts for the join condition associated with this
+        // LogicalJoin.
         final com.google.common.collect.ImmutableMap<Integer, ImmutableIntList>
                 newJoinFieldRefCountsMap =
                         addOnJoinFieldRefCounts(
@@ -196,8 +193,8 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
             List<int[]> joinFieldRefCountsList) {
         final List<RelNode> newInputs = new ArrayList<>();
 
-        // leave the null generating sides of an outer join intact; don't
-        // pull up those children inputs into the array we're constructing
+        // Leave the null generating sides of an outer join intact; don't pull up those children
+        // inputs into the array we're constructing.
         if (canCombine(left, join.getJoinType(), join.getJoinType().generatesNullsOnLeft())) {
             final MultiJoin leftMultiJoin = (MultiJoin) left;
             for (int i = 0; i < left.getInputs().size(); i++) {
@@ -351,9 +348,8 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
     private List<RexNode> combineJoinFilters(Join join, RelNode left, RelNode right) {
         JoinRelType joinType = join.getJoinType();
 
-        // AND the join condition if this isn't a left or right outer join;
-        // in those cases, the outer join condition is already tracked
-        // separately
+        // AND the join condition if this isn't a left or right outer join; In those cases, the
+        // outer join condition is already tracked separately.
         final List<RexNode> filters = new ArrayList<>();
         if ((joinType != JoinRelType.LEFT) && (joinType != JoinRelType.RIGHT)) {
             filters.add(join.getCondition());
@@ -361,8 +357,8 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
         if (canCombine(left, joinType, joinType.generatesNullsOnLeft())) {
             filters.add(((MultiJoin) left).getJoinFilter());
         }
-        // Need to adjust the RexInputs of the right child, since
-        // those need to shift over to the right
+        // Need to adjust the RexInputs of the right child, since those need to shift over to the
+        // right.
         if (canCombine(right, joinType, joinType.generatesNullsOnRight())) {
             MultiJoin multiJoin = (MultiJoin) right;
             filters.add(shiftRightFilter(join, left, multiJoin, multiJoin.getJoinFilter()));
