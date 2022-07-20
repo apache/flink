@@ -24,6 +24,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.hadoop.hive.conf.SystemVariables.ENV_PREFIX;
+import static org.apache.hadoop.hive.conf.SystemVariables.HIVECONF_PREFIX;
+import static org.apache.hadoop.hive.conf.SystemVariables.HIVEVAR_PREFIX;
+import static org.apache.hadoop.hive.conf.SystemVariables.METACONF_PREFIX;
+import static org.apache.hadoop.hive.conf.SystemVariables.SYSTEM_PREFIX;
+
 /**
  * Utils to normalize and validate hive jdbc conf.
  *
@@ -40,12 +46,6 @@ import java.util.Optional;
 public class HiveJdbcParameterUtils {
 
     private static final String SET_PREFIX = "set:";
-    private static final String ENV_PREFIX = "env:";
-    private static final String SYSTEM_PREFIX = "system:";
-    private static final String HIVECONF_PREFIX = "hiveconf:";
-    private static final String HIVEVAR_PREFIX = "hivevar:";
-    private static final String METACONF_PREFIX = "metaconf:";
-
     private static final String USE_PREFIX = "use:";
     private static final String USE_DATABASE = "database";
 
@@ -56,7 +56,7 @@ public class HiveJdbcParameterUtils {
             String normalizedKey = key;
             if (key.startsWith(SET_PREFIX)) {
                 String newKey = key.substring(SET_PREFIX.length());
-                // TODO: use HiveParserSetProcessor when FLINK-28096 is fix
+                // TODO: use HiveParserSetProcessor when FLINK-28096 is fixed
                 if (newKey.startsWith(ENV_PREFIX)) {
                     throw new ValidationException(
                             String.format(

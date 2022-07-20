@@ -44,12 +44,11 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.AbstractMap;
+import java.util.HashMap;
 import java.util.Map;
 
-import static org.hamcrest.CoreMatchers.hasItem;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** ITCase for {@link HiveServer2Endpoint}. */
 public class HiveServer2EndpointITCase extends TestLogger {
@@ -73,27 +72,34 @@ public class HiveServer2EndpointITCase extends TestLogger {
         SessionManager sessionManager = SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager();
         int originSessionCount = sessionManager.currentSessionCount();
         try (Connection ignore = getConnection()) {
-            assertEquals(1 + originSessionCount, sessionManager.currentSessionCount());
+            assertThat(1 + originSessionCount).isEqualTo(sessionManager.currentSessionCount());
         }
-        assertEquals(originSessionCount, sessionManager.currentSessionCount());
+        assertThat(sessionManager.currentSessionCount()).isEqualTo(originSessionCount);
     }
 
     @Test
     public void testOpenSessionWithConfig() throws Exception {
         TCLIService.Client client = createClient();
         TOpenSessionReq openSessionReq = new TOpenSessionReq();
+
+        Map<String, String> configs = new HashMap<>();
+        configs.put(TABLE_DML_SYNC.key(), "true");
+        // simulate to set config using hive jdbc
+        configs.put("set:hiveconf:key", "value");
+        // TODO: set hivevar when FLINK-28096 is fixed
+        openSessionReq.setConfiguration(configs);
         TOpenSessionResp openSessionResp = client.OpenSession(openSessionReq);
         SessionHandle sessionHandle =
                 ThriftObjectConversions.toSessionHandle(openSessionResp.getSessionHandle());
 
         Map<String, String> actualConfig =
                 SQL_GATEWAY_SERVICE_EXTENSION.getService().getSessionConfig(sessionHandle);
-        assertThat(
-                actualConfig.entrySet(),
-                hasItem(
+        assertThat(actualConfig.entrySet())
+                .contains(
                         new AbstractMap.SimpleEntry<>(
-                                TableConfigOptions.TABLE_SQL_DIALECT.key(),
-                                SqlDialect.HIVE.name())));
+                                TableConfigOptions.TABLE_SQL_DIALECT.key(), SqlDialect.HIVE.name()),
+                        new AbstractMap.SimpleEntry<>(TABLE_DML_SYNC.key(), "true"),
+                        new AbstractMap.SimpleEntry<>("key", "value"));
     }
 
     @Test
@@ -103,11 +109,13 @@ public class HiveServer2EndpointITCase extends TestLogger {
         SessionHandle sessionHandle = SessionHandle.create();
         closeSessionReq.setSessionHandle(ThriftObjectConversions.toTSessionHandle(sessionHandle));
         TCloseSessionResp resp = client.CloseSession(closeSessionReq);
-        assertEquals(TStatusCode.ERROR_STATUS, resp.getStatus().getStatusCode());
-        assertTrue(
-                resp.getStatus()
-                        .getErrorMessage()
-                        .contains(String.format("Session '%s' does not exist", sessionHandle)));
+        assertThat(resp.getStatus().getStatusCode()).isEqualTo(TStatusCode.ERROR_STATUS);
+        assertThat(resp.getStatus().getInfoMessages())
+                .anyMatch(
+                        error ->
+                                error.contains(
+                                        String.format(
+                                                "Session '%s' does not exist", sessionHandle)));
     }
 
     private Connection getConnection() throws Exception {

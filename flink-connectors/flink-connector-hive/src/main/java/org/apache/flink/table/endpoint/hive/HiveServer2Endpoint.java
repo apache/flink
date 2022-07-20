@@ -237,8 +237,10 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         LOG.debug("Client protocol version: {}.", tOpenSessionReq.getClient_protocol());
         TOpenSessionResp resp = new TOpenSessionResp();
         try {
-            // negotiate connection protocol version
+            // negotiate connection protocol
             TProtocolVersion clientProtocol = tOpenSessionReq.getClient_protocol();
+            // the session version is not larger than the server version because of the
+            // min(server_version, ...)
             HiveServer2EndpointVersion sessionVersion =
                     HiveServer2EndpointVersion.valueOf(
                             TProtocolVersion.findByValue(

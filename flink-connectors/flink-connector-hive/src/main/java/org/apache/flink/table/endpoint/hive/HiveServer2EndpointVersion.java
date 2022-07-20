@@ -18,13 +18,11 @@
 
 package org.apache.flink.table.endpoint.hive;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 
 import org.apache.hive.service.rpc.thrift.TProtocolVersion;
 
 /** Mapping between {@link HiveServer2EndpointVersion} and {@link TProtocolVersion} in Hive. */
-@PublicEvolving
 public enum HiveServer2EndpointVersion implements EndpointVersion {
     HIVE_CLI_SERVICE_PROTOCOL_V1(TProtocolVersion.HIVE_CLI_SERVICE_PROTOCOL_V1),
 

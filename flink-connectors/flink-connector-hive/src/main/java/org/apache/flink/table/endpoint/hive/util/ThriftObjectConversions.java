@@ -20,7 +20,6 @@ package org.apache.flink.table.endpoint.hive.util;
 
 import org.apache.flink.table.gateway.api.HandleIdentifier;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
-import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.hive.service.rpc.thrift.THandleIdentifier;
 import org.apache.hive.service.rpc.thrift.TSessionHandle;
@@ -45,8 +44,7 @@ public class ThriftObjectConversions {
 
     public static TStatus toTStatus(Throwable t) {
         TStatus tStatus = new TStatus(TStatusCode.ERROR_STATUS);
-        String errMsg = ExceptionUtils.stringifyException(t);
-        tStatus.setErrorMessage(errMsg);
+        tStatus.setErrorMessage(t.getMessage());
         tStatus.setInfoMessages(toString(t));
         return tStatus;
     }

@@ -24,7 +24,6 @@ import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils;
 import org.apache.flink.table.gateway.api.utils.MockedSqlGatewayService;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -49,7 +48,8 @@ import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOpti
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointFactory.IDENTIFIER;
 import static org.apache.flink.table.factories.FactoryUtil.SQL_GATEWAY_ENDPOINT_TYPE;
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.GATEWAY_ENDPOINT_PREFIX;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link HiveServer2EndpointFactory}. */
 class HiveServer2EndpointFactoryTest {
@@ -71,23 +71,24 @@ class HiveServer2EndpointFactoryTest {
 
     @Test
     public void testCreateHiveServer2Endpoint() {
-        assertEquals(
-                Collections.singletonList(
-                        new HiveServer2Endpoint(
-                                service,
-                                port,
-                                maxMessageSize,
-                                (int) loginTimeout.toMillis(),
-                                (int) backOffSlotLength.toMillis(),
-                                minWorkerThreads,
-                                maxWorkerThreads,
-                                workerAliveDuration,
-                                catalogName,
-                                hiveConfPath,
-                                defaultDatabase,
-                                moduleName)),
-                SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint(
-                        service, Configuration.fromMap(getDefaultConfig())));
+        assertThat(
+                        SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint(
+                                service, Configuration.fromMap(getDefaultConfig())))
+                .isEqualTo(
+                        Collections.singletonList(
+                                new HiveServer2Endpoint(
+                                        service,
+                                        port,
+                                        maxMessageSize,
+                                        (int) loginTimeout.toMillis(),
+                                        (int) backOffSlotLength.toMillis(),
+                                        minWorkerThreads,
+                                        maxWorkerThreads,
+                                        workerAliveDuration,
+                                        catalogName,
+                                        hiveConfPath,
+                                        defaultDatabase,
+                                        moduleName)));
     }
 
     @Test
@@ -116,7 +117,7 @@ class HiveServer2EndpointFactoryTest {
                                 "The specified binary exponential backoff slot time should range from 0 ms to 2147483647 ms but the specified value is 9223372036854775807 ms."));
 
         for (TestSpec<?> spec : specs) {
-            Assertions.assertThatThrownBy(
+            assertThatThrownBy(
                             () ->
                                     SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint(
                                             service,
