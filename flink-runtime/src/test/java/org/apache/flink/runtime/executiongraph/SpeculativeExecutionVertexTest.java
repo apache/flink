@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.io.GenericInputFormat;
+import org.apache.flink.core.io.GenericInputSplit;
+import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -33,8 +36,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -229,8 +237,47 @@ class SpeculativeExecutionVertexTest {
         }
     }
 
-    private SpeculativeExecutionVertex createSpeculativeExecutionVertex() throws Exception {
+    @Test
+    void testGetNextInputSplit() throws Exception {
+        final TestInputSource source = new TestInputSource();
         final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
+        jobVertex.setInputSplitSource(source);
+
+        final SpeculativeExecutionVertex ev = createSpeculativeExecutionVertex(jobVertex);
+
+        final int numExecutions = 3;
+        for (int i = 0; i < numExecutions - 1; ++i) {
+            ev.createNewSpeculativeExecution(0);
+        }
+        final List<Execution> executions = new ArrayList<>(ev.getCurrentExecutions());
+
+        final Map<Integer, List<InputSplit>> splitsOfAttempts = new HashMap<>();
+        final Random rand = new Random();
+        while (executions.size() > 0) {
+            final int index = rand.nextInt(executions.size());
+            final Execution execution = executions.get(index);
+            final Optional<InputSplit> split = execution.getNextInputSplit();
+            if (split.isPresent()) {
+                splitsOfAttempts
+                        .computeIfAbsent(execution.getAttemptNumber(), k -> new ArrayList<>())
+                        .add(split.get());
+            } else {
+                executions.remove(index);
+            }
+        }
+
+        assertThat(splitsOfAttempts).hasSize(numExecutions);
+        assertThat(splitsOfAttempts.get(0)).containsExactlyInAnyOrder(source.splits);
+        assertThat(splitsOfAttempts.get(1)).isEqualTo(splitsOfAttempts.get(0));
+        assertThat(splitsOfAttempts.get(2)).isEqualTo(splitsOfAttempts.get(0));
+    }
+
+    private SpeculativeExecutionVertex createSpeculativeExecutionVertex() throws Exception {
+        return createSpeculativeExecutionVertex(ExecutionGraphTestUtils.createNoOpVertex(1));
+    }
+
+    private SpeculativeExecutionVertex createSpeculativeExecutionVertex(final JobVertex jobVertex)
+            throws Exception {
         final JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(jobVertex);
         final ExecutionGraph executionGraph = createExecutionGraph(jobGraph);
         return (SpeculativeExecutionVertex)
@@ -248,5 +295,28 @@ class SpeculativeExecutionVertexTest {
         executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         return executionGraph;
+    }
+
+    private class TestInputSource extends GenericInputFormat<Integer> {
+        private GenericInputSplit[] splits;
+
+        public GenericInputSplit[] createInputSplits(int numSplitsHint) {
+            final int numSplits = numSplitsHint * 10;
+            splits = new GenericInputSplit[numSplits];
+            for (int i = 0; i < numSplits; ++i) {
+                splits[i] = new GenericInputSplit(i, numSplits);
+            }
+            return splits;
+        }
+
+        @Override
+        public boolean reachedEnd() throws IOException {
+            return false;
+        }
+
+        @Override
+        public Integer nextRecord(Integer reuse) throws IOException {
+            return null;
+        }
     }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -27,6 +28,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +47,8 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
     private final Map<Integer, Execution> currentExecutions;
 
     private int originalAttemptNumber;
+
+    final Map<Integer, Integer> nextInputSplitIndexToConsumeByAttempts;
 
     public SpeculativeExecutionVertex(
             ExecutionJobVertex jobVertex,
@@ -66,6 +70,7 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
         this.currentExecutions = new LinkedHashMap<>();
         this.currentExecutions.put(currentExecution.getAttemptNumber(), currentExecution);
         this.originalAttemptNumber = currentExecution.getAttemptNumber();
+        this.nextInputSplitIndexToConsumeByAttempts = new HashMap<>();
     }
 
     public boolean containsSources() {
@@ -155,6 +160,7 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
         currentExecutions.clear();
         currentExecutions.put(currentExecution.getAttemptNumber(), currentExecution);
         originalAttemptNumber = currentExecution.getAttemptNumber();
+        nextInputSplitIndexToConsumeByAttempts.clear();
     }
 
     @Override
@@ -180,6 +186,7 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
 
         final Execution removedExecution =
                 this.currentExecutions.remove(executionAttemptId.getAttemptNumber());
+        nextInputSplitIndexToConsumeByAttempts.remove(executionAttemptId.getAttemptNumber());
         checkNotNull(
                 removedExecution,
                 "Cannot remove execution %s which does not exist.",
@@ -235,6 +242,23 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
                 return 8;
             default:
                 throw new IllegalStateException("Execution state " + state + " is not supported.");
+        }
+    }
+
+    @Override
+    public Optional<InputSplit> getNextInputSplit(String host, int attemptNumber) {
+        final int index = nextInputSplitIndexToConsumeByAttempts.getOrDefault(attemptNumber, 0);
+        checkState(index <= inputSplits.size());
+
+        if (index < inputSplits.size()) {
+            nextInputSplitIndexToConsumeByAttempts.put(attemptNumber, index + 1);
+            return Optional.of(inputSplits.get(index));
+        } else {
+            final Optional<InputSplit> split = super.getNextInputSplit(host, attemptNumber);
+            if (split.isPresent()) {
+                nextInputSplitIndexToConsumeByAttempts.put(attemptNumber, index + 1);
+            }
+            return split;
         }
     }
 
