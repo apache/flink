@@ -85,7 +85,7 @@ public class KafkaPartitionSplitReaderTest {
         KafkaSourceTestEnv.setup();
         KafkaSourceTestEnv.setupTopic(TOPIC1, true, true, KafkaSourceTestEnv::getRecordsForTopic);
         KafkaSourceTestEnv.setupTopic(TOPIC2, true, true, KafkaSourceTestEnv::getRecordsForTopic);
-        KafkaSourceTestEnv.setupTopic(TOPIC3, false, false, t -> new ArrayList<>());
+        KafkaSourceTestEnv.createTestTopic(TOPIC3);
         splitsByOwners =
                 KafkaSourceTestEnv.getSplitsByOwners(Arrays.asList(TOPIC1, TOPIC2), NUM_SUBTASKS);
         earliestOffsets =
