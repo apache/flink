@@ -40,6 +40,7 @@ import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -573,9 +574,11 @@ public interface Catalog {
      * @throws PartitionNotExistException if one partition does not exist
      * @throws CatalogException in case of any runtime exception
      */
-    List<CatalogTableStatistics> getTableStatistics(
+    default List<CatalogTableStatistics> bulkGetPartitionStatistics(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
-            throws PartitionNotExistException, CatalogException;
+            throws PartitionNotExistException, CatalogException {
+        return new ArrayList<>(0);
+    }
 
     /**
      * Get the column statistics of a partition.
@@ -601,9 +604,21 @@ public interface Catalog {
      * @throws PartitionNotExistException if one partition does not exist
      * @throws CatalogException in case of any runtime exception
      */
-    List<CatalogColumnStatistics> getTableColumnStatistics(
+    default List<CatalogColumnStatistics> bulkGetPartitionColumnStatistics(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
-            throws PartitionNotExistException, CatalogException;
+            throws PartitionNotExistException, CatalogException {
+        return new ArrayList<>(0);
+    }
+
+    /**
+     * SQL planner can use this method to identify if the catalog implementation support bulk get or
+     * not. The default catalog implementation does not support bulk get.
+     *
+     * @return true means bulk get is supported.
+     */
+    default boolean isBulkGetSupported() {
+        return false;
+    }
 
     /**
      * Update the statistics of a table.
