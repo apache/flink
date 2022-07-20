@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.jdbc.internal.converter;
 
+import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -88,12 +89,86 @@ public class PostgresRowConverter extends AbstractJdbcRowConverter {
     protected JdbcSerializationConverter createNullableExternalConverter(LogicalType type) {
         LogicalTypeRoot root = type.getTypeRoot();
         if (root == LogicalTypeRoot.ARRAY) {
-            // note:Writing ARRAY type is not yet supported by PostgreSQL dialect now.
             return (val, index, statement) -> {
-                throw new IllegalStateException(
-                        String.format(
-                                "Writing ARRAY type is not yet supported in JDBC:%s.",
-                                converterName()));
+                ArrayData arrayData = val.getArray(index);
+                LogicalTypeRoot arrayType = type.getChildren().get(0).getTypeRoot();
+
+                switch (arrayType) {
+                    case TINYINT:
+                        byte[] byteArray = new byte[arrayData.size()];
+                        for (int i = 0; i < byteArray.length; i++) {
+                            byteArray[i] = arrayData.getByte(i);
+                        }
+                        statement.setObject(index, byteArray);
+                        break;
+                    case SMALLINT:
+                        short[] shortArray = new short[arrayData.size()];
+                        for (int i = 0; i < shortArray.length; i++) {
+                            shortArray[i] = arrayData.getShort(i);
+                        }
+                        statement.setObject(index, shortArray);
+                        break;
+                    case INTEGER:
+                        int[] intArray = new int[arrayData.size()];
+                        for (int i = 0; i < intArray.length; i++) {
+                            intArray[i] = arrayData.getInt(i);
+                        }
+                        statement.setObject(index, intArray);
+                        break;
+                    case BIGINT:
+                    case INTERVAL_DAY_TIME:
+                        long[] longArray = new long[arrayData.size()];
+                        for (int i = 0; i < longArray.length; i++) {
+                            longArray[i] = arrayData.getLong(i);
+                        }
+                        statement.setObject(index, longArray);
+                        break;
+                    case FLOAT:
+                        float[] floatArray = new float[arrayData.size()];
+                        for (int i = 0; i < floatArray.length; i++) {
+                            floatArray[i] = arrayData.getFloat(i);
+                        }
+                        statement.setObject(index, floatArray);
+                        break;
+                    case DOUBLE:
+                        double[] doubleArray = new double[arrayData.size()];
+                        for (int i = 0; i < doubleArray.length; i++) {
+                            doubleArray[i] = arrayData.getDouble(i);
+                        }
+                        statement.setObject(index, doubleArray);
+                        break;
+                    case CHAR:
+                    case VARCHAR:
+                        String[] stringArray = new String[arrayData.size()];
+                        for (int i = 0; i < stringArray.length; i++) {
+                            stringArray[i] = arrayData.getString(i).toString();
+                        }
+                        statement.setObject(index, stringArray);
+                        break;
+                    case BINARY:
+                    case VARBINARY:
+                        byte[][] binaryArray = new byte[arrayData.size()][];
+                        for (int i = 0; i < binaryArray.length; i++) {
+                            binaryArray[i] = arrayData.getBinary(i);
+                        }
+                        statement.setObject(index, binaryArray);
+                        break;
+                    case DECIMAL:
+                    case DATE:
+                    case TIME_WITHOUT_TIME_ZONE:
+                    case TIMESTAMP_WITHOUT_TIME_ZONE:
+                    case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                    case ARRAY:
+                    case ROW:
+                    case MAP:
+                    case MULTISET:
+                    case RAW:
+                    default:
+                        throw new IllegalStateException(
+                                String.format(
+                                        "Writing ARRAY<%s> type is not yet supported in JDBC:%s.",
+                                        arrayType, converterName()));
+                }
             };
         } else {
             return super.createNullableExternalConverter(type);
