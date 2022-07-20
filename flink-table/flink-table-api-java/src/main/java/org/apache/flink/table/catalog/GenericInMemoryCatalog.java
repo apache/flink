@@ -725,7 +725,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
      * CatalogPartitionSpec)} for each partition.
      */
     @Override
-    public List<CatalogTableStatistics> getTableStatistics(
+    public List<CatalogTableStatistics> bulkGetPartitionStatistics(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException, CatalogException {
 
@@ -759,7 +759,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
      * CatalogPartitionSpec)} for each partition.
      */
     @Override
-    public List<CatalogColumnStatistics> getTableColumnStatistics(
+    public List<CatalogColumnStatistics> bulkGetPartitionColumnStatistics(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException, CatalogException {
 
