@@ -198,7 +198,7 @@ public class Elasticsearch6DynamicSinkITCase extends TestLogger {
                                 "'%s'='%s'\n",
                                 ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION.key(),
                                 "false")
-                        + ")");
+                        + ")").await();
 
         tableEnvironment
                 .fromValues(
@@ -262,7 +262,7 @@ public class Elasticsearch6DynamicSinkITCase extends TestLogger {
                                 "'%s'='%s'\n",
                                 ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION.key(),
                                 "false")
-                        + ")");
+                        + ")").await();
 
         tableEnvironment
                 .fromValues(
@@ -356,7 +356,7 @@ public class Elasticsearch6DynamicSinkITCase extends TestLogger {
                                 "'%s'='%s'\n",
                                 ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION.key(),
                                 "false")
-                        + ")");
+                        + ")").await();
 
         tableEnvironment
                 .fromValues(row(1L, LocalDateTime.parse("2012-12-12T12:12:12")))
