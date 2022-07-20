@@ -119,8 +119,9 @@ public class CheckpointFailureManagerTest extends TestLogger {
                     checkpointProperties, new CheckpointException(reason), -2);
         }
 
-        // IO_EXCEPTION, CHECKPOINT_DECLINED, CHECKPOINT_EXPIRED and CHECKPOINT_ASYNC_EXCEPTION
-        assertEquals(4, callback.getInvokeCounter());
+        // IO_EXCEPTION, CHECKPOINT_DECLINED, FINALIZE_CHECKPOINT_FAILURE, CHECKPOINT_EXPIRED and
+        // CHECKPOINT_ASYNC_EXCEPTION
+        assertEquals(5, callback.getInvokeCounter());
     }
 
     @Test
