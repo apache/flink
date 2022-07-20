@@ -22,8 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.NoOpTaskExecutorBlobService;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -55,7 +54,11 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
+import org.apache.flink.testutils.TestFileUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.After;
 import org.junit.Before;
@@ -72,6 +75,7 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.StreamSupport;
 
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
@@ -91,6 +95,10 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
     private final SettableLeaderRetrievalService resourceManagerLeaderRetriever =
             new SettableLeaderRetrievalService();
     private final JobID jobId = new JobID();
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @ClassRule
     public static final TestingRpcServiceResource RPC_SERVICE_RESOURCE =
@@ -131,7 +139,9 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
 
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
-                        .setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1, timeout))
+                        .setTaskSlotTable(
+                                TaskSlotUtils.createTaskSlotTable(
+                                        1, timeout, EXECUTOR_RESOURCE.getExecutor()))
                         .setShuffleEnvironment(new NettyShuffleEnvironmentBuilder().build())
                         .build();
 
@@ -191,7 +201,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
             taskExecutorGateway.heartbeatFromJobManager(jobManagerResourceId, slotAllocationReport);
             assertThat(deployedExecutionsQueue.take(), hasSize(0));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -219,14 +229,15 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
                         configuration,
                         TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
                                 configuration),
-                        InetAddress.getLoopbackAddress().getHostAddress()),
+                        InetAddress.getLoopbackAddress().getHostAddress(),
+                        TestFileUtils.createTempDir()),
                 haServices,
                 taskManagerServices,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
                 new HeartbeatServices(1_000L, 30_000L),
                 UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                 null,
-                new BlobCacheService(configuration, new VoidBlobStore(), null),
+                NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandlerResource.getFatalErrorHandler(),
                 new TestingTaskExecutorPartitionTracker());
     }
@@ -243,7 +254,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
             ResourceID jobManagerResourceId) {
         return new TestingJobMasterGatewayBuilder()
                 .setRegisterTaskManagerFunction(
-                        (s, location, ignored) ->
+                        (ignoredJobId, ignoredTaskManagerRegistrationInformation) ->
                                 CompletableFuture.completedFuture(
                                         new JMTMRegistrationSuccess(jobManagerResourceId)))
                 .setOfferSlotsFunction(
@@ -251,12 +262,13 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
                             slotOfferLatch.trigger();
                             return CompletableFuture.completedFuture(slotOffers);
                         })
-                .setTaskManagerHeartbeatConsumer(
+                .setTaskManagerHeartbeatFunction(
                         (resourceID, taskExecutorToJobManagerHeartbeatPayload) -> {
                             ExecutionDeploymentReport executionDeploymentReport =
                                     taskExecutorToJobManagerHeartbeatPayload
                                             .getExecutionDeploymentReport();
                             deployedExecutionsFuture.add(executionDeploymentReport.getExecutions());
+                            return FutureUtils.completedVoidFuture();
                         })
                 .setUpdateTaskExecutionStateFunction(
                         taskExecutionState -> {

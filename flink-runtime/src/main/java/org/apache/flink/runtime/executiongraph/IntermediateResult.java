@@ -19,17 +19,29 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobEdge;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class IntermediateResult {
+
+    private final IntermediateDataSet intermediateDataSet;
 
     private final IntermediateDataSetID id;
 
@@ -47,29 +59,30 @@ public class IntermediateResult {
 
     private final int numParallelProducers;
 
-    private final AtomicInteger numberOfRunningProducers;
-
     private int partitionsAssigned;
 
     private final int connectionIndex;
 
     private final ResultPartitionType resultType;
 
+    private final Map<ConsumedPartitionGroup, MaybeOffloaded<ShuffleDescriptor[]>>
+            shuffleDescriptorCache;
+
     public IntermediateResult(
-            IntermediateDataSetID id,
+            IntermediateDataSet intermediateDataSet,
             ExecutionJobVertex producer,
             int numParallelProducers,
             ResultPartitionType resultType) {
 
-        this.id = checkNotNull(id);
+        this.intermediateDataSet = checkNotNull(intermediateDataSet);
+        this.id = checkNotNull(intermediateDataSet.getId());
+
         this.producer = checkNotNull(producer);
 
         checkArgument(numParallelProducers >= 1);
         this.numParallelProducers = numParallelProducers;
 
         this.partitions = new IntermediateResultPartition[numParallelProducers];
-
-        this.numberOfRunningProducers = new AtomicInteger(numParallelProducers);
 
         // we do not set the intermediate result partitions here, because we let them be initialized
         // by
@@ -80,6 +93,8 @@ public class IntermediateResult {
 
         // The runtime type for this produced result
         this.resultType = checkNotNull(resultType);
+
+        this.shuffleDescriptorCache = new HashMap<>();
     }
 
     public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
@@ -143,6 +158,26 @@ public class IntermediateResult {
         return resultType;
     }
 
+    int getNumParallelProducers() {
+        return numParallelProducers;
+    }
+
+    ExecutionJobVertex getConsumerExecutionJobVertex() {
+        final JobEdge consumer = checkNotNull(intermediateDataSet.getConsumer());
+        final JobVertexID consumerJobVertexId = consumer.getTarget().getID();
+        return checkNotNull(getProducer().getGraph().getJobVertex(consumerJobVertexId));
+    }
+
+    public DistributionPattern getConsumingDistributionPattern() {
+        final JobEdge consumer = checkNotNull(intermediateDataSet.getConsumer());
+        return consumer.getDistributionPattern();
+    }
+
+    public boolean isBroadcast() {
+        final JobEdge consumer = checkNotNull(intermediateDataSet.getConsumer());
+        return consumer.isBroadcast();
+    }
+
     public int getConnectionIndex() {
         return connectionIndex;
     }
@@ -154,21 +189,34 @@ public class IntermediateResult {
         }
     }
 
-    @VisibleForTesting
-    int getNumberOfRunningProducers() {
-        return numberOfRunningProducers.get();
+    public MaybeOffloaded<ShuffleDescriptor[]> getCachedShuffleDescriptors(
+            ConsumedPartitionGroup consumedPartitionGroup) {
+        return shuffleDescriptorCache.get(consumedPartitionGroup);
     }
 
-    int incrementNumberOfRunningProducersAndGetRemaining() {
-        return numberOfRunningProducers.incrementAndGet();
+    public void cacheShuffleDescriptors(
+            ConsumedPartitionGroup consumedPartitionGroup,
+            MaybeOffloaded<ShuffleDescriptor[]> shuffleDescriptors) {
+        this.shuffleDescriptorCache.put(consumedPartitionGroup, shuffleDescriptors);
     }
 
-    int decrementNumberOfRunningProducersAndGetRemaining() {
-        return numberOfRunningProducers.decrementAndGet();
-    }
+    public void clearCachedInformationForPartitionGroup(
+            ConsumedPartitionGroup consumedPartitionGroup) {
+        // When a ConsumedPartitionGroup changes, the cache of ShuffleDescriptors for this
+        // partition group is no longer valid and needs to be removed.
+        //
+        // Currently, there are two scenarios:
+        // 1. The ConsumedPartitionGroup is released
+        // 2. Its producer encounters a failover
 
-    boolean areAllPartitionsFinished() {
-        return numberOfRunningProducers.get() == 0;
+        // Remove the cache for the ConsumedPartitionGroup and notify the BLOB writer to delete the
+        // cache if it is offloaded
+        final MaybeOffloaded<ShuffleDescriptor[]> cache =
+                this.shuffleDescriptorCache.remove(consumedPartitionGroup);
+        if (cache instanceof Offloaded) {
+            PermanentBlobKey blobKey = ((Offloaded<ShuffleDescriptor[]>) cache).serializedValueKey;
+            this.producer.getGraph().deleteBlobs(Collections.singletonList(blobKey));
+        }
     }
 
     @Override

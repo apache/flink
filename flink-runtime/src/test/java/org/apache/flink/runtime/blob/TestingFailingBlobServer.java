@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.NetUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -34,15 +36,20 @@ public class TestingFailingBlobServer extends BlobServer {
     private final int numAccept;
     private final int numFailures;
 
-    public TestingFailingBlobServer(Configuration config, BlobStore blobStore, int numFailures)
+    public TestingFailingBlobServer(
+            Configuration config, File storageDir, BlobStore blobStore, int numFailures)
             throws IOException {
-        this(config, blobStore, 1, numFailures);
+        this(config, storageDir, blobStore, 1, numFailures);
     }
 
     public TestingFailingBlobServer(
-            Configuration config, BlobStore blobStore, int numAccept, int numFailures)
+            Configuration config,
+            File storageDir,
+            BlobStore blobStore,
+            int numAccept,
+            int numFailures)
             throws IOException {
-        super(config, blobStore);
+        super(config, storageDir, blobStore);
         this.numAccept = numAccept;
         this.numFailures = numFailures;
     }
@@ -53,7 +60,8 @@ public class TestingFailingBlobServer extends BlobServer {
         // we do properly the first operation (PUT)
         try {
             for (int num = 0; num < numAccept && !isShutdown(); num++) {
-                new BlobServerConnection(getServerSocket().accept(), this).start();
+                new BlobServerConnection(NetUtils.acceptWithoutTimeout(getServerSocket()), this)
+                        .start();
             }
         } catch (Throwable t) {
             t.printStackTrace();
@@ -63,7 +71,7 @@ public class TestingFailingBlobServer extends BlobServer {
         for (int num = 0; num < numFailures && !isShutdown(); num++) {
             Socket socket = null;
             try {
-                socket = getServerSocket().accept();
+                socket = NetUtils.acceptWithoutTimeout(getServerSocket());
                 InputStream is = socket.getInputStream();
                 OutputStream os = socket.getOutputStream();
 

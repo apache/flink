@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.net;
 
+import org.apache.flink.util.NetUtils;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -78,7 +80,7 @@ public class ConnectionUtilsTest {
                                 @Override
                                 public void run() {
                                     try {
-                                        socket.accept();
+                                        NetUtils.acceptWithoutTimeout(socket);
                                     } catch (IOException e) {
                                         // ignore
                                     }

@@ -24,7 +24,6 @@ import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 
 import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsOptions;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.TopicPartition;
@@ -34,7 +33,8 @@ import java.util.Collection;
 import java.util.Map;
 
 /**
- * A interface for users to specify the starting / stopping offset of a {@link KafkaPartitionSplit}.
+ * An interface for users to specify the starting / stopping offset of a {@link
+ * KafkaPartitionSplit}.
  *
  * @see ReaderHandledOffsetsInitializer
  * @see SpecifiedOffsetsInitializer
@@ -85,13 +85,13 @@ public interface OffsetsInitializer extends Serializable {
          */
         Map<TopicPartition, Long> committedOffsets(Collection<TopicPartition> partitions);
 
-        /** @see KafkaConsumer#endOffsets(Collection) */
+        /** List end offsets for the specified partitions. */
         Map<TopicPartition, Long> endOffsets(Collection<TopicPartition> partitions);
 
-        /** @see KafkaConsumer#beginningOffsets(Collection) */
+        /** List beginning offsets for the specified partitions. */
         Map<TopicPartition, Long> beginningOffsets(Collection<TopicPartition> partitions);
 
-        /** @see KafkaConsumer#offsetsForTimes(Map) */
+        /** List offsets matching a timestamp for the specified partitions. */
         Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes(
                 Map<TopicPartition, Long> timestampsToSearch);
     }
@@ -125,12 +125,12 @@ public interface OffsetsInitializer extends Serializable {
     /**
      * Get an {@link OffsetsInitializer} which initializes the offsets in each partition so that the
      * initialized offset is the offset of the first record whose record timestamp is greater than
-     * or equals the give timestamp.
+     * or equals the give timestamp (milliseconds).
      *
-     * @param timestamp the timestamp to start the consumption.
+     * @param timestamp the timestamp (milliseconds) to start the consumption.
      * @return an {@link OffsetsInitializer} which initializes the offsets based on the given
      *     timestamp.
-     * @see KafkaConsumer#offsetsForTimes(Map)
+     * @see KafkaAdminClient#listOffsets(Map)
      */
     static OffsetsInitializer timestamp(long timestamp) {
         return new TimestampOffsetsInitializer(timestamp);

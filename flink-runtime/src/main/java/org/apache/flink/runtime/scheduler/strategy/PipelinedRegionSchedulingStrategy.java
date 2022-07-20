@@ -20,10 +20,7 @@ package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.scheduler.DeploymentOption;
-import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
 import org.apache.flink.util.IterableUtils;
 
@@ -48,12 +45,6 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
     private final SchedulerOperations schedulerOperations;
 
     private final SchedulingTopology schedulingTopology;
-
-    private final DeploymentOption deploymentOption = new DeploymentOption(false);
-
-    /** ConsumedPartitionGroups are correlated if they have the same result id. */
-    private final Map<IntermediateDataSetID, Set<ConsumedPartitionGroup>>
-            correlatedResultPartitionGroups = new HashMap<>();
 
     /** External consumer regions of each ConsumedPartitionGroup. */
     private final Map<ConsumedPartitionGroup, Set<SchedulingPipelinedRegion>>
@@ -81,8 +72,6 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
         initCrossRegionConsumedPartitionGroups();
 
         initPartitionGroupConsumerRegions();
-
-        initCorrelatedResultPartitionGroups();
 
         for (SchedulingExecutionVertex vertex : schedulingTopology.getVertices()) {
             final SchedulingPipelinedRegion region =
@@ -148,18 +137,6 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
         }
     }
 
-    private void initCorrelatedResultPartitionGroups() {
-        for (ConsumedPartitionGroup consumedPartitionGroup :
-                partitionGroupConsumerRegions.keySet()) {
-            for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
-                correlatedResultPartitionGroups
-                        .computeIfAbsent(
-                                partitionId.getIntermediateDataSetID(), id -> new HashSet<>())
-                        .add(consumedPartitionGroup);
-            }
-        }
-    }
-
     @Override
     public void startScheduling() {
         final Set<SchedulingPipelinedRegion> sourceRegions =
@@ -201,26 +178,21 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
                             .filter(
                                     partition ->
                                             partition.getState() == ResultPartitionState.CONSUMABLE)
-                            .flatMap(
-                                    partition ->
-                                            correlatedResultPartitionGroups
-                                                    .getOrDefault(
-                                                            partition.getResultId(),
-                                                            Collections.emptySet())
-                                                    .stream())
+                            .flatMap(partition -> partition.getConsumedPartitionGroups().stream())
+                            .filter(
+                                    group ->
+                                            crossRegionConsumedPartitionGroups.contains(group)
+                                                    || group.areAllPartitionsFinished())
                             .collect(Collectors.toSet());
 
-            // for POINTWISE consumers of a BLOCKING partition, it's possible that some of the
-            // consumers are not affected by the restarting of sibling vertices so they are still in
-            // SCHEDULED/DEPLOYING/RUNNING/FINISHED. We should skip rescheduling these vertices.
             final Set<SchedulingPipelinedRegion> consumerRegions =
                     finishedConsumedPartitionGroups.stream()
                             .flatMap(
                                     partitionGroup ->
-                                            partitionGroupConsumerRegions.get(partitionGroup)
+                                            partitionGroupConsumerRegions
+                                                    .getOrDefault(
+                                                            partitionGroup, Collections.emptySet())
                                                     .stream())
-                            .distinct()
-                            .filter(this::areRegionVerticesAllInCreatedState)
                             .collect(Collectors.toSet());
 
             maybeScheduleRegions(consumerRegions);
@@ -252,10 +224,7 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
                 areRegionVerticesAllInCreatedState(region),
                 "BUG: trying to schedule a region which is not in CREATED state");
 
-        final List<ExecutionVertexDeploymentOption> vertexDeploymentOptions =
-                SchedulingStrategyUtils.createExecutionVertexDeploymentOptions(
-                        regionVerticesSorted.get(region), id -> deploymentOption);
-        schedulerOperations.allocateSlotsAndDeploy(vertexDeploymentOptions);
+        schedulerOperations.allocateSlotsAndDeploy(regionVerticesSorted.get(region));
     }
 
     private boolean areRegionInputsAllConsumable(

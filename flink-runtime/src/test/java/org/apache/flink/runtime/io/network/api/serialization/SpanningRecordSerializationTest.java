@@ -292,15 +292,16 @@ public class SpanningRecordSerializationTest extends TestLogger {
     }
 
     private static Buffer appendLeftOverBytes(Buffer buffer, byte[] leftOverBytes) {
-        BufferBuilder bufferBuilder =
+        try (BufferBuilder bufferBuilder =
                 new BufferBuilder(
                         MemorySegmentFactory.allocateUnpooledSegment(
                                 buffer.readableBytes() + leftOverBytes.length),
-                        FreeingBufferRecycler.INSTANCE);
-        try (BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer()) {
-            bufferBuilder.append(buffer.getNioBufferReadable());
-            bufferBuilder.appendAndCommit(ByteBuffer.wrap(leftOverBytes));
-            return bufferConsumer.build();
+                        FreeingBufferRecycler.INSTANCE)) {
+            try (BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer()) {
+                bufferBuilder.append(buffer.getNioBufferReadable());
+                bufferBuilder.appendAndCommit(ByteBuffer.wrap(leftOverBytes));
+                return bufferConsumer.build();
+            }
         }
     }
 
@@ -331,6 +332,10 @@ public class SpanningRecordSerializationTest extends TestLogger {
                 createFilledBufferBuilder(segmentSize + startingOffset, startingOffset);
         BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
         bufferConsumer.build().recycleBuffer();
+
+        // Closing the BufferBuilder here just allow to be sure that Buffer will be recovered when
+        // BufferConsumer will be closed.
+        bufferBuilder.close();
 
         bufferBuilder.appendAndCommit(serializedRecord);
         return new BufferAndSerializerResult(

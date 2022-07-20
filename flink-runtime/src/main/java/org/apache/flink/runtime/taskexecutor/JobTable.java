@@ -21,7 +21,6 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -149,8 +148,6 @@ public interface JobTable extends AutoCloseable {
          * @param taskManagerActions taskManagerActions associated with this connection
          * @param checkpointResponder checkpointResponder associated with this connection
          * @param aggregateManager aggregateManager associated with this connection
-         * @param resultPartitionConsumableNotifier resultPartitionConsumableNotifier associated
-         *     with this connection
          * @param partitionStateChecker partitionStateChecker associated with this connection
          * @return the established {@link Connection}
          * @throws IllegalStateException if the job is already connected
@@ -161,7 +158,6 @@ public interface JobTable extends AutoCloseable {
                 TaskManagerActions taskManagerActions,
                 CheckpointResponder checkpointResponder,
                 GlobalAggregateManager aggregateManager,
-                ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
                 PartitionProducerStateChecker partitionStateChecker);
 
         /** Closes this job and removes it from the owning {@link JobTable}. */
@@ -199,8 +195,6 @@ public interface JobTable extends AutoCloseable {
         GlobalAggregateManager getGlobalAggregateManager();
 
         LibraryCacheManager.ClassLoaderHandle getClassLoaderHandle();
-
-        ResultPartitionConsumableNotifier getResultPartitionConsumableNotifier();
 
         PartitionProducerStateChecker getPartitionStateChecker();
 

@@ -24,8 +24,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.jdbc.JdbcDataTestBase;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
+import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.types.Row;
 
 import org.junit.After;
@@ -46,10 +47,10 @@ import java.util.List;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.OUTPUT_TABLE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
-import static org.junit.Assert.assertArrayEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 
-/** Tests for the {@link JdbcBatchingOutputFormat}. */
+/** Tests for the {@link JdbcOutputFormat}. */
 public class JdbcTableOutputFormatTest extends JdbcDataTestBase {
 
     private TableJdbcUpsertOutputFormat format;
@@ -64,8 +65,8 @@ public class JdbcTableOutputFormatTest extends JdbcDataTestBase {
 
     @Test
     public void testUpsertFormatCloseBeforeOpen() throws Exception {
-        JdbcOptions options =
-                JdbcOptions.builder()
+        JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
                         .setDBUrl(getDbMetadata().getUrl())
                         .setTableName(OUTPUT_TABLE)
                         .build();
@@ -85,10 +86,94 @@ public class JdbcTableOutputFormatTest extends JdbcDataTestBase {
         format.close();
     }
 
+    /**
+     * Test that the delete executor in {@link TableJdbcUpsertOutputFormat} is updated when {@link
+     * JdbcOutputFormat#attemptFlush()} fails.
+     */
+    @Test
+    public void testDeleteExecutorUpdatedOnReconnect() throws Exception {
+        // first fail flush from the main executor
+        boolean[] exceptionThrown = {false};
+        // then record whether the delete executor was updated
+        // and check it on the next flush attempt
+        boolean[] deleteExecutorPrepared = {false};
+        boolean[] deleteExecuted = {false};
+        format =
+                new TableJdbcUpsertOutputFormat(
+                        new SimpleJdbcConnectionProvider(
+                                JdbcConnectorOptions.builder()
+                                        .setDBUrl(getDbMetadata().getUrl())
+                                        .setTableName(OUTPUT_TABLE)
+                                        .build()) {
+                            @Override
+                            public boolean isConnectionValid() throws SQLException {
+                                return false; // trigger reconnect and re-prepare on flush failure
+                            }
+                        },
+                        JdbcExecutionOptions.builder()
+                                .withMaxRetries(1)
+                                .withBatchIntervalMs(Long.MAX_VALUE) // disable periodic flush
+                                .build(),
+                        ctx ->
+                                new JdbcBatchStatementExecutor<Row>() {
+
+                                    @Override
+                                    public void executeBatch() throws SQLException {
+                                        if (!exceptionThrown[0]) {
+                                            exceptionThrown[0] = true;
+                                            throw new SQLException();
+                                        }
+                                    }
+
+                                    @Override
+                                    public void prepareStatements(Connection connection) {}
+
+                                    @Override
+                                    public void addToBatch(Row record) {}
+
+                                    @Override
+                                    public void closeStatements() {}
+                                },
+                        ctx ->
+                                new JdbcBatchStatementExecutor<Row>() {
+                                    @Override
+                                    public void prepareStatements(Connection connection) {
+                                        if (exceptionThrown[0]) {
+                                            deleteExecutorPrepared[0] = true;
+                                        }
+                                    }
+
+                                    @Override
+                                    public void addToBatch(Row record) {}
+
+                                    @Override
+                                    public void executeBatch() {
+                                        deleteExecuted[0] = true;
+                                    }
+
+                                    @Override
+                                    public void closeStatements() {}
+                                });
+        RuntimeContext context = Mockito.mock(RuntimeContext.class);
+        ExecutionConfig config = Mockito.mock(ExecutionConfig.class);
+        doReturn(config).when(context).getExecutionConfig();
+        doReturn(true).when(config).isObjectReuseEnabled();
+        format.setRuntimeContext(context);
+        format.open(0, 1);
+
+        format.writeRecord(Tuple2.of(false /* false = delete*/, toRow(TEST_DATA[0])));
+        format.flush();
+
+        assertThat(deleteExecuted[0]).as("Delete should be executed").isTrue();
+        assertThat(deleteExecutorPrepared[0])
+                .as("Delete executor should be prepared" + exceptionThrown[0])
+                .isTrue();
+    }
+
     @Test
     public void testJdbcOutputFormat() throws Exception {
-        JdbcOptions options =
-                JdbcOptions.builder()
+        JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
                         .setDBUrl(getDbMetadata().getUrl())
                         .setTableName(OUTPUT_TABLE)
                         .build();
@@ -157,7 +242,7 @@ public class JdbcTableOutputFormatTest extends JdbcDataTestBase {
             String[] sortedResult = results.toArray(new String[0]);
             Arrays.sort(sortedExpect);
             Arrays.sort(sortedResult);
-            assertArrayEquals(sortedExpect, sortedResult);
+            assertThat(sortedResult).isEqualTo(sortedExpect);
         }
     }
 

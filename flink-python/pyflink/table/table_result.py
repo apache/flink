@@ -25,10 +25,10 @@ from pyflink.common.job_client import JobClient
 from pyflink.java_gateway import get_gateway
 from pyflink.table.result_kind import ResultKind
 from pyflink.table.table_schema import TableSchema
-from pyflink.table.types import _from_java_type
+from pyflink.table.types import _from_java_data_type
 from pyflink.table.utils import pickled_bytes_to_python_converter
 
-__all__ = ['TableResult']
+__all__ = ['TableResult', 'CloseableIterator']
 
 
 class TableResult(object):
@@ -226,7 +226,7 @@ class CloseableIterator(object):
     def __init__(self, j_closeable_iterator, field_data_types):
         self._j_closeable_iterator = j_closeable_iterator
         self._j_field_data_types = field_data_types
-        self._data_types = [_from_java_type(j_field_data_type)
+        self._data_types = [_from_java_data_type(j_field_data_type)
                             for j_field_data_type in self._j_field_data_types]
 
     def __iter__(self):

@@ -23,6 +23,8 @@ import org.apache.flink.examples.java.relational.WebLogAnalysis;
 import org.apache.flink.test.testdata.WebLogAnalysisData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+
 /** Test for {@link WebLogAnalysis}. */
 public class WebLogAnalysisITCase extends JavaProgramTestBase {
 

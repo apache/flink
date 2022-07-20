@@ -133,8 +133,7 @@ public enum PartitionTestUtils {
                         .setPartitionId(shuffleDescriptor.getResultPartitionID().getPartitionId())
                         .setPartitionType(partitionType)
                         .build();
-        return new ResultPartitionDeploymentDescriptor(
-                partitionDescriptor, shuffleDescriptor, 1, true);
+        return new ResultPartitionDeploymentDescriptor(partitionDescriptor, shuffleDescriptor, 1);
     }
 
     public static PartitionedFile createPartitionedFile(

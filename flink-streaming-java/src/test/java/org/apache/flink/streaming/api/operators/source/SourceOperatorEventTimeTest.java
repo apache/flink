@@ -18,23 +18,19 @@
 
 package org.apache.flink.streaming.api.operators.source;
 
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
-import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
-import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.runtime.state.StateInitializationContextImpl;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.streaming.api.operators.SourceOperator;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,13 +39,13 @@ import org.junit.runners.Parameterized;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.streaming.api.operators.source.TestingSourceOperator.createTestOperator;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
@@ -150,6 +146,35 @@ public class SourceOperatorEventTimeTest {
                 result, new Watermark(100L), new Watermark(150L), new Watermark(200L));
     }
 
+    @Test
+    public void testCreatingPerSplitOutputOnSplitAddition() throws Exception {
+        final WatermarkStrategy<Integer> watermarkStrategy =
+                WatermarkStrategy.forGenerator((ctx) -> new OnEventTestWatermarkGenerator<>());
+
+        InterpretingSourceReader reader =
+                new InterpretingSourceReader(
+                        // No watermark (no record from split 2, whose watermark is Long.MIN_VALUE)
+                        (output) -> output.createOutputForSplit("1").collect(0, 100L),
+                        (output) -> output.createOutputForSplit("1").collect(0, 200L),
+                        (output) -> output.createOutputForSplit("1").collect(0, 300L),
+                        // Emit watermark 150 (from the 1st record of split 2)
+                        (output) -> output.createOutputForSplit("2").collect(0, 150L),
+                        // Emit watermark 300 (from the 3rd record in split 1)
+                        (output) -> output.createOutputForSplit("2").collect(0, 400L));
+        SourceOperator<Integer, MockSourceSplit> sourceOperator =
+                createTestOperator(reader, watermarkStrategy, emitProgressiveWatermarks);
+
+        // Add two splits to SourceOperator. Output for two splits should be created during event
+        // handling.
+        sourceOperator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Arrays.asList(new MockSourceSplit(1), new MockSourceSplit(2)),
+                        new MockSourceSplitSerializer()));
+
+        final List<Watermark> result = testSequenceOfWatermarks(sourceOperator);
+        assertWatermarksOrEmpty(result, new Watermark(150L), new Watermark(300L));
+    }
+
     // ------------------------------------------------------------------------
     //   test execution helpers
     // ------------------------------------------------------------------------
@@ -177,75 +202,39 @@ public class SourceOperatorEventTimeTest {
             final WatermarkStrategy<Integer> watermarkStrategy,
             final Consumer<ReaderOutput<Integer>>... actions)
             throws Exception {
+        final SourceReader<Integer, MockSourceSplit> reader = new InterpretingSourceReader(actions);
+        final SourceOperator<Integer, MockSourceSplit> sourceOperator =
+                createTestOperator(reader, watermarkStrategy, emitProgressiveWatermarks);
 
-        final List<Object> allEvents =
-                testSequenceOfEvents(emitProgressiveWatermarks, watermarkStrategy, actions);
+        return testSequenceOfWatermarks(sourceOperator);
+    }
+
+    @SuppressWarnings("FinalPrivateMethod")
+    private final List<Watermark> testSequenceOfWatermarks(
+            SourceOperator<Integer, MockSourceSplit> sourceOperator) throws Exception {
+
+        final List<Object> allEvents = testSequenceOfEvents(sourceOperator);
 
         return allEvents.stream()
-                .filter((evt) -> evt instanceof org.apache.flink.streaming.api.watermark.Watermark)
-                .map(
-                        (evt) ->
-                                new Watermark(
-                                        ((org.apache.flink.streaming.api.watermark.Watermark) evt)
-                                                .getTimestamp()))
+                .filter((evt) -> evt instanceof Watermark)
+                .map((evt) -> (Watermark) evt)
                 .collect(Collectors.toList());
     }
 
     @SuppressWarnings("FinalPrivateMethod")
-    @SafeVarargs
     private final List<Object> testSequenceOfEvents(
-            final boolean emitProgressiveWatermarks,
-            final WatermarkStrategy<Integer> watermarkStrategy,
-            final Consumer<ReaderOutput<Integer>>... actions)
-            throws Exception {
+            final SourceOperator<Integer, MockSourceSplit> sourceOperator) throws Exception {
 
         final CollectingDataOutput<Integer> out = new CollectingDataOutput<>();
 
-        final TestProcessingTimeService timeService = new TestProcessingTimeService();
-        timeService.setCurrentTime(Integer.MAX_VALUE); // start somewhere that is not zero
+        final TestProcessingTimeService timeService =
+                ((TestProcessingTimeService) sourceOperator.getProcessingTimeService());
 
-        final SourceReader<Integer, MockSourceSplit> reader = new InterpretingSourceReader(actions);
-
-        final SourceOperator<Integer, MockSourceSplit> sourceOperator =
-                createTestOperator(
-                        reader, watermarkStrategy, timeService, emitProgressiveWatermarks);
-
-        while (sourceOperator.emitNext(out) != InputStatus.END_OF_INPUT) {
+        while (sourceOperator.emitNext(out) != DataInputStatus.END_OF_INPUT) {
             timeService.setCurrentTime(timeService.getCurrentProcessingTime() + 100);
         }
 
         return out.events;
-    }
-
-    // ------------------------------------------------------------------------
-    //   test setup helpers
-    // ------------------------------------------------------------------------
-
-    private static <T> SourceOperator<T, MockSourceSplit> createTestOperator(
-            SourceReader<T, MockSourceSplit> reader,
-            WatermarkStrategy<T> watermarkStrategy,
-            ProcessingTimeService timeService,
-            boolean emitProgressiveWatermarks)
-            throws Exception {
-
-        final OperatorStateStore operatorStateStore =
-                new MemoryStateBackend()
-                        .createOperatorStateBackend(
-                                new MockEnvironmentBuilder().build(),
-                                "test-operator",
-                                Collections.emptyList(),
-                                new CloseableRegistry());
-
-        final StateInitializationContext stateContext =
-                new StateInitializationContextImpl(false, operatorStateStore, null, null, null);
-
-        final SourceOperator<T, MockSourceSplit> sourceOperator =
-                new TestingSourceOperator<>(
-                        reader, watermarkStrategy, timeService, emitProgressiveWatermarks);
-        sourceOperator.initializeState(stateContext);
-        sourceOperator.open();
-
-        return sourceOperator;
     }
 
     // ------------------------------------------------------------------------

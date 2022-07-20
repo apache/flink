@@ -53,6 +53,11 @@ public abstract class AbstractJarPlanHeaders
     }
 
     @Override
+    public String operationId() {
+        return "generatePlanFromJar";
+    }
+
+    @Override
     public String getDescription() {
         return "Returns the dataflow plan of a job contained in a jar previously uploaded via '"
                 + JarUploadHeaders.URL

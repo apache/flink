@@ -18,10 +18,16 @@
 
 package org.apache.flink.connectors.hive.util;
 
+import org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase;
 import org.apache.flink.connectors.hive.JobConfWrapper;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
+
+import java.io.IOException;
 
 /** Utilities for {@link JobConf}. */
 public class JobConfUtils {
@@ -39,5 +45,25 @@ public class JobConfUtils {
         return jobConf.get(
                 HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
                 HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
+    }
+
+    private static void addCredentialsIntoJobConf(JobConf jobConf) {
+        UserGroupInformation currentUser = null;
+        try {
+            currentUser = UserGroupInformation.getCurrentUser();
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to determine current user", e);
+        }
+        Credentials currentUserCreds =
+                HadoopInputFormatCommonBase.getCredentialsFromUGI(currentUser);
+        if (currentUserCreds != null) {
+            jobConf.getCredentials().mergeAll(currentUserCreds);
+        }
+    }
+
+    public static JobConf createJobConfWithCredentials(Configuration configuration) {
+        JobConf jobConf = new JobConf(configuration);
+        addCredentialsIntoJobConf(jobConf);
+        return jobConf;
     }
 }

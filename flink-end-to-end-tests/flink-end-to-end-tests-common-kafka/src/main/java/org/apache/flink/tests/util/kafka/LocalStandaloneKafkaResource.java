@@ -19,12 +19,12 @@
 package org.apache.flink.tests.util.kafka;
 
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.test.util.FileUtils;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.CommandLineWrapper;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.activation.OperatingSystemRestriction;
 import org.apache.flink.tests.util.cache.DownloadCache;
-import org.apache.flink.tests.util.util.FileUtils;
 import org.apache.flink.util.OperatingSystem;
 
 import org.junit.rules.TemporaryFolder;

@@ -85,6 +85,8 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
     private byte[] currentJsonPayload;
     private Path currentUploadDir;
 
+    private boolean addCRPrefix = false;
+
     public FileUploadHandler(final Path uploadDir) {
         super(true);
 

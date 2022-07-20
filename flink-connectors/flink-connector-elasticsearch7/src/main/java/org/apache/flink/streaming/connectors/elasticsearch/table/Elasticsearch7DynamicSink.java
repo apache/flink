@@ -24,6 +24,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.elasticsearch7.ElasticsearchSink;
 import org.apache.flink.streaming.connectors.elasticsearch7.RestClientFactory;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -45,6 +46,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 
 import javax.annotation.Nullable;
 
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 
@@ -55,18 +57,20 @@ import java.util.Objects;
 @Internal
 final class Elasticsearch7DynamicSink implements DynamicTableSink {
     @VisibleForTesting
-    static final Elasticsearch7RequestFactory REQUEST_FACTORY =
-            new Elasticsearch7DynamicSink.Elasticsearch7RequestFactory();
+    static final Elasticsearch7RequestFactory REQUEST_FACTORY = new Elasticsearch7RequestFactory();
 
     private final EncodingFormat<SerializationSchema<RowData>> format;
     private final TableSchema schema;
     private final Elasticsearch7Configuration config;
+    private final ZoneId localTimeZoneId;
+    private final boolean isDynamicIndexWithSystemTime;
 
     public Elasticsearch7DynamicSink(
             EncodingFormat<SerializationSchema<RowData>> format,
             Elasticsearch7Configuration config,
-            TableSchema schema) {
-        this(format, config, schema, (ElasticsearchSink.Builder::new));
+            TableSchema schema,
+            ZoneId localTimeZoneId) {
+        this(format, config, schema, localTimeZoneId, (ElasticsearchSink.Builder::new));
     }
 
     // --------------------------------------------------------------
@@ -91,16 +95,24 @@ final class Elasticsearch7DynamicSink implements DynamicTableSink {
             EncodingFormat<SerializationSchema<RowData>> format,
             Elasticsearch7Configuration config,
             TableSchema schema,
+            ZoneId localTimeZoneId,
             ElasticSearchBuilderProvider builderProvider) {
         this.format = format;
         this.schema = schema;
         this.config = config;
+        this.localTimeZoneId = localTimeZoneId;
+        this.isDynamicIndexWithSystemTime = isDynamicIndexWithSystemTime();
         this.builderProvider = builderProvider;
     }
 
     // --------------------------------------------------------------
     // End of hack to make configuration testing possible
     // --------------------------------------------------------------
+
+    public boolean isDynamicIndexWithSystemTime() {
+        IndexGeneratorFactory.IndexHelper indexHelper = new IndexGeneratorFactory.IndexHelper();
+        return indexHelper.checkIsDynamicIndexWithSystemTimeFormat(config.getIndex());
+    }
 
     @Override
     public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
@@ -109,6 +121,10 @@ final class Elasticsearch7DynamicSink implements DynamicTableSink {
             if (kind != RowKind.UPDATE_BEFORE) {
                 builder.addContainedKind(kind);
             }
+        }
+        if (isDynamicIndexWithSystemTime && !requestedMode.containsOnly(RowKind.INSERT)) {
+            throw new ValidationException(
+                    "Dynamic indexing based on system time only works on append only stream.");
         }
         return builder.build();
     }
@@ -121,7 +137,8 @@ final class Elasticsearch7DynamicSink implements DynamicTableSink {
 
             final RowElasticsearchSinkFunction upsertFunction =
                     new RowElasticsearchSinkFunction(
-                            IndexGeneratorFactory.createIndexGenerator(config.getIndex(), schema),
+                            IndexGeneratorFactory.createIndexGenerator(
+                                    config.getIndex(), schema, localTimeZoneId),
                             null, // this is deprecated in es 7+
                             format,
                             XContentType.JSON,

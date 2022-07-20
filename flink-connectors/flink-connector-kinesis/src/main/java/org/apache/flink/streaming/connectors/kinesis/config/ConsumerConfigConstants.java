@@ -22,8 +22,6 @@ import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumer;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 
-import com.amazonaws.services.kinesis.model.ShardIteratorType;
-
 import java.time.Duration;
 
 /**
@@ -34,7 +32,7 @@ import java.time.Duration;
 public class ConsumerConfigConstants extends AWSConfigConstants {
 
     /**
-     * The initial position to start reading shards from. This will affect the {@link
+     * The initial position to start reading shards from. This will affect the {@code
      * ShardIteratorType} used when the consumer tasks retrieve the first shard iterator for each
      * Kinesis shard.
      */
@@ -72,7 +70,7 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
         POLLING
     }
 
-    /** The EFO registration type reprsents how we are going to de-/register efo consumer. */
+    /** The EFO registration type represents how we are going to de-/register efo consumer. */
     public enum EFORegistrationType {
 
         /**
@@ -312,6 +310,9 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
     public static final String EFO_HTTP_CLIENT_MAX_CONCURRENCY =
             "flink.stream.efo.http-client.max-concurrency";
 
+    public static final String EFO_HTTP_CLIENT_READ_TIMEOUT_MILLIS =
+            "flink.stream.efo.http-client.read-timeout";
+
     // ------------------------------------------------------------------------
     //  Default values for consumer configuration
     // ------------------------------------------------------------------------
@@ -403,7 +404,9 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
     public static final long DEFAULT_WATERMARK_SYNC_MILLIS = 30_000;
 
-    public static final int DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY = 10_000;
+    public static final int DEFAULT_EFO_HTTP_CLIENT_MAX_CONCURRENCY = 10_000;
+
+    public static final Duration DEFAULT_EFO_HTTP_CLIENT_READ_TIMEOUT = Duration.ofMinutes(6);
 
     /**
      * To avoid shard iterator expires in {@link ShardConsumer}s, the value for the configured

@@ -20,15 +20,20 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
-import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.scheduler.adaptive.WaitingForResourcesTest.assertNonNull;
@@ -102,15 +107,15 @@ public class FailingTest extends TestLogger {
             StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             // register execution at EG
-            ExecutingTest.MockExecutionJobVertex ejv = new ExecutingTest.MockExecutionJobVertex();
+            Exception exception = new RuntimeException();
+            TestingAccessExecution execution =
+                    TestingAccessExecution.newBuilder()
+                            .withExecutionState(ExecutionState.FAILED)
+                            .withErrorInfo(new ErrorInfo(exception, System.currentTimeMillis()))
+                            .build();
+            meg.registerExecution(execution);
             TaskExecutionStateTransition update =
-                    new TaskExecutionStateTransition(
-                            new TaskExecutionState(
-                                    ejv.getMockExecutionVertex()
-                                            .getCurrentExecutionAttempt()
-                                            .getAttemptId(),
-                                    ExecutionState.FAILED,
-                                    new RuntimeException()));
+                    ExecutingTest.createFailingStateTransition(execution.getAttemptId(), exception);
             failing.updateTaskExecutionState(update);
             ctx.assertNoStateTransition();
         }
@@ -153,27 +158,32 @@ public class FailingTest extends TestLogger {
                 executionGraphHandler,
                 operatorCoordinatorHandler,
                 log,
-                testFailureCause);
+                testFailureCause,
+                ClassLoader.getSystemClassLoader(),
+                new ArrayList<>());
     }
 
     private static class MockFailingContext extends MockStateWithExecutionGraphContext
             implements Failing.Context {
 
-        private final StateValidator<ExecutingTest.ExecutingAndCancellingArguments>
-                cancellingStateValidator = new StateValidator<>("cancelling");
+        private final StateValidator<ExecutingTest.CancellingArguments> cancellingStateValidator =
+                new StateValidator<>("cancelling");
 
-        public void setExpectCanceling(
-                Consumer<ExecutingTest.ExecutingAndCancellingArguments> asserter) {
+        public void setExpectCanceling(Consumer<ExecutingTest.CancellingArguments> asserter) {
             cancellingStateValidator.expectInput(asserter);
         }
+
+        @Override
+        public void archiveFailure(RootExceptionHistoryEntry failure) {}
 
         @Override
         public void goToCanceling(
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler) {
+                OperatorCoordinatorHandler operatorCoordinatorHandler,
+                List<ExceptionHistoryEntry> failureCollection) {
             cancellingStateValidator.validateInput(
-                    new ExecutingTest.ExecutingAndCancellingArguments(
+                    new ExecutingTest.CancellingArguments(
                             executionGraph, executionGraphHandler, operatorCoordinatorHandler));
             hadStateTransition = true;
         }

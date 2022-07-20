@@ -81,7 +81,7 @@ public abstract class AbstractSubtaskHandler<
 
     @Override
     protected R handleRequest(
-            HandlerRequest<EmptyRequestBody, M> request, AccessExecutionJobVertex jobVertex)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionJobVertex jobVertex)
             throws RestHandlerException {
 
         final Integer subtaskIndex = request.getPathParameter(SubtaskIndexPathParameter.class);
@@ -106,6 +106,6 @@ public abstract class AbstractSubtaskHandler<
      * @throws RestHandlerException the rest handler exception
      */
     protected abstract R handleRequest(
-            HandlerRequest<EmptyRequestBody, M> request, AccessExecutionVertex executionVertex)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionVertex executionVertex)
             throws RestHandlerException;
 }

@@ -19,10 +19,8 @@
 # This file lists modules which define additional dependencies, not shown by the maven shade plugin output.
 # These are usually undeclared shaded (or otherwise included) dependencies from transitive dependencies.
 
-flink-sql-connector-hive-1.2.2
-flink-sql-connector-hive-2.3.6
+flink-sql-connector-hive-2.3.9
 flink-sql-connector-hive-3.1.2
-flink-sql-connector-hive-2.2.0
 flink-sql-connector-hbase-1.4
 flink-sql-connector-hbase-2.2
 flink-python

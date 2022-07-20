@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.migration;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
@@ -28,100 +29,116 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.StateBackendLoader;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
-import org.apache.flink.test.checkpointing.utils.SavepointMigrationTestBase;
-import org.apache.flink.testutils.migration.MigrationVersion;
+import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedList;
+import java.util.stream.Collectors;
 
 /**
  * Migration IT cases for upgrading a legacy {@link TypeSerializerConfigSnapshot} that is written in
  * checkpoints to {@link TypeSerializerSnapshot} interface.
  *
- * <p>The savepoints used by this test were written with a serializer snapshot class that extends
+ * <p>The snapshots used by this test were written with a serializer snapshot class that extends
  * {@link TypeSerializerConfigSnapshot}, as can be seen in the commented out code at the end of this
  * class. On restore, we change the snapshot to implement directly a {@link TypeSerializerSnapshot}.
  */
 @RunWith(Parameterized.class)
-public class TypeSerializerSnapshotMigrationITCase extends SavepointMigrationTestBase {
+public class TypeSerializerSnapshotMigrationITCase extends SnapshotMigrationTestBase {
 
     private static final int NUM_SOURCE_ELEMENTS = 4;
 
-    /**
-     * This test runs in either of two modes: 1) we want to generate the binary savepoint, i.e. we
-     * have to run the checkpointing functions 2) we want to verify restoring, so we have to run the
-     * checking functions.
-     */
-    public enum ExecutionMode {
-        PERFORM_SAVEPOINT,
-        VERIFY_SAVEPOINT
-    }
+    // TODO increase this to newer version to create and test snapshot migration for newer versions
+    private static final FlinkVersion currentVersion = FlinkVersion.v1_15;
 
-    // TODO change this to PERFORM_SAVEPOINT to regenerate binary savepoints
-    // TODO Note: You should generate the savepoint based on the release branch instead of the
+    // TODO change this to CREATE_SNAPSHOT to (re)create binary snapshots
+    // TODO Note: You should generate the snapshot based on the release branch instead of the
     // master.
-    private final ExecutionMode executionMode = ExecutionMode.VERIFY_SAVEPOINT;
+    private static final ExecutionMode executionMode = ExecutionMode.VERIFY_SNAPSHOT;
 
-    @Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
-    public static Collection<Tuple2<MigrationVersion, String>> parameters() {
-        return Arrays.asList(
-                Tuple2.of(MigrationVersion.v1_3, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_8, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_10, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_10, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_11, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_11, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_12, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(MigrationVersion.v1_12, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
+    @Parameterized.Parameters(name = "Test snapshot: {0}")
+    public static Collection<SnapshotSpec> parameters() {
+        Collection<SnapshotSpec> parameters = new LinkedList<>();
+        parameters.addAll(
+                SnapshotSpec.withVersions(
+                        StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
+                        SnapshotType.SAVEPOINT_CANONICAL,
+                        FlinkVersion.rangeOf(FlinkVersion.v1_3, FlinkVersion.v1_14)));
+        parameters.addAll(
+                SnapshotSpec.withVersions(
+                        StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
+                        SnapshotType.SAVEPOINT_CANONICAL,
+                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+        parameters.addAll(
+                SnapshotSpec.withVersions(
+                        StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
+                        SnapshotType.SAVEPOINT_CANONICAL,
+                        FlinkVersion.rangeOf(FlinkVersion.v1_3, currentVersion)));
+        parameters.addAll(
+                SnapshotSpec.withVersions(
+                        StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
+                        SnapshotType.SAVEPOINT_NATIVE,
+                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+        parameters.addAll(
+                SnapshotSpec.withVersions(
+                        StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
+                        SnapshotType.SAVEPOINT_NATIVE,
+                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+        parameters.addAll(
+                SnapshotSpec.withVersions(
+                        StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
+                        SnapshotType.CHECKPOINT,
+                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+        parameters.addAll(
+                SnapshotSpec.withVersions(
+                        StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
+                        SnapshotType.CHECKPOINT,
+                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+        if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
+            parameters =
+                    parameters.stream()
+                            .filter(x -> x.getFlinkVersion().equals(currentVersion))
+                            .collect(Collectors.toList());
+        }
+        return parameters;
     }
 
-    private final MigrationVersion testMigrateVersion;
-    private final String testStateBackend;
+    private final SnapshotSpec snapshotSpec;
 
-    public TypeSerializerSnapshotMigrationITCase(
-            Tuple2<MigrationVersion, String> testMigrateVersionAndBackend) throws Exception {
-        this.testMigrateVersion = testMigrateVersionAndBackend.f0;
-        this.testStateBackend = testMigrateVersionAndBackend.f1;
+    public TypeSerializerSnapshotMigrationITCase(SnapshotSpec snapshotSpec) throws Exception {
+        this.snapshotSpec = snapshotSpec;
     }
 
     @Test
-    public void testSavepoint() throws Exception {
+    public void testSnapshot() throws Exception {
         final int parallelism = 1;
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRestartStrategy(RestartStrategies.noRestart());
 
-        switch (testStateBackend) {
+        switch (snapshotSpec.getStateBackendType()) {
             case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME:
-                env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
+                env.setStateBackend(new EmbeddedRocksDBStateBackend());
                 break;
             case StateBackendLoader.MEMORY_STATE_BACKEND_NAME:
                 env.setStateBackend(new MemoryStateBackend());
+                break;
+            case StateBackendLoader.HASHMAP_STATE_BACKEND_NAME:
+                env.setStateBackend(new HashMapStateBackend());
                 break;
             default:
                 throw new UnsupportedOperationException();
@@ -140,36 +157,30 @@ public class TypeSerializerSnapshotMigrationITCase extends SavepointMigrationTes
                 .map(new TestMapFunction())
                 .addSink(new MigrationTestUtils.AccumulatorCountingSink<>());
 
-        if (executionMode == ExecutionMode.PERFORM_SAVEPOINT) {
-            executeAndSavepoint(
+        final String snapshotPath = getSnapshotPath(snapshotSpec);
+
+        if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
+            executeAndSnapshot(
                     env,
-                    "src/test/resources/" + getSavepointPath(testMigrateVersion, testStateBackend),
-                    new Tuple2<>(
+                    "src/test/resources/" + snapshotPath,
+                    snapshotSpec.getSnapshotType(),
+                    Tuple2.of(
+                            MigrationTestUtils.AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
+                            NUM_SOURCE_ELEMENTS));
+        } else if (executionMode == ExecutionMode.VERIFY_SNAPSHOT) {
+            restoreAndExecute(
+                    env,
+                    getResourceFilename(snapshotPath),
+                    Tuple2.of(
                             MigrationTestUtils.AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
                             NUM_SOURCE_ELEMENTS));
         } else {
-            restoreAndExecute(
-                    env,
-                    getResourceFilename(getSavepointPath(testMigrateVersion, testStateBackend)),
-                    new Tuple2<>(
-                            MigrationTestUtils.AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
-                            NUM_SOURCE_ELEMENTS));
+            throw new IllegalStateException("Unknown ExecutionMode " + executionMode);
         }
     }
 
-    private String getSavepointPath(MigrationVersion savepointVersion, String backendType) {
-        switch (backendType) {
-            case "rocksdb":
-                return "type-serializer-snapshot-migration-itcase-flink"
-                        + savepointVersion
-                        + "-rocksdb-savepoint";
-            case "jobmanager":
-                return "type-serializer-snapshot-migration-itcase-flink"
-                        + savepointVersion
-                        + "-savepoint";
-            default:
-                throw new UnsupportedOperationException();
-        }
+    private String getSnapshotPath(SnapshotSpec snapshotSpec) {
+        return "type-serializer-snapshot-migration-itcase-" + snapshotSpec;
     }
 
     private static class TestMapFunction

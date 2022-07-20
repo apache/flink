@@ -71,8 +71,8 @@ response back to the client.
 
 To enable queryable state on your Flink cluster, you need to do the following:
 
- 1. copy the `flink-queryable-state-runtime{{ site.scala_version_suffix }}-{{site.version }}.jar` 
-from the `opt/` folder of your [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads"), 
+ 1. copy the `flink-queryable-state-runtime-{{< version >}}.jar`
+from the `opt/` folder of your [Flink distribution]({{< downloads >}} "Apache Flink: Downloads"), 
 to the `lib/` folder.
  2. set the property `queryable-state.enable` to `true`. See the [Configuration]({{< ref "docs/deployment/config" >}}#queryable-state) documentation for details and additional parameters.
 
@@ -113,10 +113,10 @@ QueryableStateStream asQueryableState(
 ```
 
 
-<div class="alert alert-info">
-  <strong>Note:</strong> There is no queryable <code>ListState</code> sink as it would result in an ever-growing
-  list which may not be cleaned up and thus will eventually consume too much memory.
-</div>
+{{< hint info >}}
+**Note:** There is no queryable `ListState` sink as it would result in an ever-growing
+list which may not be cleaned up and thus will eventually consume too much memory.
+{{< /hint >}}
 
 The returned `QueryableStateStream` can be seen as a sink and **cannot** be further transformed. Internally, a 
 `QueryableStateStream` gets translated to an operator which uses all incoming records to update the queryable state 
@@ -125,7 +125,7 @@ In a program like the following, all records of the keyed stream will be used to
 `ValueState.update(value)`:
 
 ```java
-stream.keyBy(value -> value.f0).asQueryableState("query-name")
+stream.keyBy(value -> value.f0).asQueryableState("query-name");
 ```
 
 This acts like the Scala API's `flatMapWithState`.
@@ -144,10 +144,10 @@ ValueStateDescriptor<Tuple2<Long, Long>> descriptor =
 descriptor.setQueryable("query-name"); // queryable state name
 ```
 
-<div class="alert alert-info">
-  <strong>Note:</strong> The <code>queryableStateName</code> parameter may be chosen arbitrarily and is only
-  used for queries. It does not have to be identical to the state's own name.
-</div>
+{{< hint info >}}
+**Note:** The `queryableStateName` parameter may be chosen arbitrarily and is only
+used for queries. It does not have to be identical to the state's own name.
+{{< /hint >}}
 
 This variant has no limitations as to which type of state can be made queryable. This means that this can be used for 
 any `ValueState`, `ReduceState`, `ListState`, `MapState`, and `AggregatingState`.
@@ -173,7 +173,7 @@ jar which must be explicitly included as a dependency in the `pom.xml` of your p
 </dependency>
 ```
 
-For more on this, you can check how to [set up a Flink program]({{< ref "docs/dev/datastream/project-configuration" >}}).
+For more on this, you can check how to [set up a Flink program]({{< ref "docs/dev/configuration/overview" >}}).
 
 The `QueryableStateClient` will submit your query to the internal proxy, which will then process your query and return 
 the final result. The only requirement to initialize the client is to provide a valid `TaskManager` hostname (remember 
@@ -205,19 +205,19 @@ The careful reader will notice that the returned future contains a value of type
 the actual value. This can be any of the state types supported by Flink: `ValueState`, `ReduceState`, `ListState`, `MapState`,
 and `AggregatingState`. 
 
-<div class="alert alert-info">
-  <strong>Note:</strong> These state objects do not allow modifications to the contained state. You can use them to get 
-  the actual value of the state, <i>e.g.</i> using <code>valueState.get()</code>, or iterate over
-  the contained <code><K, V></code> entries, <i>e.g.</i> using the <code>mapState.entries()</code>, but you cannot 
-  modify them. As an example, calling the <code>add()</code> method on a returned list state will throw an 
-  <code>UnsupportedOperationException</code>.
-</div>
+{{< hint info >}}
+**Note:** These state objects do not allow modifications to the contained state. You can use them to get 
+the actual value of the state, *e.g.* using `valueState.get()`, or iterate over
+the contained `<K, V>` entries, *e.g.* using the `mapState.entries()`, but you cannot 
+modify them. As an example, calling the `add()` method on a returned list state will throw an 
+`UnsupportedOperationException`.
+{{< /hint >}}
 
-<div class="alert alert-info">
-  <strong>Note:</strong> The client is asynchronous and can be shared by multiple threads. It needs
-  to be shutdown via <code>QueryableStateClient.shutdown()</code> when unused in order to free
-  resources.
-</div>
+{{< hint info >}}
+**Note:** The client is asynchronous and can be shared by multiple threads. It needs
+to be shutdown via <code>QueryableStateClient.shutdown()</code> when unused in order to free
+resources.
+{{< /hint >}}
 
 ### Example
 

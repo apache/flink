@@ -821,7 +821,7 @@ public class RecordTest {
             final Value[][] values =
                     new Value[][] {
                         {new IntValue(56), null, new IntValue(-7628761)},
-                        {null, new StringValue("Hellow Test!"), null},
+                        {null, new StringValue("Hello Test!"), null},
                         {null, null, null, null, null, null, null, null},
                         {
                             null, null, null, null, null, null, null, null, null, null, null, null,

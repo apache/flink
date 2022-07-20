@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /** Tests for {@link TimerGauge}. */
@@ -48,6 +49,8 @@ public class TimerGaugeTest {
 
         gauge.update();
         assertThat(gauge.getValue(), is(0L));
+        assertThat(gauge.getMaxSingleMeasurement(), is(0L));
+        assertEquals(gauge.getAccumulatedCount(), 0L);
 
         gauge.markStart();
         clock.advanceTime(SLEEP, TimeUnit.MILLISECONDS);
@@ -55,6 +58,17 @@ public class TimerGaugeTest {
         gauge.update();
 
         assertThat(gauge.getValue(), greaterThanOrEqualTo(SLEEP / View.UPDATE_INTERVAL_SECONDS));
+        assertThat(gauge.getMaxSingleMeasurement(), is(SLEEP));
+        assertEquals(gauge.getAccumulatedCount(), SLEEP);
+
+        // Check that the getMaxSingleMeasurement can go down after an update
+        gauge.markStart();
+        clock.advanceTime(SLEEP / 2, TimeUnit.MILLISECONDS);
+        gauge.markEnd();
+        gauge.update();
+
+        assertThat(gauge.getMaxSingleMeasurement(), is(SLEEP / 2));
+        assertEquals(gauge.getAccumulatedCount(), SLEEP + SLEEP / 2);
     }
 
     @Test
@@ -67,6 +81,15 @@ public class TimerGaugeTest {
         gauge.update();
 
         assertThat(gauge.getValue(), greaterThanOrEqualTo(SLEEP / View.UPDATE_INTERVAL_SECONDS));
+        assertThat(gauge.getMaxSingleMeasurement(), is(SLEEP));
+
+        // keep the measurement going for another update
+        clock.advanceTime(SLEEP, TimeUnit.MILLISECONDS);
+        gauge.update();
+
+        assertThat(gauge.getValue(), greaterThanOrEqualTo(SLEEP / View.UPDATE_INTERVAL_SECONDS));
+        // max single measurement is now spanning two updates
+        assertThat(gauge.getMaxSingleMeasurement(), is(SLEEP * 2));
     }
 
     @Test
@@ -82,5 +105,6 @@ public class TimerGaugeTest {
         gauge.markEnd();
 
         assertThat(gauge.getValue(), is(0L));
+        assertThat(gauge.getMaxSingleMeasurement(), is(0L));
     }
 }

@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link ExecutionGraphResultPartitionAvailabilityChecker}. */
@@ -63,7 +64,7 @@ public class ExecutionGraphResultPartitionAvailabilityCheckerTest extends TestLo
         final Function<IntermediateResultPartitionID, ResultPartitionID> partitionIDMapper =
                 intermediateResultPartitionID ->
                         new ResultPartitionID(
-                                intermediateResultPartitionID, new ExecutionAttemptID());
+                                intermediateResultPartitionID, createExecutionAttemptId());
 
         final ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker =
                 new ExecutionGraphResultPartitionAvailabilityChecker(

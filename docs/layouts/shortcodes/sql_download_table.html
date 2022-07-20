@@ -89,11 +89,16 @@ and SQL Client with SQL JAR bundles.</p>
   rendered documentation. 
 */}}
 {{ define "maven-artifact" }}{{/* (dict "ArtifactId" .ArtifactId */}}
-<div id="{{ .ArtifactId }}" onclick="selectTextAndCopy('{{ .ArtifactId }}')" class="highlight"><pre class="chroma"><code class="language-xml" data-lang="xml"><span class="nt">&ltdependency&gt</span>
+<div id="{{ .ArtifactId }}" onclick="selectTextAndCopy('{{ .ArtifactId }}')" class="highlight"><pre class="chroma"><code class="language-xml" data-lang="xml">
+{{- $artifacts := cond (eq (printf "%T" .ArtifactId) "string") (slice .ArtifactId) .ArtifactId -}}
+{{- range $artifact := $artifacts -}}
+  <span class="nt">&ltdependency&gt</span>
   <span class="nt">&ltgroupId&gt</span>org.apache.flink<span class="nt">&lt/groupId&gt</span>
-  <span class="nt">&ltartifactId&gt</span>{{- partial "docs/interpolate" .ArtifactId -}}<span class="nt">&lt/artifactId&gt</span>
+  <span class="nt">&ltartifactId&gt</span>{{- partial "docs/interpolate" $artifact -}}<span class="nt">&lt/artifactId&gt</span>
   <span class="nt">&ltversion&gt</span>{{- site.Params.Version -}}<span class="nt">&lt/version&gt</span>
-<span class="nt">&lt/dependency&gt</span></code></pre></div>
+<span class="nt">&lt/dependency&gt</span>
+{{- end -}}
+</code></pre></div>
 <div class="book-hint info" style="text-align:center;display:none" copyable="flink-module" copyattribute="{{ .ArtifactId }}">
 Copied to clipboard!
 </div>

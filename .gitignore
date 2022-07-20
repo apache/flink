@@ -1,13 +1,16 @@
+.eslintcache
 .cache
 scalastyle-output.xml
 .classpath
-.idea
+.idea/*
+!.idea/vcs.xml
 .metadata
 .settings
 .project
 .version.properties
 filter.properties
 logs.zip
+.mvn/wrapper/*.jar
 target
 tmp
 *.class
@@ -22,6 +25,7 @@ build-target
 flink-runtime-web/web-dashboard/node/
 flink-runtime-web/web-dashboard/node_modules/
 flink-runtime-web/web-dashboard/web/
+flink-runtime-web/web-dashboard/.angular/
 flink-python/dist/
 flink-python/apache-flink-libraries/dist/
 flink-python/build/
@@ -39,6 +43,7 @@ flink-python/.eggs/
 flink-python/apache-flink-*.dev0/
 flink-python/apache-flink-libraries/apache_flink_libraries-*.dev0/
 flink-python/**/*.c
+flink-python/.idea/
 flink-python/**/*.so
 atlassian-ide-plugin.xml
 out/
@@ -54,3 +59,6 @@ tools/flink
 tools/flink-*
 tools/releasing/release
 tools/japicmp-output
+/docs/go.mod
+/docs/go.sum
+/docs/.hugo_build.lock

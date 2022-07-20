@@ -31,6 +31,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -38,16 +40,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Abstract high availability services based on distributed system(e.g. Zookeeper, Kubernetes). It
  * will help with creating all the leader election/retrieval services and the cleanup. Please return
- * a proper leader name int the implementation of {@link #getLeaderNameForResourceManager}, {@link
- * #getLeaderNameForDispatcher}, {@link #getLeaderNameForJobManager}, {@link
- * #getLeaderNameForRestServer}. The returned leader name is the ConfigMap name in Kubernetes and
+ * a proper leader name int the implementation of {@link #getLeaderPathForResourceManager}, {@link
+ * #getLeaderPathForDispatcher}, {@link #getLeaderPathForJobManager}, {@link
+ * #getLeaderPathForRestServer}. The returned leader name is the ConfigMap name in Kubernetes and
  * child path in Zookeeper.
  *
  * <p>{@link #close()} and {@link #closeAndCleanupAllData()} should be implemented to destroy the
  * resources.
  *
  * <p>The abstract class is also responsible for determining which component service should be
- * reused. For example, {@link #runningJobsRegistry} is created once and could be reused many times.
+ * reused. For example, {@link #jobResultStore} is created once and could be reused many times.
  */
 public abstract class AbstractHaServices implements HighAvailabilityServices {
 
@@ -62,30 +64,33 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     /** Store for arbitrary blobs. */
     private final BlobStoreService blobStoreService;
 
-    /** The distributed storage based running jobs registry. */
-    private RunningJobsRegistry runningJobsRegistry;
+    private final JobResultStore jobResultStore;
 
-    public AbstractHaServices(
-            Configuration config, Executor ioExecutor, BlobStoreService blobStoreService) {
+    protected AbstractHaServices(
+            Configuration config,
+            Executor ioExecutor,
+            BlobStoreService blobStoreService,
+            JobResultStore jobResultStore) {
 
         this.configuration = checkNotNull(config);
         this.ioExecutor = checkNotNull(ioExecutor);
         this.blobStoreService = checkNotNull(blobStoreService);
+        this.jobResultStore = checkNotNull(jobResultStore);
     }
 
     @Override
     public LeaderRetrievalService getResourceManagerLeaderRetriever() {
-        return createLeaderRetrievalService(getLeaderNameForResourceManager());
+        return createLeaderRetrievalService(getLeaderPathForResourceManager());
     }
 
     @Override
     public LeaderRetrievalService getDispatcherLeaderRetriever() {
-        return createLeaderRetrievalService(getLeaderNameForDispatcher());
+        return createLeaderRetrievalService(getLeaderPathForDispatcher());
     }
 
     @Override
     public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
-        return createLeaderRetrievalService(getLeaderNameForJobManager(jobID));
+        return createLeaderRetrievalService(getLeaderPathForJobManager(jobID));
     }
 
     @Override
@@ -96,31 +101,31 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
 
     @Override
     public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
-        return createLeaderRetrievalService(getLeaderNameForRestServer());
+        return createLeaderRetrievalService(getLeaderPathForRestServer());
     }
 
     @Override
     public LeaderElectionService getResourceManagerLeaderElectionService() {
-        return createLeaderElectionService(getLeaderNameForResourceManager());
+        return createLeaderElectionService(getLeaderPathForResourceManager());
     }
 
     @Override
     public LeaderElectionService getDispatcherLeaderElectionService() {
-        return createLeaderElectionService(getLeaderNameForDispatcher());
+        return createLeaderElectionService(getLeaderPathForDispatcher());
     }
 
     @Override
     public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
-        return createLeaderElectionService(getLeaderNameForJobManager(jobID));
+        return createLeaderElectionService(getLeaderPathForJobManager(jobID));
     }
 
     @Override
     public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
-        return createLeaderElectionService(getLeaderNameForRestServer());
+        return createLeaderElectionService(getLeaderPathForRestServer());
     }
 
     @Override
-    public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
+    public CheckpointRecoveryFactory getCheckpointRecoveryFactory() throws Exception {
         return createCheckpointRecoveryFactory();
     }
 
@@ -130,11 +135,8 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public RunningJobsRegistry getRunningJobsRegistry() {
-        if (runningJobsRegistry == null) {
-            this.runningJobsRegistry = createRunningJobsRegistry();
-        }
-        return runningJobsRegistry;
+    public JobResultStore getJobResultStore() throws Exception {
+        return jobResultStore;
     }
 
     @Override
@@ -205,6 +207,22 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         logger.info("Finished cleaning up the high availability data.");
     }
 
+    @Override
+    public CompletableFuture<Void> globalCleanupAsync(JobID jobID, Executor executor) {
+        return CompletableFuture.runAsync(
+                () -> {
+                    logger.info("Clean up the high availability data for job {}.", jobID);
+                    try {
+                        internalCleanupJobData(jobID);
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                    logger.info(
+                            "Finished cleaning up the high availability data for job {}.", jobID);
+                },
+                executor);
+    }
+
     /**
      * Create leader election service with specified leaderName.
      *
@@ -226,7 +244,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
      *
      * @return Checkpoint recovery factory
      */
-    protected abstract CheckpointRecoveryFactory createCheckpointRecoveryFactory();
+    protected abstract CheckpointRecoveryFactory createCheckpointRecoveryFactory() throws Exception;
 
     /**
      * Create the submitted job graph store for the job manager.
@@ -237,17 +255,12 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     protected abstract JobGraphStore createJobGraphStore() throws Exception;
 
     /**
-     * Create the registry that holds information about whether jobs are currently running.
-     *
-     * @return Running job registry to retrieve running jobs
-     */
-    protected abstract RunningJobsRegistry createRunningJobsRegistry();
-
-    /**
      * Closes the components which is used for external operations(e.g. Zookeeper Client, Kubernetes
      * Client).
+     *
+     * @throws Exception if the close operation failed
      */
-    protected abstract void internalClose();
+    protected abstract void internalClose() throws Exception;
 
     /**
      * Clean up the meta data in the distributed system(e.g. Zookeeper, Kubernetes ConfigMap).
@@ -261,35 +274,44 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     protected abstract void internalCleanup() throws Exception;
 
     /**
-     * Get the leader name for ResourceManager.
+     * Clean up the meta data in the distributed system(e.g. Zookeeper, Kubernetes ConfigMap) for
+     * the specified Job. Method implementations need to be thread-safe.
+     *
+     * @param jobID The identifier of the job to cleanup.
+     * @throws Exception when do the cleanup operation on external storage.
+     */
+    protected abstract void internalCleanupJobData(JobID jobID) throws Exception;
+
+    /**
+     * Get the leader path for ResourceManager.
      *
      * @return Return the ResourceManager leader name. It is ConfigMap name in Kubernetes or child
      *     node path in Zookeeper.
      */
-    protected abstract String getLeaderNameForResourceManager();
+    protected abstract String getLeaderPathForResourceManager();
 
     /**
-     * Get the leader name for Dispatcher.
+     * Get the leader path for Dispatcher.
      *
      * @return Return the Dispatcher leader name. It is ConfigMap name in Kubernetes or child node
      *     path in Zookeeper.
      */
-    protected abstract String getLeaderNameForDispatcher();
+    protected abstract String getLeaderPathForDispatcher();
 
     /**
-     * Get the leader name for specific JobManager.
+     * Get the leader path for specific JobManager.
      *
      * @param jobID job id
      * @return Return the JobManager leader name for specified job id. It is ConfigMap name in
      *     Kubernetes or child node path in Zookeeper.
      */
-    protected abstract String getLeaderNameForJobManager(final JobID jobID);
+    protected abstract String getLeaderPathForJobManager(final JobID jobID);
 
     /**
-     * Get the leader name for RestServer.
+     * Get the leader path for RestServer.
      *
      * @return Return the RestServer leader name. It is ConfigMap name in Kubernetes or child node
      *     path in Zookeeper.
      */
-    protected abstract String getLeaderNameForRestServer();
+    protected abstract String getLeaderPathForRestServer();
 }

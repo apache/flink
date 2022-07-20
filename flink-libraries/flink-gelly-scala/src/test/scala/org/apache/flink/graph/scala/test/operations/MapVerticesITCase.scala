@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.graph.scala.test.operations
 
 import org.apache.flink.api.common.functions.MapFunction
@@ -24,15 +23,15 @@ import org.apache.flink.graph.Vertex
 import org.apache.flink.graph.scala._
 import org.apache.flink.graph.scala.test.TestGraphUtils
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
+
+import _root_.scala.collection.JavaConverters._
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-import _root_.scala.collection.JavaConverters._
-
 @RunWith(classOf[Parameterized])
-class MapVerticesITCase(mode: MultipleProgramsTestBase.TestExecutionMode) extends
-MultipleProgramsTestBase(mode) {
+class MapVerticesITCase(mode: MultipleProgramsTestBase.TestExecutionMode)
+  extends MultipleProgramsTestBase(mode) {
 
   private var expectedResult: String = null
 
@@ -40,8 +39,11 @@ MultipleProgramsTestBase(mode) {
   @throws(classOf[Exception])
   def testWithSameValue {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
-      .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+    val graph: Graph[Long, Long, Long] = Graph.fromDataSet(
+      TestGraphUtils
+        .getLongLongVertexData(env),
+      TestGraphUtils.getLongLongEdgeData(env),
+      env)
     val res = graph.mapVertices(new AddOneMapper).getVertices.collect().toList
     expectedResult = "1,2\n" +
       "2,3\n" +
@@ -55,8 +57,11 @@ MultipleProgramsTestBase(mode) {
   @throws(classOf[Exception])
   def testWithSameValueSugar {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
-      .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+    val graph: Graph[Long, Long, Long] = Graph.fromDataSet(
+      TestGraphUtils
+        .getLongLongVertexData(env),
+      TestGraphUtils.getLongLongEdgeData(env),
+      env)
     val res = graph.mapVertices(vertex => vertex.getValue + 1).getVertices.collect().toList
     expectedResult = "1,2\n" +
       "2,3\n" +

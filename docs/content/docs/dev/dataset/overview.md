@@ -33,8 +33,18 @@ Please refer to the DataStream API overview for an introduction to the basic con
 
 In order to create your own Flink DataSet program, we encourage you to start with the anatomy of a Flink Program and gradually add your own transformations. The remaining sections act as references for additional operations and advanced features.
 
-{{< hint info >}}
-Starting with Flink 1.12 the DataSet has been soft deprecated. We recommend that you use the DataStream API with `BATCH` execution mode. The linked section also outlines cases where it makes sense to use the DataSet API but those cases will become rarer as development progresses and the DataSet API will eventually be removed. Please also see FLIP-131 for background information on this decision. 
+{{< hint warning >}}
+Starting with Flink 1.12 the DataSet API has been soft deprecated.
+
+We recommend that you use the [Table API and SQL]({{< ref "docs/dev/table/overview" >}}) to run efficient
+batch pipelines in a fully unified API. Table API is well integrated with common batch connectors and
+catalogs.
+
+Alternatively, you can also use the DataStream API with `BATCH` [execution mode]({{< ref "docs/dev/datastream/execution_mode" >}}).
+The linked section also outlines cases where it makes sense to use the DataSet API but those cases will
+become rarer as development progresses and the DataSet API will eventually be removed. Please also
+see [FLIP-131](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741) for
+background information on this decision.
 {{< /hint >}}
 
 ## Example Program
@@ -271,7 +281,7 @@ It removes the duplicate entries from the input DataSet, with respect to all fie
 {{< tabs "distinct" >}}
 {{< tab "Java" >}}
 ```java
-data.distinct()
+data.distinct();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -421,7 +431,7 @@ Produces the union of two data sets.
 {{< tabs "union" >}}
 {{< tab "Java" >}}
 ```java
-data.union(data2)
+data.union(data2);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -440,7 +450,7 @@ Only Map-like transformations may follow a rebalance transformation.
 {{< tab "Java" >}}
 ```java
 DataSet<Int> data1 = // [...]
-DataSet<Tuple2<Int, String>> result = data1.rebalance().map(...)
+DataSet<Tuple2<Int, String>> result = data1.rebalance().map(...);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -641,7 +651,7 @@ The simplest case is grouping Tuples on one or more fields of the Tuple:
 {{< tab "Java" >}}
 ```java
 DataSet<Tuple3<Integer,String,Long>> input = // [...]
-UnsortedGrouping<Tuple3<Integer,String,Long>,Tuple> keyed = input.groupBy(0)
+UnsortedGrouping<Tuple3<Integer,String,Long>,Tuple> keyed = input.groupBy(0);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -658,7 +668,7 @@ Tuples are grouped on the first field (the one of Integer type).
 {{< tab "Java" >}}
 ```java
 DataSet<Tuple3<Integer,String,Long>> input = // [...]
-UnsortedGrouping<Tuple3<Integer,String,Long>,Tuple> keyed = input.groupBy(0,1)
+UnsortedGrouping<Tuple3<Integer,String,Long>,Tuple> keyed = input.groupBy(0,1);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -697,7 +707,7 @@ public class WC {
   public int count;
 }
 DataSet<WC> words = // [...]
-DataSet<WC> wordCounts = words.groupBy("word")
+DataSet<WC> wordCounts = words.groupBy("word");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -1383,11 +1393,11 @@ final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 DataSet<Integer> myInts = env.fromElements(1, 2, 3, 4, 5);
 
 // Create a DataSet from any Java collection
-List<Tuple2<String, Integer>> data = ...
+List<Tuple2<String, Integer>> data = ...;
 DataSet<Tuple2<String, Integer>> myTuples = env.fromCollection(data);
 
 // Create a DataSet from an Iterator
-Iterator<Long> longIt = ...
+Iterator<Long> longIt = ...;
 DataSet<Long> myLongs = env.fromCollection(longIt, Long.class);
 ```
 {{< /tab >}}
@@ -1485,14 +1495,14 @@ The distributed cache is used as follows:
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 // register a file from HDFS
-env.registerCachedFile("hdfs:///path/to/your/file", "hdfsFile")
+env.registerCachedFile("hdfs:///path/to/your/file", "hdfsFile");
 
 // register a local executable file (script, executable, ...)
-env.registerCachedFile("file:///path/to/exec/file", "localExecFile", true)
+env.registerCachedFile("file:///path/to/exec/file", "localExecFile", true);
 
 // define your program and execute
 ...
-DataSet<String> input = ...
+DataSet<String> input = ...;
 DataSet<Integer> result = input.map(new MyMapper());
 ...
 env.execute();

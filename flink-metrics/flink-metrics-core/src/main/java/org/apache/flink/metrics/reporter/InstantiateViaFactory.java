@@ -18,6 +18,8 @@
 
 package org.apache.flink.metrics.reporter;
 
+import org.apache.flink.annotation.Public;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -32,9 +34,13 @@ import java.lang.annotation.Target;
  *
  * <p>Attention: This annotation does not work if the reporter is loaded as a plugin. For these
  * cases, annotate the factory with {@link InterceptInstantiationViaReflection} instead.
+ *
+ * @deprecated Will be removed in a future version. Users should use all reporters as plugins.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
+@Public
+@Deprecated
 public @interface InstantiateViaFactory {
     String factoryClassName();
 }

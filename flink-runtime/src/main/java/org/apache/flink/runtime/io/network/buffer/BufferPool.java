@@ -18,8 +18,16 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import java.io.IOException;
+
 /** A dynamically sized buffer pool. */
 public interface BufferPool extends BufferProvider, BufferRecycler {
+
+    /**
+     * Reserves the target number of segments to this pool. Will throw an exception if it can not
+     * allocate enough segments.
+     */
+    void reserveSegments(int numberOfSegmentsToReserve) throws IOException;
 
     /**
      * Destroys this buffer pool.
@@ -55,6 +63,12 @@ public interface BufferPool extends BufferProvider, BufferRecycler {
      * <p>The size needs to be greater or equal to the guaranteed number of memory segments.
      */
     void setNumBuffers(int numBuffers);
+
+    /** Sets the max overdraft buffer size of per gate. */
+    void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate);
+
+    /** Returns the max overdraft buffer size of per gate. */
+    int getMaxOverdraftBuffersPerGate();
 
     /** Returns the number memory segments, which are currently held by this buffer pool. */
     int getNumberOfAvailableMemorySegments();

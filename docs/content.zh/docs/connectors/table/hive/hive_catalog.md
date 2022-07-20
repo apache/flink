@@ -64,12 +64,9 @@ Generic tables, on the other hand, are specific to Flink. When creating generic 
 HMS to persist the metadata. While these tables are visible to Hive, it's unlikely Hive is able to understand
 the metadata. And therefore using such tables in Hive leads to undefined behavior.
 
-Flink uses the property '*is_generic*' to tell whether a table is Hive-compatible or generic. When creating a table with
-`HiveCatalog`, it's by default considered generic. If you'd like to create a Hive-compatible table, make sure to set
-`is_generic` to false in your table properties.
-
-As stated above, generic tables shouldn't be used from Hive. In Hive CLI, you can call `DESCRIBE FORMATTED` for a table and
-decide whether it's generic or not by checking the `is_generic` property. Generic tables will have `is_generic=true`.
+It's recommended to switch to [Hive dialect]({{< ref "docs/connectors/table/hive/hive_dialect" >}}) to create Hive-compatible tables.
+If you want to create Hive-compatible tables with default dialect, make sure to set `'connector'='hive'` in your table properties, otherwise
+a table is considered generic by default in `HiveCatalog`. Note that the `connector` property is not required if you use Hive dialect.
 
 ### Example
 
@@ -140,29 +137,23 @@ Time taken: 0.028 seconds, Fetched: 0 row(s)
 ```
 
 
-#### step 2: configure Flink cluster and SQL CLI
+#### step 2: start SQL Client, and create a Hive catalog with Flink SQL DDL
 
-Add all Hive dependencies to `/lib` dir in Flink distribution, and modify SQL CLI's yaml config file `sql-cli-defaults.yaml` as following:
+Add all Hive dependencies to `/lib` dir in Flink distribution, and create a Hive catalog in Flink SQL CLI as following:
 
-```yaml
+```bash
 
-execution:
-    planner: blink
-    type: streaming
-    ...
-    current-catalog: myhive  # set the HiveCatalog as the current catalog of the session
-    current-database: mydatabase
-    
-catalogs:
-   - name: myhive
-     type: hive
-     hive-conf-dir: /opt/hive-conf  # contains hive-site.xml
+Flink SQL> CREATE CATALOG myhive WITH (
+  'type' = 'hive',
+  'hive-conf-dir' = '/opt/hive-conf'
+);
+
 ```
 
 
 #### step 3: set up a Kafka cluster
 
-Bootstrap a local Kafka 2.3.0 cluster with a topic named "test", and produce some simple data to the topic as tuple of name and age.
+Bootstrap a local Kafka cluster with a topic named "test", and produce some simple data to the topic as tuple of name and age.
 
 ```bash
 
@@ -184,11 +175,12 @@ john,21
 ```
 
 
-#### step 4: start SQL Client, and create a Kafka table with Flink SQL DDL
+#### step 4: create a Kafka table with Flink SQL DDL
 
-Start Flink SQL Client, create a simple Kafka 2.3.0 table via DDL, and verify its schema.
+Create a simple Kafka table with Flink SQL DDL, and verify its schema.
 
 ```bash
+Flink SQL> USE CATALOG myhive;
 
 Flink SQL> CREATE TABLE mykafka (name String, age Int) WITH (
    'connector.type' = 'kafka',
@@ -207,52 +199,13 @@ root
 
 ```
 
-Verify the table is also visible to Hive via Hive Cli, and note that the table has property `is_generic=true`:
+Verify the table is also visible to Hive via Hive Cli:
 
 ```bash
 hive> show tables;
 OK
 mykafka
 Time taken: 0.038 seconds, Fetched: 1 row(s)
-
-hive> describe formatted mykafka;
-OK
-# col_name            	data_type           	comment
-
-
-# Detailed Table Information
-Database:           	default
-Owner:              	null
-CreateTime:         	......
-LastAccessTime:     	UNKNOWN
-Retention:          	0
-Location:           	......
-Table Type:         	MANAGED_TABLE
-Table Parameters:
-	flink.connector.properties.bootstrap.servers	localhost:9092
-	flink.connector.topic	test
-	flink.connector.type	kafka
-	flink.connector.version	universal
-	flink.format.type   	csv
-	flink.generic.table.schema.0.data-type	VARCHAR(2147483647)
-	flink.generic.table.schema.0.name	name
-	flink.generic.table.schema.1.data-type	INT
-	flink.generic.table.schema.1.name	age
-	flink.update-mode   	append
-	is_generic          	true
-	transient_lastDdlTime	......
-
-# Storage Information
-SerDe Library:      	org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-InputFormat:        	org.apache.hadoop.mapred.TextInputFormat
-OutputFormat:       	org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat
-Compressed:         	No
-Num Buckets:        	-1
-Bucket Columns:     	[]
-Sort Columns:       	[]
-Storage Desc Params:
-	serialization.format	1
-Time taken: 0.158 seconds, Fetched: 36 row(s)
 
 ```
 
@@ -391,7 +344,3 @@ Something to note about the type mapping:
 * Hive's `TIMESTAMP` always has precision 9 and doesn't support other precisions. Hive UDFs, on the other hand, can process `TIMESTAMP` values with a precision <= 9.
 * Hive doesn't support Flink's `TIMESTAMP_WITH_TIME_ZONE`, `TIMESTAMP_WITH_LOCAL_TIME_ZONE`, and `MULTISET`
 * Flink's `INTERVAL` type cannot be mapped to Hive `INTERVAL` type yet
-
-## Scala Shell
-
-NOTE: since blink planner is not well supported in Scala Shell at the moment, it's **NOT** recommended to use Hive connector in Scala Shell.

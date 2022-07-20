@@ -30,17 +30,25 @@ import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.runtime.rest.handler.job.GeneratedLogUrlHandler;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
+import org.apache.flink.runtime.rest.messages.JobManagerLogUrlHeaders;
+import org.apache.flink.runtime.rest.messages.TaskManagerLogUrlHeaders;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.Runnables;
+import org.apache.flink.runtime.webmonitor.utils.LogUrlUtil;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -59,7 +67,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -101,6 +113,11 @@ public class HistoryServer {
 
     @Nullable private final SSLHandlerFactory serverSSLFactory;
     private WebFrontendBootstrap netty;
+
+    private final long refreshIntervalMillis;
+    private final ScheduledExecutorService executor =
+            Executors.newSingleThreadScheduledExecutor(
+                    new ExecutorThreadFactory("Flink-HistoryServer-ArchiveFetcher"));
 
     private final Object startupShutdownLock = new Object();
     private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
@@ -219,7 +236,7 @@ public class HistoryServer {
                     "Failed to validate any of the configured directories to monitor.");
         }
 
-        long refreshIntervalMillis =
+        refreshIntervalMillis =
                 config.getLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
         int maxHistorySize = config.getInteger(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS);
         if (maxHistorySize == 0 || maxHistorySize < -1) {
@@ -229,7 +246,6 @@ public class HistoryServer {
         }
         archiveFetcher =
                 new HistoryServerArchiveFetcher(
-                        refreshIntervalMillis,
                         refreshDirs,
                         webDir,
                         jobArchiveEventListener,
@@ -244,6 +260,11 @@ public class HistoryServer {
     @VisibleForTesting
     int getWebPort() {
         return netty.getServerPort();
+    }
+
+    @VisibleForTesting
+    void fetchArchives() {
+        executor.execute(getArchiveFetchingRunnable());
     }
 
     public void run() {
@@ -269,16 +290,42 @@ public class HistoryServer {
             LOG.info("Using directory {} as local cache.", webDir);
 
             Router router = new Router();
+
+            LogUrlUtil.getValidLogUrlPattern(
+                            config, HistoryServerOptions.HISTORY_SERVER_JOBMANAGER_LOG_URL_PATTERN)
+                    .ifPresent(
+                            pattern ->
+                                    router.addGet(
+                                            JobManagerLogUrlHeaders.getInstance()
+                                                    .getTargetRestEndpointURL(),
+                                            new GeneratedLogUrlHandler(
+                                                    CompletableFuture.completedFuture(pattern))));
+            LogUrlUtil.getValidLogUrlPattern(
+                            config, HistoryServerOptions.HISTORY_SERVER_TASKMANAGER_LOG_URL_PATTERN)
+                    .ifPresent(
+                            pattern ->
+                                    router.addGet(
+                                            TaskManagerLogUrlHeaders.getInstance()
+                                                    .getTargetRestEndpointURL(),
+                                            new GeneratedLogUrlHandler(
+                                                    CompletableFuture.completedFuture(pattern))));
+
             router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
 
             createDashboardConfigFile();
 
-            archiveFetcher.start();
+            executor.scheduleWithFixedDelay(
+                    getArchiveFetchingRunnable(), 0, refreshIntervalMillis, TimeUnit.MILLISECONDS);
 
             netty =
                     new WebFrontendBootstrap(
                             router, LOG, webDir, serverSSLFactory, webAddress, webPort, config);
         }
+    }
+
+    private Runnable getArchiveFetchingRunnable() {
+        return Runnables.withUncaughtExceptionHandler(
+                () -> archiveFetcher.fetchArchives(), FatalExitExceptionHandler.INSTANCE);
     }
 
     void stop() {
@@ -292,7 +339,7 @@ public class HistoryServer {
                     LOG.warn("Error while shutting down WebFrontendBootstrap.", t);
                 }
 
-                archiveFetcher.stop();
+                ExecutorUtils.gracefulShutdown(1, TimeUnit.SECONDS, executor);
 
                 try {
                     LOG.info("Removing web dashboard root cache directory {}", webDir);
@@ -327,7 +374,11 @@ public class HistoryServer {
             fw.write(
                     createConfigJson(
                             DashboardConfiguration.from(
-                                    webRefreshIntervalMillis, ZonedDateTime.now(), false, false)));
+                                    webRefreshIntervalMillis,
+                                    ZonedDateTime.now(),
+                                    false,
+                                    false,
+                                    true)));
             fw.flush();
         } catch (IOException ioe) {
             LOG.error("Failed to write config file.");

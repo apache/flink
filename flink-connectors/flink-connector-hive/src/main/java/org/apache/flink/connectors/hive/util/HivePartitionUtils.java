@@ -20,23 +20,21 @@ package org.apache.flink.connectors.hive.util;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -44,6 +42,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -92,7 +91,7 @@ public class HivePartitionUtils {
     public static Object restorePartitionValueFromType(
             HiveShim shim, String valStr, LogicalType partitionType, String defaultPartitionName) {
         if (defaultPartitionName.equals(valStr)) {
-            if (LogicalTypeChecks.hasFamily(partitionType, LogicalTypeFamily.CHARACTER_STRING)) {
+            if (partitionType.is(LogicalTypeFamily.CHARACTER_STRING)) {
                 // this keeps align with Hive,
                 // maybe it should be null for string columns as well
                 return defaultPartitionName;
@@ -122,6 +121,8 @@ public class HivePartitionUtils {
                 return Float.valueOf(valStr);
             case DOUBLE:
                 return Double.valueOf(valStr);
+            case DECIMAL:
+                return new BigDecimal(valStr);
             case DATE:
                 return HiveInspectors.toFlinkObject(
                         HiveInspectors.getObjectInspector(partitionType),
@@ -150,22 +151,18 @@ public class HivePartitionUtils {
             JobConf jobConf,
             String hiveVersion,
             ObjectPath tablePath,
-            CatalogTable catalogTable,
-            HiveShim hiveShim,
+            List<String> partitionColNames,
             List<Map<String, String>> remainingPartitions) {
         List<HiveTablePartition> allHivePartitions = new ArrayList<>();
         try (HiveMetastoreClientWrapper client =
                 HiveMetastoreClientFactory.create(HiveConfUtils.create(jobConf), hiveVersion)) {
             String dbName = tablePath.getDatabaseName();
             String tableName = tablePath.getObjectName();
-            List<String> partitionColNames = catalogTable.getPartitionKeys();
             Table hiveTable = client.getTable(dbName, tableName);
-            Properties tableProps = HiveReflectionUtils.getTableMetadata(hiveShim, hiveTable);
+            Properties tableProps =
+                    HiveReflectionUtils.getTableMetadata(
+                            HiveShimLoader.loadHiveShim(hiveVersion), hiveTable);
             if (partitionColNames != null && partitionColNames.size() > 0) {
-                final String defaultPartitionName =
-                        jobConf.get(
-                                HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
-                                HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
                 List<Partition> partitions = new ArrayList<>();
                 if (remainingPartitions != null) {
                     for (Map<String, String> spec : remainingPartitions) {
@@ -180,8 +177,7 @@ public class HivePartitionUtils {
                 }
                 for (Partition partition : partitions) {
                     HiveTablePartition hiveTablePartition =
-                            toHiveTablePartition(
-                                    catalogTable.getPartitionKeys(), tableProps, partition);
+                            toHiveTablePartition(partitionColNames, tableProps, partition);
                     allHivePartitions.add(hiveTablePartition);
                 }
             } else {

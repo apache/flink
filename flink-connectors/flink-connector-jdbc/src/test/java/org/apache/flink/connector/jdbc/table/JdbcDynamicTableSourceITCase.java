@@ -20,7 +20,6 @@ package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.connector.jdbc.JdbcTestBase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.runtime.utils.StreamTestSink;
@@ -28,8 +27,9 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.sql.Connection;
@@ -43,8 +43,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** ITCase for {@link JdbcDynamicTableSource}. */
 public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
@@ -56,13 +55,8 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
     public static StreamExecutionEnvironment env;
     public static TableEnvironment tEnv;
 
-    @Before
-    public void before() throws ClassNotFoundException, SQLException {
-        env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        tEnv = StreamTableEnvironment.create(env, envSettings);
-
+    @BeforeClass
+    public static void beforeAll() throws ClassNotFoundException, SQLException {
         System.setProperty(
                 "derby.stream.error.field", JdbcTestBase.class.getCanonicalName() + ".DEV_NULL");
         Class.forName(DRIVER_CLASS);
@@ -98,14 +92,20 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         }
     }
 
-    @After
-    public void clearOutputTable() throws Exception {
+    @AfterClass
+    public static void afterAll() throws Exception {
         Class.forName(DRIVER_CLASS);
         try (Connection conn = DriverManager.getConnection(DB_URL);
                 Statement stat = conn.createStatement()) {
             stat.executeUpdate("DROP TABLE " + INPUT_TABLE);
         }
         StreamTestSink.clear();
+    }
+
+    @Before
+    public void before() throws Exception {
+        env = StreamExecutionEnvironment.getExecutionEnvironment();
+        tEnv = StreamTableEnvironment.create(env);
     }
 
     @Test
@@ -143,7 +143,7 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
                                 "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]")
                         .sorted()
                         .collect(Collectors.toList());
-        assertEquals(expected, result);
+        assertThat(result).isEqualTo(expected);
     }
 
     @Test
@@ -187,7 +187,7 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
                                 "+I[2, 2020-01-01T15:36:01.123456, 101.1234]")
                         .sorted()
                         .collect(Collectors.toList());
-        assertEquals(expected, result);
+        assertThat(result).isEqualTo(expected);
     }
 
     @Test
@@ -230,9 +230,9 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
                 "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
         expected.add(
                 "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]");
-        assertEquals(1, result.size());
-        assertTrue(
-                "The actual output is not a subset of the expected set.",
-                expected.containsAll(result));
+        assertThat(result).hasSize(1);
+        assertThat(expected)
+                .as("The actual output is not a subset of the expected set.")
+                .containsAll(result);
     }
 }

@@ -51,7 +51,8 @@ class LatencyTrackingAggregatingState<K, N, IN, ACC, OUT>
                         stateName,
                         latencyTrackingStateConfig.getMetricGroup(),
                         latencyTrackingStateConfig.getSampleInterval(),
-                        latencyTrackingStateConfig.getHistorySize()));
+                        latencyTrackingStateConfig.getHistorySize(),
+                        latencyTrackingStateConfig.isStateNameAsVariable()));
     }
 
     @Override
@@ -108,8 +109,12 @@ class LatencyTrackingAggregatingState<K, N, IN, ACC, OUT>
         private int mergeNamespaceCount = 0;
 
         private AggregatingStateLatencyMetrics(
-                String stateName, MetricGroup metricGroup, int sampleInterval, int historySize) {
-            super(stateName, metricGroup, sampleInterval, historySize);
+                String stateName,
+                MetricGroup metricGroup,
+                int sampleInterval,
+                int historySize,
+                boolean stateNameAsVariable) {
+            super(stateName, metricGroup, sampleInterval, historySize, stateNameAsVariable);
         }
 
         int getGetCount() {

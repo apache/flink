@@ -20,15 +20,18 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
-import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
-import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
+import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions;
+import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.PatternFilenameFilter;
+import org.apache.flink.shaded.guava30.com.google.common.io.PatternFilenameFilter;
 
 import org.apache.calcite.util.Util;
 import org.apache.commons.io.IOUtils;
@@ -66,15 +69,12 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.JobManagerOptions.ADDRESS;
 import static org.apache.flink.configuration.RestOptions.PORT;
-import static org.apache.flink.table.client.cli.utils.SqlScriptReader.parseSqlScript;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test that runs every {@code xx.q} file in "resources/sql/" path as a test. */
 @RunWith(Parameterized.class)
 public class CliClientITCase extends AbstractTestBase {
 
-    // a generated UDF jar used for testing classloading of dependencies
-    private static URL udfDependency;
     private static Path historyPath;
     private static Map<String, String> replaceVars;
 
@@ -100,26 +100,32 @@ public class CliClientITCase extends AbstractTestBase {
     @BeforeClass
     public static void setup() throws IOException {
         File udfJar =
-                TestUserClassLoaderJar.createJarFile(
-                        tempFolder.newFolder("test-jar"), "test-classloader-udf.jar");
-        udfDependency = udfJar.toURI().toURL();
+                UserClassLoaderJarTestUtils.createJarFile(
+                        tempFolder.newFolder("test-jar"),
+                        "test-classloader-udf.jar",
+                        UserDefinedFunctions.GENERATED_UDF_CLASS,
+                        UserDefinedFunctions.GENERATED_UDF_CODE);
+        URL udfDependency = udfJar.toURI().toURL();
         historyPath = tempFolder.newFile("history").toPath();
 
         replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PIPELINE_JARS", udfDependency.toString());
+        replaceVars.put("$VAR_UDF_JAR_PATH", udfDependency.getPath());
+        replaceVars.put("$VAR_PIPELINE_JARS_URL", udfDependency.toString());
         replaceVars.put(
                 "$VAR_REST_PORT",
-                miniClusterResource.getClientConfiguration().get(PORT).toString());
+                MINI_CLUSTER_RESOURCE.getClientConfiguration().get(PORT).toString());
         replaceVars.put(
                 "$VAR_JOBMANAGER_RPC_ADDRESS",
-                miniClusterResource.getClientConfiguration().get(ADDRESS));
+                MINI_CLUSTER_RESOURCE.getClientConfiguration().get(ADDRESS));
     }
 
     @Before
     public void before() throws IOException {
         // initialize new folders for every tests, so the vars can be reused by every SQL scripts
         replaceVars.put("$VAR_STREAMING_PATH", tempFolder.newFolder().toPath().toString());
+        replaceVars.put("$VAR_STREAMING_PATH2", tempFolder.newFolder().toPath().toString());
         replaceVars.put("$VAR_BATCH_PATH", tempFolder.newFolder().toPath().toString());
+        replaceVars.put("$VAR_BATCH_PATH2", tempFolder.newFolder().toPath().toString());
     }
 
     @Test
@@ -130,8 +136,7 @@ public class CliClientITCase extends AbstractTestBase {
                 testSqlStatements.stream().map(s -> s.sql).collect(Collectors.toList());
         List<Result> actualResults = runSqlStatements(sqlStatements);
         String out = transformOutput(testSqlStatements, actualResults);
-        String errorMsg = "SQL script " + sqlPath + " is not passed.";
-        assertEquals(errorMsg, in, out);
+        assertThat(out).isEqualTo(in);
     }
 
     /**
@@ -141,12 +146,15 @@ public class CliClientITCase extends AbstractTestBase {
      * @return the printed results on SQL Client
      */
     private List<Result> runSqlStatements(List<String> statements) throws IOException {
-        final String sqlContent = String.join("\n", statements);
+        final String sqlContent = String.join("", statements);
         DefaultContext defaultContext =
                 new DefaultContext(
-                        new Environment(),
-                        Collections.singletonList(udfDependency),
-                        new Configuration(miniClusterResource.getClientConfiguration()),
+                        Collections.emptyList(),
+                        new Configuration(MINI_CLUSTER_RESOURCE.getClientConfiguration())
+                                // Make sure we use the new cast behaviour
+                                .set(
+                                        ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
+                                        ExecutionConfigOptions.LegacyCastBehaviour.DISABLED),
                         Collections.singletonList(new DefaultCLI()));
         final Executor executor = new LocalExecutor(defaultContext);
         InputStream inputStream = new ByteArrayInputStream(sqlContent.getBytes());
@@ -232,6 +240,10 @@ public class CliClientITCase extends AbstractTestBase {
         return StringUtils.replaceEach(in, keys, values);
     }
 
+    protected List<TestSqlStatement> parseSqlScript(String input) {
+        return SqlScriptReader.parseSqlScript(input);
+    }
+
     private static List<Result> normalizeOutput(String output) {
         List<Result> results = new ArrayList<>();
         // remove welcome message
@@ -295,7 +307,7 @@ public class CliClientITCase extends AbstractTestBase {
         return String.join("\n", newLines);
     }
 
-    private static String transformOutput(
+    protected String transformOutput(
             List<TestSqlStatement> testSqlStatements, List<Result> results) {
         StringBuilder out = new StringBuilder();
         for (int i = 0; i < testSqlStatements.size(); i++) {
@@ -303,14 +315,21 @@ public class CliClientITCase extends AbstractTestBase {
             out.append(sqlScript.comment).append(sqlScript.sql);
             if (i < results.size()) {
                 Result result = results.get(i);
-                out.append(result.content).append(result.highestTag.tag).append("\n");
+                String content =
+                        TableTestUtil.replaceNodeIdInOperator(removeExecNodeId(result.content));
+                out.append(content).append(result.highestTag.tag).append("\n");
             }
         }
 
         return out.toString();
     }
 
-    private static final class Result {
+    protected static String removeExecNodeId(String s) {
+        return s.replaceAll("\"id\" : \\d+", "\"id\" : ");
+    }
+
+    /** test result. */
+    protected static final class Result {
         final String content;
         final Tag highestTag;
 

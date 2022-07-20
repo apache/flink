@@ -40,7 +40,6 @@ SQL 方言可以通过 `table.sql-dialect` 属性指定。因此你可以通过 
 ```yaml
 
 execution:
-  planner: blink
   type: batch
   result-mode: table
 
@@ -69,7 +68,7 @@ Flink SQL> set table.sql-dialect=default; -- to use default dialect
 {{< tab "Java" >}}
 ```java
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner()...build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 // to use hive dialect
 tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
@@ -82,7 +81,7 @@ tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
 ```python
 from pyflink.table import *
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
 
 # to use hive dialect
@@ -354,7 +353,7 @@ Hive 方言支持常用的 Hive [DML](https://cwiki.apache.org/confluence/displa
 为了实现更好的语法和语义的兼容，强烈建议使用 [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule) 
 并将其放在 Module 列表的首位，以便在函数解析时优先使用 Hive 内置函数。
 
-Hive 方言不再支持 [Flink SQL 语法]({{< ref "docs/dev/table/sql/queries" >}}) 。 若需使用 Flink 语法，请切换到 `default` 方言。
+Hive 方言不再支持 [Flink SQL 语法]({{< ref "docs/dev/table/sql/queries/overview" >}}) 。 若需使用 Flink 语法，请切换到 `default` 方言。
 
 以下是一个使用 Hive 方言的示例。
 
@@ -417,3 +416,6 @@ Flink SQL> select * from tbl cluster by key; -- run cluster by
 - 虽然所有 Hive 版本支持相同的语法，但是一些特定的功能是否可用仍取决于你使用的[Hive 版本]({{< ref "docs/connectors/table/hive/overview" >}}#支持的hive版本)。例如，更新数据库位置
  只在 Hive-2.4.0 或更高版本支持。
 - 执行 DML 和 DQL 时应该使用 [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule) 。
+- 从 Flink 1.15版本开始，在使用 Hive 方言抛出以下异常时，请尝试用 opt 目录下的 flink-table-planner_2.12 jar 包来替换 lib 目录下的 flink-table-planner-loader jar 包。具体原因请参考 [FLINK-25128](https://issues.apache.org/jira/browse/FLINK-25128)。
+  {{<img alt="error" width="80%" src="/fig/hive_parser_load_exception.png">}}
+  

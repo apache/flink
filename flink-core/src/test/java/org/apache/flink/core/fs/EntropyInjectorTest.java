@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.net.URI;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -219,6 +220,13 @@ public class EntropyInjectorTest {
         final FileSystem efs = new TestEntropyInjectingFs("test", "ignored");
 
         assertTrue(EntropyInjector.isEntropyInjecting(efs));
+    }
+
+    @Test
+    public void testIsEntropyFsWithNullEntropyKey() {
+        final FileSystem efs = new TestEntropyInjectingFs(null, "ignored");
+
+        assertFalse(EntropyInjector.isEntropyInjecting(efs));
     }
 
     // ------------------------------------------------------------------------

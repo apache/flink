@@ -16,31 +16,68 @@
  * limitations under the License.
  */
 
-import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ShareModule } from 'share/share.module';
+
+import { ShareModule } from '@flink-runtime-web/share/share.module';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
+import { NzCollapseModule } from 'ng-zorro-antd/collapse';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzEmptyModule } from 'ng-zorro-antd/empty';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTabsModule } from 'ng-zorro-antd/tabs';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+
 import { JobCheckpointsDetailComponent } from './checkpoints/detail/job-checkpoints-detail.component';
 import { JobCheckpointsComponent } from './checkpoints/job-checkpoints.component';
 import { JobCheckpointsSubtaskComponent } from './checkpoints/subtask/job-checkpoints-subtask.component';
 import { JobConfigurationComponent } from './configuration/job-configuration.component';
 import { JobExceptionsComponent } from './exceptions/job-exceptions.component';
+import { JobDetailComponent } from './job-detail/job-detail.component';
+import { JobLocalService } from './job-local.service';
 import { JobRoutingModule } from './job-routing.module';
 import { JobComponent } from './job.component';
-import { JobStatusComponent } from './status/job-status.component';
 import { JobTimelineComponent } from './timeline/job-timeline.component';
 
 @NgModule({
-  imports: [CommonModule, FormsModule, ShareModule, JobRoutingModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ShareModule,
+    JobRoutingModule,
+    NzTableModule,
+    NzButtonModule,
+    NzTabsModule,
+    NzCardModule,
+    NzDividerModule,
+    NzCollapseModule,
+    NzEmptyModule,
+    NzSkeletonModule,
+    NzAlertModule,
+    NzPopconfirmModule,
+    NzIconModule,
+    NzSelectModule,
+    NzToolTipModule,
+    NzCodeEditorModule
+  ],
   declarations: [
     JobComponent,
-    JobStatusComponent,
     JobExceptionsComponent,
     JobConfigurationComponent,
     JobCheckpointsComponent,
     JobCheckpointsDetailComponent,
     JobCheckpointsSubtaskComponent,
-    JobTimelineComponent
-  ]
+    JobTimelineComponent,
+    JobDetailComponent
+  ],
+  providers: [JobLocalService]
 })
 export class JobModule {}

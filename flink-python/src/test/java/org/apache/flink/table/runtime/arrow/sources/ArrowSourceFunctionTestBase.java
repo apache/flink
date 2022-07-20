@@ -28,18 +28,19 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
 import org.apache.flink.table.runtime.arrow.ArrowWriter;
 import org.apache.flink.testutils.CustomEqualityMatcher;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
-import org.junit.Assert;
-import org.junit.Test;
+import org.assertj.core.api.HamcrestCondition;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.io.ByteArrayInputStream;
@@ -52,25 +53,27 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Abstract test base for the Arrow source function processing. */
-public abstract class ArrowSourceFunctionTestBase<T> {
+abstract class ArrowSourceFunctionTestBase {
 
     final VectorSchemaRoot root;
-    private final TypeSerializer<T> typeSerializer;
-    private final Comparator<T> comparator;
+    private final TypeSerializer<RowData> typeSerializer;
+    private final Comparator<RowData> comparator;
     private final DeeplyEqualsChecker checker;
 
     ArrowSourceFunctionTestBase(
-            VectorSchemaRoot root, TypeSerializer<T> typeSerializer, Comparator<T> comparator) {
+            VectorSchemaRoot root,
+            TypeSerializer<RowData> typeSerializer,
+            Comparator<RowData> comparator) {
         this(root, typeSerializer, comparator, new DeeplyEqualsChecker());
     }
 
     ArrowSourceFunctionTestBase(
             VectorSchemaRoot root,
-            TypeSerializer<T> typeSerializer,
-            Comparator<T> comparator,
+            TypeSerializer<RowData> typeSerializer,
+            Comparator<RowData> comparator,
             DeeplyEqualsChecker checker) {
         this.root = Preconditions.checkNotNull(root);
         this.typeSerializer = Preconditions.checkNotNull(typeSerializer);
@@ -79,12 +82,12 @@ public abstract class ArrowSourceFunctionTestBase<T> {
     }
 
     @Test
-    public void testRestore() throws Exception {
-        Tuple2<List<T>, Integer> testData = getTestData();
-        final AbstractArrowSourceFunction<T> arrowSourceFunction =
+    void testRestore() throws Exception {
+        Tuple2<List<RowData>, Integer> testData = getTestData();
+        final ArrowSourceFunction arrowSourceFunction =
                 createTestArrowSourceFunction(testData.f0, testData.f1);
 
-        final AbstractStreamOperatorTestHarness<T> testHarness =
+        final AbstractStreamOperatorTestHarness<RowData> testHarness =
                 new AbstractStreamOperatorTestHarness<>(
                         new StreamSource<>(arrowSourceFunction), 1, 1, 0);
         testHarness.open();
@@ -92,15 +95,15 @@ public abstract class ArrowSourceFunctionTestBase<T> {
         final Throwable[] error = new Throwable[1];
         final MultiShotLatch latch = new MultiShotLatch();
         final AtomicInteger numOfEmittedElements = new AtomicInteger(0);
-        final List<T> results = new ArrayList<>();
+        final List<RowData> results = new ArrayList<>();
 
-        final DummySourceContext<T> sourceContext =
-                new DummySourceContext<T>() {
+        final DummySourceContext<RowData> sourceContext =
+                new DummySourceContext<RowData>() {
                     @Override
-                    public void collect(T element) {
+                    public void collect(RowData element) {
                         if (numOfEmittedElements.get() == 2) {
                             latch.trigger();
-                            // fail the source function at the the second element
+                            // fail the source function at the second element
                             throw new RuntimeException("Fail the arrow source");
                         }
                         results.add(typeSerializer.copy(element));
@@ -134,10 +137,10 @@ public abstract class ArrowSourceFunctionTestBase<T> {
         runner.join();
         testHarness.close();
 
-        final AbstractArrowSourceFunction<T> arrowSourceFunction2 =
+        final ArrowSourceFunction arrowSourceFunction2 =
                 createTestArrowSourceFunction(testData.f0, testData.f1);
-        AbstractStreamOperatorTestHarness<T> testHarnessCopy =
-                new AbstractStreamOperatorTestHarness<>(
+        AbstractStreamOperatorTestHarness testHarnessCopy =
+                new AbstractStreamOperatorTestHarness(
                         new StreamSource<>(arrowSourceFunction2), 1, 1, 0);
         testHarnessCopy.initializeState(snapshot);
         testHarnessCopy.open();
@@ -148,9 +151,9 @@ public abstract class ArrowSourceFunctionTestBase<T> {
                         () -> {
                             try {
                                 arrowSourceFunction2.run(
-                                        new DummySourceContext<T>() {
+                                        new DummySourceContext<RowData>() {
                                             @Override
-                                            public void collect(T element) {
+                                            public void collect(RowData element) {
                                                 results.add(typeSerializer.copy(element));
                                                 if (numOfEmittedElements.incrementAndGet()
                                                         == testData.f0.size()) {
@@ -169,26 +172,26 @@ public abstract class ArrowSourceFunctionTestBase<T> {
         }
         runner2.join();
 
-        Assert.assertNull(error[0]);
-        Assert.assertEquals(testData.f0.size(), numOfEmittedElements.get());
+        assertThat(error[0]).isNull();
+        assertThat(testData.f0).hasSize(numOfEmittedElements.get());
         checkElementsEquals(results, testData.f0);
     }
 
     @Test
-    public void testParallelProcessing() throws Exception {
-        Tuple2<List<T>, Integer> testData = getTestData();
-        final AbstractArrowSourceFunction<T> arrowSourceFunction =
+    void testParallelProcessing() throws Exception {
+        Tuple2<List<RowData>, Integer> testData = getTestData();
+        final ArrowSourceFunction arrowSourceFunction =
                 createTestArrowSourceFunction(testData.f0, testData.f1);
 
-        final AbstractStreamOperatorTestHarness<T> testHarness =
-                new AbstractStreamOperatorTestHarness<>(
+        final AbstractStreamOperatorTestHarness<RowData> testHarness =
+                new AbstractStreamOperatorTestHarness(
                         new StreamSource<>(arrowSourceFunction), 2, 2, 0);
         testHarness.open();
 
         final Throwable[] error = new Throwable[2];
         final OneShotLatch latch = new OneShotLatch();
         final AtomicInteger numOfEmittedElements = new AtomicInteger(0);
-        final List<T> results = Collections.synchronizedList(new ArrayList<>());
+        final List<RowData> results = Collections.synchronizedList(new ArrayList<>());
 
         // run the source asynchronously
         Thread runner =
@@ -196,9 +199,9 @@ public abstract class ArrowSourceFunctionTestBase<T> {
                         () -> {
                             try {
                                 arrowSourceFunction.run(
-                                        new DummySourceContext<T>() {
+                                        new DummySourceContext<RowData>() {
                                             @Override
-                                            public void collect(T element) {
+                                            public void collect(RowData element) {
                                                 results.add(typeSerializer.copy(element));
                                                 if (numOfEmittedElements.incrementAndGet()
                                                         == testData.f0.size()) {
@@ -212,10 +215,10 @@ public abstract class ArrowSourceFunctionTestBase<T> {
                         });
         runner.start();
 
-        final AbstractArrowSourceFunction<T> arrowSourceFunction2 =
+        final ArrowSourceFunction arrowSourceFunction2 =
                 createTestArrowSourceFunction(testData.f0, testData.f1);
-        final AbstractStreamOperatorTestHarness<T> testHarness2 =
-                new AbstractStreamOperatorTestHarness<>(
+        final AbstractStreamOperatorTestHarness<RowData> testHarness2 =
+                new AbstractStreamOperatorTestHarness(
                         new StreamSource<>(arrowSourceFunction2), 2, 2, 1);
         testHarness2.open();
 
@@ -225,9 +228,9 @@ public abstract class ArrowSourceFunctionTestBase<T> {
                         () -> {
                             try {
                                 arrowSourceFunction2.run(
-                                        new DummySourceContext<T>() {
+                                        new DummySourceContext<RowData>() {
                                             @Override
-                                            public void collect(T element) {
+                                            public void collect(RowData element) {
                                                 results.add(typeSerializer.copy(element));
                                                 if (numOfEmittedElements.incrementAndGet()
                                                         == testData.f0.size()) {
@@ -250,39 +253,41 @@ public abstract class ArrowSourceFunctionTestBase<T> {
         testHarness.close();
         testHarness2.close();
 
-        Assert.assertNull(error[0]);
-        Assert.assertNull(error[1]);
-        Assert.assertEquals(testData.f0.size(), numOfEmittedElements.get());
+        assertThat(error[0]).isNull();
+        assertThat(error[1]).isNull();
+        assertThat(testData.f0).hasSize(numOfEmittedElements.get());
         checkElementsEquals(results, testData.f0);
     }
 
-    public abstract Tuple2<List<T>, Integer> getTestData();
+    public abstract Tuple2<List<RowData>, Integer> getTestData();
 
-    public abstract ArrowWriter<T> createArrowWriter();
+    public abstract ArrowWriter<RowData> createArrowWriter();
 
-    public abstract AbstractArrowSourceFunction<T> createArrowSourceFunction(byte[][] arrowData);
+    public abstract ArrowSourceFunction createArrowSourceFunction(byte[][] arrowData);
 
-    private void checkElementsEquals(List<T> actual, List<T> expected) {
-        Assert.assertEquals(actual.size(), expected.size());
+    private void checkElementsEquals(List<RowData> actual, List<RowData> expected) {
+        assertThat(actual).hasSize(expected.size());
         actual.sort(comparator);
         expected.sort(comparator);
         for (int i = 0; i < expected.size(); i++) {
-            assertThat(
-                    actual.get(i),
-                    CustomEqualityMatcher.deeplyEquals(expected.get(i)).withChecker(checker));
+            assertThat(actual.get(i))
+                    .is(
+                            HamcrestCondition.matching(
+                                    CustomEqualityMatcher.deeplyEquals(expected.get(i))
+                                            .withChecker(checker)));
         }
     }
 
     /** Create continuous monitoring function with 1 reader-parallelism and interval. */
-    private AbstractArrowSourceFunction<T> createTestArrowSourceFunction(
-            List<T> testData, int batches) throws IOException {
-        ArrowWriter<T> arrowWriter = createArrowWriter();
+    private ArrowSourceFunction createTestArrowSourceFunction(List<RowData> testData, int batches)
+            throws IOException {
+        ArrowWriter<RowData> arrowWriter = createArrowWriter();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ArrowStreamWriter arrowStreamWriter = new ArrowStreamWriter(root, null, baos);
         arrowStreamWriter.start();
-        List<List<T>> subLists = Lists.partition(testData, testData.size() / batches + 1);
-        for (List<T> subList : subLists) {
-            for (T value : subList) {
+        List<List<RowData>> subLists = Lists.partition(testData, testData.size() / batches + 1);
+        for (List<RowData> subList : subLists) {
+            for (RowData value : subList) {
                 arrowWriter.write(value);
             }
             arrowWriter.finish();
@@ -290,7 +295,7 @@ public abstract class ArrowSourceFunctionTestBase<T> {
             arrowWriter.reset();
         }
 
-        AbstractArrowSourceFunction<T> arrowSourceFunction =
+        ArrowSourceFunction arrowSourceFunction =
                 createArrowSourceFunction(
                         ArrowUtils.readArrowBatches(
                                 Channels.newChannel(new ByteArrayInputStream(baos.toByteArray()))));

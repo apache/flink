@@ -32,9 +32,13 @@ under the License.
             <tr>
                 <td style="text-align: left">{{- .name -}}</td>
                 <td style="text-align: left">
-                    <a href="{{- partial "docs/interpolate" .sql_url -}}">Download</a> 
-                    (<a href="{{- partial "docs/interpolate" .sql_url -}}.asc">asc</a>, 
-                    <a href="{{- partial "docs/interpolate" .sql_url -}}.sha1">sha1</a>) </td>
+                    {{ if $.Site.Params.IsStable }}
+                        <a href="{{- partial "docs/interpolate" .sql_url -}}">Download</a>
+                        (<a href="{{- partial "docs/interpolate" .sql_url -}}.asc">asc</a>,
+                        <a href="{{- partial "docs/interpolate" .sql_url -}}.sha1">sha1</a>) </td>
+                    {{ else }}
+                        Only available for stable versions.</td>
+                    {{ end }}
             </tr>
             {{ end }}{{ end }}
         {{ end }}

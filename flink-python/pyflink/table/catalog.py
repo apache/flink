@@ -20,6 +20,7 @@ from typing import Dict, List, Optional
 from py4j.java_gateway import java_import
 
 from pyflink.java_gateway import get_gateway
+from pyflink.table.schema import Schema
 from pyflink.table.table_schema import TableSchema
 
 __all__ = ['Catalog', 'CatalogDatabase', 'CatalogBaseTable', 'CatalogPartition', 'CatalogFunction',
@@ -733,8 +734,21 @@ class CatalogBaseTable(object):
         Get the schema of the table.
 
         :return: Schema of the table/view.
+
+        . note:: Deprecated in 1.14. This method returns the deprecated TableSchema class. The old
+        class was a hybrid of resolved and unresolved schema information. It has been replaced by
+        the new Schema which is always unresolved and will be resolved by the framework later.
         """
         return TableSchema(j_table_schema=self._j_catalog_base_table.getSchema())
+
+    def get_unresolved_schema(self) -> Schema:
+        """
+        Returns the schema of the table or view.
+
+        The schema can reference objects from other catalogs and will be resolved and validated by
+        the framework when accessing the table or view.
+        """
+        return Schema(self._j_catalog_base_table.getUnresolvedSchema())
 
     def get_comment(self) -> str:
         """

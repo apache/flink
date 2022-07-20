@@ -26,7 +26,7 @@ under the License.
 	<version>${version}</version>
 	<packaging>jar</packaging>
 
-	<name>Flink Walkthrough DataStram Scala</name>
+	<name>Flink Walkthrough DataStream Scala</name>
 	<url>https://flink.apache.org</url>
 
 	<repositories>
@@ -46,15 +46,15 @@ under the License.
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<flink.version>@project.version@</flink.version>
-		<scala.binary.version>2.11</scala.binary.version>
-		<scala.version>2.11.12</scala.version>
+		<scala.binary.version>2.12</scala.binary.version>
+		<scala.version>2.12.7</scala.version>
 		<log4j.version>@log4j.version@</log4j.version>
 	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-walkthrough-common_${scala.binary.version}</artifactId>
+			<artifactId>flink-walkthrough-common</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
 
@@ -68,7 +68,7 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${flink.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -79,7 +79,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-kafka</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
 		-->
@@ -124,7 +124,7 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<excludes>
-									<exclude>org.apache.flink:force-shading</exclude>
+									<exclude>org.apache.flink:flink-shaded-force-shading</exclude>
 									<exclude>com.google.code.findbugs:jsr305</exclude>
 									<exclude>org.slf4j:*</exclude>
 									<exclude>org.apache.logging.log4j:*</exclude>

@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader.splitreader;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 
@@ -30,6 +31,7 @@ import java.io.IOException;
  * @param <E> the element type.
  * @param <SplitT> the split type.
  */
+@PublicEvolving
 public interface SplitReader<E, SplitT extends SourceSplit> {
 
     /**
@@ -47,6 +49,11 @@ public interface SplitReader<E, SplitT extends SourceSplit> {
 
     /**
      * Handle the split changes. This call should be non-blocking.
+     *
+     * <p>For the consistency of internal state in SourceReaderBase, if an invalid split is added to
+     * the reader (for example splits without any records), it should be put back into {@link
+     * RecordsWithSplitIds} as finished splits so that SourceReaderBase could be able to clean up
+     * resources created for it.
      *
      * @param splitsChanges the split changes that the SplitReader needs to handle.
      */

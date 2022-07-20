@@ -21,10 +21,10 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.file.table.ContinuousPartitionFetcher;
+import org.apache.flink.connector.file.table.PartitionFetcher;
 import org.apache.flink.connectors.hive.read.HiveContinuousPartitionContext;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.filesystem.ContinuousPartitionFetcher;
-import org.apache.flink.table.filesystem.PartitionFetcher;
 
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
@@ -43,8 +43,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ContinuousHiveSplitEnumerator.PartitionMonitor}. */
 public class PartitionMonitorTest {
@@ -80,10 +79,9 @@ public class PartitionMonitorTest {
 
     private void assertPartitionEquals(
             Collection<List<String>> expected, Collection<List<String>> actual) {
-        assertTrue(expected != null && actual != null && expected.size() == actual.size());
-        assertArrayEquals(
-                expected.stream().map(Object::toString).sorted().toArray(),
-                actual.stream().map(Object::toString).sorted().toArray());
+        assertThat(expected != null && actual != null && expected.size() == actual.size()).isTrue();
+        assertThat(actual.stream().map(Object::toString).sorted().toArray())
+                .isEqualTo(expected.stream().map(Object::toString).sorted().toArray());
     }
 
     private void commitPartitionWithGivenCreateTime(
@@ -182,6 +180,8 @@ public class PartitionMonitorTest {
                         0L,
                         seenPartitionsSinceOffset,
                         tablePath,
+                        configuration.get(
+                                HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM),
                         jobConf,
                         continuousPartitionFetcher,
                         fetcherContext);

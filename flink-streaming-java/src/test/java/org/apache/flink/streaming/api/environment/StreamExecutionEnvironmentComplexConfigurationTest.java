@@ -31,6 +31,7 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.util.TernaryBoolean;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
@@ -45,6 +46,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 
+import static org.apache.flink.configuration.StateChangelogOptions.ENABLE_STATE_CHANGE_LOG;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -140,6 +142,29 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
     }
 
     @Test
+    public void testOverridingChangelogStateBackendWithFromConfigurationWhenSet() {
+        StreamExecutionEnvironment envFromConfiguration =
+                StreamExecutionEnvironment.getExecutionEnvironment();
+        assertEquals(
+                TernaryBoolean.UNDEFINED, envFromConfiguration.isChangelogStateBackendEnabled());
+
+        Configuration configuration = new Configuration();
+        configuration.setBoolean(ENABLE_STATE_CHANGE_LOG, true);
+        envFromConfiguration.configure(
+                configuration, Thread.currentThread().getContextClassLoader());
+        assertEquals(TernaryBoolean.TRUE, envFromConfiguration.isChangelogStateBackendEnabled());
+
+        envFromConfiguration.configure(
+                configuration, Thread.currentThread().getContextClassLoader());
+        assertEquals(TernaryBoolean.TRUE, envFromConfiguration.isChangelogStateBackendEnabled());
+
+        configuration.setBoolean(ENABLE_STATE_CHANGE_LOG, false);
+        envFromConfiguration.configure(
+                configuration, Thread.currentThread().getContextClassLoader());
+        assertEquals(TernaryBoolean.FALSE, envFromConfiguration.isChangelogStateBackendEnabled());
+    }
+
+    @Test
     public void testNotOverridingCachedFilesFromConfiguration() {
         StreamExecutionEnvironment envFromConfiguration =
                 StreamExecutionEnvironment.getExecutionEnvironment();
@@ -213,6 +238,27 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
         assertThat(env.getParallelism(), equalTo(2));
         assertThat(env.getConfig().getAutoWatermarkInterval(), equalTo(100L));
         assertThat(env.getStateBackend(), instanceOf(MemoryStateBackend.class));
+    }
+
+    @Test
+    public void testMergePipelineJarsWithConfiguration() {
+        Configuration configuration = new Configuration();
+        configuration.set(PipelineOptions.JARS, Arrays.asList("/tmp/test1.jar", "/tmp/test2.jar"));
+        StreamExecutionEnvironment envFromConfiguration =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+
+        // user configuration with different jars
+        Configuration userConfiguration = new Configuration();
+        userConfiguration.set(
+                PipelineOptions.JARS, Arrays.asList("/tmp/test2.jar", "/tmp/test3.jar"));
+
+        // test pipeline.jars merge
+        envFromConfiguration.configure(
+                userConfiguration, Thread.currentThread().getContextClassLoader());
+
+        assertEquals(
+                envFromConfiguration.getConfiguration().get(PipelineOptions.JARS),
+                Arrays.asList("/tmp/test1.jar", "/tmp/test2.jar", "/tmp/test3.jar"));
     }
 
     /** JobSubmitted counter listener for unit test. */

@@ -30,7 +30,7 @@ This connector provides a Source and Sink that can read from and write to
 [Google Cloud PubSub](https://cloud.google.com/pubsub). To use this connector, add the
 following dependency to your project:
 
-{{< artifact flink-connector-gcp-pubsub withScalaVersion >}}
+{{< artifact flink-connector-gcp-pubsub >}}
 
 {{< hint warning >}}
 <b>Note</b>: This connector has been added to Flink recently. It has not received widespread testing yet.
@@ -39,7 +39,7 @@ following dependency to your project:
 
 Note that the streaming connectors are currently not part of the binary
 distribution. See
-[here]({{< ref "docs/dev/datastream/project-configuration" >}})
+[here]({{< ref "docs/dev/configuration/overview" >}})
 for information about how to package the program with the libraries for
 cluster execution.
 
@@ -68,7 +68,7 @@ SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder()
                                                       .withSubscriptionName("subscription")
                                                       .build();
 
-streamExecEnv.addSource(source);
+streamExecEnv.addSource(pubsubSource);
 ```
 {{< /tab >}}
 {{< /tabs >}}

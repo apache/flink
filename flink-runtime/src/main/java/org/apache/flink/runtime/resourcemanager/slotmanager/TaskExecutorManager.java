@@ -21,16 +21,16 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
-import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkExpectedException;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -159,7 +159,8 @@ class TaskExecutorManager implements AutoCloseable {
                     maxSlotNum);
             resourceActions.releaseResource(
                     taskExecutorConnection.getInstanceID(),
-                    new FlinkException("The total number of slots exceeds the max limitation."));
+                    new FlinkExpectedException(
+                            "The total number of slots exceeds the max limitation."));
             return false;
         }
 
@@ -400,7 +401,8 @@ class TaskExecutorManager implements AutoCloseable {
     }
 
     private void releaseIdleTaskExecutor(InstanceID timedOutTaskManagerId) {
-        final FlinkException cause = new FlinkException("TaskExecutor exceeded the idle timeout.");
+        final FlinkExpectedException cause =
+                new FlinkExpectedException("TaskExecutor exceeded the idle timeout.");
         LOG.debug(
                 "Release TaskExecutor {} because it exceeded the idle timeout.",
                 timedOutTaskManagerId);

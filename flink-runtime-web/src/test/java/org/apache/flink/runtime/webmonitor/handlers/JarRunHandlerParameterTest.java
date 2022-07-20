@@ -28,21 +28,25 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -52,36 +56,33 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the parameter handling of the {@link JarRunHandler}. */
-public class JarRunHandlerParameterTest
+class JarRunHandlerParameterTest
         extends JarHandlerParameterTest<JarRunRequestBody, JarRunMessageParameters> {
     private static final boolean ALLOW_NON_RESTORED_STATE_QUERY = true;
     private static final String RESTORE_PATH = "/foo/bar";
+
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
     private static JarRunHandler handler;
 
     private static Path jarWithEagerSink;
 
-    @BeforeClass
-    public static void setup() throws Exception {
-        init();
+    @BeforeAll
+    static void setup(@TempDir File tempDir) throws Exception {
+        init(tempDir);
         final GatewayRetriever<TestingDispatcherGateway> gatewayRetriever =
                 () -> CompletableFuture.completedFuture(restfulGateway);
         final Time timeout = Time.seconds(10);
         final Map<String, String> responseHeaders = Collections.emptyMap();
-        final Executor executor = TestingUtils.defaultExecutor();
 
         final Path jarLocation = Paths.get(System.getProperty("targetDir"));
         final String parameterProgramWithEagerSink = "parameter-program-with-eager-sink.jar";
@@ -98,7 +99,7 @@ public class JarRunHandlerParameterTest
                         JarRunHeaders.getInstance(),
                         jarDir,
                         new Configuration(),
-                        executor,
+                        EXECUTOR_EXTENSION.getExecutor(),
                         ConfigurationVerifyingDetachedApplicationRunner::new);
     }
 
@@ -114,8 +115,9 @@ public class JarRunHandlerParameterTest
                 DispatcherGateway dispatcherGateway,
                 PackagedProgram program,
                 Configuration configuration) {
-            assertFalse(configuration.get(DeploymentOptions.ATTACHED));
-            assertEquals(EmbeddedExecutor.NAME, configuration.get(DeploymentOptions.TARGET));
+            assertThat(configuration.get(DeploymentOptions.ATTACHED)).isFalse();
+            assertThat(configuration.get(DeploymentOptions.TARGET))
+                    .isEqualTo(EmbeddedExecutor.NAME);
             return super.run(dispatcherGateway, program, configuration);
         }
     }
@@ -182,52 +184,52 @@ public class JarRunHandlerParameterTest
                 PARALLELISM,
                 null,
                 ALLOW_NON_RESTORED_STATE_QUERY,
-                RESTORE_PATH);
+                RESTORE_PATH,
+                RestoreMode.CLAIM);
     }
 
     @Override
     JarRunRequestBody getJarRequestBodyWithJobId(JobID jobId) {
-        return new JarRunRequestBody(null, null, null, null, jobId, null, null);
+        return new JarRunRequestBody(null, null, null, null, jobId, null, null, null);
     }
 
     @Test
-    public void testRestHandlerExceptionThrownWithEagerSinks() throws Exception {
-        final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request =
+    void testRestHandlerExceptionThrownWithEagerSinks() throws Exception {
+        final HandlerRequest<JarRunRequestBody> request =
                 createRequest(
                         getDefaultJarRequestBody(),
                         getUnresolvedJarMessageParameters(),
                         getUnresolvedJarMessageParameters(),
                         jarWithEagerSink);
 
-        try {
-            handler.handleRequest(request, restfulGateway).get();
-        } catch (final ExecutionException e) {
-            final Throwable throwable = ExceptionUtils.stripCompletionException(e.getCause());
-            assertThat(throwable, instanceOf(RestHandlerException.class));
+        assertThatThrownBy(() -> handler.handleRequest(request, restfulGateway).get())
+                .matches(
+                        e -> {
+                            final Throwable throwable =
+                                    ExceptionUtils.stripCompletionException(e.getCause());
+                            assertThat(throwable).isInstanceOf(RestHandlerException.class);
 
-            final RestHandlerException restHandlerException = (RestHandlerException) throwable;
-            assertThat(
-                    restHandlerException.getHttpResponseStatus(),
-                    equalTo(HttpResponseStatus.BAD_REQUEST));
+                            final RestHandlerException restHandlerException =
+                                    (RestHandlerException) throwable;
+                            assertThat(restHandlerException.getHttpResponseStatus())
+                                    .isEqualTo(HttpResponseStatus.BAD_REQUEST);
 
-            final Optional<ProgramInvocationException> invocationException =
-                    ExceptionUtils.findThrowable(
-                            restHandlerException, ProgramInvocationException.class);
+                            final Optional<ProgramInvocationException> invocationException =
+                                    ExceptionUtils.findThrowable(
+                                            restHandlerException, ProgramInvocationException.class);
 
-            if (!invocationException.isPresent()) {
-                fail();
-            }
+                            assertThat(invocationException).isPresent();
 
-            final String exceptionMsg = invocationException.get().getMessage();
-            assertThat(exceptionMsg, containsString("Job was submitted in detached mode."));
-            return;
-        }
-        fail("The test should have failed.");
+                            final String exceptionMsg = invocationException.get().getMessage();
+                            assertThat(exceptionMsg)
+                                    .contains("Job was submitted in detached mode.");
+
+                            return true;
+                        });
     }
 
     @Override
-    void handleRequest(HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request)
-            throws Exception {
+    void handleRequest(HandlerRequest<JarRunRequestBody> request) throws Exception {
         handler.handleRequest(request, restfulGateway).get();
     }
 
@@ -236,8 +238,8 @@ public class JarRunHandlerParameterTest
         JobGraph jobGraph = super.validateDefaultGraph();
         final SavepointRestoreSettings savepointRestoreSettings =
                 jobGraph.getSavepointRestoreSettings();
-        assertFalse(savepointRestoreSettings.allowNonRestoredState());
-        Assert.assertNull(savepointRestoreSettings.getRestorePath());
+        assertThat(savepointRestoreSettings.allowNonRestoredState()).isFalse();
+        assertThat(savepointRestoreSettings.getRestorePath()).isNull();
         return jobGraph;
     }
 
@@ -246,8 +248,8 @@ public class JarRunHandlerParameterTest
         JobGraph jobGraph = super.validateGraph();
         final SavepointRestoreSettings savepointRestoreSettings =
                 jobGraph.getSavepointRestoreSettings();
-        Assert.assertTrue(savepointRestoreSettings.allowNonRestoredState());
-        assertEquals(RESTORE_PATH, savepointRestoreSettings.getRestorePath());
+        assertThat(savepointRestoreSettings.allowNonRestoredState()).isTrue();
+        assertThat(savepointRestoreSettings.getRestorePath()).isEqualTo(RESTORE_PATH);
         return jobGraph;
     }
 }

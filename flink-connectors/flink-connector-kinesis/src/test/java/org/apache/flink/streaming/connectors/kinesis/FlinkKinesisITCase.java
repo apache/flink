@@ -19,16 +19,21 @@ package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
-import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisPubsubClient;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.DockerImageVersions;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -43,24 +48,21 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_POSITION;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT cases for using Kinesis consumer/producer based on Kinesalite. */
-public class FlinkKinesisITCase {
+@Ignore("See FLINK-23528")
+public class FlinkKinesisITCase extends TestLogger {
     public static final String TEST_STREAM = "test_stream";
 
     @ClassRule
-    public static MiniClusterWithClientResource miniCluster =
+    public static final MiniClusterWithClientResource MINI_CLUSTER =
             new MiniClusterWithClientResource(
                     new MiniClusterResourceConfiguration.Builder().build());
 
     @ClassRule
     public static KinesaliteContainer kinesalite =
-            new KinesaliteContainer(
-                    DockerImageName.parse("instructure/kinesalite").withTag("latest"));
+            new KinesaliteContainer(DockerImageName.parse(DockerImageVersions.KINESALITE));
 
     @Rule public TemporaryFolder temp = new TemporaryFolder();
 
@@ -90,14 +92,10 @@ public class FlinkKinesisITCase {
         client.createTopic(TEST_STREAM, 1, new Properties());
 
         // add elements to the test stream
-        int numElements = 10;
-        List<String> elements =
-                IntStream.range(0, numElements)
-                        .mapToObj(String::valueOf)
-                        .collect(Collectors.toList());
-        for (String element : elements) {
-            client.sendMessage(TEST_STREAM, element);
-        }
+        int numElements = 1000;
+        client.sendMessage(
+                TEST_STREAM,
+                IntStream.range(0, numElements).mapToObj(String::valueOf).toArray(String[]::new));
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
@@ -107,6 +105,7 @@ public class FlinkKinesisITCase {
         FlinkKinesisConsumer<String> consumer =
                 new FlinkKinesisConsumer<>(TEST_STREAM, STRING_SCHEMA, config);
 
+        DataStream<String> stream = env.addSource(consumer).map(new WaitingMapper());
         // call stop with savepoint in another thread
         ForkJoinTask<Object> stopTask =
                 ForkJoinPool.commonPool()
@@ -117,14 +116,17 @@ public class FlinkKinesisITCase {
                                     WaitingMapper.stopped = true;
                                     return null;
                                 });
-
         try {
-            List<String> result =
-                    env.addSource(consumer).map(new WaitingMapper()).executeAndCollect(10000);
+            List<String> result = stream.executeAndCollect(10000);
             // stop with savepoint will most likely only return a small subset of the elements
             // validate that the prefix is as expected
-            assertThat(result, hasSize(lessThan(numElements)));
-            assertThat(result, equalTo(elements.subList(0, result.size())));
+            assertThat(result).size().isLessThan(numElements);
+            assertThat(result)
+                    .isEqualTo(
+                            IntStream.range(0, numElements)
+                                    .mapToObj(String::valueOf)
+                                    .collect(Collectors.toList())
+                                    .subList(0, result.size()));
         } finally {
             stopTask.cancel(true);
         }
@@ -132,16 +134,25 @@ public class FlinkKinesisITCase {
 
     private String stopWithSavepoint() throws Exception {
         JobStatusMessage job =
-                miniCluster.getClusterClient().listJobs().get().stream().findFirst().get();
-        return miniCluster
+                MINI_CLUSTER.getClusterClient().listJobs().get().stream().findFirst().get();
+        return MINI_CLUSTER
                 .getClusterClient()
-                .stopWithSavepoint(job.getJobId(), true, temp.getRoot().getAbsolutePath())
+                .stopWithSavepoint(
+                        job.getJobId(),
+                        true,
+                        temp.getRoot().getAbsolutePath(),
+                        SavepointFormatType.CANONICAL)
                 .get();
     }
 
     private static class WaitingMapper implements MapFunction<String, String> {
-        static CountDownLatch firstElement = new CountDownLatch(1);
-        static volatile boolean stopped = false;
+        static CountDownLatch firstElement;
+        static volatile boolean stopped;
+
+        WaitingMapper() {
+            firstElement = new CountDownLatch(1);
+            stopped = false;
+        }
 
         @Override
         public String map(String value) throws Exception {

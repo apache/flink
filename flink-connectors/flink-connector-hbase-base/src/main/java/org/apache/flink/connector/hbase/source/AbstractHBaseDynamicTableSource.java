@@ -23,15 +23,15 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.utils.TableSchemaUtils;
+import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.conf.Configuration;
 
@@ -77,11 +77,9 @@ public abstract class AbstractHBaseDynamicTableSource
                 hbaseSchema.getRowKeyName().isPresent(),
                 "HBase schema must have a row key when used in lookup mode.");
         checkArgument(
-                hbaseSchema
-                        .convertsToTableSchema()
-                        .getTableColumn(context.getKeys()[0][0])
-                        .filter(f -> f.getName().equals(hbaseSchema.getRowKeyName().get()))
-                        .isPresent(),
+                DataType.getFieldNames(hbaseSchema.convertToDataType())
+                        .get(context.getKeys()[0][0])
+                        .equals(hbaseSchema.getRowKeyName().get()),
                 "Currently, HBase table only supports lookup by rowkey field.");
 
         return TableFunctionProvider.of(
@@ -96,11 +94,10 @@ public abstract class AbstractHBaseDynamicTableSource
     }
 
     @Override
-    public void applyProjection(int[][] projectedFields) {
-        TableSchema projectSchema =
-                TableSchemaUtils.projectSchema(
-                        hbaseSchema.convertsToTableSchema(), projectedFields);
-        this.hbaseSchema = HBaseTableSchema.fromTableSchema(projectSchema);
+    public void applyProjection(int[][] projectedFields, DataType producedDataType) {
+        this.hbaseSchema =
+                HBaseTableSchema.fromDataType(
+                        Projection.of(projectedFields).project(hbaseSchema.convertToDataType()));
     }
 
     @Override

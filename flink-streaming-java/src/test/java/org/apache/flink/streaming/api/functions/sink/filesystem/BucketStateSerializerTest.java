@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
@@ -242,7 +243,7 @@ public class BucketStateSerializerTest {
                 0,
                 initialPartCounter,
                 createBucketWriter(),
-                DefaultRollingPolicy.builder().withMaxPartSize(10).build(),
+                DefaultRollingPolicy.builder().withMaxPartSize(new MemorySize(10)).build(),
                 bucketState,
                 null,
                 OutputFileConfig.builder().build());

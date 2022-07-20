@@ -15,26 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
+import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.types.Row
 
 import org.junit.Test
 
 class OverWindowValidationTest extends TableTestBase {
 
-  private val streamUtil = streamTestUtil()
-  streamUtil.addTable[(Int, String, Long)]("T1", 'a, 'b, 'c, 'proctime.proctime)
+  private val streamUtil = scalaStreamTestUtil()
+  streamUtil.addDataStream[(Int, String, Long)]("T1", 'a, 'b, 'c, 'proctime.proctime)
 
-  /**
-    * All aggregates must be computed on the same window.
-    */
+  /** All aggregates must be computed on the same window. */
   @Test(expected = classOf[TableException])
   def testMultiWindow(): Unit = {
 
@@ -47,26 +44,13 @@ class OverWindowValidationTest extends TableTestBase {
     streamUtil.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
   }
 
-  /**
-    * OVER clause is necessary for [[OverAgg0]] window function.
-    */
+  /** OVER clause is necessary for [[OverAgg0]] window function. */
   @Test(expected = classOf[ValidationException])
   def testInvalidOverAggregation(): Unit = {
     streamUtil.addFunction("overAgg", new OverAgg0)
 
     val sqlQuery = "SELECT overAgg(c, a) FROM MyTable"
 
-    streamUtil.tableEnv.sqlQuery(sqlQuery)
-  }
-
-  /**
-    * OVER clause is necessary for [[OverAgg0]] window function.
-    */
-  @Test(expected = classOf[ValidationException])
-  def testInvalidOverAggregation2(): Unit = {
-    streamUtil.addFunction("overAgg", new OverAgg0)
-
-    val sqlQuery = "SELECT overAgg(c, a) FROM MyTable"
     streamUtil.tableEnv.sqlQuery(sqlQuery)
   }
 }

@@ -18,24 +18,17 @@
 
 package org.apache.flink.runtime.scheduler.exceptionhistory;
 
-import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import javax.annotation.Nullable;
-
-import java.util.Optional;
-
 import static org.apache.flink.runtime.scheduler.exceptionhistory.ArchivedTaskManagerLocationMatcher.isArchivedTaskManagerLocation;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 /** {@code ExceptionHistoryEntryTest} tests the creation of {@link ExceptionHistoryEntry}. */
@@ -47,8 +40,10 @@ public class ExceptionHistoryEntryTest extends TestLogger {
         final long timestamp = System.currentTimeMillis();
         final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
         final AccessExecution execution =
-                new TestAccessExecution(
-                        new ExecutionAttemptID(), failure, timestamp, taskManagerLocation);
+                TestingAccessExecution.newBuilder()
+                        .withErrorInfo(new ErrorInfo(failure, timestamp))
+                        .withTaskManagerLocation(taskManagerLocation)
+                        .build();
         final String taskName = "task name";
 
         final ExceptionHistoryEntry entry = ExceptionHistoryEntry.create(execution, taskName);
@@ -66,84 +61,50 @@ public class ExceptionHistoryEntryTest extends TestLogger {
     @Test(expected = IllegalArgumentException.class)
     public void testCreationFailure() {
         ExceptionHistoryEntry.create(
-                TestAccessExecution.createExecutionWithoutFailure(
-                        new ExecutionAttemptID(), new LocalTaskManagerLocation()),
+                TestingAccessExecution.newBuilder()
+                        .withTaskManagerLocation(new LocalTaskManagerLocation())
+                        .build(),
                 "task name");
     }
 
-    private static class TestAccessExecution implements AccessExecution {
+    @Test(expected = NullPointerException.class)
+    public void testNullExecution() {
+        ExceptionHistoryEntry.create(null, "task name");
+    }
 
-        private final ExecutionAttemptID executionAttemptID;
-        private final ErrorInfo failureInfo;
-        private final TaskManagerLocation taskManagerLocation;
+    @Test(expected = NullPointerException.class)
+    public void testNullTaskName() {
+        ExceptionHistoryEntry.create(
+                TestingAccessExecution.newBuilder()
+                        .withErrorInfo(
+                                new ErrorInfo(
+                                        new Exception("Expected failure"),
+                                        System.currentTimeMillis()))
+                        .withTaskManagerLocation(new LocalTaskManagerLocation())
+                        .build(),
+                null);
+    }
 
-        private static TestAccessExecution createExecutionWithoutFailure(
-                ExecutionAttemptID executionAttemptID, TaskManagerLocation taskManagerLocation) {
-            return new TestAccessExecution(executionAttemptID, null, 0L, taskManagerLocation);
-        }
+    @Test
+    public void testWithMissingTaskManagerLocation() {
+        final Exception failure = new Exception("Expected failure");
+        final long timestamp = System.currentTimeMillis();
+        final String taskName = "task name";
 
-        private TestAccessExecution(
-                ExecutionAttemptID executionAttemptID,
-                @Nullable Throwable failure,
-                long timestamp,
-                TaskManagerLocation taskManagerLocation) {
-            this.executionAttemptID = executionAttemptID;
-            this.failureInfo = failure == null ? null : new ErrorInfo(failure, timestamp);
-            this.taskManagerLocation = taskManagerLocation;
-        }
+        final ExceptionHistoryEntry entry =
+                ExceptionHistoryEntry.create(
+                        TestingAccessExecution.newBuilder()
+                                .withTaskManagerLocation(null)
+                                .withErrorInfo(new ErrorInfo(failure, timestamp))
+                                .build(),
+                        taskName);
 
-        @Override
-        public ExecutionAttemptID getAttemptId() {
-            return executionAttemptID;
-        }
-
-        @Override
-        public TaskManagerLocation getAssignedResourceLocation() {
-            return taskManagerLocation;
-        }
-
-        @Override
-        public Optional<ErrorInfo> getFailureInfo() {
-            return Optional.ofNullable(failureInfo);
-        }
-
-        // -- unsupported methods
-
-        @Override
-        public int getAttemptNumber() {
-            throw new UnsupportedOperationException("getAttemptNumber should not be called.");
-        }
-
-        @Override
-        public long[] getStateTimestamps() {
-            throw new UnsupportedOperationException("getStateTimestamps should not be called.");
-        }
-
-        @Override
-        public ExecutionState getState() {
-            throw new UnsupportedOperationException("getState should not be called.");
-        }
-
-        @Override
-        public long getStateTimestamp(ExecutionState state) {
-            throw new UnsupportedOperationException("getStateTimestamp should not be called.");
-        }
-
-        @Override
-        public StringifiedAccumulatorResult[] getUserAccumulatorsStringified() {
-            throw new UnsupportedOperationException(
-                    "getUserAccumulatorsStringified should not be called.");
-        }
-
-        @Override
-        public int getParallelSubtaskIndex() {
-            throw new UnsupportedOperationException(
-                    "getParallelSubtaskIndex should not be called.");
-        }
-
-        @Override
-        public IOMetrics getIOMetrics() {
-            throw new UnsupportedOperationException("getIOMetrics should not be called.");
-        }
+        assertThat(
+                entry.getException().deserializeError(ClassLoader.getSystemClassLoader()),
+                is(failure));
+        assertThat(entry.getTimestamp(), is(timestamp));
+        assertThat(entry.getFailingTaskName(), is(taskName));
+        assertThat(entry.getTaskManagerLocation(), is(nullValue()));
+        assertThat(entry.isGlobal(), is(false));
     }
 }

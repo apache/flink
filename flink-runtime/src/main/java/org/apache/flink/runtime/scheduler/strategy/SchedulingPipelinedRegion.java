@@ -36,4 +36,11 @@ public interface SchedulingPipelinedRegion
      * @return set of {@link ConsumedPartitionGroup}s
      */
     Iterable<ConsumedPartitionGroup> getAllBlockingConsumedPartitionGroups();
+
+    /**
+     * Get all distinct releaseByScheduler {@link ConsumedPartitionGroup}s.
+     *
+     * @return set of {@link ConsumedPartitionGroup}s
+     */
+    Iterable<ConsumedPartitionGroup> getAllReleaseBySchedulerConsumedPartitionGroups();
 }

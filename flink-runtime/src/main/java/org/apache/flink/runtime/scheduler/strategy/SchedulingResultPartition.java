@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.topology.Result;
 
 import java.util.List;
+import java.util.Optional;
 
 /** Representation of {@link IntermediateResultPartition}. */
 public interface SchedulingResultPartition
@@ -48,9 +49,16 @@ public interface SchedulingResultPartition
     ResultPartitionState getState();
 
     /**
-     * Gets the {@link ConsumerVertexGroup}s.
+     * Gets the {@link ConsumerVertexGroup}.
      *
-     * @return list of {@link ConsumerVertexGroup}s
+     * @return {@link ConsumerVertexGroup} if consumers exists, otherwise {@link Optional#empty()}.
      */
-    List<ConsumerVertexGroup> getConsumerVertexGroups();
+    Optional<ConsumerVertexGroup> getConsumerVertexGroup();
+
+    /**
+     * Gets the {@link ConsumedPartitionGroup}s this partition belongs to.
+     *
+     * @return list of {@link ConsumedPartitionGroup}s
+     */
+    List<ConsumedPartitionGroup> getConsumedPartitionGroups();
 }

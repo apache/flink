@@ -18,12 +18,12 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.connector.file.table.TableMetaStoreFactory;
 import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
-import org.apache.flink.table.filesystem.TableMetaStoreFactory;
 
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;

@@ -19,6 +19,9 @@
 package org.apache.flink.connector.file.sink.writer;
 
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.api.connector.sink2.Committer.CommitRequest;
+import org.apache.flink.api.connector.sink2.mocks.MockCommitRequest;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.connector.file.sink.committer.FileCommitter;
 import org.apache.flink.core.fs.FileSystem;
@@ -34,30 +37,22 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSin
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.util.FileUtils;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import static org.hamcrest.CoreMatchers.hasItem;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.startsWith;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.iterableWithSize;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for the {@link FileWriterBucketStateSerializer} that verify we can still read snapshots
@@ -71,17 +66,13 @@ import static org.junit.Assert.assertThat;
  * test. The generated test data from {@code BucketStateSerializerTest} has been copied to be reused
  * in this test to ensure we can restore the same bytes.
  */
-@RunWith(Parameterized.class)
-public class FileWriterBucketStateSerializerMigrationTest {
+class FileWriterBucketStateSerializerMigrationTest {
 
     private static final int CURRENT_VERSION = 2;
 
-    @Parameterized.Parameters(name = "Previous Version = {0}")
-    public static Collection<Integer> previousVersions() {
-        return Arrays.asList(1, 2);
+    static Stream<Integer> previousVersions() {
+        return Stream.of(1, 2);
     }
-
-    @Parameterized.Parameter public Integer previousVersion;
 
     private static final String IN_PROGRESS_CONTENT = "writing";
     private static final String PENDING_CONTENT = "wrote";
@@ -91,20 +82,19 @@ public class FileWriterBucketStateSerializerMigrationTest {
     private static final java.nio.file.Path BASE_PATH =
             Paths.get("src/test/resources/").resolve("bucket-state-migration-test");
 
-    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
-
     private final BucketStateGenerator generator =
             new BucketStateGenerator(
                     BUCKET_ID, IN_PROGRESS_CONTENT, PENDING_CONTENT, BASE_PATH, CURRENT_VERSION);
 
     @Test
-    @Ignore
-    public void prepareDeserializationEmpty() throws IOException {
+    @Disabled
+    void prepareDeserializationEmpty() throws IOException {
         generator.prepareDeserializationEmpty();
     }
 
-    @Test
-    public void testSerializationEmpty() throws IOException {
+    @ParameterizedTest(name = "Previous Version = {0}")
+    @MethodSource("previousVersions")
+    void testSerializationEmpty(int previousVersion) throws IOException {
 
         final String scenarioName = "empty";
         final BucketStatePathResolver pathResolver =
@@ -116,19 +106,20 @@ public class FileWriterBucketStateSerializerMigrationTest {
 
         final FileWriterBucket<String> bucket = restoreBucket(recoveredState);
 
-        Assert.assertEquals(testBucketPath, bucket.getBucketPath());
-        Assert.assertNull(bucket.getInProgressPart());
-        Assert.assertTrue(bucket.getPendingFiles().isEmpty());
+        assertThat(bucket.getBucketPath()).isEqualTo(testBucketPath);
+        assertThat(bucket.getInProgressPart()).isNull();
+        assertThat(bucket.getPendingFiles()).isEmpty();
     }
 
     @Test
-    @Ignore
-    public void prepareDeserializationOnlyInProgress() throws IOException {
+    @Disabled
+    void prepareDeserializationOnlyInProgress() throws IOException {
         generator.prepareDeserializationOnlyInProgress();
     }
 
-    @Test
-    public void testSerializationOnlyInProgress() throws IOException {
+    @ParameterizedTest(name = "Previous Version = {0}")
+    @MethodSource("previousVersions")
+    void testSerializationOnlyInProgress(int previousVersion) throws IOException {
 
         final String scenarioName = "only-in-progress";
         final BucketStatePathResolver pathResolver =
@@ -142,49 +133,52 @@ public class FileWriterBucketStateSerializerMigrationTest {
 
         final FileWriterBucket<String> bucket = restoreBucket(recoveredState);
 
-        Assert.assertEquals(testBucketPath, bucket.getBucketPath());
+        assertThat(bucket.getBucketPath()).isEqualTo(testBucketPath);
 
         // check restore the correct in progress file writer
-        Assert.assertEquals(8, bucket.getInProgressPart().getSize());
+        assertThat(bucket.getInProgressPart().getSize()).isEqualTo(8);
 
         long numFiles =
                 Files.list(Paths.get(testBucketPath.toString()))
                         .map(
                                 file -> {
-                                    assertThat(
-                                            file.getFileName().toString(),
-                                            startsWith(".part-0-0.inprogress"));
+                                    assertThat(file.getFileName().toString())
+                                            .startsWith(".part-0-0.inprogress");
                                     return 1;
                                 })
                         .count();
 
-        assertThat(numFiles, is(1L));
+        assertThat(numFiles).isEqualTo(1L);
     }
 
     @Test
-    @Ignore
-    public void prepareDeserializationFull() throws IOException {
+    @Disabled
+    void prepareDeserializationFull() throws IOException {
         generator.prepareDeserializationFull();
     }
 
-    @Test
-    public void testSerializationFull() throws IOException {
-        testDeserializationFull(true, "full");
+    @ParameterizedTest(name = "Previous Version = {0}")
+    @MethodSource("previousVersions")
+    void testSerializationFull(int previousVersion) throws IOException, InterruptedException {
+        testDeserializationFull(previousVersion, true, "full");
     }
 
     @Test
-    @Ignore
-    public void prepareDeserializationNullInProgress() throws IOException {
+    @Disabled
+    void prepareDeserializationNullInProgress() throws IOException {
         generator.prepareDeserializationNullInProgress();
     }
 
-    @Test
-    public void testSerializationNullInProgress() throws IOException {
-        testDeserializationFull(false, "full-no-in-progress");
+    @ParameterizedTest(name = "Previous Version = {0}")
+    @MethodSource("previousVersions")
+    void testSerializationNullInProgress(int previousVersion)
+            throws IOException, InterruptedException {
+        testDeserializationFull(previousVersion, false, "full-no-in-progress");
     }
 
-    private void testDeserializationFull(final boolean withInProgress, final String scenarioName)
-            throws IOException {
+    private void testDeserializationFull(
+            int previousVersion, final boolean withInProgress, final String scenarioName)
+            throws IOException, InterruptedException {
 
         final BucketStatePathResolver pathResolver =
                 new BucketStatePathResolver(BASE_PATH, previousVersion);
@@ -201,7 +195,7 @@ public class FileWriterBucketStateSerializerMigrationTest {
             final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>>
                     pendingFileRecoverables =
                             recoveredState.getPendingFileRecoverablesPerCheckpoint();
-            Assert.assertEquals(5L, pendingFileRecoverables.size());
+            assertThat(pendingFileRecoverables).hasSize(5);
 
             final Set<String> beforeRestorePaths =
                     Files.list(outputPath.resolve(BUCKET_ID))
@@ -211,16 +205,19 @@ public class FileWriterBucketStateSerializerMigrationTest {
             // before retsoring all file has "inprogress"
             for (int i = 0; i < noOfPendingCheckpoints; i++) {
                 final String part = ".part-0-" + i + ".inprogress";
-                assertThat(beforeRestorePaths, hasItem(startsWith(part)));
+                assertThat(beforeRestorePaths).anyMatch(s -> s.startsWith(part));
             }
 
             final FileWriterBucket<String> bucket = restoreBucket(recoveredState);
-            Assert.assertEquals(testBucketPath, bucket.getBucketPath());
-            Assert.assertEquals(noOfPendingCheckpoints, bucket.getPendingFiles().size());
+            assertThat(bucket.getBucketPath()).isEqualTo(testBucketPath);
+            assertThat(bucket.getPendingFiles()).hasSize(noOfPendingCheckpoints);
 
             // simulates we commit the recovered pending files on the first checkpoint
             bucket.snapshotState();
-            List<FileSinkCommittable> committables = bucket.prepareCommit(false);
+            Collection<CommitRequest<FileSinkCommittable>> committables =
+                    bucket.prepareCommit(false).stream()
+                            .map(MockCommitRequest::new)
+                            .collect(Collectors.toList());
             FileCommitter committer = new FileCommitter(createBucketWriter());
             committer.commit(committables);
 
@@ -229,24 +226,28 @@ public class FileWriterBucketStateSerializerMigrationTest {
                             .map(file -> file.getFileName().toString())
                             .collect(Collectors.toSet());
 
-            // after restoring all pending files are comitted.
+            // after restoring all pending files are committed.
             // there is no "inporgress" in file name for the committed files.
             for (int i = 0; i < noOfPendingCheckpoints; i++) {
                 final String part = "part-0-" + i;
-                assertThat(afterRestorePaths, hasItem(part));
+                assertThat(afterRestorePaths).contains(part);
                 afterRestorePaths.remove(part);
             }
 
             if (withInProgress) {
                 // only the in-progress must be left
-                assertThat(afterRestorePaths, iterableWithSize(1));
+                assertThat(afterRestorePaths).hasSize(1);
 
                 // verify that the in-progress file is still there
-                assertThat(
-                        afterRestorePaths,
-                        hasItem(startsWith(".part-0-" + noOfPendingCheckpoints + ".inprogress")));
+                assertThat(afterRestorePaths)
+                        .anyMatch(
+                                s ->
+                                        s.startsWith(
+                                                ".part-0-"
+                                                        + noOfPendingCheckpoints
+                                                        + ".inprogress"));
             } else {
-                assertThat(afterRestorePaths, empty());
+                assertThat(afterRestorePaths).isEmpty();
             }
         } finally {
             FileUtils.deleteDirectory(pathResolver.getResourcePath(scenarioName).toFile());
@@ -257,7 +258,7 @@ public class FileWriterBucketStateSerializerMigrationTest {
             throws IOException {
         return FileWriterBucket.restore(
                 createBucketWriter(),
-                DefaultRollingPolicy.builder().withMaxPartSize(10).build(),
+                DefaultRollingPolicy.builder().withMaxPartSize(new MemorySize(10)).build(),
                 bucketState,
                 OutputFileConfig.builder().build());
     }

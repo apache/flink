@@ -22,19 +22,25 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonRowDataDeserializationSchema;
+import org.apache.flink.formats.json.maxwell.MaxwellJsonDecodingFormat.ReadableMetadata;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /**
  * Deserialization schema from Maxwell JSON to Flink Table/SQL internal data structure {@link
@@ -48,8 +54,9 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
  * @see <a href="http://maxwells-daemon.io/">Maxwell</a>
  */
 public class MaxwellJsonDeserializationSchema implements DeserializationSchema<RowData> {
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
+    private static final String FIELD_OLD = "old";
     private static final String OP_INSERT = "insert";
     private static final String OP_UPDATE = "update";
     private static final String OP_DELETE = "delete";
@@ -57,33 +64,49 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
     /** The deserializer to deserialize Maxwell JSON data. */
     private final JsonRowDataDeserializationSchema jsonDeserializer;
 
-    /** TypeInformation of the produced {@link RowData}. * */
-    private final TypeInformation<RowData> resultTypeInfo;
+    /** Flag that indicates that an additional projection is required for metadata. */
+    private final boolean hasMetadata;
+
+    /** Metadata to be extracted for every record. */
+    private final MetadataConverter[] metadataConverters;
+
+    /** {@link TypeInformation} of the produced {@link RowData} (physical + meta data). */
+    private final TypeInformation<RowData> producedTypeInfo;
 
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
 
-    /** Number of fields. */
+    /** Names of physical fields. */
+    private final List<String> fieldNames;
+
+    /** Number of physical fields. */
     private final int fieldCount;
 
     public MaxwellJsonDeserializationSchema(
-            RowType rowType,
-            TypeInformation<RowData> resultTypeInfo,
+            DataType physicalDataType,
+            List<ReadableMetadata> requestedMetadata,
+            TypeInformation<RowData> producedTypeInfo,
             boolean ignoreParseErrors,
-            TimestampFormat timestampFormatOption) {
-        this.resultTypeInfo = resultTypeInfo;
-        this.ignoreParseErrors = ignoreParseErrors;
-        this.fieldCount = rowType.getFieldCount();
+            TimestampFormat timestampFormat) {
+        final RowType jsonRowType = createJsonRowType(physicalDataType, requestedMetadata);
         this.jsonDeserializer =
                 new JsonRowDataDeserializationSchema(
-                        createJsonRowType(fromLogicalToDataType(rowType)),
-                        // the result type is never used, so it's fine to pass in Canal's result
-                        // type
-                        resultTypeInfo,
-                        false, // ignoreParseErrors already contains the functionality of
+                        jsonRowType,
+                        // the result type is never used, so it's fine to pass in the produced type
+                        // info
+                        producedTypeInfo,
+                        // ignoreParseErrors already contains the functionality of
                         // failOnMissingField
+                        false,
                         ignoreParseErrors,
-                        timestampFormatOption);
+                        timestampFormat);
+        this.hasMetadata = requestedMetadata.size() > 0;
+        this.metadataConverters = createMetadataConverters(jsonRowType, requestedMetadata);
+        this.producedTypeInfo = producedTypeInfo;
+        this.ignoreParseErrors = ignoreParseErrors;
+        final RowType physicalRowType = ((RowType) physicalDataType.getLogicalType());
+        this.fieldNames = physicalRowType.getFieldNames();
+        this.fieldCount = physicalRowType.getFieldCount();
     }
 
     @Override
@@ -94,22 +117,27 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
 
     @Override
     public void deserialize(byte[] message, Collector<RowData> out) throws IOException {
+        if (message == null || message.length == 0) {
+            return;
+        }
         try {
-            RowData row = jsonDeserializer.deserialize(message);
+            final JsonNode root = jsonDeserializer.deserializeToJsonNode(message);
+            final GenericRowData row = (GenericRowData) jsonDeserializer.convertToRowData(root);
             String type = row.getString(2).toString(); // "type" field
             if (OP_INSERT.equals(type)) {
                 // "data" field is a row, contains inserted rows
-                RowData insert = row.getRow(0, fieldCount);
+                GenericRowData insert = (GenericRowData) row.getRow(0, fieldCount);
                 insert.setRowKind(RowKind.INSERT);
-                out.collect(insert);
+                emitRow(row, insert, out);
             } else if (OP_UPDATE.equals(type)) {
                 // "data" field is a row, contains new rows
-                // "old" field is an array of row, contains old values
+                // "old" field is a row, contains old values
                 // the underlying JSON deserialization schema always produce GenericRowData.
                 GenericRowData after = (GenericRowData) row.getRow(0, fieldCount); // "data" field
                 GenericRowData before = (GenericRowData) row.getRow(1, fieldCount); // "old" field
+                final JsonNode oldField = root.get(FIELD_OLD);
                 for (int f = 0; f < fieldCount; f++) {
-                    if (before.isNullAt(f)) {
+                    if (before.isNullAt(f) && oldField.findValue(fieldNames.get(f)) == null) {
                         // not null fields in "old" (before) means the fields are changed
                         // null/empty fields in "old" (before) means the fields are not changed
                         // so we just copy the not changed fields into before
@@ -118,14 +146,13 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
                 }
                 before.setRowKind(RowKind.UPDATE_BEFORE);
                 after.setRowKind(RowKind.UPDATE_AFTER);
-                out.collect(before);
-                out.collect(after);
+                emitRow(row, before, out);
+                emitRow(row, after, out);
             } else if (OP_DELETE.equals(type)) {
                 // "data" field is a row, contains deleted rows
-                RowData delete = row.getRow(0, fieldCount);
+                GenericRowData delete = (GenericRowData) row.getRow(0, fieldCount);
                 delete.setRowKind(RowKind.DELETE);
-                out.collect(delete);
-
+                emitRow(row, delete, out);
             } else {
                 if (!ignoreParseErrors) {
                     throw new IOException(
@@ -143,6 +170,26 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
         }
     }
 
+    private void emitRow(
+            GenericRowData rootRow, GenericRowData physicalRow, Collector<RowData> out) {
+        // shortcut in case no output projection is required
+        if (!hasMetadata) {
+            out.collect(physicalRow);
+            return;
+        }
+        final int metadataArity = metadataConverters.length;
+        final GenericRowData producedRow =
+                new GenericRowData(physicalRow.getRowKind(), fieldCount + metadataArity);
+        for (int physicalPos = 0; physicalPos < fieldCount; physicalPos++) {
+            producedRow.setField(physicalPos, physicalRow.getField(physicalPos));
+        }
+        for (int metadataPos = 0; metadataPos < metadataArity; metadataPos++) {
+            producedRow.setField(
+                    fieldCount + metadataPos, metadataConverters[metadataPos].convert(rootRow));
+        }
+        out.collect(producedRow);
+    }
+
     @Override
     public boolean isEndOfStream(RowData nextElement) {
         return false;
@@ -150,7 +197,7 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
 
     @Override
     public TypeInformation<RowData> getProducedType() {
-        return resultTypeInfo;
+        return producedTypeInfo;
     }
 
     @Override
@@ -162,25 +209,69 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
             return false;
         }
         MaxwellJsonDeserializationSchema that = (MaxwellJsonDeserializationSchema) o;
-        return ignoreParseErrors == that.ignoreParseErrors
-                && fieldCount == that.fieldCount
-                && Objects.equals(jsonDeserializer, that.jsonDeserializer)
-                && Objects.equals(resultTypeInfo, that.resultTypeInfo);
+        return Objects.equals(jsonDeserializer, that.jsonDeserializer)
+                && hasMetadata == that.hasMetadata
+                && Objects.equals(producedTypeInfo, that.producedTypeInfo)
+                && ignoreParseErrors == that.ignoreParseErrors
+                && fieldCount == that.fieldCount;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(jsonDeserializer, resultTypeInfo, ignoreParseErrors, fieldCount);
+        return Objects.hash(
+                jsonDeserializer, hasMetadata, producedTypeInfo, ignoreParseErrors, fieldCount);
     }
 
-    private RowType createJsonRowType(DataType databaseSchema) {
-        // Maxwell JSON contains other information, e.g. "database", "ts"
-        // but we don't need them
-        return (RowType)
+    // --------------------------------------------------------------------------------------------
+
+    private static RowType createJsonRowType(
+            DataType physicalDataType, List<ReadableMetadata> readableMetadata) {
+        DataType root =
                 DataTypes.ROW(
-                                DataTypes.FIELD("data", databaseSchema),
-                                DataTypes.FIELD("old", databaseSchema),
-                                DataTypes.FIELD("type", DataTypes.STRING()))
-                        .getLogicalType();
+                        DataTypes.FIELD("data", physicalDataType),
+                        DataTypes.FIELD("old", physicalDataType),
+                        DataTypes.FIELD("type", DataTypes.STRING()));
+        // append fields that are required for reading metadata in the root
+        final List<DataTypes.Field> rootMetadataFields =
+                readableMetadata.stream()
+                        .map(m -> m.requiredJsonField)
+                        .distinct()
+                        .collect(Collectors.toList());
+        return (RowType) DataTypeUtils.appendRowFields(root, rootMetadataFields).getLogicalType();
+    }
+
+    private static MetadataConverter[] createMetadataConverters(
+            RowType jsonRowType, List<ReadableMetadata> requestedMetadata) {
+        return requestedMetadata.stream()
+                .map(m -> convert(jsonRowType, m))
+                .toArray(MetadataConverter[]::new);
+    }
+
+    private static MetadataConverter convert(RowType jsonRowType, ReadableMetadata metadata) {
+        final int pos = jsonRowType.getFieldNames().indexOf(metadata.requiredJsonField.getName());
+        return new MetadataConverter() {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public Object convert(GenericRowData root, int unused) {
+                return metadata.converter.convert(root, pos);
+            }
+        };
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Converter that extracts a metadata field from the row that comes out of the JSON schema and
+     * converts it to the desired data type.
+     */
+    interface MetadataConverter extends Serializable {
+
+        // Method for top-level access.
+        default Object convert(GenericRowData row) {
+            return convert(row, -1);
+        }
+
+        Object convert(GenericRowData row, int pos);
     }
 }

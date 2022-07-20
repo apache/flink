@@ -26,12 +26,16 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -42,6 +46,9 @@ import static org.junit.Assert.fail;
  * EdgeManagerBuildUtil#connectVertexToResult}.
  */
 public class PointwisePatternTest {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Test
     public void testNToN() throws Exception {
@@ -145,6 +152,7 @@ public class PointwisePatternTest {
         testLowToHigh(19, 21);
         testLowToHigh(15, 20);
         testLowToHigh(11, 31);
+        testLowToHigh(11, 29);
     }
 
     @Test
@@ -255,7 +263,7 @@ public class PointwisePatternTest {
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setVertexParallelismStore(
                                 SchedulerBase.computeVertexParallelismStore(ordered))
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         try {
             eg.attachJobGraph(ordered);
         } catch (JobException e) {

@@ -28,15 +28,17 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
+import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
+import org.apache.flink.runtime.taskexecutor.slot.NoOpSlotAllocationSnapshotPersistenceService;
+import org.apache.flink.runtime.taskexecutor.slot.SlotAllocationSnapshotPersistenceService;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.mockito.Mockito.mock;
 
@@ -54,10 +56,11 @@ public class TaskManagerServicesBuilder {
     private JobTable jobTable;
     private JobLeaderService jobLeaderService;
     private TaskExecutorLocalStateStoresManager taskStateManager;
+    private TaskExecutorStateChangelogStoragesManager taskChangelogStoragesManager;
     private TaskEventDispatcher taskEventDispatcher;
-    private ExecutorService ioExecutor;
     private LibraryCacheManager libraryCacheManager;
     private long managedMemorySize;
+    private SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService;
 
     public TaskManagerServicesBuilder() {
         unresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
@@ -76,9 +79,11 @@ public class TaskManagerServicesBuilder {
                         unresolvedTaskManagerLocation,
                         RetryingRegistrationConfiguration.defaultConfiguration());
         taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
-        ioExecutor = TestingUtils.defaultExecutor();
+        taskChangelogStoragesManager = mock(TaskExecutorStateChangelogStoragesManager.class);
         libraryCacheManager = TestingLibraryCacheManager.newBuilder().build();
         managedMemorySize = MemoryManager.MIN_PAGE_SIZE;
+        this.slotAllocationSnapshotPersistenceService =
+                NoOpSlotAllocationSnapshotPersistenceService.INSTANCE;
     }
 
     public TaskManagerServicesBuilder setUnresolvedTaskManagerLocation(
@@ -130,8 +135,9 @@ public class TaskManagerServicesBuilder {
         return this;
     }
 
-    public TaskManagerServicesBuilder setIOExecutorService(ExecutorService ioExecutor) {
-        this.ioExecutor = ioExecutor;
+    public TaskManagerServicesBuilder setTaskChangelogStoragesManager(
+            TaskExecutorStateChangelogStoragesManager taskChangelogStoragesManager) {
+        this.taskChangelogStoragesManager = taskChangelogStoragesManager;
         return this;
     }
 
@@ -143,6 +149,12 @@ public class TaskManagerServicesBuilder {
 
     public TaskManagerServicesBuilder setManagedMemorySize(long managedMemorySize) {
         this.managedMemorySize = managedMemorySize;
+        return this;
+    }
+
+    public TaskManagerServicesBuilder setSlotAllocationSnapshotPersistenceService(
+            SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService) {
+        this.slotAllocationSnapshotPersistenceService = slotAllocationSnapshotPersistenceService;
         return this;
     }
 
@@ -158,8 +170,10 @@ public class TaskManagerServicesBuilder {
                 jobTable,
                 jobLeaderService,
                 taskStateManager,
+                taskChangelogStoragesManager,
                 taskEventDispatcher,
-                ioExecutor,
-                libraryCacheManager);
+                Executors.newSingleThreadScheduledExecutor(),
+                libraryCacheManager,
+                slotAllocationSnapshotPersistenceService);
     }
 }

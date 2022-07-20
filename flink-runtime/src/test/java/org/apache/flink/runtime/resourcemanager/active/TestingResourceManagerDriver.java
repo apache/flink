@@ -21,8 +21,8 @@ package org.apache.flink.runtime.resourcemanager.active;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.TriFunctionWithException;
 
@@ -32,7 +32,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 /** Testing implementation of {@link ResourceManagerDriver}. */
 public class TestingResourceManagerDriver implements ResourceManagerDriver<ResourceID> {
@@ -40,7 +39,6 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
     private final TriFunctionWithException<
                     ResourceEventHandler<ResourceID>, ScheduledExecutor, Executor, Void, Exception>
             initializeFunction;
-    private final Supplier<CompletableFuture<Void>> terminateSupplier;
     private final BiConsumerWithException<ApplicationStatus, String, Exception>
             deregisterApplicationConsumer;
     private final Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>>
@@ -55,14 +53,12 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
                             Void,
                             Exception>
                     initializeFunction,
-            final Supplier<CompletableFuture<Void>> terminateSupplier,
             final BiConsumerWithException<ApplicationStatus, String, Exception>
                     deregisterApplicationConsumer,
             final Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>>
                     requestResourceFunction,
             final Consumer<ResourceID> releaseResourceConsumer) {
         this.initializeFunction = Preconditions.checkNotNull(initializeFunction);
-        this.terminateSupplier = Preconditions.checkNotNull(terminateSupplier);
         this.deregisterApplicationConsumer =
                 Preconditions.checkNotNull(deregisterApplicationConsumer);
         this.requestResourceFunction = Preconditions.checkNotNull(requestResourceFunction);
@@ -79,8 +75,8 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
     }
 
     @Override
-    public CompletableFuture<Void> terminate() {
-        return terminateSupplier.get();
+    public void terminate() {
+        // noop
     }
 
     @Override
@@ -109,9 +105,6 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
                         Exception>
                 initializeFunction = (ignore1, ignore2, ignore3) -> null;
 
-        private Supplier<CompletableFuture<Void>> terminateSupplier =
-                () -> CompletableFuture.completedFuture(null);
-
         private BiConsumerWithException<ApplicationStatus, String, Exception>
                 deregisterApplicationConsumer = (ignore1, ignore2) -> {};
 
@@ -130,11 +123,6 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
                                 Exception>
                         initializeFunction) {
             this.initializeFunction = Preconditions.checkNotNull(initializeFunction);
-            return this;
-        }
-
-        public Builder setTerminateSupplier(Supplier<CompletableFuture<Void>> terminateSupplier) {
-            this.terminateSupplier = Preconditions.checkNotNull(terminateSupplier);
             return this;
         }
 
@@ -161,7 +149,6 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
         public TestingResourceManagerDriver build() {
             return new TestingResourceManagerDriver(
                     initializeFunction,
-                    terminateSupplier,
                     deregisterApplicationConsumer,
                     requestResourceFunction,
                     releaseResourceConsumer);

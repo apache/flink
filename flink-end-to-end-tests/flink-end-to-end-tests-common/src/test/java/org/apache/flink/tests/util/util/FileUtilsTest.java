@@ -17,6 +17,7 @@
 
 package org.apache.flink.tests.util.util;
 
+import org.apache.flink.test.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;

@@ -28,7 +28,7 @@ import java.util.function.Function;
 
 /** A {@link VertexParallelismInformation} implementation that provides common validation. */
 public class DefaultVertexParallelismInfo implements VertexParallelismInformation {
-    private final int parallelism;
+    private int parallelism;
     private int maxParallelism;
     private final Function<Integer, Optional<String>> rescaleMaxValidator;
 
@@ -45,7 +45,7 @@ public class DefaultVertexParallelismInfo implements VertexParallelismInformatio
             int parallelism,
             int maxParallelism,
             Function<Integer, Optional<String>> rescaleMaxValidator) {
-        this.parallelism = checkParallelism(parallelism);
+        this.parallelism = checkInitialParallelism(parallelism);
         this.maxParallelism = normalizeAndCheckMaxParallelism(maxParallelism);
         this.rescaleMaxValidator = Preconditions.checkNotNull(rescaleMaxValidator);
     }
@@ -56,6 +56,12 @@ public class DefaultVertexParallelismInfo implements VertexParallelismInformatio
         }
 
         return checkBounds("max parallelism", maxParallelism);
+    }
+
+    private static int checkInitialParallelism(int parallelism) {
+        return parallelism == ExecutionConfig.PARALLELISM_DEFAULT
+                ? parallelism
+                : checkParallelism(parallelism);
     }
 
     private static int checkParallelism(int parallelism) {
@@ -81,6 +87,18 @@ public class DefaultVertexParallelismInfo implements VertexParallelismInformatio
     @Override
     public int getMaxParallelism() {
         return this.maxParallelism;
+    }
+
+    @Override
+    public void setParallelism(int parallelism) {
+        checkParallelism(parallelism);
+        Preconditions.checkArgument(
+                parallelism <= maxParallelism,
+                "Vertex's parallelism should be smaller than or equal to vertex's max parallelism.");
+        Preconditions.checkState(
+                this.parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
+                "Vertex's parallelism can be set only if the vertex's parallelism was not decided yet.");
+        this.parallelism = parallelism;
     }
 
     @Override

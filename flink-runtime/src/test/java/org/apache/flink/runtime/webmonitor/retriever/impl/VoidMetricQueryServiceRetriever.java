@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.concurrent.CompletableFuture;
 

@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.delegation.hive.copy;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.table.planner.delegation.hive.HiveParserRexNodeConverter;
 import org.apache.flink.table.planner.delegation.hive.HiveParserTypeCheckProcFactory;
@@ -30,11 +29,10 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocati
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PartitionExpression;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PartitionSpec;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PartitioningSpec;
-import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.NotNullConstraint;
-import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.PrimaryKey;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
+import org.apache.flink.util.Preconditions;
 
 import org.antlr.runtime.tree.Tree;
 import org.antlr.runtime.tree.TreeVisitor;
@@ -42,12 +40,17 @@ import org.antlr.runtime.tree.TreeVisitorAction;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
+import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexCorrelVariable;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexFieldCollation;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexWindowBound;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
@@ -62,8 +65,6 @@ import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.ObjectPair;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -78,6 +79,7 @@ import org.apache.hadoop.hive.ql.metadata.InvalidTableException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
+import org.apache.hadoop.hive.ql.optimizer.calcite.reloperators.HiveFilter;
 import org.apache.hadoop.hive.ql.parse.PTFInvocationSpec.Order;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.parse.WindowingSpec;
@@ -99,8 +101,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.util.ArrayDeque;
@@ -392,7 +393,9 @@ public class HiveParserBaseSemanticAnalyzer {
     }
 
     private static void checkColumnName(String columnName) throws SemanticException {
-        if (VirtualColumn.VIRTUAL_COLUMN_NAMES.contains(columnName.toUpperCase())) {
+        ColumnInfo columnInfo = new ColumnInfo();
+        columnInfo.setAlias(columnName);
+        if (VirtualColumn.isVirtualColumnBasedOnAlias(columnInfo)) {
             throw new SemanticException("Invalid column name " + columnName);
         }
     }
@@ -791,8 +794,7 @@ public class HiveParserBaseSemanticAnalyzer {
                 return "-"
                         + unparseExprForValuesClause((HiveParserASTNode) expr.getChildren().get(0));
             case HiveASTParser.TOK_NULL:
-                // Hive's text input will translate this as a null
-                return "\\N";
+                return null;
             default:
                 throw new SemanticException(
                         "Expression of type " + expr.getText() + " not supported in insert/values");
@@ -1705,8 +1707,8 @@ public class HiveParserBaseSemanticAnalyzer {
                                 GroupByDesc.Mode.COMPLETE, isDistinct);
 
                 GenericUDAFEvaluator genericUDAFEvaluator;
-                if (aggName.toLowerCase().equals(FunctionRegistry.LEAD_FUNC_NAME)
-                        || aggName.toLowerCase().equals(FunctionRegistry.LAG_FUNC_NAME)) {
+                if (aggName.equalsIgnoreCase(FunctionRegistry.LEAD_FUNC_NAME)
+                        || aggName.equalsIgnoreCase(FunctionRegistry.LAG_FUNC_NAME)) {
                     ArrayList<ObjectInspector> originalParameterTypeInfos =
                             HiveParserUtils.getWritableObjectInspector(aggParameters);
                     genericUDAFEvaluator =
@@ -1767,120 +1769,167 @@ public class HiveParserBaseSemanticAnalyzer {
             String tabAlias,
             Table tmpTable,
             HiveParserRowResolver rowResolver,
-            HiveParserSemanticAnalyzer semanticAnalyzer,
-            RelOptCluster cluster) {
-        try {
-            Path dataFile = new Path(tmpTable.getSd().getLocation(), "data_file");
-            FileSystem fs = dataFile.getFileSystem(semanticAnalyzer.getConf());
-            List<List<RexLiteral>> rows = new ArrayList<>();
-            // TODO: leverage Hive to read the data
-            try (BufferedReader reader =
-                    new BufferedReader(new InputStreamReader(fs.open(dataFile)))) {
-                List<TypeInfo> tmpTableTypes =
-                        tmpTable.getCols().stream()
-                                .map(f -> TypeInfoUtils.getTypeInfoFromTypeString(f.getType()))
-                                .collect(Collectors.toList());
+            RelOptCluster cluster,
+            List<List<String>> values) {
+        List<TypeInfo> tmpTableTypes =
+                tmpTable.getCols().stream()
+                        .map(f -> TypeInfoUtils.getTypeInfoFromTypeString(f.getType()))
+                        .collect(Collectors.toList());
 
-                RexBuilder rexBuilder = cluster.getRexBuilder();
+        RexBuilder rexBuilder = cluster.getRexBuilder();
+        // calcite types for each field
+        List<RelDataType> calciteTargetTypes =
+                tmpTableTypes.stream()
+                        .map(
+                                ti ->
+                                        HiveParserTypeConverter.convert(
+                                                (PrimitiveTypeInfo) ti,
+                                                rexBuilder.getTypeFactory()))
+                        .collect(Collectors.toList());
+        // calcite field names
+        List<String> calciteFieldNames =
+                IntStream.range(0, calciteTargetTypes.size())
+                        .mapToObj(SqlUtil::deriveAliasFromOrdinal)
+                        .collect(Collectors.toList());
 
-                // calcite types for each field
-                List<RelDataType> calciteTargetTypes =
-                        tmpTableTypes.stream()
-                                .map(
-                                        i ->
-                                                HiveParserTypeConverter.convert(
-                                                        (PrimitiveTypeInfo) i,
-                                                        rexBuilder.getTypeFactory()))
-                                .collect(Collectors.toList());
+        // calcite type for each row
+        List<RelDataType> calciteRowTypes = new ArrayList<>();
 
-                // calcite field names
-                List<String> calciteFieldNames =
-                        IntStream.range(0, calciteTargetTypes.size())
-                                .mapToObj(SqlUtil::deriveAliasFromOrdinal)
-                                .collect(Collectors.toList());
-
-                // calcite type for each row
-                List<RelDataType> calciteRowTypes = new ArrayList<>();
-
-                String line = reader.readLine();
-                while (line != null) {
-                    String[] values = line.split("\u0001");
-                    List<RexLiteral> row = new ArrayList<>();
-                    for (int i = 0; i < tmpTableTypes.size(); i++) {
-                        PrimitiveTypeInfo primitiveTypeInfo =
-                                (PrimitiveTypeInfo) tmpTableTypes.get(i);
-                        RelDataType calciteType = calciteTargetTypes.get(i);
-                        if (i >= values.length || values[i].equals("\\N")) {
-                            row.add(rexBuilder.makeNullLiteral(calciteType));
-                        } else {
-                            String val = values[i];
-                            switch (primitiveTypeInfo.getPrimitiveCategory()) {
-                                case BYTE:
-                                case SHORT:
-                                case INT:
-                                case LONG:
-                                    row.add(
-                                            rexBuilder.makeExactLiteral(
-                                                    new BigDecimal(val), calciteType));
-                                    break;
-                                case DECIMAL:
-                                    BigDecimal bigDec = new BigDecimal(val);
-                                    row.add(
-                                            SqlTypeUtil.isValidDecimalValue(bigDec, calciteType)
-                                                    ? rexBuilder.makeExactLiteral(
-                                                            bigDec, calciteType)
-                                                    : rexBuilder.makeNullLiteral(calciteType));
-                                    break;
-                                case FLOAT:
-                                case DOUBLE:
-                                    row.add(
-                                            rexBuilder.makeApproxLiteral(
-                                                    new BigDecimal(val), calciteType));
-                                    break;
-                                case BOOLEAN:
-                                    row.add(rexBuilder.makeLiteral(Boolean.parseBoolean(val)));
-                                    break;
-                                default:
-                                    row.add(
-                                            rexBuilder.makeCharLiteral(
-                                                    HiveParserUtils.asUnicodeString(val)));
-                            }
-                        }
+        List<List<RexLiteral>> rows = new ArrayList<>();
+        for (List<String> value : values) {
+            Preconditions.checkArgument(
+                    value.size() == tmpTableTypes.size(),
+                    String.format(
+                            "Values table col length (%d) and data length (%d) mismatch",
+                            tmpTableTypes.size(), value.size()));
+            List<RexLiteral> row = new ArrayList<>();
+            for (int i = 0; i < tmpTableTypes.size(); i++) {
+                PrimitiveTypeInfo primitiveTypeInfo = (PrimitiveTypeInfo) tmpTableTypes.get(i);
+                RelDataType calciteType = calciteTargetTypes.get(i);
+                String col = value.get(i);
+                if (col == null) {
+                    row.add(rexBuilder.makeNullLiteral(calciteType));
+                } else {
+                    switch (primitiveTypeInfo.getPrimitiveCategory()) {
+                        case BYTE:
+                        case SHORT:
+                        case INT:
+                        case LONG:
+                            row.add(rexBuilder.makeExactLiteral(new BigDecimal(col), calciteType));
+                            break;
+                        case DECIMAL:
+                            BigDecimal bigDec = new BigDecimal(col);
+                            row.add(
+                                    SqlTypeUtil.isValidDecimalValue(bigDec, calciteType)
+                                            ? rexBuilder.makeExactLiteral(bigDec, calciteType)
+                                            : rexBuilder.makeNullLiteral(calciteType));
+                            break;
+                        case FLOAT:
+                        case DOUBLE:
+                            row.add(rexBuilder.makeApproxLiteral(new BigDecimal(col), calciteType));
+                            break;
+                        case BOOLEAN:
+                            row.add(rexBuilder.makeLiteral(Boolean.parseBoolean(col)));
+                            break;
+                        default:
+                            row.add(
+                                    rexBuilder.makeCharLiteral(
+                                            HiveParserUtils.asUnicodeString(col)));
                     }
-
-                    calciteRowTypes.add(
-                            rexBuilder
-                                    .getTypeFactory()
-                                    .createStructType(
-                                            row.stream()
-                                                    .map(RexLiteral::getType)
-                                                    .collect(Collectors.toList()),
-                                            calciteFieldNames));
-                    rows.add(row);
-                    line = reader.readLine();
                 }
-
-                // compute the final row type
-                RelDataType calciteRowType =
-                        rexBuilder.getTypeFactory().leastRestrictive(calciteRowTypes);
-                for (int i = 0; i < calciteFieldNames.size(); i++) {
-                    ColumnInfo colInfo =
-                            new ColumnInfo(
-                                    calciteFieldNames.get(i),
-                                    HiveParserTypeConverter.convert(
-                                            calciteRowType.getFieldList().get(i).getType()),
-                                    tabAlias,
-                                    false);
-                    rowResolver.put(tabAlias, calciteFieldNames.get(i), colInfo);
-                }
-                return HiveParserUtils.genValuesRelNode(
-                        cluster,
-                        rexBuilder.getTypeFactory().createStructType(calciteRowType.getFieldList()),
-                        rows);
             }
-        } catch (Exception e) {
-            throw new FlinkHiveException("Failed to convert temp table to LogicalValues", e);
+
+            calciteRowTypes.add(
+                    rexBuilder
+                            .getTypeFactory()
+                            .createStructType(
+                                    row.stream()
+                                            .map(RexLiteral::getType)
+                                            .collect(Collectors.toList()),
+                                    calciteFieldNames));
+            rows.add(row);
         }
+
+        // compute the final row type
+        RelDataType calciteRowType = rexBuilder.getTypeFactory().leastRestrictive(calciteRowTypes);
+        for (int i = 0; i < calciteFieldNames.size(); i++) {
+            ColumnInfo colInfo =
+                    new ColumnInfo(
+                            calciteFieldNames.get(i),
+                            HiveParserTypeConverter.convert(
+                                    calciteRowType.getFieldList().get(i).getType()),
+                            tabAlias,
+                            false);
+            rowResolver.put(tabAlias, calciteFieldNames.get(i), colInfo);
+        }
+        return HiveParserUtils.genValuesRelNode(
+                cluster,
+                rexBuilder.getTypeFactory().createStructType(calciteRowType.getFieldList()),
+                rows);
+    }
+
+    /**
+     * traverse the given node to find all correlated variables, the main logic is from {@link
+     * HiveFilter#getVariablesSet()}.
+     */
+    public static Set<CorrelationId> getVariablesSetForFilter(RexNode rexNode) {
+        Set<CorrelationId> correlationVariables = new HashSet<>();
+        if (rexNode instanceof RexSubQuery) {
+            RexSubQuery rexSubQuery = (RexSubQuery) rexNode;
+            // we expect correlated variables in Filter only for now.
+            // also check case where operator has 0 inputs .e.g TableScan
+            if (rexSubQuery.rel.getInputs().isEmpty()) {
+                return correlationVariables;
+            }
+            RelNode input = rexSubQuery.rel.getInput(0);
+            while (input != null
+                    && !(input instanceof LogicalFilter)
+                    && input.getInputs().size() >= 1) {
+                // we don't expect corr vars within UNION for now
+                if (input.getInputs().size() > 1) {
+                    if (input instanceof LogicalJoin) {
+                        correlationVariables.addAll(
+                                findCorrelatedVar(((LogicalJoin) input).getCondition()));
+                    }
+                    // todo: throw Unsupported exception when the input isn't LogicalJoin and
+                    // contains correlate variables in FLINK-28317
+                    return correlationVariables;
+                }
+                input = input.getInput(0);
+            }
+            if (input instanceof LogicalFilter) {
+                correlationVariables.addAll(
+                        findCorrelatedVar(((LogicalFilter) input).getCondition()));
+            }
+            return correlationVariables;
+        }
+        // AND, NOT etc
+        if (rexNode instanceof RexCall) {
+            int numOperands = ((RexCall) rexNode).getOperands().size();
+            for (int i = 0; i < numOperands; i++) {
+                RexNode op = ((RexCall) rexNode).getOperands().get(i);
+                correlationVariables.addAll(getVariablesSetForFilter(op));
+            }
+        }
+        return correlationVariables;
+    }
+
+    private static Set<CorrelationId> findCorrelatedVar(RexNode node) {
+        Set<CorrelationId> allVars = new HashSet<>();
+        if (node instanceof RexCall) {
+            RexCall nd = (RexCall) node;
+            for (RexNode rn : nd.getOperands()) {
+                if (rn instanceof RexFieldAccess) {
+                    final RexNode ref = ((RexFieldAccess) rn).getReferenceExpr();
+                    if (ref instanceof RexCorrelVariable) {
+                        allVars.add(((RexCorrelVariable) ref).id);
+                    }
+                } else {
+                    allVars.addAll(findCorrelatedVar(rn));
+                }
+            }
+        }
+        return allVars;
     }
 
     private static void validatePartColumnType(
@@ -2389,9 +2438,127 @@ public class HiveParserBaseSemanticAnalyzer {
                         nullFormat = unescapeSQLString(rowChild.getChild(0).getText());
                         break;
                     default:
-                        throw new AssertionError("Unkown Token: " + rowChild);
+                        throw new AssertionError("Unknown Token: " + rowChild);
                 }
             }
+        }
+    }
+
+    /** Counterpart of hive's SQLPrimaryKey. */
+    public static class PrimaryKey implements Serializable {
+
+        private static final long serialVersionUID = 3036210046732750293L;
+
+        private final String dbName;
+        private final String tblName;
+        private final String pk;
+        private final String constraintName;
+        private final boolean enable;
+        private final boolean validate;
+        private final boolean rely;
+
+        public PrimaryKey(
+                String dbName,
+                String tblName,
+                String pk,
+                String constraintName,
+                boolean enable,
+                boolean validate,
+                boolean rely) {
+            this.dbName = dbName;
+            this.tblName = tblName;
+            this.pk = pk;
+            this.constraintName = constraintName;
+            this.enable = enable;
+            this.validate = validate;
+            this.rely = rely;
+        }
+
+        public String getDbName() {
+            return dbName;
+        }
+
+        public String getTblName() {
+            return tblName;
+        }
+
+        public String getPk() {
+            return pk;
+        }
+
+        public String getConstraintName() {
+            return constraintName;
+        }
+
+        public boolean isEnable() {
+            return enable;
+        }
+
+        public boolean isValidate() {
+            return validate;
+        }
+
+        public boolean isRely() {
+            return rely;
+        }
+    }
+
+    /** Counterpart of hive's SQLNotNullConstraint. */
+    public static class NotNullConstraint implements Serializable {
+
+        private static final long serialVersionUID = 7642343368203203950L;
+
+        private final String dbName;
+        private final String tblName;
+        private final String colName;
+        private final String constraintName;
+        private final boolean enable;
+        private final boolean validate;
+        private final boolean rely;
+
+        public NotNullConstraint(
+                String dbName,
+                String tblName,
+                String colName,
+                String constraintName,
+                boolean enable,
+                boolean validate,
+                boolean rely) {
+            this.dbName = dbName;
+            this.tblName = tblName;
+            this.colName = colName;
+            this.constraintName = constraintName;
+            this.enable = enable;
+            this.validate = validate;
+            this.rely = rely;
+        }
+
+        public String getDbName() {
+            return dbName;
+        }
+
+        public String getTblName() {
+            return tblName;
+        }
+
+        public String getColName() {
+            return colName;
+        }
+
+        public String getConstraintName() {
+            return constraintName;
+        }
+
+        public boolean isEnable() {
+            return enable;
+        }
+
+        public boolean isValidate() {
+            return validate;
+        }
+
+        public boolean isRely() {
+            return rely;
         }
     }
 }

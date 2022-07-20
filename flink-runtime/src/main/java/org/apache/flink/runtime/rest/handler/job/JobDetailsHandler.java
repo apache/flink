@@ -82,8 +82,7 @@ public class JobDetailsHandler
 
     @Override
     protected JobDetailsInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, JobMessageParameters> request,
-            AccessExecutionGraph executionGraph)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionGraph executionGraph)
             throws RestHandlerException {
         return createJobDetailsInfo(executionGraph, metricFetcher);
     }
@@ -219,7 +218,10 @@ public class JobDetailsHandler
                         counts.getNumRecordsIn(),
                         counts.isNumRecordsInComplete(),
                         counts.getNumRecordsOut(),
-                        counts.isNumRecordsOutComplete());
+                        counts.isNumRecordsOutComplete(),
+                        counts.getAccumulateBackPressuredTime(),
+                        counts.getAccumulateIdleTime(),
+                        counts.getAccumulateBusyTime());
 
         return new JobDetailsInfo.JobVertexDetailsInfo(
                 ejv.getJobVertexId(),

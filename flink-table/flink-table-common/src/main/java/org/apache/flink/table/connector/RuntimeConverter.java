@@ -42,6 +42,7 @@ public interface RuntimeConverter extends Serializable {
     void open(Context context);
 
     /** Context for conversions during runtime. */
+    @PublicEvolving
     interface Context {
 
         /** Runtime classloader for loading user-defined classes. */

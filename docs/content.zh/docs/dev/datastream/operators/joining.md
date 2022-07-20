@@ -27,34 +27,32 @@ under the License.
 # Joining
 
 ## Window Join
+Window join 作用在两个流中有相同 key 且处于相同窗口的元素上。这些窗口可以通过 [window assigner]({{< ref "docs/dev/datastream/operators/windows" >}}#window-assigners) 定义，并且两个流中的元素都会被用于计算窗口的结果。
 
-A window join joins the elements of two streams that share a common key and lie in the same window. These windows can be defined by using a [window assigner]({{< ref "docs/dev/datastream/operators/windows" >}}#window-assigners) and are evaluated on elements from both of the streams.
+两个流中的元素在组合之后，会被传递给用户定义的 `JoinFunction` 或 `FlatJoinFunction`，用户可以用它们输出符合 join 要求的结果。
 
-The elements from both sides are then passed to a user-defined `JoinFunction` or `FlatJoinFunction` where the user can emit results that meet the join criteria.
-
-The general usage can be summarized as follows:
+常见的用例可以总结为以下代码：
 
 ```java
 stream.join(otherStream)
     .where(<KeySelector>)
     .equalTo(<KeySelector>)
     .window(<WindowAssigner>)
-    .apply(<JoinFunction>)
+    .apply(<JoinFunction>);
 ```
 
-Some notes on semantics:
-- The creation of pairwise combinations of elements of the two streams behaves like an inner-join, meaning elements from one stream will not be emitted if they don't have a corresponding element from the other stream to be joined with.
-- Those elements that do get joined will have as their timestamp the largest timestamp that still lies in the respective window. For example a window with `[5, 10)` as its boundaries would result in the joined elements having 9 as their timestamp.
+语义上有一些值得注意的地方：
+- 从两个流中创建成对的元素与 inner-join 类似，即一个流中的元素在与另一个流中对应的元素完成 join 之前不会被输出。
+- 完成 join 的元素会将他们的 timestamp 设为对应窗口中允许的最大 timestamp。比如一个边界为 `[5, 10)` 窗口中的元素在 join 之后的 timestamp 为 9。
 
-In the following section we are going to give an overview over how different kinds of window joins behave using some exemplary scenarios.
+接下来我们会用例子说明各种 window join 如何运作。
 
-### Tumbling Window Join
-
-When performing a tumbling window join, all elements with a common key and a common tumbling window are joined as pairwise combinations and passed on to a `JoinFunction` or `FlatJoinFunction`. Because this behaves like an inner join, elements of one stream that do not have elements from another stream in their tumbling window are not emitted!
+### 滚动 Window Join
+使用滚动 window join 时，所有 key 相同且共享一个滚动窗口的元素会被组合成对，并传递给 `JoinFunction` 或 `FlatJoinFunction`。因为这个行为与 inner join 类似，所以一个流中的元素如果没有与另一个流中的元素组合起来，它就不会被输出！
 
 {{< img src="/fig/tumbling-window-join.svg" width="80%" >}}
 
-As illustrated in the figure, we define a tumbling window with the size of 2 milliseconds, which results in windows of the form `[0,1], [2,3], ...`. The image shows the pairwise combinations of all elements in each window which will be passed on to the `JoinFunction`. Note that in the tumbling window `[6,7]` nothing is emitted because no elements exist in the green stream to be joined with the orange elements ⑥ and ⑦.
+如图所示，我们定义了一个大小为 2 毫秒的滚动窗口，即形成了边界为 `[0,1], [2,3], ...` 的窗口。图中展示了如何将每个窗口中的元素组合成对，组合的结果将被传递给 `JoinFunction`。注意，滚动窗口 `[6,7]` 将不会输出任何数据，因为绿色流当中没有数据可以与橙色流的 ⑥ 和 ⑦ 配对。
 
 {{< tabs "a8e08868-40d6-4719-b554-e2cabf2e1f6f" >}}
 {{< tab "Java" >}}
@@ -65,8 +63,8 @@ import org.apache.flink.streaming.api.windowing.time.Time;
  
 ...
 
-DataStream<Integer> orangeStream = ...
-DataStream<Integer> greenStream = ...
+DataStream<Integer> orangeStream = ...;
+DataStream<Integer> greenStream = ...;
 
 orangeStream.join(greenStream)
     .where(<KeySelector>)
@@ -83,8 +81,8 @@ orangeStream.join(greenStream)
 {{< tab "Scala" >}}
 
 ```scala
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
+import org.apache.flink.streaming.api.windowing.time.Time
 
 ...
 
@@ -101,13 +99,14 @@ orangeStream.join(greenStream)
 {{< /tab >}}
 {{< /tabs >}}
 
-### Sliding Window Join
+### 滑动 Window Join
 
-When performing a sliding window join, all elements with a common key and common sliding window are joined as pairwise combinations and passed on to the `JoinFunction` or `FlatJoinFunction`. Elements of one stream that do not have elements from the other stream in the current sliding window are not emitted! Note that some elements might be joined in one sliding window but not in another!
+当使用滑动 window join 时，所有 key 相同且处于同一个滑动窗口的元素将被组合成对，并传递给 `JoinFunction` 或 `FlatJoinFunction`。当前滑动窗口内，如果一个流中的元素没有与另一个流中的元素组合起来，它就不会被输出！注意，在某个滑动窗口中被 join 的元素不一定会在其他滑动窗口中被 join。
 
 {{< img src="/fig/sliding-window-join.svg" width="80%" >}}
 
-In this example we are using sliding windows with a size of two milliseconds and slide them by one millisecond, resulting in the sliding windows `[-1, 0],[0,1],[1,2],[2,3], …`.<!-- TODO: Can -1 actually exist?--> The joined elements below the x-axis are the ones that are passed to the `JoinFunction` for each sliding window. Here you can also see how for example the orange ② is joined with the green ③ in the window `[2,3]`, but is not joined with anything in the window `[1,2]`.
+本例中我们定义了长度为两毫秒，滑动距离为一毫秒的滑动窗口，生成的窗口实例区间为 `[-1, 0],[0,1],[1,2],[2,3], …`。<!-- TODO: Can -1 actually exist?--> 
+X 轴下方是每个滑动窗口中被 join 后传递给 `JoinFunction` 的元素。图中可以看到橙色 ② 与绿色 ③ 在窗口 `[2,3]` 中 join，但没有与窗口 `[1,2]` 中任何元素 join。
 
 {{< tabs "a3d3218b-dd25-4428-bfbb-d02522d95661" >}}
 {{< tab "Java" >}}
@@ -119,8 +118,8 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 
 ...
 
-DataStream<Integer> orangeStream = ...
-DataStream<Integer> greenStream = ...
+DataStream<Integer> orangeStream = ...;
+DataStream<Integer> greenStream = ...;
 
 orangeStream.join(greenStream)
     .where(<KeySelector>)
@@ -137,8 +136,8 @@ orangeStream.join(greenStream)
 {{< tab "Scala" >}}
 
 ```scala
-import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows
+import org.apache.flink.streaming.api.windowing.time.Time
 
 ...
 
@@ -154,13 +153,13 @@ orangeStream.join(greenStream)
 {{< /tab >}}
 {{< /tabs >}}
 
-### Session Window Join
+### 会话 Window Join
 
-When performing a session window join, all elements with the same key that when _"combined"_ fulfill the session criteria are joined in pairwise combinations and passed on to the `JoinFunction` or `FlatJoinFunction`. Again this performs an inner join, so if there is a session window that only contains elements from one stream, no output will be emitted!
+使用会话 window join 时，所有 key 相同且组合后符合会话要求的元素将被组合成对，并传递给 `JoinFunction` 或 `FlatJoinFunction`。这个操作同样是 inner join，所以如果一个会话窗口中只含有某一个流的元素，这个窗口将不会产生输出！
 
 {{< img src="/fig/session-window-join.svg" width="80%" >}} 
 
-Here we define a session window join where each session is divided by a gap of at least 1ms. There are three sessions, and in the first two sessions the joined elements from both streams are passed to the `JoinFunction`. In the third session there are no elements in the green stream, so ⑧ and ⑨ are not joined!
+这里我们定义了一个间隔为至少一毫秒的会话窗口。图中总共有三个会话，前两者中两个流都有元素，它们被 join 并传递给 `JoinFunction`。而第三个会话中，绿流没有任何元素，所以 ⑧ 和 ⑨ 没有被 join！
 
 {{< tabs "0e75f447-e1f7-4f38-b68c-de42ddd33512" >}}
 {{< tab "Java" >}}
@@ -172,8 +171,8 @@ import org.apache.flink.streaming.api.windowing.time.Time;
  
 ...
 
-DataStream<Integer> orangeStream = ...
-DataStream<Integer> greenStream = ...
+DataStream<Integer> orangeStream = ...;
+DataStream<Integer> greenStream = ...;
 
 orangeStream.join(greenStream)
     .where(<KeySelector>)
@@ -190,9 +189,9 @@ orangeStream.join(greenStream)
 {{< tab "Scala" >}}
 
 ```scala
-import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
- 
+import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows
+import org.apache.flink.streaming.api.windowing.time.Time
+
 ...
 
 val orangeStream: DataStream[Integer] = ...
@@ -210,29 +209,30 @@ orangeStream.join(greenStream)
 
 ## Interval Join
 
-The interval join joins elements of two streams (we'll call them A & B for now) with a common key and where elements of stream B have timestamps that lie in a relative time interval to timestamps of elements in stream A.
+Interval join 组合元素的条件为：两个流（我们暂时称为 A 和 B）中 key 相同且 B 中元素的 timestamp 处于 A 中元素 timestamp 的一定范围内。
 
-This can also be expressed more formally as
-`b.timestamp ∈ [a.timestamp + lowerBound; a.timestamp + upperBound]` or 
+这个条件可以更加正式地表示为
+`b.timestamp ∈ [a.timestamp + lowerBound; a.timestamp + upperBound]` 或 
 `a.timestamp + lowerBound <= b.timestamp <= a.timestamp + upperBound`
 
-where a and b are elements of A and B that share a common key. Both the lower and upper bound can be either negative or positive as long as as the lower bound is always smaller or equal to the upper bound. The interval join currently only performs inner joins.
+这里的 a 和 b 为 A 和 B 中共享相同 key 的元素。上界和下界可正可负，只要下界永远小于等于上界即可。
+Interval join 目前仅执行 inner join。
 
-When a pair of elements are passed to the `ProcessJoinFunction`, they will be assigned with the larger timestamp (which can be accessed via the `ProcessJoinFunction.Context`) of the two elements.
+当一对元素被传递给 `ProcessJoinFunction`，他们的 timestamp 会从两个元素的 timestamp 中取最大值
+（timestamp 可以通过 `ProcessJoinFunction.Context` 访问）。
 
 {{< hint info >}}
-The interval join currently only supports event time.
+Interval join 目前仅支持 event time。
 {{< /hint >}}
 
 {{< img src="/fig/interval-join.svg" width="80%" >}} 
 
-In the example above, we join two streams 'orange' and 'green' with a lower bound of -2 milliseconds and an upper bound of +1 millisecond. Be default, these boundaries are inclusive, but `.lowerBoundExclusive()` and `.upperBoundExclusive` can be applied to change the behaviour.
+上例中，我们 join 了橙色和绿色两个流，join 的条件是：以 -2 毫秒为下界、+1 毫秒为上界。
+默认情况下，上下界也被包括在区间内，但 `.lowerBoundExclusive()` 和 `.upperBoundExclusive()` 可以将它们排除在外。
 
-Using the more formal notation again this will translate to 
+图中三角形所表示的条件也可以写成更加正式的表达式：
 
 `orangeElem.ts + lowerBound <= greenElem.ts <= orangeElem.ts + upperBound`
-
-as indicated by the triangles.
 
 {{< tabs "63cebeb2-5869-4d2e-998d-d77fb466e2e6" >}}
 {{< tab "Java" >}}
@@ -244,8 +244,8 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 
 ...
 
-DataStream<Integer> orangeStream = ...
-DataStream<Integer> greenStream = ...
+DataStream<Integer> orangeStream = ...;
+DataStream<Integer> greenStream = ...;
 
 orangeStream
     .keyBy(<KeySelector>)
@@ -255,7 +255,7 @@ orangeStream
 
         @Override
         public void processElement(Integer left, Integer right, Context ctx, Collector<String> out) {
-            out.collect(first + "," + second);
+            out.collect(left + "," + right);
         }
     });
 ```
@@ -264,8 +264,8 @@ orangeStream
 {{< tab "Scala" >}}
 
 ```scala
-import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
+import org.apache.flink.streaming.api.windowing.time.Time
 
 ...
 
@@ -278,10 +278,10 @@ orangeStream
     .between(Time.milliseconds(-2), Time.milliseconds(1))
     .process(new ProcessJoinFunction[Integer, Integer, String] {
         override def processElement(left: Integer, right: Integer, ctx: ProcessJoinFunction[Integer, Integer, String]#Context, out: Collector[String]): Unit = {
-         out.collect(left + "," + right); 
+            out.collect(left + "," + right)
         }
-      });
-    });
+    })
+
 ```
 
 {{< /tab >}}

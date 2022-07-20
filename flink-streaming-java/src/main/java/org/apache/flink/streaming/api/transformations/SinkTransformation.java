@@ -19,19 +19,20 @@ limitations under the License.
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.operators.ResourceSpec;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -39,29 +40,30 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@link Transformation} for {@link Sink}.
  *
  * @param <InputT> The input type of the {@link SinkWriter}
- * @param <CommT> The committable type of the {@link SinkWriter}
- * @param <WriterStateT> The state type of the {@link SinkWriter}
- * @param <GlobalCommT> The global committable type of the {@link
- *     org.apache.flink.api.connector.sink.GlobalCommitter}
+ * @param <OutputT> The output type of the {@link Sink}
  */
 @Internal
-public class SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT>
-        extends PhysicalTransformation<Object> {
+public class SinkTransformation<InputT, OutputT> extends PhysicalTransformation<OutputT> {
 
+    private final DataStream<InputT> inputStream;
+    private final Sink<InputT> sink;
     private final Transformation<InputT> input;
-
-    private final Sink<InputT, CommT, WriterStateT, GlobalCommT> sink;
+    private final CustomSinkOperatorUidHashes customSinkOperatorUidHashes;
 
     private ChainingStrategy chainingStrategy;
 
     public SinkTransformation(
-            Transformation<InputT> input,
-            Sink<InputT, CommT, WriterStateT, GlobalCommT> sink,
+            DataStream<InputT> inputStream,
+            Sink<InputT> sink,
+            TypeInformation<OutputT> outputType,
             String name,
-            int parallelism) {
-        super(name, TypeExtractor.getForClass(Object.class), parallelism);
-        this.input = checkNotNull(input);
+            int parallelism,
+            CustomSinkOperatorUidHashes customSinkOperatorUidHashes) {
+        super(name, outputType, parallelism);
+        this.inputStream = checkNotNull(inputStream);
         this.sink = checkNotNull(sink);
+        this.input = inputStream.getTransformation();
+        this.customSinkOperatorUidHashes = checkNotNull(customSinkOperatorUidHashes);
     }
 
     @Override
@@ -82,36 +84,20 @@ public class SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT>
         return Collections.singletonList(input);
     }
 
-    @Override
-    public void setUidHash(String uidHash) {
-        throw new UnsupportedOperationException(
-                "Setting a UidHash is not supported for SinkTransformation.");
-    }
-
-    @Override
-    public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
-        throw new UnsupportedOperationException(
-                "Do not support set resources for SinkTransformation.");
-    }
-
-    @Override
-    public Optional<Integer> declareManagedMemoryUseCaseAtOperatorScope(
-            ManagedMemoryUseCase managedMemoryUseCase, int weight) {
-        throw new UnsupportedOperationException(
-                "Declaring managed memory use cases is not supported for SinkTransformation.");
-    }
-
-    @Override
-    public void declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase managedMemoryUseCase) {
-        throw new UnsupportedOperationException(
-                "Declaring managed memory use cases is not supported for SinkTransformation.");
-    }
-
+    @Nullable
     public ChainingStrategy getChainingStrategy() {
         return chainingStrategy;
     }
 
-    public Sink<InputT, CommT, WriterStateT, GlobalCommT> getSink() {
+    public DataStream<InputT> getInputStream() {
+        return inputStream;
+    }
+
+    public Sink<InputT> getSink() {
         return sink;
+    }
+
+    public CustomSinkOperatorUidHashes getSinkOperatorsUidHashes() {
+        return customSinkOperatorUidHashes;
     }
 }

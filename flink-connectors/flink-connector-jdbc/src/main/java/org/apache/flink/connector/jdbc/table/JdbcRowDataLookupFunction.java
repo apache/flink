@@ -20,13 +20,13 @@ package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
-import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
+import org.apache.flink.connector.jdbc.dialect.JdbcDialectLoader;
 import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
-import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatement;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -36,8 +36,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +68,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
     private final long cacheMaxSize;
     private final long cacheExpireMs;
     private final int maxRetryTimes;
+    private final boolean cacheMissingKey;
     private final JdbcDialect jdbcDialect;
     private final JdbcRowConverter jdbcRowConverter;
     private final JdbcRowConverter lookupKeyRowConverter;
@@ -76,7 +77,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
     private transient Cache<RowData, List<RowData>> cache;
 
     public JdbcRowDataLookupFunction(
-            JdbcOptions options,
+            JdbcConnectorOptions options,
             JdbcLookupOptions lookupOptions,
             String[] fieldNames,
             DataType[] fieldTypes,
@@ -104,16 +105,12 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
         this.cacheMaxSize = lookupOptions.getCacheMaxSize();
         this.cacheExpireMs = lookupOptions.getCacheExpireMs();
         this.maxRetryTimes = lookupOptions.getMaxRetryTimes();
+        this.cacheMissingKey = lookupOptions.getCacheMissingKey();
         this.query =
                 options.getDialect()
                         .getSelectFromStatement(options.getTableName(), fieldNames, keyNames);
         String dbURL = options.getDbURL();
-        this.jdbcDialect =
-                JdbcDialects.get(dbURL)
-                        .orElseThrow(
-                                () ->
-                                        new UnsupportedOperationException(
-                                                String.format("Unknown dbUrl:%s", dbURL)));
+        this.jdbcDialect = JdbcDialectLoader.load(dbURL);
         this.jdbcRowConverter = jdbcDialect.getRowConverter(rowType);
         this.lookupKeyRowConverter =
                 jdbcDialect.getRowConverter(
@@ -175,7 +172,9 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
                             collect(row);
                         }
                         rows.trimToSize();
-                        cache.put(keyRow, rows);
+                        if (!rows.isEmpty() || cacheMissingKey) {
+                            cache.put(keyRow, rows);
+                        }
                     }
                 }
                 break;
@@ -191,11 +190,11 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
                         connectionProvider.closeConnection();
                         establishConnectionAndStatement();
                     }
-                } catch (SQLException | ClassNotFoundException excpetion) {
+                } catch (SQLException | ClassNotFoundException exception) {
                     LOG.error(
                             "JDBC connection is not valid, and reestablish connection failed",
-                            excpetion);
-                    throw new RuntimeException("Reestablish JDBC connection failed", excpetion);
+                            exception);
+                    throw new RuntimeException("Reestablish JDBC connection failed", exception);
                 }
 
                 try {
@@ -234,5 +233,10 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
     @VisibleForTesting
     public Connection getDbConnection() {
         return connectionProvider.getConnection();
+    }
+
+    @VisibleForTesting
+    public Cache<RowData, List<RowData>> getCache() {
+        return cache;
     }
 }

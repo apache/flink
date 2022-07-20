@@ -31,14 +31,13 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.MockSerializationSchema;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.TestLogger;
 
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.common.util.concurrent.SettableFuture;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -51,10 +50,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
@@ -63,7 +60,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Suite of {@link FlinkKinesisProducer} tests. */
-public class FlinkKinesisProducerTest {
+public class FlinkKinesisProducerTest extends TestLogger {
 
     @Rule public ExpectedException exception = ExpectedException.none();
 
@@ -106,7 +103,7 @@ public class FlinkKinesisProducerTest {
         FlinkKinesisProducer<String> producer =
                 new FlinkKinesisProducer<>(
                         new SimpleStringSchema(), TestUtils.getStandardProperties());
-        assertTrue(InstantiationUtil.isSerializable(producer));
+        assertThat(InstantiationUtil.isSerializable(producer)).isTrue();
     }
 
     // ----------------------------------------------------------------------
@@ -134,19 +131,8 @@ public class FlinkKinesisProducerTest {
                 .get(0)
                 .setException(new Exception("artificial async exception"));
 
-        try {
-            testHarness.processElement(new StreamRecord<>("msg-2"));
-        } catch (Exception e) {
-            // the next invoke should rethrow the async exception
-            Assert.assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(e, "artificial async exception")
-                            .isPresent());
-
-            // test succeeded
-            return;
-        }
-
-        Assert.fail();
+        assertThatThrownBy(() -> testHarness.processElement(new StreamRecord<>("msg-2")))
+                .hasStackTraceContaining("artificial async exception");
     }
 
     /**
@@ -170,19 +156,8 @@ public class FlinkKinesisProducerTest {
                 .get(0)
                 .setException(new Exception("artificial async exception"));
 
-        try {
-            testHarness.snapshot(123L, 123L);
-        } catch (Exception e) {
-            // the next checkpoint should rethrow the async exception
-            Assert.assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(e, "artificial async exception")
-                            .isPresent());
-
-            // test succeeded
-            return;
-        }
-
-        Assert.fail();
+        assertThatThrownBy(() -> testHarness.snapshot(123L, 123L))
+                .hasStackTraceContaining("artificial async exception");
     }
 
     /**
@@ -230,20 +205,8 @@ public class FlinkKinesisProducerTest {
                 .setException(new Exception("artificial async failure for 2nd message"));
         producer.getPendingRecordFutures().get(2).set(mock(UserRecordResult.class));
 
-        try {
-            snapshotThread.sync();
-        } catch (Exception e) {
-            // after the flush, the async exception should have been rethrown
-            Assert.assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(
-                                    e, "artificial async failure for 2nd message")
-                            .isPresent());
-
-            // test succeeded
-            return;
-        }
-
-        Assert.fail();
+        assertThatThrownBy(snapshotThread::sync)
+                .hasStackTraceContaining("artificial async failure for 2nd message");
     }
 
     /**
@@ -282,20 +245,23 @@ public class FlinkKinesisProducerTest {
         // blocked;
         // this would block forever if the snapshot didn't perform a flush
         producer.waitUntilFlushStarted();
-        Assert.assertTrue(
-                "Snapshot returned before all records were flushed", snapshotThread.isAlive());
+        assertThat(snapshotThread.isAlive())
+                .as("Snapshot returned before all records were flushed")
+                .isTrue();
 
         // now, complete the callbacks
         UserRecordResult result = mock(UserRecordResult.class);
         when(result.isSuccessful()).thenReturn(true);
 
         producer.getPendingRecordFutures().get(0).set(result);
-        Assert.assertTrue(
-                "Snapshot returned before all records were flushed", snapshotThread.isAlive());
+        assertThat(snapshotThread.isAlive())
+                .as("Snapshot returned before all records were flushed")
+                .isTrue();
 
         producer.getPendingRecordFutures().get(1).set(result);
-        Assert.assertTrue(
-                "Snapshot returned before all records were flushed", snapshotThread.isAlive());
+        assertThat(snapshotThread.isAlive())
+                .as("Snapshot returned before all records were flushed")
+                .isTrue();
 
         producer.getPendingRecordFutures().get(2).set(result);
 
@@ -336,7 +302,7 @@ public class FlinkKinesisProducerTest {
                 };
         msg1.start();
         msg1.trySync(deadline.timeLeftIfAny().toMillis());
-        assertFalse("Flush triggered before reaching queue limit", msg1.isAlive());
+        assertThat(msg1.isAlive()).as("Flush triggered before reaching queue limit").isFalse();
 
         // consume msg-1 so that queue is empty again
         producer.getPendingRecordFutures().get(0).set(result);
@@ -350,7 +316,7 @@ public class FlinkKinesisProducerTest {
                 };
         msg2.start();
         msg2.trySync(deadline.timeLeftIfAny().toMillis());
-        assertFalse("Flush triggered before reaching queue limit", msg2.isAlive());
+        assertThat(msg2.isAlive()).as("Flush triggered before reaching queue limit").isFalse();
 
         CheckedThread moreElementsThread =
                 new CheckedThread() {
@@ -364,7 +330,9 @@ public class FlinkKinesisProducerTest {
                 };
         moreElementsThread.start();
 
-        assertTrue("Producer should still block, but doesn't", moreElementsThread.isAlive());
+        assertThat(moreElementsThread.isAlive())
+                .as("Producer should still block, but doesn't")
+                .isTrue();
 
         // consume msg-2 from the queue, leaving msg-3 in the queue and msg-4 blocked
         while (producer.getPendingRecordFutures().size() < 2) {
@@ -372,7 +340,9 @@ public class FlinkKinesisProducerTest {
         }
         producer.getPendingRecordFutures().get(1).set(result);
 
-        assertTrue("Producer should still block, but doesn't", moreElementsThread.isAlive());
+        assertThat(moreElementsThread.isAlive())
+                .as("Producer should still block, but doesn't")
+                .isTrue();
 
         // consume msg-3, blocked msg-4 can be inserted into the queue and block is released
         while (producer.getPendingRecordFutures().size() < 3) {
@@ -382,9 +352,9 @@ public class FlinkKinesisProducerTest {
 
         moreElementsThread.trySync(deadline.timeLeftIfAny().toMillis());
 
-        assertFalse(
-                "Prodcuer still blocks although the queue is flushed",
-                moreElementsThread.isAlive());
+        assertThat(moreElementsThread.isAlive())
+                .as("Prodcuer still blocks although the queue is flushed")
+                .isFalse();
 
         producer.getPendingRecordFutures().get(3).set(result);
 
@@ -402,7 +372,7 @@ public class FlinkKinesisProducerTest {
                 new AbstractStreamOperatorTestHarness<>(new StreamSink<>(producer), 1, 1, 0);
 
         testHarness.open();
-        assertThat("Open method was not called", serializationSchema.isOpenCalled(), is(true));
+        assertThat(serializationSchema.isOpenCalled()).as("Open method was not called").isTrue();
     }
 
     // ----------------------------------------------------------------------

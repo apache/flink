@@ -38,7 +38,7 @@ import java.io.IOException;
 /**
  * A {@link TypeSerializer} for {@link ArrayData}. It should be noted that the header will not be
  * encoded. Currently Python doesn't support BinaryArrayData natively, so we can't use
- * BaseArraySerializer in blink directly.
+ * BaseArraySerializer directly.
  */
 @Internal
 public class ArrayDataSerializer
@@ -54,12 +54,15 @@ public class ArrayDataSerializer
 
     private final int elementSize;
 
+    private final BinaryArrayWriter.NullSetter nullSetter;
+
     public ArrayDataSerializer(LogicalType eleType, TypeSerializer elementTypeSerializer) {
         super(eleType);
         this.elementType = eleType;
         this.elementTypeSerializer = elementTypeSerializer;
         this.elementSize = BinaryArrayData.calculateFixLengthPartSize(this.elementType);
         this.elementGetter = ArrayData.createElementGetter(elementType);
+        this.nullSetter = BinaryArrayWriter.createNullSetter(eleType);
     }
 
     @Override
@@ -99,7 +102,7 @@ public class ArrayDataSerializer
                 Object element = elementTypeSerializer.deserialize(source);
                 BinaryWriter.write(writer, i, element, elementType, elementTypeSerializer);
             } else {
-                writer.setNullAt(i);
+                nullSetter.setNull(writer, i);
             }
         }
         writer.complete();

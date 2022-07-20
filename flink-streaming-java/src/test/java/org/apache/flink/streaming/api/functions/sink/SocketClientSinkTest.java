@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.functions.sink;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.IOUtils;
@@ -88,7 +89,7 @@ public class SocketClientSinkTest extends TestLogger {
 
         sinkRunner.start();
 
-        Socket sk = server.accept();
+        Socket sk = NetUtils.acceptWithoutTimeout(server);
         BufferedReader rdr = new BufferedReader(new InputStreamReader(sk.getInputStream()));
 
         String value = rdr.readLine();
@@ -132,7 +133,7 @@ public class SocketClientSinkTest extends TestLogger {
 
         sinkRunner.start();
 
-        Socket sk = server.accept();
+        Socket sk = NetUtils.acceptWithoutTimeout(server);
         BufferedReader rdr = new BufferedReader(new InputStreamReader(sk.getInputStream()));
         String value = rdr.readLine();
 
@@ -163,7 +164,7 @@ public class SocketClientSinkTest extends TestLogger {
                         @Override
                         public void run() {
                             try {
-                                Socket sk = server.accept();
+                                Socket sk = NetUtils.acceptWithoutTimeout(server);
                                 sk.close();
                             } catch (Throwable t) {
                                 error.set(t);
@@ -221,7 +222,7 @@ public class SocketClientSinkTest extends TestLogger {
                     new Callable<Void>() {
                         @Override
                         public Void call() throws Exception {
-                            Socket socket = serverSocket[0].accept();
+                            Socket socket = NetUtils.acceptWithoutTimeout(serverSocket[0]);
 
                             BufferedReader reader =
                                     new BufferedReader(
@@ -296,7 +297,7 @@ public class SocketClientSinkTest extends TestLogger {
                 throw new AssumptionViolatedException(
                         "Could not bind server to previous port.", be);
             }
-            Socket socket = serverSocket[0].accept();
+            Socket socket = NetUtils.acceptWithoutTimeout(serverSocket[0]);
 
             BufferedReader reader =
                     new BufferedReader(new InputStreamReader(socket.getInputStream()));

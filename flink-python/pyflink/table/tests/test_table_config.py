@@ -39,26 +39,6 @@ class TableConfigTests(PyFlinkTestCase):
 
         self.assertEqual(datetime.timedelta(days=1), table_config.get_idle_state_retention())
 
-    def test_get_set_decimal_context(self):
-        table_config = TableConfig.get_default()
-
-        table_config.set_decimal_context(20, "UNNECESSARY")
-        self.assertEqual((20, "UNNECESSARY"), table_config.get_decimal_context())
-        table_config.set_decimal_context(20, "HALF_EVEN")
-        self.assertEqual((20, "HALF_EVEN"), table_config.get_decimal_context())
-        table_config.set_decimal_context(20, "HALF_DOWN")
-        self.assertEqual((20, "HALF_DOWN"), table_config.get_decimal_context())
-        table_config.set_decimal_context(20, "HALF_UP")
-        self.assertEqual((20, "HALF_UP"), table_config.get_decimal_context())
-        table_config.set_decimal_context(20, "FLOOR")
-        self.assertEqual((20, "FLOOR"), table_config.get_decimal_context())
-        table_config.set_decimal_context(20, "CEILING")
-        self.assertEqual((20, "CEILING"), table_config.get_decimal_context())
-        table_config.set_decimal_context(20, "DOWN")
-        self.assertEqual((20, "DOWN"), table_config.get_decimal_context())
-        table_config.set_decimal_context(20, "UP")
-        self.assertEqual((20, "UP"), table_config.get_decimal_context())
-
     def test_get_set_local_timezone(self):
         table_config = TableConfig.get_default()
 
@@ -75,23 +55,12 @@ class TableConfigTests(PyFlinkTestCase):
 
         self.assertEqual(max_generated_code_length, 32000)
 
-    def test_get_set_null_check(self):
-        table_config = TableConfig.get_default()
-
-        null_check = table_config.get_null_check()
-        self.assertTrue(null_check)
-
-        table_config.set_null_check(False)
-        null_check = table_config.get_null_check()
-
-        self.assertFalse(null_check)
-
     def test_get_configuration(self):
         table_config = TableConfig.get_default()
 
-        table_config.get_configuration().set_string("k1", "v1")
+        table_config.set("k1", "v1")
 
-        self.assertEqual(table_config.get_configuration().get_string("k1", ""), "v1")
+        self.assertEqual(table_config.get("k1", ""), "v1")
 
     def test_add_configuration(self):
         table_config = TableConfig.get_default()
@@ -100,7 +69,7 @@ class TableConfigTests(PyFlinkTestCase):
 
         table_config.add_configuration(configuration)
 
-        self.assertEqual(table_config.get_configuration().get_string("k1", ""), "v1")
+        self.assertEqual(table_config.get("k1", ""), "v1")
 
     def test_get_set_sql_dialect(self):
         table_config = TableConfig.get_default()

@@ -22,17 +22,26 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverters;
+import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
+import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
 import java.util.Collections;
 import java.util.Optional;
+import java.util.Spliterators;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.StreamSupport;
 
 /** {@link TableResult} for testing. */
-public class TestTableResult implements TableResult {
+public class TestTableResult implements TableResultInternal {
     private final JobClient jobClient;
     private final ResolvedSchema resolvedSchema;
     private final ResultKind resultKind;
@@ -96,5 +105,26 @@ public class TestTableResult implements TableResult {
     @Override
     public void print() {
         // do nothing
+    }
+
+    @Override
+    public CloseableIterator<RowData> collectInternal() {
+        DataStructureConverter<Object, Object> converter =
+                DataStructureConverters.getConverter(resolvedSchema.toPhysicalRowDataType());
+        converter.open(TestTableResult.class.getClassLoader());
+        return CloseableIterator.adapterForIterator(
+                StreamSupport.stream(Spliterators.spliteratorUnknownSize(data, 0), false)
+                        .map(row -> (RowData) converter.toInternalOrNull(row))
+                        .iterator(),
+                data);
+    }
+
+    @Override
+    public RowDataToStringConverter getRowDataToStringConverter() {
+        return new RowDataToStringConverterImpl(
+                resolvedSchema.toPhysicalRowDataType(),
+                DateTimeUtils.UTC_ZONE.toZoneId(),
+                Thread.currentThread().getContextClassLoader(),
+                false);
     }
 }

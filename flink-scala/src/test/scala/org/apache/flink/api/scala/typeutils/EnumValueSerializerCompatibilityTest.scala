@@ -15,23 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.typeutils
-
-import java.io._
-import java.net.{URL, URLClassLoader}
 
 import org.apache.flink.api.common.typeutils.{TypeSerializerSchemaCompatibility, TypeSerializerSnapshotSerializationUtil}
 import org.apache.flink.core.memory.{DataInputViewStreamWrapper, DataOutputViewStreamWrapper}
 import org.apache.flink.util.TestLogger
-import org.junit.rules.TemporaryFolder
+
 import org.junit.{Rule, Test}
 import org.junit.Assert._
+import org.junit.rules.TemporaryFolder
 import org.scalatest.junit.JUnitSuiteLike
 
+import java.io._
+import java.net.{URL, URLClassLoader}
+
 import scala.reflect.NameTransformer
+import scala.tools.nsc.{Global, Settings}
 import scala.tools.nsc.reporters.ConsoleReporter
-import scala.tools.nsc.{GenericRunnerSettings, Global}
 
 class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLike {
 
@@ -44,9 +44,9 @@ class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLik
 
   val enumA =
     s"""
-      |object $enumName extends Enumeration {
-      |  val A, B, C = Value
-      |}
+       |object $enumName extends Enumeration {
+       |  val A, B, C = Value
+       |}
     """.stripMargin
 
   val enumB =
@@ -79,41 +79,31 @@ class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLik
        |}
     """.stripMargin
 
-  /**
-    * Check that identical enums don't require migration
-    */
+  /** Check that identical enums don't require migration */
   @Test
   def checkIdenticalEnums(): Unit = {
     assertTrue(checkCompatibility(enumA, enumA).isCompatibleAsIs)
   }
 
-  /**
-    * Check that appending fields to the enum does not require migration
-    */
+  /** Check that appending fields to the enum does not require migration */
   @Test
   def checkAppendedField(): Unit = {
     assertTrue(checkCompatibility(enumA, enumB).isCompatibleAsIs)
   }
 
-  /**
-    * Check that removing enum fields makes the snapshot incompatible.
-    */
+  /** Check that removing enum fields makes the snapshot incompatible. */
   @Test
   def checkRemovedField(): Unit = {
     assertTrue(checkCompatibility(enumA, enumC).isIncompatible)
   }
 
-  /**
-    * Check that changing the enum field order makes the snapshot incompatible.
-    */
+  /** Check that changing the enum field order makes the snapshot incompatible. */
   @Test
   def checkDifferentFieldOrder(): Unit = {
     assertTrue(checkCompatibility(enumA, enumD).isIncompatible)
   }
 
-  /**
-    * Check that changing the enum ids causes a migration
-    */
+  /** Check that changing the enum ids causes a migration */
   @Test
   def checkDifferentIds(): Unit = {
     assertTrue(
@@ -121,8 +111,9 @@ class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLik
       checkCompatibility(enumA, enumE).isIncompatible)
   }
 
-  def checkCompatibility(enumSourceA: String, enumSourceB: String)
-    : TypeSerializerSchemaCompatibility[Enumeration#Value] = {
+  def checkCompatibility(
+      enumSourceA: String,
+      enumSourceB: String): TypeSerializerSchemaCompatibility[Enumeration#Value] = {
     import EnumValueSerializerCompatibilityTest._
 
     val classLoader = compileAndLoadEnum(tempFolder.newFolder(), s"$enumName.scala", enumSourceA)
@@ -135,13 +126,15 @@ class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLik
     val baos = new ByteArrayOutputStream()
     val output = new DataOutputViewStreamWrapper(baos)
     TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-      output, snapshot, enumValueSerializer)
+      output,
+      snapshot,
+      enumValueSerializer)
 
     output.close()
     baos.close()
 
     val bais = new ByteArrayInputStream(baos.toByteArray)
-    val input=  new DataInputViewStreamWrapper(bais)
+    val input = new DataInputViewStreamWrapper(bais)
 
     val classLoader2 = compileAndLoadEnum(tempFolder.newFolder(), s"$enumName.scala", enumSourceB)
 
@@ -162,9 +155,7 @@ object EnumValueSerializerCompatibilityTest {
 
     compileScalaFile(file)
 
-    new URLClassLoader(
-      Array[URL](root.toURI.toURL),
-      Thread.currentThread().getContextClassLoader)
+    new URLClassLoader(Array[URL](root.toURI.toURL), Thread.currentThread().getContextClassLoader)
   }
 
   def instantiateEnum[T <: Enumeration](classLoader: ClassLoader, enumName: String): T = {
@@ -186,11 +177,7 @@ object EnumValueSerializerCompatibilityTest {
   }
 
   def compileScalaFile(file: File): Unit = {
-    val in = new BufferedReader(new StringReader(""))
-    val out = new PrintWriter(new BufferedWriter(
-      new OutputStreamWriter(System.out)))
-
-    val settings = new GenericRunnerSettings(out.println _)
+    val settings = new Settings()
 
     // use the java classpath so that scala libraries are available to the compiler
     settings.usejavacp.value = true
@@ -202,7 +189,9 @@ object EnumValueSerializerCompatibilityTest {
 
     run.compile(List(file.getAbsolutePath))
 
-    reporter.printSummary()
+    if (reporter.hasWarnings || reporter.hasErrors) {
+      reporter.finish()
+      fail("Scala compiler reported warnings or errors")
+    }
   }
 }
-

@@ -29,7 +29,7 @@ import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 /** Plan tests for HBase connector, for example, testing projection push down. */
 public class HBaseTablePlanTest extends TableTestBase {
 
-    private final StreamTableTestUtil util = streamTestUtil(new TableConfig());
+    private final StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
 
     @Test
     public void testMultipleRowKey() {

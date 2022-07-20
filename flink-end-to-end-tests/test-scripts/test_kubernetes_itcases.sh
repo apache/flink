@@ -32,7 +32,7 @@ MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES_OUTPUT_DIR} -Dlog4j.configurationFi
 
 function run_mvn_test {
   local test_class=$1
-  run_mvn test $MVN_LOGGING_OPTIONS -Dtest=${test_class}
+  run_mvn test -pl flink-kubernetes $MVN_LOGGING_OPTIONS -Dtest=${test_class}
 
   EXIT_CODE=$?
   if [ $EXIT_CODE != 0 ]; then
@@ -41,11 +41,12 @@ function run_mvn_test {
   fi
 }
 
-cd $END_TO_END_DIR/../flink-kubernetes
+cd $END_TO_END_DIR/..
 
 # Run the ITCases
 run_mvn_test org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClientITCase
 run_mvn_test org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElectorITCase
+run_mvn_test org.apache.flink.kubernetes.kubeclient.resources.KubernetesSharedInformerITCase
 run_mvn_test org.apache.flink.kubernetes.highavailability.KubernetesLeaderElectionAndRetrievalITCase
 run_mvn_test org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStoreITCase
 run_mvn_test org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityRecoverFromSavepointITCase

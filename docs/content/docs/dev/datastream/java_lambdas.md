@@ -1,6 +1,6 @@
 ---
 title: "Java Lambda Expressions"
-weight: 301
+weight: 300
 type: docs
 bookToc: false
 aliases:
@@ -67,11 +67,7 @@ org.apache.flink.api.common.functions.InvalidTypesException: The generic type pa
 In this case, the type information needs to be *specified explicitly*, otherwise the output will be treated as type `Object` which leads to unefficient serialization.
 
 ```java
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.util.Collector;
-
-DataSet<Integer> input = env.fromElements(1, 2, 3);
+DataStream<Integer> input = env.fromElements(1, 2, 3);
 
 // collector type must be declared
 input.flatMap((Integer number, Collector<String> out) -> {

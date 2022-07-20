@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -31,12 +32,12 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.OutputTag;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -48,20 +49,19 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
 
     private SerializationDelegate<StreamElement> serializationDelegate;
 
-    private final StreamStatusProvider streamStatusProvider;
-
     private final boolean supportsUnalignedCheckpoints;
 
     private final OutputTag outputTag;
 
     private final WatermarkGauge watermarkGauge = new WatermarkGauge();
 
+    private WatermarkStatus announcedStatus = WatermarkStatus.ACTIVE;
+
     @SuppressWarnings("unchecked")
     public RecordWriterOutput(
             RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
             TypeSerializer<OUT> outSerializer,
             OutputTag outputTag,
-            StreamStatusProvider streamStatusProvider,
             boolean supportsUnalignedCheckpoints) {
 
         checkNotNull(recordWriter);
@@ -75,10 +75,8 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
                 new StreamElementSerializer<>(outSerializer);
 
         if (outSerializer != null) {
-            serializationDelegate = new SerializationDelegate<StreamElement>(outRecordSerializer);
+            serializationDelegate = new SerializationDelegate<>(outRecordSerializer);
         }
-
-        this.streamStatusProvider = checkNotNull(streamStatusProvider);
 
         this.supportsUnalignedCheckpoints = supportsUnalignedCheckpoints;
     }
@@ -105,32 +103,37 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
 
         try {
             recordWriter.emit(serializationDelegate);
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage(), e);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e.getMessage(), e);
         }
     }
 
     @Override
     public void emitWatermark(Watermark mark) {
+        if (announcedStatus.isIdle()) {
+            return;
+        }
+
         watermarkGauge.setCurrentWatermark(mark.getTimestamp());
         serializationDelegate.setInstance(mark);
 
-        if (streamStatusProvider.getStreamStatus().isActive()) {
-            try {
-                recordWriter.broadcastEmit(serializationDelegate);
-            } catch (Exception e) {
-                throw new RuntimeException(e.getMessage(), e);
-            }
+        try {
+            recordWriter.broadcastEmit(serializationDelegate);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e.getMessage(), e);
         }
     }
 
-    public void emitStreamStatus(StreamStatus streamStatus) {
-        serializationDelegate.setInstance(streamStatus);
-
-        try {
-            recordWriter.broadcastEmit(serializationDelegate);
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage(), e);
+    @Override
+    public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {
+        if (!announcedStatus.equals(watermarkStatus)) {
+            announcedStatus = watermarkStatus;
+            serializationDelegate.setInstance(watermarkStatus);
+            try {
+                recordWriter.broadcastEmit(serializationDelegate);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e.getMessage(), e);
+            }
         }
     }
 
@@ -140,8 +143,8 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
 
         try {
             recordWriter.randomEmit(serializationDelegate);
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage(), e);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e.getMessage(), e);
         }
     }
 
@@ -154,6 +157,14 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
             isPriorityEvent = false;
         }
         recordWriter.broadcastEvent(event, isPriorityEvent);
+    }
+
+    public void alignedBarrierTimeout(long checkpointId) throws IOException {
+        recordWriter.alignedBarrierTimeout(checkpointId);
+    }
+
+    public void abortCheckpoint(long checkpointId, CheckpointException cause) {
+        recordWriter.abortCheckpoint(checkpointId, cause);
     }
 
     public void flush() throws IOException {

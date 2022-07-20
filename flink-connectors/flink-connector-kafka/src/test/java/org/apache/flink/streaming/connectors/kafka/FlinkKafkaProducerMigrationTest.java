@@ -18,17 +18,16 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Properties;
 
@@ -42,16 +41,11 @@ import java.util.Properties;
 @RunWith(Parameterized.class)
 public class FlinkKafkaProducerMigrationTest extends KafkaMigrationTestBase {
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
-    public static Collection<MigrationVersion> parameters() {
-        return Arrays.asList(
-                MigrationVersion.v1_8,
-                MigrationVersion.v1_9,
-                MigrationVersion.v1_10,
-                MigrationVersion.v1_11,
-                MigrationVersion.v1_12);
+    public static Collection<FlinkVersion> parameters() {
+        return FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_15);
     }
 
-    public FlinkKafkaProducerMigrationTest(MigrationVersion testMigrateVersion) {
+    public FlinkKafkaProducerMigrationTest(FlinkVersion testMigrateVersion) {
         super(testMigrateVersion);
     }
 

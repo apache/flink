@@ -15,45 +15,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.types.extraction
-
-import java.util
 
 import org.apache.flink.table.annotation.{DataTypeHint, HintFlag}
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.types.extraction.DataTypeExtractorTest.{TestSpec, _}
-import org.junit.rules.ExpectedException
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
-import org.junit.runners.Parameterized.Parameters
-import org.junit.{Rule, Test}
+import org.apache.flink.table.types.extraction.DataTypeExtractorTest._
 
-import scala.annotation.meta.getter
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.HamcrestCondition
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 
-/**
- * Scala tests for [[DataTypeExtractor]].
- */
-@RunWith(classOf[Parameterized])
-class DataTypeExtractorScalaTest(testSpec: DataTypeExtractorTest.TestSpec) {
+import java.util
+import java.util.stream
 
-  @(Rule @getter)
-  var thrown: ExpectedException = ExpectedException.none
+/** Scala tests for [[DataTypeExtractor]]. */
+class DataTypeExtractorScalaTest {
 
-  @Test
-  def testScalaExtraction(): Unit = {
+  @ParameterizedTest
+  @MethodSource(Array("testData"))
+  def testScalaExtraction(testSpec: DataTypeExtractorTest.TestSpec): Unit = {
     if (testSpec.hasErrorMessage) {
-      thrown.expect(classOf[ValidationException])
-      thrown.expectCause(errorMatcher(testSpec))
+      assertThatThrownBy(() => runExtraction(testSpec))
+        .isInstanceOf(classOf[ValidationException])
+        .is(HamcrestCondition.matching(errorMatcher(testSpec)))
+    } else {
+      runExtraction(testSpec)
     }
-    runExtraction(testSpec)
   }
 }
 
 object DataTypeExtractorScalaTest {
 
-  @Parameters
-  def testData: Array[TestSpec] = Array(
+  def testData: stream.Stream[TestSpec] = java.util.stream.Stream.of(
     // simple structured type without RAW type
     TestSpec
       .forType(classOf[ScalaSimplePojo])
@@ -67,25 +61,25 @@ object DataTypeExtractorScalaTest {
 
     // assigning constructor defines field order
     TestSpec
-        .forType(classOf[ScalaPojoWithCustomFieldOrder])
-        .expectDataType(getPojoWithCustomOrderDataType(classOf[ScalaPojoWithCustomFieldOrder])),
+      .forType(classOf[ScalaPojoWithCustomFieldOrder])
+      .expectDataType(getPojoWithCustomOrderDataType(classOf[ScalaPojoWithCustomFieldOrder])),
 
     // many annotations that partially override each other
     TestSpec
-        .forType(classOf[ScalaSimplePojoWithManyAnnotations])
-        .expectDataType(getSimplePojoDataType(classOf[ScalaSimplePojoWithManyAnnotations])),
+      .forType(classOf[ScalaSimplePojoWithManyAnnotations])
+      .expectDataType(getSimplePojoDataType(classOf[ScalaSimplePojoWithManyAnnotations])),
 
     // invalid Scala tuple
     TestSpec
-        .forType(classOf[ScalaPojoWithInvalidTuple])
-        .expectErrorMessage("Scala tuples are not supported. " +
-          "Use case classes or 'org.apache.flink.types.Row' instead."),
+      .forType(classOf[ScalaPojoWithInvalidTuple])
+      .expectErrorMessage("Scala tuples are not supported. " +
+        "Use case classes or 'org.apache.flink.types.Row' instead."),
 
     // invalid Scala map
     TestSpec
-        .forType(classOf[ScalaPojoWithInvalidMap])
-        .expectErrorMessage("Scala collections are not supported. " +
-          "See the documentation for supported classes or treat them as RAW types.")
+      .forType(classOf[ScalaPojoWithInvalidMap])
+      .expectErrorMessage("Scala collections are not supported. " +
+        "See the documentation for supported classes or treat them as RAW types.")
   )
 
   // ----------------------------------------------------------------------------------------------
@@ -93,23 +87,23 @@ object DataTypeExtractorScalaTest {
   // ----------------------------------------------------------------------------------------------
 
   case class ScalaSimplePojo(
-    intField: Integer,
-    primitiveBooleanField: Boolean,
-    primitiveIntField: Int,
-    stringField: String
+      intField: Integer,
+      primitiveBooleanField: Boolean,
+      primitiveIntField: Int,
+      stringField: String
   )
 
   @DataTypeHint(allowRawGlobally = HintFlag.TRUE)
   case class ScalaComplexPojo(
-    var mapField: util.Map[String, Integer],
-    var simplePojoField: ScalaSimplePojo,
-    var someObject: Any
+      var mapField: util.Map[String, Integer],
+      var simplePojoField: ScalaSimplePojo,
+      var someObject: Any
   )
 
   case class ScalaPojoWithCustomFieldOrder(
-    z: java.lang.Long,
-    y: java.lang.Boolean,
-    x: java.lang.Integer
+      z: java.lang.Long,
+      y: java.lang.Boolean,
+      x: java.lang.Integer
   )
 
   @DataTypeHint(forceRawPattern = Array("java.lang."))

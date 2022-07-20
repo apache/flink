@@ -23,23 +23,24 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 /**
  * A standalone implementation of the resource manager. Used when the system is started in
- * standalone mode (via scripts), rather than via a resource framework like YARN or Mesos.
+ * standalone mode (via scripts), rather than via a resource framework like YARN.
  *
  * <p>This ResourceManager doesn't acquire new resources.
  */
@@ -50,9 +51,10 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
     public StandaloneResourceManager(
             RpcService rpcService,
+            UUID leaderSessionId,
             ResourceID resourceId,
-            HighAvailabilityServices highAvailabilityServices,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
             JobLeaderIdService jobLeaderIdService,
@@ -64,9 +66,10 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
             Executor ioExecutor) {
         super(
                 rpcService,
+                leaderSessionId,
                 resourceId,
-                highAvailabilityServices,
                 heartbeatServices,
+                delegationTokenManager,
                 slotManager,
                 clusterPartitionTrackerFactory,
                 jobLeaderIdService,
@@ -80,7 +83,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
     @Override
     protected void initialize() throws ResourceManagerException {
-        // nothing to initialize
+        startStartupPeriod();
     }
 
     @Override
@@ -106,11 +109,6 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
     @Override
     protected ResourceID workerStarted(ResourceID resourceID) {
         return resourceID;
-    }
-
-    @Override
-    protected void onLeadership() {
-        startStartupPeriod();
     }
 
     private void startStartupPeriod() {

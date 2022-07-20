@@ -24,12 +24,14 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.testutils.ExceptionallyDoneFuture;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 
 import org.junit.Assert;
@@ -39,6 +41,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link AsyncCheckpointRunnable}. */
 public class AsyncCheckpointRunnableTest {
@@ -54,9 +57,10 @@ public class AsyncCheckpointRunnableTest {
                         0,
                         "Task Name",
                         r -> {},
-                        r -> {},
                         env,
                         (msg, ex) -> {},
+                        false,
+                        false,
                         () -> true)
                 .close();
         assertEquals(
@@ -89,7 +93,7 @@ public class AsyncCheckpointRunnableTest {
 
         final TestEnvironment environment = new TestEnvironment();
         final AsyncCheckpointRunnable runnable =
-                createAsyncRunnable(snapshotsInProgress, environment, isTaskRunning);
+                createAsyncRunnable(snapshotsInProgress, environment, false, isTaskRunning);
         runnable.run();
 
         if (isTaskRunning) {
@@ -119,26 +123,51 @@ public class AsyncCheckpointRunnableTest {
 
         final TestEnvironment environment = new TestEnvironment();
         final AsyncCheckpointRunnable runnable =
-                createAsyncRunnable(snapshotsInProgress, environment, true);
+                createAsyncRunnable(snapshotsInProgress, environment, false, true);
         runnable.run();
 
         Assert.assertSame(environment.getCause().getCheckpointFailureReason(), originalReason);
     }
 
+    @Test
+    public void testReportFinishedOnRestoreTaskSnapshots() {
+        TestEnvironment environment = new TestEnvironment();
+        AsyncCheckpointRunnable asyncCheckpointRunnable =
+                createAsyncRunnable(new HashMap<>(), environment, true, true);
+        asyncCheckpointRunnable.run();
+        TestTaskStateManager testTaskStateManager =
+                (TestTaskStateManager) environment.getTaskStateManager();
+
+        assertEquals(
+                asyncCheckpointRunnable.getCheckpointId(),
+                testTaskStateManager.getReportedCheckpointId());
+        assertEquals(
+                TaskStateSnapshot.FINISHED_ON_RESTORE,
+                testTaskStateManager.getLastJobManagerTaskStateSnapshot());
+        assertEquals(
+                TaskStateSnapshot.FINISHED_ON_RESTORE,
+                testTaskStateManager.getLastTaskManagerTaskStateSnapshot());
+        assertTrue(asyncCheckpointRunnable.getFinishedFuture().isDone());
+    }
+
     private AsyncCheckpointRunnable createAsyncRunnable(
             Map<OperatorID, OperatorSnapshotFutures> snapshotsInProgress,
             TestEnvironment environment,
+            boolean isTaskDeployedAsFinished,
             boolean isTaskRunning) {
         return new AsyncCheckpointRunnable(
                 snapshotsInProgress,
                 new CheckpointMetaData(1, 1L),
-                new CheckpointMetricsBuilder(),
+                new CheckpointMetricsBuilder()
+                        .setBytesProcessedDuringAlignment(0)
+                        .setAlignmentDurationNanos(0),
                 1L,
                 "Task Name",
                 r -> {},
-                r -> {},
                 environment,
                 (msg, ex) -> {},
+                isTaskDeployedAsFinished,
+                false,
                 () -> isTaskRunning);
     }
 

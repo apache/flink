@@ -18,22 +18,30 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.deployment.SubpartitionIndexRange;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.NoOpBufferPool;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
+import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
+import org.apache.flink.runtime.throughput.BufferDebloater;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 /** Utility class to encapsulate the logic of building a {@link SingleInputGate} instance. */
@@ -48,7 +56,7 @@ public class SingleInputGateBuilder {
 
     private ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
 
-    private int consumedSubpartitionIndex = 0;
+    private SubpartitionIndexRange subpartitionIndexRange = new SubpartitionIndexRange(0, 0);
 
     private int gateIndex = 0;
 
@@ -66,10 +74,11 @@ public class SingleInputGateBuilder {
     @Nullable
     private BiFunction<InputChannelBuilder, SingleInputGate, InputChannel> channelFactory = null;
 
-    private SupplierWithException<BufferPool, IOException> bufferPoolFactory =
-            () -> {
-                throw new UnsupportedOperationException();
-            };
+    private SupplierWithException<BufferPool, IOException> bufferPoolFactory = NoOpBufferPool::new;
+    private BufferDebloatConfiguration bufferDebloatConfiguration =
+            BufferDebloatConfiguration.fromConfiguration(new Configuration());
+    private Function<BufferDebloatConfiguration, ThroughputCalculator> createThroughputCalculator =
+            config -> new ThroughputCalculator(SystemClock.getInstance());
 
     public SingleInputGateBuilder setPartitionProducerStateProvider(
             PartitionProducerStateProvider partitionProducerStateProvider) {
@@ -83,8 +92,9 @@ public class SingleInputGateBuilder {
         return this;
     }
 
-    public SingleInputGateBuilder setConsumedSubpartitionIndex(int consumedSubpartitionIndex) {
-        this.consumedSubpartitionIndex = consumedSubpartitionIndex;
+    public SingleInputGateBuilder setSubpartitionIndexRange(
+            SubpartitionIndexRange subpartitionIndexRange) {
+        this.subpartitionIndexRange = subpartitionIndexRange;
         return this;
     }
 
@@ -102,11 +112,7 @@ public class SingleInputGateBuilder {
         NettyShuffleEnvironmentConfiguration config = environment.getConfiguration();
         this.bufferPoolFactory =
                 SingleInputGateFactory.createBufferPoolFactory(
-                        environment.getNetworkBufferPool(),
-                        config.networkBuffersPerChannel(),
-                        config.floatingNetworkBuffersPerGate(),
-                        numberOfChannels,
-                        partitionType);
+                        environment.getNetworkBufferPool(), config.floatingNetworkBuffersPerGate());
         this.segmentProvider = environment.getNetworkBufferPool();
         return this;
     }
@@ -138,6 +144,18 @@ public class SingleInputGateBuilder {
         return this;
     }
 
+    public SingleInputGateBuilder setBufferDebloatConfiguration(
+            BufferDebloatConfiguration configuration) {
+        this.bufferDebloatConfiguration = configuration;
+        return this;
+    }
+
+    public SingleInputGateBuilder setThroughputCalculator(
+            Function<BufferDebloatConfiguration, ThroughputCalculator> createThroughputCalculator) {
+        this.createThroughputCalculator = createThroughputCalculator;
+        return this;
+    }
+
     public SingleInputGate build() {
         SingleInputGate gate =
                 new SingleInputGate(
@@ -145,13 +163,15 @@ public class SingleInputGateBuilder {
                         gateIndex,
                         intermediateDataSetID,
                         partitionType,
-                        consumedSubpartitionIndex,
+                        subpartitionIndexRange,
                         numberOfChannels,
                         partitionProducerStateProvider,
                         bufferPoolFactory,
                         bufferDecompressor,
                         segmentProvider,
-                        bufferSize);
+                        bufferSize,
+                        createThroughputCalculator.apply(bufferDebloatConfiguration),
+                        maybeCreateBufferDebloater(gateIndex));
         if (channelFactory != null) {
             gate.setInputChannels(
                     IntStream.range(0, numberOfChannels)
@@ -165,5 +185,20 @@ public class SingleInputGateBuilder {
                             .toArray(InputChannel[]::new));
         }
         return gate;
+    }
+
+    private BufferDebloater maybeCreateBufferDebloater(int gateIndex) {
+        if (bufferDebloatConfiguration.isEnabled()) {
+            return new BufferDebloater(
+                    "Unknown task name in test",
+                    gateIndex,
+                    bufferDebloatConfiguration.getTargetTotalBufferSize().toMillis(),
+                    bufferDebloatConfiguration.getMaxBufferSize(),
+                    bufferDebloatConfiguration.getMinBufferSize(),
+                    bufferDebloatConfiguration.getBufferDebloatThresholdPercentages(),
+                    bufferDebloatConfiguration.getNumberOfSamples());
+        }
+
+        return null;
     }
 }

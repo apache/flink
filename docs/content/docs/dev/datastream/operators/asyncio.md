@@ -32,7 +32,8 @@ event-driven programming may be useful preparation.
 
 Note: Details about the design and implementation of the asynchronous I/O utility can be found in the proposal and design document
 [FLIP-12: Asynchronous I/O Design and Implementation](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65870673).
-
+Details about the new retry support can be found in document
+[FLIP-232: Add Retry Support For Async I/O In DataStream API](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=211883963).
 
 ## The need for Asynchronous I/O Operations
 
@@ -44,7 +45,7 @@ A request is sent to the database and the `MapFunction` waits until the response
 makes up the vast majority of the function's time.
 
 Asynchronous interaction with the database means that a single parallel function instance can handle many requests concurrently and
-receive the responses concurrently. That way, the waiting time can be overlayed with sending other requests and
+receive the responses concurrently. That way, the waiting time can be overlaid with sending other requests and
 receiving responses. At the very least, the waiting time is amortized over multiple requests. This leads in most cased to much higher
 streaming throughput.
 
@@ -68,14 +69,14 @@ efficient than a proper asynchronous client.
 ## Async I/O API
 
 Flink's Async I/O API allows users to use asynchronous request clients with data streams. The API handles the integration with
-data streams, well as handling order, event time, fault tolerance, etc.
+data streams, well as handling order, event time, fault tolerance, retry support, etc.
 
 Assuming one has an asynchronous client for the target database, three parts are needed to implement a stream transformation
 with asynchronous I/O against the database:
 
   - An implementation of `AsyncFunction` that dispatches the requests
   - A *callback* that takes the result of the operation and hands it to the `ResultFuture`
-  - Applying the async I/O operation on a DataStream as a transformation
+  - Applying the async I/O operation on a DataStream as a transformation with or without retry
 
 The following code example illustrates the basic pattern:
 
@@ -131,10 +132,21 @@ class AsyncDatabaseRequest extends RichAsyncFunction<String, Tuple2<String, Stri
 // create the original stream
 DataStream<String> stream = ...;
 
-// apply the async I/O transformation
+// apply the async I/O transformation without retry
 DataStream<Tuple2<String, String>> resultStream =
     AsyncDataStream.unorderedWait(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100);
 
+// or apply the async I/O transformation with retry
+// create an async retry strategy via utility class or a user defined strategy
+AsyncRetryStrategy asyncRetryStrategy =
+	new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(3, 100L) // maxAttempts=3, fixedDelay=100ms
+		.retryIfResult(RetryPredicates.EMPTY_RESULT_PREDICATE)
+		.retryIfException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
+		.build();
+
+// apply the async I/O transformation with retry
+DataStream<Tuple2<String, String>> resultStream =
+	AsyncDataStream.unorderedWaitWithRetry(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100, asyncRetryStrategy);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -167,9 +179,17 @@ class AsyncDatabaseRequest extends AsyncFunction[String, (String, String)] {
 // create the original stream
 val stream: DataStream[String] = ...
 
-// apply the async I/O transformation
+// apply the async I/O transformation without retry
 val resultStream: DataStream[(String, String)] =
     AsyncDataStream.unorderedWait(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100)
+
+// apply the async I/O transformation with retry
+// create an AsyncRetryStrategy
+val asyncRetryStrategy: AsyncRetryStrategy[OUT] = ...
+
+// apply the async I/O transformation with retry
+val resultStream: DataStream[(String, String)] =
+  AsyncDataStream.unorderedWaitWithRetry(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100, asyncRetryStrategy)
 
 ```
 {{< /tab >}}
@@ -178,10 +198,10 @@ val resultStream: DataStream[(String, String)] =
 **Important note**: The `ResultFuture` is completed with the first call of `ResultFuture.complete`.
 All subsequent `complete` calls will be ignored.
 
-The following two parameters control the asynchronous operations:
+The following three parameters control the asynchronous operations:
 
-  - **Timeout**: The timeout defines how long an asynchronous request may take before it is considered failed. This parameter
-    guards against dead/failed requests.
+  - **Timeout**: The timeout defines how long an asynchronous operation take before it is finally considered failed,
+    may include multiple retry requests if retry enabled. This parameter guards against dead/failed requests.
 
   - **Capacity**: This parameter defines how many asynchronous requests may be in progress at the same time.
     Even though the async I/O approach leads typically to much better throughput, the operator can still be the bottleneck in
@@ -189,11 +209,16 @@ The following two parameters control the asynchronous operations:
     accumulate an ever-growing backlog of pending requests, but that it will trigger backpressure once the capacity
     is exhausted.
 
+  - **AsyncRetryStrategy**: The asyncRetryStrategy defines what conditions will trigger a delayed retry and the delay strategy,
+    e.g., fixed-delay, exponential-backoff-delay, custom implementation, etc.
 
 ### Timeout Handling
 
 When an async I/O request times out, by default an exception is thrown and job is restarted.
 If you want to handle timeouts, you can override the `AsyncFunction#timeout` method.
+Make sure you call `ResultFuture.complete()` or `ResultFuture.completeExceptionally()` when overriding
+in order to indicate to Flink that the processing of this input record has completed. You can call 
+`ResultFuture.complete(Collections.emptyList())` if you do not want to emit any record when timeouts happen.
 
 
 ### Order of Results
@@ -240,6 +265,18 @@ The asynchronous I/O operator offers full exactly-once fault tolerance guarantee
 asynchronous requests in checkpoints and restores/re-triggers the requests when recovering from a failure.
 
 
+### Retry Support
+
+The retry support introduces a built-in mechanism for async operator which being transparently to the user's AsyncFunction.
+
+  - **AsyncRetryStrategy**: The `AsyncRetryStrategy` contains the definition of the retry condition `AsyncRetryPredicate` and the interfaces
+    to determine whether to continue retry and the retry interval based on the current attempt number.
+    Note that after the trigger retry condition is met, it is possible to abandon the retry because the current attempt number exceeds the preset limit,
+    or to be forced to terminate the retry at the end of the task (in this case, the system takes the last execution result or exception as the final state).
+
+  - **AsyncRetryPredicate**: The retry condition can be triggered based on the return result or the execution exception.
+
+
 ### Implementation Tips
 
 For implementations with *Futures* that have an *Executor* (or *ExecutionContext* in Scala) for callbacks, we suggests to use a `DirectExecutor`, because the
@@ -247,11 +284,11 @@ callback typically does minimal work, and a `DirectExecutor` avoids an additiona
 the result to the `ResultFuture`, which adds it to the output buffer. From there, the heavy logic that includes record emission and interaction
 with the checkpoint bookkeeping happens in a dedicated thread-pool anyways.
 
-A `DirectExecutor` can be obtained via `org.apache.flink.runtime.concurrent.Executors.directExecutor()` or
+A `DirectExecutor` can be obtained via `org.apache.flink.util.concurrent.Executors.directExecutor()` or
 `com.google.common.util.concurrent.MoreExecutors.directExecutor()`.
 
 
-### Caveat
+### Caveats
 
 **The AsyncFunction is not called Multi-Threaded**
 
@@ -266,12 +303,28 @@ For example, the following patterns result in a blocking `asyncInvoke(...)` func
 
   - Blocking/waiting on the future-type objects returned by an asynchronous client inside the `asyncInvoke(...)` method
   
-**The operator for AsyncFunction (AsyncWaitOperator) must currently be at the head of operator chains for consistency reasons**
+**An AsyncFunction(AsyncWaitOperator) can be used anywhere in the job graph, except that it cannot be chained to a `SourceFunction`/`SourceStreamTask`.**
 
-For the reasons given in issue `FLINK-13063`, we currently must break operator chains for the `AsyncWaitOperator` to prevent 
-potential consistency problems. This is a change to the previous behavior that supported chaining. User that
-require the old behavior and accept potential violations of the consistency guarantees can instantiate and add the 
-`AsyncWaitOperator` manually to the job graph and set the chaining strategy back to chaining via 
-`AsyncWaitOperator#setChainingStrategy(ChainingStrategy.ALWAYS)`.
+**May Need Larger Queue Capacity If Retry Enabled**
+
+The new retry feature may result in larger queue capacity requirements, the maximum number can be approximately evaluated as below:
+
+```
+inputRate * retryRate * avgRetryDuration
+```
+
+For example, for a task with inputRate = 100 records/sec, where 1% of the elements will trigger 1 retry on average, and the average retry time is 60s,
+the additional queue capacity requirement will be:
+
+```
+100 records/sec * 1% * 60s = 60
+```
+
+That is, adding more 60 capacity to the work queue may not affect the throughput in unordered output mode , in case of ordered mode, the head element is the key point,
+and the longer it stays uncompleted, the longer the processing delay provided by the operator, the retry feature may increase the incomplete time of the head element,
+if in fact more retries are obtained with the same timeout constraint.
+
+When the queue capacity grows(common way to ease the backpressure), the risk of OOM increases. Though in fact, for `ListState` storage, the theoretical upper limit is `Integer.MAX_VALUE`,
+so the queue capacity's limit is the same, but we can't increase the queue capacity too big in production, increase the task parallelism maybe a more viable way.
 
 {{< top >}}

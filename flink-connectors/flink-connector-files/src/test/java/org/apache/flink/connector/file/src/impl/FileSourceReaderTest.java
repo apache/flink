@@ -20,37 +20,36 @@ package org.apache.flink.connector.file.src.impl;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.FileSourceSplit;
-import org.apache.flink.connector.file.src.reader.TextLineFormat;
+import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for the {@link FileSourceReader}. */
-public class FileSourceReaderTest {
+class FileSourceReaderTest {
 
-    @ClassRule public static final TemporaryFolder TMP_DIR = new TemporaryFolder();
+    @TempDir private static java.nio.file.Path tmpDir;
 
     @Test
-    public void testRequestSplitWhenNoSplitRestored() throws Exception {
+    void testRequestSplitWhenNoSplitRestored() throws Exception {
         final TestingReaderContext context = new TestingReaderContext();
         final FileSourceReader<String, FileSourceSplit> reader = createReader(context);
 
         reader.start();
         reader.close();
 
-        assertEquals(1, context.getNumSplitRequests());
+        assertThat(context.getNumSplitRequests()).isEqualTo(1);
     }
 
     @Test
-    public void testNoSplitRequestWhenSplitRestored() throws Exception {
+    void testNoSplitRequestWhenSplitRestored() throws Exception {
         final TestingReaderContext context = new TestingReaderContext();
         final FileSourceReader<String, FileSourceSplit> reader = createReader(context);
 
@@ -58,16 +57,16 @@ public class FileSourceReaderTest {
         reader.start();
         reader.close();
 
-        assertEquals(0, context.getNumSplitRequests());
+        assertThat(context.getNumSplitRequests()).isEqualTo(0);
     }
 
     private static FileSourceReader<String, FileSourceSplit> createReader(
             TestingReaderContext context) {
         return new FileSourceReader<>(
-                context, new StreamFormatAdapter<>(new TextLineFormat()), new Configuration());
+                context, new StreamFormatAdapter<>(new TextLineInputFormat()), new Configuration());
     }
 
     private static FileSourceSplit createTestFileSplit() throws IOException {
-        return new FileSourceSplit("test-id", Path.fromLocalFile(TMP_DIR.newFile()), 0L, 0L);
+        return new FileSourceSplit("test-id", Path.fromLocalFile(tmpDir.toFile()), 0L, 0L, 0L, 0L);
     }
 }

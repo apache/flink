@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.14-SNAPSHOT</version>
+		<version>1.16-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -42,20 +42,21 @@ under the License.
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>compile</scope>
 		</dependency>
 
 		<!--using hbase shade jar to execute end-to-end test-->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-connector-hbase-1.4_${scala.binary.version}</artifactId>
+			<artifactId>flink-sql-connector-hbase-1.4</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-connector-hbase-2.2_${scala.binary.version}</artifactId>
+			<artifactId>flink-sql-connector-hbase-2.2</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -70,7 +71,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-common</artifactId>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -92,7 +93,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-yarn-client</artifactId>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -110,7 +111,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-yarn-api</artifactId>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -124,7 +125,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-minicluster</artifactId>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -192,7 +193,7 @@ under the License.
 								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-sql-connector-hbase-1.4_${scala.binary.version}</artifactId>
+									<artifactId>flink-sql-connector-hbase-1.4</artifactId>
 									<version>${project.version}</version>
 									<destFileName>sql-hbase-1.4.jar</destFileName>
 									<type>jar</type>
@@ -200,7 +201,7 @@ under the License.
 								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-sql-connector-hbase-2.2_${scala.binary.version}</artifactId>
+									<artifactId>flink-sql-connector-hbase-2.2</artifactId>
 									<version>${project.version}</version>
 									<destFileName>sql-hbase-2.2.jar</destFileName>
 									<type>jar</type>

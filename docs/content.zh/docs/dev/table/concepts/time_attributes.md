@@ -39,7 +39,7 @@ Flink 可以基于几种不同的 *时间* 概念来处理数据。
 时间属性介绍
 -------------------------------
 
-像窗口（在 [Table API]({{< ref "docs/dev/table/tableApi" >}}#group-windows) 和 [SQL]({{< ref "docs/dev/table/sql/queries" >}}#group-windows) ）这种基于时间的操作，需要有时间信息。因此，Table API 中的表就需要提供*逻辑时间属性*来表示时间，以及支持时间相关的操作。
+像窗口（在 [Table API]({{< ref "docs/dev/table/tableApi" >}}#group-windows) 和 [SQL]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) ）这种基于时间的操作，需要有时间信息。因此，Table API 中的表就需要提供*逻辑时间属性*来表示时间，以及支持时间相关的操作。
 
 每种类型的表都可以有时间属性，可以在用CREATE TABLE DDL创建表的时候指定、也可以在 `DataStream` 中指定、也可以在定义 `TableSource` 时指定。一旦时间属性定义好，它就可以像普通列一样使用，也可以在时间相关的操作中使用。
 
@@ -233,9 +233,6 @@ val windowedTable = tEnv
 
 事件时间属性可以用 WATERMARK 语句在 CREATE TABLE DDL 中进行定义。WATERMARK 语句在一个已有字段上定义一个 watermark 生成表达式，同时标记这个已有字段为时间属性字段。更多信息可以参考：[CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table)
 
-Flink supports defining event time attribute on TIMESTAMP column and TIMESTAMP_LTZ column. 
-If the data source contains timestamp literal, it's recommended to defining event time attribute on TIMESTAMP column:
-
 Flink 支持和在 TIMESTAMP 列和 TIMESTAMP_LTZ 列上定义事件时间。如果源数据中的时间戳数据表示为年-月-日-时-分-秒，则通常为不带时区信息的字符串值，例如 `2020-04-15 20:13:40.564`，建议将事件时间属性定义在 `TIMESTAMP` 列上:
 ```sql
 
@@ -262,7 +259,7 @@ CREATE TABLE user_actions (
   user_name STRING,
   data STRING,
   ts BIGINT,
-  time_ltz AS TO_TIMESTAMP_LTZ(time_ltz, 3),
+  time_ltz AS TO_TIMESTAMP_LTZ(ts, 3),
   -- declare time_ltz as event time attribute and use 5 seconds delayed watermark strategy
   WATERMARK FOR time_ltz AS time_ltz - INTERVAL '5' SECOND
 ) WITH (

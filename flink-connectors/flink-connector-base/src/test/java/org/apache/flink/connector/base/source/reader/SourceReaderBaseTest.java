@@ -18,10 +18,14 @@
 
 package org.apache.flink.connector.base.source.reader;
 
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkOutput;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.mocks.MockSourceReader;
@@ -37,11 +41,22 @@ import org.apache.flink.connector.testutils.source.reader.SourceReaderTestBase;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.streaming.api.operators.SourceOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,75 +65,84 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.streaming.api.operators.source.TestingSourceOperator.createTestOperator;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** A unit test class for {@link SourceReaderBase}. */
 public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
 
-    @Rule public ExpectedException expectedException = ExpectedException.none();
+    private static final Logger LOG = LoggerFactory.getLogger(SourceReaderBaseTest.class);
 
     @Test
-    public void testExceptionInSplitReader() throws Exception {
-        expectedException.expect(RuntimeException.class);
-        expectedException.expectMessage("One or more fetchers have encountered exception");
-        final String errMsg = "Testing Exception";
+    void testExceptionInSplitReader() {
+        assertThatThrownBy(
+                        () -> {
+                            final String errMsg = "Testing Exception";
 
-        FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
-                new FutureCompletingBlockingQueue<>();
-        // We have to handle split changes first, otherwise fetch will not be called.
-        try (MockSourceReader reader =
-                new MockSourceReader(
-                        elementsQueue,
-                        () ->
-                                new SplitReader<int[], MockSourceSplit>() {
-                                    @Override
-                                    public RecordsWithSplitIds<int[]> fetch() {
-                                        throw new RuntimeException(errMsg);
-                                    }
+                            FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>>
+                                    elementsQueue = new FutureCompletingBlockingQueue<>();
+                            // We have to handle split changes first, otherwise fetch will not be
+                            // called.
+                            try (MockSourceReader reader =
+                                    new MockSourceReader(
+                                            elementsQueue,
+                                            () ->
+                                                    new SplitReader<int[], MockSourceSplit>() {
+                                                        @Override
+                                                        public RecordsWithSplitIds<int[]> fetch() {
+                                                            throw new RuntimeException(errMsg);
+                                                        }
 
-                                    @Override
-                                    public void handleSplitsChanges(
-                                            SplitsChange<MockSourceSplit> splitsChanges) {}
+                                                        @Override
+                                                        public void handleSplitsChanges(
+                                                                SplitsChange<MockSourceSplit>
+                                                                        splitsChanges) {}
 
-                                    @Override
-                                    public void wakeUp() {}
+                                                        @Override
+                                                        public void wakeUp() {}
 
-                                    @Override
-                                    public void close() {}
-                                },
-                        getConfig(),
-                        null)) {
-            ValidatingSourceOutput output = new ValidatingSourceOutput();
-            reader.addSplits(
-                    Collections.singletonList(
-                            getSplit(0, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED)));
-            reader.notifyNoMoreSplits();
-            // This is not a real infinite loop, it is supposed to throw exception after two polls.
-            while (true) {
-                InputStatus inputStatus = reader.pollNext(output);
-                assertNotEquals(InputStatus.END_OF_INPUT, inputStatus);
-                // Add a sleep to avoid tight loop.
-                Thread.sleep(1);
-            }
-        }
+                                                        @Override
+                                                        public void close() {}
+                                                    },
+                                            getConfig(),
+                                            new TestingReaderContext())) {
+                                ValidatingSourceOutput output = new ValidatingSourceOutput();
+                                reader.addSplits(
+                                        Collections.singletonList(
+                                                getSplit(
+                                                        0,
+                                                        NUM_RECORDS_PER_SPLIT,
+                                                        Boundedness.CONTINUOUS_UNBOUNDED)));
+                                reader.notifyNoMoreSplits();
+                                // This is not a real infinite loop, it is supposed to throw
+                                // exception after
+                                // two polls.
+                                while (true) {
+                                    InputStatus inputStatus = reader.pollNext(output);
+                                    assertThat(inputStatus).isNotEqualTo(InputStatus.END_OF_INPUT);
+                                    // Add a sleep to avoid tight loop.
+                                    Thread.sleep(1);
+                                }
+                            }
+                        })
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("One or more fetchers have encountered exception");
     }
 
     @Test
-    public void testRecordsWithSplitsNotRecycledWhenRecordsLeft() throws Exception {
+    void testRecordsWithSplitsNotRecycledWhenRecordsLeft() throws Exception {
         final TestingRecordsWithSplitIds<String> records =
                 new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
         final SourceReader<?, ?> reader = createReaderAndAwaitAvailable("test-split", records);
 
         reader.pollNext(new TestingReaderOutput<>());
 
-        assertFalse(records.isRecycled());
+        assertThat(records.isRecycled()).isFalse();
     }
 
     @Test
-    public void testRecordsWithSplitsRecycledWhenEmpty() throws Exception {
+    void testRecordsWithSplitsRecycledWhenEmpty() throws Exception {
         final TestingRecordsWithSplitIds<String> records =
                 new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
         final SourceReader<?, ?> reader = createReaderAndAwaitAvailable("test-split", records);
@@ -129,11 +153,11 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
         reader.pollNext(new TestingReaderOutput<>());
         reader.pollNext(new TestingReaderOutput<>());
 
-        assertTrue(records.isRecycled());
+        assertThat(records.isRecycled()).isTrue();
     }
 
     @Test
-    public void testMultipleSplitsWithDifferentFinishingMoments() throws Exception {
+    void testMultipleSplitsWithDifferentFinishingMoments() throws Exception {
         FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
                 new FutureCompletingBlockingQueue<>();
         MockSplitReader mockSplitReader =
@@ -143,7 +167,11 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
                         .setBlockingFetch(false)
                         .build();
         MockSourceReader reader =
-                new MockSourceReader(elementsQueue, () -> mockSplitReader, getConfig(), null);
+                new MockSourceReader(
+                        elementsQueue,
+                        () -> mockSplitReader,
+                        getConfig(),
+                        new TestingReaderContext());
 
         reader.start();
 
@@ -165,7 +193,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
     }
 
     @Test
-    public void testMultipleSplitsWithSeparatedFinishedRecord() throws Exception {
+    void testMultipleSplitsWithSeparatedFinishedRecord() throws Exception {
         FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
                 new FutureCompletingBlockingQueue<>();
         MockSplitReader mockSplitReader =
@@ -175,7 +203,11 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
                         .setBlockingFetch(false)
                         .build();
         MockSourceReader reader =
-                new MockSourceReader(elementsQueue, () -> mockSplitReader, getConfig(), null);
+                new MockSourceReader(
+                        elementsQueue,
+                        () -> mockSplitReader,
+                        getConfig(),
+                        new TestingReaderContext());
 
         reader.start();
 
@@ -197,16 +229,24 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
     }
 
     @Test
-    public void testPollNextReturnMoreAvailableWhenAllSplitFetcherCloseWithLeftoverElementInQueue()
+    void testPollNextReturnMoreAvailableWhenAllSplitFetcherCloseWithLeftoverElementInQueue()
             throws Exception {
 
         FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
                 new FutureCompletingBlockingQueue<>();
-        MockSplitReader mockSplitReader = new MockSplitReader(1, true);
+        MockSplitReader mockSplitReader =
+                MockSplitReader.newBuilder()
+                        .setNumRecordsPerSplitPerFetch(1)
+                        .setBlockingFetch(true)
+                        .build();
         BlockingShutdownSplitFetcherManager<int[], MockSourceSplit> splitFetcherManager =
                 new BlockingShutdownSplitFetcherManager<>(elementsQueue, () -> mockSplitReader);
         final MockSourceReader sourceReader =
-                new MockSourceReader(elementsQueue, splitFetcherManager, getConfig(), null);
+                new MockSourceReader(
+                        elementsQueue,
+                        splitFetcherManager,
+                        getConfig(),
+                        new TestingReaderContext());
 
         // Create and add a split that only contains one record
         final MockSourceSplit split = new MockSourceSplit(0, 0, 1);
@@ -215,8 +255,85 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 
         // Add the last record to the split when the splitFetcherManager shutting down SplitFetchers
         splitFetcherManager.getInShutdownSplitFetcherFuture().thenRun(() -> split.addRecord(1));
-        assertEquals(
-                InputStatus.MORE_AVAILABLE, sourceReader.pollNext(new TestingReaderOutput<>()));
+        assertThat(sourceReader.pollNext(new TestingReaderOutput<>()))
+                .isEqualTo(InputStatus.MORE_AVAILABLE);
+    }
+
+    @ParameterizedTest(name = "Emit record before split addition: {0}")
+    @ValueSource(booleans = {true, false})
+    void testPerSplitWatermark(boolean emitRecordBeforeSplitAddition) throws Exception {
+        MockSplitReader mockSplitReader =
+                MockSplitReader.newBuilder()
+                        .setNumRecordsPerSplitPerFetch(3)
+                        .setBlockingFetch(true)
+                        .build();
+
+        MockSourceReader reader =
+                new MockSourceReader(
+                        new FutureCompletingBlockingQueue<>(),
+                        () -> mockSplitReader,
+                        new Configuration(),
+                        new TestingReaderContext());
+
+        SourceOperator<Integer, MockSourceSplit> sourceOperator =
+                createTestOperator(
+                        reader,
+                        WatermarkStrategy.forGenerator(
+                                (context) -> new OnEventWatermarkGenerator()),
+                        true);
+
+        MockSourceSplit splitA = new MockSourceSplit(0, 0, 3);
+        splitA.addRecord(100);
+        splitA.addRecord(200);
+        splitA.addRecord(300);
+
+        MockSourceSplit splitB = new MockSourceSplit(1, 0, 3);
+        splitB.addRecord(150);
+        splitB.addRecord(250);
+        splitB.addRecord(350);
+
+        WatermarkCollectingDataOutput output = new WatermarkCollectingDataOutput();
+
+        if (emitRecordBeforeSplitAddition) {
+            sourceOperator.emitNext(output);
+        }
+
+        AddSplitEvent<MockSourceSplit> addSplitsEvent =
+                new AddSplitEvent<>(Arrays.asList(splitA, splitB), new MockSourceSplitSerializer());
+        sourceOperator.handleOperatorEvent(addSplitsEvent);
+
+        // First 3 records from split A should not generate any watermarks
+        CommonTestUtils.waitUtil(
+                () -> {
+                    try {
+                        sourceOperator.emitNext(output);
+                    } catch (Exception e) {
+                        LOG.warn("Exception caught at emitting records", e);
+                        return false;
+                    }
+                    return output.numRecords == 3;
+                },
+                Duration.ofSeconds(10),
+                String.format(
+                        "%d out of 3 records are received within timeout", output.numRecords));
+        assertThat(output.watermarks).isEmpty();
+
+        CommonTestUtils.waitUtil(
+                () -> {
+                    try {
+                        sourceOperator.emitNext(output);
+                    } catch (Exception e) {
+                        LOG.warn("Exception caught at emitting records", e);
+                        return false;
+                    }
+                    return output.numRecords == 6;
+                },
+                Duration.ofSeconds(10),
+                String.format(
+                        "%d out of 6 records are received within timeout", output.numRecords));
+
+        assertThat(output.watermarks).hasSize(3);
+        assertThat(output.watermarks).containsExactly(150L, 250L, 300L);
     }
 
     // ---------------- helper methods -----------------
@@ -225,8 +342,13 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
     protected MockSourceReader createReader() {
         FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
                 new FutureCompletingBlockingQueue<>();
-        MockSplitReader mockSplitReader = new MockSplitReader(2, true);
-        return new MockSourceReader(elementsQueue, () -> mockSplitReader, getConfig(), null);
+        MockSplitReader mockSplitReader =
+                MockSplitReader.newBuilder()
+                        .setNumRecordsPerSplitPerFetch(2)
+                        .setBlockingFetch(true)
+                        .build();
+        return new MockSourceReader(
+                elementsQueue, () -> mockSplitReader, getConfig(), new TestingReaderContext());
     }
 
     @Override
@@ -353,5 +475,38 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
                 }
             }
         }
+    }
+
+    private static class OnEventWatermarkGenerator implements WatermarkGenerator<Integer> {
+
+        @Override
+        public void onEvent(Integer event, long eventTimestamp, WatermarkOutput output) {
+            output.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(event));
+        }
+
+        @Override
+        public void onPeriodicEmit(WatermarkOutput output) {}
+    }
+
+    private static class WatermarkCollectingDataOutput
+            implements PushingAsyncDataInput.DataOutput<Integer> {
+        int numRecords = 0;
+        final List<Long> watermarks = new ArrayList<>();
+
+        @Override
+        public void emitRecord(StreamRecord<Integer> streamRecord) {
+            numRecords++;
+        }
+
+        @Override
+        public void emitWatermark(Watermark watermark) throws Exception {
+            watermarks.add(watermark.getTimestamp());
+        }
+
+        @Override
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}
+
+        @Override
+        public void emitLatencyMarker(LatencyMarker latencyMarker) {}
     }
 }

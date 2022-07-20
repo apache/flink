@@ -16,10 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
-class StreamTableColumnsOperationTests(PyFlinkBlinkStreamTableTestCase):
+class StreamTableColumnsOperationTests(PyFlinkStreamTableTestCase):
 
     def test_add_columns(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
@@ -31,7 +31,7 @@ class StreamTableColumnsOperationTests(PyFlinkBlinkStreamTableTestCase):
 
     def test_add_or_replace_columns(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.select("a").add_or_replace_columns((t.a + 1).alias('b'), (t.a + 2).alias('a'))
+        result = t.select(t.a).add_or_replace_columns((t.a + 1).alias('b'), (t.a + 2).alias('a'))
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('[plus(a, 2), '
                          'plus(a, 1)]',
@@ -39,7 +39,8 @@ class StreamTableColumnsOperationTests(PyFlinkBlinkStreamTableTestCase):
 
     def test_rename_columns(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.select("a, b, c").rename_columns(t.a.alias('d'), t.c.alias('f'), t.b.alias('e'))
+        result = t.select(t.a, t.b, t.c) \
+            .rename_columns(t.a.alias('d'), t.c.alias('f'), t.b.alias('e'))
         resolved_schema = result._j_table.getQueryOperation().getResolvedSchema()
         self.assertEqual(['d', 'e', 'f'], list(resolved_schema.getColumnNames()))
 

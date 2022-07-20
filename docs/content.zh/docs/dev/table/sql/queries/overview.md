@@ -3,9 +3,9 @@ title: "概览"
 weight: 1
 type: docs
 aliases:
-  - /dev/table/sql/queries.html
-  - /dev/table/queries/
-  - /dev/table/sql.html
+  - /zh/dev/table/sql/queries.html
+  - /zh/dev/table/queries/
+  - /zh/dev/table/sql.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -70,14 +70,19 @@ Table result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
 // create and register a TableSink
-final Schema schema = new Schema()
-    .field("product", DataTypes.STRING())
-    .field("amount", DataTypes.INT());
+final Schema schema = Schema.newBuilder()
+    .column("product", DataTypes.STRING())
+    .column("amount", DataTypes.INT())
+    .build();
 
-tableEnv.connect(new FileSystem().path("/path/to/file"))
-    .withFormat(...)
-    .withSchema(schema)
-    .createTemporaryTable("RubberOrders");
+final TableDescriptor sinkDescriptor = TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .format(FormatDescriptor.forFormat("csv")
+        .option("field-delimiter", ",")
+        .build())
+    .build();
+
+tableEnv.createTemporaryTable("RubberOrders", sinkDescriptor);
 
 // run an INSERT SQL on the Table and emit the result to the TableSink
 tableEnv.executeSql(
@@ -105,14 +110,19 @@ val result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 
 // create and register a TableSink
-val schema = new Schema()
-    .field("product", DataTypes.STRING())
-    .field("amount", DataTypes.INT())
+val schema = Schema.newBuilder()
+  .column("product", DataTypes.STRING())
+  .column("amount", DataTypes.INT())
+  .build()
 
-tableEnv.connect(new FileSystem().path("/path/to/file"))
-    .withFormat(...)
-    .withSchema(schema)
-    .createTemporaryTable("RubberOrders")
+val sinkDescriptor = TableDescriptor.forConnector("filesystem")
+  .schema(schema)
+  .format(FormatDescriptor.forFormat("csv")
+    .option("field-delimiter", ",")
+    .build())
+  .build()
+
+tableEnv.createTemporaryTable("RubberOrders", sinkDescriptor)
 
 // run an INSERT SQL on the Table and emit the result to the TableSink
 tableEnv.executeSql(
@@ -131,14 +141,19 @@ result = table_env \
     .sql_query("SELECT SUM(amount) FROM %s WHERE product LIKE '%%Rubber%%'" % table)
 
 # create and register a TableSink
-t_env.connect(FileSystem().path("/path/to/file")))
-    .with_format(Csv()
-                 .field_delimiter(',')
-                 .deriveSchema())
-    .with_schema(Schema()
-                 .field("product", DataTypes.STRING())
-                 .field("amount", DataTypes.BIGINT()))
-    .create_temporary_table("RubberOrders")
+schema = Schema.new_builder()
+    .column("product", DataTypes.STRING())
+    .column("amount", DataTypes.INT())
+    .build()
+
+sink_descriptor = TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .format(FormatDescriptor.for_format("csv")
+        .option("field-delimiter", ",")
+        .build())
+    .build()
+
+t_env.create_temporary_table("RubberOrders", sink_descriptor)
 
 # run an INSERT SQL on the Table and emit the result to the TableSink
 table_env \
@@ -190,10 +205,10 @@ tableResult2.print();
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val tableEnv = StreamTableEnvironment.create(env, settings)
 // enable checkpointing
-tableEnv.getConfig.getConfiguration.set(
-  ExecutionCheckpointingOptions.CHECKPOINTING_MODE, CheckpointingMode.EXACTLY_ONCE)
-tableEnv.getConfig.getConfiguration.set(
-  ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(10))
+tableEnv.getConfig
+  .set(ExecutionCheckpointingOptions.CHECKPOINTING_MODE, CheckpointingMode.EXACTLY_ONCE)
+tableEnv.getConfig
+  .set(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(10))
 
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 
@@ -217,8 +232,8 @@ tableResult2.print()
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env, settings)
 # enable checkpointing
-table_env.get_config().get_configuration().set_string("execution.checkpointing.mode", "EXACTLY_ONCE")
-table_env.get_config().get_configuration().set_string("execution.checkpointing.interval", "10s")
+table_env.get_config().set("execution.checkpointing.mode", "EXACTLY_ONCE")
+table_env.get_config().set("execution.checkpointing.interval", "10s")
 
 table_env.execute_sql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 
@@ -246,9 +261,10 @@ The following BNF-grammar describes the superset of supported SQL features in ba
 {{< expand Grammar >}}
 ```sql
 query:
-  values
+    values
+  | WITH withItem [ , withItem ]* query
   | {
-      select
+        select
       | selectWithoutFrom
       | query UNION [ ALL ] query
       | query EXCEPT query
@@ -259,64 +275,70 @@ query:
     [ OFFSET start { ROW | ROWS } ]
     [ FETCH { FIRST | NEXT } [ count ] { ROW | ROWS } ONLY]
 
+withItem:
+    name
+    [ '(' column [, column ]* ')' ]
+    AS '(' query ')'
+
 orderItem:
-  expression [ ASC | DESC ]
+    expression [ ASC | DESC ]
 
 select:
-  SELECT [ ALL | DISTINCT ]
-  { * | projectItem [, projectItem ]* }
-  FROM tableExpression
-  [ WHERE booleanExpression ]
-  [ GROUP BY { groupItem [, groupItem ]* } ]
-  [ HAVING booleanExpression ]
-  [ WINDOW windowName AS windowSpec [, windowName AS windowSpec ]* ]
+    SELECT [ ALL | DISTINCT ]
+    { * | projectItem [, projectItem ]* }
+    FROM tableExpression
+    [ WHERE booleanExpression ]
+    [ GROUP BY { groupItem [, groupItem ]* } ]
+    [ HAVING booleanExpression ]
+    [ WINDOW windowName AS windowSpec [, windowName AS windowSpec ]* ]
 
 selectWithoutFrom:
-  SELECT [ ALL | DISTINCT ]
-  { * | projectItem [, projectItem ]* }
+    SELECT [ ALL | DISTINCT ]
+    { * | projectItem [, projectItem ]* }
 
 projectItem:
-  expression [ [ AS ] columnAlias ]
+    expression [ [ AS ] columnAlias ]
   | tableAlias . *
 
 tableExpression:
-  tableReference [, tableReference ]*
+    tableReference [, tableReference ]*
   | tableExpression [ NATURAL ] [ LEFT | RIGHT | FULL ] JOIN tableExpression [ joinCondition ]
 
 joinCondition:
-  ON booleanExpression
+    ON booleanExpression
   | USING '(' column [, column ]* ')'
 
 tableReference:
-  tablePrimary
-  [ matchRecognize ]
-  [ [ AS ] alias [ '(' columnAlias [, columnAlias ]* ')' ] ]
+    tablePrimary
+    [ matchRecognize ]
+    [ [ AS ] alias [ '(' columnAlias [, columnAlias ]* ')' ] ]
 
 tablePrimary:
-  [ TABLE ] tablePath [ dynamicTableOptions ] [systemTimePeriod] [[AS] correlationName]
+    [ TABLE ] tablePath [ dynamicTableOptions ] [systemTimePeriod] [[AS] correlationName]
   | LATERAL TABLE '(' functionName '(' expression [, expression ]* ')' ')'
+  | [ LATERAL ] '(' query ')'
   | UNNEST '(' expression ')'
 
 tablePath:
-  [ [ catalogName . ] schemaName . ] tableName
+    [ [ catalogName . ] databaseName . ] tableName
 
 systemTimePeriod:
-  FOR SYSTEM_TIME AS OF dateTimeExpression
+    FOR SYSTEM_TIME AS OF dateTimeExpression
 
 dynamicTableOptions:
-  /*+ OPTIONS(key=val [, key=val]*) */
+    /*+ OPTIONS(key=val [, key=val]*) */
 
 key:
-  stringLiteral
+    stringLiteral
 
 val:
-  stringLiteral
+    stringLiteral
 
 values:
-  VALUES expression [, expression ]*
+    VALUES expression [, expression ]*
 
 groupItem:
-  expression
+    expression
   | '(' ')'
   | '(' expression [, expression ]* ')'
   | CUBE '(' expression [, expression ]* ')'
@@ -339,45 +361,44 @@ windowSpec:
     ')'
 
 matchRecognize:
-      MATCH_RECOGNIZE '('
-      [ PARTITION BY expression [, expression ]* ]
-      [ ORDER BY orderItem [, orderItem ]* ]
-      [ MEASURES measureColumn [, measureColumn ]* ]
-      [ ONE ROW PER MATCH ]
-      [ AFTER MATCH
-            ( SKIP TO NEXT ROW
-            | SKIP PAST LAST ROW
-            | SKIP TO FIRST variable
-            | SKIP TO LAST variable
-            | SKIP TO variable )
-      ]
-      PATTERN '(' pattern ')'
-      [ WITHIN intervalLiteral ]
-      DEFINE variable AS condition [, variable AS condition ]*
-      ')'
+    MATCH_RECOGNIZE '('
+    [ PARTITION BY expression [, expression ]* ]
+    [ ORDER BY orderItem [, orderItem ]* ]
+    [ MEASURES measureColumn [, measureColumn ]* ]
+    [ ONE ROW PER MATCH ]
+    [ AFTER MATCH
+      ( SKIP TO NEXT ROW
+      | SKIP PAST LAST ROW
+      | SKIP TO FIRST variable
+      | SKIP TO LAST variable
+      | SKIP TO variable )
+    ]
+    PATTERN '(' pattern ')'
+    [ WITHIN intervalLiteral ]
+    DEFINE variable AS condition [, variable AS condition ]*
+    ')'
 
 measureColumn:
-      expression AS alias
+    expression AS alias
 
 pattern:
-      patternTerm [ '|' patternTerm ]*
+    patternTerm [ '|' patternTerm ]*
 
 patternTerm:
-      patternFactor [ patternFactor ]*
+    patternFactor [ patternFactor ]*
 
 patternFactor:
-      variable [ patternQuantifier ]
+    variable [ patternQuantifier ]
 
 patternQuantifier:
-      '*'
-  |   '*?'
-  |   '+'
-  |   '+?'
-  |   '?'
-  |   '??'
-  |   '{' { [ minRepeat ], [ maxRepeat ] } '}' ['?']
-  |   '{' repeat '}'
-
+    '*'
+  | '*?'
+  | '+'
+  | '+?'
+  | '?'
+  | '??'
+  | '{' { [ minRepeat ], [ maxRepeat ] } '}' ['?']
+  | '{' repeat '}'
 ```
 {{< /expand >}}
 
@@ -387,7 +408,19 @@ Flink SQL uses a lexical policy for identifier (table, attribute, function names
 - After which, identifiers are matched case-sensitively.
 - Unlike Java, back-ticks allow identifiers to contain non-alphanumeric characters (e.g. <code>"SELECT a AS `my field` FROM t"</code>).
 
-String literals must be enclosed in single quotes (e.g., `SELECT 'Hello World'`). Duplicate a single quote for escaping (e.g., `SELECT 'It''s me.'`). Unicode characters are supported in string literals. If explicit unicode code points are required, use the following syntax:
+String literals must be enclosed in single quotes (e.g., `SELECT 'Hello World'`). Duplicate a single quote for escaping (e.g., `SELECT 'It''s me'`).
+
+```text
+Flink SQL> SELECT 'Hello World', 'It''s me';
++-------------+---------+
+|      EXPR$0 |  EXPR$1 |
++-------------+---------+
+| Hello World | It's me |
++-------------+---------+
+1 row in set
+```
+
+Unicode characters are supported in string literals. If explicit unicode code points are required, use the following syntax:
 
 - Use the backslash (`\`) as escaping character (default): `SELECT U&'\263A'`
 - Use a custom escaping character: `SELECT U&'#263A' UESCAPE '#'`

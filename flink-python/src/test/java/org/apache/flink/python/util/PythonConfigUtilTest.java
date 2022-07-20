@@ -23,38 +23,24 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** A test class to test PythonConfigUtil getting executionEnvironment correctly. */
-public class PythonConfigUtilTest {
+class PythonConfigUtilTest {
 
     @Test
-    public void testGetEnvironmentConfig()
-            throws IllegalAccessException, NoSuchMethodException, InvocationTargetException {
-        StreamExecutionEnvironment executionEnvironment =
-                StreamExecutionEnvironment.getExecutionEnvironment();
-        Configuration envConfig =
-                PythonConfigUtil.getEnvConfigWithDependencies(executionEnvironment);
-        assertNotNull(envConfig);
-    }
-
-    @Test
-    public void testJobName()
-            throws IllegalAccessException, NoSuchMethodException, InvocationTargetException,
-                    NoSuchFieldException {
+    void testJobName() {
         String jobName = "MyTestJob";
         Configuration config = new Configuration();
         config.set(PipelineOptions.NAME, jobName);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 
         env.fromCollection(Collections.singletonList("test")).addSink(new DiscardingSink<>());
-        StreamGraph streamGraph = PythonConfigUtil.generateStreamGraphWithDependencies(env, true);
-        assertEquals(jobName, streamGraph.getJobName());
+        StreamGraph streamGraph = env.getStreamGraph(true);
+        assertThat(streamGraph.getJobName()).isEqualTo(jobName);
     }
 }

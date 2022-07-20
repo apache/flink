@@ -93,7 +93,7 @@ public class KeyedStateBootstrapOperator<K, IN>
                         timestamp,
                         getContainingTask().getConfiguration().isExactlyOnceCheckpointMode(),
                         getContainingTask().getConfiguration().isUnalignedCheckpointsEnabled(),
-                        getContainingTask().getCheckpointStorage(),
+                        getContainingTask().getConfiguration().getConfiguration(),
                         savepointPath);
 
         output.collect(new StreamRecord<>(state));

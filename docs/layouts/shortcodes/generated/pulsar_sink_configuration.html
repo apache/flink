@@ -1,0 +1,54 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>pulsar.sink.deliveryGuarantee</h5></td>
+            <td style="word-wrap: break-word;">none</td>
+            <td><p>Enum</p></td>
+            <td>Optional delivery guarantee when committing.<br /><br />Possible values:<ul><li>"exactly-once": Records are only delivered exactly-once also under failover scenarios. To build a complete exactly-once pipeline is required that the source and sink support exactly-once and are properly configured.</li><li>"at-least-once": Records are ensured to be delivered but it may happen that the same record is delivered multiple times. Usually, this guarantee is faster than the exactly-once delivery.</li><li>"none": Records are delivered on a best effort basis. It is often the fastest way to process records but it may happen that records are lost or duplicated.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.sink.enableSchemaEvolution</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If you enable this option and use PulsarSerializationSchema.pulsarSchema(), we would consume and deserialize the message by using Pulsar's <code class="highlighter-rouge">Schema</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.sink.maxPendingMessages</h5></td>
+            <td style="word-wrap: break-word;">1000</td>
+            <td>Integer</td>
+            <td>The maximum number of pending messages in one sink parallelism.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.sink.maxRecommitTimes</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Integer</td>
+            <td>The allowed transaction recommit times if we meet some retryable exception. This is used in Pulsar Transaction.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.sink.messageKeyHash</h5></td>
+            <td style="word-wrap: break-word;">murmur-3-32-hash</td>
+            <td><p>Enum</p></td>
+            <td>The hash policy for routing message by calculating the hash code of message key.<br /><br />Possible values:<ul><li>"java-hash": This hash would use <code class="highlighter-rouge">String.hashCode()</code> to calculate the message key string's hash code.</li><li>"murmur-3-32-hash": This hash would calculate message key's hash code by using <a href="https://en.wikipedia.org/wiki/MurmurHash">Murmur3</a> algorithm.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.sink.topicMetadataRefreshInterval</h5></td>
+            <td style="word-wrap: break-word;">1800000</td>
+            <td>Long</td>
+            <td>Auto update the topic metadata in a fixed interval (in ms). The default value is 30 minutes.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.sink.transactionTimeoutMillis</h5></td>
+            <td style="word-wrap: break-word;">10800000</td>
+            <td>Long</td>
+            <td>This option is used when the user require the <code class="highlighter-rouge">DeliveryGuarantee.EXACTLY_ONCE</code> semantic.We would use transaction for making sure the message could be write only once.</td>
+        </tr>
+    </tbody>
+</table>

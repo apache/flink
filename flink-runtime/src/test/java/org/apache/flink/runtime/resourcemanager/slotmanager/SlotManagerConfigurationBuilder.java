@@ -23,13 +23,16 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
+
+import java.time.Duration;
 
 /** Builder for {@link SlotManagerConfiguration}. */
 public class SlotManagerConfigurationBuilder {
     private Time taskManagerRequestTimeout;
     private Time slotRequestTimeout;
     private Time taskManagerTimeout;
+    private Duration requirementCheckDelay;
     private boolean waitResultConsumedBeforeRelease;
     private WorkerResourceSpec defaultWorkerResourceSpec;
     private int numSlotsPerWorker;
@@ -42,6 +45,7 @@ public class SlotManagerConfigurationBuilder {
         this.taskManagerRequestTimeout = TestingUtils.infiniteTime();
         this.slotRequestTimeout = TestingUtils.infiniteTime();
         this.taskManagerTimeout = TestingUtils.infiniteTime();
+        this.requirementCheckDelay = ResourceManagerOptions.REQUIREMENTS_CHECK_DELAY.defaultValue();
         this.waitResultConsumedBeforeRelease = true;
         this.defaultWorkerResourceSpec = WorkerResourceSpec.ZERO;
         this.numSlotsPerWorker = 1;
@@ -69,6 +73,12 @@ public class SlotManagerConfigurationBuilder {
 
     public SlotManagerConfigurationBuilder setTaskManagerTimeout(Time taskManagerTimeout) {
         this.taskManagerTimeout = taskManagerTimeout;
+        return this;
+    }
+
+    public SlotManagerConfigurationBuilder setRequirementCheckDelay(
+            Duration requirementCheckDelay) {
+        this.requirementCheckDelay = requirementCheckDelay;
         return this;
     }
 
@@ -114,6 +124,7 @@ public class SlotManagerConfigurationBuilder {
                 taskManagerRequestTimeout,
                 slotRequestTimeout,
                 taskManagerTimeout,
+                requirementCheckDelay,
                 waitResultConsumedBeforeRelease,
                 AnyMatchingSlotMatchingStrategy.INSTANCE,
                 defaultWorkerResourceSpec,

@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.ShortValue;
 
 /** Tests for {@link ShortValueArrayComparator}. */
-public class ShortValueArrayComparatorTest extends ComparatorTestBase<ShortValueArray> {
+class ShortValueArrayComparatorTest extends ComparatorTestBase<ShortValueArray> {
 
     @Override
     protected TypeComparator<ShortValueArray> createComparator(boolean ascending) {

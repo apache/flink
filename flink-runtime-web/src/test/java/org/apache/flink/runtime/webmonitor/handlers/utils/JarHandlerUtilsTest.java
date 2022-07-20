@@ -18,36 +18,33 @@
 
 package org.apache.flink.runtime.webmonitor.handlers.utils;
 
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JarHandlerUtils}. */
-public class JarHandlerUtilsTest extends TestLogger {
+class JarHandlerUtilsTest {
 
     @Test
-    public void testTokenizeNonQuoted() {
+    void testTokenizeNonQuoted() {
         final List<String> arguments = JarHandlerUtils.tokenizeArguments("--foo bar");
-        assertThat(arguments.get(0), equalTo("--foo"));
-        assertThat(arguments.get(1), equalTo("bar"));
+        assertThat(arguments.get(0)).isEqualTo("--foo");
+        assertThat(arguments.get(1)).isEqualTo("bar");
     }
 
     @Test
-    public void testTokenizeSingleQuoted() {
+    void testTokenizeSingleQuoted() {
         final List<String> arguments = JarHandlerUtils.tokenizeArguments("--foo 'bar baz '");
-        assertThat(arguments.get(0), equalTo("--foo"));
-        assertThat(arguments.get(1), equalTo("bar baz "));
+        assertThat(arguments.get(0)).isEqualTo("--foo");
+        assertThat(arguments.get(1)).isEqualTo("bar baz ");
     }
 
     @Test
-    public void testTokenizeDoubleQuoted() {
+    void testTokenizeDoubleQuoted() {
         final List<String> arguments = JarHandlerUtils.tokenizeArguments("--name \"K. Bote \"");
-        assertThat(arguments.get(0), equalTo("--name"));
-        assertThat(arguments.get(1), equalTo("K. Bote "));
+        assertThat(arguments.get(0)).isEqualTo("--name");
+        assertThat(arguments.get(1)).isEqualTo("K. Bote ");
     }
 }

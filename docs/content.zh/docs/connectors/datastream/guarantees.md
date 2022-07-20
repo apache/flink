@@ -1,6 +1,6 @@
 ---
 title: 容错保证
-weight: 1
+weight: 2
 type: docs
 aliases:
   - /zh/dev/connectors/guarantees.html
@@ -54,11 +54,6 @@ under the License.
         <tr>
             <td>RabbitMQ</td>
             <td>至多一次 (v 0.10) / 精确一次 (v 1.0) </td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Twitter Streaming API</td>
-            <td>至多一次</td>
             <td></td>
         </tr>
         <tr>

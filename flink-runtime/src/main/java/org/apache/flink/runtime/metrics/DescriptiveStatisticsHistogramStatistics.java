@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.metrics;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.HistogramStatistics;
 
 import org.apache.commons.math3.exception.MathIllegalArgumentException;
@@ -27,6 +28,7 @@ import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.apache.commons.math3.stat.ranking.NaNStrategy;
 
+import java.io.Serializable;
 import java.util.Arrays;
 
 /**
@@ -36,7 +38,9 @@ import java.util.Arrays;
  * <p>The statistics takes a point-in-time snapshot of a {@link DescriptiveStatistics} instance and
  * allows optimised metrics retrieval from this.
  */
-public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistics {
+public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistics
+        implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final CommonMetricsSnapshot statisticsSummary = new CommonMetricsSnapshot();
 
     public DescriptiveStatisticsHistogramStatistics(
@@ -87,13 +91,16 @@ public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistic
      * will not return a value but instead populate this class so that further values can be
      * retrieved from it.
      */
-    private static class CommonMetricsSnapshot implements UnivariateStatistic {
-        private long count = 0;
+    @VisibleForTesting
+    static class CommonMetricsSnapshot implements UnivariateStatistic, Serializable {
+        private static final long serialVersionUID = 2L;
+
+        private double[] data;
         private double min = Double.NaN;
         private double max = Double.NaN;
         private double mean = Double.NaN;
         private double stddev = Double.NaN;
-        private Percentile percentilesImpl = new Percentile().withNaNStrategy(NaNStrategy.FIXED);
+        private transient Percentile percentilesImpl;
 
         @Override
         public double evaluate(final double[] values) throws MathIllegalArgumentException {
@@ -103,8 +110,7 @@ public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistic
         @Override
         public double evaluate(double[] values, int begin, int length)
                 throws MathIllegalArgumentException {
-            this.count = length;
-            percentilesImpl.setData(values, begin, length);
+            this.data = values;
 
             SimpleStats secondMoment = new SimpleStats();
             secondMoment.evaluate(values, begin, length);
@@ -120,17 +126,16 @@ public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistic
         @Override
         public CommonMetricsSnapshot copy() {
             CommonMetricsSnapshot result = new CommonMetricsSnapshot();
-            result.count = count;
+            result.data = Arrays.copyOf(data, data.length);
             result.min = min;
             result.max = max;
             result.mean = mean;
             result.stddev = stddev;
-            result.percentilesImpl = percentilesImpl.copy();
             return result;
         }
 
         long getCount() {
-            return count;
+            return data.length;
         }
 
         double getMin() {
@@ -150,11 +155,22 @@ public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistic
         }
 
         double getPercentile(double p) {
+            maybeInitPercentile();
             return percentilesImpl.evaluate(p);
         }
 
         double[] getValues() {
+            maybeInitPercentile();
             return percentilesImpl.getData();
+        }
+
+        private void maybeInitPercentile() {
+            if (percentilesImpl == null) {
+                percentilesImpl = new Percentile().withNaNStrategy(NaNStrategy.FIXED);
+            }
+            if (data != null) {
+                percentilesImpl.setData(data);
+            }
         }
     }
 

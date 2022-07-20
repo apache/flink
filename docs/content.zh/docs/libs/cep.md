@@ -38,29 +38,33 @@ FlinkCEP是在Flink上层实现的复杂事件处理库。
 
 ## 开始
 
-如果你想现在开始尝试，[创建一个Flink程序]({{< ref "docs/dev/datastream/project-configuration" >}})，
-添加FlinkCEP的依赖到项目的`pom.xml`文件中。
+如果你想现在开始尝试，[创建一个 Flink 程序]({{< ref "docs/dev/configuration/overview" >}})，
+添加 FlinkCEP 的依赖到项目的`pom.xml`文件中。
 
 {{< tabs "722d55a5-7f12-4bcc-b080-b28d5e8860ac" >}}
 {{< tab "Java" >}}
-{{< artifact flink-cep withScalaVersion >}}
+{{< artifact flink-cep >}}
 {{< /tab >}}
 {{< tab "Scala" >}}
 {{< artifact flink-cep-scala withScalaVersion >}}
 {{< /tab >}}
 {{< /tabs >}}
 
-{% info 提示 %} FlinkCEP不是二进制发布包的一部分。在集群上执行如何链接它可以看[这里]({{< ref "docs/dev/datastream/project-configuration" >}})。
+{{< hint info >}}
+FlinkCEP 不是二进制发布包的一部分。在集群上执行如何链接它可以看[这里]({{< ref "docs/dev/configuration/overview" >}})。
+{{< /hint >}}
 
 现在可以开始使用Pattern API写你的第一个CEP程序了。
 
-{% warn 注意 %} `DataStream`中的事件，如果你想在上面进行模式匹配的话，必须实现合适的 `equals()`和`hashCode()`方法，
+{{< hint warning >}} 
+`DataStream`中的事件，如果你想在上面进行模式匹配的话，必须实现合适的 `equals()`和`hashCode()`方法，
 因为FlinkCEP使用它们来比较和匹配事件。
+{{< /hint >}}
 
 {{< tabs "4fef83d9-e4c5-4073-9607-4c8cde1ebf1e" >}}
 {{< tab "Java" >}}
 ```java
-DataStream<Event> input = ...
+DataStream<Event> input = ...;
 
 Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(
         new SimpleCondition<Event>() {
@@ -131,9 +135,13 @@ val result: DataStream[Alert] = patternStream.process(
 这些模式基于用户指定的**条件**从一个转换到另外一个，比如 `event.getName().equals("end")`。
 一个**匹配**是输入事件的一个序列，这些事件通过一系列有效的模式转换，能够访问到复杂模式图中的所有模式。
 
-{% warn 注意 %} 每个模式必须有一个独一无二的名字，你可以在后面使用它来识别匹配到的事件。
+{{< hint warning >}}
+每个模式必须有一个独一无二的名字，你可以在后面使用它来识别匹配到的事件。
+{{< /hint >}}
 
-{% warn 注意 %} 模式的名字不能包含字符`":"`.
+{{< hint danger >}}
+模式的名字不能包含字符`":"`.
+{{< /hint >}}
 
 这一节的剩余部分我们会先讲述如何定义[单个模式](#单个模式)，然后讲如何将单个模式组合成[复杂模式](#组合模式)。
 
@@ -294,8 +302,10 @@ middle.oneOrMore()
 {{< /tab >}}
 {{< /tabs >}}
 
-{% warn 注意 %} 调用`ctx.getEventsForPattern(...)`可以获得所有前面已经接受作为可能匹配的事件。
+{{< hint info >}}
+调用`ctx.getEventsForPattern(...)`可以获得所有前面已经接受作为可能匹配的事件。
 调用这个操作的代价可能很小也可能很大，所以在实现你的条件时，尽量少使用它。
+{{< /hint >}}
 
 描述的上下文提供了获取事件时间属性的方法。更多细节可以看[时间上下文](#时间上下文)。
 
@@ -327,7 +337,7 @@ start.where(event => event.getName.startsWith("foo"))
 start.subtype(SubEvent.class).where(new SimpleCondition<SubEvent>() {
     @Override
     public boolean filter(SubEvent value) {
-        return ... // 一些判断条件
+        return ...; // 一些判断条件
     }
 });
 ```
@@ -348,12 +358,12 @@ start.subtype(classOf[SubEvent]).where(subEvent => ... /* 一些判断条件 */)
 pattern.where(new SimpleCondition<Event>() {
     @Override
     public boolean filter(Event value) {
-        return ... // 一些判断条件
+        return ...; // 一些判断条件
     }
 }).or(new SimpleCondition<Event>() {
     @Override
     public boolean filter(Event value) {
-        return ... // 一些判断条件
+        return ...; // 一些判断条件
     }
 });
 ```
@@ -378,21 +388,12 @@ pattern.where(event => ... /* 一些判断条件 */).or(event => ... /* 一些�
 
 你可以看到`{a1 a2 a3}`和`{a2 a3}`由于停止条件没有被输出。
 
-{{< tabs "3b2dea6b-1615-47cb-bec5-2a281666dc4c" >}}
+#### `where(condition)`
+
+为当前模式定义一个条件。为了匹配这个模式，一个事件必须满足某些条件。 多个连续的 where() 语句取与组成判断条件。
+
+{{< tabs "where" >}}
 {{< tab "Java" >}}
-<table class="table table-bordered">
-    <thead>
-        <tr>
-            <th class="text-left" style="width: 25%">模式操作</th>
-            <th class="text-center">描述</th>
-        </tr>
-    </thead>
-    <tbody>
-       <tr>
-            <td><strong>where(condition)</strong></td>
-            <td>
-                <p>为当前模式定义一个条件。为了匹配这个模式，一个事件必须满足某些条件。
-                 多个连续的where()语句取与组成判断条件：</p>
 ```java
 pattern.where(new IterativeCondition<Event>() {
     @Override
@@ -401,233 +402,183 @@ pattern.where(new IterativeCondition<Event>() {
     }
 });
 ```
-            </td>
-        </tr>
-        <tr>
-            <td><strong>or(condition)</strong></td>
-            <td>
-                <p>增加一个新的判断，和当前的判断取或。一个事件只要满足至少一个判断条件就匹配到模式：</p>
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+pattern.where(event => ... /* 一些判断条件 */)
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `or(condition)`
+
+增加一个新的判断，和当前的判断取或。一个事件只要满足至少一个判断条件就匹配到模式。
+
+{{< tabs orcondition >}}
+{{< tab "Java" >}}
 ```java
 pattern.where(new IterativeCondition<Event>() {
     @Override
     public boolean filter(Event value, Context ctx) throws Exception {
-        return ... // 一些判断条件
+        return ...; //  一些判断条件
     }
 }).or(new IterativeCondition<Event>() {
     @Override
     public boolean filter(Event value, Context ctx) throws Exception {
-        return ... // 替代条件
+        return ...; // 替代条件 
     }
 });
 ```
-                    </td>
-       </tr>
-              <tr>
-                 <td><strong>until(condition)</strong></td>
-                 <td>
-                     <p>为循环模式指定一个停止条件。意思是满足了给定的条件的事件出现后，就不会再有事件被接受进入模式了。</p>
-                     <p>只适用于和<code>oneOrMore()</code>同时使用。</p>
-                     <p><b>NOTE:</b> 在基于事件的条件中，它可用于清理对应模式的状态。</p>
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+pattern.where(event => ... /* 一些判断条件 */)
+    .or(event => ... /* 替代条件  */)
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `until(condition)`
+
+为循环模式指定一个停止条件。意思是满足了给定的条件的事件出现后，就不会再有事件被接受进入模式了。
+只适用于和oneOrMore()同时使用。
+`NOTE:` 在基于事件的条件中，它可用于清理对应模式的状态。
+
+{{< tabs untilcond >}}
+{{< tab "Java" >}}
 ```java
 pattern.oneOrMore().until(new IterativeCondition<Event>() {
     @Override
     public boolean filter(Event value, Context ctx) throws Exception {
-        return ... // 替代条件
+        return ...; // 替代条件 
     }
 });
 ```
-                 </td>
-              </tr>
-       <tr>
-           <td><strong>subtype(subClass)</strong></td>
-           <td>
-               <p>为当前模式定义一个子类型条件。一个事件只有是这个子类型的时候才能匹配到模式：</p>
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+pattern.oneOrMore().until(event => ... /* 一些判断条件 */)
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `subtype(subClass)`
+
+为当前模式定义一个子类型条件。一个事件只有是这个子类型的时候才能匹配到模式。
+
+{{< tabs subtype >}}
+{{< tab "Java" >}}
 ```java
 pattern.subtype(SubEvent.class);
 ```
-           </td>
-       </tr>
-       <tr>
-          <td><strong>oneOrMore()</strong></td>
-          <td>
-              <p>指定模式期望匹配到的事件至少出现一次。.</p>
-              <p>默认（在子事件间）使用松散的内部连续性。
-              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-              <p><b>NOTE:</b> 推荐使用<code>until()</code>或者<code>within()</code>来清理状态。</p>
-```java
-pattern.oneOrMore();
-```
-          </td>
-       </tr>
-           <tr>
-              <td><strong>timesOrMore(#times)</strong></td>
-              <td>
-                  <p>指定模式期望匹配到的事件至少出现<strong>#times</strong>次。.</p>
-                  <p>默认（在子事件间）使用松散的内部连续性。
-                  关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-```java
-pattern.timesOrMore(2);
-```
-           </td>
-       </tr>
-       <tr>
-          <td><strong>times(#ofTimes)</strong></td>
-          <td>
-              <p>指定模式期望匹配到的事件正好出现的次数。</p>
-              <p>默认（在子事件间）使用松散的内部连续性。
-              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-```java
-pattern.times(2);
-```
-          </td>
-       </tr>
-       <tr>
-          <td><strong>times(#fromTimes, #toTimes)</strong></td>
-          <td>
-              <p>指定模式期望匹配到的事件出现次数在<strong>#fromTimes</strong>和<strong>#toTimes</strong>之间。</p>
-              <p>默认（在子事件间）使用松散的内部连续性。
-              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-```java
-pattern.times(2, 4);
-```
-          </td>
-       </tr>
-       <tr>
-          <td><strong>optional()</strong></td>
-          <td>
-              <p>指定这个模式是可选的，也就是说，它可能根本不出现。这对所有之前提到的量词都适用。</p>
-```java
-pattern.oneOrMore().optional();
-```
-          </td>
-       </tr>
-       <tr>
-          <td><strong>greedy()</strong></td>
-          <td>
-              <p>指定这个模式是贪心的，也就是说，它会重复尽可能多的次数。这只对量词适用，现在还不支持模式组。</p>
-```java
-pattern.oneOrMore().greedy();
-```
-          </td>
-       </tr>
-  </tbody>
-</table>
 {{< /tab >}}
 {{< tab "Scala" >}}
-<table class="table table-bordered">
-    <thead>
-        <tr>
-            <th class="text-left" style="width: 25%">模式操作</th>
-            <th class="text-center">描述</th>
-        </tr>
-	    </thead>
-    <tbody>
-
-        <tr>
-            <td><strong>where(condition)</strong></td>
-            <td>
-              <p>为当前模式定义一个条件。为了匹配这个模式，一个事件必须满足某些条件。
-              多个连续的where()语句取与组成判断条件：</p>
-```scala
-pattern.where(event => ... /* 一些判断条件 */)
-```
-            </td>
-        </tr>
-        <tr>
-            <td><strong>or(condition)</strong></td>
-            <td>
-                <p>增加一个新的判断，和当前的判断取或。一个事件只要满足至少一个判断条件就匹配到模式：</p>
-```scala
-pattern.where(event => ... /* 一些判断条件 */)
-    .or(event => ... /* 替代条件 */)
-```
-                    </td>
-                </tr>
-<tr>
-          <td><strong>until(condition)</strong></td>
-          <td>
-              <p>为循环模式指定一个停止条件。意思是满足了给定的条件的事件出现后，就不会再有事件被接受进入模式了。</p>
-              <p>只适用于和<code>oneOrMore()</code>同时使用。</p>
-              <p><b>提示：</b> 在基于事件的条件中，它可用于清理对应模式的状态。</p>
-```scala
-pattern.oneOrMore().until(event => ... /* 替代条件 */)
-```
-          </td>
-       </tr>
-       <tr>
-           <td><strong>subtype(subClass)</strong></td>
-           <td>
-               <p>为当前模式定义一个子类型条件。一个事件只有是这个子类型的时候才能匹配到模式：</p>
 ```scala
 pattern.subtype(classOf[SubEvent])
 ```
-           </td>
-       </tr>
-       <tr>
-          <td><strong>oneOrMore()</strong></td>
-          <td>
-               <p>指定模式期望匹配到的事件至少出现一次。.</p>
-               <p>默认（在子事件间）使用松散的内部连续性。
-               关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-               <p><b>提示：</b> 推荐使用<code>until()</code>或者<code>within()</code>来清理状态。</p>
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `oneOrMore()`
+
+指定模式期望匹配到的事件至少出现一次。
+默认（在子事件间）使用松散的内部连续性。 关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。
+推荐使用 until()或者 within()来清理状态。
+
+{{< tabs oneormoe >}}
+{{< tab "Java" >}}
+```java
+pattern.oneOrMore();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
 ```scala
 pattern.oneOrMore()
 ```
-          </td>
-       </tr>
-       <tr>
-          <td><strong>timesOrMore(#times)</strong></td>
-          <td>
-              <p>指定模式期望匹配到的事件至少出现<strong>#times</strong>次。.</p>
-              <p>默认（在子事件间）使用松散的内部连续性。
-              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-```scala
-pattern.timesOrMore(2)
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `timesOrMore(#times)`
+
+指定模式期望匹配到的事件至少出现 #times 次。
+默认（在子事件间）使用松散的内部连续性。 关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。
+
+{{< tabs timesormore >}}
+{{< tab "Java" >}}
+```java
+pattern.timesOrMore(2);
 ```
-           </td>
-       </tr>
-       <tr>
-          <td><strong>times(#ofTimes)</strong></td>
-          <td>
-              <p>指定模式期望匹配到的事件正好出现的次数。</p>
-              <p>默认（在子事件间）使用松散的内部连续性。
-              关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `times(#ofTimes)`
+
+指定模式期望匹配到的事件正好出现的次数。
+默认（在子事件间）使用松散的内部连续性。
+关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。
+
+{{< tabs times >}}
+{{< tab "Java" >}}
+```java
+pattern.times(2);
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
 ```scala
 pattern.times(2)
 ```
-                 </td>
-       </tr>
-       <tr>
-         <td><strong>times(#fromTimes, #toTimes)</strong></td>
-         <td>
-             <p>指定模式期望匹配到的事件出现次数在<strong>#fromTimes</strong>和<strong>#toTimes</strong>之间。</p>
-             <p>默认（在子事件间）使用松散的内部连续性。
-             关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。</p>
-```scala
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `times(#fromTimes, #toTimes)`
+
+指定模式期望匹配到的事件出现次数在#fromTimes和#toTimes之间。
+默认（在子事件间）使用松散的内部连续性。 关于内部连续性的更多信息可以参考<a href="#consecutive_java">连续性</a>。
+
+{{< tabs timesrange >}}
+{{< tab "Java" >}}
+```java
+pattern.times(2, 4);
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```java
 pattern.times(2, 4)
 ```
-         </td>
-       </tr>
-       <tr>
-          <td><strong>optional()</strong></td>
-          <td>
-             <p>指定这个模式是可选的，也就是说，它可能根本不出现。这对所有之前提到的量词都适用。</p>
-```scala
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `optional()`
+
+指定这个模式是可选的，也就是说，它可能根本不出现。这对所有之前提到的量词都适用。
+
+{{< tabs optional >}}
+{{< tab "Java" >}}
+```java
+pattern.oneOrMore().optional();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```java
 pattern.oneOrMore().optional()
 ```
-          </td>
-       </tr>
-       <tr>
-          <td><strong>greedy()</strong></td>
-          <td>
-             <p>指定这个模式是贪心的，也就是说，它会重复尽可能多的次数。这只对量词适用，现在还不支持模式组。</p>
-```scala
+{{< /tab >}}
+{{< /tabs >}}
+
+#### `greedy()`
+
+指定这个模式是贪心的，也就是说，它会重复尽可能多的次数。这只对量词适用，现在还不支持模式组。
+
+{{< tabs greedy >}}
+{{< tab "Java" >}}
+```java
+pattern.oneOrMore().greedy();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```java
 pattern.oneOrMore().greedy()
 ```
-          </td>
-       </tr>
-  </tbody>
-</table>
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -669,9 +620,13 @@ val start : Pattern[Event, _] = Pattern.begin("start")
 1. `notNext()`，如果不想后面直接连着一个特定事件
 2. `notFollowedBy()`，如果不想一个特定事件发生在两个事件之间的任何地方。
 
-{% warn 注意 %} 模式序列不能以`notFollowedBy()`结尾。
+{{< hint warning >}}
+如果模式序列没有定义时间约束，则不能以 `notFollowedBy()` 结尾。
+{{< /hint >}}
 
-{% warn 注意 %} 一个`NOT`模式前面不能是可选的模式。
+{{< hint warning >}}
+一个 **NOT**　模式前面不能是可选的模式。
+{{< /hint >}}
 
 {{< tabs "c5c3a1fe-8ab4-45ae-8a97-c2c2e96b6bb3" >}}
 {{< tab "Java" >}}
@@ -729,7 +684,9 @@ val relaxedNot: Pattern[Event, _] = start.notFollowedBy("not").where(...)
 例如，你可以通过`pattern.within()`方法指定一个模式应该在10秒内发生。
 这种时间模式支持[处理时间和事件时间]({{< ref "docs/concepts/time" >}}).
 
-{% warn 注意 %} 一个模式序列只能有一个时间限制。如果限制了多个时间在不同的单个模式上，会使用最小的那个时间限制。
+{{< hint info >}}
+一个模式序列只能有一个时间限制。如果限制了多个时间在不同的单个模式上，会使用最小的那个时间限制。
+{{< /hint >}}
 
 {{< tabs "8228f5b0-b6b3-4ca6-a56b-e5a8fd5fdc3b" >}}
 {{< tab "Java" >}}
@@ -740,6 +697,35 @@ next.within(Time.seconds(10));
 {{< tab "Scala" >}}
 ```scala
 next.within(Time.seconds(10))
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+注意定义过时间约束的模式允许以 `notFollowedBy()` 结尾。
+例如，可以定义如下的模式:
+
+{{< tabs "df27eb6d-c532-430a-b56f-98ad4082e6d5" >}}
+{{< tab "Java" >}}
+```java
+Pattern.<Event>begin("start")
+    .next("middle").where(new SimpleCondition<Event>() {
+    @Override
+    public boolean filter(Event value) throws Exception {
+        return value.getName().equals("a");
+    }
+}).notFollowedBy("end").where(new SimpleCondition<Event>() {
+    @Override
+    public boolean filter(Event value) throws Exception {
+        return value.getName().equals("b");
+    }
+}).within(Time.seconds(10));
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+Pattern.begin("start").where(_.getName().equals("a"))
+.notFollowedBy("end").where(_.getName == "b")
+.within(Time.seconds(10))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1362,7 +1348,7 @@ pattern.within(Time.seconds(10))
 {{< tabs "e7240356-0fda-4a20-8b5a-7e4136753eca" >}}
 {{< tab "Java" >}}
 ```java
-AfterMatchSkipStrategy skipStrategy = ...
+AfterMatchSkipStrategy skipStrategy = ...;
 Pattern.begin("patternName", skipStrategy);
 ```
 {{< /tab >}}
@@ -1374,14 +1360,16 @@ Pattern.begin("patternName", skipStrategy)
 {{< /tab >}}
 {{< /tabs >}}
 
-{% warn 注意 %} 使用SKIP_TO_FIRST/LAST时，有两个选项可以用来处理没有事件可以映射到对应的变量名上的情况。
+{{< hint info >}}
+使用SKIP_TO_FIRST/LAST时，有两个选项可以用来处理没有事件可以映射到对应的变量名上的情况。
 默认情况下会使用NO_SKIP策略，另外一个选项是抛出异常。
 可以使用如下的选项：
+{{< /hint >}}
 
 {{< tabs "48a6f23b-1861-4350-894d-0404d070cfb2" >}}
 {{< tab "Java" >}}
 ```java
-AfterMatchSkipStrategy.skipToFirst(patternName).throwExceptionOnMiss()
+AfterMatchSkipStrategy.skipToFirst(patternName).throwExceptionOnMiss();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -1400,9 +1388,9 @@ AfterMatchSkipStrategy.skipToFirst(patternName).throwExceptionOnMiss()
 {{< tabs "c412e6ab-033c-496c-b72f-b351c056e365" >}}
 {{< tab "Java" >}}
 ```java
-DataStream<Event> input = ...
-Pattern<Event, ?> pattern = ...
-EventComparator<Event> comparator = ... // 可选的
+DataStream<Event> input = ...;
+Pattern<Event, ?> pattern = ...;
+EventComparator<Event> comparator = ...; // 可选的
 
 PatternStream<Event> patternStream = CEP.pattern(input, pattern, comparator);
 ```
@@ -1420,7 +1408,9 @@ val patternStream: PatternStream[Event] = CEP.pattern(input, pattern, comparator
 
 输入流根据你的使用场景可以是*keyed*或者*non-keyed*。
 
-{% warn 注意 %} 在*non-keyed*流上使用模式将会使你的作业并发度被设为1。
+{{< hint info >}}
+在 *non-keyed* 流上使用模式将会使你的作业并发度被设为1。
+{{< /hint >}}
 
 ### 从模式中选取
 
@@ -1536,7 +1526,9 @@ val timeoutResult: DataStream[TimeoutEvent] = result.getSideOutput(outputTag)
 在`CEP`中，事件的处理顺序很重要。在使用事件时间时，为了保证事件按照正确的顺序被处理，一个事件到来后会先被放到一个缓冲区中，
 在缓冲区里事件都按照时间戳从小到大排序，当水位线到达后，缓冲区中所有小于水位线的事件被处理。这意味着水位线之间的数据都按照时间戳被顺序处理。
 
-{% warn 注意 %} 这个库假定按照事件时间时水位线一定是正确的。
+{{< hint info >}}
+这个库假定按照事件时间时水位线一定是正确的。
+{{< /hint >}}
 
 为了保证跨水位线的事件按照事件时间处理，Flink CEP库假定*水位线一定是正确的*，并且把时间戳小于最新水位线的事件看作是*晚到*的。
 晚到的事件不会被处理。你也可以指定一个侧输出标志来收集比最新水位线晚到的事件，你可以这样做：
@@ -1613,6 +1605,14 @@ public interface TimeContext {
 使用`ProcessingTime`时，这个值等于事件进入CEP算子的时间点（在`PatternProcessFunction`中是匹配产生的时间）。
 这意味着多次调用这个方法得到的值是一致的。
 
+## 可选的参数设置
+
+用于配置 Flink CEP 的 `SharedBuffer` 缓存容量的选项。它可以加快 CEP 算子的处理速度，并限制内存中缓存的元素数量。
+
+<span class="label label-info">Note</span> 仅当 `state.backend` 设置为 `rocksdb` 时限制内存使用才有效，这会将超过缓存数量的元素传输到 `rocksdb` 状态存储而不是内存状态存储。当 `state.backend` 设置为 `rocksdb` 时，这些配置项有助于限制内存。相比之下，当 `state.backend` 设置为非 `rocksdb` 时，缓存会导致性能下降。与使用 `Map` 实现的旧缓存相比，状态部分将包含更多从 `guava-cache` 换出的元素，这将使得 `copy on write` 时的状态处理增加一些开销。
+
+{{< generated/cep_cache_configuration >}}
+
 ## 例子
 
 下面的例子在一个分片的`Events`流上检测模式`start, middle(name = "error") -> end(name = "critical")`。
@@ -1621,9 +1621,9 @@ public interface TimeContext {
 {{< tabs "01929551-b785-41f4-ab0d-b6369ce3cc41" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = ...
+StreamExecutionEnvironment env = ...;
 
-DataStream<Event> input = ...
+DataStream<Event> input = ...;
 
 DataStream<Event> partitionedInput = input.keyBy(new KeySelector<Event, Integer>() {
 	@Override

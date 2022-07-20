@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.IndexedCombinedWatermarkStatus;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -32,11 +33,11 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -52,6 +53,7 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.LatencyStats;
 import org.apache.flink.util.Preconditions;
 
@@ -88,7 +90,6 @@ public abstract class AbstractStreamOperator<OUT>
                 SetupableStreamOperator<OUT>,
                 CheckpointedStreamOperator,
                 Serializable {
-
     private static final long serialVersionUID = 1L;
 
     /** The logger used by the operator class and its subclasses. */
@@ -107,6 +108,8 @@ public abstract class AbstractStreamOperator<OUT>
     protected transient StreamConfig config;
 
     protected transient Output<StreamRecord<OUT>> output;
+
+    private transient IndexedCombinedWatermarkStatus combinedWatermark;
 
     /** The runtime context for UDFs. */
     private transient StreamingRuntimeContext runtimeContext;
@@ -136,21 +139,13 @@ public abstract class AbstractStreamOperator<OUT>
     // --------------- Metrics ---------------------------
 
     /** Metric group for the operator. */
-    protected transient OperatorMetricGroup metrics;
+    protected transient InternalOperatorMetricGroup metrics;
 
     protected transient LatencyStats latencyStats;
 
     // ---------------- time handler ------------------
 
     protected transient ProcessingTimeService processingTimeService;
-
-    // ---------------- two-input operator watermarks ------------------
-
-    // We keep track of watermarks from both inputs, the combined input is the minimum
-    // Once the minimum advances we emit a new watermark for downstream operators
-    private long combinedWatermark = Long.MIN_VALUE;
-    private long input1Watermark = Long.MIN_VALUE;
-    private long input2Watermark = Long.MIN_VALUE;
 
     // ------------------------------------------------------------------------
     //  Life Cycle
@@ -165,7 +160,7 @@ public abstract class AbstractStreamOperator<OUT>
         this.container = containingTask;
         this.config = config;
         try {
-            OperatorMetricGroup operatorMetricGroup =
+            InternalOperatorMetricGroup operatorMetricGroup =
                     environment
                             .getMetricGroup()
                             .getOrAddOperator(config.getOperatorID(), config.getOperatorName());
@@ -183,6 +178,7 @@ public abstract class AbstractStreamOperator<OUT>
             this.output = output;
         }
 
+        this.combinedWatermark = IndexedCombinedWatermarkStatus.forInputsCount(2);
         try {
             Configuration taskManagerConfig = environment.getTaskManagerInfo().getConfiguration();
             int historySize = taskManagerConfig.getInteger(MetricOptions.LATENCY_HISTORY_SIZE);
@@ -209,7 +205,7 @@ public abstract class AbstractStreamOperator<OUT>
                         MetricOptions.LATENCY_SOURCE_GRANULARITY.key(),
                         granularity);
             }
-            TaskManagerJobMetricGroup jobMetricGroup = this.metrics.parent().parent();
+            MetricGroup jobMetricGroup = this.metrics.getJobMetricGroup();
             this.latencyStats =
                     new LatencyStats(
                             jobMetricGroup.addGroup("latency"),
@@ -253,7 +249,7 @@ public abstract class AbstractStreamOperator<OUT>
     }
 
     @Override
-    public MetricGroup getMetricGroup() {
+    public OperatorMetricGroup getMetricGroup() {
         return metrics;
     }
 
@@ -326,30 +322,11 @@ public abstract class AbstractStreamOperator<OUT>
     @Override
     public void open() throws Exception {}
 
-    /**
-     * This method is called after all records have been added to the operators via the methods
-     * {@link OneInputStreamOperator#processElement(StreamRecord)}, or {@link
-     * TwoInputStreamOperator#processElement1(StreamRecord)} and {@link
-     * TwoInputStreamOperator#processElement2(StreamRecord)}.
-     *
-     * <p>The method is expected to flush all remaining buffered data. Exceptions during this
-     * flushing of buffered should be propagated, in order to cause the operation to be recognized
-     * asa failed, because the last data items are not processed properly.
-     *
-     * @throws Exception An exception in this method causes the operator to fail.
-     */
     @Override
-    public void close() throws Exception {}
+    public void finish() throws Exception {}
 
-    /**
-     * This method is called at the very end of the operator's life, both in the case of a
-     * successful completion of the operation, and in the case of a failure and canceling.
-     *
-     * <p>This method is expected to make a thorough effort to release all resources that the
-     * operator has acquired.
-     */
     @Override
-    public void dispose() throws Exception {
+    public void close() throws Exception {
         if (stateHandler != null) {
             stateHandler.dispose();
         }
@@ -457,7 +434,6 @@ public abstract class AbstractStreamOperator<OUT>
         return runtimeContext;
     }
 
-    @VisibleForTesting
     public <K> KeyedStateBackend<K> getKeyedStateBackend() {
         return stateHandler.getKeyedStateBackend();
     }
@@ -628,22 +604,41 @@ public abstract class AbstractStreamOperator<OUT>
         output.emitWatermark(mark);
     }
 
-    public void processWatermark1(Watermark mark) throws Exception {
-        input1Watermark = mark.getTimestamp();
-        long newMin = Math.min(input1Watermark, input2Watermark);
-        if (newMin > combinedWatermark) {
-            combinedWatermark = newMin;
-            processWatermark(new Watermark(combinedWatermark));
+    private void processWatermark(Watermark mark, int index) throws Exception {
+        if (combinedWatermark.updateWatermark(index, mark.getTimestamp())) {
+            processWatermark(new Watermark(combinedWatermark.getCombinedWatermark()));
         }
     }
 
+    public void processWatermark1(Watermark mark) throws Exception {
+        processWatermark(mark, 0);
+    }
+
     public void processWatermark2(Watermark mark) throws Exception {
-        input2Watermark = mark.getTimestamp();
-        long newMin = Math.min(input1Watermark, input2Watermark);
-        if (newMin > combinedWatermark) {
-            combinedWatermark = newMin;
-            processWatermark(new Watermark(combinedWatermark));
+        processWatermark(mark, 1);
+    }
+
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        output.emitWatermarkStatus(watermarkStatus);
+    }
+
+    private void processWatermarkStatus(WatermarkStatus watermarkStatus, int index)
+            throws Exception {
+        boolean wasIdle = combinedWatermark.isIdle();
+        if (combinedWatermark.updateStatus(index, watermarkStatus.isIdle())) {
+            processWatermark(new Watermark(combinedWatermark.getCombinedWatermark()));
         }
+        if (wasIdle != combinedWatermark.isIdle()) {
+            output.emitWatermarkStatus(watermarkStatus);
+        }
+    }
+
+    public final void processWatermarkStatus1(WatermarkStatus watermarkStatus) throws Exception {
+        processWatermarkStatus(watermarkStatus, 0);
+    }
+
+    public final void processWatermarkStatus2(WatermarkStatus watermarkStatus) throws Exception {
+        processWatermarkStatus(watermarkStatus, 1);
     }
 
     @Override

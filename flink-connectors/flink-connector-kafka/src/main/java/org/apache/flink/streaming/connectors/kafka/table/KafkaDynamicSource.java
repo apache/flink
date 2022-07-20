@@ -22,17 +22,26 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaDeserializationSchema.MetadataConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.table.data.GenericMapData;
@@ -43,7 +52,10 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.header.Header;
 
 import javax.annotation.Nullable;
@@ -54,6 +66,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
@@ -66,6 +79,8 @@ import java.util.stream.Stream;
 @Internal
 public class KafkaDynamicSource
         implements ScanTableSource, SupportsReadingMetadata, SupportsWatermarkPushDown {
+
+    private static final String KAFKA_TRANSFORMATION = "kafka";
 
     // --------------------------------------------------------------------------------------------
     // Mutable attributes
@@ -137,6 +152,8 @@ public class KafkaDynamicSource
     /** Flag to determine source mode. In upsert mode, it will keep the tombstone message. * */
     protected final boolean upsertMode;
 
+    protected final String tableIdentifier;
+
     public KafkaDynamicSource(
             DataType physicalDataType,
             @Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
@@ -150,7 +167,8 @@ public class KafkaDynamicSource
             StartupMode startupMode,
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis,
-            boolean upsertMode) {
+            boolean upsertMode,
+            String tableIdentifier) {
         // Format attributes
         this.physicalDataType =
                 Preconditions.checkNotNull(
@@ -183,6 +201,7 @@ public class KafkaDynamicSource
                         specificStartupOffsets, "Specific offsets must not be null.");
         this.startupTimestampMillis = startupTimestampMillis;
         this.upsertMode = upsertMode;
+        this.tableIdentifier = tableIdentifier;
     }
 
     @Override
@@ -201,10 +220,28 @@ public class KafkaDynamicSource
         final TypeInformation<RowData> producedTypeInfo =
                 context.createTypeInformation(producedDataType);
 
-        final FlinkKafkaConsumer<RowData> kafkaConsumer =
-                createKafkaConsumer(keyDeserialization, valueDeserialization, producedTypeInfo);
+        final KafkaSource<RowData> kafkaSource =
+                createKafkaSource(keyDeserialization, valueDeserialization, producedTypeInfo);
 
-        return SourceFunctionProvider.of(kafkaConsumer, false);
+        return new DataStreamScanProvider() {
+            @Override
+            public DataStream<RowData> produceDataStream(
+                    ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
+                if (watermarkStrategy == null) {
+                    watermarkStrategy = WatermarkStrategy.noWatermarks();
+                }
+                DataStreamSource<RowData> sourceStream =
+                        execEnv.fromSource(
+                                kafkaSource, watermarkStrategy, "KafkaSource-" + tableIdentifier);
+                providerContext.generateUid(KAFKA_TRANSFORMATION).ifPresent(sourceStream::uid);
+                return sourceStream;
+            }
+
+            @Override
+            public boolean isBounded() {
+                return kafkaSource.getBoundedness() == Boundedness.BOUNDED;
+            }
+        };
     }
 
     @Override
@@ -252,6 +289,11 @@ public class KafkaDynamicSource
     }
 
     @Override
+    public boolean supportsMetadataProjection() {
+        return false;
+    }
+
+    @Override
     public void applyWatermark(WatermarkStrategy<RowData> watermarkStrategy) {
         this.watermarkStrategy = watermarkStrategy;
     }
@@ -272,7 +314,8 @@ public class KafkaDynamicSource
                         startupMode,
                         specificStartupOffsets,
                         startupTimestampMillis,
-                        upsertMode);
+                        upsertMode,
+                        tableIdentifier);
         copy.producedDataType = producedDataType;
         copy.metadataKeys = metadataKeys;
         copy.watermarkStrategy = watermarkStrategy;
@@ -308,6 +351,7 @@ public class KafkaDynamicSource
                 && Objects.equals(specificStartupOffsets, that.specificStartupOffsets)
                 && startupTimestampMillis == that.startupTimestampMillis
                 && Objects.equals(upsertMode, that.upsertMode)
+                && Objects.equals(tableIdentifier, that.tableIdentifier)
                 && Objects.equals(watermarkStrategy, that.watermarkStrategy);
     }
 
@@ -329,16 +373,88 @@ public class KafkaDynamicSource
                 specificStartupOffsets,
                 startupTimestampMillis,
                 upsertMode,
+                tableIdentifier,
                 watermarkStrategy);
     }
 
     // --------------------------------------------------------------------------------------------
 
-    protected FlinkKafkaConsumer<RowData> createKafkaConsumer(
+    protected KafkaSource<RowData> createKafkaSource(
             DeserializationSchema<RowData> keyDeserialization,
             DeserializationSchema<RowData> valueDeserialization,
             TypeInformation<RowData> producedTypeInfo) {
 
+        final KafkaDeserializationSchema<RowData> kafkaDeserializer =
+                createKafkaDeserializationSchema(
+                        keyDeserialization, valueDeserialization, producedTypeInfo);
+
+        final KafkaSourceBuilder<RowData> kafkaSourceBuilder = KafkaSource.builder();
+
+        if (topics != null) {
+            kafkaSourceBuilder.setTopics(topics);
+        } else {
+            kafkaSourceBuilder.setTopicPattern(topicPattern);
+        }
+
+        switch (startupMode) {
+            case EARLIEST:
+                kafkaSourceBuilder.setStartingOffsets(OffsetsInitializer.earliest());
+                break;
+            case LATEST:
+                kafkaSourceBuilder.setStartingOffsets(OffsetsInitializer.latest());
+                break;
+            case GROUP_OFFSETS:
+                String offsetResetConfig =
+                        properties.getProperty(
+                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                                OffsetResetStrategy.NONE.name());
+                OffsetResetStrategy offsetResetStrategy = getResetStrategy(offsetResetConfig);
+                kafkaSourceBuilder.setStartingOffsets(
+                        OffsetsInitializer.committedOffsets(offsetResetStrategy));
+                break;
+            case SPECIFIC_OFFSETS:
+                Map<TopicPartition, Long> offsets = new HashMap<>();
+                specificStartupOffsets.forEach(
+                        (tp, offset) ->
+                                offsets.put(
+                                        new TopicPartition(tp.getTopic(), tp.getPartition()),
+                                        offset));
+                kafkaSourceBuilder.setStartingOffsets(OffsetsInitializer.offsets(offsets));
+                break;
+            case TIMESTAMP:
+                kafkaSourceBuilder.setStartingOffsets(
+                        OffsetsInitializer.timestamp(startupTimestampMillis));
+                break;
+        }
+
+        kafkaSourceBuilder
+                .setProperties(properties)
+                .setDeserializer(KafkaRecordDeserializationSchema.of(kafkaDeserializer));
+
+        return kafkaSourceBuilder.build();
+    }
+
+    private OffsetResetStrategy getResetStrategy(String offsetResetConfig) {
+        return Arrays.stream(OffsetResetStrategy.values())
+                .filter(ors -> ors.name().equals(offsetResetConfig.toUpperCase(Locale.ROOT)))
+                .findAny()
+                .orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        String.format(
+                                                "%s can not be set to %s. Valid values: [%s]",
+                                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                                                offsetResetConfig,
+                                                Arrays.stream(OffsetResetStrategy.values())
+                                                        .map(Enum::name)
+                                                        .map(String::toLowerCase)
+                                                        .collect(Collectors.joining(",")))));
+    }
+
+    private KafkaDeserializationSchema<RowData> createKafkaDeserializationSchema(
+            DeserializationSchema<RowData> keyDeserialization,
+            DeserializationSchema<RowData> valueDeserialization,
+            TypeInformation<RowData> producedTypeInfo) {
         final MetadataConverter[] metadataConverters =
                 metadataKeys.stream()
                         .map(
@@ -355,7 +471,7 @@ public class KafkaDynamicSource
 
         // adjust physical arity with value format's metadata
         final int adjustedPhysicalArity =
-                producedDataType.getChildren().size() - metadataKeys.size();
+                DataType.getFieldDataTypes(producedDataType).size() - metadataKeys.size();
 
         // adjust value format projection to include value format's metadata columns at the end
         final int[] adjustedValueProjection =
@@ -366,49 +482,16 @@ public class KafkaDynamicSource
                                         adjustedPhysicalArity))
                         .toArray();
 
-        final KafkaDeserializationSchema<RowData> kafkaDeserializer =
-                new DynamicKafkaDeserializationSchema(
-                        adjustedPhysicalArity,
-                        keyDeserialization,
-                        keyProjection,
-                        valueDeserialization,
-                        adjustedValueProjection,
-                        hasMetadata,
-                        metadataConverters,
-                        producedTypeInfo,
-                        upsertMode);
-
-        final FlinkKafkaConsumer<RowData> kafkaConsumer;
-        if (topics != null) {
-            kafkaConsumer = new FlinkKafkaConsumer<>(topics, kafkaDeserializer, properties);
-        } else {
-            kafkaConsumer = new FlinkKafkaConsumer<>(topicPattern, kafkaDeserializer, properties);
-        }
-
-        switch (startupMode) {
-            case EARLIEST:
-                kafkaConsumer.setStartFromEarliest();
-                break;
-            case LATEST:
-                kafkaConsumer.setStartFromLatest();
-                break;
-            case GROUP_OFFSETS:
-                kafkaConsumer.setStartFromGroupOffsets();
-                break;
-            case SPECIFIC_OFFSETS:
-                kafkaConsumer.setStartFromSpecificOffsets(specificStartupOffsets);
-                break;
-            case TIMESTAMP:
-                kafkaConsumer.setStartFromTimestamp(startupTimestampMillis);
-                break;
-        }
-
-        kafkaConsumer.setCommitOffsetsOnCheckpoints(properties.getProperty("group.id") != null);
-
-        if (watermarkStrategy != null) {
-            kafkaConsumer.assignTimestampsAndWatermarks(watermarkStrategy);
-        }
-        return kafkaConsumer;
+        return new DynamicKafkaDeserializationSchema(
+                adjustedPhysicalArity,
+                keyDeserialization,
+                keyProjection,
+                valueDeserialization,
+                adjustedValueProjection,
+                hasMetadata,
+                metadataConverters,
+                producedTypeInfo,
+                upsertMode);
     }
 
     private @Nullable DeserializationSchema<RowData> createDeserialization(
@@ -419,8 +502,7 @@ public class KafkaDynamicSource
         if (format == null) {
             return null;
         }
-        DataType physicalFormatDataType =
-                DataTypeUtils.projectRow(this.physicalDataType, projection);
+        DataType physicalFormatDataType = Projection.of(projection).project(this.physicalDataType);
         if (prefix != null) {
             physicalFormatDataType = DataTypeUtils.stripRowPrefix(physicalFormatDataType, prefix);
         }

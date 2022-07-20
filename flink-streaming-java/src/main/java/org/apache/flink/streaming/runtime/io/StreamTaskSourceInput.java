@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
@@ -37,8 +36,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Implementation of {@link StreamTaskInput} that reads data from the {@link SourceOperator} and
- * returns the {@link InputStatus} to indicate whether the source state is available, unavailable or
- * finished.
+ * returns the {@link DataInputStatus} to indicate whether the source state is available,
+ * unavailable or finished.
  */
 @Internal
 public class StreamTaskSourceInput<T> implements StreamTaskInput<T>, CheckpointableInput {
@@ -59,16 +58,16 @@ public class StreamTaskSourceInput<T> implements StreamTaskInput<T>, Checkpointa
     }
 
     @Override
-    public InputStatus emitNext(DataOutput<T> output) throws Exception {
+    public DataInputStatus emitNext(DataOutput<T> output) throws Exception {
         /**
          * Safe guard against best efforts availability checks. If despite being unavailable someone
          * polls the data from this source while it's blocked, it should return {@link
-         * InputStatus.NOTHING_AVAILABLE}.
+         * DataInputStatus.NOTHING_AVAILABLE}.
          */
         if (isBlockedAvailability.isApproximatelyAvailable()) {
             return operator.emitNext(output);
         }
-        return InputStatus.NOTHING_AVAILABLE;
+        return DataInputStatus.NOTHING_AVAILABLE;
     }
 
     @Override
@@ -153,5 +152,9 @@ public class StreamTaskSourceInput<T> implements StreamTaskInput<T>, Checkpointa
 
     public OperatorID getOperatorID() {
         return operator.getOperatorID();
+    }
+
+    public SourceOperator<T, ?> getOperator() {
+        return operator;
     }
 }

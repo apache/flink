@@ -44,6 +44,7 @@ public class SubtaskStateStatsTest {
                         0,
                         Integer.MAX_VALUE + 1L,
                         Integer.MAX_VALUE + 2L,
+                        Integer.MAX_VALUE + 2L,
                         Integer.MAX_VALUE + 3L,
                         Integer.MAX_VALUE + 4L,
                         Integer.MAX_VALUE + 8L,

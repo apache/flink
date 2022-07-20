@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.Watermark;
 
@@ -38,7 +38,7 @@ import org.apache.flink.api.common.eventtime.Watermark;
  * ReaderOutput#createOutputForSplit(String)} method, using the Source Split's ID. Make sure to
  * release the output again once the source has finished processing that split.
  */
-@PublicEvolving
+@Public
 public interface ReaderOutput<T> extends SourceOutput<T> {
 
     /**

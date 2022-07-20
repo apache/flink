@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
@@ -29,6 +30,8 @@ import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,9 +48,15 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An abstract implementation of {@link SourceReader} which provides some sychronization between the
- * mail box main thread and the SourceReader internal threads. This class allows user to just
+ * An abstract implementation of {@link SourceReader} which provides some synchronization between
+ * the mail box main thread and the SourceReader internal threads. This class allows user to just
  * provide a {@link SplitReader} and snapshot the split state.
+ *
+ * <p>This implementation provides the following metrics out of the box:
+ *
+ * <ul>
+ *   <li>{@link OperatorIOMetricGroup#getNumRecordsInCounter()}
+ * </ul>
  *
  * @param <E> The rich element type that contains information for split state update or timestamp
  *     extraction.
@@ -55,6 +64,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @param <SplitT> the immutable split type.
  * @param <SplitStateT> the mutable type of split state.
  */
+@PublicEvolving
 public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitStateT>
         implements SourceReader<T, SplitT> {
     private static final Logger LOG = LoggerFactory.getLogger(SourceReaderBase.class);
@@ -76,6 +86,8 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
     /** The raw configurations that may be used by subclasses. */
     protected final Configuration config;
+
+    private final Counter numRecordsInCounter;
 
     /** The context of this source reader. */
     protected SourceReaderContext context;
@@ -103,6 +115,8 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
         this.config = config;
         this.context = context;
         this.noMoreSplitsAssignment = false;
+
+        numRecordsInCounter = context.metricGroup().getIOMetricGroup().getNumRecordsInCounter();
     }
 
     @Override
@@ -125,6 +139,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
             final E record = recordsWithSplitId.nextRecordFromSplit();
             if (record != null) {
                 // emit the record.
+                numRecordsInCounter.inc(1);
                 recordEmitter.emitRecord(record, currentSplitOutput, currentSplitContext.state);
                 LOG.trace("Emitted record: {}", record);
 
@@ -309,6 +324,9 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
         SourceOutput<T> getOrCreateSplitOutput(ReaderOutput<T> mainOutput) {
             if (sourceOutput == null) {
+                // The split output should have been created when AddSplitsEvent was processed in
+                // SourceOperator. Here we just use this method to get the previously created
+                // output.
                 sourceOutput = mainOutput.createOutputForSplit(splitId);
             }
             return sourceOutput;

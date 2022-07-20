@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.security.token.DelegationTokenConverter;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.StringUtils;
@@ -34,7 +35,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataOutputBuffer;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.security.TokenCache;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -197,32 +197,34 @@ public final class Utils {
     }
 
     public static void setTokensFor(
-            ContainerLaunchContext amContainer, List<Path> paths, Configuration conf)
+            ContainerLaunchContext amContainer,
+            List<Path> paths,
+            Configuration conf,
+            boolean obtainingDelegationTokens)
             throws IOException {
         Credentials credentials = new Credentials();
-        // for HDFS
-        TokenCache.obtainTokensForNamenodes(credentials, paths.toArray(new Path[0]), conf);
-        // for HBase
-        obtainTokenForHBase(credentials, conf);
+
+        if (obtainingDelegationTokens) {
+            LOG.info("Obtaining delegation tokens for HDFS and HBase.");
+            // for HDFS
+            TokenCache.obtainTokensForNamenodes(credentials, paths.toArray(new Path[0]), conf);
+            // for HBase
+            obtainTokenForHBase(credentials, conf);
+        } else {
+            LOG.info("Delegation token retrieval for HDFS and HBase is disabled.");
+        }
+
         // for user
         UserGroupInformation currUsr = UserGroupInformation.getCurrentUser();
 
         Collection<Token<? extends TokenIdentifier>> usrTok = currUsr.getTokens();
         for (Token<? extends TokenIdentifier> token : usrTok) {
-            final Text id = new Text(token.getIdentifier());
-            LOG.info("Adding user token " + id + " with " + token);
-            credentials.addToken(id, token);
+            LOG.info("Adding user token " + token.getService() + " with " + token);
+            credentials.addToken(token.getService(), token);
         }
-        try (DataOutputBuffer dob = new DataOutputBuffer()) {
-            credentials.writeTokenStorageToStream(dob);
 
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Wrote tokens. Credentials buffer length: " + dob.getLength());
-            }
-
-            ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
-            amContainer.setTokens(securityTokens);
-        }
+        ByteBuffer tokens = ByteBuffer.wrap(DelegationTokenConverter.serialize(credentials));
+        amContainer.setTokens(tokens);
     }
 
     /** Obtain Kerberos security token for HBase. */
@@ -429,7 +431,7 @@ public final class Utils {
         LocalResource keytabResource = null;
         if (remoteKeytabPath != null) {
             log.info(
-                    "Adding keytab {} to the AM container local resource bucket", remoteKeytabPath);
+                    "TM:Adding keytab {} to the container local resource bucket", remoteKeytabPath);
             Path keytabPath = new Path(remoteKeytabPath);
             FileSystem fs = keytabPath.getFileSystem(yarnConfig);
             keytabResource = registerLocalResource(fs, keytabPath, LocalResourceType.FILE);
@@ -560,8 +562,7 @@ public final class Utils {
                 Collection<Token<? extends TokenIdentifier>> userTokens = cred.getAllTokens();
                 for (Token<? extends TokenIdentifier> token : userTokens) {
                     if (!token.getKind().equals(AMRMTokenIdentifier.KIND_NAME)) {
-                        final Text id = new Text(token.getIdentifier());
-                        taskManagerCred.addToken(id, token);
+                        taskManagerCred.addToken(token.getService(), token);
                     }
                 }
 

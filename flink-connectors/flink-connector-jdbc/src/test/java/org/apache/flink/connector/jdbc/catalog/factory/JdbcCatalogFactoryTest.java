@@ -23,23 +23,27 @@ import org.apache.flink.connector.jdbc.catalog.PostgresCatalog;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.util.DockerImageVersions;
 
-import com.opentable.db.postgres.junit.EmbeddedPostgresRules;
-import com.opentable.db.postgres.junit.SingleInstancePostgresRule;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link JdbcCatalogFactory}. */
 public class JdbcCatalogFactoryTest {
-    @ClassRule public static SingleInstancePostgresRule pg = EmbeddedPostgresRules.singleInstance();
+
+    public static final Logger LOG = LoggerFactory.getLogger(JdbcCatalogFactoryTest.class);
 
     protected static String baseUrl;
     protected static JdbcCatalog catalog;
@@ -48,12 +52,22 @@ public class JdbcCatalogFactoryTest {
     protected static final String TEST_USERNAME = "postgres";
     protected static final String TEST_PWD = "postgres";
 
+    protected static final DockerImageName POSTGRES_IMAGE =
+            DockerImageName.parse(DockerImageVersions.POSTGRES);
+
+    @ClassRule
+    public static final PostgreSQLContainer<?> POSTGRES_CONTAINER =
+            new PostgreSQLContainer<>(POSTGRES_IMAGE)
+                    .withUsername(TEST_USERNAME)
+                    .withPassword(TEST_PWD)
+                    .withLogConsumer(new Slf4jLogConsumer(LOG));
+
     @BeforeClass
     public static void setup() throws SQLException {
         // jdbc:postgresql://localhost:50807/postgres?user=postgres
-        String embeddedJdbcUrl = pg.getEmbeddedPostgres().getJdbcUrl(TEST_USERNAME, TEST_PWD);
+        String jdbcUrl = POSTGRES_CONTAINER.getJdbcUrl();
         // jdbc:postgresql://localhost:50807/
-        baseUrl = embeddedJdbcUrl.substring(0, embeddedJdbcUrl.lastIndexOf("/") + 1);
+        baseUrl = jdbcUrl.substring(0, jdbcUrl.lastIndexOf("/"));
 
         catalog =
                 new JdbcCatalog(
@@ -83,14 +97,14 @@ public class JdbcCatalogFactoryTest {
 
         checkEquals(catalog, (JdbcCatalog) actualCatalog);
 
-        assertTrue(((JdbcCatalog) actualCatalog).getInternal() instanceof PostgresCatalog);
+        assertThat(((JdbcCatalog) actualCatalog).getInternal()).isInstanceOf(PostgresCatalog.class);
     }
 
     private static void checkEquals(JdbcCatalog c1, JdbcCatalog c2) {
-        assertEquals(c1.getName(), c2.getName());
-        assertEquals(c1.getDefaultDatabase(), c2.getDefaultDatabase());
-        assertEquals(c1.getUsername(), c2.getUsername());
-        assertEquals(c1.getPassword(), c2.getPassword());
-        assertEquals(c1.getBaseUrl(), c2.getBaseUrl());
+        assertThat(c2.getName()).isEqualTo(c1.getName());
+        assertThat(c2.getDefaultDatabase()).isEqualTo(c1.getDefaultDatabase());
+        assertThat(c2.getUsername()).isEqualTo(c1.getUsername());
+        assertThat(c2.getPassword()).isEqualTo(c1.getPassword());
+        assertThat(c2.getBaseUrl()).isEqualTo(c1.getBaseUrl());
     }
 }

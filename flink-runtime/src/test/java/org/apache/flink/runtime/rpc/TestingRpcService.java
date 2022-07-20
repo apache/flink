@@ -19,14 +19,15 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.io.Serializable;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -51,7 +52,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * verify(testGateway, timeout(1000)).theTestMethod(any(UUID.class), anyString());
  * }</pre>
  */
-public class TestingRpcService extends AkkaRpcService {
+public class TestingRpcService implements RpcService {
+
+    // load RpcSystem once to save initialization costs
+    // this is safe because it is state-less
+    private static final RpcSystem RPC_SYSTEM_SINGLETON = RpcSystem.load();
 
     private static final Function<RpcGateway, CompletableFuture<RpcGateway>>
             DEFAULT_RPC_GATEWAY_FUTURE_FUNCTION = CompletableFuture::completedFuture;
@@ -62,16 +67,16 @@ public class TestingRpcService extends AkkaRpcService {
     private volatile Function<RpcGateway, CompletableFuture<RpcGateway>> rpcGatewayFutureFunction =
             DEFAULT_RPC_GATEWAY_FUTURE_FUNCTION;
 
-    /** Creates a new {@code TestingRpcService}. */
-    public TestingRpcService() {
-        this(new Configuration());
-    }
+    private final RpcService backingRpcService;
 
     /** Creates a new {@code TestingRpcService}, using the given configuration. */
-    public TestingRpcService(Configuration configuration) {
-        super(
-                AkkaUtils.createLocalActorSystem(configuration),
-                AkkaRpcServiceConfiguration.fromConfiguration(configuration));
+    public TestingRpcService() {
+        try {
+            this.backingRpcService =
+                    RPC_SYSTEM_SINGLETON.localServiceBuilder(new Configuration()).createAndStart();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         this.registeredConnections = new ConcurrentHashMap<>();
     }
@@ -80,7 +85,7 @@ public class TestingRpcService extends AkkaRpcService {
 
     @Override
     public CompletableFuture<Void> stopService() {
-        final CompletableFuture<Void> terminationFuture = super.stopService();
+        final CompletableFuture<Void> terminationFuture = backingRpcService.stopService();
 
         terminationFuture.whenComplete(
                 (Void ignored, Throwable throwable) -> {
@@ -100,6 +105,13 @@ public class TestingRpcService extends AkkaRpcService {
 
         if (registeredConnections.putIfAbsent(address, gateway) != null) {
             throw new IllegalStateException("a gateway is already registered under " + address);
+        }
+    }
+
+    public void unregisterGateway(String address) {
+        checkNotNull(address);
+        if (registeredConnections.remove(address) == null) {
+            throw new IllegalStateException("no gateway is registered under " + address);
         }
     }
 
@@ -126,7 +138,7 @@ public class TestingRpcService extends AkkaRpcService {
                                         + clazz));
             }
         } else {
-            return super.connect(address, clazz);
+            return backingRpcService.connect(address, clazz);
         }
     }
 
@@ -149,7 +161,7 @@ public class TestingRpcService extends AkkaRpcService {
                                         + clazz));
             }
         } else {
-            return super.connect(address, fencingToken, clazz);
+            return backingRpcService.connect(address, fencingToken, clazz);
         }
     }
 
@@ -164,5 +176,59 @@ public class TestingRpcService extends AkkaRpcService {
     public void setRpcGatewayFutureFunction(
             Function<RpcGateway, CompletableFuture<RpcGateway>> rpcGatewayFutureFunction) {
         this.rpcGatewayFutureFunction = rpcGatewayFutureFunction;
+    }
+
+    // ------------------------------------------------------------------------
+    // simple wrappers
+    // ------------------------------------------------------------------------
+
+    @Override
+    public String getAddress() {
+        return backingRpcService.getAddress();
+    }
+
+    @Override
+    public int getPort() {
+        return backingRpcService.getPort();
+    }
+
+    @Override
+    public <C extends RpcEndpoint & RpcGateway> RpcServer startServer(C rpcEndpoint) {
+        return backingRpcService.startServer(rpcEndpoint);
+    }
+
+    @Override
+    public <F extends Serializable> RpcServer fenceRpcServer(RpcServer rpcServer, F fencingToken) {
+        return backingRpcService.fenceRpcServer(rpcServer, fencingToken);
+    }
+
+    @Override
+    public void stopServer(RpcServer selfGateway) {
+        backingRpcService.stopServer(selfGateway);
+    }
+
+    @Override
+    public CompletableFuture<Void> getTerminationFuture() {
+        return backingRpcService.getTerminationFuture();
+    }
+
+    @Override
+    public ScheduledExecutor getScheduledExecutor() {
+        return backingRpcService.getScheduledExecutor();
+    }
+
+    @Override
+    public ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
+        return backingRpcService.scheduleRunnable(runnable, delay, unit);
+    }
+
+    @Override
+    public void execute(Runnable runnable) {
+        backingRpcService.execute(runnable);
+    }
+
+    @Override
+    public <T> CompletableFuture<T> execute(Callable<T> callable) {
+        return backingRpcService.execute(callable);
     }
 }

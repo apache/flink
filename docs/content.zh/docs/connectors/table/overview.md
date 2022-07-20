@@ -95,6 +95,8 @@ Flink 内置支持各种不同的连接器。下表列出了所有可用的连�
 
 {{< top >}}
 
+请查阅[配置]({{< ref "docs/dev/configuration/connector" >}})小节了解如何添加连接器依赖。
+
 如何使用连接器
 --------
 
@@ -150,13 +152,13 @@ Flink 使用 Java 的 [Service Provider Interfaces (SPI)](https://docs.oracle.co
         <!--  other project dependencies  ...-->
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-sql-connector-hive-3.1.2_{{< scala_version >}}</artifactId>
+            <artifactId>flink-sql-connector-hive-3.1.2{{< scala_version >}}</artifactId>
             <version>{{< version >}}</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-parquet_{{< scala_version >}}<</artifactId>
+            <artifactId>flink-parquet{{< scala_version >}}</artifactId>
             <version>{{< version >}}</version>
         </dependency>
 
@@ -257,7 +259,7 @@ CREATE TABLE MyTable (
 CREATE TABLE MyTable (
   MyField1 INT,
   MyField2 STRING,
-  MyField3 BOOLEAN
+  MyField3 BOOLEAN,
   MyField4 AS PROCTIME() -- 声明处理时间属性
 ) WITH (
   ...

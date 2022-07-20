@@ -20,15 +20,13 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.metrics.jmx.JMXReporter;
+import org.apache.flink.metrics.jmx.JMXReporterFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
@@ -36,14 +34,16 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
@@ -51,16 +51,21 @@ import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests to verify JMX reporter functionality on the JobManager. */
-public class JMXJobManagerMetricTest extends TestLogger {
+class JMXJobManagerMetricTest {
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberSlotsPerTaskManager(1)
@@ -73,8 +78,8 @@ public class JMXJobManagerMetricTest extends TestLogger {
         flinkConfiguration.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
-                JMXReporter.class.getName());
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
+                JMXReporterFactory.class.getName());
         flinkConfiguration.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
 
         return flinkConfiguration;
@@ -82,7 +87,8 @@ public class JMXJobManagerMetricTest extends TestLogger {
 
     /** Tests that metrics registered on the JobManager are actually accessible via JMX. */
     @Test
-    public void testJobManagerJMXMetricAccess() throws Exception {
+    void testJobManagerJMXMetricAccess(@InjectClusterClient ClusterClient<?> client)
+            throws Exception {
         Deadline deadline = Deadline.now().plus(Duration.ofMinutes(2));
 
         try {
@@ -100,7 +106,7 @@ public class JMXJobManagerMetricTest extends TestLogger {
                                     CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
                                     true,
                                     false,
-                                    false,
+                                    0,
                                     0),
                             null);
 
@@ -111,15 +117,14 @@ public class JMXJobManagerMetricTest extends TestLogger {
                             .setJobCheckpointingSettings(jobCheckpointingSettings)
                             .build();
 
-            ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
             client.submitJob(jobGraph).get();
 
             FutureUtils.retrySuccessfulWithDelay(
                             () -> client.getJobStatus(jobGraph.getJobID()),
-                            Time.milliseconds(10),
+                            Duration.ofMillis(10),
                             deadline,
                             status -> status == JobStatus.RUNNING,
-                            TestingUtils.defaultScheduledExecutor())
+                            new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))
                     .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
             MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
@@ -128,8 +133,8 @@ public class JMXJobManagerMetricTest extends TestLogger {
                             new ObjectName(
                                     "org.apache.flink.jobmanager.job.lastCheckpointSize:job_name=TestingJob,*"),
                             null);
-            Assert.assertEquals(1, nameSet.size());
-            assertEquals(-1L, mBeanServer.getAttribute(nameSet.iterator().next(), "Value"));
+            assertThat(nameSet).hasSize(1);
+            assertThat(mBeanServer.getAttribute(nameSet.iterator().next(), "Value")).isEqualTo(-1L);
 
             BlockingInvokable.unblock();
         } finally {

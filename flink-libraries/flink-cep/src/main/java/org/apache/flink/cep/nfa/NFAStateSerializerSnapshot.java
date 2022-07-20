@@ -22,12 +22,20 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
 
 /** Snapshot class for {@link NFAStateSerializer}. */
 public class NFAStateSerializerSnapshot
         extends CompositeTypeSerializerSnapshot<NFAState, NFAStateSerializer> {
 
-    private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 2;
+
+    private static final int FIRST_VERSION_WITH_PREVIOUS_TIMESTAMP = 2;
+
+    private boolean supportsPreviousTimestamp = true;
 
     /** Constructor for read instantiation. */
     public NFAStateSerializerSnapshot() {
@@ -37,11 +45,38 @@ public class NFAStateSerializerSnapshot
     /** Constructor to create the snapshot for writing. */
     public NFAStateSerializerSnapshot(NFAStateSerializer serializerInstance) {
         super(serializerInstance);
+        supportsPreviousTimestamp = serializerInstance.isSupportsPreviousTimestamp();
     }
 
     @Override
     protected int getCurrentOuterSnapshotVersion() {
         return CURRENT_VERSION;
+    }
+
+    @Override
+    protected void readOuterSnapshot(
+            int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader)
+            throws IOException {
+        if (readOuterSnapshotVersion < FIRST_VERSION_WITH_PREVIOUS_TIMESTAMP) {
+            supportsPreviousTimestamp = false;
+        } else {
+            supportsPreviousTimestamp = in.readBoolean();
+        }
+    }
+
+    @Override
+    protected void writeOuterSnapshot(DataOutputView out) throws IOException {
+        out.writeBoolean(supportsPreviousTimestamp);
+    }
+
+    @Override
+    protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(
+            NFAStateSerializer newSerializer) {
+        if (supportsPreviousTimestamp != newSerializer.isSupportsPreviousTimestamp()) {
+            return OuterSchemaCompatibility.COMPATIBLE_AFTER_MIGRATION;
+        }
+
+        return OuterSchemaCompatibility.COMPATIBLE_AS_IS;
     }
 
     @Override
@@ -67,6 +102,7 @@ public class NFAStateSerializerSnapshot
         @SuppressWarnings("unchecked")
         TypeSerializer<EventId> eventIdSerializer = (TypeSerializer<EventId>) nestedSerializers[2];
 
-        return new NFAStateSerializer(versionSerializer, nodeIdSerializer, eventIdSerializer);
+        return new NFAStateSerializer(
+                versionSerializer, nodeIdSerializer, eventIdSerializer, supportsPreviousTimestamp);
     }
 }

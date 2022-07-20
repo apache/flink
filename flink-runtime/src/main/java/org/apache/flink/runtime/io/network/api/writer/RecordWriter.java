@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -83,9 +85,10 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 
         this.serializer = new DataOutputSerializer(128);
 
-        checkArgument(timeout >= -1);
-        this.flushAlways = (timeout == 0);
-        if (timeout == -1 || timeout == 0) {
+        checkArgument(timeout >= ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
+        this.flushAlways = (timeout == ExecutionOptions.FLUSH_AFTER_EVERY_RECORD);
+        if (timeout == ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT
+                || timeout == ExecutionOptions.FLUSH_AFTER_EVERY_RECORD) {
             outputFlusher = null;
         } else {
             String threadName =
@@ -118,6 +121,14 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
         if (flushAlways) {
             flushAll();
         }
+    }
+
+    public void alignedBarrierTimeout(long checkpointId) throws IOException {
+        targetPartition.alignedBarrierTimeout(checkpointId);
+    }
+
+    public void abortCheckpoint(long checkpointId, CheckpointException cause) {
+        targetPartition.abortCheckpoint(checkpointId, cause);
     }
 
     @VisibleForTesting
@@ -204,6 +215,11 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
                 >= VOLATILE_FLUSHER_EXCEPTION_MAX_CHECK_SKIP_COUNT) {
             volatileFlusherExceptionCheckSkipCount = 0;
         }
+    }
+
+    /** Sets the max overdraft buffer size of per gate. */
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {
+        targetPartition.setMaxOverdraftBuffersPerGate(maxOverdraftBuffersPerGate);
     }
 
     // ------------------------------------------------------------------------

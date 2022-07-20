@@ -34,7 +34,6 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.efoConsumerArn;
 import static org.apache.flink.streaming.connectors.kinesis.util.AwsV2Util.isEagerEfoRegistrationType;
 import static org.apache.flink.streaming.connectors.kinesis.util.AwsV2Util.isLazyEfoRegistrationType;
-import static org.apache.flink.streaming.connectors.kinesis.util.AwsV2Util.isNoneEfoRegistrationType;
 import static org.apache.flink.streaming.connectors.kinesis.util.AwsV2Util.isUsingEfoRecordPublisher;
 
 /**
@@ -85,17 +84,18 @@ public class StreamConsumerRegistrarUtil {
      */
     public static void deregisterStreamConsumers(
             final Properties configProps, final List<String> streams) {
-        if (!isUsingEfoRecordPublisher(configProps) || isNoneEfoRegistrationType(configProps)) {
-            return;
+        if (isConsumerDeregistrationRequired(configProps)) {
+            StreamConsumerRegistrar registrar = createStreamConsumerRegistrar(configProps, streams);
+            try {
+                deregisterStreamConsumers(registrar, configProps, streams);
+            } finally {
+                registrar.close();
+            }
         }
+    }
 
-        StreamConsumerRegistrar registrar = createStreamConsumerRegistrar(configProps, streams);
-
-        try {
-            deregisterStreamConsumers(registrar, configProps, streams);
-        } finally {
-            registrar.close();
-        }
+    private static boolean isConsumerDeregistrationRequired(final Properties configProps) {
+        return isUsingEfoRecordPublisher(configProps) && isLazyEfoRegistrationType(configProps);
     }
 
     private static void registerStreamConsumers(
@@ -137,20 +137,18 @@ public class StreamConsumerRegistrarUtil {
             final StreamConsumerRegistrar registrar,
             final Properties configProps,
             final List<String> streams) {
-        if (!isUsingEfoRecordPublisher(configProps) || isNoneEfoRegistrationType(configProps)) {
-            return;
-        }
-
-        for (String stream : streams) {
-            try {
-                registrar.deregisterStreamConsumer(stream);
-            } catch (ExecutionException ex) {
-                throw new FlinkKinesisStreamConsumerRegistrarException(
-                        "Error deregistering stream: " + stream, ex);
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-                throw new FlinkKinesisStreamConsumerRegistrarException(
-                        "Error registering stream: " + stream, ex);
+        if (isConsumerDeregistrationRequired(configProps)) {
+            for (String stream : streams) {
+                try {
+                    registrar.deregisterStreamConsumer(stream);
+                } catch (ExecutionException ex) {
+                    throw new FlinkKinesisStreamConsumerRegistrarException(
+                            "Error deregistering stream: " + stream, ex);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    throw new FlinkKinesisStreamConsumerRegistrarException(
+                            "Error registering stream: " + stream, ex);
+                }
             }
         }
     }

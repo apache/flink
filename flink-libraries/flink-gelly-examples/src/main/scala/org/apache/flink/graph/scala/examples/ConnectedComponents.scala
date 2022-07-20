@@ -15,10 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.graph.scala.examples
-
-import java.lang.Long
 
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.scala._
@@ -28,25 +25,21 @@ import org.apache.flink.graph.library.GSAConnectedComponents
 import org.apache.flink.graph.scala._
 import org.apache.flink.types.NullValue
 
+import java.lang.Long
+
 /**
- * This example shows how to use Gelly's library methods.
- * You can find all available library methods in [[org.apache.flink.graph.library]]. 
- * 
- * In particular, this example uses the
- * [[GSAConnectedComponents]]
- * library method to compute the connected components of the input graph.
+ * This example shows how to use Gelly's library methods. You can find all available library methods
+ * in [[org.apache.flink.graph.library]].
  *
- * The input file is a plain text file and must be formatted as follows:
- * Edges are represented by tuples of srcVertexId, trgVertexId which are
- * separated by tabs. Edges themselves are separated by newlines.
- * For example: <code>1\t2\n1\t3\n</code> defines two edges,
- * 1-2 and 1-3.
+ * In particular, this example uses the [[GSAConnectedComponents]] library method to compute the
+ * connected components of the input graph.
  *
- * Usage {{
- *   ConnectedComponents <edge path> <result path> <number of iterations>
- *   }}
- * If no parameters are provided, the program is run with default data from
- * [[ConnectedComponentsDefaultData]]
+ * The input file is a plain text file and must be formatted as follows: Edges are represented by
+ * tuples of srcVertexId, trgVertexId which are separated by tabs. Edges themselves are separated by
+ * newlines. For example: <code>1\t2\n1\t3\n</code> defines two edges, 1-2 and 1-3.
+ *
+ * Usage {{ ConnectedComponents <edge path> <result path> <number of iterations> }} If no parameters
+ * are provided, the program is run with default data from [[ConnectedComponentsDefaultData]]
  */
 object ConnectedComponents {
   def main(args: Array[String]) {
@@ -60,7 +53,6 @@ object ConnectedComponents {
 
     val components = graph.run(new GSAConnectedComponents[Long, Long, NullValue](maxIterations))
 
-
     // emit result
     if (fileOutput) {
       components.writeAsCsv(outputPath, "\n", ",")
@@ -70,7 +62,7 @@ object ConnectedComponents {
     }
   }
 
-  private final class InitVertices extends MapFunction[Long, Long] {
+  final private class InitVertices extends MapFunction[Long, Long] {
     override def map(id: Long) = id
   }
 
@@ -78,44 +70,47 @@ object ConnectedComponents {
   // UTIL METHODS
   // ***********************************************************************
 
-    private var fileOutput = false
-    private var edgesInputPath: String = null
-    private var outputPath: String = null
-    private var maxIterations = ConnectedComponentsDefaultData.MAX_ITERATIONS
+  private var fileOutput = false
+  private var edgesInputPath: String = null
+  private var outputPath: String = null
+  private var maxIterations = ConnectedComponentsDefaultData.MAX_ITERATIONS
 
-    private def parseParameters(args: Array[String]): Boolean = {
-      if(args.length > 0) {
-        if(args.length != 3) {
-          System.err.println("Usage ConnectedComponents <edge path> <output path> " +
+  private def parseParameters(args: Array[String]): Boolean = {
+    if (args.length > 0) {
+      if (args.length != 3) {
+        System.err.println(
+          "Usage ConnectedComponents <edge path> <output path> " +
             "<num iterations>")
-        }
-        fileOutput = true
-        edgesInputPath = args(0)
-        outputPath = args(1)
-        maxIterations = 2
-      } else {
-        System.out.println("Executing ConnectedComponents example with default parameters" +
+      }
+      fileOutput = true
+      edgesInputPath = args(0)
+      outputPath = args(1)
+      maxIterations = 2
+    } else {
+      System.out.println(
+        "Executing ConnectedComponents example with default parameters" +
           " and built-in default data.")
-        System.out.println("  Provide parameters to read input data from files.")
-        System.out.println("  See the documentation for the correct format of input files.")
-        System.out.println("Usage ConnectedComponents <edge path> <output path> " +
+      System.out.println("  Provide parameters to read input data from files.")
+      System.out.println("  See the documentation for the correct format of input files.")
+      System.out.println(
+        "Usage ConnectedComponents <edge path> <output path> " +
           "<num iterations>")
-      }
-      true
     }
+    true
+  }
 
-    private def getEdgesDataSet(env: ExecutionEnvironment): DataSet[Edge[Long, NullValue]] = {
-      if (fileOutput) {
-        env.readCsvFile[(Long, Long)](edgesInputPath,
-          lineDelimiter = "\n",
-          fieldDelimiter = "\t")
-          .map(edge => new Edge[Long, NullValue](edge._1, edge._2, NullValue.getInstance))
-      } else {
-        val edgeData = ConnectedComponentsDefaultData.DEFAULT_EDGES map {
-          case Array(x, y) => (x.asInstanceOf[Long], y.asInstanceOf[Long])
-        }
-        env.fromCollection(edgeData).map(
-        edge => new Edge[Long, NullValue](edge._1, edge._2, NullValue.getInstance))
+  private def getEdgesDataSet(env: ExecutionEnvironment): DataSet[Edge[Long, NullValue]] = {
+    if (fileOutput) {
+      env
+        .readCsvFile[(Long, Long)](edgesInputPath, lineDelimiter = "\n", fieldDelimiter = "\t")
+        .map(edge => new Edge[Long, NullValue](edge._1, edge._2, NullValue.getInstance))
+    } else {
+      val edgeData = ConnectedComponentsDefaultData.DEFAULT_EDGES.map {
+        case Array(x, y) => (x.asInstanceOf[Long], y.asInstanceOf[Long])
       }
+      env
+        .fromCollection(edgeData)
+        .map(edge => new Edge[Long, NullValue](edge._1, edge._2, NullValue.getInstance))
     }
+  }
 }

@@ -22,6 +22,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 import org.apache.flink.runtime.io.network.util.TestProducerSource.BufferAndChannel;
 
@@ -77,7 +78,9 @@ public class TestSubpartitionProducer implements Callable<Boolean> {
                 MemorySegment segment = MemorySegmentFactory.wrap(bufferAndChannel.getBuffer());
                 subpartition.add(
                         new BufferConsumer(
-                                segment, MemorySegment::free, Buffer.DataType.DATA_BUFFER));
+                                new NetworkBuffer(
+                                        segment, MemorySegment::free, Buffer.DataType.DATA_BUFFER),
+                                segment.size()));
 
                 // Check for interrupted flag after adding data to prevent resource leaks
                 if (Thread.interrupted()) {

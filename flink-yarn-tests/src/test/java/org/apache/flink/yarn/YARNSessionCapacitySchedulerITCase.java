@@ -18,31 +18,28 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
-import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfo;
-import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoEntry;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
 import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
+import org.apache.flink.runtime.rest.messages.ConfigurationInfo;
+import org.apache.flink.runtime.rest.messages.ConfigurationInfoEntry;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.testutils.logging.TestLoggerResource;
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.util.TestUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.net.HostAndPort;
+import org.apache.flink.shaded.guava30.com.google.common.net.HostAndPort;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -52,29 +49,29 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.time.Duration;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -83,21 +80,18 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static junit.framework.TestCase.assertTrue;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Fail.fail;
 
 /**
  * This test starts a MiniYARNCluster with a CapacityScheduler. Is has, by default a queue called
  * "default". The configuration here adds another queue: "qa-team".
  */
-public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
+class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     private static final Logger LOG =
             LoggerFactory.getLogger(YARNSessionCapacitySchedulerITCase.class);
 
@@ -114,16 +108,16 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     /** Toggles checking for prohibited strings in logs after the test has run. */
     private boolean checkForProhibitedLogContents = true;
 
-    @Rule
-    public final TestLoggerResource cliTestLoggerResource =
-            new TestLoggerResource(CliFrontend.class, Level.INFO);
+    @RegisterExtension
+    private final LoggerAuditingExtension cliLoggerAuditingExtension =
+            new LoggerAuditingExtension(CliFrontend.class, Level.INFO);
 
-    @Rule
-    public final TestLoggerResource yarTestLoggerResource =
-            new TestLoggerResource(YarnClusterDescriptor.class, Level.WARN);
+    @RegisterExtension
+    private final LoggerAuditingExtension yarLoggerAuditingExtension =
+            new LoggerAuditingExtension(YarnClusterDescriptor.class, Level.WARN);
 
-    @BeforeClass
-    public static void setup() throws Exception {
+    @BeforeAll
+    static void setup() throws Exception {
         YARN_CONFIGURATION.setClass(
                 YarnConfiguration.RM_SCHEDULER, CapacityScheduler.class, ResourceScheduler.class);
         YARN_CONFIGURATION.set("yarn.scheduler.capacity.root.queues", "default,qa-team");
@@ -134,14 +128,11 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
         startYARNWithConfig(YARN_CONFIGURATION);
 
         restClientExecutor = Executors.newSingleThreadExecutor();
-        restClient =
-                new RestClient(
-                        RestClientConfiguration.fromConfiguration(new Configuration()),
-                        restClientExecutor);
+        restClient = new RestClient(new Configuration(), restClientExecutor);
     }
 
-    @AfterClass
-    public static void tearDown() throws Exception {
+    @AfterAll
+    static void teardown() throws Exception {
         try {
             YarnTestBase.teardown();
         } finally {
@@ -160,7 +151,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
      * started from the command line.
      */
     @Test
-    public void testStartYarnSessionClusterInQaTeamQueue() throws Exception {
+    void testStartYarnSessionClusterInQaTeamQueue() throws Exception {
         runTest(
                 () ->
                         runWithArgs(
@@ -190,7 +181,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
      * (-ys).
      */
     @Test
-    public void perJobYarnCluster() throws Exception {
+    void perJobYarnCluster() throws Exception {
         runTest(
                 () -> {
                     LOG.info("Starting perJobYarnCluster()");
@@ -220,7 +211,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                             new String[] {"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
                             RunTypes.CLI_FRONTEND,
                             0,
-                            cliTestLoggerResource::getMessages);
+                            cliLoggerAuditingExtension::getMessages);
                     LOG.info("Finished perJobYarnCluster()");
                 });
     }
@@ -234,7 +225,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
      * memory remains.
      */
     @Test
-    public void perJobYarnClusterOffHeap() throws Exception {
+    void perJobYarnClusterOffHeap() throws Exception {
         runTest(
                 () -> {
                     LOG.info("Starting perJobYarnCluster()");
@@ -269,7 +260,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                             new String[] {"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
                             RunTypes.CLI_FRONTEND,
                             0,
-                            cliTestLoggerResource::getMessages);
+                            cliLoggerAuditingExtension::getMessages);
                     LOG.info("Finished perJobYarnCluster()");
                 });
     }
@@ -291,7 +282,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
      * again!
      */
     @Test
-    public void
+    void
             testVCoresAreSetCorrectlyAndJobManagerHostnameAreShownInWebInterfaceAndDynamicPropertiesAndYarnApplicationNameAndTaskManagerSlots()
                     throws Exception {
         runTest(
@@ -322,7 +313,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                     try {
                         final String logs = outContent.toString();
                         final HostAndPort hostAndPort = parseJobManagerHostname(logs);
-                        final String host = hostAndPort.getHostText();
+                        final String host = hostAndPort.getHost();
                         final int port = hostAndPort.getPort();
                         LOG.info("Extracted hostname:port: {}:{}", host, port);
 
@@ -332,12 +323,12 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                         // Assert that custom YARN application name "customName" is set
                         //
                         final ApplicationReport applicationReport = getOnlyApplicationReport();
-                        assertEquals("customName", applicationReport.getName());
+                        assertThat(applicationReport.getName()).isEqualTo("customName");
 
                         //
                         // Assert the number of TaskManager slots are set
                         //
-                        waitForTaskManagerRegistration(host, port, Duration.ofMillis(30_000));
+                        waitForTaskManagerRegistration(host, port);
                         assertNumberOfSlotsPerTask(host, port, 3);
 
                         final Map<String, String> flinkConfig = getFlinkConfig(host, port);
@@ -345,17 +336,18 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                         //
                         // Assert dynamic properties
                         //
-                        assertThat(flinkConfig, hasEntry("fancy-configuration-value", "veryFancy"));
 
-                        //
-                        // FLINK-2213: assert that vcores are set
-                        //
-                        assertThat(flinkConfig, hasEntry(YarnConfigOptions.VCORES.key(), "2"));
-
-                        //
-                        // FLINK-1902: check if jobmanager hostname is shown in web interface
-                        //
-                        assertThat(flinkConfig, hasEntry(JobManagerOptions.ADDRESS.key(), host));
+                        assertThat(flinkConfig)
+                                .containsEntry("fancy-configuration-value", "veryFancy")
+                                //
+                                // FLINK-2213: assert that vcores are set
+                                //
+                                .containsEntry(YarnConfigOptions.VCORES.key(), "2")
+                                //
+                                // FLINK-1902: check if jobmanager hostname is shown in web
+                                // interface
+                                //
+                                .containsEntry(JobManagerOptions.ADDRESS.key(), host);
                     } finally {
                         yarnSessionClusterRunner.sendStop();
                         yarnSessionClusterRunner.join();
@@ -392,18 +384,16 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
         jobRunner.join();
     }
 
-    private static void waitForTaskManagerRegistration(
-            final String host, final int port, final Duration waitDuration) throws Exception {
-        CommonTestUtils.waitUntilCondition(
-                () -> getNumberOfTaskManagers(host, port) > 0, Deadline.fromNow(waitDuration));
+    private static void waitForTaskManagerRegistration(final String host, final int port)
+            throws Exception {
+        CommonTestUtils.waitUntilCondition(() -> getNumberOfTaskManagers(host, port) > 0);
     }
 
     private static void assertNumberOfSlotsPerTask(
             final String host, final int port, final int slotsNumber) throws Exception {
         try {
             CommonTestUtils.waitUntilCondition(
-                    () -> getNumberOfSlotsPerTaskManager(host, port) == slotsNumber,
-                    Deadline.fromNow(Duration.ofSeconds(30)));
+                    () -> getNumberOfSlotsPerTaskManager(host, port) == slotsNumber);
         } catch (final TimeoutException e) {
             final int currentNumberOfSlots = getNumberOfSlotsPerTaskManager(host, port);
             fail(
@@ -435,16 +425,15 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
     private static Map<String, String> getFlinkConfig(final String host, final int port)
             throws Exception {
-        final ClusterConfigurationInfo clusterConfigurationInfoEntries =
+        final ConfigurationInfo configurationInfoEntries =
                 restClient
                         .sendRequest(host, port, ClusterConfigurationInfoHeaders.getInstance())
                         .get();
 
-        return clusterConfigurationInfoEntries.stream()
+        return configurationInfoEntries.stream()
                 .collect(
                         Collectors.toMap(
-                                ClusterConfigurationInfoEntry::getKey,
-                                ClusterConfigurationInfoEntry::getValue));
+                                ConfigurationInfoEntry::getKey, ConfigurationInfoEntry::getValue));
     }
 
     /**
@@ -453,39 +442,38 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
      * With an error message, we can help users identifying the issue)
      */
     @Test
-    public void testNonexistingQueueWARNmessage() throws Exception {
+    void testNonexistingQueueWARNmessage() throws Exception {
         runTest(
                 () -> {
                     LOG.info("Starting testNonexistingQueueWARNmessage()");
-                    try {
-                        runWithArgs(
-                                new String[] {
-                                    "-j",
-                                    flinkUberjar.getAbsolutePath(),
-                                    "-t",
-                                    flinkLibFolder.getAbsolutePath(),
-                                    "-jm",
-                                    "768m",
-                                    "-tm",
-                                    "1024m",
-                                    "-qu",
-                                    "doesntExist"
-                                },
-                                "to unknown queue: doesntExist",
-                                null,
-                                RunTypes.YARN_SESSION,
-                                1);
-                    } catch (Exception e) {
-                        assertTrue(
-                                ExceptionUtils.findThrowableWithMessage(
-                                                e, "to unknown queue: doesntExist")
-                                        .isPresent());
-                    }
-                    assertThat(
-                            yarTestLoggerResource.getMessages(),
-                            hasItem(
-                                    containsString(
-                                            "The specified queue 'doesntExist' does not exist. Available queues")));
+                    assertThatThrownBy(
+                                    () ->
+                                            runWithArgs(
+                                                    new String[] {
+                                                        "-j",
+                                                        flinkUberjar.getAbsolutePath(),
+                                                        "-t",
+                                                        flinkLibFolder.getAbsolutePath(),
+                                                        "-jm",
+                                                        "768m",
+                                                        "-tm",
+                                                        "1024m",
+                                                        "-qu",
+                                                        "doesntExist"
+                                                    },
+                                                    "to unknown queue: doesntExist",
+                                                    null,
+                                                    RunTypes.YARN_SESSION,
+                                                    1))
+                            .isInstanceOf(Exception.class)
+                            .satisfies(anyCauseMatches("to unknown queue: doesntExist"));
+
+                    assertThat(yarLoggerAuditingExtension.getMessages())
+                            .anySatisfy(
+                                    s ->
+                                            assertThat(s)
+                                                    .contains(
+                                                            "The specified queue 'doesntExist' does not exist. Available queues"));
                     LOG.info("Finished testNonexistingQueueWARNmessage()");
                 });
     }
@@ -495,7 +483,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
      * client.
      */
     @Test
-    public void perJobYarnClusterWithParallelism() throws Exception {
+    void perJobYarnClusterWithParallelism() throws Exception {
         runTest(
                 () -> {
                     LOG.info("Starting perJobYarnClusterWithParallelism()");
@@ -525,59 +513,55 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                             new String[] {"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
                             RunTypes.CLI_FRONTEND,
                             0,
-                            cliTestLoggerResource::getMessages);
+                            cliLoggerAuditingExtension::getMessages);
                     LOG.info("Finished perJobYarnClusterWithParallelism()");
                 });
     }
 
     /** Test a fire-and-forget job submission to a YARN cluster. */
-    @Test(timeout = 60000)
-    public void testDetachedPerJobYarnCluster() throws Exception {
+    @Timeout(value = 60)
+    @Test
+    void testDetachedPerJobYarnCluster(@TempDir File tempDir) throws Exception {
         runTest(
                 () -> {
                     LOG.info("Starting testDetachedPerJobYarnCluster()");
 
                     File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
 
-                    testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
+                    testDetachedPerJobYarnClusterInternal(
+                            tempDir, exampleJarLocation.getAbsolutePath());
 
                     LOG.info("Finished testDetachedPerJobYarnCluster()");
                 });
     }
 
     /** Test a fire-and-forget job submission to a YARN cluster. */
-    @Test(timeout = 60000)
-    public void testDetachedPerJobYarnClusterWithStreamingJob() throws Exception {
+    @Timeout(value = 60)
+    @Test
+    void testDetachedPerJobYarnClusterWithStreamingJob(@TempDir File tempDir) throws Exception {
         runTest(
                 () -> {
                     LOG.info("Starting testDetachedPerJobYarnClusterWithStreamingJob()");
 
                     File exampleJarLocation = getTestJarPath("StreamingWordCount.jar");
 
-                    testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
+                    testDetachedPerJobYarnClusterInternal(
+                            tempDir, exampleJarLocation.getAbsolutePath());
 
                     LOG.info("Finished testDetachedPerJobYarnClusterWithStreamingJob()");
                 });
     }
 
-    private void testDetachedPerJobYarnClusterInternal(String job) throws Exception {
+    private void testDetachedPerJobYarnClusterInternal(File tempDir, String job) throws Exception {
         YarnClient yc = YarnClient.createYarnClient();
         yc.init(YARN_CONFIGURATION);
         yc.start();
 
-        // get temporary folder for writing output of wordcount example
-        File tmpOutFolder = null;
-        try {
-            tmpOutFolder = tmp.newFolder();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
         // get temporary file for reading input data for wordcount example
-        File tmpInFile;
+        File tmpInFile = tempDir.toPath().resolve(UUID.randomUUID().toString()).toFile();
+        tmpInFile.createNewFile();
         try {
-            tmpInFile = tmp.newFile();
-            FileUtils.writeStringToFile(tmpInFile, WordCountData.TEXT);
+            FileUtils.writeStringToFile(tmpInFile, WordCountData.TEXT, Charset.defaultCharset());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -607,22 +591,21 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                             "--input",
                             tmpInFile.getAbsoluteFile().toString(),
                             "--output",
-                            tmpOutFolder.getAbsoluteFile().toString()
+                            tempDir.getAbsoluteFile().toString()
                         },
                         "Job has been submitted with JobID",
                         RunTypes.CLI_FRONTEND);
 
         // it should usually be 2, but on slow machines, the number varies
-        Assert.assertTrue(
-                "There should be at most 2 containers running", getRunningContainers() <= 2);
+        assertThat(getRunningContainers()).isLessThanOrEqualTo(2);
         // give the runner some time to detach
         for (int attempt = 0; runner.isAlive() && attempt < 5; attempt++) {
             try {
                 Thread.sleep(500);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException ignored) {
             }
         }
-        Assert.assertFalse("The runner should detach.", runner.isAlive());
+        assertThat(runner.isAlive()).isFalse();
         LOG.info("CLI Frontend has returned, so the job is running");
 
         // find out the application id and wait until it has finished.
@@ -651,12 +634,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                 apps = getApplicationReportWithRetryOnNPE(yc);
                 Collections.sort(
                         apps,
-                        new Comparator<ApplicationReport>() {
-                            @Override
-                            public int compare(ApplicationReport o1, ApplicationReport o2) {
-                                return o1.getApplicationId().compareTo(o2.getApplicationId()) * -1;
-                            }
-                        });
+                        (o1, o2) -> o1.getApplicationId().compareTo(o2.getApplicationId()) * -1);
                 tmpAppId = apps.get(0).getApplicationId();
                 LOG.info(
                         "Selected {} as the last appId from {}",
@@ -667,61 +645,34 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
             // now it has finished.
             // check the output files.
-            File[] listOfOutputFiles = tmpOutFolder.listFiles();
+            File[] listOfOutputFiles = tempDir.listFiles();
 
-            Assert.assertNotNull("Taskmanager output not found", listOfOutputFiles);
-            LOG.info("The job has finished. TaskManager output files found in {}", tmpOutFolder);
+            assertThat(listOfOutputFiles).isNotNull();
+            LOG.info("The job has finished. TaskManager output files found in {}", tempDir);
 
             // read all output files in output folder to one output string
-            String content = "";
+            StringBuilder content = new StringBuilder();
             for (File f : listOfOutputFiles) {
                 if (f.isFile()) {
-                    content += FileUtils.readFileToString(f) + "\n";
+                    content.append(FileUtils.readFileToString(f, Charset.defaultCharset()))
+                            .append("\n");
                 }
             }
-            // String content = FileUtils.readFileToString(taskmanagerOut);
-            // check for some of the wordcount outputs.
-            Assert.assertTrue(
-                    "Expected string 'da 5' or '(all,2)' not found in string '" + content + "'",
-                    content.contains("da 5")
-                            || content.contains("(da,5)")
-                            || content.contains("(all,2)"));
-            Assert.assertTrue(
-                    "Expected string 'der 29' or '(mind,1)' not found in string'" + content + "'",
-                    content.contains("der 29")
-                            || content.contains("(der,29)")
-                            || content.contains("(mind,1)"));
 
             // check if the heap size for the TaskManager was set correctly
             File jobmanagerLog =
                     TestUtils.findFile(
                             "..",
-                            new FilenameFilter() {
-                                @Override
-                                public boolean accept(File dir, String name) {
-                                    return name.contains("jobmanager.log")
-                                            && dir.getAbsolutePath().contains(id.toString());
-                                }
-                            });
-            Assert.assertNotNull("Unable to locate JobManager log", jobmanagerLog);
-            content = FileUtils.readFileToString(jobmanagerLog);
-            String expected = "Starting TaskManagers";
-            Assert.assertTrue(
-                    "Expected string '"
-                            + expected
-                            + "' not found in JobManager log: '"
-                            + jobmanagerLog
-                            + "'",
-                    content.contains(expected));
-            expected = " (2/2) (attempt #0) with attempt id ";
-            Assert.assertTrue(
-                    "Expected string '"
-                            + expected
-                            + "' not found in JobManager log."
-                            + "This string checks that the job has been started with a parallelism of 2. Log contents: '"
-                            + jobmanagerLog
-                            + "'",
-                    content.contains(expected));
+                            (dir, name) ->
+                                    name.contains("jobmanager.log")
+                                            && dir.getAbsolutePath().contains(id.toString()));
+            assertThat(jobmanagerLog).isNotNull();
+            content =
+                    new StringBuilder(
+                            FileUtils.readFileToString(jobmanagerLog, Charset.defaultCharset()));
+            assertThat(content.toString())
+                    .contains("Starting TaskManagers")
+                    .contains(" (2/2) (attempt #0) with attempt id ");
 
             // make sure the detached app is really finished.
             LOG.info("Checking again that app has finished");
@@ -798,11 +749,11 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
         @SuppressWarnings("unchecked")
         Set<String> applicationTags = (Set<String>) applicationTagsMethod.invoke(report);
 
-        assertEquals(Collections.singleton("test-tag"), applicationTags);
+        assertThat(applicationTags).containsOnly("test-tag");
     }
 
-    @After
-    public void checkForProhibitedLogContents() {
+    @AfterEach
+    void checkForProhibitedLogContents() {
         if (checkForProhibitedLogContents) {
             ensureNoProhibitedStringInLogFiles(PROHIBITED_STRINGS, WHITELISTED_STRINGS);
         }

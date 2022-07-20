@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.MiniClusterClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -89,9 +90,9 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 
         Assume.assumeTrue(
                 "ClusterClient is not an instance of MiniClusterClient",
-                miniClusterResource.getClusterClient() instanceof MiniClusterClient);
+                MINI_CLUSTER_RESOURCE.getClusterClient() instanceof MiniClusterClient);
 
-        clusterClient = (MiniClusterClient) miniClusterResource.getClusterClient();
+        clusterClient = (MiniClusterClient) MINI_CLUSTER_RESOURCE.getClusterClient();
 
         final JobVertex vertex = new JobVertex("testVertex");
         vertex.setInvokableClass(NoOpBlockingInvokable.class);
@@ -107,7 +108,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
                                 true,
                                 false,
-                                false,
+                                0,
                                 0),
                         null);
 
@@ -192,7 +193,9 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
         setUpWithCheckpointInterval(10L);
 
         try {
-            clusterClient.cancelWithSavepoint(jobGraph.getJobID(), null).get();
+            clusterClient
+                    .cancelWithSavepoint(jobGraph.getJobID(), null, SavepointFormatType.CANONICAL)
+                    .get();
         } catch (Exception e) {
             if (!ExceptionUtils.findThrowableWithMessage(e, "savepoint directory").isPresent()) {
                 throw e;
@@ -238,7 +241,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
         }
 
         @Override
-        public Future<Boolean> triggerCheckpointAsync(
+        public CompletableFuture<Boolean> triggerCheckpointAsync(
                 final CheckpointMetaData checkpointMetaData,
                 final CheckpointOptions checkpointOptions) {
             final TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();
@@ -263,7 +266,8 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
         }
 
         @Override
-        public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
+        public Future<Void> notifyCheckpointAbortAsync(
+                long checkpointId, long latestCompletedCheckpointId) {
             return CompletableFuture.completedFuture(null);
         }
     }
@@ -271,7 +275,9 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
     private String cancelWithSavepoint() throws Exception {
         return clusterClient
                 .cancelWithSavepoint(
-                        jobGraph.getJobID(), savepointDirectory.toAbsolutePath().toString())
+                        jobGraph.getJobID(),
+                        savepointDirectory.toAbsolutePath().toString(),
+                        SavepointFormatType.CANONICAL)
                 .get();
     }
 }

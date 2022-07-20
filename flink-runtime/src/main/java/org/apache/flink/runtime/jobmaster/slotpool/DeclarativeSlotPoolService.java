@@ -49,6 +49,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /** {@link SlotPoolService} implementation for the {@link DeclarativeSlotPool}. */
 public class DeclarativeSlotPoolService implements SlotPoolService {
@@ -234,6 +235,31 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
         return false;
     }
 
+    @Override
+    public void releaseFreeSlotsOnTaskManager(ResourceID taskManagerId, Exception cause) {
+        assertHasBeenStarted();
+        if (isTaskManagerRegistered(taskManagerId)) {
+
+            Collection<AllocationID> freeSlots =
+                    declarativeSlotPool.getFreeSlotsInformation().stream()
+                            .filter(
+                                    slotInfo ->
+                                            slotInfo.getTaskManagerLocation()
+                                                    .getResourceID()
+                                                    .equals(taskManagerId))
+                            .map(SlotInfoWithUtilization::getAllocationId)
+                            .collect(Collectors.toSet());
+
+            for (AllocationID allocationId : freeSlots) {
+                final ResourceCounter previouslyFulfilledRequirement =
+                        declarativeSlotPool.releaseSlot(allocationId, cause);
+                // release free slots, previously fulfilled requirement should be empty.
+                Preconditions.checkState(
+                        previouslyFulfilledRequirement.equals(ResourceCounter.empty()));
+            }
+        }
+    }
+
     private void releaseAllTaskManagers(Exception cause) {
         for (ResourceID registeredTaskManager : registeredTaskManagers) {
             internalReleaseTaskManager(registeredTaskManager, cause);
@@ -305,5 +331,13 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
         CREATED,
         STARTED,
         CLOSED,
+    }
+
+    protected String getSlotServiceStatus() {
+        return String.format(
+                "Registered TMs: %d, registered slots: %d free slots: %d",
+                registeredTaskManagers.size(),
+                declarativeSlotPool.getAllSlotsInformation().size(),
+                declarativeSlotPool.getFreeSlotsInformation().size());
     }
 }

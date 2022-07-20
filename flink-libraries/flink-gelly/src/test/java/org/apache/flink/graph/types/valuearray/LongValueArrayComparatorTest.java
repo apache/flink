@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.LongValue;
 
 /** Tests for {@link LongValueArrayComparator}. */
-public class LongValueArrayComparatorTest extends ComparatorTestBase<LongValueArray> {
+class LongValueArrayComparatorTest extends ComparatorTestBase<LongValueArray> {
 
     @Override
     protected TypeComparator<LongValueArray> createComparator(boolean ascending) {

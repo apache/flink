@@ -22,17 +22,17 @@ import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.testutils.TestingFileSystem;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
 
 /** Unit tests for the {@link BlockSplittingRecursiveEnumerator}. */
-public class BlockSplittingRecursiveEnumeratorTest extends NonSplittingRecursiveEnumeratorTest {
+class BlockSplittingRecursiveEnumeratorTest extends NonSplittingRecursiveEnumeratorTest {
 
     @Test
     @Override
-    public void testFileWithMultipleBlocks() throws Exception {
+    void testFileWithMultipleBlocks() throws Exception {
         final Path testPath = new Path("testfs:///dir/file");
         testFs =
                 TestingFileSystem.createForFileStatus(
@@ -53,9 +53,12 @@ public class BlockSplittingRecursiveEnumeratorTest extends NonSplittingRecursive
 
         final Collection<FileSourceSplit> expected =
                 Arrays.asList(
-                        new FileSourceSplit("ignoredId", testPath, 0L, 100L, "host1", "host2"),
-                        new FileSourceSplit("ignoredId", testPath, 100L, 520L, "host1", "host2"),
-                        new FileSourceSplit("ignoredId", testPath, 620L, 380L, "host1", "host2"));
+                        new FileSourceSplit(
+                                "ignoredId", testPath, 0L, 100L, 0, 1000L, "host1", "host2"),
+                        new FileSourceSplit(
+                                "ignoredId", testPath, 100L, 520L, 0, 1000L, "host1", "host2"),
+                        new FileSourceSplit(
+                                "ignoredId", testPath, 620L, 380L, 0, 1000L, "host1", "host2"));
 
         assertSplitsEqual(expected, splits);
     }

@@ -19,6 +19,9 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
@@ -129,8 +132,30 @@ public class CliFrontendParser {
                             + "You need to allow this if you removed an operator from your "
                             + "program that was part of the program when the savepoint was triggered.");
 
+    public static final Option SAVEPOINT_RESTORE_MODE =
+            new Option(
+                    "rm",
+                    "restoreMode",
+                    true,
+                    "Defines how should we restore from the given savepoint. Supported options: "
+                            + "[claim - claim ownership of the savepoint and delete once it is"
+                            + " subsumed, no_claim (default) - do not claim ownership, the first"
+                            + " checkpoint will not reuse any files from the restored one, legacy "
+                            + "- the old behaviour, do not assume ownership of the savepoint files,"
+                            + " but can reuse some shared files.");
+
     static final Option SAVEPOINT_DISPOSE_OPTION =
             new Option("d", "dispose", true, "Path of savepoint to dispose.");
+
+    static final Option SAVEPOINT_FORMAT_OPTION =
+            new Option(
+                    "type",
+                    "type",
+                    true,
+                    "Describes the binary format in which a savepoint should be taken. Supported"
+                            + " options: [canonical - a common format for all state backends, allow"
+                            + " for changing state backends, native = a specific format for the"
+                            + " chosen state backend, might be faster to take and restore from.");
 
     // list specific options
     static final Option RUNNING_OPTION =
@@ -222,7 +247,7 @@ public class CliFrontendParser {
                     "pyArchives",
                     true,
                     "Add python archive files for job. The archive files will be extracted to the working directory "
-                            + "of python UDF worker. Currently only zip-format is supported. For each archive file, a target directory "
+                            + "of python UDF worker. For each archive file, a target directory "
                             + "be specified. If the target directory name is specified, the archive file will be extracted to a "
                             + "directory with the specified name. Otherwise, the archive file will be extracted to a "
                             + "directory with the same name of the archive file. The files uploaded via this option are accessible "
@@ -240,9 +265,18 @@ public class CliFrontendParser {
                     true,
                     "Specify the path of the python interpreter used to execute the python UDF worker "
                             + "(e.g.: --pyExecutable /usr/local/bin/python3). "
-                            + "The python UDF worker depends on Python 3.6+, Apache Beam (version == 2.27.0), "
-                            + "Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0). "
+                            + "The python UDF worker depends on Python 3.6+, Apache Beam (version == 2.38.0), "
+                            + "Pip (version >= 20.3) and SetupTools (version >= 37.0.0). "
                             + "Please ensure that the specified environment meets the above requirements.");
+
+    public static final Option PYCLIENTEXEC_OPTION =
+            new Option(
+                    "pyclientexec",
+                    "pyClientExecutable",
+                    true,
+                    "The path of the Python interpreter used to launch the Python "
+                            + "process when submitting the Python jobs via \"flink run\" or compiling "
+                            + "the Java/Scala jobs containing Python UDFs.");
 
     static {
         HELP_OPTION.setRequired(false);
@@ -277,6 +311,9 @@ public class CliFrontendParser {
         SAVEPOINT_PATH_OPTION.setArgName("savepointPath");
 
         SAVEPOINT_ALLOW_NON_RESTORED_OPTION.setRequired(false);
+        SAVEPOINT_RESTORE_MODE.setRequired(false);
+
+        SAVEPOINT_FORMAT_OPTION.setRequired(false);
 
         ZOOKEEPER_NAMESPACE_OPTION.setRequired(false);
         ZOOKEEPER_NAMESPACE_OPTION.setArgName("zookeeperNamespace");
@@ -305,6 +342,8 @@ public class CliFrontendParser {
         PYARCHIVE_OPTION.setRequired(false);
 
         PYEXEC_OPTION.setRequired(false);
+
+        PYCLIENTEXEC_OPTION.setRequired(false);
     }
 
     static final Options RUN_OPTIONS = getRunCommandOptions();
@@ -331,6 +370,7 @@ public class CliFrontendParser {
         options.addOption(PYREQUIREMENTS_OPTION);
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
+        options.addOption(PYCLIENTEXEC_OPTION);
         return options;
     }
 
@@ -346,14 +386,15 @@ public class CliFrontendParser {
         options.addOption(PYREQUIREMENTS_OPTION);
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
+        options.addOption(PYCLIENTEXEC_OPTION);
         return options;
     }
 
     public static Options getRunCommandOptions() {
-        Options options = buildGeneralOptions(new Options());
-        options = getProgramSpecificOptions(options);
-        options.addOption(SAVEPOINT_PATH_OPTION);
-        return options.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
+        return getProgramSpecificOptions(buildGeneralOptions(new Options()))
+                .addOption(SAVEPOINT_PATH_OPTION)
+                .addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION)
+                .addOption(SAVEPOINT_RESTORE_MODE);
     }
 
     static Options getInfoCommandOptions() {
@@ -369,20 +410,23 @@ public class CliFrontendParser {
     }
 
     static Options getCancelCommandOptions() {
-        Options options = buildGeneralOptions(new Options());
-        return options.addOption(CANCEL_WITH_SAVEPOINT_OPTION);
+        return buildGeneralOptions(new Options())
+                .addOption(CANCEL_WITH_SAVEPOINT_OPTION)
+                .addOption(SAVEPOINT_FORMAT_OPTION);
     }
 
     static Options getStopCommandOptions() {
         return buildGeneralOptions(new Options())
                 .addOption(STOP_WITH_SAVEPOINT_PATH)
-                .addOption(STOP_AND_DRAIN);
+                .addOption(STOP_AND_DRAIN)
+                .addOption(SAVEPOINT_FORMAT_OPTION);
     }
 
     static Options getSavepointCommandOptions() {
-        Options options = buildGeneralOptions(new Options());
-        options.addOption(SAVEPOINT_DISPOSE_OPTION);
-        return options.addOption(JAR_OPTION);
+        return buildGeneralOptions(new Options())
+                .addOption(SAVEPOINT_DISPOSE_OPTION)
+                .addOption(JAR_OPTION)
+                .addOption(SAVEPOINT_FORMAT_OPTION);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -390,9 +434,10 @@ public class CliFrontendParser {
     // --------------------------------------------------------------------------------------------
 
     private static Options getRunOptionsWithoutDeprecatedOptions(Options options) {
-        Options o = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
-        o.addOption(SAVEPOINT_PATH_OPTION);
-        return o.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
+        return getProgramSpecificOptionsWithoutDeprecatedOptions(options)
+                .addOption(SAVEPOINT_PATH_OPTION)
+                .addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION)
+                .addOption(SAVEPOINT_RESTORE_MODE);
     }
 
     private static Options getInfoOptionsWithoutDeprecatedOptions(Options options) {
@@ -413,13 +458,15 @@ public class CliFrontendParser {
     }
 
     private static Options getStopOptionsWithoutDeprecatedOptions(Options options) {
-        return options.addOption(STOP_WITH_SAVEPOINT_PATH).addOption(STOP_AND_DRAIN);
+        return options.addOption(STOP_WITH_SAVEPOINT_PATH)
+                .addOption(STOP_AND_DRAIN)
+                .addOption(SAVEPOINT_FORMAT_OPTION);
     }
 
     private static Options getSavepointOptionsWithoutDeprecatedOptions(Options options) {
-        options.addOption(SAVEPOINT_DISPOSE_OPTION);
-        options.addOption(JAR_OPTION);
-        return options;
+        return options.addOption(SAVEPOINT_DISPOSE_OPTION)
+                .addOption(SAVEPOINT_FORMAT_OPTION)
+                .addOption(JAR_OPTION);
     }
 
     /** Prints the help for the client. */
@@ -580,7 +627,17 @@ public class CliFrontendParser {
             String savepointPath = commandLine.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
             boolean allowNonRestoredState =
                     commandLine.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt());
-            return SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState);
+            final RestoreMode restoreMode;
+            if (commandLine.hasOption(SAVEPOINT_RESTORE_MODE)) {
+                restoreMode =
+                        ConfigurationUtils.convertValue(
+                                commandLine.getOptionValue(SAVEPOINT_RESTORE_MODE),
+                                RestoreMode.class);
+            } else {
+                restoreMode = SavepointConfigOptions.RESTORE_MODE.defaultValue();
+            }
+            return SavepointRestoreSettings.forPath(
+                    savepointPath, allowNonRestoredState, restoreMode);
         } else {
             return SavepointRestoreSettings.none();
         }

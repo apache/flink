@@ -25,7 +25,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -59,10 +59,10 @@ public class PollingRecordPublisherMetricsReporterTest {
         metricsReporter.setRunLoopTimeNanos(4);
         metricsReporter.setSleepTimeMillis(5);
 
-        assertEquals(1, metricsReporter.getBytesPerRead(), 0);
-        assertEquals(2, metricsReporter.getLoopFrequencyHz(), 0);
-        assertEquals(3, metricsReporter.getMaxNumberOfRecordsPerFetch());
-        assertEquals(4, metricsReporter.getRunLoopTimeNanos());
-        assertEquals(5, metricsReporter.getSleepTimeMillis());
+        assertThat(metricsReporter.getBytesPerRead()).isEqualTo(1);
+        assertThat(metricsReporter.getLoopFrequencyHz()).isEqualTo(2);
+        assertThat(metricsReporter.getMaxNumberOfRecordsPerFetch()).isEqualTo(3);
+        assertThat(metricsReporter.getRunLoopTimeNanos()).isEqualTo(4);
+        assertThat(metricsReporter.getSleepTimeMillis()).isEqualTo(5);
     }
 }

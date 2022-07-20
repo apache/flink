@@ -57,19 +57,21 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+
 public class DummyEnvironment implements Environment {
 
     private final JobID jobId = new JobID();
     private final JobVertexID jobVertexId = new JobVertexID();
-    private final ExecutionAttemptID executionId = new ExecutionAttemptID();
+    private final ExecutionAttemptID executionId;
     private final ExecutionConfig executionConfig = new ExecutionConfig();
     private final TaskInfo taskInfo;
     private KvStateRegistry kvStateRegistry = new KvStateRegistry();
     private TaskStateManager taskStateManager;
     private final GlobalAggregateManager aggregateManager;
-    private final AccumulatorRegistry accumulatorRegistry =
-            new AccumulatorRegistry(jobId, executionId);
+    private final AccumulatorRegistry accumulatorRegistry;
     private UserCodeClassLoader userClassLoader;
+    private final Configuration taskConfiguration = new Configuration();
 
     public DummyEnvironment() {
         this("Test Job", 1, 0, 1);
@@ -88,8 +90,11 @@ public class DummyEnvironment implements Environment {
     public DummyEnvironment(
             String taskName, int numSubTasks, int subTaskIndex, int maxParallelism) {
         this.taskInfo = new TaskInfo(taskName, maxParallelism, subTaskIndex, numSubTasks, 0);
+        this.executionId =
+                createExecutionAttemptId(jobVertexId, subTaskIndex, taskInfo.getAttemptNumber());
         this.taskStateManager = new TestTaskStateManager();
         this.aggregateManager = new TestGlobalAggregateManager();
+        this.accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
     }
 
     public void setKvStateRegistry(KvStateRegistry kvStateRegistry) {
@@ -122,7 +127,7 @@ public class DummyEnvironment implements Environment {
 
     @Override
     public Configuration getTaskConfiguration() {
-        return new Configuration();
+        return taskConfiguration;
     }
 
     @Override

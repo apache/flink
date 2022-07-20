@@ -28,6 +28,8 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** ZooKeeper test utilities. */
@@ -86,7 +88,7 @@ public class ZooKeeperTestUtils {
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY, fsStateHandlePath + "/checkpoints");
         config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, fsStateHandlePath + "/recovery");
 
-        config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
+        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(100));
 
         return config;
     }

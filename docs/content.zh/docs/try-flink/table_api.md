@@ -57,7 +57,7 @@ A workaround is to switch the shell to **sh** on the first line of **docker-entr
 
 If you want to follow along, you will require a computer with: 
 
-* Java 8 or 11
+* Java 11
 * Maven 
 * Docker
 
@@ -75,7 +75,7 @@ The required configuration files are available in the [flink-playgrounds](https:
 Once downloaded, open the project `flink-playground/table-walkthrough` in your IDE and navigate to the file `SpendReport`. 
 
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tEnv = TableEnvironment.create(settings);
 
 tEnv.executeSql("CREATE TABLE transactions (\n" +
@@ -118,7 +118,7 @@ The table environment is how you can set properties for your Job, specify whethe
 This walkthrough creates a standard table environment that uses the streaming execution.
 
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tEnv = TableEnvironment.create(settings);
 ```
 
@@ -184,7 +184,7 @@ The project contains a secondary testing class `SpendReportTest` that validates 
 It creates a table environment in batch mode. 
 
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
+EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
 TableEnvironment tEnv = TableEnvironment.create(settings); 
 ```
 
@@ -304,7 +304,7 @@ $ docker-compose up -d
 
 You can see information on the running job via the [Flink console](http://localhost:8082/).
 
-![Flink Console]({% link /fig/spend-report-console.png %}){:height="400px" width="800px"}
+{{< img src="/fig/spend-report-console.png" height="400px" width="800px" alt="Flink Console">}}
 
 Explore the results from inside MySQL.
 

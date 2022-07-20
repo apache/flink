@@ -25,11 +25,15 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.kubernetes.utils.Constants.CHECKPOINT_COUNTER_KEY;
@@ -48,15 +52,15 @@ public class KubernetesCheckpointIDCounter implements CheckpointIDCounter {
 
     private final String configMapName;
 
-    private final String lockIdentity;
+    @Nullable private final String lockIdentity;
 
     private boolean running;
 
     public KubernetesCheckpointIDCounter(
-            FlinkKubeClient kubeClient, String configMapName, String lockIdentity) {
+            FlinkKubeClient kubeClient, String configMapName, @Nullable String lockIdentity) {
         this.kubeClient = checkNotNull(kubeClient);
         this.configMapName = checkNotNull(configMapName);
-        this.lockIdentity = checkNotNull(lockIdentity);
+        this.lockIdentity = lockIdentity;
 
         this.running = false;
     }
@@ -69,25 +73,37 @@ public class KubernetesCheckpointIDCounter implements CheckpointIDCounter {
     }
 
     @Override
-    public void shutdown(JobStatus jobStatus) {
+    public CompletableFuture<Void> shutdown(JobStatus jobStatus) {
         if (!running) {
-            return;
+            return FutureUtils.completedVoidFuture();
         }
         running = false;
 
         LOG.info("Shutting down.");
         if (jobStatus.isGloballyTerminalState()) {
             LOG.info("Removing counter from ConfigMap {}", configMapName);
-            kubeClient.checkAndUpdateConfigMap(
-                    configMapName,
-                    configMap -> {
-                        if (KubernetesLeaderElector.hasLeadership(configMap, lockIdentity)) {
-                            configMap.getData().remove(CHECKPOINT_COUNTER_KEY);
-                            return Optional.of(configMap);
-                        }
-                        return Optional.empty();
-                    });
+            return kubeClient
+                    .checkAndUpdateConfigMap(
+                            configMapName,
+                            configMap -> {
+                                if (isValidOperation(configMap)) {
+                                    configMap.getData().remove(CHECKPOINT_COUNTER_KEY);
+                                    return Optional.of(configMap);
+                                }
+                                return Optional.empty();
+                            })
+                    // checkAndUpdateConfigMap only returns false if the callback returned an empty
+                    // ConfigMap. We don't want to continue the cleanup in that case, i.e. we can
+                    // ignore the return value
+                    .thenApply(valueChanged -> null);
         }
+
+        return FutureUtils.completedVoidFuture();
+    }
+
+    private boolean isValidOperation(KubernetesConfigMap configMap) {
+        return lockIdentity == null
+                || KubernetesLeaderElector.hasLeadership(configMap, lockIdentity);
     }
 
     @Override
@@ -98,8 +114,7 @@ public class KubernetesCheckpointIDCounter implements CheckpointIDCounter {
                         .checkAndUpdateConfigMap(
                                 configMapName,
                                 configMap -> {
-                                    if (KubernetesLeaderElector.hasLeadership(
-                                            configMap, lockIdentity)) {
+                                    if (isValidOperation(configMap)) {
                                         final long currentValue = getCurrentCounter(configMap);
                                         current.set(currentValue);
                                         configMap
@@ -143,7 +158,7 @@ public class KubernetesCheckpointIDCounter implements CheckpointIDCounter {
                 .checkAndUpdateConfigMap(
                         configMapName,
                         configMap -> {
-                            if (KubernetesLeaderElector.hasLeadership(configMap, lockIdentity)) {
+                            if (isValidOperation(configMap)) {
                                 final String existing =
                                         configMap.getData().get(CHECKPOINT_COUNTER_KEY);
                                 final String newValue = String.valueOf(newCount);
@@ -163,8 +178,7 @@ public class KubernetesCheckpointIDCounter implements CheckpointIDCounter {
         if (configMap.getData().containsKey(CHECKPOINT_COUNTER_KEY)) {
             return Long.valueOf(configMap.getData().get(CHECKPOINT_COUNTER_KEY));
         } else {
-            // Initial checkpoint id
-            return 1;
+            return INITIAL_CHECKPOINT_ID;
         }
     }
 }

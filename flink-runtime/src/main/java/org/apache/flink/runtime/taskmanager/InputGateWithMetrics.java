@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -60,6 +61,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     @Override
+    public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo) throws IOException {
+        inputGate.acknowledgeAllRecordsProcessed(channelInfo);
+    }
+
+    @Override
     public int getNumberOfInputChannels() {
         return inputGate.getNumberOfInputChannels();
     }
@@ -75,8 +81,23 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     @Override
+    public List<InputChannelInfo> getUnfinishedChannels() {
+        return inputGate.getUnfinishedChannels();
+    }
+
+    @Override
+    public void triggerDebloating() {
+        inputGate.triggerDebloating();
+    }
+
+    @Override
     public boolean isFinished() {
         return inputGate.isFinished();
+    }
+
+    @Override
+    public EndOfDataStatus hasReceivedEndOfData() {
+        return inputGate.hasReceivedEndOfData();
     }
 
     @Override
@@ -130,7 +151,10 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     private BufferOrEvent updateMetrics(BufferOrEvent bufferOrEvent) {
-        numBytesIn.inc(bufferOrEvent.getSize());
+        int incomingDataSize = bufferOrEvent.getSize();
+
+        numBytesIn.inc(incomingDataSize);
+
         return bufferOrEvent;
     }
 }

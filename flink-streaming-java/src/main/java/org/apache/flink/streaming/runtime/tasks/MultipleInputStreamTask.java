@@ -22,15 +22,20 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
+import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessorFactory;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
@@ -39,6 +44,8 @@ import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
@@ -46,9 +53,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * A {@link StreamTask} for executing a {@link MultipleInputStreamOperator} and supporting the
@@ -159,11 +167,10 @@ public class MultipleInputStreamTask<OUT>
                         getEnvironment().getMemoryManager(),
                         getEnvironment().getMetricGroup().getIOMetricGroup(),
                         setupNumRecordsInCounter(mainOperator),
-                        getStreamStatusMaintainer(),
                         mainOperator,
                         inputWatermarkGauges,
                         getConfiguration(),
-                        getTaskConfiguration(),
+                        getEnvironment().getTaskConfiguration(),
                         getJobConfiguration(),
                         getExecutionConfig(),
                         getUserCodeClassLoader(),
@@ -173,10 +180,37 @@ public class MultipleInputStreamTask<OUT>
                         getEnvironment().getTaskInfo());
     }
 
+    protected Optional<CheckpointBarrierHandler> getCheckpointBarrierHandler() {
+        return Optional.ofNullable(checkpointBarrierHandler);
+    }
+
     @Override
-    public Future<Boolean> triggerCheckpointAsync(
+    public CompletableFuture<Boolean> triggerCheckpointAsync(
             CheckpointMetaData metadata, CheckpointOptions options) {
 
+        if (operatorChain.getSourceTaskInputs().size() == 0) {
+            return super.triggerCheckpointAsync(metadata, options);
+        }
+
+        // If there are chained sources, we would always only trigger the
+        // chained sources for checkpoint. This means that for the checkpoints
+        // during the upstream task finished and this task receives the
+        // EndOfPartitionEvent, we would not complement barriers for the
+        // unfinished network inputs, and the checkpoint would be triggered
+        // after received all the EndOfPartitionEvent.
+        if (isSynchronous(options.getCheckpointType())) {
+            return triggerStopWithSavepointAsync(metadata, options);
+        } else {
+            return triggerSourcesCheckpointAsync(metadata, options);
+        }
+    }
+
+    private boolean isSynchronous(SnapshotType snapshotType) {
+        return snapshotType.isSavepoint() && ((SavepointType) snapshotType).isSynchronous();
+    }
+
+    private CompletableFuture<Boolean> triggerSourcesCheckpointAsync(
+            CheckpointMetaData metadata, CheckpointOptions options) {
         CompletableFuture<Boolean> resultFuture = new CompletableFuture<>();
         mainMailboxExecutor.execute(
                 () -> {
@@ -190,7 +224,7 @@ public class MultipleInputStreamTask<OUT>
                         pendingCheckpointCompletedFutures.put(
                                 metadata.getCheckpointId(), resultFuture);
                         checkPendingCheckpointCompletedFuturesSize();
-                        triggerSourcesCheckpoint(
+                        emitBarrierForSources(
                                 new CheckpointBarrier(
                                         metadata.getCheckpointId(),
                                         metadata.getTimestamp(),
@@ -206,6 +240,30 @@ public class MultipleInputStreamTask<OUT>
                 metadata,
                 options);
         return resultFuture;
+    }
+
+    private CompletableFuture<Boolean> triggerStopWithSavepointAsync(
+            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
+
+        CompletableFuture<Void> sourcesStopped = new CompletableFuture<>();
+        final StopMode stopMode =
+                ((SavepointType) checkpointOptions.getCheckpointType()).shouldDrain()
+                        ? StopMode.DRAIN
+                        : StopMode.NO_DRAIN;
+        mainMailboxExecutor.execute(
+                () -> {
+                    setSynchronousSavepoint(checkpointMetaData.getCheckpointId());
+                    FutureUtils.forward(
+                            FutureUtils.waitForAll(
+                                    operatorChain.getSourceTaskInputs().stream()
+                                            .map(s -> s.getOperator().stop(stopMode))
+                                            .collect(Collectors.toList())),
+                            sourcesStopped);
+                },
+                "stop chained Flip-27 source for stop-with-savepoint --drain");
+
+        return sourcesStopped.thenCompose(
+                ignore -> triggerSourcesCheckpointAsync(checkpointMetaData, checkpointOptions));
     }
 
     private void checkPendingCheckpointCompletedFuturesSize() {
@@ -224,10 +282,10 @@ public class MultipleInputStreamTask<OUT>
         }
     }
 
-    private void triggerSourcesCheckpoint(CheckpointBarrier checkpointBarrier) throws IOException {
+    private void emitBarrierForSources(CheckpointBarrier checkpointBarrier) throws IOException {
         for (StreamTaskSourceInput<?> sourceInput : operatorChain.getSourceTaskInputs()) {
             for (InputChannelInfo channelInfo : sourceInput.getChannelInfos()) {
-                checkpointBarrierHandler.processBarrier(checkpointBarrier, channelInfo);
+                checkpointBarrierHandler.processBarrier(checkpointBarrier, channelInfo, false);
             }
         }
     }
@@ -263,5 +321,12 @@ public class MultipleInputStreamTask<OUT>
             resultFuture.completeExceptionally(cause);
         }
         super.abortCheckpointOnBarrier(checkpointId, cause);
+    }
+
+    @Override
+    protected void advanceToEndOfEventTime() throws Exception {
+        for (Output<StreamRecord<?>> sourceOutput : operatorChain.getChainedSourceOutputs()) {
+            sourceOutput.emitWatermark(Watermark.MAX_WATERMARK);
+        }
     }
 }

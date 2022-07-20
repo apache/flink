@@ -31,6 +31,15 @@ import java.util.Iterator;
  */
 public class KeyGroupRangeOffsets implements Iterable<Tuple2<Integer, Long>>, Serializable {
 
+    public static IllegalArgumentException newIllegalKeyGroupException(
+            int keyGroup, KeyGroupRange keyGroupRange) {
+        return new IllegalArgumentException(
+                String.format(
+                        "Key group %d is not in %s. Unless you're directly using low level state access APIs, this"
+                                + " is most likely caused by non-deterministic shuffle key (hashCode and equals implementation).",
+                        keyGroup, keyGroupRange));
+    }
+
     private static final long serialVersionUID = 6595415219136429696L;
 
     /** the range of key-groups */
@@ -141,8 +150,7 @@ public class KeyGroupRangeOffsets implements Iterable<Tuple2<Integer, Long>>, Se
     private int computeKeyGroupIndex(int keyGroup) {
         int idx = keyGroup - keyGroupRange.getStartKeyGroup();
         if (idx < 0 || idx >= offsets.length) {
-            throw new IllegalArgumentException(
-                    "Key group " + keyGroup + " is not in " + keyGroupRange + ".");
+            throw newIllegalKeyGroupException(keyGroup, keyGroupRange);
         }
         return idx;
     }
@@ -208,8 +216,7 @@ public class KeyGroupRangeOffsets implements Iterable<Tuple2<Integer, Long>>, Se
         return "KeyGroupRangeOffsets{"
                 + "keyGroupRange="
                 + keyGroupRange
-                + ", offsets="
-                + Arrays.toString(offsets)
+                + (offsets.length > 10 ? "" : ", offsets=" + Arrays.toString(offsets))
                 + '}';
     }
 }

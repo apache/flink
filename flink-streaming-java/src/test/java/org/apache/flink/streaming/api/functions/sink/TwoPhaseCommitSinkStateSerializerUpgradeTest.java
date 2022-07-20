@@ -17,13 +17,13 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Matcher;
 import org.junit.runner.RunWith;
@@ -57,11 +57,11 @@ public class TwoPhaseCommitSinkStateSerializerUpgradeTest
     public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "two-phase-commit-sink-state-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             TwoPhaseCommitSinkStateSerializerSetup.class,
                             TwoPhaseCommitSinkStateSerializerVerifier.class));
         }
@@ -129,8 +129,12 @@ public class TwoPhaseCommitSinkStateSerializerUpgradeTest
         public Matcher<
                         TypeSerializerSchemaCompatibility<
                                 TwoPhaseCommitSinkFunction.State<Integer, String>>>
-                schemaCompatibilityMatcher(MigrationVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+                schemaCompatibilityMatcher(FlinkVersion version) {
+            if (version.isNewerVersionThan(FlinkVersion.v1_13)) {
+                return TypeSerializerMatchers.isCompatibleAsIs();
+            } else {
+                return TypeSerializerMatchers.isCompatibleAfterMigration();
+            }
         }
     }
 }

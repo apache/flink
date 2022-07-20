@@ -22,6 +22,8 @@ from typing import TypeVar, Generic
 
 T = TypeVar('T')
 
+__all__ = ['TypeSerializer']
+
 
 class TypeSerializer(ABC, Generic[T]):
     """
@@ -61,6 +63,10 @@ class TypeSerializer(ABC, Generic[T]):
         deserialize_func = self.deserialize
 
         class CoderAdapter(object):
+            def get_impl(self):
+                return CoderAdapterIml()
+
+        class CoderAdapterIml(object):
 
             def encode_nested(self, element):
                 bytes_io = BytesIO()

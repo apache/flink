@@ -37,6 +37,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -49,11 +50,14 @@ import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.BatchTask;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -61,11 +65,14 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -78,6 +85,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
@@ -88,6 +96,10 @@ import static org.junit.Assert.fail;
 
 /** Tests for {@link DefaultExecutionGraph} deployment. */
 public class DefaultExecutionGraphDeploymentTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     /** BLOB server instance to use for the job graph. */
     protected BlobWriter blobWriter = VoidBlobWriter.getInstance();
@@ -156,10 +168,8 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         DefaultExecutionGraph eg =
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setJobGraph(jobGraph)
-                        .setFutureExecutor(executor)
-                        .setIoExecutor(executor)
                         .setBlobWriter(blobWriter)
-                        .build();
+                        .build(executor);
 
         eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
@@ -185,9 +195,10 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
                         .createTestingLogicalSlot();
 
         assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+        vertex.getCurrentExecutionAttempt().transitionState(ExecutionState.SCHEDULED);
 
         vertex.getCurrentExecutionAttempt()
-                .registerProducedPartitions(slot.getTaskManagerLocation(), true)
+                .registerProducedPartitions(slot.getTaskManagerLocation())
                 .get();
         vertex.deployToSlot(slot);
 
@@ -224,7 +235,18 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
 
         assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
         assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
-        assertEquals(10, iteratorConsumedPartitions.next().getShuffleDescriptors().length);
+
+        ShuffleDescriptor[] shuffleDescriptors =
+                iteratorConsumedPartitions.next().getShuffleDescriptors();
+        assertEquals(10, shuffleDescriptors.length);
+
+        Iterator<ConsumedPartitionGroup> iteratorConsumedPartitionGroup =
+                vertex.getAllConsumedPartitionGroups().iterator();
+        int idx = 0;
+        for (IntermediateResultPartitionID partitionId : iteratorConsumedPartitionGroup.next()) {
+            assertEquals(
+                    partitionId, shuffleDescriptors[idx++].getResultPartitionID().getPartitionId());
+        }
     }
 
     @Test
@@ -323,7 +345,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         // verify behavior for canceled executions
         Execution execution1 = executions.values().iterator().next();
 
-        IOMetrics ioMetrics = new IOMetrics(0, 0, 0, 0);
+        IOMetrics ioMetrics = new IOMetrics(0, 0, 0, 0, 0, 0, 0);
         Map<String, Accumulator<?, ?>> accumulators = new HashMap<>();
         accumulators.put("acc", new IntCounter(4));
         AccumulatorSnapshot accumulatorSnapshot =
@@ -346,7 +368,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         // verify behavior for failed executions
         Execution execution2 = executions.values().iterator().next();
 
-        IOMetrics ioMetrics2 = new IOMetrics(0, 0, 0, 0);
+        IOMetrics ioMetrics2 = new IOMetrics(0, 0, 0, 0, 0, 0, 0);
         Map<String, Accumulator<?, ?>> accumulators2 = new HashMap<>();
         accumulators2.put("acc", new IntCounter(8));
         AccumulatorSnapshot accumulatorSnapshot2 =
@@ -384,7 +406,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         Map<ExecutionAttemptID, Execution> executions =
                 scheduler.getExecutionGraph().getRegisteredExecutions();
 
-        IOMetrics ioMetrics = new IOMetrics(0, 0, 0, 0);
+        IOMetrics ioMetrics = new IOMetrics(0, 0, 0, 0, 0, 0, 0);
         Map<String, Accumulator<?, ?>> accumulators = Collections.emptyMap();
 
         Execution execution1 = executions.values().iterator().next();
@@ -456,8 +478,10 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
 
         // execution graph that executes actions synchronously
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
-                                graph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                new DefaultSchedulerBuilder(
+                                graph,
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                EXECUTOR_RESOURCE.getExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         TestingPhysicalSlotProvider
@@ -515,9 +539,10 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
 
         // execution graph that executes actions synchronously
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 JobGraphTestUtils.streamingJobGraph(v1, v2),
-                                ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                EXECUTOR_RESOURCE.getExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory())
                         .setFutureExecutor(executorService)
@@ -600,8 +625,10 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         final TestingPhysicalSlotProvider physicalSlotProvider =
                 TestingPhysicalSlotProvider.createWithoutImmediatePhysicalSlotCreation();
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
-                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                new DefaultSchedulerBuilder(
+                                jobGraph,
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                EXECUTOR_RESOURCE.getExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         physicalSlotProvider))
@@ -658,7 +685,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
                                 false,
                                 false,
-                                false,
+                                0,
                                 0),
                         null));
 
@@ -666,7 +693,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
                 .setJobGraph(jobGraph)
                 .setJobMasterConfig(configuration)
                 .setBlobWriter(blobWriter)
-                .build();
+                .build(EXECUTOR_RESOURCE.getExecutor());
     }
 
     private static final class ExecutionStageMatcher

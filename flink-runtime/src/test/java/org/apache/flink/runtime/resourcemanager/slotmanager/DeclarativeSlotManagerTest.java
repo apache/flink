@@ -27,11 +27,11 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
+import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
@@ -44,17 +44,25 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.FunctionUtils;
+import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
-import akka.pattern.AskTimeoutException;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -67,6 +75,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -77,6 +87,7 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -88,6 +99,10 @@ import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link DeclarativeSlotManager}. */
 public class DeclarativeSlotManagerTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static final FlinkException TEST_EXCEPTION = new FlinkException("Test exception");
 
@@ -597,7 +612,7 @@ public class DeclarativeSlotManagerTest extends TestLogger {
         final BlockingQueue<Supplier<CompletableFuture<Acknowledge>>> responseQueue =
                 new ArrayBlockingQueue<>(2);
         responseQueue.add(
-                () -> FutureUtils.completedExceptionally(new AskTimeoutException("timeout")));
+                () -> FutureUtils.completedExceptionally(new TimeoutException("timeout")));
         responseQueue.add(
                 () -> {
                     secondSlotRequestFuture.complete(null);
@@ -612,7 +627,7 @@ public class DeclarativeSlotManagerTest extends TestLogger {
 
         final SlotReport slotReport = createSlotReport(taskManagerConnection.getResourceID(), 2);
 
-        final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
+        final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
 
         try (DeclarativeSlotManager slotManager = createDeclarativeSlotManagerBuilder().build()) {
 
@@ -748,9 +763,7 @@ public class DeclarativeSlotManagerTest extends TestLogger {
         final ScheduledExecutor mainThreadExecutor = new ManuallyTriggeredScheduledExecutor();
 
         try (final DeclarativeSlotManager slotManager =
-                createDeclarativeSlotManagerBuilder()
-                        .setScheduledExecutor(mainThreadExecutor)
-                        .build()) {
+                createDeclarativeSlotManagerBuilder(mainThreadExecutor).build()) {
 
             slotManager.start(
                     ResourceManagerId.generate(),
@@ -1415,6 +1428,45 @@ public class DeclarativeSlotManagerTest extends TestLogger {
     }
 
     @Test
+    public void testProcessResourceRequirementsWithDelay() throws Exception {
+        final ResourceTracker resourceTracker = new DefaultResourceTracker();
+        final AtomicInteger allocatedResourceCounter = new AtomicInteger(0);
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final Duration delay = Duration.ofMillis(500);
+        try (final DeclarativeSlotManager slotManager =
+                createDeclarativeSlotManagerBuilder(scheduledExecutor)
+                        .setResourceTracker(resourceTracker)
+                        .setRequirementCheckDelay(delay)
+                        .buildAndStartWithDirectExec(
+                                ResourceManagerId.generate(),
+                                new TestingResourceActionsBuilder()
+                                        .setAllocateResourceConsumer(
+                                                workerResourceSpec ->
+                                                        allocatedResourceCounter.getAndIncrement())
+                                        .build())) {
+
+            final JobID jobId = new JobID();
+
+            slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
+            Assertions.assertEquals(0, allocatedResourceCounter.get());
+            Assertions.assertEquals(
+                    1, scheduledExecutor.getActiveNonPeriodicScheduledTask().size());
+            final ScheduledFuture<?> future =
+                    scheduledExecutor.getActiveNonPeriodicScheduledTask().iterator().next();
+            Assertions.assertEquals(delay.toMillis(), future.getDelay(TimeUnit.MILLISECONDS));
+
+            // the second request is skipped
+            slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
+            Assertions.assertEquals(
+                    1, scheduledExecutor.getActiveNonPeriodicScheduledTask().size());
+
+            scheduledExecutor.triggerNonPeriodicScheduledTask();
+            Assertions.assertEquals(1, allocatedResourceCounter.get());
+        }
+    }
+
+    @Test
     public void testClearRequirementsClearsResourceTracker() throws Exception {
         final ResourceTracker resourceTracker = new DefaultResourceTracker();
 
@@ -1448,6 +1500,37 @@ public class DeclarativeSlotManagerTest extends TestLogger {
 
             assertThat(resourceTracker.getMissingResources().keySet(), empty());
         }
+    }
+
+    @Test
+    public void testMetricsUnregisteredWhenSuspending() throws Exception {
+        testAccessMetricValueDuringItsUnregister(SlotManager::suspend);
+    }
+
+    @Test
+    public void testMetricsUnregisteredWhenClosing() throws Exception {
+        testAccessMetricValueDuringItsUnregister(AutoCloseable::close);
+    }
+
+    private void testAccessMetricValueDuringItsUnregister(
+            ThrowingConsumer<SlotManager, Exception> closeFn) throws Exception {
+        final AtomicInteger registeredMetrics = new AtomicInteger();
+        final MetricRegistry metricRegistry =
+                TestingMetricRegistry.builder()
+                        .setRegisterConsumer((a, b, c) -> registeredMetrics.incrementAndGet())
+                        .setUnregisterConsumer((a, b, c) -> registeredMetrics.decrementAndGet())
+                        .build();
+
+        final DeclarativeSlotManager slotManager =
+                createDeclarativeSlotManagerBuilder()
+                        .setSlotManagerMetricGroup(
+                                SlotManagerMetricGroup.create(metricRegistry, "localhost"))
+                        .buildAndStartWithDirectExec();
+
+        // sanity check to ensure metrics were actually registered
+        assertThat(registeredMetrics.get(), greaterThan(0));
+        closeFn.accept(slotManager);
+        assertThat(registeredMetrics.get(), is(0));
     }
 
     private static SlotReport createSlotReport(ResourceID taskExecutorResourceId, int numberSlots) {
@@ -1491,14 +1574,21 @@ public class DeclarativeSlotManagerTest extends TestLogger {
             ResourceManagerId resourceManagerId,
             ResourceActions resourceManagerActions,
             int numSlotsPerWorker) {
-        return createDeclarativeSlotManagerBuilder()
+        return createDeclarativeSlotManagerBuilder(
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))
                 .setNumSlotsPerWorker(numSlotsPerWorker)
                 .setRedundantTaskManagerNum(0)
                 .buildAndStartWithDirectExec(resourceManagerId, resourceManagerActions);
     }
 
     private static DeclarativeSlotManagerBuilder createDeclarativeSlotManagerBuilder() {
-        return DeclarativeSlotManagerBuilder.newBuilder()
+        return createDeclarativeSlotManagerBuilder(
+                new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
+    }
+
+    private static DeclarativeSlotManagerBuilder createDeclarativeSlotManagerBuilder(
+            ScheduledExecutor executor) {
+        return DeclarativeSlotManagerBuilder.newBuilder(executor)
                 .setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC);
     }
 

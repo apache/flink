@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.migration
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils._
+
 import org.junit.{Assert, Test}
 
 import scala.util.Try
@@ -28,11 +28,11 @@ import scala.util.Try
 class ScalaSerializersMigrationTest {
 
   /**
-    * Verifies that the generated classnames for anonymous Scala serializers remain the same.
-    *
-    * The classnames in this test are collected from running the same type information generation
-    * code in previous version branches. They should not change across different Flink versions.
-    */
+   * Verifies that the generated classnames for anonymous Scala serializers remain the same.
+   *
+   * The classnames in this test are collected from running the same type information generation
+   * code in previous version branches. They should not change across different Flink versions.
+   */
   @Test
   def testStableAnonymousClassnameGeneration(): Unit = {
     val caseClassInfo = createTypeInformation[CustomCaseClass]

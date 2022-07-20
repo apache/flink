@@ -91,7 +91,14 @@ public class LargeRecordHandlerITCase extends TestLogger {
 
             LargeRecordHandler<Tuple3<Long, SomeVeryLongValue, Byte>> handler =
                     new LargeRecordHandler<Tuple3<Long, SomeVeryLongValue, Byte>>(
-                            serializer, comparator, ioMan, memMan, initialMemory, owner, 128);
+                            serializer,
+                            comparator,
+                            ioMan,
+                            memMan,
+                            initialMemory,
+                            owner,
+                            128,
+                            owner.getExecutionConfig());
 
             assertFalse(handler.hasData());
 

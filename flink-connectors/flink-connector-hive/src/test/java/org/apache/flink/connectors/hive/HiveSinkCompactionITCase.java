@@ -55,9 +55,7 @@ public class HiveSinkCompactionITCase extends CompactionITCaseBase {
         tEnv().useCatalog(hiveCatalog.getName());
 
         // avoid too large parallelism lead to scheduler dead lock in streaming mode
-        tEnv().getConfig()
-                .getConfiguration()
-                .set(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM, false);
+        tEnv().getConfig().set(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM, false);
 
         super.init();
     }

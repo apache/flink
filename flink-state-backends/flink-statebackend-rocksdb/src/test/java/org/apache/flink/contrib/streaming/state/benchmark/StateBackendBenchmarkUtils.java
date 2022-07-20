@@ -36,14 +36,12 @@ import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
-import org.apache.flink.runtime.state.LocalRecoveryDirectoryProviderImpl;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
@@ -67,20 +65,25 @@ public class StateBackendBenchmarkUtils {
     private static final String dbDirName = "dbPath";
     private static File rootDir;
 
-    public static KeyedStateBackend<Long> createKeyedStateBackend(StateBackendType backendType)
-            throws IOException {
+    public static KeyedStateBackend<Long> createKeyedStateBackend(
+            StateBackendType backendType, File baseDir) throws IOException {
         switch (backendType) {
             case HEAP:
-                rootDir = prepareDirectory(rootDirName, null);
+                rootDir = prepareDirectory(rootDirName, baseDir);
                 return createHeapKeyedStateBackend(rootDir);
             case ROCKSDB:
-                rootDir = prepareDirectory(rootDirName, null);
+                rootDir = prepareDirectory(rootDirName, baseDir);
                 return createRocksDBKeyedStateBackend(rootDir);
             case BATCH_EXECUTION:
                 return createBatchExecutionStateBackend();
             default:
                 throw new IllegalArgumentException("Unknown backend type: " + backendType);
         }
+    }
+
+    public static KeyedStateBackend<Long> createKeyedStateBackend(StateBackendType backendType)
+            throws IOException {
+        return createKeyedStateBackend(backendType, null);
     }
 
     private static CheckpointableKeyedStateBackend<Long> createBatchExecutionStateBackend() {
@@ -117,10 +120,7 @@ public class StateBackendBenchmarkUtils {
                         2,
                         new KeyGroupRange(0, 1),
                         executionConfig,
-                        new LocalRecoveryConfig(
-                                false,
-                                new LocalRecoveryDirectoryProviderImpl(
-                                        recoveryBaseDir, new JobID(), new JobVertexID(), 0)),
+                        new LocalRecoveryConfig(null),
                         EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
                         TtlTimeProvider.DEFAULT,
                         LatencyTrackingStateConfig.disabled(),
@@ -156,10 +156,7 @@ public class StateBackendBenchmarkUtils {
                         LatencyTrackingStateConfig.disabled(),
                         Collections.emptyList(),
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
-                        new LocalRecoveryConfig(
-                                false,
-                                new LocalRecoveryDirectoryProviderImpl(
-                                        recoveryBaseDir, new JobID(), new JobVertexID(), 0)),
+                        new LocalRecoveryConfig(null),
                         priorityQueueSetFactory,
                         false,
                         new CloseableRegistry());

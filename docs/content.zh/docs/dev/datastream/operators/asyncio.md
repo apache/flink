@@ -30,6 +30,8 @@ under the License.
 对于不熟悉异步或者事件驱动编程的用户，建议先储备一些关于 Future 和事件驱动编程的知识。
 
 提示：这篇文档 [FLIP-12: 异步 I/O 的设计和实现](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65870673)介绍了关于设计和实现异步 I/O 功能的细节。
+对于新增的重试支持的实现细节可以参考[FLIP-232: 为 DataStream API 异步 I/O 操作增加重试支持](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=211883963)。
+
 
 ## 对于异步 I/O 操作的需求
 
@@ -42,7 +44,7 @@ under the License.
 
 {{< img src="/fig/async_io.svg" width="50%" >}}
 
-*注意：*仅仅提高 `MapFunction` 的并行度（parallelism）在有些情况下也可以提升吞吐量，但是这样做通常会导致非常高的资源消耗：更多的并行 `MapFunction` 实例意味着更多的 Task、更多的线程、更多的 Flink 内部网络连接、 更多的与数据库的网络连接、更多的缓冲和更多程序内部协调的开销。
+*注意：* 仅仅提高 `MapFunction` 的并行度（parallelism）在有些情况下也可以提升吞吐量，但是这样做通常会导致非常高的资源消耗：更多的并行 `MapFunction` 实例意味着更多的 Task、更多的线程、更多的 Flink 内部网络连接、 更多的与数据库的网络连接、更多的缓冲和更多程序内部协调的开销。
 
 
 ## 先决条件
@@ -60,7 +62,7 @@ Flink 的异步 I/O API 允许用户在流处理中使用异步请求客户端�
 
 - 实现分发请求的 `AsyncFunction`
 - 获取数据库交互的结果并发送给 `ResultFuture` 的 *回调* 函数
-- 将异步 I/O 操作应用于 `DataStream` 作为 `DataStream` 的一次转换操作。
+- 将异步 I/O 操作应用于 `DataStream` 作为 `DataStream` 的一次转换操作, 启用或者不启用重试。
 
 下面是基本的代码模板：
 
@@ -115,10 +117,21 @@ class AsyncDatabaseRequest extends RichAsyncFunction<String, Tuple2<String, Stri
 // 创建初始 DataStream
 DataStream<String> stream = ...;
 
-// 应用异步 I/O 转换操作
+// 应用异步 I/O 转换操作，不启用重试
 DataStream<Tuple2<String, String>> resultStream =
     AsyncDataStream.unorderedWait(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100);
 
+// 或 应用异步 I/O 转换操作并启用重试
+// 通过工具类创建一个异步重试策略, 或用户实现自定义的策略
+AsyncRetryStrategy asyncRetryStrategy =
+	new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(3, 100L) // maxAttempts=3, fixedDelay=100ms
+		.retryIfResult(RetryPredicates.EMPTY_RESULT_PREDICATE)
+		.retryIfException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
+		.build();
+
+// 应用异步 I/O 转换操作并启用重试
+DataStream<Tuple2<String, String>> resultStream =
+	AsyncDataStream.unorderedWaitWithRetry(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100, asyncRetryStrategy);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -151,10 +164,17 @@ class AsyncDatabaseRequest extends AsyncFunction[String, (String, String)] {
 // 创建初始 DataStream
 val stream: DataStream[String] = ...
 
-// 应用异步 I/O 转换操作
+// 应用异步 I/O 转换操作，不启用重试
 val resultStream: DataStream[(String, String)] =
     AsyncDataStream.unorderedWait(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100)
 
+// 或 应用异步 I/O 转换操作并启用重试
+// 创建一个异步重试策略
+val asyncRetryStrategy: AsyncRetryStrategy[OUT] = ...
+
+// 应用异步 I/O 转换操作并启用重试
+val resultStream: DataStream[(String, String)] =
+  AsyncDataStream.unorderedWaitWithRetry(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100, asyncRetryStrategy)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -164,16 +184,19 @@ val resultStream: DataStream[(String, String)] =
 
 下面两个参数控制异步操作：
 
-  - **Timeout**： 超时参数定义了异步请求发出多久后未得到响应即被认定为失败。 它可以防止一直等待得不到响应的请求。
+  - **Timeout**： 超时参数定义了异步操作执行多久未完成、最终认定为失败的时长，如果启用重试，则可能包括多个重试请求。 它可以防止一直等待得不到响应的请求。
 
   - **Capacity**： 容量参数定义了可以同时进行的异步请求数。
     即使异步 I/O 通常带来更高的吞吐量，执行异步 I/O 操作的算子仍然可能成为流处理的瓶颈。 限制并发请求的数量可以确保算子不会持续累积待处理的请求进而造成积压，而是在容量耗尽时触发反压。
 
+  - **AsyncRetryStrategy**: 重试策略参数定义了什么条件会触发延迟重试以及延迟的策略，例如，固定延迟、指数后退延迟、自定义实现等。
 
 ### 超时处理
 
 当异步 I/O 请求超时的时候，默认会抛出异常并重启作业。
 如果你想处理超时，可以重写 `AsyncFunction#timeout` 方法。
+重写 `AsyncFunction#timeout` 时别忘了调用 `ResultFuture.complete()` 或者 `ResultFuture.completeExceptionally()`
+以便告诉Flink这条记录的处理已经完成。如果超时发生时你不想发出任何记录，你可以调用 `ResultFuture.complete(Collections.emptyList())` 。
 
 ### 结果的顺序
 
@@ -200,7 +223,6 @@ Flink 提供两种模式控制结果记录以何种顺序发出。
     这意味着存在 watermark 的情况下，*无序模式* 会引入一些与*有序模式* 相同的延迟和管理开销。开销大小取决于 watermark 的频率。
 
   - **有序模式**： 连续两个 watermark 之间的记录顺序也被保留了。开销与使用*处理时间* 相比，没有显著的差别。
-    
 
 请记住，*摄入时间* 是一种特殊的*事件时间*，它基于数据源的处理时间自动生成 watermark。
 
@@ -210,11 +232,21 @@ Flink 提供两种模式控制结果记录以何种顺序发出。
 异步 I/O 算子提供了完全的精确一次容错保证。它将在途的异步请求的记录保存在 checkpoint 中，在故障恢复时重新触发请求。
 
 
+### 重试支持
+
+重试支持为异步 I/O 操作引入了一个内置重试机制，它对用户的异步函数实现逻辑是透明的。
+
+  - **AsyncRetryStrategy**: 异步重试策略包含了触发重试条件 `AsyncRetryPredicate` 定义，以及根据当前已尝试次数判断是否继续重试、下次重试间隔时长的接口方法。
+    需要注意，在满足触发重试条件后，有可能因为当前重试次数超过预设的上限放弃重试，或是在任务结束时被强制终止重试（这种情况下，系统以最后一次执行的结果或异常作为最终状态）。
+
+  - **AsyncRetryPredicate**: 触发重试条件可以选择基于返回结果、 执行异常来定义条件，两种条件是或的关系，满足其一即会触发。
+
+
 ### 实现提示
 
 在实现使用 *Executor*（或者 Scala 中的 *ExecutionContext*）和回调的 *Futures* 时，建议使用 `DirectExecutor`，因为通常回调的工作量很小，`DirectExecutor` 避免了额外的线程切换开销。回调通常只是把结果发送给 `ResultFuture`，也就是把它添加进输出缓冲。从这里开始，包括发送记录和与 chenkpoint 交互在内的繁重逻辑都将在专有的线程池中进行处理。
 
-`DirectExecutor` 可以通过 `org.apache.flink.runtime.concurrent.Executors.directExecutor()` 或
+`DirectExecutor` 可以通过 `org.apache.flink.util.concurrent.Executors.directExecutor()` 或
 `com.google.common.util.concurrent.MoreExecutors.directExecutor()` 获得。
 
 
@@ -230,8 +262,26 @@ Flink 提供两种模式控制结果记录以何种顺序发出。
   - 使用同步数据库客户端，它的查询方法调用在返回结果前一直被阻塞。
   - 在 `asyncInvoke(...)` 方法内阻塞等待异步客户端返回的 future 类型对象
 
-**目前，出于一致性的原因，AsyncFunction 的算子（异步等待算子）必须位于算子链的头部**
+**默认情况下，AsyncFunction 的算子（异步等待算子）可以在作业图的任意处使用，但它不能与`SourceFunction`/`SourceStreamTask`组成算子链**
 
-根据 `FLINK-13063` 给出的原因，目前我们必须断开异步等待算子的算子链以防止潜在的一致性问题。这改变了先前支持的算子链的行为。需要旧有行为并接受可能违反一致性保证的用户可以实例化并手工将异步等待算子添加到作业图中并将链策略设置回通过异步等待算子的 `ChainingStrategy.ALWAYS` 方法进行链接。
+**启用重试后可能需要更大的缓冲队列容量**
+
+新的重试功能可能会导致更大的队列容量要求，最大数量可以近似地评估如下。
+
+```
+inputRate * retryRate * avgRetryDuration
+```
+
+例如，对于一个输入率=100条记录/秒的任务，其中1%的元素将平均触发1次重试，平均重试时间为60秒，额外的队列容量要求为:
+
+```
+100条记录/秒 * 1% * 60s = 60
+```
+
+也就是说，在无序输出模式下，给工作队列增加 60 个容量可能不会影响吞吐量； 而在有序模式下，头部元素是关键点，它未完成的时间越长，算子提供的处理延迟就越长,
+在相同的超时约束下，如果头元素事实上获得了更多的重试, 那重试功能可能会增加头部元素的处理时间即未完成时间，也就是说在有序模式下，增大队列容量并不是总能提升吞吐。
+
+当队列容量增长时（ 这是缓解背压的常用方法），OOM 的风险会随之增加。对于 `ListState` 存储来说，理论的上限是 `Integer.MAX_VALUE`，
+所以, 虽然事实上队列容量的限制是一样的，但我们在生产中不能把队列容量增加到太大，这种情况下增加任务的并行性也许更可行。
 
 {{< top >}}

@@ -29,7 +29,6 @@ import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -50,16 +49,14 @@ import org.junit.Test;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Abstract test base for all Kafka producer tests. */
 @SuppressWarnings("serial")
@@ -211,135 +208,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
         }
     }
 
-    /** Tests the at-least-once semantic for the simple writes into Kafka. */
-    @Test
-    public void testOneToOneAtLeastOnceRegularSink() throws Exception {
-        testOneToOneAtLeastOnce(true);
-    }
-
-    /** Tests the at-least-once semantic for the simple writes into Kafka. */
-    @Test
-    public void testOneToOneAtLeastOnceCustomOperator() throws Exception {
-        testOneToOneAtLeastOnce(false);
-    }
-
-    /**
-     * This test sets KafkaProducer so that it will not automatically flush the data and simulate
-     * network failure between Flink and Kafka to check whether FlinkKafkaProducer flushed records
-     * manually on snapshotState.
-     *
-     * <p>Due to legacy reasons there are two different ways of instantiating a Kafka 0.10 sink. The
-     * parameter controls which method is used.
-     */
-    protected void testOneToOneAtLeastOnce(boolean regularSink) throws Exception {
-        final String topic =
-                regularSink ? "oneToOneTopicRegularSink" : "oneToOneTopicCustomOperator";
-        final int partition = 0;
-        final int numElements = 1000;
-        final int failAfterElements = 333;
-
-        createTestTopic(topic, 1, 1);
-
-        TypeInformationSerializationSchema<Integer> schema =
-                new TypeInformationSerializationSchema<>(
-                        BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
-
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.enableCheckpointing(500);
-        env.setParallelism(1);
-        env.setRestartStrategy(RestartStrategies.noRestart());
-
-        Properties properties = new Properties();
-        properties.putAll(standardProps);
-        properties.putAll(secureProps);
-        // decrease timeout and block time from 60s down to 10s - this is how long KafkaProducer
-        // will try send pending (not flushed) data on close()
-        properties.setProperty("timeout.ms", "10000");
-        // KafkaProducer prior to KIP-91 (release 2.1) uses request timeout to expire the unsent
-        // records.
-        properties.setProperty("request.timeout.ms", "3000");
-        // KafkaProducer in 2.1.0 and above uses delivery timeout to expire the the records.
-        properties.setProperty("delivery.timeout.ms", "5000");
-        properties.setProperty("max.block.ms", "10000");
-        // increase batch.size and linger.ms - this tells KafkaProducer to batch produced events
-        // instead of flushing them immediately
-        properties.setProperty("batch.size", "10240000");
-        properties.setProperty("linger.ms", "10000");
-        // kafka producer messages guarantee
-        properties.setProperty("retries", "3");
-        properties.setProperty("acks", "all");
-
-        BrokerRestartingMapper.resetState(kafkaServer::blockProxyTraffic);
-
-        // process exactly failAfterElements number of elements and then shutdown Kafka broker and
-        // fail application
-        DataStream<Integer> inputStream =
-                env.addSource(new InfiniteIntegerSource())
-                        .map(new BrokerRestartingMapper<>(failAfterElements));
-
-        StreamSink<Integer> kafkaSink =
-                kafkaServer.getProducerSink(
-                        topic,
-                        schema,
-                        properties,
-                        new FlinkKafkaPartitioner<Integer>() {
-                            @Override
-                            public int partition(
-                                    Integer record,
-                                    byte[] key,
-                                    byte[] value,
-                                    String targetTopic,
-                                    int[] partitions) {
-                                return partition;
-                            }
-                        });
-
-        if (regularSink) {
-            inputStream.addSink(kafkaSink.getUserFunction());
-        } else {
-            kafkaServer.produceIntoKafka(
-                    inputStream,
-                    topic,
-                    schema,
-                    properties,
-                    new FlinkKafkaPartitioner<Integer>() {
-                        @Override
-                        public int partition(
-                                Integer record,
-                                byte[] key,
-                                byte[] value,
-                                String targetTopic,
-                                int[] partitions) {
-                            return partition;
-                        }
-                    });
-        }
-
-        try {
-            env.execute("One-to-one at least once test");
-            fail("Job should fail!");
-        } catch (JobExecutionException ex) {
-            // ignore error, it can be one of many errors so it would be hard to check the exception
-            // message/cause
-        } finally {
-            kafkaServer.unblockProxyTraffic();
-        }
-
-        // assert that before failure we successfully snapshot/flushed all expected elements
-        assertAtLeastOnceForTopic(
-                properties,
-                topic,
-                partition,
-                Collections.unmodifiableSet(
-                        new HashSet<>(
-                                getIntegersSequence(
-                                        BrokerRestartingMapper
-                                                .lastSnapshotedElementBeforeShutdown))),
-                KAFKA_READ_TIMEOUT);
-
-        deleteTestTopic(topic);
-    }
-
     /** Tests the exactly-once semantic for the simple writes into Kafka. */
     @Test
     public void testExactlyOnceRegularSink() throws Exception {
@@ -418,8 +286,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
         for (int i = 0; i < sinksCount; i++) {
             // assert that before failure we successfully snapshot/flushed all expected elements
-            assertExactlyOnceForTopic(
-                    properties, topic + i, partition, expectedElements, KAFKA_READ_TIMEOUT);
+            assertExactlyOnceForTopic(properties, topic + i, expectedElements);
             deleteTestTopic(topic + i);
         }
     }
@@ -450,7 +317,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
                 byte[] serializedValue,
                 String topic,
                 int[] partitions) {
-            assertEquals(expectedTopicsToNumPartitions.get(topic).intValue(), partitions.length);
+            assertThat(partitions).hasSize(expectedTopicsToNumPartitions.get(topic).intValue());
 
             return (int) (next.f0 % partitions.length);
         }
@@ -499,7 +366,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
         public Integer map(Tuple2<Long, String> value) throws Exception {
             int partition = value.f0.intValue() % numPartitions;
             if (ourPartition != -1) {
-                assertEquals("inconsistent partitioning", ourPartition, partition);
+                assertThat(partition).as("inconsistent partitioning").isEqualTo(ourPartition);
             } else {
                 ourPartition = partition;
             }

@@ -96,9 +96,9 @@ You can create a `Graph` in the following ways:
 ```java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-DataSet<Vertex<String, Long>> vertices = ...
+DataSet<Vertex<String, Long>> vertices = ...;
 
-DataSet<Edge<String, Double>> edges = ...
+DataSet<Edge<String, Double>> edges = ...;
 
 Graph<String, Long, Double> graph = Graph.fromDataSet(vertices, edges, env);
 ```
@@ -231,9 +231,9 @@ val simpleGraph = Graph.fromCsvReader[Long, Double, NullValue](
 ```java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-List<Vertex<Long, Long>> vertexList = new ArrayList...
+List<Vertex<Long, Long>> vertexList = new ArrayList...;
 
-List<Edge<Long, String>> edgeList = new ArrayList...
+List<Edge<Long, String>> edgeList = new ArrayList...;
 
 Graph<Long, Long, String> graph = Graph.fromCollection(vertexList, edgeList, env);
 ```
@@ -428,7 +428,7 @@ val updatedGraph = graph.translateGraphIds(id => id.toString)
 {{< tabs "b33fe8f8-8a53-4710-9379-8d2f912a3105" >}}
 {{< tab "Java" >}}
 ```java
-Graph<Long, Long, Long> graph = ...
+Graph<Long, Long, Long> graph = ...;
 
 graph.subgraph(
 		new FilterFunction<Vertex<Long, Long>>() {
@@ -457,7 +457,7 @@ graph.subgraph((vertex => vertex.getValue > 0), (edge => edge.getValue < 0))
 {{< /tabs >}}
 
 <p class="text-center">
-    <img alt="Filter Transformations" width="80%" src="{% link /fig/gelly-filter.png %}"/>
+    {{<img alt="Filter Transformations" width="80%" src="/fig/gelly-filter.png">}}
 </p>
 
 * <strong>Join</strong>: Gelly provides specialized methods for joining the vertex and edge datasets with other input datasets. `joinWithVertices` joins the vertices with a `Tuple2` input data set. The join is performed using the vertex ID and the first field of the `Tuple2` input as the join keys. The method returns a new `Graph` where the vertex values have been updated according to a provided user-defined transformation function.
@@ -467,7 +467,7 @@ Note that if the input dataset contains a key multiple times, all Gelly join met
 {{< tabs "219b4d15-4be2-4bbf-a3ea-4155d3f6ba27" >}}
 {{< tab "Java" >}}
 ```java
-Graph<Long, Double, Double> network = ...
+Graph<Long, Double, Double> network = ...;
 
 DataSet<Tuple2<Long, LongValue>> vertexOutDegrees = network.outDegrees();
 
@@ -499,7 +499,7 @@ val networkWithWeights = network.joinWithEdgesOnSource(vertexOutDegrees, (v1: Do
 * <strong>Union</strong>: Gelly's `union()` method performs a union operation on the vertex and edge sets of the specified graph and the current graph. Duplicate vertices are removed from the resulting `Graph`, while if duplicate edges exist, these will be preserved.
 
 <p class="text-center">
-    <img alt="Union Transformation" width="50%" src="{% link /fig/gelly-union.png %}"/>
+    {{<img alt="Union Transformation" width="50%" src="/fig/gelly-union.png">}}
 </p>
 
 * <strong>Difference</strong>: Gelly's `difference()` method performs a difference on the vertex and edge sets of the current graph and the specified graph.
@@ -519,11 +519,11 @@ val networkWithWeights = network.joinWithEdgesOnSource(vertexOutDegrees, (v1: Do
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 // create first graph from edges {(1, 3, 12) (1, 3, 13), (1, 3, 13)}
-List<Edge<Long, Long>> edges1 = ...
+List<Edge<Long, Long>> edges1 = ...;
 Graph<Long, NullValue, Long> graph1 = Graph.fromCollection(edges1, env);
 
 // create second graph from edges {(1, 3, 13)}
-List<Edge<Long, Long>> edges2 = ...
+List<Edge<Long, Long>> edges2 = ...;
 Graph<Long, NullValue, Long> graph2 = Graph.fromCollection(edges2, env);
 
 // Using distinct = true results in {(1,3,13)}
@@ -630,7 +630,7 @@ The neighborhood scope is defined by the `EdgeDirection` parameter, which takes 
 For example, assume that you want to select the minimum weight of all out-edges for each vertex in the following graph:
 
 <p class="text-center">
-    <img alt="reduceOnEdges Example" width="50%" src="{% link /fig/gelly-example-graph.png %}"/>
+    {{<img alt="reduceOnEdges Example" width="50%" src="/fig/gelly-example-graph.png">}}
 </p>
 
 The following code will collect the out-edges for each vertex and apply the `SelectMinWeight()` user-defined function on each of the resulting neighborhoods:
@@ -638,7 +638,7 @@ The following code will collect the out-edges for each vertex and apply the `Sel
 {{< tabs "8ab0141f-ed3d-4372-bfab-7f78ed6d7d5f" >}}
 {{< tab "Java" >}}
 ```java
-Graph<Long, Long, Double> graph = ...
+Graph<Long, Long, Double> graph = ...;
 
 DataSet<Tuple2<Long, Double>> minWeights = graph.reduceOnEdges(new SelectMinWeight(), EdgeDirection.OUT);
 
@@ -669,7 +669,7 @@ final class SelectMinWeight extends ReduceEdgesFunction[Double] {
 {{< /tabs >}}
 
 <p class="text-center">
-    <img alt="reduceOnEdges Example" width="50%" src="{% link /fig/gelly-reduceOnEdges.png %}"/>
+    {{<img alt="reduceOnEdges Example" width="50%" src="/fig/gelly-reduceOnEdges.png">}}
 </p>
 
 Similarly, assume that you would like to compute the sum of the values of all in-coming neighbors, for every vertex. The following code will collect the in-coming neighbors for each vertex and apply the `SumValues()` user-defined function on each neighborhood:
@@ -677,7 +677,7 @@ Similarly, assume that you would like to compute the sum of the values of all in
 {{< tabs "67e6fe66-aef8-46b8-8e80-2762dd5c3f02" >}}
 {{< tab "Java" >}}
 ```java
-Graph<Long, Long, Double> graph = ...
+Graph<Long, Long, Double> graph = ...;
 
 DataSet<Tuple2<Long, Long>> verticesWithSum = graph.reduceOnNeighbors(new SumValues(), EdgeDirection.IN);
 
@@ -708,7 +708,7 @@ final class SumValues extends ReduceNeighborsFunction[Long] {
 {{< /tabs >}}
 
 <p class="text-center">
-    <img alt="reduceOnNeighbors Example" width="70%" src="{% link /fig/gelly-reduceOnNeighbors.png %}"/>
+    {{<img alt="reduceOnNeighbors Example" width="70%" src="/fig/gelly-reduceOnNeighbors.png">}}
 </p>
 
 When the aggregation function is not associative and commutative or when it is desirable to return more than one values per vertex, one can use the more general
@@ -720,7 +720,7 @@ For example, the following code will output all the vertex pairs which are conne
 {{< tabs "2cf7a021-b67a-42dc-912f-ef79f36314b2" >}}
 {{< tab "Java" >}}
 ```java
-Graph<Long, Long, Double> graph = ...
+Graph<Long, Long, Double> graph = ...;
 
 DataSet<Tuple2<Vertex<Long, Long>, Vertex<Long, Long>>> vertexPairs = graph.groupReduceOnNeighbors(new SelectLargeWeightNeighbors(), EdgeDirection.OUT);
 
@@ -783,10 +783,10 @@ also exist in the vertex IDs set.
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 // create a list of vertices with IDs = {1, 2, 3, 4, 5}
-List<Vertex<Long, Long>> vertices = ...
+List<Vertex<Long, Long>> vertices = ...;
 
 // create a list of edges with IDs = {(1, 2) (1, 3), (2, 4), (5, 6)}
-List<Edge<Long, Long>> edges = ...
+List<Edge<Long, Long>> edges = ...;
 
 Graph<Long, Long, Long> graph = Graph.fromCollection(vertices, edges, env);
 

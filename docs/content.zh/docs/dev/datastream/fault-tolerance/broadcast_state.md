@@ -220,16 +220,16 @@ new KeyedBroadcastProcessFunction<Color, Item, Rule, String>() {
 
 这里有一些 broadcast state 的重要注意事项，在使用它时需要时刻清楚：
 
-  - **没有跨 task 通讯：**如上所述，这就是为什么**只有**在 `(Keyed)-BroadcastProcessFunction` 中处理广播流元素的方法里可以更改 broadcast state 的内容。
+  - **没有跨 task 通讯**：如上所述，这就是为什么只有在 `(Keyed)-BroadcastProcessFunction` 中处理广播流元素的方法里可以更改 broadcast state 的内容。
   同时，用户需要保证所有 task 对于 broadcast state 的处理方式是一致的，否则会造成不同 task 读取 broadcast state 时内容不一致的情况，最终导致结果不一致。
 
-  - **broadcast state 在不同的 task 的事件顺序可能是不同的：**虽然广播流中元素的过程能够保证所有的下游 task 全部能够收到，但在不同 task 中元素的到达顺序可能不同。
+  - **broadcast state 在不同的 task 的事件顺序可能是不同的**：虽然广播流中元素的过程能够保证所有的下游 task 全部能够收到，但在不同 task 中元素的到达顺序可能不同。
   所以 broadcast state 的更新*不能依赖于流中元素到达的顺序*。
 
-  - **所有的 task 均会对 broadcast state 进行 checkpoint：**虽然所有 task 中的 broadcast state 是一致的，但当 checkpoint 来临时所有 task 均会对 broadcast state 做 checkpoint。
+  - **所有的 task 均会对 broadcast state 进行 checkpoint**：虽然所有 task 中的 broadcast state 是一致的，但当 checkpoint 来临时所有 task 均会对 broadcast state 做 checkpoint。
   这个设计是为了防止在作业恢复后读文件造成的文件热点。当然这种方式会造成 checkpoint 一定程度的写放大，放大倍数为 p（=并行度）。Flink 会保证在恢复状态/改变并发的时候数据**没有重复**且**没有缺失**。
   在作业恢复时，如果与之前具有相同或更小的并发度，所有的 task 读取之前已经 checkpoint 过的 state。在增大并发的情况下，task 会读取本身的 state，多出来的并发（`p_new` - `p_old`）会使用轮询调度算法读取之前 task 的 state。
 
-  - **不使用 RocksDB state backend：** broadcast state 在运行时保存在内存中，需要保证内存充足。这一特性同样适用于所有其他 Operator State。
+  - **不使用 RocksDB state backend:** broadcast state 在运行时保存在内存中，需要保证内存充足。这一特性同样适用于所有其他 Operator State。
 
 {{< top >}}

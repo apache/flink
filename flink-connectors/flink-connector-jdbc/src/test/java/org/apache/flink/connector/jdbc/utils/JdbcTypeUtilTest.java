@@ -18,34 +18,28 @@
 
 package org.apache.flink.connector.jdbc.utils;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.MapTypeInfo;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import org.junit.Test;
 
 import java.sql.Types;
 
-import static org.apache.flink.connector.jdbc.utils.JdbcTypeUtil.typeInformationToSqlType;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.apache.flink.connector.jdbc.utils.JdbcTypeUtil.logicalTypeToSqlType;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Testing the type conversions from Flink to SQL types. */
 public class JdbcTypeUtilTest {
 
     @Test
     public void testTypeConversions() {
-        assertEquals(Types.INTEGER, typeInformationToSqlType(BasicTypeInfo.INT_TYPE_INFO));
-        testUnsupportedType(BasicTypeInfo.VOID_TYPE_INFO);
-        testUnsupportedType(
-                new MapTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
+        assertThat(logicalTypeToSqlType(LogicalTypeRoot.INTEGER)).isEqualTo(Types.INTEGER);
+        testUnsupportedType(LogicalTypeRoot.RAW);
+        testUnsupportedType(LogicalTypeRoot.MAP);
     }
 
-    private static void testUnsupportedType(TypeInformation<?> type) {
-        try {
-            typeInformationToSqlType(type);
-            fail();
-        } catch (IllegalArgumentException ignored) {
-        }
+    private static void testUnsupportedType(LogicalTypeRoot logicalTypeRoot) {
+        assertThatThrownBy(() -> logicalTypeToSqlType(logicalTypeRoot))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

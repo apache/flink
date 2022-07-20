@@ -31,8 +31,8 @@ import org.apache.flink.formats.avro.utils.TestDataGenerator;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericRecord;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -44,11 +44,11 @@ import java.util.Random;
 import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isCompatibleAfterMigration;
 import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isCompatibleAsIs;
 import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isIncompatible;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Test {@link AvroSerializerSnapshot}. */
-public class AvroSerializerSnapshotTest {
+class AvroSerializerSnapshotTest {
 
     private static final int[] PAST_VERSIONS = new int[] {2};
 
@@ -76,78 +76,81 @@ public class AvroSerializerSnapshotTest {
                     .endRecord();
 
     @Test
-    public void sameSchemaShouldBeCompatibleAsIs() {
-        assertThat(
-                AvroSerializerSnapshot.resolveSchemaCompatibility(FIRST_NAME, FIRST_NAME),
-                isCompatibleAsIs());
+    void sameSchemaShouldBeCompatibleAsIs() {
+        assertThat(AvroSerializerSnapshot.resolveSchemaCompatibility(FIRST_NAME, FIRST_NAME))
+                .is(matching(isCompatibleAsIs()));
     }
 
     @Test
-    public void removingAnOptionalFieldsIsCompatibleAsIs() {
+    void removingAnOptionalFieldsIsCompatibleAsIs() {
         assertThat(
-                AvroSerializerSnapshot.resolveSchemaCompatibility(
-                        FIRST_REQUIRED_LAST_OPTIONAL, FIRST_NAME),
-                isCompatibleAfterMigration());
+                        AvroSerializerSnapshot.resolveSchemaCompatibility(
+                                FIRST_REQUIRED_LAST_OPTIONAL, FIRST_NAME))
+                .is(matching(isCompatibleAfterMigration()));
     }
 
     @Test
-    public void addingAnOptionalFieldsIsCompatibleAsIs() {
+    void addingAnOptionalFieldsIsCompatibleAsIs() {
         assertThat(
-                AvroSerializerSnapshot.resolveSchemaCompatibility(
-                        FIRST_NAME, FIRST_REQUIRED_LAST_OPTIONAL),
-                isCompatibleAfterMigration());
+                        AvroSerializerSnapshot.resolveSchemaCompatibility(
+                                FIRST_NAME, FIRST_REQUIRED_LAST_OPTIONAL))
+                .is(matching(isCompatibleAfterMigration()));
     }
 
     @Test
-    public void addingARequiredMakesSerializersIncompatible() {
+    void addingARequiredMakesSerializersIncompatible() {
         assertThat(
-                AvroSerializerSnapshot.resolveSchemaCompatibility(
-                        FIRST_REQUIRED_LAST_OPTIONAL, BOTH_REQUIRED),
-                isIncompatible());
+                        AvroSerializerSnapshot.resolveSchemaCompatibility(
+                                FIRST_REQUIRED_LAST_OPTIONAL, BOTH_REQUIRED))
+                .is(matching(isIncompatible()));
     }
 
     @Test
-    public void anAvroSnapshotIsCompatibleWithItsOriginatingSerializer() {
+    void anAvroSnapshotIsCompatibleWithItsOriginatingSerializer() {
         AvroSerializer<GenericRecord> serializer =
                 new AvroSerializer<>(GenericRecord.class, FIRST_REQUIRED_LAST_OPTIONAL);
 
         TypeSerializerSnapshot<GenericRecord> snapshot = serializer.snapshotConfiguration();
 
-        assertThat(snapshot.resolveSchemaCompatibility(serializer), isCompatibleAsIs());
+        assertThat(snapshot.resolveSchemaCompatibility(serializer))
+                .is(matching(isCompatibleAsIs()));
     }
 
     @Test
-    public void anAvroSnapshotIsCompatibleAfterARoundTrip() throws IOException {
+    void anAvroSnapshotIsCompatibleAfterARoundTrip() throws IOException {
         AvroSerializer<GenericRecord> serializer =
                 new AvroSerializer<>(GenericRecord.class, FIRST_REQUIRED_LAST_OPTIONAL);
 
         AvroSerializerSnapshot<GenericRecord> restored =
                 roundTrip(serializer.snapshotConfiguration());
 
-        assertThat(restored.resolveSchemaCompatibility(serializer), isCompatibleAsIs());
+        assertThat(restored.resolveSchemaCompatibility(serializer))
+                .is(matching(isCompatibleAsIs()));
     }
 
     @Test
-    public void anAvroSpecificRecordIsCompatibleAfterARoundTrip() throws IOException {
+    void anAvroSpecificRecordIsCompatibleAfterARoundTrip() throws IOException {
         // user is an avro generated test object.
         AvroSerializer<User> serializer = new AvroSerializer<>(User.class);
 
         AvroSerializerSnapshot<User> restored = roundTrip(serializer.snapshotConfiguration());
 
-        assertThat(restored.resolveSchemaCompatibility(serializer), isCompatibleAsIs());
+        assertThat(restored.resolveSchemaCompatibility(serializer))
+                .is(matching(isCompatibleAsIs()));
     }
 
     @Test
-    public void aPojoIsCompatibleAfterARoundTrip() throws IOException {
+    void aPojoIsCompatibleAfterARoundTrip() throws IOException {
         AvroSerializer<Pojo> serializer = new AvroSerializer<>(Pojo.class);
 
         AvroSerializerSnapshot<Pojo> restored = roundTrip(serializer.snapshotConfiguration());
 
-        assertThat(restored.resolveSchemaCompatibility(serializer), isCompatibleAsIs());
+        assertThat(restored.resolveSchemaCompatibility(serializer))
+                .is(matching(isCompatibleAsIs()));
     }
 
     @Test
-    public void aLargeSchemaAvroSnapshotIsCompatibleAfterARoundTrip() throws IOException {
+    void aLargeSchemaAvroSnapshotIsCompatibleAfterARoundTrip() throws IOException {
         // construct the large schema up to a size of 65535 bytes.
         int thresholdSize = 65535;
         StringBuilder schemaField = new StringBuilder(thresholdSize);
@@ -166,11 +169,12 @@ public class AvroSerializerSnapshotTest {
         AvroSerializerSnapshot<GenericRecord> restored =
                 roundTrip(serializer.snapshotConfiguration());
 
-        assertThat(restored.resolveSchemaCompatibility(serializer), isCompatibleAsIs());
+        assertThat(restored.resolveSchemaCompatibility(serializer))
+                .is(matching(isCompatibleAsIs()));
     }
 
     @Test
-    public void recordSerializedShouldBeDeserializeWithTheResortedSerializer() throws IOException {
+    void recordSerializedShouldBeDeserializeWithTheResortedSerializer() throws IOException {
         // user is an avro generated test object.
         final User user = TestDataGenerator.generateRandomUser(new Random());
         final AvroSerializer<User> originalSerializer = new AvroSerializer<>(User.class);
@@ -188,11 +192,11 @@ public class AvroSerializerSnapshotTest {
         //
         User restoredUser = deserialize(restoredSerializer, serializedUser);
 
-        assertThat(user, is(restoredUser));
+        assertThat(restoredUser).isEqualTo(user);
     }
 
     @Test
-    public void validSchemaEvaluationShouldResultInCRequiresMigration() {
+    void validSchemaEvaluationShouldResultInCRequiresMigration() {
         final AvroSerializer<GenericRecord> originalSerializer =
                 new AvroSerializer<>(GenericRecord.class, FIRST_NAME);
         final AvroSerializer<GenericRecord> newSerializer =
@@ -201,13 +205,12 @@ public class AvroSerializerSnapshotTest {
         TypeSerializerSnapshot<GenericRecord> originalSnapshot =
                 originalSerializer.snapshotConfiguration();
 
-        assertThat(
-                originalSnapshot.resolveSchemaCompatibility(newSerializer),
-                isCompatibleAfterMigration());
+        assertThat(originalSnapshot.resolveSchemaCompatibility(newSerializer))
+                .is(matching(isCompatibleAfterMigration()));
     }
 
     @Test
-    public void nonValidSchemaEvaluationShouldResultInCompatibleSerializers() {
+    void nonValidSchemaEvaluationShouldResultInCompatibleSerializers() {
         final AvroSerializer<GenericRecord> originalSerializer =
                 new AvroSerializer<>(GenericRecord.class, FIRST_REQUIRED_LAST_OPTIONAL);
         final AvroSerializer<GenericRecord> newSerializer =
@@ -216,7 +219,8 @@ public class AvroSerializerSnapshotTest {
         TypeSerializerSnapshot<GenericRecord> originalSnapshot =
                 originalSerializer.snapshotConfiguration();
 
-        assertThat(originalSnapshot.resolveSchemaCompatibility(newSerializer), isIncompatible());
+        assertThat(originalSnapshot.resolveSchemaCompatibility(newSerializer))
+                .is(matching(isIncompatible()));
     }
 
     @Test
@@ -231,12 +235,12 @@ public class AvroSerializerSnapshotTest {
         AvroSerializer<Object> specificSerializer = new AvroSerializer(User.class);
         specificSerializer.snapshotConfiguration();
 
-        assertThat(
-                genericSnapshot.resolveSchemaCompatibility(specificSerializer), isCompatibleAsIs());
+        assertThat(genericSnapshot.resolveSchemaCompatibility(specificSerializer))
+                .is(matching(isCompatibleAsIs()));
     }
 
     @Test
-    public void restorePastSnapshots() throws IOException {
+    void restorePastSnapshots() throws IOException {
         for (int pastVersion : PAST_VERSIONS) {
             AvroSerializer<GenericRecord> currentSerializer =
                     new AvroSerializer<>(GenericRecord.class, Address.getClassSchema());
@@ -249,7 +253,8 @@ public class AvroSerializerSnapshotTest {
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             in, AvroSerializer.class.getClassLoader(), null);
 
-            assertThat(restored.resolveSchemaCompatibility(currentSerializer), isCompatibleAsIs());
+            assertThat(restored.resolveSchemaCompatibility(currentSerializer))
+                    .is(matching(isCompatibleAsIs()));
         }
     }
 
@@ -257,9 +262,9 @@ public class AvroSerializerSnapshotTest {
      * Creates a new serializer snapshot for the current version. Use this before bumping the
      * snapshot version and also add the version (before bumping) to {@link #PAST_VERSIONS}.
      */
-    @Ignore
+    @Disabled
     @Test
-    public void writeCurrentVersionSnapshot() throws IOException {
+    void writeCurrentVersionSnapshot() throws IOException {
         AvroSerializer<GenericRecord> serializer =
                 new AvroSerializer<>(GenericRecord.class, Address.getClassSchema());
 

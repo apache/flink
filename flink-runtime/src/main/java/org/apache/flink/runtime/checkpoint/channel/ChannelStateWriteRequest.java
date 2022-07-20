@@ -22,10 +22,16 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 import static org.apache.flink.runtime.checkpoint.channel.CheckpointInProgressRequestState.CANCELLED;
 import static org.apache.flink.runtime.checkpoint.channel.CheckpointInProgressRequestState.COMPLETED;
@@ -37,6 +43,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 interface ChannelStateWriteRequest {
+
+    Logger LOG = LoggerFactory.getLogger(ChannelStateWriteRequest.class);
+
     long getCheckpointId();
 
     void cancel(Throwable cause) throws Exception;
@@ -72,29 +81,80 @@ interface ChannelStateWriteRequest {
                 (writer, buffer) -> writer.writeOutput(info, buffer));
     }
 
+    static ChannelStateWriteRequest write(
+            long checkpointId,
+            ResultSubpartitionInfo info,
+            CompletableFuture<List<Buffer>> dataFuture) {
+        return buildFutureWriteRequest(
+                checkpointId,
+                "writeOutputFuture",
+                dataFuture,
+                (writer, buffer) -> writer.writeOutput(info, buffer));
+    }
+
+    static ChannelStateWriteRequest buildFutureWriteRequest(
+            long checkpointId,
+            String name,
+            CompletableFuture<List<Buffer>> dataFuture,
+            BiConsumer<ChannelStateCheckpointWriter, Buffer> bufferConsumer) {
+        return new CheckpointInProgressRequest(
+                name,
+                checkpointId,
+                writer -> {
+                    List<Buffer> buffers;
+                    try {
+                        buffers = dataFuture.get();
+                    } catch (ExecutionException e) {
+                        // If dataFuture fails, fail only the single related writer
+                        writer.fail(e);
+                        return;
+                    }
+                    for (Buffer buffer : buffers) {
+                        checkBufferIsBuffer(buffer);
+                        bufferConsumer.accept(writer, buffer);
+                    }
+                },
+                throwable ->
+                        dataFuture.thenAccept(
+                                buffers -> {
+                                    try {
+                                        CloseableIterator.fromList(buffers, Buffer::recycleBuffer)
+                                                .close();
+                                    } catch (Exception e) {
+                                        LOG.error(
+                                                "Failed to recycle the output buffer of channel state.",
+                                                e);
+                                    }
+                                }),
+                false);
+    }
+
     static ChannelStateWriteRequest buildWriteRequest(
             long checkpointId,
             String name,
             CloseableIterator<Buffer> iterator,
-            BiConsumerWithException<ChannelStateCheckpointWriter, Buffer, Exception>
-                    bufferConsumer) {
+            BiConsumer<ChannelStateCheckpointWriter, Buffer> bufferConsumer) {
         return new CheckpointInProgressRequest(
                 name,
                 checkpointId,
                 writer -> {
                     while (iterator.hasNext()) {
                         Buffer buffer = iterator.next();
-                        try {
-                            checkArgument(buffer.isBuffer());
-                        } catch (Exception e) {
-                            buffer.recycleBuffer();
-                            throw e;
-                        }
+                        checkBufferIsBuffer(buffer);
                         bufferConsumer.accept(writer, buffer);
                     }
                 },
                 throwable -> iterator.close(),
                 false);
+    }
+
+    static void checkBufferIsBuffer(Buffer buffer) {
+        try {
+            checkArgument(buffer.isBuffer());
+        } catch (Exception e) {
+            buffer.recycleBuffer();
+            throw e;
+        }
     }
 
     static ChannelStateWriteRequest start(

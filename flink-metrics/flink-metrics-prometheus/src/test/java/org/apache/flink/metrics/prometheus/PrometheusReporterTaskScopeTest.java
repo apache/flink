@@ -18,265 +18,182 @@
 
 package org.apache.flink.metrics.prometheus;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.util.NetUtils;
 
 import com.mashape.unirest.http.exceptions.UnirestException;
 import io.prometheus.client.CollectorRegistry;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 
-import static org.apache.flink.metrics.prometheus.PrometheusReporterTest.createReporterSetup;
 import static org.apache.flink.metrics.prometheus.PrometheusReporterTest.pollMetrics;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test for {@link PrometheusReporter} that registers several instances of the same metric for
  * different subtasks.
  */
-public class PrometheusReporterTaskScopeTest {
-    private static final String[] LABEL_NAMES = {
-        "job_id",
-        "task_id",
-        "task_attempt_id",
-        "host",
-        "task_name",
-        "task_attempt_num",
-        "job_name",
-        "tm_id",
-        "subtask_index"
-    };
+class PrometheusReporterTaskScopeTest {
+    private static final String[] LABEL_NAMES = {"label1", "label2"};
+    private static final String[] LABEL_VALUES_1 = new String[] {"value1_1", "value1_2"};
+    private static final String[] LABEL_VALUES_2 = new String[] {"value2_1", "value2_2"};
+    private static final String LOGICAL_SCOPE = "logical_scope";
+    private static final String METRIC_NAME = "myMetric";
 
-    private static final String TASK_MANAGER_HOST = "taskManagerHostName";
-    private static final String TASK_MANAGER_ID = "taskManagerId";
-    private static final String JOB_NAME = "jobName";
-    private static final String TASK_NAME = "taskName";
-    private static final int ATTEMPT_NUMBER = 0;
-    private static final int SUBTASK_INDEX_1 = 0;
-    private static final int SUBTASK_INDEX_2 = 1;
+    private final MetricGroup metricGroup1 =
+            TestUtils.createTestMetricGroup(
+                    LOGICAL_SCOPE, TestUtils.toMap(LABEL_NAMES, LABEL_VALUES_1));
+    private final MetricGroup metricGroup2 =
+            TestUtils.createTestMetricGroup(
+                    LOGICAL_SCOPE, TestUtils.toMap(LABEL_NAMES, LABEL_VALUES_2));
 
-    private final JobID jobId = new JobID();
-    private final JobVertexID taskId1 = new JobVertexID();
-    private final ExecutionAttemptID taskAttemptId1 = new ExecutionAttemptID();
-    private final String[] labelValues1 = {
-        jobId.toString(),
-        taskId1.toString(),
-        taskAttemptId1.toString(),
-        TASK_MANAGER_HOST,
-        TASK_NAME,
-        "" + ATTEMPT_NUMBER,
-        JOB_NAME,
-        TASK_MANAGER_ID,
-        "" + SUBTASK_INDEX_1
-    };
-    private final JobVertexID taskId2 = new JobVertexID();
-    private final ExecutionAttemptID taskAttemptId2 = new ExecutionAttemptID();
-    private final String[] labelValues2 = {
-        jobId.toString(),
-        taskId2.toString(),
-        taskAttemptId2.toString(),
-        TASK_MANAGER_HOST,
-        TASK_NAME,
-        "" + ATTEMPT_NUMBER,
-        JOB_NAME,
-        TASK_MANAGER_ID,
-        "" + SUBTASK_INDEX_2
-    };
-
-    private TaskMetricGroup taskMetricGroup1;
-    private TaskMetricGroup taskMetricGroup2;
-
-    private MetricRegistryImpl registry;
     private PrometheusReporter reporter;
 
-    @Before
-    public void setupReporter() {
-        registry =
-                new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-                        Collections.singletonList(createReporterSetup("test1", "9400-9500")));
-        reporter = (PrometheusReporter) registry.getReporters().get(0);
-
-        TaskManagerMetricGroup tmMetricGroup =
-                new TaskManagerMetricGroup(registry, TASK_MANAGER_HOST, TASK_MANAGER_ID);
-        TaskManagerJobMetricGroup tmJobMetricGroup =
-                new TaskManagerJobMetricGroup(registry, tmMetricGroup, jobId, JOB_NAME);
-        taskMetricGroup1 =
-                new TaskMetricGroup(
-                        registry,
-                        tmJobMetricGroup,
-                        taskId1,
-                        taskAttemptId1,
-                        TASK_NAME,
-                        SUBTASK_INDEX_1,
-                        ATTEMPT_NUMBER);
-        taskMetricGroup2 =
-                new TaskMetricGroup(
-                        registry,
-                        tmJobMetricGroup,
-                        taskId2,
-                        taskAttemptId2,
-                        TASK_NAME,
-                        SUBTASK_INDEX_2,
-                        ATTEMPT_NUMBER);
+    @BeforeEach
+    void setupReporter() {
+        reporter = new PrometheusReporter(NetUtils.getPortRangeFromString("9400-9500"));
     }
 
-    @After
-    public void shutdownRegistry() throws Exception {
-        if (registry != null) {
-            registry.shutdown().get();
+    @AfterEach
+    void tearDown() {
+        if (reporter != null) {
+            reporter.close();
         }
     }
 
     @Test
-    public void countersCanBeAddedSeveralTimesIfTheyDifferInLabels() throws UnirestException {
+    void countersCanBeAddedSeveralTimesIfTheyDifferInLabels() {
         Counter counter1 = new SimpleCounter();
         counter1.inc(1);
         Counter counter2 = new SimpleCounter();
         counter2.inc(2);
 
-        taskMetricGroup1.counter("my_counter", counter1);
-        taskMetricGroup2.counter("my_counter", counter2);
+        reporter.notifyOfAddedMetric(counter1, METRIC_NAME, metricGroup1);
+        reporter.notifyOfAddedMetric(counter2, METRIC_NAME, metricGroup2);
 
         assertThat(
-                CollectorRegistry.defaultRegistry.getSampleValue(
-                        "flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues1),
-                equalTo(1.));
+                        CollectorRegistry.defaultRegistry.getSampleValue(
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
+                .isEqualTo(1.);
         assertThat(
-                CollectorRegistry.defaultRegistry.getSampleValue(
-                        "flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues2),
-                equalTo(2.));
+                        CollectorRegistry.defaultRegistry.getSampleValue(
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_2))
+                .isEqualTo(2.);
     }
 
     @Test
-    public void gaugesCanBeAddedSeveralTimesIfTheyDifferInLabels() throws UnirestException {
-        Gauge<Integer> gauge1 =
-                new Gauge<Integer>() {
-                    @Override
-                    public Integer getValue() {
-                        return 3;
-                    }
-                };
-        Gauge<Integer> gauge2 =
-                new Gauge<Integer>() {
-                    @Override
-                    public Integer getValue() {
-                        return 4;
-                    }
-                };
+    void gaugesCanBeAddedSeveralTimesIfTheyDifferInLabels() {
+        Gauge<Integer> gauge1 = () -> 3;
+        Gauge<Integer> gauge2 = () -> 4;
 
-        taskMetricGroup1.gauge("my_gauge", gauge1);
-        taskMetricGroup2.gauge("my_gauge", gauge2);
+        reporter.notifyOfAddedMetric(gauge1, METRIC_NAME, metricGroup1);
+        reporter.notifyOfAddedMetric(gauge2, METRIC_NAME, metricGroup2);
 
         assertThat(
-                CollectorRegistry.defaultRegistry.getSampleValue(
-                        "flink_taskmanager_job_task_my_gauge", LABEL_NAMES, labelValues1),
-                equalTo(3.));
+                        CollectorRegistry.defaultRegistry.getSampleValue(
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
+                .isEqualTo(3.);
         assertThat(
-                CollectorRegistry.defaultRegistry.getSampleValue(
-                        "flink_taskmanager_job_task_my_gauge", LABEL_NAMES, labelValues2),
-                equalTo(4.));
+                        CollectorRegistry.defaultRegistry.getSampleValue(
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_2))
+                .isEqualTo(4.);
     }
 
     @Test
-    public void metersCanBeAddedSeveralTimesIfTheyDifferInLabels() throws UnirestException {
-        Meter meter = new TestMeter();
+    void metersCanBeAddedSeveralTimesIfTheyDifferInLabels() {
+        Meter meter1 = new TestMeter(1, 1.0);
+        Meter meter2 = new TestMeter(2, 2.0);
 
-        taskMetricGroup1.meter("my_meter", meter);
-        taskMetricGroup2.meter("my_meter", meter);
+        reporter.notifyOfAddedMetric(meter1, METRIC_NAME, metricGroup1);
+        reporter.notifyOfAddedMetric(meter2, METRIC_NAME, metricGroup2);
 
         assertThat(
-                CollectorRegistry.defaultRegistry.getSampleValue(
-                        "flink_taskmanager_job_task_my_meter", LABEL_NAMES, labelValues1),
-                equalTo(5.));
+                        CollectorRegistry.defaultRegistry.getSampleValue(
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
+                .isEqualTo(meter1.getRate());
         assertThat(
-                CollectorRegistry.defaultRegistry.getSampleValue(
-                        "flink_taskmanager_job_task_my_meter", LABEL_NAMES, labelValues2),
-                equalTo(5.));
+                        CollectorRegistry.defaultRegistry.getSampleValue(
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_2))
+                .isEqualTo(meter2.getRate());
     }
 
     @Test
-    public void histogramsCanBeAddedSeveralTimesIfTheyDifferInLabels() throws UnirestException {
-        Histogram histogram = new TestHistogram();
+    void histogramsCanBeAddedSeveralTimesIfTheyDifferInLabels() throws UnirestException {
+        TestHistogram histogram1 = new TestHistogram();
+        histogram1.setCount(1);
+        TestHistogram histogram2 = new TestHistogram();
+        histogram2.setCount(2);
 
-        taskMetricGroup1.histogram("my_histogram", histogram);
-        taskMetricGroup2.histogram("my_histogram", histogram);
+        reporter.notifyOfAddedMetric(histogram1, METRIC_NAME, metricGroup1);
+        reporter.notifyOfAddedMetric(histogram2, METRIC_NAME, metricGroup2);
 
         final String exportedMetrics = pollMetrics(reporter.getPort()).getBody();
-        assertThat(
-                exportedMetrics,
-                containsString("subtask_index=\"0\",quantile=\"0.5\",} 0.5")); // histogram
-        assertThat(
-                exportedMetrics,
-                containsString("subtask_index=\"1\",quantile=\"0.5\",} 0.5")); // histogram
+        assertThat(exportedMetrics).contains("label2=\"value1_2\",} 1.0");
+        assertThat(exportedMetrics).contains("label2=\"value2_2\",} 2.0");
 
         final String[] labelNamesWithQuantile = addToArray(LABEL_NAMES, "quantile");
         for (Double quantile : PrometheusReporter.HistogramSummaryProxy.QUANTILES) {
             assertThat(
-                    CollectorRegistry.defaultRegistry.getSampleValue(
-                            "flink_taskmanager_job_task_my_histogram",
-                            labelNamesWithQuantile,
-                            addToArray(labelValues1, "" + quantile)),
-                    equalTo(quantile));
+                            CollectorRegistry.defaultRegistry.getSampleValue(
+                                    getLogicalScope(METRIC_NAME),
+                                    labelNamesWithQuantile,
+                                    addToArray(LABEL_VALUES_1, "" + quantile)))
+                    .isEqualTo(quantile);
             assertThat(
-                    CollectorRegistry.defaultRegistry.getSampleValue(
-                            "flink_taskmanager_job_task_my_histogram",
-                            labelNamesWithQuantile,
-                            addToArray(labelValues2, "" + quantile)),
-                    equalTo(quantile));
+                            CollectorRegistry.defaultRegistry.getSampleValue(
+                                    getLogicalScope(METRIC_NAME),
+                                    labelNamesWithQuantile,
+                                    addToArray(LABEL_VALUES_2, "" + quantile)))
+                    .isEqualTo(quantile);
         }
     }
 
     @Test
-    public void removingSingleInstanceOfMetricDoesNotBreakOtherInstances() throws UnirestException {
+    void removingSingleInstanceOfMetricDoesNotBreakOtherInstances() {
         Counter counter1 = new SimpleCounter();
         counter1.inc(1);
         Counter counter2 = new SimpleCounter();
         counter2.inc(2);
 
-        taskMetricGroup1.counter("my_counter", counter1);
-        taskMetricGroup2.counter("my_counter", counter2);
+        reporter.notifyOfAddedMetric(counter1, METRIC_NAME, metricGroup1);
+        reporter.notifyOfAddedMetric(counter2, METRIC_NAME, metricGroup2);
 
         assertThat(
-                CollectorRegistry.defaultRegistry.getSampleValue(
-                        "flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues1),
-                equalTo(1.));
+                        CollectorRegistry.defaultRegistry.getSampleValue(
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
+                .isEqualTo(1.);
         assertThat(
-                CollectorRegistry.defaultRegistry.getSampleValue(
-                        "flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues2),
-                equalTo(2.));
+                        CollectorRegistry.defaultRegistry.getSampleValue(
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_2))
+                .isEqualTo(2.);
 
-        taskMetricGroup2.close();
+        reporter.notifyOfRemovedMetric(counter2, METRIC_NAME, metricGroup2);
         assertThat(
-                CollectorRegistry.defaultRegistry.getSampleValue(
-                        "flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues1),
-                equalTo(1.));
+                        CollectorRegistry.defaultRegistry.getSampleValue(
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
+                .isEqualTo(1.);
 
-        taskMetricGroup1.close();
+        reporter.notifyOfRemovedMetric(counter1, METRIC_NAME, metricGroup1);
         assertThat(
-                CollectorRegistry.defaultRegistry.getSampleValue(
-                        "flink_taskmanager_job_task_my_counter", LABEL_NAMES, labelValues1),
-                nullValue());
+                        CollectorRegistry.defaultRegistry.getSampleValue(
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
+                .isNull();
+    }
+
+    private static String getLogicalScope(String metricName) {
+        return PrometheusReporter.SCOPE_PREFIX
+                + LOGICAL_SCOPE
+                + PrometheusReporter.SCOPE_SEPARATOR
+                + metricName;
     }
 
     private String[] addToArray(String[] array, String element) {

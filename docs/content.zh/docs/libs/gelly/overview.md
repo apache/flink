@@ -29,12 +29,12 @@ under the License.
 
 Gelly is a Graph API for Flink. It contains a set of methods and utilities which aim to simplify the development of graph analysis applications in Flink. In Gelly, graphs can be transformed and modified using high-level functions similar to the ones provided by the batch processing API. Gelly provides methods to create, transform and modify graphs, as well as a library of graph algorithms.
 
-* [Graph API](graph_api.html)
-* [Iterative Graph Processing](iterative_graph_processing.html)
-* [Library Methods](library_methods.html)
-* [Graph Algorithms](graph_algorithms.html)
-* [Graph Generators](graph_generators.html)
-* [Bipartite Graphs](bipartite_graph.html)
+* [Graph API]({{< ref "docs/libs/gelly/graph_api" >}})
+* [Iterative Graph Processing]({{< ref "docs/libs/gelly/iterative_graph_processing" >}})
+* [Library Methods]({{< ref "docs/libs/gelly/library_methods" >}})
+* [Graph Algorithms]({{< ref "docs/libs/gelly/graph_algorithms" >}})
+* [Graph Generators]({{< ref "docs/libs/gelly/graph_generators" >}})
+* [Bipartite Graphs]({{< ref "docs/libs/gelly/bipartite_graph" >}})
 
 Using Gelly
 -----------
@@ -45,14 +45,14 @@ Add the following dependency to your `pom.xml` to use Gelly.
 
 {{< tabs "96de5128-3c66-4942-9498-e9a8ae439314" >}}
 {{< tab "Java" >}}
-{{< artifact flink-gelly withScalaVersion >}}
+{{< artifact flink-gelly >}}
 {{< /tab >}}
 {{< tab "Scala" >}}
 {{< artifact flink-gelly-scala withScalaVersion >}}
 {{< /tab >}}
 {{< /tabs >}}
 
-Note that Gelly is not part of the binary distribution. See [linking]({{< ref "docs/dev/datastream/project-configuration" >}}) for
+Note that Gelly is not part of the binary distribution. See [linking]({{< ref "docs/dev/configuration/overview" >}}) for
 instructions on packaging Gelly libraries into Flink user programs.
 
 The remaining sections provide a description of available methods and present several examples of how to use Gelly and how to mix it with the Flink DataSet API.
@@ -60,7 +60,7 @@ The remaining sections provide a description of available methods and present se
 Running Gelly Examples
 ----------------------
 
-The Gelly library jars are provided in the [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads")
+The Gelly library jars are provided in the [Flink distribution]({{< downloads >}} "Apache Flink: Downloads")
 in the **opt** directory (for versions older than Flink 1.2 these can be manually downloaded from
 [Maven Central](http://search.maven.org/#search|ga|1|flink%20gelly)). To run the Gelly examples the **flink-gelly** (for
 Java) or **flink-gelly-scala** (for Scala) jar must be copied to Flink's **lib** directory.
@@ -80,13 +80,13 @@ After configuring and starting the cluster, list the available algorithm classes
 
 The Gelly drivers can generate graph data or read the edge list from a CSV file (each node in a cluster must have access
 to the input file). The algorithm description, available inputs and outputs, and configuration are displayed when an
-algorithm is selected. Print usage for [JaccardIndex](./library_methods.html#jaccard-index):
+algorithm is selected. Print usage for [JaccardIndex]({{< ref "docs/libs/gelly/library_methods" >}}#jaccard-index):
 
 ```bash
 ./bin/flink run examples/gelly/flink-gelly-examples_*.jar --algorithm JaccardIndex
 ```
 
-Display [graph metrics](./library_methods.html#metric) for a million vertex graph:
+Display [graph metrics]({{< ref "docs/libs/gelly/library_methods" >}}#metric) for a million vertex graph:
 
 ```bash
 ./bin/flink run examples/gelly/flink-gelly-examples_*.jar \
@@ -96,7 +96,7 @@ Display [graph metrics](./library_methods.html#metric) for a million vertex grap
 ```
 
 The size of the graph is adjusted by the *\-\-scale* and *\-\-edge_factor* parameters. The
-[library generator](./graph_generators.html#rmat-graph) provides access to additional configuration to adjust the
+[library generator]({{< ref "docs/libs/gelly/graph_generators" >}}#rmat-graph) provides access to additional configuration to adjust the
 power-law skew and random noise.
 
 Sample social network data is provided by the [Stanford Network Analysis Project](http://snap.stanford.edu/data/index.html).

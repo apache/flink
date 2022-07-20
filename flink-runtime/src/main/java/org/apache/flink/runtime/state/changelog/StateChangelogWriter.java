@@ -24,16 +24,19 @@ import java.util.concurrent.CompletableFuture;
 
 /** Allows to write data to the log. Scoped to a single writer (e.g. state backend). */
 @Internal
-public interface StateChangelogWriter<Handle extends StateChangelogHandle<?>>
-        extends AutoCloseable {
+public interface StateChangelogWriter<Handle extends ChangelogStateHandle> extends AutoCloseable {
+
+    /** Get the initial {@link SequenceNumber} that is used for the first element. */
+    SequenceNumber initialSequenceNumber();
 
     /**
-     * Get {@link SequenceNumber} of the last element added by {@link #append(int, byte[]) append}.
+     * Get {@link SequenceNumber} to be used for the next element added by {@link #append(int,
+     * byte[]) append}.
      */
-    SequenceNumber lastAppendedSequenceNumber();
+    SequenceNumber nextSequenceNumber();
 
     /** Appends the provided data to this log. No persistency guarantees. */
-    void append(int keyGroup, byte[] value);
+    void append(int keyGroup, byte[] value) throws IOException;
 
     /**
      * Durably persist previously {@link #append(int, byte[]) appended} data starting from the
@@ -47,9 +50,17 @@ public interface StateChangelogWriter<Handle extends StateChangelogHandle<?>>
     CompletableFuture<Handle> persist(SequenceNumber from) throws IOException;
 
     /**
-     * Truncate this state changelog to free up resources. Called upon state materialization. Any
-     * {@link #persist(SequenceNumber) persisted} state changes will be discarded unless previously
-     * {@link #confirm confirmed}.
+     * Truncate this state changelog to free up the resources and collect any garbage. That means:
+     *
+     * <ul>
+     *   <li>Discard the written state changes - in the provided range [from; to)
+     *   <li>Truncate the in-memory view of this changelog - in the range [0; to)
+     * </ul>
+     *
+     * Called upon state materialization. Any ongoing persist calls will not be affected.
+     *
+     * <p>WARNING: the range [from; to) must not include any range that is included into any
+     * checkpoint that is not subsumed or aborted.
      *
      * @param to exclusive
      */
@@ -68,6 +79,14 @@ public interface StateChangelogWriter<Handle extends StateChangelogHandle<?>>
      * these changes will be re-uploaded.
      */
     void reset(SequenceNumber from, SequenceNumber to);
+
+    /**
+     * Truncate the tail of log and close it. No new appends will be possible. Any appended but not
+     * persisted records will be lost.
+     *
+     * @param from {@link SequenceNumber} from which to truncate the changelog, inclusive
+     */
+    void truncateAndClose(SequenceNumber from);
 
     /**
      * Close this log. No new appends will be possible. Any appended but not persisted records will

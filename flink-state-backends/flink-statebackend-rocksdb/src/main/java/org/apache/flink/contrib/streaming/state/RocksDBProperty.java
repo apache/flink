@@ -48,6 +48,7 @@ public enum RocksDBProperty {
     NumLiveVersions("num-live-versions"),
     EstimateLiveDataSize("estimate-live-data-size"),
     TotalSstFilesSize("total-sst-files-size"),
+    LiveSstFilesSize("live-sst-files-size"),
     EstimatePendingCompactionBytes("estimate-pending-compaction-bytes"),
     NumRunningCompactions("num-running-compactions"),
     NumRunningFlushes("num-running-flushes"),

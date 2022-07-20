@@ -20,11 +20,15 @@ package org.apache.flink.connector.file.sink.writer;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.common.operators.ProcessingTimeService;
+import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
@@ -37,6 +41,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -56,8 +61,10 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class FileWriter<IN>
-        implements SinkWriter<IN, FileSinkCommittable, FileWriterBucketState>,
-                Sink.ProcessingTimeService.ProcessingTimeCallback {
+        implements StatefulSinkWriter<IN, FileWriterBucketState>,
+                TwoPhaseCommittingSink.PrecommittingSinkWriter<IN, FileSinkCommittable>,
+                SinkWriter<IN>,
+                ProcessingTimeService.ProcessingTimeCallback {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileWriter.class);
 
@@ -73,7 +80,7 @@ public class FileWriter<IN>
 
     private final RollingPolicy<IN, String> rollingPolicy;
 
-    private final Sink.ProcessingTimeService processingTimeService;
+    private final ProcessingTimeService processingTimeService;
 
     private final long bucketCheckInterval;
 
@@ -85,10 +92,15 @@ public class FileWriter<IN>
 
     private final OutputFileConfig outputFileConfig;
 
+    private final Counter numRecordsSendCounter;
+
+    private boolean endOfInput;
+
     /**
      * A constructor creating a new empty bucket manager.
      *
      * @param basePath The base path for our buckets.
+     * @param metricGroup {@link SinkWriterMetricGroup} to set sink writer specific metrics.
      * @param bucketAssigner The {@link BucketAssigner} provided by the user.
      * @param bucketFactory The {@link FileWriterBucketFactory} to be used to create buckets.
      * @param bucketWriter The {@link BucketWriter} to be used when writing data.
@@ -96,12 +108,13 @@ public class FileWriter<IN>
      */
     public FileWriter(
             final Path basePath,
+            final SinkWriterMetricGroup metricGroup,
             final BucketAssigner<IN, String> bucketAssigner,
             final FileWriterBucketFactory<IN> bucketFactory,
             final BucketWriter<IN, String> bucketWriter,
             final RollingPolicy<IN, String> rollingPolicy,
             final OutputFileConfig outputFileConfig,
-            final Sink.ProcessingTimeService processingTimeService,
+            final ProcessingTimeService processingTimeService,
             final long bucketCheckInterval) {
 
         this.basePath = checkNotNull(basePath);
@@ -115,6 +128,7 @@ public class FileWriter<IN>
         this.activeBuckets = new HashMap<>();
         this.bucketerContext = new BucketerContext();
 
+        this.numRecordsSendCounter = checkNotNull(metricGroup).getNumRecordsSendCounter();
         this.processingTimeService = checkNotNull(processingTimeService);
         checkArgument(
                 bucketCheckInterval > 0,
@@ -140,7 +154,7 @@ public class FileWriter<IN>
      * @throws IOException if anything goes wrong during retrieving the state or
      *     restoring/committing of any in-progress/pending part files
      */
-    public void initializeState(List<FileWriterBucketState> bucketStates) throws IOException {
+    public void initializeState(Collection<FileWriterBucketState> bucketStates) throws IOException {
         checkNotNull(bucketStates, "The retrieved state was null.");
 
         for (FileWriterBucketState state : bucketStates) {
@@ -171,7 +185,7 @@ public class FileWriter<IN>
     }
 
     @Override
-    public void write(IN element, Context context) throws IOException {
+    public void write(IN element, Context context) throws IOException, InterruptedException {
         // setting the values in the bucketer context
         bucketerContext.update(
                 context.timestamp(),
@@ -181,10 +195,16 @@ public class FileWriter<IN>
         final String bucketId = bucketAssigner.getBucketId(element, bucketerContext);
         final FileWriterBucket<IN> bucket = getOrCreateBucketForBucketId(bucketId);
         bucket.write(element, processingTimeService.getCurrentProcessingTime());
+        numRecordsSendCounter.inc();
     }
 
     @Override
-    public List<FileSinkCommittable> prepareCommit(boolean flush) throws IOException {
+    public void flush(boolean endOfInput) throws IOException, InterruptedException {
+        this.endOfInput = endOfInput;
+    }
+
+    @Override
+    public Collection<FileSinkCommittable> prepareCommit() throws IOException {
         List<FileSinkCommittable> committables = new ArrayList<>();
 
         // Every time before we prepare commit, we first check and remove the inactive
@@ -197,7 +217,7 @@ public class FileWriter<IN>
             if (!entry.getValue().isActive()) {
                 activeBucketIt.remove();
             } else {
-                committables.addAll(entry.getValue().prepareCommit(flush));
+                committables.addAll(entry.getValue().prepareCommit(endOfInput));
             }
         }
 
@@ -205,7 +225,7 @@ public class FileWriter<IN>
     }
 
     @Override
-    public List<FileWriterBucketState> snapshotState() throws IOException {
+    public List<FileWriterBucketState> snapshotState(long checkpointId) throws IOException {
         checkState(bucketWriter != null, "sink has not been initialized");
 
         List<FileWriterBucketState> state = new ArrayList<>();
@@ -254,7 +274,7 @@ public class FileWriter<IN>
     private void registerNextBucketInspectionTimer() {
         final long nextInspectionTime =
                 processingTimeService.getCurrentProcessingTime() + bucketCheckInterval;
-        processingTimeService.registerProcessingTimer(nextInspectionTime, this);
+        processingTimeService.registerTimer(nextInspectionTime, this);
     }
 
     /**

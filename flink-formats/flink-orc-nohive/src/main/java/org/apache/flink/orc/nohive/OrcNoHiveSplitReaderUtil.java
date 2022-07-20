@@ -23,8 +23,8 @@ import org.apache.flink.orc.OrcColumnarRowSplitReader;
 import org.apache.flink.orc.OrcFilters;
 import org.apache.flink.orc.OrcSplitReader;
 import org.apache.flink.orc.nohive.shim.OrcNoHiveShim;
-import org.apache.flink.table.data.vector.ColumnVector;
-import org.apache.flink.table.data.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.columnar.vector.ColumnVector;
+import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 

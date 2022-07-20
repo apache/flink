@@ -20,11 +20,11 @@ from py4j.protocol import Py4JJavaError
 
 from pyflink.table import expressions as expr
 from pyflink.table.window import Session, Slide, Tumble, Over
-from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase, \
-    PyFlinkBlinkBatchTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
+    PyFlinkBatchTableTestCase
 
 
-class StreamTableWindowTests(PyFlinkBlinkStreamTableTestCase):
+class StreamTableWindowTests(PyFlinkStreamTableTestCase):
 
     def test_over_window(self):
         t_env = self.t_env
@@ -39,14 +39,14 @@ class StreamTableWindowTests(PyFlinkBlinkStreamTableTestCase):
 
         self.assertRaisesRegex(
             Py4JJavaError, "Ordering must be defined on a time attribute",
-            result.select, "b.sum over w")
+            result.select, expr.col("b").sum.over(expr.col("w")))
 
 
-class BatchTableWindowTests(PyFlinkBlinkBatchTableTestCase):
+class BatchTableWindowTests(PyFlinkBatchTableTestCase):
 
     def test_tumble_window(self):
         t = self.t_env.from_elements([(1, 1, "Hello")], ["a", "b", "c"])
-        result = t.window(Tumble.over(expr.row_interval(2)).on("a").alias("w"))\
+        result = t.window(Tumble.over(expr.row_interval(2)).on(expr.col("a")).alias("w"))\
             .group_by(expr.col('w'), expr.col('c')).select(t.b.sum)
 
         query_operation = result._j_table.getQueryOperation().getChildren().get(0)
@@ -56,7 +56,7 @@ class BatchTableWindowTests(PyFlinkBlinkBatchTableTestCase):
 
     def test_slide_window(self):
         t = self.t_env.from_elements([(1000, 1, "Hello")], ["a", "b", "c"])
-        result = t.window(Slide.over(expr.lit(2).seconds).every(expr.lit(1).seconds).on("a")
+        result = t.window(Slide.over(expr.lit(2).seconds).every(expr.lit(1).seconds).on(t.a)
                           .alias("w")).group_by(expr.col('w'), expr.col('c')).select(t.b.sum)
 
         query_operation = result._j_table.getQueryOperation().getChildren().get(0)
@@ -66,7 +66,7 @@ class BatchTableWindowTests(PyFlinkBlinkBatchTableTestCase):
 
     def test_session_window(self):
         t = self.t_env.from_elements([(1000, 1, "Hello")], ["a", "b", "c"])
-        result = t.window(Session.with_gap(expr.lit(1).seconds).on("a").alias("w"))\
+        result = t.window(Session.with_gap(expr.lit(1).seconds).on(t.a).alias("w"))\
             .group_by(expr.col('w'), expr.col('c')).select(t.b.sum)
 
         query_operation = result._j_table.getQueryOperation().getChildren().get(0)

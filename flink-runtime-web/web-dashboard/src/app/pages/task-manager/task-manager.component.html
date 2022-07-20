@@ -16,10 +16,7 @@
   ~ limitations under the License.
   -->
 
-<flink-task-manager-status [isLoading]="isLoading"></flink-task-manager-status>
+<flink-task-manager-status></flink-task-manager-status>
 <div class="content">
-  <nz-skeleton [nzActive]="true" *ngIf="isLoading"></nz-skeleton>
-  <div class="router" [style.display]="isLoading?'none':'block'">
-    <router-outlet></router-outlet>
-  </div>
+  <router-outlet></router-outlet>
 </div>

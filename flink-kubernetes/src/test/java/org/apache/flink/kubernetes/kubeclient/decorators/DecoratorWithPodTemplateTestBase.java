@@ -35,8 +35,7 @@ import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.Toleration;
-import org.hamcrest.Matchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,11 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasItems;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test base of merging and overwriting Kubernetes fields from {@link KubernetesConfigOptions} and
@@ -119,35 +114,28 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
     protected abstract FlinkPod getResultPod(FlinkPod podTemplate) throws Exception;
 
     @Test
-    public void testPodLabelsMerging() {
+    void testPodLabelsMerging() {
         final Map<String, String> expectedLabels = new HashMap<>(getCommonLabels());
         expectedLabels.putAll(userLabels);
         // The label from pod template
         expectedLabels.put("label-key-of-pod-template", "label-value-of-pod-template");
 
-        assertThat(
-                new ArrayList<>(
-                        this.resultPod
-                                .getPodWithoutMainContainer()
-                                .getMetadata()
-                                .getLabels()
-                                .entrySet()),
-                hasItems(expectedLabels.entrySet().toArray()));
+        assertThat(this.resultPod.getPodWithoutMainContainer().getMetadata().getLabels())
+                .containsAllEntriesOf(expectedLabels);
     }
 
     @Test
-    public void testPodAnnotationsMerging() {
+    void testPodAnnotationsMerging() {
         final Map<String, String> expectedAnnotations = new HashMap<>(ANNOTATIONS);
         // The annotations from pod template
         expectedAnnotations.put(
                 "annotation-key-of-pod-template", "annotation-value-of-pod-template");
-        assertThat(
-                this.resultPod.getPodWithoutMainContainer().getMetadata().getAnnotations(),
-                is(equalTo(expectedAnnotations)));
+        assertThat(this.resultPod.getPodWithoutMainContainer().getMetadata().getAnnotations())
+                .isEqualTo(expectedAnnotations);
     }
 
     @Test
-    public void testImagePullSecretsMerging() {
+    void testImagePullSecretsMerging() {
         final List<String> expectedPullSecrets = new ArrayList<>(IMAGE_PULL_SECRETS);
         // The image pull secret from pod template
         expectedPullSecrets.add("image-pull-secret-of-pod-template");
@@ -156,34 +144,32 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
                         .map(LocalObjectReference::getName)
                         .collect(Collectors.toList());
 
-        assertThat(resultSecrets, containsInAnyOrder(expectedPullSecrets.toArray()));
+        assertThat(resultSecrets).containsExactlyInAnyOrderElementsOf(expectedPullSecrets);
     }
 
     @Test
-    public void testNodeSelectorMerging() {
+    void testNodeSelectorMerging() {
         final Map<String, String> expectedNodeSelectors = new HashMap<>(nodeSelector);
         // The node selector from pod template
         expectedNodeSelectors.put(
                 "node-selector-key-of-pod-template", "node-selector-value-of-pod-template");
-        assertThat(
-                this.resultPod.getPodWithoutMainContainer().getSpec().getNodeSelector(),
-                is(equalTo(expectedNodeSelectors)));
+        assertThat(this.resultPod.getPodWithoutMainContainer().getSpec().getNodeSelector())
+                .isEqualTo(expectedNodeSelectors);
     }
 
     @Test
-    public void testPodTolerationsMerging() {
+    void testPodTolerationsMerging() {
         final List<Toleration> expectedTolerations =
                 Arrays.asList(
                         new Toleration("NoSchedule", "key1", "Equal", null, "value1"),
                         // The toleration from pod template
                         new Toleration("NoExecute", "key2-of-pod-template", "Exists", 6000L, null));
-        assertThat(
-                this.resultPod.getPodWithoutMainContainer().getSpec().getTolerations(),
-                Matchers.containsInAnyOrder(expectedTolerations.toArray()));
+        assertThat(this.resultPod.getPodWithoutMainContainer().getSpec().getTolerations())
+                .containsExactlyInAnyOrderElementsOf(expectedTolerations);
     }
 
     @Test
-    public void testMainContainerEnvMerging() {
+    void testMainContainerEnvMerging() {
         final List<EnvVar> envVars = this.resultPod.getMainContainer().getEnv();
         final Map<String, String> actualEnvs = new HashMap<>();
         envVars.forEach(env -> actualEnvs.put(env.getName(), env.getValue()));
@@ -192,44 +178,41 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
         // The envs from pod template
         expectedEnvs.put("ENV_OF_POD_TEMPLATE", "env-value-of-pod-template");
 
-        assertThat(
-                new ArrayList<>(actualEnvs.entrySet()),
-                hasItems(expectedEnvs.entrySet().toArray()));
+        assertThat(actualEnvs).containsAllEntriesOf(expectedEnvs);
     }
 
     @Test
-    public void testMainContainerResourceRequirementsMerging() {
+    void testMainContainerResourceRequirementsMerging() {
         final ResourceRequirements resourceRequirements =
                 this.resultPod.getMainContainer().getResources();
 
         final Map<String, Quantity> requests = resourceRequirements.getRequests();
-        assertThat(requests.get("cpu").getAmount(), is(String.valueOf(RESOURCE_CPU)));
-        assertThat(requests.get("memory").getAmount(), is(String.valueOf(RESOURCE_MEMORY)));
-        assertThat(requests.get("ephemeral-storage").getAmount(), is("256"));
+        assertThat(requests.get("cpu").getAmount()).isEqualTo(String.valueOf(RESOURCE_CPU));
+        assertThat(requests.get("memory").getAmount()).isEqualTo(String.valueOf(RESOURCE_MEMORY));
+        assertThat(requests.get("ephemeral-storage").getAmount()).isEqualTo("256");
 
         final Map<String, Quantity> limits = resourceRequirements.getLimits();
-        assertThat(limits.get("cpu").getAmount(), is(String.valueOf(RESOURCE_CPU)));
-        assertThat(limits.get("memory").getAmount(), is(String.valueOf(RESOURCE_MEMORY)));
-        assertThat(limits.get("ephemeral-storage").getAmount(), is("256"));
+        assertThat(limits.get("cpu").getAmount()).isEqualTo(String.valueOf(RESOURCE_CPU));
+        assertThat(limits.get("memory").getAmount()).isEqualTo(String.valueOf(RESOURCE_MEMORY));
+        assertThat(limits.get("ephemeral-storage").getAmount()).isEqualTo("256");
     }
 
     @Test
-    public void testServiceAccountOverwritten() {
-        assertThat(
-                this.resultPod.getPodWithoutMainContainer().getSpec().getServiceAccountName(),
-                is(TESTING_SERVICE_ACCOUNT));
-        assertThat(
-                this.resultPod.getPodWithoutMainContainer().getSpec().getServiceAccount(),
-                is(TESTING_SERVICE_ACCOUNT));
+    void testServiceAccountOverwritten() {
+        assertThat(this.resultPod.getPodWithoutMainContainer().getSpec().getServiceAccountName())
+                .isEqualTo(TESTING_SERVICE_ACCOUNT);
+        assertThat(this.resultPod.getPodWithoutMainContainer().getSpec().getServiceAccount())
+                .isEqualTo(TESTING_SERVICE_ACCOUNT);
     }
 
     @Test
-    public void testMainContainerImageOverwritten() {
-        assertThat(this.resultPod.getMainContainer().getImage(), is(IMAGE));
+    void testMainContainerImageOverwritten() {
+        assertThat(this.resultPod.getMainContainer().getImage()).isEqualTo(IMAGE);
     }
 
     @Test
-    public void testMainContainerImagePullPolicyOverwritten() {
-        assertThat(this.resultPod.getMainContainer().getImagePullPolicy(), is(IMAGE_PULL_POLICY));
+    void testMainContainerImagePullPolicyOverwritten() {
+        assertThat(this.resultPod.getMainContainer().getImagePullPolicy())
+                .isEqualTo(IMAGE_PULL_POLICY);
     }
 }

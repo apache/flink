@@ -30,7 +30,7 @@ import java.util.List;
 
 import static org.apache.flink.connector.jdbc.catalog.PostgresCatalog.DEFAULT_DATABASE;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** E2E test for {@link PostgresCatalog}. */
 public class PostgresCatalogITCase extends PostgresCatalogTestBase {
@@ -39,12 +39,8 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 
     @Before
     public void setup() {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        this.tEnv = TableEnvironment.create(settings);
-        tEnv.getConfig()
-                .getConfiguration()
-                .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
+        this.tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        tEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
 
         // use PG catalog
         tEnv.registerCatalog(TEST_CATALOG_NAME, catalog);
@@ -58,7 +54,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                         tEnv.sqlQuery(String.format("select id from %s", TABLE1))
                                 .execute()
                                 .collect());
-        assertEquals("[+I[1]]", results.toString());
+        assertThat(results).hasToString("[+I[1]]");
     }
 
     @Test
@@ -68,7 +64,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                         tEnv.sqlQuery(String.format("select * from %s", TABLE1))
                                 .execute()
                                 .collect());
-        assertEquals("[+I[1]]", results.toString());
+        assertThat(results).hasToString("[+I[1]]");
     }
 
     @Test
@@ -81,7 +77,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                                                 PostgresTablePath.fromFlinkTableName(TABLE1)))
                                 .execute()
                                 .collect());
-        assertEquals("[+I[1]]", results.toString());
+        assertThat(results).hasToString("[+I[1]]");
     }
 
     @Test
@@ -96,7 +92,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                                                 PostgresTablePath.fromFlinkTableName(TABLE1)))
                                 .execute()
                                 .collect());
-        assertEquals("[+I[1]]", results.toString());
+        assertThat(results).hasToString("[+I[1]]");
     }
 
     @Test
@@ -108,7 +104,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                         tEnv.sqlQuery(String.format("select * from %s", TABLE4))
                                 .execute()
                                 .collect());
-        assertEquals("[+I[1]]", results.toString());
+        assertThat(results).hasToString("[+I[1]]");
     }
 
     @Test
@@ -116,7 +112,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
         tEnv.executeSql(
                         String.format(
                                 "insert into `%s` "
-                                        + "select `int`, cast('A' as bytes), `short`, max(`long`), max(`real`), "
+                                        + "select `int`, cast('41' as bytes), `short`, max(`long`), max(`real`), "
                                         + "max(`double_precision`), max(`numeric`), max(`decimal`), max(`boolean`), "
                                         + "max(`text`), 'B', 'C', max(`character_varying`), max(`timestamp`), "
                                         + "max(`date`), max(`time`), max(`default_numeric`) "
@@ -129,9 +125,9 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                         tEnv.sqlQuery(String.format("select * from `%s`", TABLE_PRIMITIVE_TYPE2))
                                 .execute()
                                 .collect());
-        assertEquals(
-                "[+I[1, [65], 3, 4, 5.5, 6.6, 7.70000, 8.8, true, a, B, C  , d, 2016-06-22T19:10:25, 2015-01-01, 00:51:03, 500.000000000000000000]]",
-                results.toString());
+        assertThat(results)
+                .hasToString(
+                        "[+I[1, [52, 49], 3, 4, 5.5, 6.6, 7.70000, 8.8, true, a, B, C  , d, 2016-06-22T19:10:25, 2015-01-01, 00:51:03, 500.000000000000000000]]");
     }
 
     @Test
@@ -142,9 +138,9 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                                 .execute()
                                 .collect());
 
-        assertEquals(
-                "[+I[1, [50], 3, 4, 5.5, 6.6, 7.70000, 8.8, true, a, b, c  , d, 2016-06-22T19:10:25, 2015-01-01, 00:51:03, 500.000000000000000000]]",
-                results.toString());
+        assertThat(results)
+                .hasToString(
+                        "[+I[1, [50], 3, 4, 5.5, 6.6, 7.70000, 8.8, true, a, b, c  , d, 2016-06-22T19:10:25, 2015-01-01, 00:51:03, 500.000000000000000000]]");
     }
 
     @Test
@@ -155,28 +151,28 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                                 .execute()
                                 .collect());
 
-        assertEquals(
-                "[+I["
-                        + "[1, 2, 3], "
-                        + "[[92, 120, 51, 50], [92, 120, 51, 51], [92, 120, 51, 52]], "
-                        + "[3, 4, 5], "
-                        + "[4, 5, 6], "
-                        + "[5.5, 6.6, 7.7], "
-                        + "[6.6, 7.7, 8.8], "
-                        + "[7.70000, 8.80000, 9.90000], "
-                        + "[8.800000000000000000, 9.900000000000000000, 10.100000000000000000], "
-                        + "[9.90, 10.10, 11.11], "
-                        + "[true, false, true], "
-                        + "[a, b, c], "
-                        + "[b, c, d], "
-                        + "[b  , c  , d  ], "
-                        + "[b, c, d], "
-                        + "[2016-06-22T19:10:25, 2019-06-22T19:10:25], "
-                        + "[2015-01-01, 2020-01-01], "
-                        + "[00:51:03, 00:59:03], "
-                        + "null, "
-                        + "null]]",
-                results.toString());
+        assertThat(results)
+                .hasToString(
+                        "[+I["
+                                + "[1, 2, 3], "
+                                + "[[50], [51], [52]], "
+                                + "[3, 4, 5], "
+                                + "[4, 5, 6], "
+                                + "[5.5, 6.6, 7.7], "
+                                + "[6.6, 7.7, 8.8], "
+                                + "[7.70000, 8.80000, 9.90000], "
+                                + "[8.800000000000000000, 9.900000000000000000, 10.100000000000000000], "
+                                + "[9.90, 10.10, 11.11], "
+                                + "[true, false, true], "
+                                + "[a, b, c], "
+                                + "[b, c, d], "
+                                + "[b  , c  , d  ], "
+                                + "[b, c, d], "
+                                + "[2016-06-22T19:10:25, 2019-06-22T19:10:25], "
+                                + "[2015-01-01, 2020-01-01], "
+                                + "[00:51:03, 00:59:03], "
+                                + "null, "
+                                + "null]]");
     }
 
     @Test
@@ -187,14 +183,14 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                                 .execute()
                                 .collect());
 
-        assertEquals(
-                "[+I["
-                        + "32767, "
-                        + "2147483647, "
-                        + "32767, "
-                        + "2147483647, "
-                        + "9223372036854775807, "
-                        + "9223372036854775807]]",
-                results.toString());
+        assertThat(results)
+                .hasToString(
+                        "[+I["
+                                + "32767, "
+                                + "2147483647, "
+                                + "32767, "
+                                + "2147483647, "
+                                + "9223372036854775807, "
+                                + "9223372036854775807]]");
     }
 }

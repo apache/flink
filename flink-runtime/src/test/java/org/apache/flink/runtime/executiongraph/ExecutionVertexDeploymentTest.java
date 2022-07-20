@@ -53,6 +53,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
             final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
             assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            vertex.getCurrentExecutionAttempt().transitionState(ExecutionState.SCHEDULED);
             vertex.deployToSlot(slot);
             assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 
@@ -82,6 +83,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
             final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
             assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            vertex.getCurrentExecutionAttempt().transitionState(ExecutionState.SCHEDULED);
 
             vertex.deployToSlot(slot);
 
@@ -114,6 +116,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
             final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
             assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            vertex.getCurrentExecutionAttempt().transitionState(ExecutionState.SCHEDULED);
 
             vertex.deployToSlot(slot);
 
@@ -156,6 +159,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
                             .createTestingLogicalSlot();
 
             assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            vertex.getCurrentExecutionAttempt().transitionState(ExecutionState.SCHEDULED);
 
             vertex.deployToSlot(slot);
 
@@ -186,6 +190,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
                             .createTestingLogicalSlot();
 
             assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            vertex.getCurrentExecutionAttempt().transitionState(ExecutionState.SCHEDULED);
 
             vertex.deployToSlot(slot);
 
@@ -226,6 +231,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
                             .createTestingLogicalSlot();
 
             assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            vertex.getCurrentExecutionAttempt().transitionState(ExecutionState.SCHEDULED);
             vertex.deployToSlot(testingLogicalSlot);
             assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 

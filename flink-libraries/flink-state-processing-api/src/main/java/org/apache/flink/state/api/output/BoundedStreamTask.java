@@ -33,6 +33,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
@@ -49,6 +50,7 @@ import java.util.Optional;
  * @param <OUT> Type of the output.
  * @param <OP> Type of the operator this task runs.
  */
+@Deprecated
 class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & BoundedOneInput>
         extends StreamTask<OUT, OP> {
 
@@ -105,7 +107,9 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
             mainOperator.processElement(streamRecord);
         } else {
             mainOperator.endInput();
-            controller.allActionsCompleted();
+            mainOperator.finish();
+            controller.suspendDefaultAction();
+            mailboxProcessor.suspend();
         }
     }
 
@@ -113,9 +117,8 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
     protected void cancelTask() {}
 
     @Override
-    protected void cleanup() throws Exception {
+    protected void cleanUpInternal() throws Exception {
         mainOperator.close();
-        mainOperator.dispose();
     }
 
     private static class CollectorWrapper<OUT> implements Output<StreamRecord<OUT>> {
@@ -128,6 +131,9 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 
         @Override
         public void emitWatermark(Watermark mark) {}
+
+        @Override
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}
 
         @Override
         public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {}

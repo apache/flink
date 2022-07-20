@@ -1,6 +1,6 @@
 ---
 title: Kinesis
-weight: 4
+weight: 5
 type: docs
 aliases:
   - /dev/connectors/kinesis.html
@@ -27,18 +27,30 @@ under the License.
 
 # Amazon Kinesis Data Streams Connector
 
-The Kinesis connector provides access to [Amazon AWS Kinesis Streams](http://aws.amazon.com/kinesis/streams/).
+The Kinesis connector provides access to [Amazon Kinesis Data Streams](http://aws.amazon.com/kinesis/streams/).
 
-To use the connector, add the following Maven dependency to your project:
+To use this connector, add one or more of the following dependencies to your project, depending on whether you are reading from and/or writing to Kinesis Data Streams:
 
-{{< artifact flink-connector-kinesis withScalaVersion >}}
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left">KDS Connectivity</th>
+      <th class="text-left">Maven Dependency</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td>Source</td>
+        <td>{{< artifact flink-connector-kinesis >}}</td>
+    </tr>
+    <tr>
+        <td>Sink</td>
+        <td>{{< artifact flink-connector-aws-kinesis-streams >}}</td>
+    </tr>
+  </tbody>
+</table>
 
-{{< hint warning >}}
-**Attention** Prior to Flink version 1.10.0 the `flink-connector-kinesis{{< scala_version >}}` has a dependency on code licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
-Linking to the prior versions of flink-connector-kinesis will include this code into your application.
-{{< /hint >}}
-
-Due to the licensing issue, the `flink-connector-kinesis{{< scala_version >}}` artifact is not deployed to Maven central for the prior versions. Please see the version specific documentation for further information.
+Due to the licensing issue, the `flink-connector-kinesis` artifact is not deployed to Maven central for the prior versions. Please see the version specific documentation for further information.
 
 ## Using the Amazon Kinesis Streams Service
 Follow the instructions from the [Amazon Kinesis Streams Developer Guide](https://docs.aws.amazon.com/streams/latest/dev/learning-kinesis-module-one-create-stream.html)
@@ -69,7 +81,7 @@ streams within the same AWS service region, and can transparently handle reshard
 responsible for fetching data records from multiple Kinesis shards. The number of shards fetched by each subtask will
 change as shards are closed and created by Kinesis.
 
-Before consuming data from Kinesis streams, make sure that all streams are created with the status "ACTIVE" in the AWS dashboard.
+Before consuming data from Kinesis streams, make sure that all streams1 are created with the status "ACTIVE" in the Amazon Kinesis Data Stream console.
 
 {{< tabs "58b6c235-48ee-4cf7-aabc-41e0679a3370" >}}
 {{< tab "Java" >}}
@@ -100,6 +112,20 @@ val kinesis = env.addSource(new FlinkKinesisConsumer[String](
     "kinesis_stream_name", new SimpleStringSchema, consumerConfig))
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+consumer_config = {
+    'aws.region': 'us-east-1',
+    'aws.credentials.provider.basic.accesskeyid': 'aws_access_key_id',
+    'aws.credentials.provider.basic.secretkey': 'aws_secret_access_key',
+    'flink.stream.initpos': 'LATEST'
+}
+
+env = StreamExecutionEnvironment.get_execution_environment()
+
+kinesis = env.add_source(FlinkKinesisConsumer("stream-1", SimpleStringSchema(), consumer_config))
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 The above is a simple example of using the consumer. Configuration for the consumer is supplied with a `java.util.Properties`
@@ -121,10 +147,60 @@ then some consumer subtasks will simply be idle and wait until it gets assigned
 new shards (i.e., when the streams are resharded to increase the
 number of shards for higher provisioned Kinesis service throughput).
 
-Also note that the assignment of shards to subtasks may not be optimal when
-shard IDs are not consecutive (as result of dynamic re-sharding in Kinesis).
-For cases where skew in the assignment leads to significant imbalanced consumption,
-a custom implementation of `KinesisShardAssigner` can be set on the consumer.
+Also note that the default assignment of shards to subtasks is based on the hashes of the shard and stream names,
+which will more-or-less balance the shards across the subtasks.
+However, assuming the default Kinesis shard management is used on the stream (UpdateShardCount with `UNIFORM_SCALING`),
+setting `UniformShardAssigner` as the shard assigner on the consumer will much more evenly distribute shards to subtasks.
+Assuming the incoming Kinesis records are assigned random Kinesis `PartitionKey` or `ExplicitHashKey` values,
+the result is consistent subtask loading.
+If neither the default assigner nor the `UniformShardAssigner` suffice, a custom implementation of `KinesisShardAssigner` can be set.
+
+### The `DeserializationSchema`
+
+Flink Kinesis Consumer also needs a schema to know how to turn the binary data in a Kinesis Data Stream into Java objects.
+The `KinesisDeserializationSchema` allows users to specify such a schema. The `T deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId)` 
+method gets called for each Kinesis record.
+
+For convenience, Flink provides the following schemas out of the box:
+  
+1. `TypeInformationSerializationSchema` which creates a schema based on a Flink's `TypeInformation`. 
+    This is useful if the data is both written and read by Flink.
+    This schema is a performant Flink-specific alternative to other generic serialization approaches.
+    
+2. `GlueSchemaRegistryJsonDeserializationSchema` offers the ability to lookup the writer's schema (schema which was used to write the record)
+   in [AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html). Using this, deserialization schema record will be
+   read with the schema retrieved from AWS Glue Schema Registry and transformed to either `com.amazonaws.services.schemaregistry.serializers.json.JsonDataWithSchema`
+   that represents generic record with a manually provided schema or a JAVA POJO generated by [mbknor-jackson-jsonSchema](https://github.com/mbknor/mbknor-jackson-jsonSchema).  
+   
+   <br>To use this deserialization schema one has to add the following additional dependency:
+       
+{{< tabs "8c6721c7-4a48-496e-b0fe-6522cf6a5e13" >}}
+{{< tab "GlueSchemaRegistryJsonDeserializationSchema" >}}
+{{< artifact flink-jsonschema-glue-schema-registry >}}
+{{< /tab >}}
+{{< /tabs >}}
+    
+3. `AvroDeserializationSchema` which reads data serialized with Avro format using a statically provided schema. It can
+    infer the schema from Avro generated classes (`AvroDeserializationSchema.forSpecific(...)`) or it can work with `GenericRecords`
+    with a manually provided schema (with `AvroDeserializationSchema.forGeneric(...)`). This deserialization schema expects that
+    the serialized records DO NOT contain the embedded schema.
+
+    - You can use [AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html)
+      to retrieve the writer’s schema. Similarly, the deserialization record will be read with the schema from AWS Glue Schema Registry and transformed
+      (either through `GlueSchemaRegistryAvroDeserializationSchema.forGeneric(...)` or `GlueSchemaRegistryAvroDeserializationSchema.forSpecific(...)`).
+      For more information on integrating the AWS Glue Schema Registry with Apache Flink see
+      [Use Case: Amazon Kinesis Data Analytics for Apache Flink](https://docs.aws.amazon.com/glue/latest/dg/schema-registry-integrations.html#schema-registry-integrations-kinesis-data-analytics-apache-flink).
+
+    <br>To use this deserialization schema one has to add the following additional dependency:
+    
+{{< tabs "8c6721c7-4a48-496e-b0fe-6522cf6a5e13" >}}
+{{< tab "AvroDeserializationSchema" >}}
+{{< artifact flink-avro >}}
+{{< /tab >}}
+{{< tab "GlueSchemaRegistryAvroDeserializationSchema" >}}
+{{< artifact flink-avro-glue-schema-registry >}}
+{{< /tab >}}
+{{< /tabs >}}
 
 ### Configuring Starting Position
 
@@ -162,6 +238,12 @@ env.enableCheckpointing(5000); // checkpoint every 5000 msecs
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.enableCheckpointing(5000) // checkpoint every 5000 msecs
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.enable_checkpointing(5000) # checkpoint every 5000 msecs
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -219,6 +301,21 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 
 val kinesis = env.addSource(new FlinkKinesisConsumer[String](
     "kinesis_stream_name", new SimpleStringSchema, consumerConfig))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+consumer_config = {
+    'aws.region': 'us-east-1',
+    'flink.stream.initpos': 'LATEST',
+    'flink.stream.recordpublisher':  'EFO',
+    'flink.stream.efo.consumername': 'my-flink-efo-consumer'
+}
+
+env = StreamExecutionEnvironment.get_execution_environment()
+
+kinesis = env.add_source(FlinkKinesisConsumer(
+    "kinesis_stream_name", SimpleStringSchema(), consumer_config))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -296,6 +393,22 @@ val kinesis = env.addSource(new FlinkKinesisConsumer[String](
     "kinesis_stream_name", new SimpleStringSchema, consumerConfig))
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+consumer_config = {
+    'aws.region': 'us-east-1',
+    'flink.stream.initpos': 'LATEST',
+    'flink.stream.recordpublisher':  'EFO',
+    'flink.stream.efo.consumername': 'my-flink-efo-consumer',
+    'flink.stream.efo.registration': 'EAGER'
+}
+
+env = StreamExecutionEnvironment.get_execution_environment()
+
+kinesis = env.add_source(FlinkKinesisConsumer(
+    "kinesis_stream_name", SimpleStringSchema(), consumer_config))
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Below is an example configuration to use the `NONE` registration strategy:
@@ -343,6 +456,23 @@ val kinesis = env.addSource(new FlinkKinesisConsumer[String](
     "kinesis_stream_name", new SimpleStringSchema, consumerConfig))
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+consumer_config = {
+    'aws.region': 'us-east-1',
+    'flink.stream.initpos': 'LATEST',
+    'flink.stream.recordpublisher':  'EFO',
+    'flink.stream.efo.consumername': 'my-flink-efo-consumer',
+    'flink.stream.efo.consumerarn.stream-name':
+        'arn:aws:kinesis:<region>:<account>>:stream/<stream-name>/consumer/<consumer-name>:<create-timestamp>'
+}
+
+env = StreamExecutionEnvironment.get_execution_environment()
+
+kinesis = env.add_source(FlinkKinesisConsumer(
+    "kinesis_stream_name", SimpleStringSchema(), consumer_config))
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ### Event Time for Consumed Records
@@ -382,6 +512,15 @@ val stream = env
 	.print();
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+consumer = FlinkKinesisConsumer(
+    "kinesis_stream_name",
+    SimpleStringSchema(),
+    consumer_config)
+stream = env.add_source(consumer).print()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Internally, an instance of the assigner is executed per shard / consumer thread (see threading model below).
@@ -402,13 +541,21 @@ to avoid the event time skew related problems described in [Event time synchroni
 
 To enable synchronization, set the watermark tracker on the consumer:
 
-<div data-lang="java" markdown="1">
+{{< tabs "8fbaf5cb-3b76-4c62-a74e-db51b60f6601" >}}
+{{< tab "Java" >}}
 ```java
 JobManagerWatermarkTracker watermarkTracker =
     new JobManagerWatermarkTracker("myKinesisSource");
 consumer.setWatermarkTracker(watermarkTracker);
 ```
-</div>
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+watermark_tracker = WatermarkTracker.job_manager_watermark_tracker("myKinesisSource")
+consumer.set_watermark_tracker(watermark_tracker)
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 The `JobManagerWatermarkTracker` will use a global aggregate to synchronize the per subtask watermarks. Each subtask
 uses a per shard queue to control the rate at which records are emitted downstream based on how far ahead of the global
@@ -507,8 +654,7 @@ Retry and backoff parameters can be configured using the
 this is called during stream consumer registration and deregistration. For each stream this service will be invoked 
 periodically until the stream consumer is reported `ACTIVE`/`not found` for registration/deregistration. By default,
 the `LAZY` registration strategy will scale the number of calls by the job parallelism. `EAGER` will call the service 
-once per stream for registration, and scale the number of calls by the job parallelism for deregistration. 
-`NONE` will not invoke this service. Retry and backoff parameters can be configured using the 
+once per stream for registration only. `NONE` will not invoke this service. Retry and backoff parameters can be configured using the 
 `ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_*` keys.  
 
 - *[RegisterStreamConsumer](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_RegisterStreamConsumer.html)*: 
@@ -516,127 +662,161 @@ this is called once per stream during stream consumer registration, unless the `
 Retry and backoff parameters can be configured using the `ConsumerConfigConstants.REGISTER_STREAM_*` keys.
 
 - *[DeregisterStreamConsumer](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DeregisterStreamConsumer.html)*: 
-this is called once per stream during stream consumer deregistration, unless the `NONE` registration strategy is configured.
+this is called once per stream during stream consumer deregistration, unless the `NONE` or `EAGER` registration strategy is configured.
 Retry and backoff parameters can be configured using the `ConsumerConfigConstants.DEREGISTER_STREAM_*` keys.  
 
-## Kinesis Producer
+## Kinesis Streams Sink
 
-The `FlinkKinesisProducer` uses [Kinesis Producer Library (KPL)](http://docs.aws.amazon.com/streams/latest/dev/developing-producers-with-kpl.html) to put data from a Flink stream into a Kinesis stream.
+The Kinesis Streams sink (hereafter "Kinesis sink") uses the [AWS v2 SDK for Java](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/home.html) to write data from a Flink stream into a Kinesis stream.
 
-Note that the producer is not participating in Flink's checkpointing and doesn't provide exactly-once processing guarantees. Also, the Kinesis producer does not guarantee that records are written in order to the shards (See [here](https://github.com/awslabs/amazon-kinesis-producer/issues/23) and [here](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecord.html#API_PutRecord_RequestSyntax) for more details).
-
-In case of a failure or a resharding, data will be written again to Kinesis, leading to duplicates. This behavior is usually called "at-least-once" semantics.
-
-To put data into a Kinesis stream, make sure the stream is marked as "ACTIVE" in the AWS dashboard.
+To write data into a Kinesis stream, make sure the stream is marked as "ACTIVE" in the Amazon Kinesis Data Stream console.
 
 For the monitoring to work, the user accessing the stream needs access to the CloudWatch service.
 
 {{< tabs "6df3b696-c2ca-4f44-bea0-96cf8275d61c" >}}
 {{< tab "Java" >}}
 ```java
-Properties producerConfig = new Properties();
-// Required configs
-producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1");
-producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
-producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
-// Optional configs
-producerConfig.put("AggregationMaxCount", "4294967295");
-producerConfig.put("CollectionMaxCount", "1000");
-producerConfig.put("RecordTtl", "30000");
-producerConfig.put("RequestTimeout", "6000");
-producerConfig.put("ThreadPoolSize", "15");
+Properties sinkProperties = new Properties();
+// Required
+sinkProperties.put(AWSConfigConstants.AWS_REGION, "us-east-1");
 
-// Disable Aggregation if it's not supported by a consumer
-// producerConfig.put("AggregationEnabled", "false");
-// Switch KinesisProducer's threading model
-// producerConfig.put("ThreadingModel", "PER_REQUEST");
+// Optional, provide via alternative routes e.g. environment variables
+sinkProperties.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
+sinkProperties.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
 
-FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(new SimpleStringSchema(), producerConfig);
-kinesis.setFailOnError(true);
-kinesis.setDefaultStream("kinesis_stream_name");
-kinesis.setDefaultPartition("0");
+KinesisStreamsSink<String> kdsSink =
+    KinesisStreamsSink.<String>builder()
+        .setKinesisClientProperties(sinkProperties)                               // Required
+        .setSerializationSchema(new SimpleStringSchema())                         // Required
+        .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))  // Required
+        .setStreamName("your-stream-name")                                        // Required
+        .setFailOnError(false)                                                    // Optional
+        .setMaxBatchSize(500)                                                     // Optional
+        .setMaxInFlightRequests(50)                                               // Optional
+        .setMaxBufferedRequests(10_000)                                           // Optional
+        .setMaxBatchSizeInBytes(5 * 1024 * 1024)                                  // Optional
+        .setMaxTimeInBufferMS(5000)                                               // Optional
+        .setMaxRecordSizeInBytes(1 * 1024 * 1024)                                 // Optional
+        .build();
 
 DataStream<String> simpleStringStream = ...;
-simpleStringStream.addSink(kinesis);
+simpleStringStream.sinkTo(kdsSink);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val producerConfig = new Properties()
-// Required configs
-producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1")
-producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
-producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
-// Optional KPL configs
-producerConfig.put("AggregationMaxCount", "4294967295")
-producerConfig.put("CollectionMaxCount", "1000")
-producerConfig.put("RecordTtl", "30000")
-producerConfig.put("RequestTimeout", "6000")
-producerConfig.put("ThreadPoolSize", "15")
+val sinkProperties = new Properties()
+// Required
+sinkProperties.put(AWSConfigConstants.AWS_REGION, "us-east-1")
 
-// Disable Aggregation if it's not supported by a consumer
-// producerConfig.put("AggregationEnabled", "false")
-// Switch KinesisProducer's threading model
-// producerConfig.put("ThreadingModel", "PER_REQUEST")
+// Optional, provide via alternative routes e.g. environment variables
+sinkProperties.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
+sinkProperties.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
 
-val kinesis = new FlinkKinesisProducer[String](new SimpleStringSchema, producerConfig)
-kinesis.setFailOnError(true)
-kinesis.setDefaultStream("kinesis_stream_name")
-kinesis.setDefaultPartition("0")
+val kdsSink = KinesisStreamsSink.<String>builder()
+    .setKinesisClientProperties(sinkProperties)                               // Required
+    .setSerializationSchema(new SimpleStringSchema())                         // Required
+    .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))  // Required
+    .setStreamName("your-stream-name")                                        // Required
+    .setFailOnError(false)                                                    // Optional
+    .setMaxBatchSize(500)                                                     // Optional
+    .setMaxInFlightRequests(50)                                               // Optional
+    .setMaxBufferedRequests(10000)                                            // Optional
+    .setMaxBatchSizeInBytes(5 * 1024 * 1024)                                  // Optional
+    .setMaxTimeInBufferMS(5000)                                               // Optional
+    .setMaxRecordSizeInBytes(1 * 1024 * 1024)                                 // Optional
+    .build()
 
 val simpleStringStream = ...
-simpleStringStream.addSink(kinesis)
+simpleStringStream.sinkTo(kdsSink)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# Required
+sink_properties = {
+    # Required
+    'aws.region': 'us-east-1',
+    # Optional, provide via alternative routes e.g. environment variables
+    'aws.credentials.provider.basic.accesskeyid': 'aws_access_key_id',
+    'aws.credentials.provider.basic.secretkey': 'aws_secret_access_key',
+    'aws.endpoint': 'http://localhost:4567'
+}
+
+kds_sink = KinesisStreamsSink.builder() \
+    .set_kinesis_client_properties(sink_properties) \                      # Required
+    .set_serialization_schema(SimpleStringSchema()) \                      # Required
+    .set_partition_key_generator(PartitionKeyGenerator.fixed()) \          # Required
+    .set_stream_name("your-stream-name") \                                 # Required
+    .set_fail_on_error(False) \                                            # Optional
+    .set_max_batch_size(500) \                                             # Optional
+    .set_max_in_flight_requests(50) \                                      # Optional
+    .set_max_buffered_requests(10000) \                                    # Optional
+    .set_max_batch_size_in_bytes(5 * 1024 * 1024) \                        # Optional
+    .set_max_time_in_buffer_ms(5000) \                                     # Optional
+    .set_max_record_size_in_bytes(1 * 1024 * 1024) \                       # Optional
+    .build()
+
+simple_string_stream = ...
+simple_string_stream.sink_to(kds_sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-The above is a simple example of using the producer. To initialize `FlinkKinesisProducer`, users are required to pass in `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` via a `java.util.Properties` instance. Users can also pass in KPL's configurations as optional parameters to customize the KPL underlying `FlinkKinesisProducer`. The full list of KPL configs and explanations can be found [here](https://github.com/awslabs/amazon-kinesis-producer/blob/master/java/amazon-kinesis-producer-sample/default_config.properties). The example demonstrates producing a single Kinesis stream in the AWS region "us-east-1".
+The above is a simple example of using the Kinesis sink. Begin by creating a `java.util.Properties` instance with the `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` configured. You can then construct the sink with the builder. The default values for the optional configurations are shown above. Some of these values have been set as a result of [configuration on KDS](https://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html). 
 
-If users don't specify any KPL configs and values, `FlinkKinesisProducer` will use default config values of KPL, except `RateLimit`. `RateLimit` limits the maximum allowed put rate for a shard, as a percentage of the backend limits. KPL's default value is 150 but it makes KPL throw `RateLimitExceededException` too frequently and breaks Flink sink as a result. Thus `FlinkKinesisProducer` overrides KPL's default value to 100.
+You will always need to specify your serialization schema and logic for generating a [partition key](https://docs.aws.amazon.com/streams/latest/dev/key-concepts.html#partition-key) from a record.
 
-Instead of a `SerializationSchema`, it also supports a `KinesisSerializationSchema`. The `KinesisSerializationSchema` allows to send the data to multiple streams. This is
-done using the `KinesisSerializationSchema.getTargetStream(T element)` method. Returning `null` there will instruct the producer to write the element to the default stream.
-Otherwise, the returned stream name is used.
+Some or all of the records in a request may fail to be persisted by Kinesis Data Streams for a number of reasons. If `failOnError` is on, then a runtime exception will be raised. Otherwise those records will be requeued in the buffer for retry.
 
-### Threading Model
+The Kinesis Sink provides some metrics through Flink's [metrics system]({{< ref "docs/ops/metrics" >}}) to analyze the behavior of the connector. A list of all exposed metrics may be found [here]({{<ref "docs/ops/metrics#kinesis-sink">}}).
 
-Since Flink 1.4.0, `FlinkKinesisProducer` switches its default underlying KPL from a one-thread-per-request mode to a thread-pool mode. KPL in thread-pool mode uses a queue and thread pool to execute requests to Kinesis. This limits the number of threads that KPL's native process may create, and therefore greatly lowers CPU utilization and improves efficiency. **Thus, We highly recommend Flink users use thread-pool model.** The default thread pool size is `10`. Users can set the pool size in `java.util.Properties` instance with key `ThreadPoolSize`, as shown in the above example.
+The sink default maximum record size is 1MB and maximum batch size is 5MB in line with the Kinesis Data Streams maximums. The AWS documentation detailing these maximums may be found [here](https://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html).
 
-Users can still switch back to one-thread-per-request mode by setting a key-value pair of `ThreadingModel` and `PER_REQUEST` in `java.util.Properties`, as shown in the code commented out in above example.
+### Kinesis Sinks and Fault Tolerance
+
+The sink is designed to participate in Flink's checkpointing to provide at-least-once processing guarantees. It does this by completing any in-flight requests while taking a checkpoint. This effectively assures all requests that were triggered before the checkpoint have been successfully delivered to Kinesis Data Streams, before proceeding to process more records.
+
+If Flink needs to restore from a checkpoint (or savepoint), data that has been written since that checkpoint will be written to Kinesis again, leading to duplicates in the stream. Moreover, the sink uses the `PutRecords` API call internally, which does not guarantee to maintain the order of events.
 
 ### Backpressure
 
-By default, `FlinkKinesisProducer` does not backpressure. Instead, records that
-cannot be sent because of the rate restriction of 1 MB per second per shard are
-buffered in an unbounded queue and dropped when their `RecordTtl` expires.
+Backpressure in the sink arises as the sink buffer fills up and writes to the sink 
+begins to exhibit blocking behaviour. More information on the rate restrictions of Kinesis Data Streams may be
+found at [Quotas and Limits](https://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html).
 
-To avoid data loss, you can enable backpressuring by restricting the size of the
-internal queue:
+You generally reduce backpressure by increasing the size of the internal queue:
 
+{{< tabs "6df3b696-c2ca-4f44-bea0-96cf8275d61d" >}}
+{{< tab "Java" >}}
+```java
+KinesisStreamsSink<String> kdsSink =
+    KinesisStreamsSink.<String>builder()
+        ...
+        .setMaxBufferedRequests(10_000)
+        ...
 ```
-// 200 Bytes per record, 1 shard
-kinesis.setQueueLimit(500);
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+kds_sink = KinesisStreamsSink.builder() \
+    .set_max_buffered_requests(10000) \
+    .build()
 ```
+{{< /tab >}}
+{{< /tabs >}}
 
-The value for `queueLimit` depends on the expected record size. To choose a good
-value, consider that Kinesis is rate-limited to 1MB per second per shard. If
-less than one second's worth of records is buffered, then the queue may not be
-able to operate at full capacity. With the default `RecordMaxBufferedTime` of
-100ms, a queue size of 100kB per shard should be sufficient. The `queueLimit`
-can then be computed via
+## Kinesis Producer
 
-```
-queue limit = (number of shards * queue size per shard) / record size
-```
+{{< hint warning >}}
+The old Kinesis sink `org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer` is deprecated and may be removed with a future release of Flink, please use [Kinesis Sink]({{<ref "docs/connectors/datastream/kinesis#kinesis-streams-sink">}}) instead.
+{{< /hint >}}
 
-E.g. for 200Bytes per record and 8 shards, a queue limit of 4000 is a good
-starting point. If the queue size limits throughput (below 1MB per second per
-shard), try increasing the queue limit slightly.
-
+The new sink uses the [AWS v2 SDK for Java](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/home.html) whereas the old sink uses the Kinesis Producer Library. Because of this, the new Kinesis sink does not support [aggregation](https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-concepts.html#kinesis-kpl-concepts-aggretation).
 
 ## Using Custom Kinesis Endpoints
 
-It is sometimes desirable to have Flink operate as a consumer or producer against a Kinesis VPC endpoint or a non-AWS
+It is sometimes desirable to have Flink operate as a source or sink against a Kinesis VPC endpoint or a non-AWS
 Kinesis endpoint such as [Kinesalite](https://github.com/mhart/kinesalite); this is especially useful when performing
 functional testing of a Flink application. The AWS endpoint that would normally be inferred by the AWS region set in the
 Flink configuration must be overridden via a configuration property.
@@ -646,20 +826,30 @@ To override the AWS endpoint, set the `AWSConfigConstants.AWS_ENDPOINT` and `AWS
 {{< tabs "bcadd466-8416-4d3c-a6a7-c46eee0cbd4a" >}}
 {{< tab "Java" >}}
 ```java
-Properties producerConfig = new Properties();
-producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1");
-producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
-producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
-producerConfig.put(AWSConfigConstants.AWS_ENDPOINT, "http://localhost:4567");
+Properties config = new Properties();
+config.put(AWSConfigConstants.AWS_REGION, "us-east-1");
+config.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
+config.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
+config.put(AWSConfigConstants.AWS_ENDPOINT, "http://localhost:4567");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val producerConfig = new Properties()
-producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1")
-producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
-producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
-producerConfig.put(AWSConfigConstants.AWS_ENDPOINT, "http://localhost:4567")
+val config = new Properties()
+config.put(AWSConfigConstants.AWS_REGION, "us-east-1")
+config.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
+config.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
+config.put(AWSConfigConstants.AWS_ENDPOINT, "http://localhost:4567")
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+config = {
+    'aws.region': 'us-east-1',
+    'aws.credentials.provider.basic.accesskeyid': 'aws_access_key_id',
+    'aws.credentials.provider.basic.secretkey': 'aws_secret_access_key',
+    'aws.endpoint': 'http://localhost:4567'
+}
 ```
 {{< /tab >}}
 {{< /tabs >}}

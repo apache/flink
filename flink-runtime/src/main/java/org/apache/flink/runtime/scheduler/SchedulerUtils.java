@@ -20,18 +20,22 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DeactivatedCheckpointCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DeactivatedCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStoreUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.DefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import org.slf4j.Logger;
+
+import java.util.concurrent.Executor;
 
 /** Utils class for Flink's scheduler implementations. */
 public final class SchedulerUtils {
@@ -44,15 +48,20 @@ public final class SchedulerUtils {
     public static CompletedCheckpointStore createCompletedCheckpointStoreIfCheckpointingIsEnabled(
             JobGraph jobGraph,
             Configuration configuration,
-            ClassLoader userCodeLoader,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
+            Executor ioExecutor,
             Logger log)
             throws JobExecutionException {
         final JobID jobId = jobGraph.getJobID();
         if (DefaultExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
             try {
                 return createCompletedCheckpointStore(
-                        configuration, userCodeLoader, checkpointRecoveryFactory, log, jobId);
+                        configuration,
+                        checkpointRecoveryFactory,
+                        ioExecutor,
+                        log,
+                        jobId,
+                        jobGraph.getSavepointRestoreSettings().getRestoreMode());
             } catch (Exception e) {
                 throw new JobExecutionException(
                         jobId,
@@ -67,29 +76,19 @@ public final class SchedulerUtils {
     @VisibleForTesting
     static CompletedCheckpointStore createCompletedCheckpointStore(
             Configuration jobManagerConfig,
-            ClassLoader classLoader,
             CheckpointRecoveryFactory recoveryFactory,
+            Executor ioExecutor,
             Logger log,
-            JobID jobId)
+            JobID jobId,
+            RestoreMode restoreMode)
             throws Exception {
-        int maxNumberOfCheckpointsToRetain =
-                jobManagerConfig.getInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS);
-
-        if (maxNumberOfCheckpointsToRetain <= 0) {
-            // warning and use 1 as the default value if the setting in
-            // state.checkpoints.max-retained-checkpoints is not greater than 0.
-            log.warn(
-                    "The setting for '{} : {}' is invalid. Using default value of {}",
-                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.key(),
-                    maxNumberOfCheckpointsToRetain,
-                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue());
-
-            maxNumberOfCheckpointsToRetain =
-                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue();
-        }
-
-        return recoveryFactory.createCheckpointStore(
-                jobId, maxNumberOfCheckpointsToRetain, classLoader);
+        return recoveryFactory.createRecoveredCompletedCheckpointStore(
+                jobId,
+                DefaultCompletedCheckpointStoreUtils.getMaximumNumberOfRetainedCheckpoints(
+                        jobManagerConfig, log),
+                SharedStateRegistry.DEFAULT_FACTORY,
+                ioExecutor,
+                restoreMode);
     }
 
     public static CheckpointIDCounter createCheckpointIDCounterIfCheckpointingIsEnabled(

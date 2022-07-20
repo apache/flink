@@ -23,8 +23,8 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.jdbc.DbMetadata;
 import org.apache.flink.connector.jdbc.JdbcTestBase;
-import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
+import org.apache.flink.connector.jdbc.internal.JdbcOutputFormat;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 
 import org.junit.After;
 import org.junit.Before;
@@ -46,7 +46,7 @@ import static org.mockito.Mockito.doReturn;
 /** Test for the Append only mode. */
 public class JdbcAppendOnlyWriterTest extends JdbcTestBase {
 
-    private JdbcBatchingOutputFormat format;
+    private JdbcOutputFormat format;
     private String[] fieldNames;
 
     @Before
@@ -57,9 +57,9 @@ public class JdbcAppendOnlyWriterTest extends JdbcTestBase {
     @Test(expected = IOException.class)
     public void testMaxRetry() throws Exception {
         format =
-                JdbcBatchingOutputFormat.builder()
+                JdbcOutputFormat.builder()
                         .setOptions(
-                                JdbcOptions.builder()
+                                JdbcConnectorOptions.builder()
                                         .setDBUrl(getDbMetadata().getUrl())
                                         .setTableName(OUTPUT_TABLE)
                                         .build())

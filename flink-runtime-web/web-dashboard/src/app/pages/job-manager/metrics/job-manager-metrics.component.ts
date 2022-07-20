@@ -17,9 +17,11 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { JobManagerService, StatusService } from 'services';
-import { Subject } from 'rxjs';
-import { map, takeUntil } from 'rxjs/operators';
+import { of, Subject } from 'rxjs';
+import { catchError, map, startWith, takeUntil } from 'rxjs/operators';
+
+import { ClusterConfiguration } from '@flink-runtime-web/interfaces';
+import { JobManagerService, StatusService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-manager-metrics',
@@ -28,34 +30,42 @@ import { map, takeUntil } from 'rxjs/operators';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerMetricsComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject();
-  metrics: { [id: string]: number } = {};
-  config: { [id: string]: string } = {};
-  listOfGCName: string[] = [];
-  listOfGCMetric: Array<{ name: string; count: number | null; time: number | null }> = [];
+  public metrics: { [id: string]: number } = {};
+  public jmConfig: { [id: string]: string } = {};
+  public listOfGCName: string[] = [];
+  public listOfGCMetric: Array<{ name: string; count: number | null; time: number | null }> = [];
+
+  private readonly destroy$ = new Subject<void>();
+
   constructor(
-    private jobManagerService: JobManagerService,
-    private statusService: StatusService,
-    private cdr: ChangeDetectorRef
+    private readonly jobManagerService: JobManagerService,
+    private readonly statusService: StatusService,
+    private readonly cdr: ChangeDetectorRef
   ) {}
 
-  ngOnInit() {
-    this.jobManagerService.loadConfig().subscribe(data => {
-      for (const item of data) {
-        this.config[item.key] = item.value;
-      }
-      this.cdr.markForCheck();
-    });
-    this.statusService.refresh$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+  public ngOnInit(): void {
+    this.jobManagerService
+      .loadConfig()
+      .pipe(
+        catchError(() => of([] as ClusterConfiguration[])),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        for (const item of data) {
+          this.jmConfig[item.key] = item.value;
+        }
+        this.cdr.markForCheck();
+      });
+    this.statusService.refresh$.pipe(startWith(true), takeUntil(this.destroy$)).subscribe(() => {
       this.jobManagerService
-        .getMetricsName()
+        .loadMetricsName()
         .pipe(map(arr => arr.filter(item => item.indexOf('Status.JVM.GarbageCollector') !== -1)))
         .subscribe(data => {
           this.listOfGCName = data;
           this.cdr.markForCheck();
         });
       this.jobManagerService
-        .getMetrics([
+        .loadMetrics([
           'Status.JVM.Memory.Heap.Used',
           'Status.JVM.Memory.Heap.Max',
           'Status.JVM.Memory.Metaspace.Used',
@@ -79,10 +89,7 @@ export class JobManagerMetricsComponent implements OnInit, OnDestroy {
           this.listOfGCMetric = Array.from(
             new Set(
               this.listOfGCName.map(item =>
-                item
-                  .replace('Status.JVM.GarbageCollector.', '')
-                  .replace('.Count', '')
-                  .replace('.Time', '')
+                item.replace('Status.JVM.GarbageCollector.', '').replace('.Count', '').replace('.Time', '')
               )
             )
           ).map(name => {
@@ -96,7 +103,8 @@ export class JobManagerMetricsComponent implements OnInit, OnDestroy {
         });
     });
   }
-  ngOnDestroy() {
+
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

@@ -32,6 +32,8 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.io.BufferedReader;
 
+import static org.apache.flink.test.util.TestBaseUtils.getResultReader;
+
 /** Delta iteration test implementing the connected components algorithm with an object map. */
 @SuppressWarnings("serial")
 public class ConnectedComponentsWithObjectMapITCase extends JavaProgramTestBase {

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.state.api.functions.Timestamper;
 import org.apache.flink.state.api.runtime.SavepointEnvironment;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.util.Collector;
 
 /**
@@ -36,6 +37,7 @@ import org.apache.flink.util.Collector;
  *
  * @param <IN> Type of the input to the partition
  */
+@Deprecated
 @Internal
 public class BoundedOneInputStreamTaskRunner<IN>
         extends RichMapPartitionFunction<IN, TaggedOperatorSubtaskState> {
@@ -77,6 +79,15 @@ public class BoundedOneInputStreamTaskRunner<IN>
     @Override
     public void mapPartition(Iterable<IN> values, Collector<TaggedOperatorSubtaskState> out)
             throws Exception {
-        new BoundedStreamTask<>(env, values, timestamper, out).invoke();
+        BoundedStreamTask<
+                        IN,
+                        TaggedOperatorSubtaskState,
+                        ? extends OneInputStreamOperator<IN, TaggedOperatorSubtaskState>>
+                boundedStreamTask = new BoundedStreamTask<>(env, values, timestamper, out);
+        try {
+            boundedStreamTask.invoke();
+        } finally {
+            boundedStreamTask.cleanUp(null);
+        }
     }
 }

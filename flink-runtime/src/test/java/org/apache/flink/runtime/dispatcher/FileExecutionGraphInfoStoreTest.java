@@ -21,22 +21,26 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.ManualTicker;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Ticker;
-import org.apache.flink.shaded.guava18.com.google.common.cache.LoadingCache;
+import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
+import org.apache.flink.shaded.guava30.com.google.common.cache.LoadingCache;
 
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.ClassRule;
@@ -46,14 +50,15 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStoreTestUtils.createDefaultExecutionGraphInfoStore;
+import static org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStoreTestUtils.generateJobDetails;
+import static org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStoreTestUtils.generateTerminalExecutionGraphInfos;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -61,10 +66,9 @@ import static org.junit.Assert.assertTrue;
 /** Tests for the {@link FileExecutionGraphInfoStore}. */
 public class FileExecutionGraphInfoStoreTest extends TestLogger {
 
-    private static final List<JobStatus> GLOBALLY_TERMINAL_JOB_STATUS =
-            Arrays.stream(JobStatus.values())
-                    .filter(JobStatus::isGloballyTerminalState)
-                    .collect(Collectors.toList());
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -74,28 +78,13 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
      */
     @Test
     public void testPut() throws IOException {
-        final ExecutionGraphInfo dummyExecutionGraphInfo =
-                new ExecutionGraphInfo(
-                        new ArchivedExecutionGraphBuilder().setState(JobStatus.FINISHED).build());
-        final File rootDir = temporaryFolder.newFolder();
+        assertPutJobGraphWithStatus(JobStatus.FINISHED);
+    }
 
-        try (final FileExecutionGraphInfoStore executionGraphStore =
-                createDefaultExecutionGraphInfoStore(rootDir)) {
-
-            final File storageDirectory = executionGraphStore.getStorageDir();
-
-            // check that the storage directory is empty
-            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
-
-            executionGraphStore.put(dummyExecutionGraphInfo);
-
-            // check that we have persisted the given execution graph
-            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(1));
-
-            assertThat(
-                    executionGraphStore.get(dummyExecutionGraphInfo.getJobId()),
-                    new PartialExecutionGraphInfoMatcher(dummyExecutionGraphInfo));
-        }
+    /** Tests that a SUSPENDED job can be persisted. */
+    @Test
+    public void testPutSuspendedJob() throws IOException {
+        assertPutJobGraphWithStatus(JobStatus.SUSPENDED);
     }
 
     /** Tests that null is returned if we request an unknown JobID. */
@@ -104,7 +93,9 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
         final File rootDir = temporaryFolder.newFolder();
 
         try (final FileExecutionGraphInfoStore executionGraphStore =
-                createDefaultExecutionGraphInfoStore(rootDir)) {
+                createDefaultExecutionGraphInfoStore(
+                        rootDir,
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))) {
             assertThat(executionGraphStore.get(new JobID()), Matchers.nullValue());
         }
     }
@@ -127,7 +118,9 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
         final File rootDir = temporaryFolder.newFolder();
 
         try (final FileExecutionGraphInfoStore executionGraphInfoStore =
-                createDefaultExecutionGraphInfoStore(rootDir)) {
+                createDefaultExecutionGraphInfoStore(
+                        rootDir,
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))) {
             for (ExecutionGraphInfo executionGraphInfo : executionGraphInfos) {
                 executionGraphInfoStore.put(executionGraphInfo);
             }
@@ -150,7 +143,9 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
         final File rootDir = temporaryFolder.newFolder();
 
         try (final FileExecutionGraphInfoStore executionGraphInfoStore =
-                createDefaultExecutionGraphInfoStore(rootDir)) {
+                createDefaultExecutionGraphInfoStore(
+                        rootDir,
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))) {
             for (ExecutionGraphInfo executionGraphInfo : executionGraphInfos) {
                 executionGraphInfoStore.put(executionGraphInfo);
             }
@@ -219,7 +214,9 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
         assertThat(rootDir.listFiles().length, Matchers.equalTo(0));
 
         try (final FileExecutionGraphInfoStore executionGraphInfoStore =
-                createDefaultExecutionGraphInfoStore(rootDir)) {
+                createDefaultExecutionGraphInfoStore(
+                        rootDir,
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))) {
 
             assertThat(rootDir.listFiles().length, Matchers.equalTo(1));
 
@@ -250,7 +247,7 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
                         Time.hours(1L),
                         Integer.MAX_VALUE,
                         100L << 10,
-                        TestingUtils.defaultScheduledExecutor(),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
                         Ticker.systemTicker())) {
 
             final LoadingCache<JobID, ExecutionGraphInfo> executionGraphInfoCache =
@@ -315,7 +312,7 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
                         Time.hours(1L),
                         maxCapacity,
                         10000L,
-                        TestingUtils.defaultScheduledExecutor(),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
                         Ticker.systemTicker())) {
 
             for (ExecutionGraphInfo executionGraphInfo : oldExecutionGraphInfos) {
@@ -337,93 +334,58 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
         }
     }
 
-    private Collection<ExecutionGraphInfo> generateTerminalExecutionGraphInfos(int number) {
-        final Collection<ExecutionGraphInfo> executionGraphInfos = new ArrayList<>(number);
-
-        for (int i = 0; i < number; i++) {
-            final JobStatus state =
-                    GLOBALLY_TERMINAL_JOB_STATUS.get(
-                            ThreadLocalRandom.current()
-                                    .nextInt(GLOBALLY_TERMINAL_JOB_STATUS.size()));
-            executionGraphInfos.add(
-                    new ExecutionGraphInfo(
-                            new ArchivedExecutionGraphBuilder().setState(state).build()));
+    /** Tests that a session cluster can terminate gracefully when jobs are still running. */
+    @Test
+    public void testPutSuspendedJobOnClusterShutdown() throws Exception {
+        File rootDir = temporaryFolder.newFolder();
+        try (final MiniCluster miniCluster =
+                new ExecutionGraphInfoStoreTestUtils.PersistingMiniCluster(
+                        new MiniClusterConfiguration.Builder().withRandomPorts().build(),
+                        rootDir,
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))) {
+            miniCluster.start();
+            final JobVertex vertex = new JobVertex("blockingVertex");
+            // The adaptive scheduler expects that every vertex has a configured parallelism
+            vertex.setParallelism(1);
+            vertex.setInvokableClass(
+                    ExecutionGraphInfoStoreTestUtils.SignallingBlockingNoOpInvokable.class);
+            final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(vertex);
+            miniCluster.submitJob(jobGraph);
+            ExecutionGraphInfoStoreTestUtils.SignallingBlockingNoOpInvokable.LATCH.await();
         }
-
-        return executionGraphInfos;
     }
 
-    private FileExecutionGraphInfoStore createDefaultExecutionGraphInfoStore(File storageDirectory)
-            throws IOException {
-        return new FileExecutionGraphInfoStore(
-                storageDirectory,
-                Time.hours(1L),
-                Integer.MAX_VALUE,
-                10000L,
-                TestingUtils.defaultScheduledExecutor(),
-                Ticker.systemTicker());
-    }
+    private void assertPutJobGraphWithStatus(JobStatus jobStatus) throws IOException {
+        final ExecutionGraphInfo dummyExecutionGraphInfo =
+                new ExecutionGraphInfo(
+                        new ArchivedExecutionGraphBuilder().setState(jobStatus).build());
+        final File rootDir = temporaryFolder.newFolder();
 
-    private static final class PartialExecutionGraphInfoMatcher
-            extends BaseMatcher<ExecutionGraphInfo> {
+        try (final FileExecutionGraphInfoStore executionGraphStore =
+                createDefaultExecutionGraphInfoStore(
+                        rootDir,
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))) {
 
-        private final ExecutionGraphInfo expectedExecutionGraphInfo;
+            final File storageDirectory = executionGraphStore.getStorageDir();
 
-        private PartialExecutionGraphInfoMatcher(ExecutionGraphInfo expectedExecutionGraphInfo) {
-            this.expectedExecutionGraphInfo =
-                    Preconditions.checkNotNull(expectedExecutionGraphInfo);
-        }
+            // check that the storage directory is empty
+            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
 
-        @Override
-        public boolean matches(Object o) {
-            if (expectedExecutionGraphInfo == o) {
-                return true;
-            }
-            if (o == null || expectedExecutionGraphInfo.getClass() != o.getClass()) {
-                return false;
-            }
-            ExecutionGraphInfo that = (ExecutionGraphInfo) o;
+            executionGraphStore.put(dummyExecutionGraphInfo);
 
-            ArchivedExecutionGraph thisExecutionGraph =
-                    expectedExecutionGraphInfo.getArchivedExecutionGraph();
-            ArchivedExecutionGraph thatExecutionGraph = that.getArchivedExecutionGraph();
-            return thisExecutionGraph.isStoppable() == thatExecutionGraph.isStoppable()
-                    && Objects.equals(thisExecutionGraph.getJobID(), thatExecutionGraph.getJobID())
-                    && Objects.equals(
-                            thisExecutionGraph.getJobName(), thatExecutionGraph.getJobName())
-                    && thisExecutionGraph.getState() == thatExecutionGraph.getState()
-                    && Objects.equals(
-                            thisExecutionGraph.getJsonPlan(), thatExecutionGraph.getJsonPlan())
-                    && Objects.equals(
-                            thisExecutionGraph.getAccumulatorsSerialized(),
-                            thatExecutionGraph.getAccumulatorsSerialized())
-                    && Objects.equals(
-                            thisExecutionGraph.getCheckpointCoordinatorConfiguration(),
-                            thatExecutionGraph.getCheckpointCoordinatorConfiguration())
-                    && thisExecutionGraph.getAllVertices().size()
-                            == thatExecutionGraph.getAllVertices().size()
-                    && Objects.equals(
-                            expectedExecutionGraphInfo.getExceptionHistory(),
-                            that.getExceptionHistory());
-        }
+            // check that we have persisted the given execution graph
+            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(1));
 
-        @Override
-        public void describeTo(Description description) {
-            description.appendText(
-                    "Matches against " + ExecutionGraphInfo.class.getSimpleName() + '.');
+            assertThat(
+                    executionGraphStore.get(dummyExecutionGraphInfo.getJobId()),
+                    new ExecutionGraphInfoStoreTestUtils.PartialExecutionGraphInfoMatcher(
+                            dummyExecutionGraphInfo));
         }
     }
 
     private static Matcher<ExecutionGraphInfo> matchesPartiallyWith(
             ExecutionGraphInfo executionGraphInfo) {
-        return new PartialExecutionGraphInfoMatcher(executionGraphInfo);
-    }
-
-    private static Collection<JobDetails> generateJobDetails(
-            Collection<ExecutionGraphInfo> executionGraphInfos) {
-        return executionGraphInfos.stream()
-                .map(ExecutionGraphInfo::getArchivedExecutionGraph)
-                .map(JobDetails::createDetailsForJob)
-                .collect(Collectors.toList());
+        return new ExecutionGraphInfoStoreTestUtils.PartialExecutionGraphInfoMatcher(
+                executionGraphInfo);
     }
 }

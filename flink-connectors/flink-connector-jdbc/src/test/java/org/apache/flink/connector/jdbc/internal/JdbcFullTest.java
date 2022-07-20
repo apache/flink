@@ -30,12 +30,11 @@ import org.apache.flink.connector.jdbc.JdbcInputFormat;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.split.JdbcNumericBetweenParametersProvider;
 import org.apache.flink.types.Row;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -57,10 +56,10 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.utils.JdbcUtils.setRecordToStatement;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 
-/** Tests using both {@link JdbcInputFormat} and {@link JdbcBatchingOutputFormat}. */
+/** Tests using both {@link JdbcInputFormat} and {@link JdbcOutputFormat}. */
 public class JdbcFullTest extends JdbcDataTestBase {
 
     @Test
@@ -77,10 +76,10 @@ public class JdbcFullTest extends JdbcDataTestBase {
     public void testEnrichedClassCastException() {
         String expectedMsg = "field index: 3, field value: 11.11.";
         try {
-            JdbcBatchingOutputFormat jdbcOutputFormat =
-                    JdbcBatchingOutputFormat.builder()
+            JdbcOutputFormat jdbcOutputFormat =
+                    JdbcOutputFormat.builder()
                             .setOptions(
-                                    JdbcOptions.builder()
+                                    JdbcConnectorOptions.builder()
                                             .setDBUrl(getDbMetadata().getUrl())
                                             .setTableName(OUTPUT_TABLE)
                                             .build())
@@ -106,8 +105,8 @@ public class JdbcFullTest extends JdbcDataTestBase {
             jdbcOutputFormat.writeRecord(Tuple2.of(true, inputRow));
             jdbcOutputFormat.close();
         } catch (Exception e) {
-            assertTrue(findThrowable(e, ClassCastException.class).isPresent());
-            assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
+            assertThat(findThrowable(e, ClassCastException.class)).isPresent();
+            assertThat(findThrowableWithMessage(e, expectedMsg)).isPresent();
         }
     }
 
@@ -143,8 +142,8 @@ public class JdbcFullTest extends JdbcDataTestBase {
                         .withDriverName(getDbMetadata().getDriverClass())
                         .build();
 
-        JdbcBatchingOutputFormat jdbcOutputFormat =
-                new JdbcBatchingOutputFormat<>(
+        JdbcOutputFormat jdbcOutputFormat =
+                new JdbcOutputFormat<>(
                         new SimpleJdbcConnectionProvider(connectionOptions),
                         JdbcExecutionOptions.defaults(),
                         ctx ->
@@ -158,7 +157,7 @@ public class JdbcFullTest extends JdbcDataTestBase {
                                             Types.INTEGER
                                         },
                                         ctx.getExecutionConfig().isObjectReuseEnabled()),
-                        JdbcBatchingOutputFormat.RecordExtractor.identity());
+                        JdbcOutputFormat.RecordExtractor.identity());
 
         source.output(jdbcOutputFormat);
         environment.execute();
@@ -170,7 +169,7 @@ public class JdbcFullTest extends JdbcDataTestBase {
             while (resultSet.next()) {
                 count++;
             }
-            Assert.assertEquals(TEST_DATA.length, count);
+            assertThat(count).isEqualTo(TEST_DATA.length);
         }
     }
 

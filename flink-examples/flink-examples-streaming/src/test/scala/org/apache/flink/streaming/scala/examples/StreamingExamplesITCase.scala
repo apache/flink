@@ -15,32 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.scala.examples
 
-import java.io.File
-
-import org.apache.commons.io.FileUtils
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.examples.iteration.util.IterateExampleData
-import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData
-import org.apache.flink.streaming.examples.windowing.util.SessionWindowingData
 import org.apache.flink.streaming.scala.examples.iteration.IterateExample
 import org.apache.flink.streaming.scala.examples.join.WindowJoin
 import org.apache.flink.streaming.scala.examples.join.WindowJoin.{Grade, Salary}
-import org.apache.flink.streaming.scala.examples.twitter.TwitterExample
 import org.apache.flink.streaming.scala.examples.windowing.{SessionWindowing, WindowWordCount}
 import org.apache.flink.streaming.scala.examples.wordcount.WordCount
 import org.apache.flink.streaming.test.examples.join.WindowJoinData
 import org.apache.flink.test.testdata.WordCountData
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
+
+import org.apache.commons.io.FileUtils
 import org.junit.Test
 
-/**
- * Integration test for streaming programs in Scala examples.
- */
+import java.io.File
+
+/** Integration test for streaming programs in Scala examples. */
 class StreamingExamplesITCase extends AbstractTestBase {
 
   @Test
@@ -51,10 +46,13 @@ class StreamingExamplesITCase extends AbstractTestBase {
     // the example is inherently non-deterministic. The iteration timeout of 5000 ms
     // is frequently not enough to make the test run stable on CI infrastructure
     // with very small containers, so we cannot do a validation here
-    IterateExample.main(Array(
-      "--input", inputPath,
-      "--output", resultPath
-    ))
+    IterateExample.main(
+      Array(
+        "--input",
+        inputPath,
+        "--output",
+        resultPath
+      ))
   }
 
   @Test
@@ -66,62 +64,62 @@ class StreamingExamplesITCase extends AbstractTestBase {
 
       val grades = env
         .fromCollection(WindowJoinData.GRADES_INPUT.split("\n"))
-        .map( line => {
-          val fields = line.split(",")
-          Grade(fields(1), fields(2).toInt)
-        })
+        .map(
+          line => {
+            val fields = line.split(",")
+            Grade(fields(1), fields(2).toInt)
+          })
 
       val salaries = env
         .fromCollection(WindowJoinData.SALARIES_INPUT.split("\n"))
-        .map( line => {
-          val fields = line.split(",")
-          Salary(fields(1), fields(2).toInt)
-        })
+        .map(
+          line => {
+            val fields = line.split(",")
+            Salary(fields(1), fields(2).toInt)
+          })
 
-      WindowJoin.joinStreams(grades, salaries, 100)
+      WindowJoin
+        .joinStreams(grades, salaries, 100)
         .writeAsText(resultPath, WriteMode.OVERWRITE)
 
       env.execute()
 
       TestBaseUtils.checkLinesAgainstRegexp(resultPath, "^Person\\([a-z]+,(\\d),(\\d)+\\)")
-    }
-    finally try
-      FileUtils.deleteDirectory(new File(resultPath))
+    } finally
+      try
+        FileUtils.deleteDirectory(new File(resultPath))
 
-    catch {
-      case _: Throwable =>
-    }
-  }
-
-  @Test
-  def testTwitterExample(): Unit = {
-    val resultPath = getTempDirPath("result")
-    TwitterExample.main(Array("--output", resultPath))
-    TestBaseUtils.compareResultsByLinesInMemory(
-      TwitterExampleData.STREAMING_COUNTS_AS_TUPLES,
-      resultPath)
+      catch {
+        case _: Throwable =>
+      }
   }
 
   @Test
   def testSessionWindowing(): Unit = {
     val resultPath = getTempDirPath("result")
     SessionWindowing.main(Array("--output", resultPath))
-    TestBaseUtils.compareResultsByLinesInMemory(SessionWindowingData.EXPECTED, resultPath)
   }
 
   @Test
   def testWindowWordCount(): Unit = {
-    val windowSize = "250"
-    val slideSize = "150"
+    val windowSize = "25"
+    val slideSize = "15"
     val textPath = createTempFile("text.txt", WordCountData.TEXT)
     val resultPath = getTempDirPath("result")
 
-    WindowWordCount.main(Array(
-      "--input", textPath,
-      "--output", resultPath,
-      "--window", windowSize,
-      "--slide", slideSize
-    ))
+    WindowWordCount.main(
+      Array(
+        "--input",
+        textPath,
+        "--output",
+        resultPath,
+        "--window",
+        windowSize,
+        "--slide",
+        slideSize,
+        "--execution-mode",
+        "AUTOMATIC"
+      ))
 
     // since the parallel tokenizers might have different speed
     // the exact output can not be checked just whether it is well-formed
@@ -134,13 +132,16 @@ class StreamingExamplesITCase extends AbstractTestBase {
     val textPath = createTempFile("text.txt", WordCountData.TEXT)
     val resultPath = getTempDirPath("result")
 
-    WordCount.main(Array(
-      "--input", textPath,
-      "--output", resultPath
-    ))
+    WordCount.main(
+      Array(
+        "--input",
+        textPath,
+        "--output",
+        resultPath,
+        "--execution-mode",
+        "automatic"
+      ))
 
-    TestBaseUtils.compareResultsByLinesInMemory(
-      WordCountData.STREAMING_COUNTS_AS_TUPLES,
-      resultPath)
+    TestBaseUtils.compareResultsByLinesInMemory(WordCountData.COUNTS_AS_TUPLES, resultPath)
   }
 }

@@ -25,10 +25,10 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -85,6 +85,7 @@ public class SystemResourcesMetricsITCase extends TestLogger {
             "System.CPU.IOWait",
             "System.CPU.Irq",
             "System.CPU.SoftIrq",
+            "System.CPU.Steal",
             "System.CPU.Nice",
             "System.Memory.Available",
             "System.Memory.Total",

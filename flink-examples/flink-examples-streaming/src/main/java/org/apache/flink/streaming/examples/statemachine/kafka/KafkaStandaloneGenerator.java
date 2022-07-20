@@ -59,7 +59,7 @@ public class KafkaStandaloneGenerator extends StandaloneThreadedGenerator {
 
         private final KafkaProducer<Object, byte[]> producer;
 
-        private final EventDeSerializer serializer;
+        private final EventDeSerializationSchema serializer;
 
         private final String topic;
 
@@ -68,7 +68,7 @@ public class KafkaStandaloneGenerator extends StandaloneThreadedGenerator {
         KafkaCollector(String brokerAddress, String topic, int partition) {
             this.topic = checkNotNull(topic);
             this.partition = partition;
-            this.serializer = new EventDeSerializer();
+            this.serializer = new EventDeSerializationSchema();
 
             // create Kafka producer
             Properties properties = new Properties();

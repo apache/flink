@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.net;
 
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
+import org.apache.flink.runtime.rpc.RpcSystemUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +58,7 @@ public class ConnectionUtils {
      * state failed to determine the address.
      */
     private enum AddressDetectionState {
+        LOOPBACK(100),
         /** Connect from interface returned by InetAddress.getLocalHost(). * */
         LOCAL_HOST(200),
         /** Detect own IP address based on the target IP address. Look for common prefix */
@@ -115,6 +116,7 @@ public class ConnectionUtils {
         final List<AddressDetectionState> strategies =
                 Collections.unmodifiableList(
                         Arrays.asList(
+                                AddressDetectionState.LOOPBACK,
                                 AddressDetectionState.LOCAL_HOST,
                                 AddressDetectionState.ADDRESS,
                                 AddressDetectionState.FAST_CONNECT,
@@ -225,6 +227,18 @@ public class ConnectionUtils {
     private static InetAddress findAddressUsingStrategy(
             AddressDetectionState strategy, InetSocketAddress targetAddress, boolean logging)
             throws IOException {
+        if (strategy == AddressDetectionState.LOOPBACK) {
+            InetAddress loopback = InetAddress.getLoopbackAddress();
+
+            if (tryToConnect(loopback, targetAddress, strategy.getTimeout(), logging)) {
+                LOG.debug(
+                        "Using InetAddress.getLoopbackAddress() immediately for connecting address");
+                return loopback;
+            } else {
+                return null;
+            }
+        }
+
         // try LOCAL_HOST strategy independent of the network interfaces
         if (strategy == AddressDetectionState.LOCAL_HOST) {
             InetAddress localhostName;
@@ -367,6 +381,12 @@ public class ConnectionUtils {
 
         private static final Duration defaultLoggingDelay = Duration.ofMillis(400);
 
+        private final RpcSystemUtils rpcSystemUtils;
+
+        public LeaderConnectingAddressListener(RpcSystemUtils rpcSystemUtils) {
+            this.rpcSystemUtils = rpcSystemUtils;
+        }
+
         private enum LeaderRetrievalState {
             NOT_RETRIEVED,
             RETRIEVED,
@@ -410,7 +430,7 @@ public class ConnectionUtils {
                                                 + "while waiting for the leader retrieval.");
                             }
                         } else if (retrievalState == LeaderRetrievalState.NEWLY_RETRIEVED) {
-                            targetAddress = AkkaUtils.getInetSocketAddressFromAkkaURL(akkaURL);
+                            targetAddress = rpcSystemUtils.getInetSocketAddressFromRpcUrl(akkaURL);
 
                             LOG.debug(
                                     "Retrieved new target address {} for akka URL {}.",
@@ -426,7 +446,7 @@ public class ConnectionUtils {
                     }
 
                     if (targetAddress != null) {
-                        AddressDetectionState strategy = AddressDetectionState.LOCAL_HOST;
+                        AddressDetectionState strategy = AddressDetectionState.LOOPBACK;
 
                         boolean logging = elapsedTimeMillis >= startLoggingAfter.toMillis();
                         if (logging) {
@@ -443,6 +463,9 @@ public class ConnectionUtils {
 
                             // pick the next strategy
                             switch (strategy) {
+                                case LOOPBACK:
+                                    strategy = AddressDetectionState.LOCAL_HOST;
+                                    break;
                                 case LOCAL_HOST:
                                     strategy = AddressDetectionState.ADDRESS;
                                     break;

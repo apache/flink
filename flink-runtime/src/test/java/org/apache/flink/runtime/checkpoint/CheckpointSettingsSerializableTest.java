@@ -42,9 +42,13 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.testutils.ClassLoaderUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -52,6 +56,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -63,6 +68,9 @@ import static org.mockito.Mockito.when;
  * user-defined objects.
  */
 public class CheckpointSettingsSerializableTest extends TestLogger {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Test
     public void testDeserializationOfUserCodeWithUserClassLoader() throws Exception {
@@ -85,9 +93,10 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
                                 true,
                                 false,
-                                false,
+                                0,
                                 0),
                         new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
+                        TernaryBoolean.UNDEFINED,
                         new SerializedValue<CheckpointStorage>(
                                 new CustomCheckpointStorage(outOfClassPath)),
                         serHooks);
@@ -105,7 +114,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setJobGraph(copy)
                         .setUserClassLoader(classLoader)
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
 
         assertEquals(1, eg.getCheckpointCoordinator().getNumberOfRegisteredMasterHooks());
         assertTrue(

@@ -40,9 +40,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for {@link SplitFetcher}. */
 public class SplitFetcherTest {
@@ -51,7 +49,7 @@ public class SplitFetcherTest {
     public void testNewFetcherIsIdle() {
         final SplitFetcher<Object, TestingSourceSplit> fetcher =
                 createFetcher(new TestingSplitReader<>());
-        assertTrue(fetcher.isIdle());
+        assertThat(fetcher.isIdle()).isTrue();
     }
 
     @Test
@@ -62,12 +60,12 @@ public class SplitFetcherTest {
 
         fetcher.addSplits(Collections.singletonList(split));
 
-        assertFalse(fetcher.isIdle());
+        assertThat(fetcher.isIdle()).isFalse();
 
         // need to loop here because the internal wakeup flag handling means we need multiple loops
         while (fetcher.assignedSplits().isEmpty()) {
             fetcher.runOnce();
-            assertFalse(fetcher.isIdle());
+            assertThat(fetcher.isIdle()).isFalse();
         }
     }
 
@@ -79,8 +77,8 @@ public class SplitFetcherTest {
 
         fetcher.runOnce();
 
-        assertTrue(fetcher.assignedSplits().isEmpty());
-        assertTrue(fetcher.isIdle());
+        assertThat(fetcher.assignedSplits()).isEmpty();
+        assertThat(fetcher.isIdle()).isTrue();
     }
 
     @Test
@@ -95,9 +93,9 @@ public class SplitFetcherTest {
 
         fetcher.runOnce();
 
-        assertTrue(fetcher.assignedSplits().isEmpty());
-        assertTrue(fetcher.isIdle());
-        assertTrue(queue.getAvailabilityFuture().isDone());
+        assertThat(fetcher.assignedSplits()).isEmpty();
+        assertThat(fetcher.isIdle()).isTrue();
+        assertThat(queue.getAvailabilityFuture().isDone()).isTrue();
     }
 
     @Test
@@ -114,9 +112,9 @@ public class SplitFetcherTest {
 
         fetcher.runOnce();
 
-        assertTrue(fetcher.assignedSplits().isEmpty());
-        assertTrue(fetcher.isIdle());
-        assertTrue(future.isDone());
+        assertThat(fetcher.assignedSplits()).isEmpty();
+        assertThat(fetcher.isIdle()).isTrue();
+        assertThat(future.isDone()).isTrue();
     }
 
     @Test
@@ -140,7 +138,8 @@ public class SplitFetcherTest {
         // (thread finished)
         // or the fetcher was already idle when the thread drained the queue (then we need no
         // additional notification)
-        assertTrue(queue.getAvailabilityFuture().isDone() || queueDrainer.wasIdleWhenFinished());
+        assertThat(queue.getAvailabilityFuture().isDone() || queueDrainer.wasIdleWhenFinished())
+                .isTrue();
     }
 
     @Test
@@ -159,7 +158,7 @@ public class SplitFetcherTest {
         final CompletableFuture<?> future = queue.getAvailabilityFuture();
 
         fetcher.runOnce();
-        assertTrue(future.isDone());
+        assertThat(future.isDone()).isTrue();
 
         queueDrainer.sync();
     }
@@ -177,9 +176,13 @@ public class SplitFetcherTest {
                 new SplitFetcher<>(
                         0,
                         elementQueue,
-                        new MockSplitReader(2, true),
+                        MockSplitReader.newBuilder()
+                                .setNumRecordsPerSplitPerFetch(2)
+                                .setBlockingFetch(true)
+                                .build(),
                         ExceptionUtils::rethrow,
-                        () -> {});
+                        () -> {},
+                        (ignore) -> {});
 
         // Prepare the splits.
         List<MockSourceSplit> splits = new ArrayList<>();
@@ -226,15 +229,15 @@ public class SplitFetcherTest {
                 while (nextBatch.nextSplit() != null) {
                     int[] arr;
                     while ((arr = nextBatch.nextRecordFromSplit()) != null) {
-                        assertTrue(recordsRead.add(arr[0]));
+                        assertThat(recordsRead.add(arr[0])).isTrue();
                     }
                 }
             }
 
-            assertEquals(numTotalRecords, recordsRead.size());
-            assertEquals(0, (int) recordsRead.first());
-            assertEquals(numTotalRecords - 1, (int) recordsRead.last());
-            assertTrue(wakeupTimes.get() > 0);
+            assertThat(recordsRead).hasSize(numTotalRecords);
+            assertThat(recordsRead.first()).isEqualTo(0);
+            assertThat(recordsRead.last()).isEqualTo(numTotalRecords - 1);
+            assertThat(wakeupTimes.get()).isGreaterThan(0);
         } finally {
             stop.set(true);
             fetcher.shutdown();
@@ -249,7 +252,7 @@ public class SplitFetcherTest {
         final SplitFetcher<Object, TestingSourceSplit> fetcher = createFetcher(splitReader);
         fetcher.shutdown();
         fetcher.run();
-        assertTrue(splitReader.isClosed());
+        assertThat(splitReader.isClosed()).isTrue();
     }
 
     // ------------------------------------------------------------------------
@@ -268,7 +271,8 @@ public class SplitFetcherTest {
     private static <E> SplitFetcher<E, TestingSourceSplit> createFetcher(
             final SplitReader<E, TestingSourceSplit> reader,
             final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> queue) {
-        return new SplitFetcher<>(0, queue, reader, ExceptionUtils::rethrow, () -> {});
+        return new SplitFetcher<>(
+                0, queue, reader, ExceptionUtils::rethrow, () -> {}, (ignore) -> {});
     }
 
     private static <E> SplitFetcher<E, TestingSourceSplit> createFetcherWithSplit(

@@ -81,7 +81,8 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
                 output.collect(nextRecord);
             }
         } else {
-            controller.allActionsCompleted();
+            controller.suspendDefaultAction();
+            mailboxProcessor.suspend();
         }
     }
 
@@ -105,7 +106,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
     }
 
     @Override
-    protected void cleanup() {
+    protected void cleanUpInternal() {
         // make sure that we remove the queue from the broker, to prevent a resource leak
         BlockingQueueBroker.INSTANCE.remove(brokerID);
         LOG.info("Iteration head {} removed feedback queue under {}", getName(), brokerID);

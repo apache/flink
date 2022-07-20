@@ -36,7 +36,7 @@ function run_ha_test() {
     local INCREM=$4
     local ZOOKEEPER_VERSION=$5
 
-    local JM_KILLS=3
+    local JM_KILLS=2
     local CHECKPOINT_DIR="${TEST_DATA_DIR}/checkpoints/"
 
     CLEARED=0
@@ -98,6 +98,6 @@ function run_ha_test() {
 STATE_BACKEND_TYPE=${1:-file}
 STATE_BACKEND_FILE_ASYNC=${2:-true}
 STATE_BACKEND_ROCKS_INCREMENTAL=${3:-false}
-ZOOKEEPER_VERSION=${4:-3.4}
+ZOOKEEPER_VERSION=${4:-3.5}
 
 run_test_with_timeout 900 run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL} ${ZOOKEEPER_VERSION}

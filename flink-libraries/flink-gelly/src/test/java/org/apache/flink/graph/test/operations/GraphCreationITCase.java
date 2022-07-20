@@ -38,6 +38,9 @@ import org.junit.runners.Parameterized;
 import java.util.LinkedList;
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
+
 /** Test graph creation and validation from datasets and tuples. */
 @RunWith(Parameterized.class)
 public class GraphCreationITCase extends MultipleProgramsTestBase {

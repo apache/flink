@@ -37,16 +37,19 @@ trigger:
 resources:
   containers:
   # Container with Maven 3.2.5, SSL to have the same environment everywhere.
+  # see https://github.com/flink-ci/flink-ci-docker
   - container: flink-build-container
-    image: rmetzger/flink-ci:ubuntu-amd64-7ac4e28
+    image: chesnay/flink-ci:java_8_11_17
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
   E2E_CACHE_FOLDER: $(Pipeline.Workspace)/e2e_cache
   E2E_TARBALL_CACHE: $(Pipeline.Workspace)/e2e_artifact_cache
-  MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+  MAVEN_ARGS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
   CACHE_KEY: maven | $(Agent.OS) | **/pom.xml, !**/target/**
   CACHE_FALLBACK_KEY: maven | $(Agent.OS)
+  DOCKER_IMAGES_CACHE_KEY: docker-images-cache | $(Agent.OS) | **/cache_docker_images.sh | flink-test-utils-parent/**/DockerImageVersions.java
+  DOCKER_IMAGES_CACHE_FOLDER: $(Pipeline.Workspace)/.docker-cache
   FLINK_ARTIFACT_DIR: $(Pipeline.Workspace)/flink_artifact
   SECRET_S3_BUCKET: $[variables.IT_CASE_S3_BUCKET]
   SECRET_S3_ACCESS_KEY: $[variables.IT_CASE_S3_ACCESS_KEY]
@@ -66,16 +69,19 @@ stages:
           test_pool_definition:
             name: Default
           e2e_pool_definition:
-            vmImage: 'ubuntu-16.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+            vmImage: 'ubuntu-20.04'
+          environment: PROFILE="-Dflink.hadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
           run_end_to_end: false
           container: flink-build-container
-          jdk: jdk8
+          jdk: 8
       - job: docs_404_check # run on a MSFT provided machine
         pool:
-          vmImage: 'ubuntu-16.04'
+          vmImage: 'ubuntu-20.04'
         steps:
           # Skip docs check if this is a pull request that doesn't contain a documentation change
+          - task: GoTool@0
+            inputs:
+              version: '1.18.1'
           - bash: |
               source ./tools/azure-pipelines/build_properties.sh
               pr_contains_docs_changes
@@ -87,11 +93,6 @@ stages:
                 echo "##vso[task.setvariable variable=skip;]0"
               fi
             displayName: Check if PR contains docs change
-          - task: UseRubyVersion@0
-            condition: not(eq(variables['SKIP'], '1'))
-            inputs:
-              versionSpec: '= 2.4'
-              addToPath: true
           - script: ./tools/ci/docs.sh
             condition: not(eq(variables['SKIP'], '1'))
   # Special stage for nightly builds:
@@ -109,79 +110,56 @@ stages:
         parameters:
           stage_name: cron_azure
           test_pool_definition:
-            vmImage: 'ubuntu-16.04'
+            vmImage: 'ubuntu-20.04'
           e2e_pool_definition:
-            vmImage: 'ubuntu-16.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+            vmImage: 'ubuntu-20.04'
+          environment: PROFILE="-Dflink.hadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
           run_end_to_end: true
           container: flink-build-container
-          jdk: jdk8
-      - template: jobs-template.yml
-        parameters:
-          stage_name: cron_hadoop241
-          test_pool_definition:
-            name: Default
-          e2e_pool_definition:
-            vmImage: 'ubuntu-16.04'
-          environment: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
-          run_end_to_end: true
-          container: flink-build-container
-          jdk: jdk8
+          jdk: 8
       - template: jobs-template.yml
         parameters:
           stage_name: cron_hadoop313
           test_pool_definition:
             name: Default
           e2e_pool_definition:
-            vmImage: 'ubuntu-16.04'
-          environment: PROFILE="-Dinclude_hadoop_aws -Dhadoop.version=3.1.3 -Phadoop3-tests"
+            vmImage: 'ubuntu-20.04'
+          environment: PROFILE="-Dinclude_hadoop_aws -Dflink.hadoop.version=3.1.3 -Phadoop3-tests,hive3"
           run_end_to_end: true
           container: flink-build-container
-          jdk: jdk8
-      - template: jobs-template.yml
-        parameters:
-          stage_name: cron_scala212
-          test_pool_definition:
-            name: Default
-          e2e_pool_definition:
-            vmImage: 'ubuntu-16.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
-          run_end_to_end: true
-          container: flink-build-container
-          jdk: jdk8
+          jdk: 8
       - template: jobs-template.yml
         parameters:
           stage_name: cron_jdk11
           test_pool_definition:
             name: Default
           e2e_pool_definition:
-            vmImage: 'ubuntu-16.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
+            vmImage: 'ubuntu-20.04'
+          environment: PROFILE="-Dflink.hadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Pjava11-target"
           run_end_to_end: true
           container: flink-build-container
-          jdk: jdk11
+          jdk: 11
       - template: jobs-template.yml
         parameters:
           stage_name: cron_adaptive_scheduler
           test_pool_definition:
             name: Default
           e2e_pool_definition:
-            vmImage: 'ubuntu-16.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Penable-adaptive-scheduler"
+            vmImage: 'ubuntu-20.04'
+          environment: PROFILE="-Dflink.hadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12 -Penable-adaptive-scheduler"
           run_end_to_end: true
           container: flink-build-container
-          jdk: jdk8
+          jdk: 8
       - job: docs_404_check # run on a MSFT provided machine
         pool:
-          vmImage: 'ubuntu-16.04'
+          vmImage: 'ubuntu-20.04'
         steps:
-          - task: UseRubyVersion@0
+          - task: GoTool@0
             inputs:
-              versionSpec: '= 2.4'
-              addToPath: true
+              version: '1.18.1'
           - script: ./tools/ci/docs.sh
       - template: build-python-wheels.yml
         parameters:
           stage_name: cron_python_wheels
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          environment: PROFILE="-Dflink.hadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
           container: flink-build-container

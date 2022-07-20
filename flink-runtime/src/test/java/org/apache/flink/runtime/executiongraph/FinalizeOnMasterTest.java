@@ -24,9 +24,14 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
+
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createScheduler;
 import static org.junit.Assert.assertEquals;
@@ -41,6 +46,10 @@ import static org.mockito.Mockito.verify;
  */
 public class FinalizeOnMasterTest extends TestLogger {
 
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
     @Test
     public void testFinalizeIsCalledUponSuccess() throws Exception {
         final JobVertex vertex1 = spy(new JobVertex("test vertex 1"));
@@ -54,7 +63,8 @@ public class FinalizeOnMasterTest extends TestLogger {
         final SchedulerBase scheduler =
                 createScheduler(
                         JobGraphTestUtils.streamingJobGraph(vertex1, vertex2),
-                        ComponentMainThreadExecutorServiceAdapter.forMainThread());
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        EXECUTOR_RESOURCE.getExecutor());
         scheduler.startScheduling();
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();
@@ -82,7 +92,8 @@ public class FinalizeOnMasterTest extends TestLogger {
         final SchedulerBase scheduler =
                 createScheduler(
                         JobGraphTestUtils.streamingJobGraph(vertex),
-                        ComponentMainThreadExecutorServiceAdapter.forMainThread());
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        EXECUTOR_RESOURCE.getExecutor());
         scheduler.startScheduling();
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();

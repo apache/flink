@@ -21,48 +21,56 @@ package org.apache.flink.table.types.logical;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.TableSymbol;
-import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Logical type for representing symbol values. The symbol type is an extension to the SQL standard
  * and only serves as a helper type within the expression stack.
  *
- * <p>A symbol type only accepts conversions from and to its enum class.
+ * <p>A symbol type accepts conversions from and to {@link Enum}. But note that this is not an enum
+ * type for users.
  *
  * <p>This type has no serializable string representation.
  *
- * @param <T> table symbol
+ * @param <T> Legacy generic that will be dropped in the next major version. If we dropped it
+ *     earlier, we would break {@link LogicalTypeVisitor} implementation.
  */
 @PublicEvolving
 public final class SymbolType<T extends TableSymbol> extends LogicalType {
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
-    private static final String FORMAT = "SYMBOL('%s')";
+    private static final String FORMAT = "SYMBOL";
 
-    private final Class<T> symbolClass;
-
-    public SymbolType(boolean isNullable, Class<T> symbolClass) {
-        super(isNullable, LogicalTypeRoot.SYMBOL);
-        this.symbolClass =
-                Preconditions.checkNotNull(symbolClass, "Symbol class must not be null.");
+    /** @deprecated Symbol types have been simplified to not require a class. */
+    @Deprecated
+    public SymbolType(boolean isNullable, @SuppressWarnings("unused") Class<T> clazz) {
+        this(isNullable);
     }
 
-    public SymbolType(Class<T> symbolClass) {
-        this(true, symbolClass);
+    /** @deprecated Symbol types have been simplified to not require a class. */
+    @Deprecated
+    public SymbolType(@SuppressWarnings("unused") Class<T> clazz) {
+        this();
+    }
+
+    public SymbolType(boolean isNullable) {
+        super(isNullable, LogicalTypeRoot.SYMBOL);
+    }
+
+    public SymbolType() {
+        this(true);
     }
 
     @Override
     public LogicalType copy(boolean isNullable) {
-        return new SymbolType<>(isNullable, symbolClass);
+        return new SymbolType<>(isNullable);
     }
 
     @Override
     public String asSummaryString() {
-        return withNullability(FORMAT, symbolClass.getName());
+        return withNullability(FORMAT);
     }
 
     @Override
@@ -72,17 +80,17 @@ public final class SymbolType<T extends TableSymbol> extends LogicalType {
 
     @Override
     public boolean supportsInputConversion(Class<?> clazz) {
-        return symbolClass.equals(clazz);
+        return Enum.class.isAssignableFrom(clazz);
     }
 
     @Override
     public boolean supportsOutputConversion(Class<?> clazz) {
-        return symbolClass.equals(clazz);
+        return Enum.class.isAssignableFrom(clazz);
     }
 
     @Override
     public Class<?> getDefaultConversion() {
-        return symbolClass;
+        return Enum.class;
     }
 
     @Override
@@ -93,25 +101,5 @@ public final class SymbolType<T extends TableSymbol> extends LogicalType {
     @Override
     public <R> R accept(LogicalTypeVisitor<R> visitor) {
         return visitor.visit(this);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        if (!super.equals(o)) {
-            return false;
-        }
-        SymbolType<?> that = (SymbolType<?>) o;
-        return symbolClass.equals(that.symbolClass);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(super.hashCode(), symbolClass);
     }
 }

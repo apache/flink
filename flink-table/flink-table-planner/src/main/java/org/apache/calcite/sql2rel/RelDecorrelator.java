@@ -118,11 +118,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-/**
- * Copied to fix CALCITE-4333, should be removed for the next Calcite upgrade.
- *
- * <p>Changes: Line 671 ~ Line 681, Line 430 ~ Line 441.
- */
+/** Copied to fix calcite issues. */
 public class RelDecorrelator implements ReflectiveVisitor {
     // ~ Static fields/initializers ---------------------------------------------
 
@@ -176,7 +172,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
      *
      * @param rootRel Root node of the query
      * @param relBuilder Builder for relational expressions
-     * @return Equivalent query with all {@link Correlate} instances removed
+     * @return Equivalent query with all {@link org.apache.calcite.rel.core.Correlate} instances
+     *     removed
      */
     public static RelNode decorrelateQuery(RelNode rootRel, RelBuilder relBuilder) {
         final CorelMap corelMap = new CorelMapBuilder().build(rootRel);
@@ -438,6 +435,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
             return null;
         }
 
+        // BEGIN FLINK MODIFICATION
+        // Reason: to de-correlate sort rel when its parent is not a correlate
+        // Should be removed after CALCITE-4333 is fixed
         final RelNode newInput = frame.r;
 
         Mappings.TargetMapping mapping =
@@ -451,6 +451,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
         final int offset = rel.offset == null ? -1 : RexLiteral.intValue(rel.offset);
         final int fetch = rel.fetch == null ? -1 : RexLiteral.intValue(rel.fetch);
+        // END FLINK MODIFICATION
 
         final RelNode newSort =
                 relBuilder
@@ -684,6 +685,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
     public Frame getInvoke(RelNode r, RelNode parent) {
         final Frame frame = dispatcher.invoke(r);
+        // BEGIN FLINK MODIFICATION
+        // Reason: to de-correlate sort rel when its parent is not a correlate
+        // Should be removed after CALCITE-4333 is fixed
         if (frame != null && parent instanceof Correlate && r instanceof Sort) {
             Sort sort = (Sort) r;
             // Can not decorrelate if the sort has per-correlate-key attributes like
@@ -695,6 +699,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
                 return null;
             }
         }
+        // END FLINK MODIFICATION
         if (frame != null) {
             map.put(r, frame);
         }
@@ -1021,7 +1026,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
     /**
      * Finds a {@link RexInputRef} that is equivalent to a {@link CorRef}, and if found, throws a
-     * {@link Util.FoundOne}.
+     * {@link org.apache.calcite.util.Util.FoundOne}.
      */
     private void findCorrelationEquivalent(CorRef correlation, RexNode e) throws Util.FoundOne {
         switch (e.getKind()) {
@@ -1868,13 +1873,15 @@ public class RelDecorrelator implements ReflectiveVisitor {
                 return;
             }
 
-            // singleAggRel produces a nullable type, so create the new
-            // projection that casts proj expr to a nullable type.
+            // BEGIN FLINK MODIFICATION
+            // Reason: fix the nullability mismatch issue
             final RelBuilder relBuilder = call.builder();
+            final boolean nullable = singleAggregate.getAggCallList().get(0).getType().isNullable();
             final RelDataType type =
                     relBuilder
                             .getTypeFactory()
-                            .createTypeWithNullability(projExprs.get(0).getType(), true);
+                            .createTypeWithNullability(projExprs.get(0).getType(), nullable);
+            // END FLINK MODIFICATION
             final RexNode cast = relBuilder.getRexBuilder().makeCast(type, projExprs.get(0));
             relBuilder.push(aggregate).project(cast);
             call.transformTo(relBuilder.build());
@@ -2782,7 +2789,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
     }
 
     /**
-     * A map of the locations of {@link Correlate} in a tree of {@link RelNode}s.
+     * A map of the locations of {@link org.apache.calcite.rel.core.Correlate} in a tree of {@link
+     * RelNode}s.
      *
      * <p>It is used to drive the decorrelation process. Treat it as immutable; rebuild if you
      * modify the tree.
@@ -2862,7 +2870,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
         }
     }
 
-    /** Builds a {@link CorelMap}. */
+    /** Builds a {@link org.apache.calcite.sql2rel.RelDecorrelator.CorelMap}. */
     public static class CorelMapBuilder extends RelHomogeneousShuttle {
         final SortedMap<CorrelationId, RelNode> mapCorToCorRel = new TreeMap<>();
 

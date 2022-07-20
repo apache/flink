@@ -20,10 +20,11 @@ package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
 
@@ -106,11 +107,11 @@ public interface Executor {
     List<String> completeStatement(String sessionId, String statement, int position);
 
     /** Executes an operation, and return {@link TableResult} as execution result. */
-    TableResult executeOperation(String sessionId, Operation operation)
+    TableResultInternal executeOperation(String sessionId, Operation operation)
             throws SqlExecutionException;
 
     /** Executes modify operations, and return {@link TableResult} as execution result. */
-    TableResult executeModifyOperations(String sessionId, List<ModifyOperation> operations)
+    TableResultInternal executeModifyOperations(String sessionId, List<ModifyOperation> operations)
             throws SqlExecutionException;
 
     /** Submits a Flink SQL query job (detached) and returns the result descriptor. */
@@ -118,7 +119,7 @@ public interface Executor {
             throws SqlExecutionException;
 
     /** Asks for the next changelog results (non-blocking). */
-    TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
+    TypedResult<List<RowData>> retrieveResultChanges(String sessionId, String resultId)
             throws SqlExecutionException;
 
     /**
@@ -132,11 +133,20 @@ public interface Executor {
      * Returns the rows that are part of the current page or throws an exception if the snapshot has
      * been expired.
      */
-    List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException;
+    List<RowData> retrieveResultPage(String resultId, int page) throws SqlExecutionException;
 
     /**
      * Cancels a table program and stops the result retrieval. Blocking until cancellation command
      * has been sent to cluster.
      */
     void cancelQuery(String sessionId, String resultId) throws SqlExecutionException;
+
+    /** Add the JAR resource into the classloader with specified session. */
+    void addJar(String sessionId, String jarPath);
+
+    /** Remove the JAR resource from the classloader with specified session. */
+    void removeJar(String sessionId, String jarPath);
+
+    /** List the JAR resources of the classloader with specified session. */
+    List<String> listJars(String sessionId);
 }

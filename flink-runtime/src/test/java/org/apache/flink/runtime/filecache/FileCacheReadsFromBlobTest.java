@@ -28,7 +28,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.Files;
+import org.apache.flink.shaded.guava30.com.google.common.io.Files;
 
 import org.junit.After;
 import org.junit.Before;
@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -104,7 +105,7 @@ public class FileCacheReadsFromBlobTest {
     @Test
     public void testFileDownloadedFromBlob() throws Exception {
         JobID jobID = new JobID();
-        ExecutionAttemptID attemptID = new ExecutionAttemptID();
+        ExecutionAttemptID attemptID = createExecutionAttemptId();
 
         final String fileName = "test_file";
         // copy / create the file

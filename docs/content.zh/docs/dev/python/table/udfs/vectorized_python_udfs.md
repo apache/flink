@@ -49,15 +49,19 @@ under the License.
 以下示例显示了如何定义自己的向量化 Python 标量函数，该函数计算两列的总和，并在查询中使用它：
 
 ```python
+from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.expressions import col
+from pyflink.table.udf import udf
+
 @udf(result_type=DataTypes.BIGINT(), func_type="pandas")
 def add(i, j):
   return i + j
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
 # use the vectorized Python scalar function in Python Table API
-my_table.select(add(my_table.bigint, my_table.bigint))
+my_table.select(add(col("bigint"), col("bigint")))
 
 # 在SQL API中使用Python向量化标量函数
 table_env.create_temporary_function("add", add)
@@ -77,34 +81,36 @@ table_env.sql_query("SELECT add(bigint, bigint) FROM MyTable")
 <span class="label label-info">注意</span> 向量化聚合函数不支持部分聚合，而且一个组或者窗口内的所有数据，
 在执行的过程中，会被同时加载到内存，所以需要确保所配置的内存大小足够容纳这些数据。
 
-<span class="label label-info">注意</span> 向量化聚合函数只支持运行在 Blink Planner 上。
-
 以下示例显示了如何定一个自己的向量化聚合函数，该函数计算一列的平均值，并在 `GroupBy Aggregation`, `GroupBy Window Aggregation`
 and `Over Window Aggregation` 使用它:
 
 ```python
+from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.expressions import col, lit
+from pyflink.table.udf import udaf
+from pyflink.table.window import Tumble
+
 @udaf(result_type=DataTypes.FLOAT(), func_type="pandas")
 def mean_udaf(v):
     return v.mean()
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
 my_table = ...  # type: Table, table schema: [a: String, b: BigInt, c: BigInt]
 
 # 在 GroupBy Aggregation 中使用向量化聚合函数
-my_table.group_by(my_table.a).select(my_table.a, mean_udaf(add(my_table.b)))
+my_table.group_by(col('a')).select(col('a'), mean_udaf(col('b')))
 
 
 # 在 GroupBy Window Aggregation 中使用向量化聚合函数
-tumble_window = Tumble.over(expr.lit(1).hours) \
-            .on(expr.col("rowtime")) \
+tumble_window = Tumble.over(lit(1).hours) \
+            .on(col("rowtime")) \
             .alias("w")
 
 my_table.window(tumble_window) \
-    .group_by("w") \
-    .select("w.start, w.end, mean_udaf(b)")
-
+    .group_by(col("w")) \
+    .select(col('w').start, col('w').end, mean_udaf(col('b')))
 
 # 在 Over Window Aggregation 中使用向量化聚合函数
 table_env.create_temporary_function("mean_udaf", mean_udaf)
@@ -120,6 +126,9 @@ table_env.sql_query("""
 以下示例显示了多种定义向量化 Python 聚合函数的方式。该函数需要两个类型为 bigint 的参数作为输入参数，并返回它们的最大值的和作为结果。
 
 ```python
+from pyflink.table import DataTypes
+from pyflink.table.udf import AggregateFunction, udaf
+
 # 方式一：扩展基类 `AggregateFunction`
 class MaxAdd(AggregateFunction):
 

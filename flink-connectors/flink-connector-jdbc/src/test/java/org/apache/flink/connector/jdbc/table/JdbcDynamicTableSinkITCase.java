@@ -46,8 +46,8 @@ import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.math.BigDecimal;
@@ -78,8 +78,8 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
     public static final String OUTPUT_TABLE5 = "checkpointTable";
     public static final String USER_TABLE = "USER_TABLE";
 
-    @Before
-    public void before() throws ClassNotFoundException, SQLException {
+    @BeforeClass
+    public static void beforeAll() throws ClassNotFoundException, SQLException {
         System.setProperty(
                 "derby.stream.error.field", JdbcTestFixture.class.getCanonicalName() + ".DEV_NULL");
 
@@ -129,8 +129,8 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
         }
     }
 
-    @After
-    public void clearOutputTable() throws Exception {
+    @AfterClass
+    public static void afterAll() throws Exception {
         TestValuesTableFactory.clearAllData();
         Class.forName(DERBY_EBOOKSHOP_DB.getDriverClass());
         try (Connection conn = DriverManager.getConnection(DB_URL);
@@ -184,9 +184,8 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
     public void testReal() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().enableObjectReuse();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+        StreamTableEnvironment tEnv =
+                StreamTableEnvironment.create(env, EnvironmentSettings.inStreamingMode());
 
         tEnv.executeSql(
                 "CREATE TABLE upsertSink ("
@@ -209,9 +208,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
     public void testUpsert() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().enableObjectReuse();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         Table t =
                 tEnv.fromDataStream(
@@ -316,9 +313,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 
     @Test
     public void testBatchSink() throws Exception {
-        EnvironmentSettings bsSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
-        TableEnvironment tEnv = TableEnvironment.create(bsSettings);
+        TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
 
         tEnv.executeSql(
                 "CREATE TABLE USER_RESULT("

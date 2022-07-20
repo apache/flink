@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.IndexedCombinedWatermarkStatus;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -32,11 +33,11 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -52,13 +53,13 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.LatencyStats;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -89,10 +90,10 @@ public abstract class AbstractStreamOperatorV2<OUT>
     private final ExecutionConfig executionConfig;
     private final ClassLoader userCodeClassLoader;
     private final CloseableRegistry cancelables;
-    private final long[] inputWatermarks;
+    private final IndexedCombinedWatermarkStatus combinedWatermark;
 
     /** Metric group for the operator. */
-    protected final OperatorMetricGroup metrics;
+    protected final InternalOperatorMetricGroup metrics;
 
     protected final LatencyStats latencyStats;
     protected final ProcessingTimeService processingTimeService;
@@ -100,17 +101,11 @@ public abstract class AbstractStreamOperatorV2<OUT>
     private StreamOperatorStateHandler stateHandler;
     private InternalTimeServiceManager<?> timeServiceManager;
 
-    // We keep track of watermarks from both inputs, the combined input is the minimum
-    // Once the minimum advances we emit a new watermark for downstream operators
-    private long combinedWatermark = Long.MIN_VALUE;
-
     public AbstractStreamOperatorV2(StreamOperatorParameters<OUT> parameters, int numberOfInputs) {
-        inputWatermarks = new long[numberOfInputs];
-        Arrays.fill(inputWatermarks, Long.MIN_VALUE);
         final Environment environment = parameters.getContainingTask().getEnvironment();
         config = parameters.getStreamConfig();
         CountingOutput<OUT> countingOutput;
-        OperatorMetricGroup operatorMetricGroup;
+        InternalOperatorMetricGroup operatorMetricGroup;
         try {
             operatorMetricGroup =
                     environment
@@ -146,6 +141,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
         executionConfig = parameters.getContainingTask().getExecutionConfig();
         userCodeClassLoader = parameters.getContainingTask().getUserCodeClassLoader();
         cancelables = parameters.getContainingTask().getCancelables();
+        this.combinedWatermark = IndexedCombinedWatermarkStatus.forInputsCount(numberOfInputs);
 
         runtimeContext =
                 new StreamingRuntimeContext(
@@ -185,7 +181,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
                         MetricOptions.LATENCY_SOURCE_GRANULARITY.key(),
                         granularity);
             }
-            TaskManagerJobMetricGroup jobMetricGroup = this.metrics.parent().parent();
+            MetricGroup jobMetricGroup = this.metrics.getJobMetricGroup();
             return new LatencyStats(
                     jobMetricGroup.addGroup("latency"),
                     historySize,
@@ -205,7 +201,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
     }
 
     @Override
-    public MetricGroup getMetricGroup() {
+    public OperatorMetricGroup getMetricGroup() {
         return metrics;
     }
 
@@ -270,30 +266,11 @@ public abstract class AbstractStreamOperatorV2<OUT>
     @Override
     public void open() throws Exception {}
 
-    /**
-     * This method is called after all records have been added to the operators via the methods
-     * {@link OneInputStreamOperator#processElement(StreamRecord)}, or {@link
-     * TwoInputStreamOperator#processElement1(StreamRecord)} and {@link
-     * TwoInputStreamOperator#processElement2(StreamRecord)}.
-     *
-     * <p>The method is expected to flush all remaining buffered data. Exceptions during this
-     * flushing of buffered should be propagated, in order to cause the operation to be recognized
-     * asa failed, because the last data items are not processed properly.
-     *
-     * @throws Exception An exception in this method causes the operator to fail.
-     */
     @Override
-    public void close() throws Exception {}
+    public void finish() throws Exception {}
 
-    /**
-     * This method is called at the very end of the operator's life, both in the case of a
-     * successful completion of the operation, and in the case of a failure and canceling.
-     *
-     * <p>This method is expected to make a thorough effort to release all resources that the
-     * operator has acquired.
-     */
     @Override
-    public void dispose() throws Exception {
+    public void close() throws Exception {
         if (stateHandler != null) {
             stateHandler.dispose();
         }
@@ -396,10 +373,8 @@ public abstract class AbstractStreamOperatorV2<OUT>
         return runtimeContext;
     }
 
-    @SuppressWarnings("unchecked")
-    @VisibleForTesting
     public <K> KeyedStateBackend<K> getKeyedStateBackend() {
-        return (KeyedStateBackend<K>) stateHandler.getKeyedStateBackend();
+        return stateHandler.getKeyedStateBackend();
     }
 
     @VisibleForTesting
@@ -529,14 +504,19 @@ public abstract class AbstractStreamOperatorV2<OUT>
     }
 
     protected void reportWatermark(Watermark mark, int inputId) throws Exception {
-        inputWatermarks[inputId - 1] = mark.getTimestamp();
-        long newMin = mark.getTimestamp();
-        for (long inputWatermark : inputWatermarks) {
-            newMin = Math.min(inputWatermark, newMin);
+        if (combinedWatermark.updateWatermark(inputId - 1, mark.getTimestamp())) {
+            processWatermark(new Watermark(combinedWatermark.getCombinedWatermark()));
         }
-        if (newMin > combinedWatermark) {
-            combinedWatermark = newMin;
-            processWatermark(new Watermark(combinedWatermark));
+    }
+
+    public final void processWatermarkStatus(WatermarkStatus watermarkStatus, int inputId)
+            throws Exception {
+        boolean wasIdle = combinedWatermark.isIdle();
+        if (combinedWatermark.updateStatus(inputId - 1, watermarkStatus.isIdle())) {
+            processWatermark(new Watermark(combinedWatermark.getCombinedWatermark()));
+        }
+        if (wasIdle != combinedWatermark.isIdle()) {
+            output.emitWatermarkStatus(watermarkStatus);
         }
     }
 

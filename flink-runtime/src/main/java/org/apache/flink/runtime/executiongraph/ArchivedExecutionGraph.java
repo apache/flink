@@ -98,6 +98,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 
     @Nullable private final String checkpointStorageName;
 
+    @Nullable private final String changelogStorageName;
+
     public ArchivedExecutionGraph(
             JobID jobID,
             String jobName,
@@ -114,7 +116,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             @Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
             @Nullable CheckpointStatsSnapshot checkpointStatsSnapshot,
             @Nullable String stateBackendName,
-            @Nullable String checkpointStorageName) {
+            @Nullable String checkpointStorageName,
+            @Nullable String changelogStorageName) {
 
         this.jobID = Preconditions.checkNotNull(jobID);
         this.jobName = Preconditions.checkNotNull(jobName);
@@ -132,6 +135,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         this.checkpointStatsSnapshot = checkpointStatsSnapshot;
         this.stateBackendName = stateBackendName;
         this.checkpointStorageName = checkpointStorageName;
+        this.changelogStorageName = changelogStorageName;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -262,6 +266,11 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         return Optional.ofNullable(checkpointStorageName);
     }
 
+    @Override
+    public Optional<String> getChangelogStorageName() {
+        return Optional.ofNullable(changelogStorageName);
+    }
+
     /**
      * Create a {@link ArchivedExecutionGraph} from the given {@link ExecutionGraph}.
      *
@@ -286,11 +295,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 statusOverride == null || !statusOverride.isGloballyTerminalState(),
                 "Status override is only allowed for non-globally-terminal states.");
 
-        final int numberVertices = executionGraph.getTotalNumberOfVertices();
-
-        Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = new HashMap<>(numberVertices);
-        List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder =
-                new ArrayList<>(numberVertices);
+        Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = new HashMap<>();
+        List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder = new ArrayList<>();
 
         for (ExecutionJobVertex task : executionGraph.getVerticesTopologically()) {
             ArchivedExecutionJobVertex archivedTask = task.archive();
@@ -330,14 +336,15 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 executionGraph.getCheckpointCoordinatorConfiguration(),
                 executionGraph.getCheckpointStatsSnapshot(),
                 executionGraph.getStateBackendName().orElse(null),
-                executionGraph.getCheckpointStorageName().orElse(null));
+                executionGraph.getCheckpointStorageName().orElse(null),
+                executionGraph.getChangelogStorageName().orElse(null));
     }
 
     /**
-     * Create a sparse ArchivedExecutionGraph for a job while it is still initializing. Most fields
-     * will be empty, only job status and error-related fields are set.
+     * Create a sparse ArchivedExecutionGraph for a job. Most fields will be empty, only job status
+     * and error-related fields are set.
      */
-    public static ArchivedExecutionGraph createFromInitializingJob(
+    public static ArchivedExecutionGraph createSparseArchivedExecutionGraph(
             JobID jobId,
             String jobName,
             JobStatus jobStatus,
@@ -382,6 +389,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                         ? null
                         : checkpointingSettings.getCheckpointCoordinatorConfiguration(),
                 checkpointingSettings == null ? null : CheckpointStatsSnapshot.empty(),
+                checkpointingSettings == null ? null : "Unknown",
                 checkpointingSettings == null ? null : "Unknown",
                 checkpointingSettings == null ? null : "Unknown");
     }

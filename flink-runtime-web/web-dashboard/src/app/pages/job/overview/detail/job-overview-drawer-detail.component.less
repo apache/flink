@@ -18,29 +18,50 @@
 @import "theme";
 
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
   height: 100%;
-  width: 100%;
-}
 
-.name {
-  font-size: 12px;
-  padding: 12px;
-  word-break: break-all;
-  background: @background-color-light;
-  border-bottom: solid 1px @border-color-split;
-  margin-bottom: 12px;
-}
-
-
-nz-form-label {
   ::ng-deep {
-    label {
-      font-size: 12px;
+    .ant-divider-horizontal {
+      margin: 0;
     }
   }
-}
 
-nz-form-text {
-  font-size: 12px;
+  .name {
+    overflow: auto;
+    max-height: 120px;
+    padding: @padding-xs @padding-sm;
+    font-size: @font-size-sm;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .wrapper {
+    flex: 1;
+
+    dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      grid-gap: 0.75rem 2rem;
+      margin-bottom: 0;
+      padding: @padding-lg;
+      font-size: @font-size-sm;
+
+      dd {
+        font-weight: 500;
+      }
+
+      dt {
+        position: relative;
+        font-weight: normal;
+
+        &::before {
+          content: ":";
+          position: absolute;
+          left: -1rem;
+        }
+      }
+    }
+  }
 }

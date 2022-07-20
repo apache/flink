@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling;
 
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
 import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
@@ -28,9 +27,9 @@ import org.junit.Test;
 import java.util.Properties;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS;
+import static org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumerTestUtils.createFakeShardConsumerMetricGroup;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /** Tests for {@link PollingRecordPublisherFactory}. */
@@ -46,11 +45,11 @@ public class PollingRecordPublisherFactoryTest {
                         StartingPosition.restartFromSequenceNumber(
                                 SENTINEL_LATEST_SEQUENCE_NUM.get()),
                         new Properties(),
-                        mock(MetricGroup.class),
+                        createFakeShardConsumerMetricGroup(),
                         mock(StreamShardHandle.class));
 
-        assertTrue(recordPublisher instanceof PollingRecordPublisher);
-        assertFalse(recordPublisher instanceof AdaptivePollingRecordPublisher);
+        assertThat(recordPublisher).isInstanceOf(PollingRecordPublisher.class);
+        assertThat(recordPublisher).isNotInstanceOf(AdaptivePollingRecordPublisher.class);
     }
 
     @Test
@@ -63,10 +62,10 @@ public class PollingRecordPublisherFactoryTest {
                         StartingPosition.restartFromSequenceNumber(
                                 SENTINEL_LATEST_SEQUENCE_NUM.get()),
                         properties,
-                        mock(MetricGroup.class),
+                        createFakeShardConsumerMetricGroup(),
                         mock(StreamShardHandle.class));
 
-        assertTrue(recordPublisher instanceof PollingRecordPublisher);
-        assertTrue(recordPublisher instanceof AdaptivePollingRecordPublisher);
+        assertThat(recordPublisher).isInstanceOf(PollingRecordPublisher.class);
+        assertThat(recordPublisher).isInstanceOf(AdaptivePollingRecordPublisher.class);
     }
 }

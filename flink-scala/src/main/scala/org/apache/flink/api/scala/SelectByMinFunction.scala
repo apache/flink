@@ -21,13 +21,11 @@ import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 
-/**
-  * SelectByMinFunction to work with Scala tuples
-  */
+/** SelectByMinFunction to work with Scala tuples */
 @Internal
-class SelectByMinFunction[T](t : TupleTypeInfoBase[T], fields : Array[Int])
+class SelectByMinFunction[T](t: TupleTypeInfoBase[T], fields: Array[Int])
   extends ReduceFunction[T] {
-  for(f <- fields) {
+  for (f <- fields) {
     if (f < 0 || f >= t.getArity()) {
       throw new IndexOutOfBoundsException(
         "SelectByMinFunction field position " + f + " is out of range.")
@@ -35,25 +33,24 @@ class SelectByMinFunction[T](t : TupleTypeInfoBase[T], fields : Array[Int])
 
     // Check whether type is comparable
     if (!t.getTypeAt(f).isKeyType()) {
-      throw new IllegalArgumentException(
-        "SelectByMinFunction supports only key(Comparable) types.")
+      throw new IllegalArgumentException("SelectByMinFunction supports only key(Comparable) types.")
     }
   }
 
   override def reduce(value1: T, value2: T): T = {
     for (f <- fields) {
-        val element1  = value1.asInstanceOf[Product].productElement(f).asInstanceOf[Comparable[Any]]
-        val element2 = value2.asInstanceOf[Product].productElement(f).asInstanceOf[Comparable[Any]]
+      val element1 = value1.asInstanceOf[Product].productElement(f).asInstanceOf[Comparable[Any]]
+      val element2 = value2.asInstanceOf[Product].productElement(f).asInstanceOf[Comparable[Any]]
 
-        val comp = element1.compareTo(element2)
+      val comp = element1.compareTo(element2)
 
-        // If comp is bigger than 0 comparable 1 is bigger.
-        // Return the smaller value.
-        if (comp < 0) {
-          return value1
-        } else if (comp > 0) {
-          return value2
-        }
+      // If comp is bigger than 0 comparable 1 is bigger.
+      // Return the smaller value.
+      if (comp < 0) {
+        return value1
+      } else if (comp > 0) {
+        return value2
+      }
     }
     value1
   }

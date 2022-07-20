@@ -29,14 +29,18 @@ import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnect
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -49,6 +53,10 @@ import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link TaskExecutorManager}. */
 public class TaskExecutorManagerTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     /** Tests that a pending slot is only fulfilled by an exactly matching received slot. */
     @Test
@@ -141,7 +149,7 @@ public class TaskExecutorManagerTest extends TestLogger {
                                 (instanceId, ignored) -> releaseResourceFuture.complete(instanceId))
                         .build();
 
-        final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
+        final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
 
         try (final TaskExecutorManager taskExecutorManager =
                 createTaskExecutorManagerBuilder()
@@ -193,7 +201,7 @@ public class TaskExecutorManagerTest extends TestLogger {
                                 (instanceID, e) -> releaseResourceFuture.complete(instanceID))
                         .build();
 
-        final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
+        final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
 
         try (final TaskExecutorManager taskExecutorManager =
                 createTaskExecutorManagerBuilder()
@@ -366,7 +374,8 @@ public class TaskExecutorManagerTest extends TestLogger {
     }
 
     private static TaskExecutorManagerBuilder createTaskExecutorManagerBuilder() {
-        return new TaskExecutorManagerBuilder()
+        return new TaskExecutorManagerBuilder(
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))
                 .setResourceActions(createResourceActionsBuilder().build());
     }
 

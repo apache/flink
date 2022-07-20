@@ -36,6 +36,9 @@ Dependencies
 
 {{< sql_download_table "kinesis" >}}
 
+The Kinesis connector is not part of the binary distribution.
+See how to link with it for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
+
 How to create a Kinesis data stream table
 -----------------------------------------
 
@@ -122,11 +125,12 @@ Connector Options
 <table class="table table-bordered">
     <thead>
     <tr>
-      <th class="text-left" style="width: 25%">Option</th>
-      <th class="text-center" style="width: 8%">Required</th>
-      <th class="text-center" style="width: 7%">Default</th>
-      <th class="text-center" style="width: 10%">Type</th>
-      <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-left" style="width: 25%">Option</th>
+        <th class="text-center" style="width: 8%">Required</th>
+        <th class="text-center" style="width: 8%">Forwarded</th>
+        <th class="text-center" style="width: 7%">Default</th>
+        <th class="text-center" style="width: 10%">Type</th>
+        <th class="text-center" style="width: 42%">Description</th>
     </tr>
     <tr>
       <th colspan="5" class="text-left" style="width: 100%">Common Options</th>
@@ -136,6 +140,7 @@ Connector Options
     <tr>
       <td><h5>connector</h5></td>
       <td>required</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Specify what connector to use. For Kinesis use <code>'kinesis'</code>.</td>
@@ -143,6 +148,7 @@ Connector Options
     <tr>
       <td><h5>stream</h5></td>
       <td>required</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Name of the Kinesis data stream backing this table.</td>
@@ -150,6 +156,7 @@ Connector Options
     <tr>
       <td><h5>format</h5></td>
       <td>required</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The format used to deserialize and serialize Kinesis data stream records. See <a href="#data-type-mapping">Data Type Mapping</a> for details.</td>
@@ -157,6 +164,7 @@ Connector Options
     <tr>
       <td><h5>aws.region</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The AWS region where the stream is defined. Either this or <code>aws.endpoint</code> are required.</td>
@@ -164,9 +172,17 @@ Connector Options
     <tr>
       <td><h5>aws.endpoint</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The AWS endpoint for Kinesis (derived from the AWS region setting if not set). Either this or <code>aws.region</code> are required.</td>
+    </tr>
+    <tr>
+      <td><h5>aws.trust.all.certificates</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>If true accepts all SSL certificates.</td>
     </tr>
     </tbody>
     <thead>
@@ -178,6 +194,7 @@ Connector Options
     <tr>
       <td><h5>aws.credentials.provider</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">AUTO</td>
       <td>String</td>
       <td>A credentials provider to use when authenticating against the Kinesis endpoint. See <a href="#authentication">Authentication</a> for details.</td>
@@ -185,6 +202,7 @@ Connector Options
     <tr>
 	  <td><h5>aws.credentials.basic.accesskeyid</h5></td>
 	  <td>optional</td>
+      <td>no</td>
 	  <td style="word-wrap: break-word;">(none)</td>
 	  <td>String</td>
 	  <td>The AWS access key ID to use when setting credentials provider type to BASIC.</td>
@@ -192,6 +210,7 @@ Connector Options
     <tr>
 	  <td><h5>aws.credentials.basic.secretkey</h5></td>
 	  <td>optional</td>
+      <td>no</td>
 	  <td style="word-wrap: break-word;">(none)</td>
 	  <td>String</td>
 	  <td>The AWS secret key to use when setting credentials provider type to BASIC.</td>
@@ -199,6 +218,7 @@ Connector Options
     <tr>
 	  <td><h5>aws.credentials.profile.path</h5></td>
 	  <td>optional</td>
+      <td>no</td>
 	  <td style="word-wrap: break-word;">(none)</td>
 	  <td>String</td>
 	  <td>Optional configuration for profile path if credential provider type is set to be PROFILE.</td>
@@ -206,6 +226,7 @@ Connector Options
     <tr>
 	  <td><h5>aws.credentials.profile.name</h5></td>
 	  <td>optional</td>
+      <td>no</td>
 	  <td style="word-wrap: break-word;">(none)</td>
 	  <td>String</td>
 	  <td>Optional configuration for profile name if credential provider type is set to be PROFILE.</td>
@@ -213,6 +234,7 @@ Connector Options
     <tr>
 	  <td><h5>aws.credentials.role.arn</h5></td>
 	  <td>optional</td>
+      <td>no</td>
 	  <td style="word-wrap: break-word;">(none)</td>
 	  <td>String</td>
 	  <td>The role ARN to use when credential provider type is set to ASSUME_ROLE or WEB_IDENTITY_TOKEN.</td>
@@ -220,6 +242,7 @@ Connector Options
     <tr>
 	  <td><h5>aws.credentials.role.sessionName</h5></td>
 	  <td>optional</td>
+      <td>no</td>
 	  <td style="word-wrap: break-word;">(none)</td>
 	  <td>String</td>
 	  <td>The role session name to use when credential provider type is set to ASSUME_ROLE or WEB_IDENTITY_TOKEN.</td>
@@ -227,6 +250,7 @@ Connector Options
     <tr>
 	  <td><h5>aws.credentials.role.externalId</h5></td>
 	  <td>optional</td>
+      <td>no</td>
 	  <td style="word-wrap: break-word;">(none)</td>
 	  <td>String</td>
 	  <td>The external ID to use when credential provider type is set to ASSUME_ROLE.</td>
@@ -234,6 +258,7 @@ Connector Options
     <tr>
 	  <td><h5>aws.credentials.role.provider</h5></td>
 	  <td>optional</td>
+      <td>no</td>
 	  <td style="word-wrap: break-word;">(none)</td>
 	  <td>String</td>
 	  <td>The credentials provider that provides credentials for assuming the role when credential provider type is set to ASSUME_ROLE. Roles can be nested, so this value can again be set to ASSUME_ROLE</td>
@@ -241,6 +266,7 @@ Connector Options
     <tr>
 	  <td><h5>aws.credentials.webIdentityToken.file</h5></td>
 	  <td>optional</td>
+      <td>no</td>
 	  <td style="word-wrap: break-word;">(none)</td>
 	  <td>String</td>
 	  <td>The absolute path to the web identity token file that should be used if provider type is set to WEB_IDENTITY_TOKEN.</td>
@@ -255,6 +281,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.initpos</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">LATEST</td>
       <td>String</td>
       <td>Initial position to be used when reading from the table. See <a href="#start-reading-position">Start Reading Position</a> for details.</td>
@@ -262,6 +289,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.initpos-timestamp</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The initial timestamp to start reading Kinesis stream from (when <code>scan.stream.initpos</code> is AT_TIMESTAMP). See <a href="#start-reading-position">Start Reading Position</a> for details.</td>
@@ -269,6 +297,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.initpos-timestamp-format</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">yyyy-MM-dd'T'HH:mm:ss.SSSXXX</td>
       <td>String</td>
       <td>The date format of initial timestamp to start reading Kinesis stream from (when <code>scan.stream.initpos</code> is AT_TIMESTAMP). See <a href="#start-reading-position">Start Reading Position</a> for details.</td>
@@ -276,6 +305,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.recordpublisher</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">POLLING</td>
       <td>String</td>
       <td>The <code>RecordPublisher</code> type to use for sources. See <a href="#enhanced-fan-out">Enhanced Fan-Out</a> for details.</td>
@@ -283,6 +313,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.efo.consumername</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The name of the EFO consumer to register with KDS. See <a href="#enhanced-fan-out">Enhanced Fan-Out</a> for details.</td>
@@ -290,6 +321,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.efo.registration</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">LAZY</td>
       <td>String</td>
       <td>Determine how and when consumer de-/registration is performed (LAZY|EAGER|NONE). See <a href="#enhanced-fan-out">Enhanced Fan-Out</a> for details.</td>
@@ -297,6 +329,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.efo.consumerarn</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The prefix of consumer ARN for a given stream. See <a href="#enhanced-fan-out">Enhanced Fan-Out</a> for details.</td>
@@ -304,6 +337,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.efo.http-client.max-concurrency</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">10000</td>
       <td>Integer</td>
       <td>Maximum number of allowed concurrent requests for the EFO client. See <a href="#enhanced-fan-out">Enhanced Fan-Out</a> for details.</td>
@@ -311,6 +345,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.describe.maxretries</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">50</td>
       <td>Integer</td>
       <td>The maximum number of <code>describeStream</code> attempts if we get a recoverable exception.</td>
@@ -318,6 +353,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.describe.backoff.base</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">2000</td>
       <td>Long</td>
       <td>The base backoff time (in milliseconds) between each <code>describeStream</code> attempt (for consuming from DynamoDB streams).</td>
@@ -325,6 +361,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.describe.backoff.max</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">5000</td>
       <td>Long</td>
       <td>The maximum backoff time (in milliseconds)  between each <code>describeStream</code> attempt (for consuming from DynamoDB streams).</td>
@@ -332,6 +369,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.describe.backoff.expconst</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">1.5</td>
       <td>Double</td>
       <td>The power constant for exponential backoff between each <code>describeStream</code> attempt (for consuming from DynamoDB streams).</td>
@@ -339,6 +377,7 @@ Connector Options
     <tr>
       <td><h5>scan.list.shards.maxretries</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">10</td>
       <td>Integer</td>
       <td>The maximum number of <code>listShards</code> attempts if we get a recoverable exception.</td>
@@ -346,6 +385,7 @@ Connector Options
     <tr>
       <td><h5>scan.list.shards.backoff.base</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">1000</td>
       <td>Long</td>
       <td>The base backoff time (in milliseconds) between each <code>listShards</code> attempt.</td>
@@ -353,6 +393,7 @@ Connector Options
     <tr>
       <td><h5>scan.list.shards.backoff.max</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">5000</td>
       <td>Long</td>
       <td>The maximum backoff time (in milliseconds) between each <code>listShards</code> attempt.</td>
@@ -360,6 +401,7 @@ Connector Options
     <tr>
       <td><h5>scan.list.shards.backoff.expconst</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">1.5</td>
       <td>Double</td>
       <td>The power constant for exponential backoff between each <code>listShards</code> attempt.</td>
@@ -367,6 +409,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.describestreamconsumer.maxretries</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">50</td>
       <td>Integer</td>
       <td>The maximum number of <code>describeStreamConsumer</code> attempts if we get a recoverable exception.</td>
@@ -374,6 +417,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.describestreamconsumer.backoff.base</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">2000</td>
       <td>Long</td>
       <td>The base backoff time (in milliseconds) between each <code>describeStreamConsumer</code> attempt.</td>
@@ -381,6 +425,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.describestreamconsumer.backoff.max</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">5000</td>
       <td>Long</td>
       <td>The maximum backoff time (in milliseconds) between each <code>describeStreamConsumer</code> attempt.</td>
@@ -388,6 +433,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.describestreamconsumer.backoff.expconst</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">1.5</td>
       <td>Double</td>
       <td>The power constant for exponential backoff between each <code>describeStreamConsumer</code> attempt.</td>
@@ -395,6 +441,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.registerstreamconsumer.maxretries</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">10</td>
       <td>Integer</td>
       <td>The maximum number of <code>registerStream</code> attempts if we get a recoverable exception.</td>
@@ -402,6 +449,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.registerstreamconsumer.timeout</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">60</td>
       <td>Integer</td>
       <td>The maximum time in seconds to wait for a stream consumer to become active before giving up.</td>
@@ -409,6 +457,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.registerstreamconsumer.backoff.base</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">500</td>
       <td>Long</td>
       <td>The base backoff time (in milliseconds) between each <code>registerStream</code> attempt.</td>
@@ -416,6 +465,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.registerstreamconsumer.backoff.max</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">2000</td>
       <td>Long</td>
       <td>The maximum backoff time (in milliseconds) between each <code>registerStream</code> attempt.</td>
@@ -423,6 +473,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.registerstreamconsumer.backoff.expconst</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">1.5</td>
       <td>Double</td>
       <td>The power constant for exponential backoff between each <code>registerStream</code> attempt.</td>
@@ -430,6 +481,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.deregisterstreamconsumer.maxretries</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">10</td>
       <td>Integer</td>
       <td>The maximum number of <code>deregisterStream</code> attempts if we get a recoverable exception.</td>
@@ -437,6 +489,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.deregisterstreamconsumer.timeout</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">60</td>
       <td>Integer</td>
       <td>The maximum time in seconds to wait for a stream consumer to deregister before giving up.</td>
@@ -444,6 +497,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.deregisterstreamconsumer.backoff.base</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">500</td>
       <td>Long</td>
       <td>The base backoff time (in milliseconds) between each <code>deregisterStream</code> attempt.</td>
@@ -451,6 +505,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.deregisterstreamconsumer.backoff.max</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">2000</td>
       <td>Long</td>
       <td>The maximum backoff time (in milliseconds) between each <code>deregisterStream</code> attempt.</td>
@@ -458,6 +513,7 @@ Connector Options
     <tr>
       <td><h5>scan.stream.deregisterstreamconsumer.backoff.expconst</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">1.5</td>
       <td>Double</td>
       <td>The power constant for exponential backoff between each <code>deregisterStream</code> attempt.</td>
@@ -465,6 +521,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.subscribetoshard.maxretries</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">10</td>
       <td>Integer</td>
       <td>The maximum number of <code>subscribeToShard</code> attempts if we get a recoverable exception.</td>
@@ -472,6 +529,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.subscribetoshard.backoff.base</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">1000</td>
       <td>Long</td>
       <td>The base backoff time (in milliseconds) between each <code>subscribeToShard</code> attempt.</td>
@@ -479,6 +537,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.subscribetoshard.backoff.max</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">2000</td>
       <td>Long</td>
       <td>The maximum backoff time (in milliseconds) between each <code>subscribeToShard</code> attempt.</td>
@@ -486,6 +545,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.subscribetoshard.backoff.expconst</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">1.5</td>
       <td>Double</td>
       <td>The power constant for exponential backoff between each <code>subscribeToShard</code> attempt.</td>
@@ -493,6 +553,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.getrecords.maxrecordcount</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">10000</td>
       <td>Integer</td>
       <td>The maximum number of records to try to get each time we fetch records from a AWS Kinesis shard.</td>
@@ -500,6 +561,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.getrecords.maxretries</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">3</td>
       <td>Integer</td>
       <td>The maximum number of <code>getRecords</code> attempts if we get a recoverable exception.</td>
@@ -507,6 +569,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.getrecords.backoff.base</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">300</td>
       <td>Long</td>
       <td>The base backoff time (in milliseconds) between <code>getRecords</code> attempts if we get a ProvisionedThroughputExceededException.</td>
@@ -514,6 +577,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.getrecords.backoff.max</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">1000</td>
       <td>Long</td>
       <td>The maximum backoff time (in milliseconds) between <code>getRecords</code> attempts if we get a ProvisionedThroughputExceededException.</td>
@@ -521,6 +585,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.getrecords.backoff.expconst</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">1.5</td>
       <td>Double</td>
       <td>The power constant for exponential backoff between each <code>getRecords</code> attempt.</td>
@@ -528,6 +593,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.getrecords.intervalmillis</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">200</td>
       <td>Long</td>
       <td>The interval (in milliseconds) between each <code>getRecords</code> request to a AWS Kinesis shard in milliseconds.</td>
@@ -535,6 +601,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.getiterator.maxretries</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">3</td>
       <td>Integer</td>
       <td>The maximum number of <code>getShardIterator</code> attempts if we get ProvisionedThroughputExceededException.</td>
@@ -542,6 +609,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.getiterator.backoff.base</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">300</td>
       <td>Long</td>
       <td>The base backoff time (in milliseconds) between <code>getShardIterator</code> attempts if we get a ProvisionedThroughputExceededException.</td>
@@ -549,6 +617,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.getiterator.backoff.max</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">1000</td>
       <td>Long</td>
       <td>The maximum backoff time (in milliseconds) between <code>getShardIterator</code> attempts if we get a ProvisionedThroughputExceededException.</td>
@@ -556,6 +625,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.getiterator.backoff.expconst</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">1.5</td>
       <td>Double</td>
       <td>The power constant for exponential backoff between each <code>getShardIterator</code> attempt.</td>
@@ -563,6 +633,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.discovery.intervalmillis</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">10000</td>
       <td>Integer</td>
       <td>The interval between each attempt to discover new shards.</td>
@@ -570,6 +641,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.adaptivereads</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>The config to turn on adaptive reads from a shard. See the <code>AdaptivePollingRecordPublisher</code> documentation for details.</td>
@@ -577,6 +649,7 @@ Connector Options
     <tr>
       <td><h5>scan.shard.idle.interval</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">-1</td>
       <td>Long</td>
       <td>The interval (in milliseconds) after which to consider a shard idle for purposes of watermark generation. A positive value will allow the watermark to progress even when some shards don't receive new records.</td>
@@ -584,6 +657,7 @@ Connector Options
     <tr>
       <td><h5>scan.watermark.sync.interval</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">30000</td>
       <td>Long</td>
       <td>The interval (in milliseconds) for periodically synchronizing the shared watermark state.</td>
@@ -591,6 +665,7 @@ Connector Options
     <tr>
       <td><h5>scan.watermark.lookahead.millis</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">0</td>
       <td>Long</td>
       <td>The maximum delta (in milliseconds) allowed for the reader to advance ahead of the shared global watermark.</td>
@@ -598,6 +673,7 @@ Connector Options
     <tr>
       <td><h5>scan.watermark.sync.queue.capacity</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
       <td>The maximum number of records that will be buffered before suspending consumption of a shard.</td>
@@ -612,6 +688,7 @@ Connector Options
     <tr>
       <td><h5>sink.partitioner</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">random or row-based</td>
       <td>String</td>
       <td>Optional output partitioning from Flink's partitions into Kinesis shards. See <a href="#sink-partitioning">Sink Partitioning</a> for details.</td>
@@ -619,6 +696,7 @@ Connector Options
     <tr>
       <td><h5>sink.partitioner-field-delimiter</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">|</td>
       <td>String</td>
       <td>Optional field delimiter for a fields-based partitioner derived from a PARTITION BY clause. See <a href="#sink-partitioning">Sink Partitioning</a> for details.</td>
@@ -626,14 +704,74 @@ Connector Options
     <tr>
       <td><h5>sink.producer.*</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td></td>
       <td>
-        Sink options for the <code>KinesisProducer</code>.
-        Suffix names must match the <a href="https://javadoc.io/static/com.amazonaws/amazon-kinesis-producer/0.14.0/com/amazonaws/services/kinesis/producer/KinesisProducerConfiguration.html">KinesisProducerConfiguration</a> setters in lower-case hyphenated style (for example, <code>sink.producer.collection-max-count</code> or <code>sink.producer.aggregation-max-count</code>).
-        The transformed action keys are passed to the <code>sink.producer.*</code> to <a href="https://javadoc.io/static/com.amazonaws/amazon-kinesis-producer/0.14.0/com/amazonaws/services/kinesis/producer/KinesisProducerConfiguration.html#fromProperties-java.util.Properties-">KinesisProducerConfigurations#fromProperties</a>.
-        Note that some of the defaults are overwritten by <code>KinesisConfigUtil</code>.
+        Deprecated options previously used by the legacy connector.
+        Options with equivalant alternatives in <code>KinesisStreamsSink</code> are matched 
+        to their respective properties. Unsupported options are logged out to user as warnings.
       </td>
+    </tr>
+    <tr>
+      <td><h5>sink.http-client.max-concurrency</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">10000</td>
+      <td>Integer</td>
+      <td>
+      Maximum number of allowed concurrent requests by <code>KinesisAsyncClient</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>sink.http-client.read-timeout</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">360000</td>
+      <td>Integer</td>
+      <td>
+        Maximum amount of time in ms for requests to be sent by <code>KinesisAsyncClient</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>sink.http-client.protocol.version</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">HTTP2</td>
+      <td>String</td>
+      <td>Http version used by Kinesis Client.</td>
+    </tr>
+    <tr>
+      <td><h5>sink.batch.max-size</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">500</td>
+      <td>Integer</td>
+      <td>Maximum batch size of elements to be passed to <code>KinesisAsyncClient</code> to be written downstream.</td>
+    </tr>
+    <tr>
+      <td><h5>sink.requests.max-inflight</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">16</td>
+      <td>Integer</td>
+      <td>Request threshold for uncompleted requests by <code>KinesisAsyncClient</code>before blocking new write requests and applying backpressure.</td>
+    </tr>
+    <tr>
+      <td><h5>sink.requests.max-buffered</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">10000</td>
+      <td>String</td>
+      <td>Request buffer threshold for buffered requests by <code>KinesisAsyncClient</code> before blocking new write requests and applying backpressure.</td>
+    </tr>
+    <tr>
+      <td><h5>sink.flush-buffer.size</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">5242880</td>
+      <td>Long</td>
+      <td>Threshold value in bytes for writer buffer in <code>KinesisAsyncClient</code> before flushing.</td>
+    </tr>
+    <tr>
+      <td><h5>sink.flush-buffer.timeout</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">5000</td>
+      <td>Long</td>
+      <td>Threshold time in milliseconds for an element to be in a buffer of<code>KinesisAsyncClient</code> before flushing.</td>
     </tr>
     </tbody>
 </table>
@@ -728,17 +866,33 @@ You can enable and configure EFO with the following properties:
 However, consumer names do not have to be unique across data streams.
 Reusing a consumer name will result in existing subscriptions being terminated.
 
-<span class="label label-info">Note</span> With the `LAZY` and `EAGER` strategies, stream consumers are de-registered when the job is shutdown gracefully.
+<span class="label label-info">Note</span> With the `LAZY` strategy, stream consumers are de-registered when the job is shutdown gracefully.
 In the event that a job terminates within executing the shutdown hooks, stream consumers will remain active.
 In this situation the stream consumers will be gracefully reused when the application restarts.
-With the `NONE` strategy, stream consumer de-registration is not performed by `FlinkKinesisConsumer`.
+With the `NONE` and `EAGER` strategies, stream consumer de-registration is not performed by `FlinkKinesisConsumer`.
 
-Data Type Mapping
-----------------
+# Data Type Mapping
+
 
 Kinesis stores records as Base64-encoded binary data objects, so it doesn't have a notion of internal record structure.
 Instead, Kinesis records are deserialized and serialized by formats, e.g. 'avro', 'csv', or 'json'.
 To determine the data type of the messages in your Kinesis-backed tables, pick a suitable Flink format with the `format` keyword.
 Please refer to the [Formats]({{< ref "docs/connectors/table/formats/overview" >}}) pages for more details.
+
+# Updates in 1.15
+
+Kinesis table API connector sink data stream depends on <code>FlinkKinesisProducer</code> till 1.14, with the introduction of <code>KinesisStreamsSink</code> in 1.15 kinesis table API sink connector has been migrated to the new <code>KinesisStreamsSink</code>. Authentication options have been migrated identically while sink configuration options are now compatible with <code>KinesisStreamsSink</code>. 
+
+Options configuring <code>FlinkKinesisProducer</code> are now deprecated with fallback support for common configuration options with <code>KinesisStreamsSink</code>. 
+
+<code>KinesisStreamsSink</code> uses <code>KinesisAsyncClient</code> to send records to kinesis, 
+which doesn't support aggregation. In consequence, table options configuring aggregation in the deprecated <code>FlinkKinesisProducer</code> 
+are now deprecated and will be ignored, this includes <code>sink.producer.aggregation-enabled</code> and
+<code>sink.producer.aggregation-count</code>.
+
+<span class="label label-info">Note</span> Migrating applications with deprecated options will result in the incompatible deprecated options being ignored and warned to users.
+
+Kinesis table API source connector still depends on <code>FlinkKinesisConsumer</code> with no change in configuration options.
+
 
 {{< top >}}

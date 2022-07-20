@@ -55,7 +55,7 @@ Also, the serialization framework of Flink is able to handle classes generated f
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-avro</artifactId>
-  <version>{{ site.version }}</version>
+  <version>{{< version >}}</version>
 </dependency>
 ```
 
@@ -108,8 +108,8 @@ curl https://flink.apache.org/q/quickstart.sh | bash
 ```xml
 <dependency>
    <groupId>org.apache.flink</groupId>
-   <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
-   <version>{{site.version}}</version>
+   <artifactId>flink-hadoop-compatibility{{< scala_version >}}</artifactId>
+   <version>{{< version >}}</version>
 </dependency>
 <dependency>
  <groupId>com.microsoft.hadoop</groupId>

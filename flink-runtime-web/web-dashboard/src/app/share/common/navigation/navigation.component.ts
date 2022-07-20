@@ -19,7 +19,9 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { Subject } from 'rxjs';
-import { filter, flatMap, map, startWith, takeUntil } from 'rxjs/operators';
+import { filter, mergeMap, map, startWith, takeUntil } from 'rxjs/operators';
+
+import { RouterTab } from '@flink-runtime-web/core/module-config';
 
 @Component({
   selector: 'flink-navigation',
@@ -28,25 +30,24 @@ import { filter, flatMap, map, startWith, takeUntil } from 'rxjs/operators';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class NavigationComponent implements OnInit, OnDestroy {
-  @Input() listOfNavigation: Array<{ path: string; title: string }> = [];
-  @Input() tabBarGutter = 8;
+  @Input() listOfNavigation: RouterTab[] = [];
   @Input() size = 'default';
   navIndex = 0;
   destroy$ = new Subject();
 
-  navigateTo(path: string) {
+  navigateTo(path: string): void {
     this.router.navigate([path], { relativeTo: this.activatedRoute }).then();
   }
 
   constructor(private activatedRoute: ActivatedRoute, private router: Router, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.router.events
       .pipe(
         filter(e => e instanceof NavigationEnd),
         startWith(true),
         filter(() => !!(this.activatedRoute && this.activatedRoute.firstChild)),
-        flatMap(() => this.activatedRoute!.firstChild!.data),
+        mergeMap(() => this.activatedRoute!.firstChild!.data),
         takeUntil(this.destroy$),
         map(data => data.path)
       )
@@ -56,7 +57,7 @@ export class NavigationComponent implements OnInit, OnDestroy {
       });
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

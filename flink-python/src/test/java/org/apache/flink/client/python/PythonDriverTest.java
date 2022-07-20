@@ -18,8 +18,7 @@
 
 package org.apache.flink.client.python;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import py4j.GatewayServer;
 
 import java.io.IOException;
@@ -28,10 +27,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for the {@link PythonDriver}. */
-public class PythonDriverTest {
+class PythonDriverTest {
     @Test
-    public void testStartGatewayServer() throws ExecutionException, InterruptedException {
+    void testStartGatewayServer() throws ExecutionException, InterruptedException {
         GatewayServer gatewayServer = PythonEnvUtils.startGatewayServer();
         try {
             Socket socket = new Socket("localhost", gatewayServer.getListeningPort());
@@ -44,7 +45,7 @@ public class PythonDriverTest {
     }
 
     @Test
-    public void testConstructCommandsWithEntryPointModule() {
+    void testConstructCommandsWithEntryPointModule() {
         List<String> args = new ArrayList<>();
         args.add("--input");
         args.add("in.txt");
@@ -52,24 +53,17 @@ public class PythonDriverTest {
         PythonDriverOptions pythonDriverOptions = new PythonDriverOptions("xxx", null, args);
         List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
         // verify the generated commands
-        Assert.assertEquals(4, commands.size());
-        Assert.assertEquals(commands.get(0), "-m");
-        Assert.assertEquals(commands.get(1), "xxx");
-        Assert.assertEquals(commands.get(2), "--input");
-        Assert.assertEquals(commands.get(3), "in.txt");
+        assertThat(commands).containsExactly("-m", "xxx", "--input", "in.txt");
     }
 
     @Test
-    public void testConstructCommandsWithEntryPointScript() {
+    void testConstructCommandsWithEntryPointScript() {
         List<String> args = new ArrayList<>();
         args.add("--input");
         args.add("in.txt");
 
-        PythonDriverOptions pythonDriverOptions = new PythonDriverOptions(null, "xxx", args);
+        PythonDriverOptions pythonDriverOptions = new PythonDriverOptions(null, "xxx.py", args);
         List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
-        Assert.assertEquals(3, commands.size());
-        Assert.assertEquals(commands.get(0), "xxx");
-        Assert.assertEquals(commands.get(1), "--input");
-        Assert.assertEquals(commands.get(2), "in.txt");
+        assertThat(commands).containsExactly("-m", "xxx", "--input", "in.txt");
     }
 }

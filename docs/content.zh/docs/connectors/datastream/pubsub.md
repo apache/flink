@@ -28,13 +28,13 @@ under the License.
 
 这个连接器可向 [Google Cloud PubSub](https://cloud.google.com/pubsub) 读取与写入数据。添加下面的依赖来使用此连接器:
 
-{{< artifact flink-connector-pubsub withScalaVersion >}}
+{{< artifact flink-connector-pubsub >}}
 
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
 <b>注意</b>：此连接器最近才加到 Flink 里，还未接受广泛测试。
 </p>
 
-注意连接器目前还不是二进制发行版的一部分，添加依赖、打包配置以及集群运行信息请参考[这里]({{< ref "docs/dev/datastream/project-configuration" >}})
+注意连接器目前还不是二进制发行版的一部分，添加依赖、打包配置以及集群运行信息请参考[这里]({{< ref "docs/dev/configuration/overview" >}})
 
 ## Consuming or Producing PubSubMessages
 
@@ -60,7 +60,7 @@ SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder()
                                                       .withSubscriptionName("subscription")
                                                       .build();
 
-streamExecEnv.addSource(source);
+streamExecEnv.addSource(pubsubSource);
 ```
 {{< /tab >}}
 {{< /tabs >}}

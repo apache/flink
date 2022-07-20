@@ -23,11 +23,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.NoOpTaskExecutorBlobService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -67,9 +65,13 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.TestFileUtils;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.TriConsumer;
 
 import org.junit.After;
@@ -90,6 +92,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.StreamSupport;
@@ -118,8 +121,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
     @Rule public final TemporaryFolder tmp = new TemporaryFolder();
 
     @ClassRule
-    public static final TestExecutorResource<?> TEST_EXECUTOR_SERVICE_RESOURCE =
-            new TestExecutorResource<>(() -> java.util.concurrent.Executors.newFixedThreadPool(1));
+    public static final TestExecutorResource<ScheduledExecutorService>
+            TEST_EXECUTOR_SERVICE_RESOURCE = TestingUtils.defaultExecutorResource();
 
     @Before
     public void setup() {
@@ -212,10 +215,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
             TaskSubmissionTestEnvironment.registerJobMasterConnection(
                     jobTable,
                     jobId,
-                    rpc,
                     jobMasterGateway,
                     new NoOpTaskManagerActions(),
-                    timeout,
                     taskExecutor.getMainThreadExecutableForTesting());
 
             final TaskExecutorGateway taskExecutorGateway =
@@ -243,7 +244,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
             disconnectFuture.get();
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -419,9 +420,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                         new SerializedValue<>(new ExecutionConfig()),
                         "Sender",
                         1,
-                        0,
                         1,
-                        0,
                         new Configuration(),
                         new Configuration(),
                         TestingInvokable.class.getName(),
@@ -434,7 +433,9 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
-                        false, new File[] {tmp.newFolder()}, Executors.directExecutor());
+                        false,
+                        Reference.owned(new File[] {tmp.newFolder()}),
+                        Executors.directExecutor());
 
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
@@ -449,7 +450,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
         final TestingJobMasterGateway jobMasterGateway =
                 new TestingJobMasterGatewayBuilder()
                         .setRegisterTaskManagerFunction(
-                                (s, location, ignored) ->
+                                (ignoredJobId, ignoredTaskManagerRegistrationInformation) ->
                                         CompletableFuture.completedFuture(
                                                 new JMTMRegistrationSuccess(ResourceID.generate())))
                         .setOfferSlotsFunction(
@@ -562,7 +563,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
             testAction.accept(
                     jobId, taskResultPartitionDescriptor, taskExecutor, taskExecutorGateway);
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
 
         // the shutdown of the backing shuffle environment releases all partitions
@@ -595,20 +596,22 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                         configuration,
                         TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
                                 configuration),
-                        InetAddress.getLoopbackAddress().getHostAddress()),
+                        InetAddress.getLoopbackAddress().getHostAddress(),
+                        TestFileUtils.createTempDir()),
                 haServices,
                 taskManagerServices,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
                 new HeartbeatServices(10_000L, 30_000L),
                 UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                 null,
-                new BlobCacheService(configuration, new VoidBlobStore(), null),
+                NoOpTaskExecutorBlobService.INSTANCE,
                 new TestingFatalErrorHandler(),
                 partitionTracker);
     }
 
     private static TaskSlotTable<Task> createTaskSlotTable() {
-        return TaskSlotUtils.createTaskSlotTable(1, timeout);
+        return TaskSlotUtils.createTaskSlotTable(
+                1, timeout, TEST_EXECUTOR_SERVICE_RESOURCE.getExecutor());
     }
 
     @FunctionalInterface

@@ -16,15 +16,23 @@
 # limitations under the License.
 ################################################################################
 from enum import Enum
-from typing import Union, TypeVar, Generic
+from typing import Union, TypeVar, Generic, Any
 
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import DataType, _to_java_data_type
+from pyflink.table.types import DataType, DataTypes, _to_java_data_type
 from pyflink.util.java_utils import to_jarray
 
-__all__ = ['Expression', 'TimeIntervalUnit', 'TimePointUnit']
-
+__all__ = [
+    'Expression',
+    'TimeIntervalUnit',
+    'TimePointUnit',
+    'JsonType',
+    'JsonExistsOnError',
+    'JsonValueOnEmptyOrError',
+    'JsonQueryWrapper',
+    'JsonQueryOnEmptyOrError'
+]
 
 _aggregation_doc = """
 {op_desc}
@@ -152,7 +160,7 @@ def _make_aggregation_doc():
         Expression.sum: "Returns the sum of the numeric field across all input values. "
                         "If all values are null, null is returned.",
         Expression.sum0: "Returns the sum of the numeric field across all input values. "
-                        "If all values are null, 0 is returned.",
+                         "If all values are null, 0 is returned.",
         Expression.min: "Returns the minimum value of field across all input values.",
         Expression.max: "Returns the maximum value of field across all input values.",
         Expression.count: "Returns the number of input rows for which the field is not null.",
@@ -255,17 +263,6 @@ def _get_java_expression(expr, to_expr: bool = False):
         return expr
 
 
-def _get_or_create_java_expression(expr: Union["Expression", str]):
-    if isinstance(expr, Expression):
-        return expr._j_expr
-    elif isinstance(expr, str):
-        from pyflink.table.expressions import col
-        return col(expr)._j_expr
-    else:
-        raise TypeError(
-            "Invalid argument: expected Expression or string, got {0}.".format(type(expr)))
-
-
 def _unary_op(op_name: str):
     def _(self) -> 'Expression':
         return Expression(getattr(self._j_expr, op_name)())
@@ -287,6 +284,14 @@ def _ternary_op(op_name: str):
     def _(self, first, second) -> 'Expression':
         return Expression(getattr(self._j_expr, op_name)(
             _get_java_expression(first), _get_java_expression(second)))
+
+    return _
+
+
+def _varargs_op(op_name: str):
+    def _(self, *args) -> 'Expression':
+        return Expression(
+            getattr(self._j_expr, op_name)(*[_get_java_expression(arg) for arg in args]))
 
     return _
 
@@ -350,6 +355,98 @@ class TimePointUnit(Enum):
         gateway = get_gateway()
         JTimePointUnit = gateway.jvm.org.apache.flink.table.expressions.TimePointUnit
         return getattr(JTimePointUnit, self.name)
+
+
+class JsonType(Enum):
+    """
+    Types of JSON objects for is_json().
+    """
+
+    VALUE = 0,
+    SCALAR = 1,
+    ARRAY = 2,
+    OBJECT = 3
+
+    def _to_j_json_type(self):
+        gateway = get_gateway()
+        JJsonType = gateway.jvm.org.apache.flink.table.api.JsonType
+        return getattr(JJsonType, self.name)
+
+
+class JsonExistsOnError(Enum):
+    """
+    Behavior in case of errors for json_exists().
+    """
+
+    TRUE = 0,
+    FALSE = 1,
+    UNKNOWN = 2,
+    ERROR = 3
+
+    def _to_j_json_exists_on_error(self):
+        gateway = get_gateway()
+        JJsonExistsOnError = gateway.jvm.org.apache.flink.table.api.JsonExistsOnError
+        return getattr(JJsonExistsOnError, self.name)
+
+
+class JsonValueOnEmptyOrError(Enum):
+    """
+    Behavior in case of emptiness or errors for json_value().
+    """
+
+    NULL = 0,
+    ERROR = 1,
+    DEFAULT = 2
+
+    def _to_j_json_value_on_empty_or_error(self):
+        gateway = get_gateway()
+        JJsonValueOnEmptyOrError = gateway.jvm.org.apache.flink.table.api.JsonValueOnEmptyOrError
+        return getattr(JJsonValueOnEmptyOrError, self.name)
+
+
+class JsonQueryWrapper(Enum):
+    """
+    Defines whether and when to wrap the result of json_query() into an array.
+    """
+
+    WITHOUT_ARRAY = 0,
+    CONDITIONAL_ARRAY = 1,
+    UNCONDITIONAL_ARRAY = 2
+
+    def _to_j_json_query_wrapper(self):
+        gateway = get_gateway()
+        JJsonQueryWrapper = gateway.jvm.org.apache.flink.table.api.JsonQueryWrapper
+        return getattr(JJsonQueryWrapper, self.name)
+
+
+class JsonQueryOnEmptyOrError(Enum):
+    """
+    Defines the behavior of json_query() in case of emptiness or errors.
+    """
+
+    NULL = 0,
+    EMPTY_ARRAY = 1,
+    EMPTY_OBJECT = 2,
+    ERROR = 3
+
+    def _to_j_json_query_on_error_or_empty(self):
+        gateway = get_gateway()
+        JJsonQueryOnEmptyOrError = gateway.jvm.org.apache.flink.table.api.JsonQueryOnEmptyOrError
+        return getattr(JJsonQueryOnEmptyOrError, self.name)
+
+
+class JsonOnNull(Enum):
+    """
+    Behavior for entries with a null value for json_object().
+    """
+
+    NULL = 0,
+    ABSENT = 1
+
+    def _to_j_json_on_null(self):
+        gateway = get_gateway()
+        JJsonOnNull = gateway.jvm.org.apache.flink.table.api.JsonOnNull
+        return getattr(JJsonOnNull, self.name)
 
 
 T = TypeVar('T')
@@ -692,6 +789,20 @@ class Expression(Generic[T]):
         return _unary_op("avg")(self)
 
     @property
+    def first_value(self) -> 'Expression':
+        """
+        Returns the first value of field across all input values.
+        """
+        return _unary_op("firstValue")(self)
+
+    @property
+    def last_value(self) -> 'Expression':
+        """
+        Returns the last value of field across all input values.
+        """
+        return _unary_op("lastValue")(self)
+
+    @property
     def stddev_pop(self) -> 'Expression':
         return _unary_op("stddevPop")(self)
 
@@ -728,11 +839,28 @@ class Expression(Generic[T]):
 
     def cast(self, data_type: DataType) -> 'Expression':
         """
-        Converts a value to a given data type.
+        Returns a new value being cast to type type.
+        A cast error throws an exception and fails the job.
+        When performing a cast operation that may fail, like STRING to INT,
+        one should rather use try_cast, in order to handle errors.
+        If "table.exec.legacy-cast-behaviour" is enabled, cast behaves like try_cast.
 
-        e.g. lit("42").cast(DataTypes.INT()) leads to 42.
+        E.g. lit("4").cast(DataTypes.INT()) returns 42;
+        lit(null).cast(DataTypes.STRING()) returns NULL of type STRING;
+        lit("non-number").cast(DataTypes.INT()) throws an exception and fails the job.
         """
         return _binary_op("cast")(self, _to_java_data_type(data_type))
+
+    def try_cast(self, data_type: DataType) -> 'Expression':
+        """
+        Like cast, but in case of error, returns NULL rather than failing the job.
+
+        E.g. lit("42").try_cast(DataTypes.INT()) returns 42;
+        lit(null).try_cast(DataTypes.STRING()) returns NULL of type STRING;
+        lit("non-number").cast(DataTypes.INT()) returns NULL of type INT.
+        coalesce(lit("non-number").cast(DataTypes.INT()), lit(0)) returns 0 of type INT.
+        """
+        return _binary_op("tryCast")(self, _to_java_data_type(data_type))
 
     @property
     def asc(self) -> 'Expression':
@@ -785,7 +913,7 @@ class Expression(Generic[T]):
         ::
 
             >>> tab.where(col("a").in_(1, 2, 3))
-            >>> table_a.where(col("x").in_(table_b.select("y")))
+            >>> table_a.where(col("x").in_(table_b.select(col("y"))))
         """
         from pyflink.table import Table
         if isinstance(first_element_or_table, Table):
@@ -886,6 +1014,20 @@ class Expression(Generic[T]):
             return _binary_op("substring")(self, begin_index)
         else:
             return _ternary_op("substring")(self, begin_index, length)
+
+    def substr(self,
+               begin_index: Union[int, 'Expression[int]'],
+               length: Union[int, 'Expression[int]'] = None) -> 'Expression[str]':
+        """
+        Creates a substring of the given string at given index for a given length.
+
+        :param begin_index: first character of the substring (starting at 1, inclusive)
+        :param length: number of characters of the substring
+        """
+        if length is None:
+            return _binary_op("substr")(self, begin_index)
+        else:
+            return _ternary_op("substr")(self, begin_index, length)
 
     def trim_leading(self, character: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
         """
@@ -1021,6 +1163,13 @@ class Expression(Generic[T]):
             return Expression(getattr(self._j_expr, "overlay")(
                 j_expr_new_string, j_expr_starting, j_expr_length))
 
+    def regexp(self, regex: Union[str, 'Expression[str]']) -> 'Expression[str]':
+        """
+        Returns True if any (possibly empty) substring matches the regular expression,
+        otherwise False. Returns None if any of arguments is None.
+        """
+        return _binary_op("regexp")(self, regex)
+
     def regexp_replace(self,
                        regex: Union[str, 'Expression[str]'],
                        replacement: Union[str, 'Expression[str]']) -> 'Expression[str]':
@@ -1030,10 +1179,9 @@ class Expression(Generic[T]):
         """
         return _ternary_op("regexpReplace")(self, regex, replacement)
 
-    def regexp_extract(
-            self,
-            regex: Union[str, 'Expression[str]'],
-            extract_index: Union[int, 'Expression[int]'] = None) -> 'Expression[str]':
+    def regexp_extract(self,
+                       regex: Union[str, 'Expression[str]'],
+                       extract_index: Union[int, 'Expression[int]'] = None) -> 'Expression[str]':
         """
         Returns a string extracted with a specified regular expression and a regex match
         group index.
@@ -1056,6 +1204,71 @@ class Expression(Generic[T]):
         Returns the base64-encoded result of the input string.
         """
         return _unary_op("toBase64")(self)
+
+    @property
+    def ascii(self) -> 'Expression[int]':
+        """
+        Returns the numeric value of the first character of the input string.
+        """
+        return _unary_op("ascii")(self)
+
+    @property
+    def chr(self) -> 'Expression[str]':
+        """
+        Returns the ASCII character result of the input integer.
+        """
+        return _unary_op("chr")(self)
+
+    def decode(self, charset: Union[str, 'Expression[str]']) -> 'Expression[str]':
+        """
+        Decodes the first argument into a String using the provided character set.
+        """
+        return _binary_op("decode")(self, charset)
+
+    def encode(self, charset: Union[str, 'Expression[str]']) -> 'Expression[bytes]':
+        """
+        Encodes the string into a BINARY using the provided character set.
+        """
+        return _binary_op("encode")(self, charset)
+
+    def left(self, length: Union[int, 'Expression[int]']) -> 'Expression[str]':
+        """
+        Returns the leftmost integer characters from the input string.
+        """
+        return _binary_op("left")(self, length)
+
+    def right(self, length: Union[int, 'Expression[int]']) -> 'Expression[str]':
+        """
+        Returns the rightmost integer characters from the input string.
+        """
+        return _binary_op("right")(self, length)
+
+    def instr(self, s: Union[str, 'Expression[str]']) -> 'Expression[int]':
+        """
+        Returns the position of the first occurrence in the input string.
+        """
+        return _binary_op("instr")(self, s)
+
+    def locate(self, s: Union[str, 'Expression[str]'],
+               pos: Union[int, 'Expression[int]'] = None) -> 'Expression[int]':
+        """
+        Returns the position of the first occurrence in the input string after position integer.
+        """
+        if pos is None:
+            return _binary_op("locate")(self, s)
+        else:
+            return _ternary_op("locate")(self, s, pos)
+
+    def parse_url(self, part_to_extract: Union[str, 'Expression[str]'],
+                  key: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
+        """
+        Parse url and return various parameter of the URL.
+        If accept any null arguments, return null.
+        """
+        if key is None:
+            return _binary_op("parseUrl")(self, part_to_extract)
+        else:
+            return _ternary_op("parseUrl")(self, part_to_extract, key)
 
     @property
     def ltrim(self) -> 'Expression[str]':
@@ -1093,6 +1306,33 @@ class Expression(Generic[T]):
             >>>     .select(col('c'), col('a'), col('a').count.over(col('w')))
         """
         return _binary_op("over")(self, alias)
+
+    @property
+    def reverse(self) -> 'Expression[str]':
+        """
+        Reverse each character in current string.
+        """
+        return _unary_op("reverse")(self)
+
+    def split_index(self, separator: Union[str, 'Expression[str]'],
+                    index: Union[int, 'Expression[int]']) -> 'Expression[str]':
+        """
+        Split target string with custom separator and pick the index-th(start with 0) result.
+        """
+        return _ternary_op("splitIndex")(self, separator, index)
+
+    def str_to_map(self, list_delimiter: Union[str, 'Expression[str]'] = None,
+                   key_value_delimiter: Union[str, 'Expression[str]'] = None) -> 'Expression[dict]':
+        """
+        Creates a map by parsing text. Split text into key-value pairs using two delimiters. The
+        first delimiter separates pairs, and the second delimiter separates key and value. Both
+        list_delimiter and key_value_delimiter are treated as regular expressions.
+        Default delimiters are used: ',' as list_delimiter and '=' as key_value_delimiter.
+        """
+        if list_delimiter is None or key_value_delimiter is None:
+            return _unary_op("strToMap")(self)
+        else:
+            return _ternary_op("strToMap")(self, list_delimiter, key_value_delimiter)
 
     # ---------------------------- temporal functions ----------------------------------
 
@@ -1219,6 +1459,16 @@ class Expression(Generic[T]):
         .. seealso:: :func:`~Expression.at`, :py:attr:`~Expression.cardinality`
         """
         return _unary_op("element")(self)
+
+    def array_contains(self, needle) -> 'Expression':
+        """
+        Returns whether the given element exists in an array.
+
+        Checking for null elements in the array is supported. If the array itself is null, the
+        function will return null. The given element is cast implicitly to the array's element type
+        if necessary.
+        """
+        return _binary_op("arrayContains")(self, needle)
 
     # ---------------------------- time definition functions -----------------------------
 
@@ -1353,6 +1603,149 @@ class Expression(Generic[T]):
                      :py:attr:`~Expression.sha384`, :py:attr:`~Expression.sha512`
         """
         return _binary_op("sha2")(self, hash_length)
+
+    # ---------------------------- JSON functions -----------------------------
+
+    def is_json(self, json_type: JsonType = None) -> 'Expression[bool]':
+        """
+        Determine whether a given string is valid JSON.
+
+        Specifying the optional `json_type` argument puts a constraint on which type of JSON object
+        is allowed. If the string is valid JSON, but not that type, `false` is returned. The default
+        is `JsonType.VALUE`.
+
+        Examples:
+        ::
+
+            >>> lit('1').is_json() # True
+            >>> lit('[]').is_json() # True
+            >>> lit('{}').is_json() # True
+
+            >>> lit('"abc"').is_json() # True
+            >>> lit('abc').is_json() # False
+            >>> null_of(DataTypes.STRING()).is_json() # False
+
+            >>> lit('1').is_json(JsonType.SCALAR) # True
+            >>> lit('1').is_json(JsonType.ARRAY) # False
+            >>> lit('1').is_json(JsonType.OBJECT) # False
+
+            >>> lit('{}').is_json(JsonType.SCALAR) # False
+            >>> lit('{}').is_json(JsonType.ARRAY) # False
+            >>> lit('{}').is_json(JsonType.OBJECT) # True
+        """
+        if json_type is None:
+            return _unary_op("isJson")(self)
+        else:
+            return _binary_op("isJson")(self, json_type._to_j_json_type())
+
+    def json_exists(self, path: str, on_error: JsonExistsOnError = None) -> 'Expression[bool]':
+        """
+        Determines whether a JSON string satisfies a given search criterion.
+
+        This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL.
+
+        Examples:
+        ::
+
+            >>> lit('{"a": true}').json_exists('$.a') # True
+            >>> lit('{"a": true}').json_exists('$.b') # False
+            >>> lit('{"a": [{ "b": 1 }]}').json_exists('$.a[0].b') # True
+
+            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.TRUE) # True
+            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.FALSE) # False
+        """
+        if on_error is None:
+            return _binary_op("jsonExists")(self, path)
+        else:
+            return _ternary_op("jsonExists")(self, path, on_error._to_j_json_exists_on_error())
+
+    def json_value(self,
+                   path: str,
+                   returning_type: DataType = DataTypes.STRING(),
+                   on_empty: JsonValueOnEmptyOrError = JsonValueOnEmptyOrError.NULL,
+                   default_on_empty: Any = None,
+                   on_error: JsonValueOnEmptyOrError = JsonValueOnEmptyOrError.NULL,
+                   default_on_error: Any = None) -> 'Expression':
+        """
+        Extracts a scalar from a JSON string.
+
+        This method searches a JSON string for a given path expression and returns the value if the
+        value at that path is scalar. Non-scalar values cannot be returned. By default, the value is
+        returned as `DataTypes.STRING()`. Using `returningType` a different type can be chosen, with
+        the following types being supported:
+
+        * `STRING`
+        * `BOOLEAN`
+        * `INT`
+        * `DOUBLE`
+
+        For empty path expressions or errors a behavior can be defined to either return `null`,
+        raise an error or return a defined default value instead.
+
+        seealso:: :func:`~Expression.json_query`
+
+        Examples:
+        ::
+
+            >>> lit('{"a": true}').json_value('$.a') # STRING: 'true'
+            >>> lit('{"a.b": [0.998,0.996]}').json_value("$.['a.b'][0]", \
+                    DataTypes.DOUBLE()) # DOUBLE: 0.998
+            >>> lit('{"a": true}').json_value('$.a', DataTypes.BOOLEAN()) # BOOLEAN: True
+            >>> lit('{"a": true}').json_value('lax $.b', \
+                    JsonValueOnEmptyOrError.DEFAULT, False) # BOOLEAN: False
+            >>> lit('{"a": true}').json_value('strict $.b', \
+                    JsonValueOnEmptyOrError.NULL, None, \
+                    JsonValueOnEmptyOrError.DEFAULT, False) # BOOLEAN: False
+        """
+        return _varargs_op("jsonValue")(self, path, _to_java_data_type(returning_type),
+                                        on_empty._to_j_json_value_on_empty_or_error(),
+                                        default_on_empty,
+                                        on_error._to_j_json_value_on_empty_or_error(),
+                                        default_on_error)
+
+    def json_query(self, path: str, wrapping_behavior=JsonQueryWrapper.WITHOUT_ARRAY,
+                   on_empty=JsonQueryOnEmptyOrError.NULL,
+                   on_error=JsonQueryOnEmptyOrError.NULL) -> 'Expression':
+        """
+        Extracts JSON values from a JSON string.
+
+        This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL. The result is
+        always returned as a `STRING`.
+
+        The `wrapping_behavior` determines whether the extracted value should be wrapped into an
+        array, and whether to do so unconditionally or only if the value itself isn't an array
+        already.
+
+        `on_empty` and `on_error` determine the behavior in case the path expression is empty, or in
+        case an error was raised, respectively. By default, in both cases `null` is returned.
+        Other choices are to use an empty array, an empty object, or to raise an error.
+
+        seealso:: :func:`~Expression.json_value`
+
+        Examples:
+        ::
+
+            >>> lit('{"a":{"b":1}}').json_query('$.a') # '{"b":1}'
+            >>> lit('[1,2]').json_query('$') # '[1,2]'
+            >>> null_of(DataTypes.STRING()).json_query('$') # None
+
+            >>> lit('{}').json_query('$', JsonQueryWrapper.CONDITIONAL_ARRAY) # '[{}]'
+            >>> lit('[1,2]').json_query('$', JsonQueryWrapper.CONDITIONAL_ARRAY) # '[1,2]'
+            >>> lit('[1,2]').json_query('$', JsonQueryWrapper.UNCONDITIONAL_ARRAY) # '[[1,2]]'
+
+            >>> lit(1).json_query('$') # null
+            >>> lit(1).json_query('$', JsonQueryWrapper.CONDITIONAL_ARRAY) # '[1]'
+
+            >>> lit('{}').json_query('lax $.invalid', JsonQueryWrapper.WITHOUT_ARRAY, \
+                                     JsonQueryOnEmptyOrError.EMPTY_OBJECT, \
+                                    JsonQueryOnEmptyOrError.NULL) # '{}'
+            >>> lit('{}').json_query('strict $.invalid', JsonQueryWrapper.WITHOUT_ARRAY, \
+                                     JsonQueryOnEmptyOrError.NULL, \
+                                     JsonQueryOnEmptyOrError.EMPTY_ARRAY) # '[]'
+        """
+        return _varargs_op("jsonQuery")(self, path, wrapping_behavior._to_j_json_query_wrapper(),
+                                        on_empty._to_j_json_query_on_error_or_empty(),
+                                        on_error._to_j_json_query_on_error_or_empty())
 
 
 # add the docs

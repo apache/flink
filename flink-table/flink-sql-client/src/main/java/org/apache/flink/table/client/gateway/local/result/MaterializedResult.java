@@ -19,7 +19,7 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.data.RowData;
 
 import java.util.List;
 
@@ -33,5 +33,5 @@ public interface MaterializedResult extends DynamicResult {
     TypedResult<Integer> snapshot(int pageSize);
 
     /** Retrieves a page of a snapshotted result. */
-    List<Row> retrievePage(int page);
+    List<RowData> retrievePage(int page);
 }

@@ -17,11 +17,11 @@
 
 package org.apache.flink.formats.parquet.vector.reader;
 
-import org.apache.flink.table.data.DecimalDataUtils;
-import org.apache.flink.table.data.vector.writable.WritableBytesVector;
-import org.apache.flink.table.data.vector.writable.WritableColumnVector;
-import org.apache.flink.table.data.vector.writable.WritableIntVector;
-import org.apache.flink.table.data.vector.writable.WritableLongVector;
+import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
+import org.apache.flink.table.data.columnar.vector.writable.WritableBytesVector;
+import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
+import org.apache.flink.table.data.columnar.vector.writable.WritableIntVector;
+import org.apache.flink.table.data.columnar.vector.writable.WritableLongVector;
 
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.PageReader;
@@ -47,7 +47,7 @@ public class FixedLenBytesColumnReader<VECTOR extends WritableColumnVector>
     @Override
     protected void readBatch(int rowId, int num, VECTOR column) {
         int bytesLen = descriptor.getPrimitiveType().getTypeLength();
-        if (DecimalDataUtils.is32BitDecimal(precision)) {
+        if (ParquetSchemaConverter.is32BitDecimal(precision)) {
             WritableIntVector intVector = (WritableIntVector) column;
             for (int i = 0; i < num; i++) {
                 if (runLenDecoder.readInteger() == maxDefLevel) {
@@ -56,7 +56,7 @@ public class FixedLenBytesColumnReader<VECTOR extends WritableColumnVector>
                     intVector.setNullAt(rowId + i);
                 }
             }
-        } else if (DecimalDataUtils.is64BitDecimal(precision)) {
+        } else if (ParquetSchemaConverter.is64BitDecimal(precision)) {
             WritableLongVector longVector = (WritableLongVector) column;
             for (int i = 0; i < num; i++) {
                 if (runLenDecoder.readInteger() == maxDefLevel) {
@@ -81,7 +81,7 @@ public class FixedLenBytesColumnReader<VECTOR extends WritableColumnVector>
     @Override
     protected void readBatchFromDictionaryIds(
             int rowId, int num, VECTOR column, WritableIntVector dictionaryIds) {
-        if (DecimalDataUtils.is32BitDecimal(precision)) {
+        if (ParquetSchemaConverter.is32BitDecimal(precision)) {
             WritableIntVector intVector = (WritableIntVector) column;
             for (int i = rowId; i < rowId + num; ++i) {
                 if (!intVector.isNullAt(i)) {
@@ -89,7 +89,7 @@ public class FixedLenBytesColumnReader<VECTOR extends WritableColumnVector>
                     intVector.setInt(i, (int) heapBinaryToLong(v));
                 }
             }
-        } else if (DecimalDataUtils.is64BitDecimal(precision)) {
+        } else if (ParquetSchemaConverter.is64BitDecimal(precision)) {
             WritableLongVector longVector = (WritableLongVector) column;
             for (int i = rowId; i < rowId + num; ++i) {
                 if (!longVector.isNullAt(i)) {

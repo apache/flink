@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.Test;
 
@@ -138,22 +139,22 @@ public class LatencyTrackingMapStateTest extends LatencyTrackingStateTestBase<In
             verifyIterator(
                     latencyTrackingState,
                     latencyTrackingStateMetric,
-                    latencyTrackingState.iterator(),
+                    latencyTrackingState::iterator,
                     true);
             verifyIterator(
                     latencyTrackingState,
                     latencyTrackingStateMetric,
-                    latencyTrackingState.entries().iterator(),
+                    () -> latencyTrackingState.entries().iterator(),
                     true);
             verifyIterator(
                     latencyTrackingState,
                     latencyTrackingStateMetric,
-                    latencyTrackingState.keys().iterator(),
+                    () -> latencyTrackingState.keys().iterator(),
                     false);
             verifyIterator(
                     latencyTrackingState,
                     latencyTrackingStateMetric,
-                    latencyTrackingState.values().iterator(),
+                    () -> latencyTrackingState.values().iterator(),
                     false);
         } finally {
             if (keyedBackend != null) {
@@ -166,7 +167,7 @@ public class LatencyTrackingMapStateTest extends LatencyTrackingStateTestBase<In
     private <E> void verifyIterator(
             LatencyTrackingMapState<Integer, VoidNamespace, Long, Double> latencyTrackingState,
             LatencyTrackingMapState.MapStateLatencyMetrics latencyTrackingStateMetric,
-            Iterator<E> iterator,
+            SupplierWithException<Iterator<E>, Exception> iteratorSupplier,
             boolean removeIterator)
             throws Exception {
         ThreadLocalRandom random = ThreadLocalRandom.current();
@@ -174,6 +175,7 @@ public class LatencyTrackingMapStateTest extends LatencyTrackingStateTestBase<In
             latencyTrackingState.put((long) index, random.nextDouble());
         }
         int count = 1;
+        Iterator<E> iterator = iteratorSupplier.get();
         while (iterator.hasNext()) {
             int expectedResult = count == SAMPLE_INTERVAL ? 0 : count;
             assertEquals(expectedResult, latencyTrackingStateMetric.getIteratorHasNextCount());

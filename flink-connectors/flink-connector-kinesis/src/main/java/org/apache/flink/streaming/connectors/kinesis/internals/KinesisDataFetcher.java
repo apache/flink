@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis.internals;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -52,7 +53,6 @@ import org.apache.flink.streaming.connectors.kinesis.util.RecordEmitter;
 import org.apache.flink.streaming.connectors.kinesis.util.StreamConsumerRegistrarUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
@@ -73,11 +73,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -215,8 +217,7 @@ public class KinesisDataFetcher<T> {
     /** The factory used to create record publishers that consumer from Kinesis shards. */
     private final RecordPublisherFactory recordPublisherFactory;
 
-    /** Thread that executed runFetcher(). */
-    private volatile Thread mainThread;
+    private final CompletableFuture<Void> cancelFuture = new CompletableFuture<>();
 
     /**
      * The current number of shards that are actively read by this fetcher.
@@ -246,7 +247,7 @@ public class KinesisDataFetcher<T> {
      * The most recent watermark, calculated from the per shard watermarks. The initial value will
      * never be emitted and also apply after recovery. The fist watermark that will be emitted is
      * derived from actually consumed records. In case of recovery and replay, the watermark will
-     * rewind, consistent wth the shard consumer sequence.
+     * rewind, consistent with the shard consumer sequence.
      */
     private long lastWatermark = Long.MIN_VALUE;
 
@@ -511,8 +512,6 @@ public class KinesisDataFetcher<T> {
             return;
         }
 
-        this.mainThread = Thread.currentThread();
-
         // ------------------------------------------------------------------------
         //  Procedures before starting the infinite while loop:
         // ------------------------------------------------------------------------
@@ -748,9 +747,10 @@ public class KinesisDataFetcher<T> {
             // interval if the running flag was set to false during the middle of the while loop
             if (running && discoveryIntervalMillis != 0) {
                 try {
-                    Thread.sleep(discoveryIntervalMillis);
-                } catch (InterruptedException iex) {
-                    // the sleep may be interrupted by shutdownFetcher()
+                    cancelFuture.get(discoveryIntervalMillis, TimeUnit.MILLISECONDS);
+                    LOG.debug("Cancelled discovery");
+                } catch (TimeoutException iex) {
+                    // timeout is expected when fetcher is not cancelled
                 }
             }
         }
@@ -821,10 +821,7 @@ public class KinesisDataFetcher<T> {
         } finally {
             shardConsumersExecutor.shutdownNow();
 
-            if (mainThread != null) {
-                mainThread
-                        .interrupt(); // the main thread may be sleeping for the discovery interval
-            }
+            cancelFuture.complete(null);
 
             if (watermarkTracker != null) {
                 watermarkTracker.close();

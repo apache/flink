@@ -16,5 +16,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 */}}
-For streaming queries the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with valid retention interval to prevent excessive state size.
-See <a href="/docs/dev/table/streaming/query_configuration">Query Configuration</a> for details.
+For streaming queries the required state to compute the query result might grow infinitely depending
+on the type of aggregation and the number of distinct grouping keys. Please provide an idle state
+retention time to prevent excessive state size.
+See <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/table/concepts/overview/#idle-state-retention-time">Idle State Retention Time</a> for details.

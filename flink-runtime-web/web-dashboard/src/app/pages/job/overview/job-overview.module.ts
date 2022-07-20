@@ -19,22 +19,53 @@
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ShareModule } from 'share/share.module';
+
+import { SubtasksTableActionComponent } from '@flink-runtime-web/pages/job/overview/subtasks/table-action/subtasks-table-action.component';
+import { ShareModule } from '@flink-runtime-web/share/share.module';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzModalModule } from 'ng-zorro-antd/modal';
+import { NzRadioModule } from 'ng-zorro-antd/radio';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTabsModule } from 'ng-zorro-antd/tabs';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+
 import { JobOverviewDrawerAccumulatorsComponent } from './accumulators/job-overview-drawer-accumulators.component';
 import { JobOverviewDrawerBackpressureComponent } from './backpressure/job-overview-drawer-backpressure.component';
-import { JobOverviewDrawerFlameGraphComponent } from './flamegraph/job-overview-drawer-flamegraph.component';
 import { JobOverviewDrawerChartComponent } from './chart/job-overview-drawer-chart.component';
 import { JobOverviewDrawerDetailComponent } from './detail/job-overview-drawer-detail.component';
 import { JobOverviewDrawerComponent } from './drawer/job-overview-drawer.component';
+import { JobOverviewDrawerFlameGraphComponent } from './flamegraph/job-overview-drawer-flamegraph.component';
 import { JobOverviewRoutingModule } from './job-overview-routing.module';
 import { JobOverviewComponent } from './job-overview.component';
 import { JobOverviewListComponent } from './list/job-overview-list.component';
 import { JobOverviewDrawerSubtasksComponent } from './subtasks/job-overview-drawer-subtasks.component';
 import { JobOverviewDrawerTaskmanagersComponent } from './taskmanagers/job-overview-drawer-taskmanagers.component';
+import { TaskmanagersTableActionComponent } from './taskmanagers/table-action/taskmanagers-table-action.component';
 import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-drawer-watermarks.component';
 
 @NgModule({
-  imports: [CommonModule, FormsModule, ShareModule, JobOverviewRoutingModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ShareModule,
+    JobOverviewRoutingModule,
+    NzTableModule,
+    NzToolTipModule,
+    NzRadioModule,
+    NzSpinModule,
+    NzIconModule,
+    NzFormModule,
+    NzSelectModule,
+    NzDividerModule,
+    NzTabsModule,
+    NzDropDownModule,
+    NzModalModule
+  ],
   declarations: [
     JobOverviewComponent,
     JobOverviewDrawerComponent,
@@ -46,7 +77,9 @@ import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-
     JobOverviewDrawerWatermarksComponent,
     JobOverviewDrawerAccumulatorsComponent,
     JobOverviewDrawerBackpressureComponent,
-    JobOverviewDrawerFlameGraphComponent
+    JobOverviewDrawerFlameGraphComponent,
+    TaskmanagersTableActionComponent,
+    SubtasksTableActionComponent
   ]
 })
 export class JobOverviewModule {}

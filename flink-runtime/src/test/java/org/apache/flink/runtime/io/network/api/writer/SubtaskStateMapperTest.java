@@ -17,13 +17,9 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.runtime.checkpoint.RescaleMappings;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
-
-import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.mappings;
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.to;
@@ -32,28 +28,6 @@ import static org.junit.Assert.assertEquals;
 /** Tests to(@link SubtaskStateMapper). */
 public class SubtaskStateMapperTest {
     @Rule public ErrorCollector collector = new ErrorCollector();
-
-    @Test
-    public void testDiscardTaskMappingOnScaleDown() {
-        assertEquals(
-                RescaleMappings.of(Stream.of(to(0), to(1)), 3),
-                SubtaskStateMapper.DISCARD_EXTRA_STATE.getNewToOldSubtasksMapping(3, 2));
-    }
-
-    @Test
-    public void testDiscardTaskMappingOnNoScale() {
-        // this may be a bit surprising, but the optimization should be done on call-site
-        assertEquals(
-                mappings(to(0), to(1), to(2)),
-                SubtaskStateMapper.DISCARD_EXTRA_STATE.getNewToOldSubtasksMapping(3, 3));
-    }
-
-    @Test
-    public void testDiscardTaskMappingOnScaleUp() {
-        assertEquals(
-                mappings(to(0), to(1), to(2), to()),
-                SubtaskStateMapper.DISCARD_EXTRA_STATE.getNewToOldSubtasksMapping(3, 4));
-    }
 
     @Test
     public void testFirstTaskMappingOnScaleDown() {

@@ -429,45 +429,6 @@ public final class FileUtils {
         }
     }
 
-    // ------------------------------------------------------------------------
-    //  Deleting directories on Flink FileSystem abstraction
-    // ------------------------------------------------------------------------
-
-    /**
-     * Deletes the path if it is empty. A path can only be empty if it is a directory which does not
-     * contain any other directories/files.
-     *
-     * @param fileSystem to use
-     * @param path to be deleted if empty
-     * @return true if the path could be deleted; otherwise false
-     * @throws IOException if the delete operation fails
-     */
-    public static boolean deletePathIfEmpty(FileSystem fileSystem, Path path) throws IOException {
-        final FileStatus[] fileStatuses;
-
-        try {
-            fileStatuses = fileSystem.listStatus(path);
-        } catch (FileNotFoundException e) {
-            // path already deleted
-            return true;
-        } catch (Exception e) {
-            // could not access directory, cannot delete
-            return false;
-        }
-
-        // if there are no more files or if we couldn't list the file status try to delete the path
-        if (fileStatuses == null) {
-            // another indicator of "file not found"
-            return true;
-        } else if (fileStatuses.length == 0) {
-            // attempt to delete the path (will fail and be ignored if the path now contains
-            // some files (possibly added concurrently))
-            return fileSystem.delete(path, false);
-        } else {
-            return false;
-        }
-    }
-
     /**
      * Copies all files from source to target and sets executable flag. Paths might be on different
      * systems.
@@ -667,7 +628,7 @@ public final class FileUtils {
      */
     public static boolean isJarFile(java.nio.file.Path file) {
         return JAR_FILE_EXTENSION.equals(
-                org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(
+                org.apache.flink.shaded.guava30.com.google.common.io.Files.getFileExtension(
                         file.toString()));
     }
 
@@ -679,7 +640,7 @@ public final class FileUtils {
      */
     public static String stripFileExtension(String fileName) {
         final String extension =
-                org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(
+                org.apache.flink.shaded.guava30.com.google.common.io.Files.getFileExtension(
                         fileName);
         if (!extension.isEmpty()) {
             return fileName.substring(0, fileName.lastIndexOf(extension) - 1);

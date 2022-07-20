@@ -50,6 +50,27 @@ function setup_kubernetes_for_linux {
     fi
     # conntrack is required for minikube 1.9 and later
     sudo apt-get install conntrack
+    # crictl is required for cri-dockerd
+    VERSION="v1.24.2"
+    wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
+    sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+    rm -f crictl-$VERSION-linux-amd64.tar.gz
+    # cri-dockerd is required to use Kubernetes 1.24+ and the none driver
+    git clone https://github.com/Mirantis/cri-dockerd.git
+    cd cri-dockerd
+    # Checkout version 0.2.3
+    git checkout tags/v0.2.3 -b v0.2.3
+    mkdir bin
+    go get && go build -o bin/cri-dockerd
+    mkdir -p /usr/local/bin
+    sudo install -o root -g root -m 0755 bin/cri-dockerd /usr/local/bin/cri-dockerd
+    sudo cp -a packaging/systemd/* /etc/systemd/system
+    sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+    sudo systemctl daemon-reload
+    sudo systemctl enable cri-docker.service
+    sudo systemctl enable --now cri-docker.socket
+    # required to resolve HOST_JUJU_LOCK_PERMISSION error of "minikube start --vm-driver=none"
+    sudo sysctl fs.protected_regular=0
 }
 
 function check_kubernetes_status {
@@ -76,7 +97,7 @@ function start_kubernetes_if_not_running {
         # here.
         # Similarly, the kubelets are marking themself as "low disk space",
         # causing Flink to avoid this node (again, failing the test)
-        sudo CHANGE_MINIKUBE_NONE_USER=true minikube start --vm-driver=none \
+        CHANGE_MINIKUBE_NONE_USER=true sudo -E minikube start --vm-driver=none \
             --extra-config=kubelet.image-gc-high-threshold=99 \
             --extra-config=kubelet.image-gc-low-threshold=98 \
             --extra-config=kubelet.minimum-container-ttl-duration=120m \
@@ -108,7 +129,6 @@ function start_kubernetes {
             exit 1
         fi
     fi
-    eval $(minikube docker-env)
 }
 
 function stop_kubernetes {
@@ -118,7 +138,7 @@ function stop_kubernetes {
         kill $minikube_mount_pid 2> /dev/null
     else
         echo "Stopping minikube ..."
-        stop_command="sudo minikube stop"
+        stop_command="minikube stop"
         if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "${stop_command}"; then
             echo "Could not stop minikube. Aborting..."
             exit 1
@@ -134,29 +154,64 @@ function debug_and_show_logs {
 
     echo "Flink logs:"
     kubectl get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | while read pod;do
+        echo "Current logs for $pod: "
         kubectl logs $pod;
+        restart_count=$(kubectl get pod $pod -o jsonpath='{.status.containerStatuses[0].restartCount}')
+        if [[ ${restart_count} -gt 0 ]];then
+          echo "Previous logs for $pod: "
+          kubectl logs $pod --previous
+        fi
     done
 }
 
 function wait_rest_endpoint_up_k8s {
+  wait_for_logs $1 "Rest endpoint listening at"
+}
+
+function wait_num_checkpoints {
+    POD_NAME=$1
+    NUM_CHECKPOINTS=$2
+
+    echo "Waiting for job ($POD_NAME) to have at least $NUM_CHECKPOINTS completed checkpoints ..."
+
+   # wait at most 120 seconds
+    local TIMEOUT=120
+    for i in $(seq 1 ${TIMEOUT}); do
+      N=$(kubectl logs $POD_NAME 2> /dev/null | grep -o "Completed checkpoint [1-9]* for job" | awk '{print $3}' | tail -1)
+
+      if [ -z $N ]; then
+        N=0
+      fi
+
+      if (( N < NUM_CHECKPOINTS )); then
+        sleep 1
+      else
+        return
+      fi
+    done
+    echo "Could not get $NUM_CHECKPOINTS completed checkpoints in $TIMEOUT sec"
+    exit 1
+}
+
+function wait_for_logs {
   local jm_pod_name=$1
-  local successful_response_regex="Rest endpoint listening at"
+  local successful_response_regex=$2
+  local timeout=${3:-30}
 
   echo "Waiting for jobmanager pod ${jm_pod_name} ready."
-  kubectl wait --for=condition=Ready --timeout=30s pod/$jm_pod_name || exit 1
+  kubectl wait --for=condition=Ready --timeout=${timeout}s pod/$jm_pod_name || exit 1
 
-  # wait at most 30 seconds until the endpoint is up
-  local TIMEOUT=30
-  for i in $(seq 1 ${TIMEOUT}); do
+  # wait or timeout until the log shows up
+  echo "Waiting for log \"$2\"..."
+  for i in $(seq 1 ${timeout}); do
     if check_logs_output $jm_pod_name $successful_response_regex; then
-      echo "REST endpoint is up."
+      echo "Log \"$2\" shows up."
       return
     fi
 
-    echo "Waiting for REST endpoint to come up..."
     sleep 1
   done
-  echo "REST endpoint has not started within a timeout of ${TIMEOUT} sec"
+  echo "Log $2 does not show up within a timeout of ${timeout} sec"
   exit 1
 }
 
@@ -185,7 +240,7 @@ function get_host_machine_address {
     if [[ "${OS_TYPE}" != "linux" ]]; then
         echo $(minikube ssh "route -n | grep ^0.0.0.0 | awk '{ print \$2 }' | tr -d '[:space:]'")
     else
-        echo "localhost"
+        echo $(hostname --ip-address)
     fi
 }
 

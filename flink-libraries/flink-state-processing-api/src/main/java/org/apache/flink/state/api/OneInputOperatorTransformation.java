@@ -45,8 +45,10 @@ import java.util.OptionalInt;
  * {@link OperatorTransformation} with one input.
  *
  * @param <T> The type of the elements in this operator.
+ * @deprecated Use {@link OneInputStateTransformation} instead.
  */
 @PublicEvolving
+@Deprecated
 @SuppressWarnings("WeakerAccess")
 public class OneInputOperatorTransformation<T> {
 

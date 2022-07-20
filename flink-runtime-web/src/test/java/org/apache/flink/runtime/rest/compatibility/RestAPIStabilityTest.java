@@ -22,7 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.ConfigurationException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.util.DefaultIndenter;
@@ -31,10 +31,12 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.ArgumentsProvider;
+import org.junit.jupiter.params.provider.ArgumentsSource;
 
 import java.io.File;
 import java.io.IOException;
@@ -45,10 +47,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Stability test and snapshot generator for the REST API. */
-@RunWith(Parameterized.class)
-public final class RestAPIStabilityTest extends TestLogger {
+final class RestAPIStabilityTest {
 
     private static final String REGENERATE_SNAPSHOT_PROPERTY = "generate-rest-snapshot";
 
@@ -56,26 +58,26 @@ public final class RestAPIStabilityTest extends TestLogger {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    @Parameterized.Parameters(name = "version = {0}")
-    public static Iterable<RestAPIVersion> getStableVersions() {
-        return Arrays.stream(RestAPIVersion.values())
-                .filter(RestAPIVersion::isStableVersion)
-                .collect(Collectors.toList());
+    private static class StableRestApiVersionProvider implements ArgumentsProvider {
+
+        @Override
+        public Stream<? extends Arguments> provideArguments(ExtensionContext context)
+                throws Exception {
+            return Arrays.stream(RestAPIVersion.values())
+                    .filter(RestAPIVersion::isStableVersion)
+                    .map(Arguments::of);
+        }
     }
 
-    private final RestAPIVersion apiVersion;
-
-    public RestAPIStabilityTest(final RestAPIVersion apiVersion) {
-        this.apiVersion = apiVersion;
-    }
-
-    @Test
-    public void testDispatcherRestAPIStability() throws IOException {
+    @ParameterizedTest
+    @ArgumentsSource(StableRestApiVersionProvider.class)
+    void testDispatcherRestAPIStability(RestAPIVersion apiVersion)
+            throws IOException, ConfigurationException {
         final String versionedSnapshotFileName =
                 String.format(SNAPSHOT_RESOURCE_PATTERN, apiVersion.getURLVersionPrefix());
 
         final RestAPISnapshot currentSnapshot =
-                createSnapshot(new DocumentingDispatcherRestEndpoint());
+                createSnapshot(new DocumentingDispatcherRestEndpoint(), apiVersion);
 
         if (System.getProperty(REGENERATE_SNAPSHOT_PROPERTY) != null) {
             writeSnapshot(versionedSnapshotFileName, currentSnapshot);
@@ -84,7 +86,7 @@ public final class RestAPIStabilityTest extends TestLogger {
         final URL resource =
                 RestAPIStabilityTest.class.getClassLoader().getResource(versionedSnapshotFileName);
         if (resource == null) {
-            Assert.fail(
+            Assertions.fail(
                     "Snapshot file does not exist. If you added a new version, re-run this test with"
                             + " -D"
                             + REGENERATE_SNAPSHOT_PROPERTY
@@ -110,7 +112,8 @@ public final class RestAPIStabilityTest extends TestLogger {
                         + " was updated, please remember to commit the snapshot.");
     }
 
-    private RestAPISnapshot createSnapshot(final DocumentingRestEndpoint restEndpoint) {
+    private RestAPISnapshot createSnapshot(
+            final DocumentingRestEndpoint restEndpoint, RestAPIVersion apiVersion) {
         final List<JsonNode> calls =
                 restEndpoint.getSpecs().stream()
                         // we only compare compatibility within the given version
@@ -157,7 +160,7 @@ public final class RestAPIStabilityTest extends TestLogger {
                             result ->
                                     result.f1.getBackwardCompatibility()
                                             == Compatibility.IDENTICAL)) {
-                Assert.fail(
+                Assertions.fail(
                         "The API was modified in a compatible way, but the snapshot was not updated. "
                                 + "To update the snapshot, re-run this test with -D"
                                 + REGENERATE_SNAPSHOT_PROPERTY
@@ -180,7 +183,7 @@ public final class RestAPIStabilityTest extends TestLogger {
                             result ->
                                     result.f1.getBackwardCompatibility()
                                             == Compatibility.IDENTICAL)) {
-                Assert.fail(
+                Assertions.fail(
                         "The API was modified in a compatible way, but the snapshot was not updated. "
                                 + "To update the snapshot, re-run this test with -D"
                                 + REGENERATE_SNAPSHOT_PROPERTY
@@ -220,7 +223,7 @@ public final class RestAPIStabilityTest extends TestLogger {
                                 sb.append("\t\t" + error.getMessage());
                             }
                         });
-        Assert.fail(sb.toString());
+        Assertions.fail(sb.toString());
     }
 
     private static CompatibilityCheckResult checkCompatibility(

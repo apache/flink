@@ -88,8 +88,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandler
 
     @Override
     protected SubtaskExecutionAttemptAccumulatorsInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request,
-            AccessExecution execution)
+            HandlerRequest<EmptyRequestBody> request, AccessExecution execution)
             throws RestHandlerException {
         return createAccumulatorInfo(execution);
     }
@@ -120,8 +119,8 @@ public class SubtaskExecutionAttemptAccumulatorsHandler
 
                 archive.add(new ArchivedJson(curAttemptPath, curAttemptJson));
 
-                for (int x = 0; x < subtask.getCurrentExecutionAttempt().getAttemptNumber(); x++) {
-                    AccessExecution attempt = subtask.getPriorExecutionAttempt(x);
+                for (AccessExecution attempt :
+                        subtask.getExecutionHistory().getHistoricalExecutions()) {
                     if (attempt != null) {
                         ResponseBody json = createAccumulatorInfo(attempt);
                         String path =

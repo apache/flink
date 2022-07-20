@@ -25,6 +25,7 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -43,6 +44,29 @@ import static org.junit.Assert.fail;
  * {@link Configuration} objects is tested.
  */
 public class ConfigurationTest extends TestLogger {
+
+    private static final ConfigOption<String> STRING_OPTION =
+            ConfigOptions.key("test-string-key").stringType().noDefaultValue();
+
+    private static final ConfigOption<List<String>> LIST_STRING_OPTION =
+            ConfigOptions.key("test-list-key").stringType().asList().noDefaultValue();
+
+    private static final ConfigOption<Map<String, String>> MAP_OPTION =
+            ConfigOptions.key("test-map-key").mapType().noDefaultValue();
+
+    private static final ConfigOption<Duration> DURATION_OPTION =
+            ConfigOptions.key("test-duration-key").durationType().noDefaultValue();
+
+    private static final Map<String, String> PROPERTIES_MAP = new HashMap<>();
+
+    static {
+        PROPERTIES_MAP.put("prop1", "value1");
+        PROPERTIES_MAP.put("prop2", "12");
+    }
+
+    private static final String MAP_PROPERTY_1 = MAP_OPTION.key() + ".prop1";
+
+    private static final String MAP_PROPERTY_2 = MAP_OPTION.key() + ".prop2";
 
     /** This test checks the serialization/deserialization of configuration objects. */
     @Test
@@ -103,8 +127,9 @@ public class ConfigurationTest extends TestLogger {
         cfg.setString("string-key", "abc");
 
         ConfigOption<String> presentStringOption =
-                ConfigOptions.key("string-key").defaultValue("my-beautiful-default");
-        ConfigOption<Integer> presentIntOption = ConfigOptions.key("int-key").defaultValue(87);
+                ConfigOptions.key("string-key").stringType().defaultValue("my-beautiful-default");
+        ConfigOption<Integer> presentIntOption =
+                ConfigOptions.key("int-key").intType().defaultValue(87);
 
         assertEquals("abc", cfg.getString(presentStringOption));
         assertEquals("abc", cfg.getValue(presentStringOption));
@@ -115,8 +140,8 @@ public class ConfigurationTest extends TestLogger {
         // test getting default when no value is present
 
         ConfigOption<String> stringOption =
-                ConfigOptions.key("test").defaultValue("my-beautiful-default");
-        ConfigOption<Integer> intOption = ConfigOptions.key("test2").defaultValue(87);
+                ConfigOptions.key("test").stringType().defaultValue("my-beautiful-default");
+        ConfigOption<Integer> intOption = ConfigOptions.key("test2").intType().defaultValue(87);
 
         // getting strings with default value should work
         assertEquals("my-beautiful-default", cfg.getValue(stringOption));
@@ -136,14 +161,15 @@ public class ConfigurationTest extends TestLogger {
         cfg.setInteger("int-key", 11);
         cfg.setString("string-key", "abc");
 
-        ConfigOption<String> presentStringOption = ConfigOptions.key("string-key").noDefaultValue();
+        ConfigOption<String> presentStringOption =
+                ConfigOptions.key("string-key").stringType().noDefaultValue();
 
         assertEquals("abc", cfg.getString(presentStringOption));
         assertEquals("abc", cfg.getValue(presentStringOption));
 
         // test getting default when no value is present
 
-        ConfigOption<String> stringOption = ConfigOptions.key("test").noDefaultValue();
+        ConfigOption<String> stringOption = ConfigOptions.key("test").stringType().noDefaultValue();
 
         // getting strings for null should work
         assertNull(cfg.getValue(stringOption));
@@ -162,21 +188,25 @@ public class ConfigurationTest extends TestLogger {
 
         ConfigOption<Integer> matchesFirst =
                 ConfigOptions.key("the-key")
+                        .intType()
                         .defaultValue(-1)
                         .withDeprecatedKeys("old-key", "older-key");
 
         ConfigOption<Integer> matchesSecond =
                 ConfigOptions.key("does-not-exist")
+                        .intType()
                         .defaultValue(-1)
                         .withDeprecatedKeys("old-key", "older-key");
 
         ConfigOption<Integer> matchesThird =
                 ConfigOptions.key("does-not-exist")
+                        .intType()
                         .defaultValue(-1)
                         .withDeprecatedKeys("foo", "older-key");
 
         ConfigOption<Integer> notContained =
                 ConfigOptions.key("does-not-exist")
+                        .intType()
                         .defaultValue(-1)
                         .withDeprecatedKeys("not-there", "also-not-there");
 
@@ -195,21 +225,25 @@ public class ConfigurationTest extends TestLogger {
 
         ConfigOption<Integer> matchesFirst =
                 ConfigOptions.key("the-key")
+                        .intType()
                         .defaultValue(-1)
                         .withFallbackKeys("old-key", "older-key");
 
         ConfigOption<Integer> matchesSecond =
                 ConfigOptions.key("does-not-exist")
+                        .intType()
                         .defaultValue(-1)
                         .withFallbackKeys("old-key", "older-key");
 
         ConfigOption<Integer> matchesThird =
                 ConfigOptions.key("does-not-exist")
+                        .intType()
                         .defaultValue(-1)
                         .withFallbackKeys("foo", "older-key");
 
         ConfigOption<Integer> notContained =
                 ConfigOptions.key("does-not-exist")
+                        .intType()
                         .defaultValue(-1)
                         .withFallbackKeys("not-there", "also-not-there");
 
@@ -221,12 +255,15 @@ public class ConfigurationTest extends TestLogger {
 
     @Test
     public void testFallbackAndDeprecatedKeys() {
-        final ConfigOption<Integer> fallback = ConfigOptions.key("fallback").defaultValue(-1);
+        final ConfigOption<Integer> fallback =
+                ConfigOptions.key("fallback").intType().defaultValue(-1);
 
-        final ConfigOption<Integer> deprecated = ConfigOptions.key("deprecated").defaultValue(-1);
+        final ConfigOption<Integer> deprecated =
+                ConfigOptions.key("deprecated").intType().defaultValue(-1);
 
         final ConfigOption<Integer> mainOption =
                 ConfigOptions.key("main")
+                        .intType()
                         .defaultValue(-1)
                         .withFallbackKeys(fallback.key())
                         .withDeprecatedKeys(deprecated.key());
@@ -243,6 +280,7 @@ public class ConfigurationTest extends TestLogger {
         // first
         final ConfigOption<Integer> reversedMainOption =
                 ConfigOptions.key("main")
+                        .intType()
                         .defaultValue(-1)
                         .withDeprecatedKeys(deprecated.key())
                         .withFallbackKeys(fallback.key());
@@ -260,13 +298,13 @@ public class ConfigurationTest extends TestLogger {
         cfg.setInteger("a", 1);
         cfg.setInteger("b", 2);
 
-        ConfigOption<Integer> validOption = ConfigOptions.key("a").defaultValue(-1);
+        ConfigOption<Integer> validOption = ConfigOptions.key("a").intType().defaultValue(-1);
 
         ConfigOption<Integer> deprecatedOption =
-                ConfigOptions.key("c").defaultValue(-1).withDeprecatedKeys("d", "b");
+                ConfigOptions.key("c").intType().defaultValue(-1).withDeprecatedKeys("d", "b");
 
         ConfigOption<Integer> unexistedOption =
-                ConfigOptions.key("e").defaultValue(-1).withDeprecatedKeys("f", "g", "j");
+                ConfigOptions.key("e").intType().defaultValue(-1).withDeprecatedKeys("f", "g", "j");
 
         assertEquals("Wrong expectation about size", cfg.keySet().size(), 2);
         assertTrue("Expected 'validOption' is removed", cfg.removeConfig(validOption));
@@ -278,41 +316,35 @@ public class ConfigurationTest extends TestLogger {
 
     @Test
     public void testShouldParseValidStringToEnum() {
-        final ConfigOption<String> configOption = createStringConfigOption();
-
         final Configuration configuration = new Configuration();
-        configuration.setString(configOption.key(), TestEnum.VALUE1.toString());
+        configuration.setString(STRING_OPTION.key(), TestEnum.VALUE1.toString());
 
-        final TestEnum parsedEnumValue = configuration.getEnum(TestEnum.class, configOption);
+        final TestEnum parsedEnumValue = configuration.getEnum(TestEnum.class, STRING_OPTION);
         assertEquals(TestEnum.VALUE1, parsedEnumValue);
     }
 
     @Test
     public void testShouldParseValidStringToEnumIgnoringCase() {
-        final ConfigOption<String> configOption = createStringConfigOption();
-
         final Configuration configuration = new Configuration();
-        configuration.setString(configOption.key(), TestEnum.VALUE1.toString().toLowerCase());
+        configuration.setString(STRING_OPTION.key(), TestEnum.VALUE1.toString().toLowerCase());
 
-        final TestEnum parsedEnumValue = configuration.getEnum(TestEnum.class, configOption);
+        final TestEnum parsedEnumValue = configuration.getEnum(TestEnum.class, STRING_OPTION);
         assertEquals(TestEnum.VALUE1, parsedEnumValue);
     }
 
     @Test
     public void testThrowsExceptionIfTryingToParseInvalidStringForEnum() {
-        final ConfigOption<String> configOption = createStringConfigOption();
-
         final Configuration configuration = new Configuration();
         final String invalidValueForTestEnum = "InvalidValueForTestEnum";
-        configuration.setString(configOption.key(), invalidValueForTestEnum);
+        configuration.setString(STRING_OPTION.key(), invalidValueForTestEnum);
 
         try {
-            configuration.getEnum(TestEnum.class, configOption);
+            configuration.getEnum(TestEnum.class, STRING_OPTION);
             fail("Expected exception not thrown");
         } catch (IllegalArgumentException e) {
             final String expectedMessage =
                     "Value for config option "
-                            + configOption.key()
+                            + STRING_OPTION.key()
                             + " must be one of [VALUE1, VALUE2] (was "
                             + invalidValueForTestEnum
                             + ")";
@@ -322,45 +354,93 @@ public class ConfigurationTest extends TestLogger {
 
     @Test
     public void testToMap() {
-        final ConfigOption<List<String>> listConfigOption = createListStringConfigOption();
         final Configuration configuration = new Configuration();
         final String listValues = "value1;value2;value3";
-        configuration.set(listConfigOption, Arrays.asList(listValues.split(";")));
+        configuration.set(LIST_STRING_OPTION, Arrays.asList(listValues.split(";")));
 
-        final ConfigOption<Map<String, String>> mapConfigOption = createMapConfigOption();
         final String mapValues = "key1:value1,key2:value2";
         configuration.set(
-                mapConfigOption,
+                MAP_OPTION,
                 Arrays.stream(mapValues.split(","))
                         .collect(Collectors.toMap(e -> e.split(":")[0], e -> e.split(":")[1])));
 
-        final ConfigOption<Duration> durationConfigOption = createDurationConfigOption();
         final Duration duration = Duration.ofMillis(3000);
-        configuration.set(durationConfigOption, duration);
+        configuration.set(DURATION_OPTION, duration);
 
-        assertEquals(listValues, configuration.toMap().get(listConfigOption.key()));
-        assertEquals(mapValues, configuration.toMap().get(mapConfigOption.key()));
-        assertEquals("3 s", configuration.toMap().get(durationConfigOption.key()));
+        assertEquals(listValues, configuration.toMap().get(LIST_STRING_OPTION.key()));
+        assertEquals(mapValues, configuration.toMap().get(MAP_OPTION.key()));
+        assertEquals("3 s", configuration.toMap().get(DURATION_OPTION.key()));
     }
+
+    @Test
+    public void testMapNotContained() {
+        final Configuration cfg = new Configuration();
+
+        assertFalse(cfg.getOptional(MAP_OPTION).isPresent());
+        assertFalse(cfg.contains(MAP_OPTION));
+    }
+
+    @Test
+    public void testMapWithPrefix() {
+        final Configuration cfg = new Configuration();
+        cfg.setString(MAP_PROPERTY_1, "value1");
+        cfg.setInteger(MAP_PROPERTY_2, 12);
+
+        assertEquals(cfg.get(MAP_OPTION), PROPERTIES_MAP);
+        assertTrue(cfg.contains(MAP_OPTION));
+    }
+
+    @Test
+    public void testMapWithoutPrefix() {
+        final Configuration cfg = new Configuration();
+        cfg.set(MAP_OPTION, PROPERTIES_MAP);
+
+        assertEquals(cfg.get(MAP_OPTION), PROPERTIES_MAP);
+        assertTrue(cfg.contains(MAP_OPTION));
+    }
+
+    @Test
+    public void testMapNonPrefixHasPrecedence() {
+        final Configuration cfg = new Configuration();
+        cfg.set(MAP_OPTION, PROPERTIES_MAP);
+        cfg.setString(MAP_PROPERTY_1, "value1");
+        cfg.setInteger(MAP_PROPERTY_2, 99999);
+
+        assertEquals(cfg.get(MAP_OPTION), PROPERTIES_MAP);
+        assertTrue(cfg.contains(MAP_OPTION));
+        assertTrue(cfg.containsKey(MAP_PROPERTY_1));
+    }
+
+    @Test
+    public void testMapThatOverwritesPrefix() {
+        final Configuration cfg = new Configuration();
+        cfg.setString(MAP_PROPERTY_1, "value1");
+        cfg.setInteger(MAP_PROPERTY_2, 99999);
+        cfg.set(MAP_OPTION, PROPERTIES_MAP);
+
+        assertEquals(cfg.get(MAP_OPTION), PROPERTIES_MAP);
+        assertTrue(cfg.contains(MAP_OPTION));
+        assertFalse(cfg.containsKey(MAP_PROPERTY_1));
+    }
+
+    @Test
+    public void testMapRemovePrefix() {
+        final Configuration cfg = new Configuration();
+        cfg.setString(MAP_PROPERTY_1, "value1");
+        cfg.setInteger(MAP_PROPERTY_2, 99999);
+        cfg.removeConfig(MAP_OPTION);
+
+        assertFalse(cfg.contains(MAP_OPTION));
+        assertFalse(cfg.containsKey(MAP_PROPERTY_1));
+        assertFalse(cfg.containsKey(MAP_PROPERTY_2));
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Test classes
+    // --------------------------------------------------------------------------------------------
 
     enum TestEnum {
         VALUE1,
         VALUE2
-    }
-
-    private static ConfigOption<String> createStringConfigOption() {
-        return ConfigOptions.key("test-string-key").noDefaultValue();
-    }
-
-    private static ConfigOption<List<String>> createListStringConfigOption() {
-        return ConfigOptions.key("test-list-key").stringType().asList().noDefaultValue();
-    }
-
-    private static ConfigOption<Map<String, String>> createMapConfigOption() {
-        return ConfigOptions.key("test-map-key").mapType().noDefaultValue();
-    }
-
-    private static ConfigOption<Duration> createDurationConfigOption() {
-        return ConfigOptions.key("test-duration-key").durationType().noDefaultValue();
     }
 }

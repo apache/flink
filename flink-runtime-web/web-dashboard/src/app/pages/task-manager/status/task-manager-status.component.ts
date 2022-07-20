@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit } from '@angular/core';
-import { TaskManagerDetailInterface } from 'interfaces';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { TaskManagerService } from 'services';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { of, Subject } from 'rxjs';
+import { catchError, mergeMap, takeUntil } from 'rxjs/operators';
+
+import { TaskManagerDetail } from '@flink-runtime-web/interfaces';
+import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-task-manager-status',
@@ -29,27 +31,43 @@ import { TaskManagerService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerStatusComponent implements OnInit, OnDestroy {
-  @Input() isLoading = true;
-  listOfNavigation = [
+  public readonly listOfNavigation = [
     { path: 'metrics', title: 'Metrics' },
     { path: 'logs', title: 'Logs' },
     { path: 'stdout', title: 'Stdout' },
     { path: 'log-list', title: 'Log List' },
     { path: 'thread-dump', title: 'Thread Dump' }
   ];
-  taskManagerDetail: TaskManagerDetailInterface;
-  private destroy$ = new Subject();
+  public taskManagerDetail?: TaskManagerDetail;
+  public loading = true;
 
-  constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
+  private readonly destroy$ = new Subject<void>();
 
-  ngOnInit(): void {
-    this.taskManagerService.taskManagerDetail$.pipe(takeUntil(this.destroy$)).subscribe(data => {
-      this.taskManagerDetail = data;
-      this.cdr.markForCheck();
-    });
+  constructor(
+    private readonly taskManagerService: TaskManagerService,
+    private readonly statusService: StatusService,
+    private readonly activatedRoute: ActivatedRoute,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
+
+  public ngOnInit(): void {
+    this.statusService.refresh$
+      .pipe(
+        mergeMap(() =>
+          this.taskManagerService
+            .loadManager(this.activatedRoute.snapshot.params.taskManagerId)
+            .pipe(catchError(() => of(undefined)))
+        ),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        this.taskManagerDetail = data;
+        this.loading = false;
+        this.cdr.markForCheck();
+      });
   }
 
-  ngOnDestroy(): void {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

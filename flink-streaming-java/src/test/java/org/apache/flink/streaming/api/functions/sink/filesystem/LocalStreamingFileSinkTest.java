@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils.Tuple2Encoder;
 import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils.TupleToIntegerBucketer;
@@ -34,6 +35,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Map;
 
 /** Tests for the {@link StreamingFileSink}. */
@@ -423,9 +425,9 @@ public class LocalStreamingFileSinkTest extends TestLogger {
         final long inactivityInterval = 100L;
         final RollingPolicy<Tuple2<String, Integer>, Integer> rollingPolicy =
                 DefaultRollingPolicy.builder()
-                        .withMaxPartSize(partMaxSize)
-                        .withRolloverInterval(inactivityInterval)
-                        .withInactivityInterval(inactivityInterval)
+                        .withMaxPartSize(new MemorySize(partMaxSize))
+                        .withRolloverInterval(Duration.ofMillis(inactivityInterval))
+                        .withInactivityInterval(Duration.ofMillis(inactivityInterval))
                         .build();
 
         try (OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =

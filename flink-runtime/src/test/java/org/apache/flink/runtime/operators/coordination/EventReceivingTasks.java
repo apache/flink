@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.coordination.util.IncompleteFuturesTracker;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -33,6 +35,8 @@ import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 
 /**
  * A test implementation of the BiFunction interface used as the underlying event sender in the
@@ -105,7 +109,11 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
 
     public OperatorCoordinator.SubtaskGateway createGatewayForSubtask(int subtask) {
         final SubtaskAccess sta = getAccessForSubtask(subtask);
-        return new SubtaskGatewayImpl(sta, new OperatorEventValve(), Executors.directExecutor());
+        return new SubtaskGatewayImpl(
+                sta,
+                new OperatorEventValve(),
+                Executors.directExecutor(),
+                new IncompleteFuturesTracker());
     }
 
     public void switchTaskToRunning(int subtask) {
@@ -170,12 +178,13 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
 
     private final class TestSubtaskAccess implements SubtaskAccess {
 
-        private final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+        private final ExecutionAttemptID executionAttemptId;
         private final CompletableFuture<?> running;
         private final int subtaskIndex;
 
         private TestSubtaskAccess(int subtaskIndex, boolean isRunning) {
             this.subtaskIndex = subtaskIndex;
+            this.executionAttemptId = createExecutionAttemptId(new JobVertexID(), subtaskIndex, 0);
             this.running = new CompletableFuture<>();
             if (isRunning) {
                 switchToRunning();

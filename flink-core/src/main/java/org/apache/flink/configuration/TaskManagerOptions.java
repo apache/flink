@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /** The set of configuration options relating to TaskManager and Task settings. */
@@ -239,12 +240,18 @@ public class TaskManagerOptions {
     /** Timeout for identifying inactive slots. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
     public static final ConfigOption<Duration> SLOT_TIMEOUT =
-            ConfigOptions.key("taskmanager.slot.timeout")
+            key("taskmanager.slot.timeout")
                     .durationType()
-                    .defaultValue(TimeUtils.parseDuration("10 s"))
+                    .defaultValue(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue())
+                    .withFallbackKeys(AkkaOptions.ASK_TIMEOUT_DURATION.key())
                     .withDescription(
-                            "Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active "
-                                    + "within the given amount of time. Inactive slots can be caused by an out-dated slot request.");
+                            Description.builder()
+                                    .text(
+                                            "Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active "
+                                                    + "within the given amount of time. Inactive slots can be caused by an out-dated slot request. If no "
+                                                    + "value is configured, then it will fall back to %s.",
+                                            code(AkkaOptions.ASK_TIMEOUT_DURATION.key()))
+                                    .build());
 
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
     public static final ConfigOption<Boolean> DEBUG_MEMORY_LOG =
@@ -277,6 +284,16 @@ public class TaskManagerOptions {
                     .withDescription(
                             "Size of memory buffers used by the network stack and the memory manager.");
 
+    /** Minimum possible size of memory buffers used by the network stack and the memory manager. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<MemorySize> MIN_MEMORY_SEGMENT_SIZE =
+            key("taskmanager.memory.min-segment-size")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("256"))
+                    .withDescription(
+                            "Minimum possible size of memory buffers used by the network stack and the memory manager. "
+                                    + "ex. can be used for automatic buffer size adjustment.");
+
     /**
      * The config parameter for automatically defining the TaskManager's binding address, if {@link
      * #HOST} configuration option is not set.
@@ -302,7 +319,7 @@ public class TaskManagerOptions {
     /**
      * The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the
      * RpcAddress:RpcPort and a 6-character random string. Notice that this option is not valid in
-     * Yarn / Mesos and Native Kubernetes mode.
+     * Yarn and Native Kubernetes mode.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
     public static final ConfigOption<String> TASK_MANAGER_RESOURCE_ID =
@@ -311,14 +328,14 @@ public class TaskManagerOptions {
                     .noDefaultValue()
                     .withDescription(
                             "The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the "
-                                    + "\"RpcAddress:RpcPort\" and a 6-character random string. Notice that this option is not valid in Yarn / Mesos and Native Kubernetes mode.");
+                                    + "\"RpcAddress:RpcPort\" and a 6-character random string. Notice that this option is not valid in Yarn and Native Kubernetes mode.");
 
     // ------------------------------------------------------------------------
     //  Resource Options
     // ------------------------------------------------------------------------
 
     /**
-     * This config option describes number of cpu cores of task executors. In case of Yarn / Mesos /
+     * This config option describes number of cpu cores of task executors. In case of Yarn /
      * Kubernetes, it is used to launch a container for the task executor.
      *
      * <p>DO NOT USE THIS CONFIG OPTION. This config option is currently only used internally, for
@@ -326,9 +343,8 @@ public class TaskManagerOptions {
      * feature is not completed at the moment, and the config option is experimental and might be
      * changed / removed in the future. Thus, we do not expose this config option to users.
      *
-     * <p>For configuring the cpu cores of container on Yarn / Mesos / Kubernetes, please use {@link
-     * YarnConfigOptions#VCORES}, {@link MesosTaskManagerParameters#MESOS_RM_TASKS_CPUS} and {@link
-     * KubernetesConfigOptions#TASK_MANAGER_CPU}.
+     * <p>For configuring the cpu cores of container on Yarn / Kubernetes, please use {@link
+     * YarnConfigOptions#VCORES} and {@link KubernetesConfigOptions#TASK_MANAGER_CPU}.
      */
     @Documentation.ExcludeFromDocumentation
     public static final ConfigOption<Double> CPU_CORES =
@@ -338,8 +354,8 @@ public class TaskManagerOptions {
                     .withDescription(
                             "CPU cores for the TaskExecutors. In case of Yarn setups, this value will be rounded to "
                                     + "the closest positive integer. If not explicitly configured, legacy config options "
-                                    + "'yarn.containers.vcores', 'mesos.resourcemanager.tasks.cpus' and 'kubernetes.taskmanager.cpu' will be "
-                                    + "used for Yarn / Mesos / Kubernetes setups, and '"
+                                    + "'yarn.containers.vcores' and 'kubernetes.taskmanager.cpu' will be "
+                                    + "used for Yarn / Kubernetes setups, and '"
                                     + NUM_TASK_SLOTS.key()
                                     + "' will be used for "
                                     + "standalone setups (approximate number of slots).");
@@ -401,7 +417,7 @@ public class TaskManagerOptions {
                     .withDescription(
                             "Task Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved for"
                                     + " tasks. If not specified, it will be derived as Total Flink Memory minus Framework Heap Memory,"
-                                    + " Task Off-Heap Memory, Managed Memory and Network Memory.");
+                                    + " Framework Off-Heap Memory, Task Off-Heap Memory, Managed Memory and Network Memory.");
 
     /** Task Off-Heap Memory size for TaskExecutors. */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
@@ -513,19 +529,69 @@ public class TaskManagerOptions {
                                     + " the configured min/max size, the min/max size will be used. The exact size of Network Memory can be"
                                     + " explicitly specified by setting the min/max size to the same value.");
 
+    /** The period between recalculation the relevant size of the buffer. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Duration> BUFFER_DEBLOAT_PERIOD =
+            ConfigOptions.key("taskmanager.network.memory.buffer-debloat.period")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(200))
+                    .withDescription(
+                            "The minimum period of time after which the buffer size will be debloated if required. "
+                                    + "The low value provides a fast reaction to the load fluctuation but can influence the performance.");
+
+    /** The number of samples requires for the buffer size adjustment. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> BUFFER_DEBLOAT_SAMPLES =
+            ConfigOptions.key("taskmanager.network.memory.buffer-debloat.samples")
+                    .intType()
+                    .defaultValue(20)
+                    .withDescription(
+                            "The number of the last buffer size values that will be taken for the correct calculation of the new one.");
+
+    /** The total time for which automated adjusted buffers should be fully consumed. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Duration> BUFFER_DEBLOAT_TARGET =
+            ConfigOptions.key("taskmanager.network.memory.buffer-debloat.target")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(1))
+                    .withDescription(
+                            "The target total time after which buffered in-flight data should be fully consumed. "
+                                    + "This configuration option will be used, in combination with the measured throughput, to adjust the amount of in-flight data.");
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Boolean> BUFFER_DEBLOAT_ENABLED =
+            ConfigOptions.key("taskmanager.network.memory.buffer-debloat.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "The switch of the automatic buffered debloating feature. "
+                                    + "If enabled the amount of in-flight data will be adjusted automatically accordingly to the measured throughput.");
+
+    /**
+     * Difference between the new and the old buffer size for applying the new value(in percent).
+     */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES =
+            ConfigOptions.key("taskmanager.network.memory.buffer-debloat.threshold-percentages")
+                    .intType()
+                    .defaultValue(25)
+                    .withDescription(
+                            "The minimum difference in percentage between the newly calculated buffer size and the old one to announce the new value. "
+                                    + "Can be used to avoid constant back and forth small adjustments.");
+
     /**
      * Size of direct memory used by blocking shuffle for shuffle data read (currently only used by
-     * sort-merge shuffle).
+     * sort-shuffle).
      */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
     public static final ConfigOption<MemorySize> NETWORK_BATCH_SHUFFLE_READ_MEMORY =
             key("taskmanager.memory.framework.off-heap.batch-shuffle.size")
                     .memoryType()
-                    .defaultValue(MemorySize.parse("32m"))
+                    .defaultValue(MemorySize.parse("64m"))
                     .withDescription(
                             String.format(
                                     "Size of memory used by blocking shuffle for shuffle data read "
-                                            + "(currently only used by sort-merge shuffle). Notes: "
+                                            + "(currently only used by sort-shuffle). Notes: "
                                             + "1) The memory is cut from '%s' so must be smaller than"
                                             + " that, which means you may also need to increase '%s' "
                                             + "after you increase this config value; 2) This memory"

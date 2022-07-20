@@ -83,7 +83,7 @@ Flink 会根据默认值或其他配置参数自动调整剩余内存部分的�
 *托管内存*是由 Flink 负责分配和管理的本地（堆外）内存。
 以下场景需要使用*托管内存*：
 * 流处理作业中用于 [RocksDB State Backend]({{< ref "docs/ops/state/state_backends" >}}#the-rocksdbstatebackend)。
-* [批处理作业]({{< ref "docs/dev/dataset/overview" >}})中用于排序、哈希表及缓存中间结果。
+* 流处理和批处理作业中用于排序、哈希表及缓存中间结果。
 * 流处理和批处理作业中用于[在 Python 进程中执行用户自定义函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}})。
 
 可以通过以下两种范式指定*托管内存*的大小：
@@ -102,14 +102,15 @@ Flink 会根据默认值或其他配置参数自动调整剩余内存部分的�
 对于包含不同种类的托管内存消费者的作业，可以进一步控制托管内存如何在消费者之间分配。
 通过 [`taskmanager.memory.managed.consumer-weights`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-consumer-weights) 可以为每一种类型的消费者指定一个权重，Flink 会按照权重的比例进行内存分配。
 目前支持的消费者类型包括：
-* `DATAPROC`：用于流处理中的 RocksDB State Backend 和批处理中的内置算法。
+* `OPERATOR`: 用于内置算法。
+* `STATE_BACKEND`: 用于流处理中的 RocksDB State Backend。
 * `PYTHON`：用户 Python 进程。
 
-例如，一个流处理作业同时使用到了 RocksDB State Backend 和 Python UDF，消费者权重设置为 `DATAPROC:70,PYTHON:30`，那么 Flink 会将 `70%` 的托管内存用于 RocksDB State Backend，`30%` 留给 Python 进程。
+例如，一个流处理作业同时使用到了 RocksDB State Backend 和 Python UDF，消费者权重设置为 `STATE_BACKEND:70,PYTHON:30`，那么 Flink 会将 `70%` 的托管内存用于 RocksDB State Backend，`30%` 留给 Python 进程。
 
 <span class="label label-info">提示</span>
 只有作业中包含某种类型的消费者时，Flink 才会为该类型分配托管内存。
-例如，一个流处理作业使用 Heap State Backend 和 Python UDF，消费者权重设置为 `DATAPROC:70,PYTHON:30`，那么 Flink 会将全部托管内存用于 Python 进程，因为 Heap State Backend 不使用托管内存。
+例如，一个流处理作业使用 Heap State Backend 和 Python UDF，消费者权重设置为 `STATE_BACKEND:70,PYTHON:30`，那么 Flink 会将全部托管内存用于 Python 进程，因为 Heap State Backend 不使用托管内存。
 
 <span class="label label-info">提示</span>
 对于未出现在消费者权重中的类型，Flink 将不会为其分配托管内存。
@@ -159,7 +160,7 @@ Flink 会负责管理网络内存，保证其实际用量不会超过配置大�
 | [托管内存（Managed memory）](#managed-memory)                                  | [`taskmanager.memory.managed.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-size) <br/> [`taskmanager.memory.managed.fraction`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-fraction)                                                                                                                     | 由 Flink 管理的用于排序、哈希表、缓存中间结果及 RocksDB State Backend 的本地内存。                                                                                                                                                |
 | [框架堆外内存（Framework Off-heap Memory）](#framework-memory)                     | [`taskmanager.memory.framework.off-heap.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-framework-off-heap-size)                                                                                                                                                                                                 | 用于 Flink 框架的[堆外内存（直接内存或本地内存）](#configure-off-heap-memory-direct-or-native)（进阶配置）。                                                                                                                                            |
 | [任务堆外内存（Task Off-heap Memory）](#configure-off-heap-memory-direct-or-native)| [`taskmanager.memory.task.off-heap.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-task-off-heap-size)                                                                                                                                                                                                           | 	用于 Flink 应用的算子及用户代码的[堆外内存（直接内存或本地内存）](#configure-off-heap-memory-direct-or-native)。                                                                                                                                           |
-| 网络内存（Network Memory）                                                     | [`taskmanager.memory.network.min`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-min) <br/> [`taskmanager.memory.network.max`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-max) <br/> [`taskmanager.memory.network.fraction`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-fraction)                               | 用于任务之间数据传输的直接内存（例如网络传输缓冲）。该内存部分为基于 [Flink 总内存]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)的[受限的等比内存部分]({{< ref "docs/deployment/memory/mem_setup" >}}#capped-fractionated-components)。 |
+| 网络内存（Network Memory）                                                     | [`taskmanager.memory.network.min`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-min) <br/> [`taskmanager.memory.network.max`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-max) <br/> [`taskmanager.memory.network.fraction`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-fraction)                               | 用于任务之间数据传输的直接内存（例如网络传输缓冲）。该内存部分为基于 [Flink 总内存]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)的[受限的等比内存部分]({{< ref "docs/deployment/memory/mem_setup" >}}#capped-fractionated-components)。这块内存被用于分配[网络缓冲]({{< ref "docs/deployment/memory/network_mem_tuning" >}}) |
 | [JVM Metaspace]({{< ref "docs/deployment/memory/mem_setup" >}}#jvm-parameters)                     | [`taskmanager.memory.jvm-metaspace.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-jvm-metaspace-size)                                                                                                                                                                                                           | Flink JVM 进程的 Metaspace。                                                                                                                                                                                                                                      |
 | JVM 开销                                                       | [`taskmanager.memory.jvm-overhead.min`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-jvm-overhead-min) <br/> [`taskmanager.memory.jvm-overhead.max`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-jvm-overhead-max) <br/> [`taskmanager.memory.jvm-overhead.fraction`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-jvm-overhead-fraction) | 用于其他 JVM 开销的本地内存，例如栈空间、垃圾回收空间等。该内存部分为基于[进程总内存]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)的[受限的等比内存部分]({{< ref "docs/deployment/memory/mem_setup" >}}#capped-fractionated-components)。    |
 
@@ -189,14 +190,14 @@ Flink 会负责管理网络内存，保证其实际用量不会超过配置大�
 | :------------------------------------------- | :---------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------ |
 | 任务堆内存                                    | [`taskmanager.memory.task.heap.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-task-heap-size)         | 无穷大                                                                        |
 | 任务堆外内存                                | [`taskmanager.memory.task.off-heap.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-task-off-heap-size) | 无穷大                                                                        |
-| 托管内存                               | [`taskmanager.memory.managed.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-size)             | 128Mb                                                                           |
-| 网络内存                               | [`taskmanager.memory.network.min`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-min) <br /> [`taskmanager.memory.network.max`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-max) | 64Mb |
+| 托管内存                               | [`taskmanager.memory.managed.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-size)             | 128MB                                                                           |
+| 网络内存                               | [`taskmanager.memory.network.min`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-min) <br /> [`taskmanager.memory.network.max`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-max) | 64MB |
 
 <br/>
 
 本地执行模式下，上面列出的所有内存部分均可以但不是必须进行配置。
 如果未配置，则会采用默认值。
-其中，[任务堆内存](#task-operator-heap-memory)和*任务堆外内存*的默认值无穷大（*Long.MAX_VALUE* 字节），以及[托管内存](#managed-memory)的默认值 128Mb 均只针对本地执行模式。
+其中，[任务堆内存](#task-operator-heap-memory)和*任务堆外内存*的默认值无穷大（*Long.MAX_VALUE* 字节），以及[托管内存](#managed-memory)的默认值 128MB 均只针对本地执行模式。
 
 <span class="label label-info">提示</span>
 这种情况下，任务堆内存的大小与实际的堆空间大小无关。

@@ -33,7 +33,6 @@ import org.apache.flink.connector.file.src.impl.ContinuousFileSplitEnumerator;
 import org.apache.flink.connector.file.src.impl.FileSourceReader;
 import org.apache.flink.connector.file.src.impl.StaticFileSplitEnumerator;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
-import org.apache.flink.connector.file.src.reader.FileRecordFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -55,8 +54,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * also has the majority of the documentation.
  *
  * <p>To read new formats, one commonly does NOT need to extend this class, but should implement a
- * new Format Reader (like {@link StreamFormat}, {@link BulkFormat}, {@link FileRecordFormat}) and
- * use it with the {@code FileSource}.
+ * new Format Reader (like {@link StreamFormat}, {@link BulkFormat} and use it with the {@code
+ * FileSource}.
  *
  * <p>The only reason to extend this class is when a source needs a different type of <i>split</i>,
  * meaning an extension of the {@link FileSourceSplit} to carry additional information.

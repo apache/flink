@@ -24,9 +24,8 @@ from pyflink.table import DataTypes
 from pyflink.table.tests.test_udf import SubtractOne
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkOldStreamTableTestCase, \
-    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, PyFlinkOldBatchTableTestCase, \
-    PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, \
+    PyFlinkStreamTableTestCase, PyFlinkTestCase
 
 
 class PandasUDFTests(PyFlinkTestCase):
@@ -46,10 +45,10 @@ class PandasUDFITTests(object):
         # general Python UDF
         subtract_one = udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT())
 
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd'],
-            [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
-        self.t_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+        CREATE TABLE Results(a BIGINT, b BIGINT, c BIGINT, d BIGINT) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
         t.where(add_one(t.b) <= 3) \
@@ -209,17 +208,14 @@ class PandasUDFITTests(object):
                 'row_param.f4 of wrong type %s !' % type(row_param.f4[0])
             return row_param
 
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q',
-             'r', 's', 't', 'u'],
-            [DataTypes.TINYINT(), DataTypes.SMALLINT(), DataTypes.INT(), DataTypes.BIGINT(),
-             DataTypes.BOOLEAN(), DataTypes.BOOLEAN(), DataTypes.FLOAT(), DataTypes.DOUBLE(),
-             DataTypes.STRING(), DataTypes.STRING(), DataTypes.BYTES(), DataTypes.DECIMAL(38, 18),
-             DataTypes.DECIMAL(38, 18), DataTypes.DATE(), DataTypes.TIME(), DataTypes.TIMESTAMP(3),
-             DataTypes.ARRAY(DataTypes.STRING()), DataTypes.ARRAY(DataTypes.TIMESTAMP(3)),
-             DataTypes.ARRAY(DataTypes.INT()),
-             DataTypes.ARRAY(DataTypes.STRING()), row_type])
-        self.t_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+        CREATE TABLE Results(
+        a TINYINT, b SMALLINT, c INT, d BIGINT, e BOOLEAN, f BOOLEAN, g FLOAT, h DOUBLE, i STRING,
+        j StRING, k BYTES, l DECIMAL(38, 18), m DECIMAL(38, 18), n DATE, o TIME, p TIMESTAMP(3),
+        q ARRAY<STRING>, r ARRAY<TIMESTAMP(3)>, s ARRAY<INT>, t ARRAY<STRING>,
+        u ROW<f1 INT, f2 STRING, f3 TIMESTAMP(3), f4 ARRAY<INT>>) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
 
         t = self.t_env.from_elements(
             [(1, 32767, -2147483648, 1, True, False, 1.0, 1.0, 'hello', '中文',
@@ -280,16 +276,16 @@ class PandasUDFITTests(object):
             ["+I[1, 32767, -2147483648, 1, true, false, 1.0, 1.0, hello, 中文, "
              "[102, 108, 105, 110, 107], 1000000000000000000.050000000000000000, "
              "1000000000000000000.059999999999999999, 2014-09-13, 01:00:01, "
-             "1970-01-02 00:00:00.123, [hello, 中文, null], [1970-01-02 00:00:00.123], "
-             "[1, 2], [hello, 中文, null], +I[1, hello, 1970-01-02 00:00:00.123, [1, 2]]]"])
+             "1970-01-02T00:00:00.123, [hello, 中文, null], [1970-01-02T00:00:00.123], "
+             "[1, 2], [hello, 中文, null], +I[1, hello, 1970-01-02T00:00:00.123, [1, 2]]]"])
 
     def test_invalid_pandas_udf(self):
 
-        @udf(result_type=DataTypes.INT(), udf_type="pandas")
+        @udf(result_type=DataTypes.INT(), func_type="pandas")
         def length_mismatch(i):
             return i[1:]
 
-        @udf(result_type=DataTypes.INT(), udf_type="pandas")
+        @udf(result_type=DataTypes.INT(), func_type="pandas")
         def result_type_not_series(i):
             return i.iloc[0]
 
@@ -307,10 +303,7 @@ class PandasUDFITTests(object):
         with self.assertRaisesRegex(Py4JJavaError, expected_regex=msg):
             t.select(result_type_not_series(t.a)).to_pandas()
 
-
-class BlinkPandasUDFITTests(object):
-
-    def test_data_types_only_supported_in_blink_planner(self):
+    def test_data_types(self):
         import pandas as pd
 
         timezone = self.t_env.get_config().get_local_timezone()
@@ -328,9 +321,10 @@ class BlinkPandasUDFITTests(object):
                 (local_zoned_timestamp_param[0], local_datetime)
             return local_zoned_timestamp_param
 
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a'], [DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)])
-        self.t_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+        CREATE TABLE Results(a TIMESTAMP_LTZ(3)) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
 
         t = self.t_env.from_elements(
             [(local_datetime,)],
@@ -342,35 +336,13 @@ class BlinkPandasUDFITTests(object):
         self.assert_equals(actual, ["+I[1970-01-02T00:00:00.123Z]"])
 
 
+class BatchPandasUDFITTests(PandasUDFITTests,
+                            PyFlinkBatchTableTestCase):
+    pass
+
+
 class StreamPandasUDFITTests(PandasUDFITTests,
-                             PyFlinkOldStreamTableTestCase):
-    pass
-
-
-class BatchPandasUDFITTests(PyFlinkOldBatchTableTestCase):
-
-    def test_basic_functionality(self):
-        add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), func_type="pandas")
-
-        # general Python UDF
-        subtract_one = udf(SubtractOne(), result_type=DataTypes.BIGINT())
-
-        t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
-        t = t.where(add_one(t.b) <= 3) \
-            .select(t.a, t.b + 1, add(t.a + 1, subtract_one(t.c)) + 2, add(add_one(t.a), 1))
-        result = self.collect(t)
-        self.assert_equals(result, ["+I[1, 3, 6, 3]", "+I[3, 2, 14, 5]"])
-
-
-class BlinkBatchPandasUDFITTests(PandasUDFITTests,
-                                 BlinkPandasUDFITTests,
-                                 PyFlinkBlinkBatchTableTestCase):
-    pass
-
-
-class BlinkStreamPandasUDFITTests(PandasUDFITTests,
-                                  BlinkPandasUDFITTests,
-                                  PyFlinkBlinkStreamTableTestCase):
+                             PyFlinkStreamTableTestCase):
     pass
 
 

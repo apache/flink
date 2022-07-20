@@ -28,7 +28,7 @@ under the License.
 
 以下示例展示了 Flink 从简单的WordCount到图算法的应用。示例代码展示了 [Flink's DataSet API]({{< ref "docs/dev/dataset/overview" >}}) 的使用。
 
-完整的源代码可以在 Flink 源代码库的 {{< gh_link file="flink-examples/flink-examples-batch" file="flink-examples-batch" >}} 模块找到。
+完整的源代码可以在 Flink 源代码库的 {{< gh_link file="flink-examples/flink-examples-batch" name="flink-examples-batch" >}} 模块找到。
 
 
 
@@ -125,7 +125,7 @@ counts.writeAsCsv(outputPath, "\n", " ")
 
 PageRank算法可以计算互联网中一个网页的重要性，这个重要性通过由一个页面指向其他页面的链接定义。PageRank 算法是一个重复执行相同运算的迭代图算法。在每一次迭代中，每个页面把他当前的 rank 值分发给他所有的邻居节点，并且通过他收到邻居节点的 rank 值更新自身的 rank 值。PageRank 算法因 Google 搜索引擎的使用而流行，它根据网页的重要性来对搜索结果进行排名。
 
-在这个简单的示例中，PageRank 算法由一个[批量迭代](iterations.html)和一些固定次数的迭代实现。
+在这个简单的示例中，PageRank 算法由一个[批量迭代]({{< ref "docs/dev/dataset/iterations" >}})和一些固定次数的迭代实现。
 
 {{< tabs "cb5cd992-34f8-4dea-bb6f-c5ec27a97a00" >}}
 {{< tab "Java" >}}
@@ -135,7 +135,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 // 通过解析一个CSV文件来获取每个页面原始的rank值
 DataSet<Tuple2<Long, Double>> pagesWithRanks = env.readCsvFile(pagesInputPath)
-						   .types(Long.class, Double.class)
+						   .types(Long.class, Double.class);
 
 // 链接被编码为邻接表: (page-id, Array(neighbor-ids))
 DataSet<Tuple2<Long, Long[]>> pageLinkLists = getLinksDataSet(env);
@@ -288,7 +288,7 @@ result.writeAsCsv(outputPath, "\n", " ")
 Connected Components 通过给相连的顶点相同的组件ID来标示出一个较大的图中的连通部分。类似PageRank，Connected Components 也是一个迭代算法。在每一次迭代中，每个顶点把他现在的组件ID传播给所有邻居顶点。当一个顶点接收到的组件ID小于他自身的组件ID时，这个顶点也更新其组件ID为这个新组件ID。
 
 
-这个代码实现使用了[增量迭代](iterations.html)： 没有改变其组件 ID 的顶点不会参与下一轮迭代。这种方法会带来更好的性能，因为后面的迭代可以只处理少量的需要计算的顶点。
+这个代码实现使用了[增量迭代]({{< ref "docs/dev/dataset/iterations" >}})： 没有改变其组件 ID 的顶点不会参与下一轮迭代。这种方法会带来更好的性能，因为后面的迭代可以只处理少量的需要计算的顶点。
 
 {{< tabs "33947399-ae91-4965-acd9-44b267d3d53a" >}}
 {{< tab "Java" >}}

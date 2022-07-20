@@ -26,14 +26,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
 
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests {@link org.apache.flink.api.java.typeutils.runtime.RowComparator} for wide rows. */
-public class RowComparatorWithManyFieldsTests extends ComparatorTestBase<Row> {
+class RowComparatorWithManyFieldsTests extends ComparatorTestBase<Row> {
 
     private static final int numberOfFields = 10;
     private static RowTypeInfo typeInfo;
@@ -45,8 +45,8 @@ public class RowComparatorWithManyFieldsTests extends ComparatorTestBase<Row> {
                 createRow("a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3", "i3", "j3")
             };
 
-    @BeforeClass
-    public static void setUp() throws Exception {
+    @BeforeAll
+    static void setUp() throws Exception {
         TypeInformation<?>[] fieldTypes = new TypeInformation[numberOfFields];
         for (int i = 0; i < numberOfFields; i++) {
             fieldTypes[i] = BasicTypeInfo.STRING_TYPE_INFO;
@@ -57,11 +57,11 @@ public class RowComparatorWithManyFieldsTests extends ComparatorTestBase<Row> {
     @Override
     protected void deepEquals(String message, Row should, Row is) {
         int arity = should.getArity();
-        assertEquals(message, arity, is.getArity());
+        assertThat(is.getArity()).as(message).isEqualTo(arity);
         for (int i = 0; i < arity; i++) {
             Object copiedValue = should.getField(i);
             Object element = is.getField(i);
-            assertEquals(message, element, copiedValue);
+            assertThat(element).as(message).isEqualTo(copiedValue);
         }
     }
 

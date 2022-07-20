@@ -108,14 +108,20 @@ public final class PythonDriver {
             LOG.info(
                     "--------------------------- Python Process Started --------------------------");
             // print the python process output to stdout and log file
-            while (true) {
-                String line = in.readLine();
-                if (line == null) {
-                    break;
-                } else {
-                    System.out.println(line);
-                    LOG.info(line);
+            final StringBuilder sb = new StringBuilder();
+            try {
+                while (true) {
+                    String line = in.readLine();
+                    if (line == null) {
+                        break;
+                    } else {
+                        System.out.println(line);
+                        sb.append(line);
+                        sb.append("\n");
+                    }
                 }
+            } finally {
+                LOG.info(sb.toString());
             }
             int exitCode = pythonProcess.waitFor();
             LOG.info(
@@ -148,10 +154,14 @@ public final class PythonDriver {
      */
     static List<String> constructPythonCommands(final PythonDriverOptions pythonDriverOptions) {
         final List<String> commands = new ArrayList<>();
+        commands.add("-m");
         if (pythonDriverOptions.getEntryPointScript().isPresent()) {
-            commands.add(pythonDriverOptions.getEntryPointScript().get());
+            String pythonFileName = pythonDriverOptions.getEntryPointScript().get();
+            commands.add(
+                    pythonFileName.substring(
+                            pythonFileName.lastIndexOf(File.separator) + 1,
+                            pythonFileName.lastIndexOf(".py")));
         } else {
-            commands.add("-m");
             commands.add(pythonDriverOptions.getEntryPointModule());
         }
         commands.addAll(pythonDriverOptions.getProgramArgs());

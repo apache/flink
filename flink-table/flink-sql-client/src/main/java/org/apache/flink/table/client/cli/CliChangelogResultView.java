@@ -22,8 +22,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.utils.PrintUtils;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.utils.print.PrintStyle;
 
 import org.jline.keymap.KeyMap;
 import org.jline.utils.AttributedString;
@@ -32,18 +32,17 @@ import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp.Capability;
 
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.client.cli.CliUtils.TIME_FORMATTER;
 import static org.apache.flink.table.client.cli.CliUtils.formatTwoLineHelpOptions;
 import static org.apache.flink.table.client.cli.CliUtils.normalizeColumn;
 import static org.apache.flink.table.client.cli.CliUtils.repeatChar;
-import static org.apache.flink.table.utils.PrintUtils.NULL_COLUMN;
 import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.esc;
 import static org.jline.keymap.KeyMap.key;
@@ -57,12 +56,19 @@ public class CliChangelogResultView
     private static final int DEFAULT_REFRESH_INTERVAL_PLAIN = 3; // every 1s
     private static final int MIN_REFRESH_INTERVAL = 0; // every 100ms
 
-    private final ZoneId sessionTimeZone;
     private LocalTime lastRetrieval;
     private int scrolling;
 
     public CliChangelogResultView(CliClient client, ResultDescriptor resultDescriptor) {
-        super(client, resultDescriptor);
+        super(
+                client,
+                resultDescriptor,
+                PrintStyle.tableauWithTypeInferredColumnWidths(
+                        resultDescriptor.getResultSchema(),
+                        resultDescriptor.getRowDataStringConverter(),
+                        resultDescriptor.maxColumnWidth(),
+                        false,
+                        true));
 
         if (client.isPlainTerminal()) {
             refreshInterval = DEFAULT_REFRESH_INTERVAL_PLAIN;
@@ -72,10 +78,6 @@ public class CliChangelogResultView
         previousResults = null;
         // rows are always appended at the tail and deleted from the head of the list
         results = new LinkedList<>();
-
-        this.sessionTimeZone =
-                CliUtils.getSessionTimeZone(
-                        client.getExecutor().getSessionConfig(client.getSessionId()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -83,16 +85,6 @@ public class CliChangelogResultView
     @Override
     protected String[] getRow(String[] resultRow) {
         return Arrays.copyOfRange(resultRow, 1, resultRow.length);
-    }
-
-    @Override
-    protected int computeColumnWidth(int idx) {
-        // change column has a fixed length
-        if (idx == 0) {
-            return 3;
-        } else {
-            return PrintUtils.MAX_COLUMN_WIDTH;
-        }
     }
 
     @Override
@@ -110,7 +102,7 @@ public class CliChangelogResultView
     @Override
     protected void refresh() {
         // retrieve change record
-        final TypedResult<List<Row>> result;
+        final TypedResult<List<RowData>> result;
         try {
             result =
                     client.getExecutor()
@@ -131,17 +123,11 @@ public class CliChangelogResultView
                 stopRetrieval(false);
                 break;
             default:
-                List<Row> changes = result.getPayload();
+                List<RowData> changes = result.getPayload();
 
-                for (Row change : changes) {
+                for (RowData change : changes) {
                     // convert row
-                    final String[] row =
-                            PrintUtils.rowToString(
-                                    change,
-                                    NULL_COLUMN,
-                                    true,
-                                    resultDescriptor.getResultSchema(),
-                                    sessionTimeZone);
+                    final String[] row = tableauStyle.rowFieldsToString(change);
 
                     // update results
 
@@ -281,23 +267,19 @@ public class CliChangelogResultView
 
     @Override
     protected List<AttributedString> computeMainHeaderLines() {
-        final AttributedStringBuilder schemaHeader = new AttributedStringBuilder();
-
         // add change column
-        schemaHeader.append(' ');
-        schemaHeader.style(AttributedStyle.DEFAULT.underline());
-        schemaHeader.append("op");
-        schemaHeader.style(AttributedStyle.DEFAULT);
+        List<String> columnNames = new ArrayList<>(columnWidths.length);
+        columnNames.add("op");
+        columnNames.addAll(resultDescriptor.getResultSchema().getColumnNames());
 
-        resultDescriptor
-                .getResultSchema()
-                .getColumnNames()
+        final AttributedStringBuilder schemaHeader = new AttributedStringBuilder();
+        IntStream.range(0, columnNames.size())
                 .forEach(
-                        s -> {
+                        idx -> {
+                            schemaHeader.style(AttributedStyle.DEFAULT);
                             schemaHeader.append(' ');
                             schemaHeader.style(AttributedStyle.DEFAULT.underline());
-                            normalizeColumn(schemaHeader, s, PrintUtils.MAX_COLUMN_WIDTH);
-                            schemaHeader.style(AttributedStyle.DEFAULT);
+                            normalizeColumn(schemaHeader, columnNames.get(idx), columnWidths[idx]);
                         });
 
         return Collections.singletonList(schemaHeader.toAttributedString());

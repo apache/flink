@@ -34,7 +34,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
@@ -48,7 +47,6 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -56,8 +54,8 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.OperatorStateBackend;
@@ -89,6 +87,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -102,6 +101,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.concurrent.RunnableFuture;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
@@ -191,6 +191,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
         cfg.setStreamOperator(op);
         cfg.setOperatorID(new OperatorID());
         cfg.setStateBackend(backend);
+        cfg.serializeAllConfigs();
 
         ExecutionConfig executionConfig = new ExecutionConfig();
 
@@ -217,10 +218,8 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
         return new Task(
                 jobInformation,
                 taskInformation,
-                new ExecutionAttemptID(),
+                createExecutionAttemptId(taskInformation.getJobVertexId()),
                 new AllocationID(),
-                0,
-                0,
                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                 Collections.<InputGateDeploymentDescriptor>emptyList(),
                 mock(MemoryManager.class),
@@ -242,7 +241,6 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
                         VoidPermanentBlobService.INSTANCE),
                 new TestingTaskManagerRuntimeInfo(),
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-                new NoOpResultPartitionConsumableNotifier(),
                 mock(PartitionProducerStateChecker.class),
                 Executors.directExecutor());
     }
@@ -520,10 +518,11 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
             while (isRunning()) {
                 Thread.sleep(1L);
             }
-            controller.allActionsCompleted();
+            controller.suspendDefaultAction();
+            mailboxProcessor.suspend();
         }
 
         @Override
-        protected void cleanup() {}
+        protected void cleanUpInternal() {}
     }
 }

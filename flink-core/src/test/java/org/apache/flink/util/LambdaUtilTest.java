@@ -43,7 +43,7 @@ public class LambdaUtilTest {
             LambdaUtil.withContextClassLoader(
                     temp, () -> assertSame(temp, Thread.currentThread().getContextClassLoader()));
 
-            // make sure the method restored the the original context class loader
+            // make sure the method restored the original context class loader
             assertSame(original, Thread.currentThread().getContextClassLoader());
         } finally {
             Thread.currentThread().setContextClassLoader(aPrioriContextClassLoader);
@@ -69,7 +69,7 @@ public class LambdaUtilTest {
                         return true;
                     });
 
-            // make sure the method restored the the original context class loader
+            // make sure the method restored the original context class loader
             assertSame(original, Thread.currentThread().getContextClassLoader());
         } finally {
             Thread.currentThread().setContextClassLoader(aPrioriContextClassLoader);

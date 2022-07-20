@@ -63,7 +63,7 @@ public class SerializedThrowable extends Exception implements Serializable {
     }
 
     private SerializedThrowable(Throwable exception, Set<Throwable> alreadySeen) {
-        super(getMessageOrError(exception));
+        super(getClassNameAndMessageOrError(exception));
 
         if (!(exception instanceof SerializedThrowable)) {
             // serialize and memoize the original message
@@ -93,7 +93,8 @@ public class SerializedThrowable extends Exception implements Serializable {
                     initCause(new SerializedThrowable(exception.getCause(), alreadySeen));
                 }
             }
-
+            // mimic suppressed exceptions
+            addAllSuppressed(exception.getSuppressed());
         } else {
             // copy from that serialized throwable
             SerializedThrowable other = (SerializedThrowable) exception;
@@ -103,6 +104,7 @@ public class SerializedThrowable extends Exception implements Serializable {
             this.cachedException = other.cachedException;
             this.setStackTrace(other.getStackTrace());
             this.initCause(other.getCause());
+            this.addAllSuppressed(other.getSuppressed());
         }
     }
 
@@ -137,6 +139,18 @@ public class SerializedThrowable extends Exception implements Serializable {
 
     public String getFullStringifiedStackTrace() {
         return fullStringifiedStackTrace;
+    }
+
+    private void addAllSuppressed(Throwable[] suppressed) {
+        for (Throwable s : suppressed) {
+            SerializedThrowable serializedThrowable;
+            if (s instanceof SerializedThrowable) {
+                serializedThrowable = (SerializedThrowable) s;
+            } else {
+                serializedThrowable = new SerializedThrowable(s);
+            }
+            this.addSuppressed(serializedThrowable);
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -175,9 +189,14 @@ public class SerializedThrowable extends Exception implements Serializable {
         }
     }
 
-    private static String getMessageOrError(Throwable error) {
+    private static String getClassNameAndMessageOrError(Throwable error) {
         try {
-            return error.getMessage();
+            String className = error.getClass().getName();
+            String message = error.getMessage();
+            if (message != null) {
+                return String.format("%s: %s", className, message);
+            }
+            return className;
         } catch (Throwable t) {
             return "(failed to get message)";
         }

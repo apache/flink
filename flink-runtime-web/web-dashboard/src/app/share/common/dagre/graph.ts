@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
+import { NodesItemCorrect, NodesItemLink } from '@flink-runtime-web/interfaces';
 import { curveLinear, line } from 'd3';
 import * as dagre from 'dagre';
 import { GraphEdge, graphlib } from 'dagre';
-import { NodesItemCorrectInterface, NodesItemLinkInterface } from 'interfaces';
+
 import Graph = graphlib.Graph;
 
-export interface LayoutNode extends NodesItemCorrectInterface {
+export interface LayoutNode extends NodesItemCorrect {
   x: number;
   y: number;
   width: number;
@@ -38,10 +39,10 @@ export interface LayoutNodeOptions {
   focused: boolean;
 }
 
-export interface LayoutLink extends NodesItemLinkInterface {
-  [key: string]: any;
+export interface LayoutLink extends NodesItemLink {
+  [key: string]: unknown;
 
-  detail: any;
+  detail: Record<string, unknown>;
   options: LayoutLinkOptions;
   points: Array<{ x: number; y: number }>;
 }
@@ -86,34 +87,37 @@ export class NzGraph {
 
   /**
    * Create graph
+   *
    * @param opt
    */
-  createGraph(opt: CreateGraphOpt = {}) {
+  createGraph(opt: CreateGraphOpt = {}): void {
     this.graph = new dagre.graphlib.Graph(opt);
     this.graph.setGraph({
       rankdir: 'LR',
       ...this.config
-    } as any);
+    });
     this.graph.setDefaultEdgeLabel(() => ({}));
   }
 
   /**
    * Set nodes for graph
+   *
    * @param nodes
    */
-  setNodes(nodes: NodesItemCorrectInterface[]) {
+  setNodes(nodes: NodesItemCorrect[]): void {
     nodes.forEach(n => {
       n.width = n.width || 48;
       n.height = n.height || 48;
-      this.graph.setNode(n.id, n as any);
+      this.graph.setNode(n.id, n);
     });
   }
 
   /**
    * Set links for graph
+   *
    * @param links
    */
-  setEdge(links: NodesItemLinkInterface[]) {
+  setEdge(links: NodesItemLink[]): void {
     links.forEach(l => {
       let length = 0;
       if (l.local_strategy) {
@@ -123,14 +127,14 @@ export class NzGraph {
         length += l.ship_strategy.length;
       }
       l.width = (length || 1) * 3;
-      this.graph.setEdge(l.source, l.target, l as any);
+      this.graph.setEdge(l.source, l.target, l);
     });
   }
 
   /**
    * Init graph layout
    */
-  initLayout() {
+  initLayout(): Promise<void> {
     if (!this.graph) {
       return Promise.reject();
     }
@@ -141,8 +145,8 @@ export class NzGraph {
     this.copyLayoutLinks = [];
 
     dagre.layout(this.graph);
-    const generatedGraph = this.graph.graph() as any;
-    if (generatedGraph.width < generatedGraph.height) {
+    const generatedGraph = this.graph.graph();
+    if (generatedGraph.width! < generatedGraph.height!) {
       this.graph.setGraph({
         rankdir: 'TB',
         ...this.config
@@ -156,7 +160,7 @@ export class NzGraph {
     }
 
     this.graph.nodes().forEach(id => {
-      const node: LayoutNode = this.graph.node(id) as any;
+      const node = this.graph.node(id) as LayoutNode;
       const transform = `translate(${node.x - node.width / 2 || 0}, ${node.y - 1 / 2 || 0})`;
       node.options = {
         transform,
@@ -171,7 +175,7 @@ export class NzGraph {
     });
 
     this.graph.edges().forEach(e => {
-      const edge = this.graph.edge(e) as (LayoutLink & GraphEdge);
+      const edge = this.graph.edge(e) as LayoutLink & GraphEdge;
       const initLine = this.generateLine(edge.points) as string;
       const link: LayoutLink = {
         id: edge.id,
@@ -197,9 +201,10 @@ export class NzGraph {
 
   /**
    * Calculate text base line
+   *
    * @param edge
    */
-  getDominantBaseline(edge: GraphEdge) {
+  getDominantBaseline(edge: GraphEdge): string {
     const firstPoint = edge.points[0];
     const lastPoint = edge.points[edge.points.length - 1];
     return lastPoint.x < firstPoint.x ? 'rtl' : 'ltr';
@@ -207,9 +212,12 @@ export class NzGraph {
 
   /**
    * Zoom when focus on some node
+   *
    * @param opt
    */
-  zoomFocusLayout(opt: ZoomFocusLayoutOpt) {
+  zoomFocusLayout(
+    opt: ZoomFocusLayoutOpt
+  ): Promise<{ transform: { x: number; y: number; k: number }; focusedLinkIds: string[]; circularNodeIds: string[] }> {
     if (!this.graph.hasNode(opt.nodeId)) {
       console.warn(`node ${opt.nodeId} not exist`);
       return Promise.reject();
@@ -257,7 +265,7 @@ export class NzGraph {
   /**
    * Recover layout position
    */
-  recoveryLayout() {
+  recoveryLayout(): Promise<void> {
     this.layoutNodes.forEach(node => {
       const oNode = this.copyLayoutNodes.find(n => n.id === node.id);
       if (oNode) {
@@ -286,17 +294,24 @@ export class NzGraph {
 
   /**
    * Get circle node from selected node
+   *
    * @param selectedNode
    */
-  circleNodes(selectedNode: LayoutNode) {
+  circleNodes(selectedNode: LayoutNode): LayoutNode[] {
     const nodes = [];
     for (const link of this.layoutLinks) {
       if (link.target === selectedNode.id) {
-        nodes.push(this.layoutNodes.find(n => n.id === link.source));
+        const node = this.layoutNodes.find(n => n.id === link.source);
+        if (node) {
+          nodes.push(node);
+        }
       }
 
       if (link.source === selectedNode.id) {
-        nodes.push(this.layoutNodes.find(n => n.id === link.target));
+        const node = this.layoutNodes.find(n => n.id === link.target);
+        if (node) {
+          nodes.push(node);
+        }
       }
     }
     return nodes;
@@ -304,14 +319,15 @@ export class NzGraph {
 
   /**
    * Generate Line from points
+   *
    * @param points
    */
   generateLine(points: Array<{ x: number; y: number }>): string | null {
-    const transformPoints = points as any;
+    const transformPoints = points;
     const lineFunction = line()
-      .x((d: any) => d.x)
-      .y((d: any) => d.y)
+      .x(d => (d as unknown as { x: number }).x)
+      .y(d => (d as unknown as { y: number }).y)
       .curve(curveLinear);
-    return lineFunction(transformPoints);
+    return lineFunction(transformPoints as unknown as Array<[number, number]>);
   }
 }

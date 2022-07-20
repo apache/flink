@@ -112,6 +112,11 @@ public class TaskStateStats implements Serializable {
         }
     }
 
+    /** @return Total persisted size over all subtasks of this checkpoint. */
+    public long getCheckpointedSize() {
+        return summaryStats.getCheckpointedSize().getSum();
+    }
+
     /** @return Total checkpoint state size over all subtasks. */
     public long getStateSize() {
         return summaryStats.getStateSizeStats().getSum();
@@ -166,16 +171,18 @@ public class TaskStateStats implements Serializable {
 
         private static final long serialVersionUID = 1009476026522091909L;
 
-        private MinMaxAvgStats stateSize = new MinMaxAvgStats();
-        private MinMaxAvgStats ackTimestamp = new MinMaxAvgStats();
-        private MinMaxAvgStats syncCheckpointDuration = new MinMaxAvgStats();
-        private MinMaxAvgStats asyncCheckpointDuration = new MinMaxAvgStats();
-        private MinMaxAvgStats processedData = new MinMaxAvgStats();
-        private MinMaxAvgStats persistedData = new MinMaxAvgStats();
-        private MinMaxAvgStats alignmentDuration = new MinMaxAvgStats();
-        private MinMaxAvgStats checkpointStartDelay = new MinMaxAvgStats();
+        private StatsSummary stateSize = new StatsSummary();
+        private StatsSummary checkpointedSize = new StatsSummary();
+        private StatsSummary ackTimestamp = new StatsSummary();
+        private StatsSummary syncCheckpointDuration = new StatsSummary();
+        private StatsSummary asyncCheckpointDuration = new StatsSummary();
+        private StatsSummary processedData = new StatsSummary();
+        private StatsSummary persistedData = new StatsSummary();
+        private StatsSummary alignmentDuration = new StatsSummary();
+        private StatsSummary checkpointStartDelay = new StatsSummary();
 
         void updateSummary(SubtaskStateStats subtaskStats) {
+            checkpointedSize.add(subtaskStats.getCheckpointedSize());
             stateSize.add(subtaskStats.getStateSize());
             if (subtaskStats.isCompleted()) {
                 ackTimestamp.add(subtaskStats.getAckTimestamp());
@@ -188,35 +195,39 @@ public class TaskStateStats implements Serializable {
             checkpointStartDelay.add(subtaskStats.getCheckpointStartDelay());
         }
 
-        public MinMaxAvgStats getStateSizeStats() {
+        public StatsSummary getCheckpointedSize() {
+            return checkpointedSize;
+        }
+
+        public StatsSummary getStateSizeStats() {
             return stateSize;
         }
 
-        public MinMaxAvgStats getAckTimestampStats() {
+        public StatsSummary getAckTimestampStats() {
             return ackTimestamp;
         }
 
-        public MinMaxAvgStats getSyncCheckpointDurationStats() {
+        public StatsSummary getSyncCheckpointDurationStats() {
             return syncCheckpointDuration;
         }
 
-        public MinMaxAvgStats getAsyncCheckpointDurationStats() {
+        public StatsSummary getAsyncCheckpointDurationStats() {
             return asyncCheckpointDuration;
         }
 
-        public MinMaxAvgStats getProcessedDataStats() {
+        public StatsSummary getProcessedDataStats() {
             return processedData;
         }
 
-        public MinMaxAvgStats getPersistedDataStats() {
+        public StatsSummary getPersistedDataStats() {
             return persistedData;
         }
 
-        public MinMaxAvgStats getAlignmentDurationStats() {
+        public StatsSummary getAlignmentDurationStats() {
             return alignmentDuration;
         }
 
-        public MinMaxAvgStats getCheckpointStartDelayStats() {
+        public StatsSummary getCheckpointStartDelayStats() {
             return checkpointStartDelay;
         }
     }

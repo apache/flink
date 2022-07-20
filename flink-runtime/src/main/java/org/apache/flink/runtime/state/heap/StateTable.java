@@ -22,7 +22,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.IterableStateSnapshot;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
@@ -64,8 +66,8 @@ public abstract class StateTable<K, N, S>
     /** The serializer of the key. */
     protected final TypeSerializer<K> keySerializer;
 
-    /** The offset to the contiguous key groups. */
-    protected final int keyGroupOffset;
+    /** The current key group range. */
+    protected final KeyGroupRange keyGroupRange;
 
     /**
      * Map for holding the actual state objects. The outer array represents the key-groups. All
@@ -86,7 +88,7 @@ public abstract class StateTable<K, N, S>
         this.metaInfo = Preconditions.checkNotNull(metaInfo);
         this.keySerializer = Preconditions.checkNotNull(keySerializer);
 
-        this.keyGroupOffset = keyContext.getKeyGroupRange().getStartKeyGroup();
+        this.keyGroupRange = keyContext.getKeyGroupRange();
 
         @SuppressWarnings("unchecked")
         StateMap<K, N, S>[] state =
@@ -206,8 +208,7 @@ public abstract class StateTable<K, N, S>
         checkKeyNamespacePreconditions(key, namespace);
 
         int keyGroup = keyContext.getCurrentKeyGroupIndex();
-        StateMap<K, N, S> stateMap = getMapForKeyGroup(keyGroup);
-        stateMap.transform(key, namespace, value, transformation);
+        getMapForKeyGroup(keyGroup).transform(key, namespace, value, transformation);
     }
 
     // For queryable state ------------------------------------------------------------------------
@@ -257,22 +258,12 @@ public abstract class StateTable<K, N, S>
 
     private S get(K key, int keyGroupIndex, N namespace) {
         checkKeyNamespacePreconditions(key, namespace);
-
-        StateMap<K, N, S> stateMap = getMapForKeyGroup(keyGroupIndex);
-
-        if (stateMap == null) {
-            return null;
-        }
-
-        return stateMap.get(key, namespace);
+        return getMapForKeyGroup(keyGroupIndex).get(key, namespace);
     }
 
     private boolean containsKey(K key, int keyGroupIndex, N namespace) {
         checkKeyNamespacePreconditions(key, namespace);
-
-        StateMap<K, N, S> stateMap = getMapForKeyGroup(keyGroupIndex);
-
-        return stateMap != null && stateMap.containsKey(key, namespace);
+        return getMapForKeyGroup(keyGroupIndex).containsKey(key, namespace);
     }
 
     private void checkKeyNamespacePreconditions(K key, N namespace) {
@@ -283,17 +274,12 @@ public abstract class StateTable<K, N, S>
 
     private void remove(K key, int keyGroupIndex, N namespace) {
         checkKeyNamespacePreconditions(key, namespace);
-
-        StateMap<K, N, S> stateMap = getMapForKeyGroup(keyGroupIndex);
-        stateMap.remove(key, namespace);
+        getMapForKeyGroup(keyGroupIndex).remove(key, namespace);
     }
 
     private S removeAndGetOld(K key, int keyGroupIndex, N namespace) {
         checkKeyNamespacePreconditions(key, namespace);
-
-        StateMap<K, N, S> stateMap = getMapForKeyGroup(keyGroupIndex);
-
-        return stateMap.removeAndGetOld(key, namespace);
+        return getMapForKeyGroup(keyGroupIndex).removeAndGetOld(key, namespace);
     }
 
     // ------------------------------------------------------------------------
@@ -307,7 +293,7 @@ public abstract class StateTable<K, N, S>
     }
 
     public int getKeyGroupOffset() {
-        return keyGroupOffset;
+        return keyGroupRange.getStartKeyGroup();
     }
 
     @VisibleForTesting
@@ -316,13 +302,13 @@ public abstract class StateTable<K, N, S>
         if (pos >= 0 && pos < keyGroupedStateMaps.length) {
             return keyGroupedStateMaps[pos];
         } else {
-            return null;
+            throw KeyGroupRangeOffsets.newIllegalKeyGroupException(keyGroupIndex, keyGroupRange);
         }
     }
 
     /** Translates a key-group id to the internal array offset. */
     private int indexToOffset(int index) {
-        return index - keyGroupOffset;
+        return index - getKeyGroupOffset();
     }
 
     // Meta data setter / getter and toString -----------------------------------------------------
@@ -351,9 +337,7 @@ public abstract class StateTable<K, N, S>
 
     public void put(K key, int keyGroup, N namespace, S state) {
         checkKeyNamespacePreconditions(key, namespace);
-
-        StateMap<K, N, S> stateMap = getMapForKeyGroup(keyGroup);
-        stateMap.put(key, namespace, state);
+        getMapForKeyGroup(keyGroup).put(key, namespace, state);
     }
 
     @Override

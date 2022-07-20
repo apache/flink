@@ -20,16 +20,17 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.factories.TableFactoryService;
 
 /**
- * Validator for {@link OldCsv}.
+ * Validator for the legacy CSV connector.
  *
  * @deprecated Use the RFC-compliant {@code Csv} format in the dedicated flink-formats/flink-csv
  *     module instead.
  */
 @Deprecated
 @Internal
-public class OldCsvValidator extends FormatDescriptorValidator {
+public class OldCsvValidator implements DescriptorValidator {
 
     public static final String FORMAT_TYPE_VALUE = "csv";
     public static final String FORMAT_FIELD_DELIMITER = "format.field-delimiter";
@@ -44,22 +45,24 @@ public class OldCsvValidator extends FormatDescriptorValidator {
 
     @Override
     public void validate(DescriptorProperties properties) {
-        super.validate(properties);
-        properties.validateValue(FORMAT_TYPE, FORMAT_TYPE_VALUE, false);
+        properties.validateString(TableFactoryService.FORMAT_TYPE, false, 1);
+        properties.validateString(TableFactoryService.FORMAT_PROPERTY_VERSION, true, 1);
+
+        properties.validateValue(TableFactoryService.FORMAT_TYPE, FORMAT_TYPE_VALUE, false);
         properties.validateString(FORMAT_FIELD_DELIMITER, true, 1);
         properties.validateString(FORMAT_LINE_DELIMITER, true, 1);
         properties.validateString(FORMAT_QUOTE_CHARACTER, true, 1, 1);
         properties.validateString(FORMAT_COMMENT_PREFIX, true, 1);
         properties.validateBoolean(FORMAT_IGNORE_FIRST_LINE, true);
         properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, true);
-        properties.validateBoolean(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA, true);
+        properties.validateBoolean(TableFactoryService.FORMAT_DERIVE_SCHEMA, true);
         properties.validateString(FORMAT_WRITE_MODE, true, 1);
         properties.validateInt(FORMAT_NUM_FILES, true);
 
         final boolean hasSchema = properties.hasPrefix(FORMAT_FIELDS);
         final boolean isDerived =
                 properties
-                        .getOptionalBoolean(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA)
+                        .getOptionalBoolean(TableFactoryService.FORMAT_DERIVE_SCHEMA)
                         .orElse(true); // derive schema by default
 
         // if a schema is defined, no matter derive schema is set or not, will use the defined

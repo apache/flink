@@ -22,9 +22,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.test.util.FileUtils;
+import org.apache.flink.test.util.JobSubmission;
+import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.util.FileUtils;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -33,6 +35,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
@@ -168,6 +171,13 @@ final class FlinkDistribution {
             commands.add("-p");
             commands.add(String.valueOf(jobSubmission.getParallelism()));
         }
+        jobSubmission
+                .getMainClass()
+                .ifPresent(
+                        mainClass -> {
+                            commands.add("--class");
+                            commands.add(mainClass);
+                        });
         commands.add(jobSubmission.getJar().toAbsolutePath().toString());
         commands.addAll(jobSubmission.getArguments());
 
@@ -188,42 +198,20 @@ final class FlinkDistribution {
                     }
                 };
 
-        try (AutoClosableProcess flink =
-                AutoClosableProcess.create(commands.toArray(new String[0]))
-                        .setStdoutProcessor(stdoutProcessor)
-                        .runNonBlocking()) {
-            if (jobSubmission.isDetached()) {
-                try {
-                    flink.getProcess().waitFor();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
+        AutoClosableProcess.create(commands.toArray(new String[0]))
+                .setStdoutProcessor(stdoutProcessor)
+                .runBlocking();
 
-            try {
-                return JobID.fromHexString(
-                        rawJobIdFuture.get(timeout.getSeconds(), TimeUnit.SECONDS));
-            } catch (Exception e) {
-                throw new IOException("Could not determine Job ID.", e);
-            }
+        try {
+            return JobID.fromHexString(rawJobIdFuture.get(timeout.getSeconds(), TimeUnit.SECONDS));
+        } catch (Exception e) {
+            throw new IOException("Could not determine Job ID.", e);
         }
     }
 
     public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws IOException {
         final List<String> commands = new ArrayList<>();
         commands.add(bin.resolve("sql-client.sh").toAbsolutePath().toString());
-        job.getDefaultEnvFile()
-                .ifPresent(
-                        defaultEnvFile -> {
-                            commands.add("--defaults");
-                            commands.add(defaultEnvFile);
-                        });
-        job.getSessionEnvFile()
-                .ifPresent(
-                        sessionEnvFile -> {
-                            commands.add("--environment");
-                            commands.add(sessionEnvFile);
-                        });
         for (String jar : job.getJars()) {
             commands.add("--jar");
             commands.add(jar);
@@ -233,6 +221,22 @@ final class FlinkDistribution {
                 .setStdInputs(job.getSqlLines().toArray(new String[0]))
                 .setStdoutProcessor(LOG::info) // logging the SQL statements and error message
                 .runBlocking(timeout);
+    }
+
+    public void performJarAddition(JarAddition addition) throws IOException {
+        final Path target = mapJarLocationToPath(addition.getTarget());
+        final Path sourceJar = addition.getJar();
+
+        final String jarNameWithoutExtension =
+                FilenameUtils.removeExtension(sourceJar.getFileName().toString());
+
+        // put the jar into a directory within the target location; this is primarily needed for
+        // plugins/, but also works for lib/
+        final Path targetJar =
+                target.resolve(jarNameWithoutExtension).resolve(sourceJar.getFileName());
+        Files.createDirectories(targetJar.getParent());
+
+        Files.copy(sourceJar, targetJar);
     }
 
     public void performJarOperation(JarOperation operation) throws IOException {

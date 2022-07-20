@@ -23,9 +23,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -50,10 +50,7 @@ public class RestClientMultipartTest extends TestLogger {
 
     @BeforeClass
     public static void setupClient() throws ConfigurationException {
-        restClient =
-                new RestClient(
-                        RestClientConfiguration.fromConfiguration(new Configuration()),
-                        TestingUtils.defaultExecutor());
+        restClient = new RestClient(new Configuration(), Executors.directExecutor());
     }
 
     @After

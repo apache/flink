@@ -134,7 +134,7 @@ a class that extracts the timestamps from the events, and generates watermarks o
 easiest way to do this is by using a `WatermarkStrategy`:
 
 ```java
-DataStream<Event> stream = ...
+DataStream<Event> stream = ...;
 
 WatermarkStrategy<Event> strategy = WatermarkStrategy
         .<Event>forBoundedOutOfOrderness(Duration.ofSeconds(20))
@@ -175,7 +175,7 @@ function, and _Evictors_, which can remove elements collected in a window.
 In its basic form, you apply windowing to a keyed stream like this:
 
 ```java
-stream.
+stream
     .keyBy(<key selector>)
     .window(<window assigner>)
     .reduce|aggregate|process(<window function>);
@@ -185,7 +185,7 @@ You can also use windowing with non-keyed streams, but keep in mind that in this
 processing will _not_ be done in parallel:
 
 ```java
-stream.
+stream
     .windowAll(<window assigner>)
     .reduce|aggregate|process(<window function>);
 ```
@@ -244,7 +244,7 @@ end-of-window-timestamp, max_value)`.
 #### ProcessWindowFunction Example
 
 ```java
-DataStream<SensorReading> input = ...
+DataStream<SensorReading> input = ...;
 
 input
     .keyBy(x -> x.key)
@@ -296,7 +296,7 @@ per-key information for all windows of that key. This might be useful, for examp
 #### Incremental Aggregation Example
 
 ```java
-DataStream<SensorReading> input = ...
+DataStream<SensorReading> input = ...;
 
 input
     .keyBy(x -> x.key)
@@ -339,7 +339,7 @@ Here is an example of what that might look like:
 ```java
 OutputTag<Event> lateTag = new OutputTag<Event>("late"){};
 
-SingleOutputStreamOperator<Event> result = stream.
+SingleOutputStreamOperator<Event> result = stream
     .keyBy(...)
     .window(...)
     .sideOutputLateData(lateTag)
@@ -357,7 +357,7 @@ By default the allowed lateness is 0. In other words, elements behind the waterm
 For example:
 
 ```java
-stream.
+stream
     .keyBy(...)
     .window(...)
     .allowedLateness(Time.seconds(10))

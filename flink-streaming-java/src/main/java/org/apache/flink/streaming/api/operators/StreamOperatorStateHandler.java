@@ -26,10 +26,13 @@ import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
@@ -51,7 +54,7 @@ import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.IOUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +65,7 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -106,10 +110,10 @@ public class StreamOperatorStateHandler {
                 context.rawOperatorStateInputs();
 
         try {
+            OptionalLong checkpointId = context.getRestoredCheckpointId();
             StateInitializationContext initializationContext =
                     new StateInitializationContextImpl(
-                            context.isRestored(), // information whether we restore or start for
-                            // the first time
+                            checkpointId.isPresent() ? checkpointId.getAsLong() : null,
                             operatorStateBackend, // access to operator state backend
                             keyedStateStore, // access to keyed state backend
                             keyedStateInputs, // access to keyed state stream
@@ -228,9 +232,10 @@ public class StreamOperatorStateHandler {
             }
 
             if (null != keyedStateBackend) {
-                if (checkpointOptions.getCheckpointType().isSavepoint()) {
+                if (isCanonicalSavepoint(checkpointOptions.getCheckpointType())) {
                     SnapshotStrategyRunner<KeyedStateHandle, ? extends FullSnapshotResources<?>>
-                            snapshotRunner = prepareSavepoint(keyedStateBackend, closeableRegistry);
+                            snapshotRunner =
+                                    prepareCanonicalSavepoint(keyedStateBackend, closeableRegistry);
 
                     snapshotInProgress.setKeyedStateManagedFuture(
                             snapshotRunner.snapshot(
@@ -268,9 +273,14 @@ public class StreamOperatorStateHandler {
         }
     }
 
+    private boolean isCanonicalSavepoint(SnapshotType snapshotType) {
+        return snapshotType.isSavepoint()
+                && ((SavepointType) snapshotType).getFormatType() == SavepointFormatType.CANONICAL;
+    }
+
     @Nonnull
     public static SnapshotStrategyRunner<KeyedStateHandle, ? extends FullSnapshotResources<?>>
-            prepareSavepoint(
+            prepareCanonicalSavepoint(
                     CheckpointableKeyedStateBackend<?> keyedStateBackend,
                     CloseableRegistry closeableRegistry)
                     throws Exception {

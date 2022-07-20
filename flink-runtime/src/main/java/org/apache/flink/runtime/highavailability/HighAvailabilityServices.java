@@ -21,12 +21,16 @@ package org.apache.flink.runtime.highavailability;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * The HighAvailabilityServices give access to all services needed for a highly-available setup. In
@@ -43,7 +47,8 @@ import java.util.UUID;
  *   <li>Naming of RPC endpoints
  * </ul>
  */
-public interface HighAvailabilityServices extends ClientHighAvailabilityServices {
+public interface HighAvailabilityServices
+        extends ClientHighAvailabilityServices, GloballyCleanableResource {
 
     // ------------------------------------------------------------------------
     //  Constants
@@ -158,7 +163,7 @@ public interface HighAvailabilityServices extends ClientHighAvailabilityServices
      *
      * @return Checkpoint recovery factory
      */
-    CheckpointRecoveryFactory getCheckpointRecoveryFactory();
+    CheckpointRecoveryFactory getCheckpointRecoveryFactory() throws Exception;
 
     /**
      * Gets the submitted job graph store for the job manager.
@@ -169,11 +174,12 @@ public interface HighAvailabilityServices extends ClientHighAvailabilityServices
     JobGraphStore getJobGraphStore() throws Exception;
 
     /**
-     * Gets the registry that holds information about whether jobs are currently running.
+     * Gets the store that holds information about the state of finished jobs.
      *
-     * @return Running job registry to retrieve running jobs
+     * @return Store of finished job results
+     * @throws Exception if job result store could not be created
      */
-    RunningJobsRegistry getRunningJobsRegistry() throws Exception;
+    JobResultStore getJobResultStore() throws Exception;
 
     /**
      * Creates the BLOB store in which BLOBs are stored in a highly-available fashion.
@@ -237,4 +243,9 @@ public interface HighAvailabilityServices extends ClientHighAvailabilityServices
      *     up data stored by them.
      */
     void closeAndCleanupAllData() throws Exception;
+
+    @Override
+    default CompletableFuture<Void> globalCleanupAsync(JobID jobId, Executor executor) {
+        return FutureUtils.completedVoidFuture();
+    }
 }

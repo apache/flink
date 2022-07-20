@@ -19,8 +19,9 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.metrics.TimerGauge;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.ExceptionUtils;
@@ -59,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * up. For control flag changes by all other threads, that must happen through mailbox actions, this
  * is automatically the case.
  *
- * <p>This class has a open-prepareClose-close lifecycle that is connected with and maps to the
+ * <p>This class has an open-prepareClose-close lifecycle that is connected with and maps to the
  * lifecycle of the encapsulated {@link TaskMailbox} (which is open-quiesce-close).
  */
 @Internal
@@ -100,6 +101,8 @@ public class MailboxProcessor implements Closeable {
 
     private final StreamTaskActionExecutor actionExecutor;
 
+    private final MailboxMetricsController mailboxMetricsControl;
+
     @VisibleForTesting
     public MailboxProcessor() {
         this(MailboxDefaultAction.Controller::suspendDefaultAction);
@@ -118,11 +121,25 @@ public class MailboxProcessor implements Closeable {
             MailboxDefaultAction mailboxDefaultAction,
             TaskMailbox mailbox,
             StreamTaskActionExecutor actionExecutor) {
+        this(
+                mailboxDefaultAction,
+                mailbox,
+                actionExecutor,
+                new MailboxMetricsController(
+                        new DescriptiveStatisticsHistogram(10), new SimpleCounter()));
+    }
+
+    public MailboxProcessor(
+            MailboxDefaultAction mailboxDefaultAction,
+            TaskMailbox mailbox,
+            StreamTaskActionExecutor actionExecutor,
+            MailboxMetricsController mailboxMetricsControl) {
         this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
         this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
         this.mailbox = Preconditions.checkNotNull(mailbox);
         this.mailboxLoopRunning = true;
         this.suspendedDefaultAction = null;
+        this.mailboxMetricsControl = mailboxMetricsControl;
     }
 
     public MailboxExecutor getMainMailboxExecutor() {
@@ -136,6 +153,16 @@ public class MailboxProcessor implements Closeable {
      */
     public MailboxExecutor getMailboxExecutor(int priority) {
         return new MailboxExecutorImpl(mailbox, priority, actionExecutor, this);
+    }
+
+    /**
+     * Gets {@link MailboxMetricsController} for control and access to mailbox metrics.
+     *
+     * @return {@link MailboxMetricsController}.
+     */
+    @VisibleForTesting
+    public MailboxMetricsController getMailboxMetricsControl() {
+        return this.mailboxMetricsControl;
     }
 
     /** Lifecycle method to close the mailbox for action submission. */
@@ -175,7 +202,7 @@ public class MailboxProcessor implements Closeable {
      */
     public void drain() throws Exception {
         for (final Mail mail : mailbox.drain()) {
-            mail.run();
+            runMail(mail);
         }
     }
 
@@ -195,14 +222,14 @@ public class MailboxProcessor implements Closeable {
 
         assert localMailbox.getState() == TaskMailbox.State.OPEN : "Mailbox must be opened!";
 
-        final MailboxController defaultActionContext = new MailboxController(this);
+        final MailboxController mailboxController = new MailboxController(this);
 
         while (isNextLoopPossible()) {
             // The blocking `processMail` call will not return until default action is available.
             processMail(localMailbox, false);
             if (isNextLoopPossible()) {
                 mailboxDefaultAction.runDefaultAction(
-                        defaultActionContext); // lock is acquired inside default action as needed
+                        mailboxController); // lock is acquired inside default action as needed
             }
         }
     }
@@ -224,7 +251,7 @@ public class MailboxProcessor implements Closeable {
         if (processMail(mailbox, true)) {
             return true;
         }
-        if (!isDefaultActionUnavailable() && isNextLoopPossible()) {
+        if (isDefaultActionAvailable() && isNextLoopPossible()) {
             mailboxDefaultAction.runDefaultAction(new MailboxController(this));
             return true;
         }
@@ -312,15 +339,10 @@ public class MailboxProcessor implements Closeable {
         // Doing this check is an optimization to only have a volatile read in the expected hot
         // path, locks are only
         // acquired after this point.
-        if (!mailbox.createBatch()) {
-            // We can also directly return true because all changes to #isMailboxLoopRunning must be
-            // connected to
-            // mailbox.hasMail() == true.
-            return false;
-        }
+        boolean isBatchAvailable = mailbox.createBatch();
 
         // Take mails in a non-blockingly and execute them.
-        boolean processed = processMailsNonBlocking(singleStep);
+        boolean processed = isBatchAvailable && processMailsNonBlocking(singleStep);
         if (singleStep) {
             return processed;
         }
@@ -335,13 +357,15 @@ public class MailboxProcessor implements Closeable {
     private boolean processMailsWhenDefaultActionUnavailable() throws Exception {
         boolean processedSomething = false;
         Optional<Mail> maybeMail;
-        while (isDefaultActionUnavailable() && isNextLoopPossible()) {
+        while (!isDefaultActionAvailable() && isNextLoopPossible()) {
             maybeMail = mailbox.tryTake(MIN_PRIORITY);
             if (!maybeMail.isPresent()) {
                 maybeMail = Optional.of(mailbox.take(MIN_PRIORITY));
             }
             maybePauseIdleTimer();
-            maybeMail.get().run();
+
+            runMail(maybeMail.get());
+
             maybeRestartIdleTimer();
             processedSomething = true;
         }
@@ -356,7 +380,7 @@ public class MailboxProcessor implements Closeable {
             if (processedMails++ == 0) {
                 maybePauseIdleTimer();
             }
-            maybeMail.get().run();
+            runMail(maybeMail.get());
             if (singleStep) {
                 break;
             }
@@ -366,6 +390,20 @@ public class MailboxProcessor implements Closeable {
             return true;
         } else {
             return false;
+        }
+    }
+
+    private void runMail(Mail mail) throws Exception {
+        mailboxMetricsControl.getMailCounter().inc();
+        mail.run();
+        if (!suspended) {
+            // start latency measurement on first mail that is not suspending mailbox execution,
+            // i.e., on first non-poison mail, otherwise latency measurement is not started to avoid
+            // overhead
+            if (!mailboxMetricsControl.isLatencyMeasurementStarted()
+                    && mailboxMetricsControl.isLatencyMeasurementSetup()) {
+                mailboxMetricsControl.startLatencyMeasurement();
+            }
         }
     }
 
@@ -386,7 +424,7 @@ public class MailboxProcessor implements Closeable {
      * default action, e.g. because there is currently no input available.
      */
     private MailboxDefaultAction.Suspension suspendDefaultAction(
-            @Nullable TimerGauge suspensionTimer) {
+            @Nullable PeriodTimer suspensionTimer) {
 
         checkState(
                 mailbox.isMailboxThread(),
@@ -395,15 +433,14 @@ public class MailboxProcessor implements Closeable {
         checkState(suspendedDefaultAction == null, "Default action has already been suspended");
         if (suspendedDefaultAction == null) {
             suspendedDefaultAction = new DefaultActionSuspension(suspensionTimer);
-            ensureControlFlowSignalCheck();
         }
 
         return suspendedDefaultAction;
     }
 
     @VisibleForTesting
-    public boolean isDefaultActionUnavailable() {
-        return suspendedDefaultAction != null;
+    public boolean isDefaultActionAvailable() {
+        return suspendedDefaultAction == null;
     }
 
     private boolean isNextLoopPossible() {
@@ -419,18 +456,6 @@ public class MailboxProcessor implements Closeable {
     @VisibleForTesting
     public boolean hasMail() {
         return mailbox.hasMail();
-    }
-
-    /**
-     * Helper method to make sure that the mailbox loop will check the control flow flags in the
-     * next iteration.
-     */
-    private void ensureControlFlowSignalCheck() {
-        // Make sure that mailbox#hasMail is true via a dummy mail so that the flag change is
-        // noticed.
-        if (!mailbox.hasMail()) {
-            sendControlMail(() -> {}, "signal check");
-        }
     }
 
     /**
@@ -452,8 +477,8 @@ public class MailboxProcessor implements Closeable {
 
         @Override
         public MailboxDefaultAction.Suspension suspendDefaultAction(
-                TimerGauge suspensionIdleTimer) {
-            return mailboxProcessor.suspendDefaultAction(suspensionIdleTimer);
+                PeriodTimer suspensionPeriodTimer) {
+            return mailboxProcessor.suspendDefaultAction(suspensionPeriodTimer);
         }
 
         @Override
@@ -467,9 +492,9 @@ public class MailboxProcessor implements Closeable {
      * resume execution.
      */
     private final class DefaultActionSuspension implements MailboxDefaultAction.Suspension {
-        @Nullable private final TimerGauge suspensionTimer;
+        @Nullable private final PeriodTimer suspensionTimer;
 
-        public DefaultActionSuspension(@Nullable TimerGauge suspensionTimer) {
+        public DefaultActionSuspension(@Nullable PeriodTimer suspensionTimer) {
             this.suspensionTimer = suspensionTimer;
         }
 

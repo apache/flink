@@ -49,13 +49,13 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeFalse;
@@ -108,28 +108,6 @@ public class FileUtilsTest extends TestLogger {
                 tmpFolder.delete();
             }
         }
-    }
-
-    @Test
-    public void testDeletePathIfEmpty() throws IOException {
-        final FileSystem localFs = FileSystem.getLocalFileSystem();
-
-        final File dir = tmp.newFolder();
-        assertTrue(dir.exists());
-
-        final Path dirPath = new Path(dir.toURI());
-
-        // deleting an empty directory should work
-        assertTrue(FileUtils.deletePathIfEmpty(localFs, dirPath));
-
-        // deleting a non existing directory should work
-        assertTrue(FileUtils.deletePathIfEmpty(localFs, dirPath));
-
-        // create a non-empty dir
-        final File nonEmptyDir = tmp.newFolder();
-        final Path nonEmptyDirPath = new Path(nonEmptyDir.toURI());
-        new FileOutputStream(new File(nonEmptyDir, "filename")).close();
-        assertFalse(FileUtils.deletePathIfEmpty(localFs, nonEmptyDirPath));
     }
 
     @Test
@@ -329,6 +307,22 @@ public class FileUtilsTest extends TestLogger {
         final String fileName = "a.jar";
         final File file = tmp.newFile(fileName);
         FileUtils.listFilesInDirectory(file.toPath(), FileUtils::isJarFile);
+    }
+
+    @Test
+    public void testFollowSymbolicDirectoryLink() throws IOException {
+        final File directory = tmp.newFolder("a");
+        final File file = new File(directory, "a.jar");
+        assertTrue(file.createNewFile());
+
+        final File otherDirectory = tmp.newFolder();
+        java.nio.file.Path linkPath = Paths.get(otherDirectory.getPath(), "a.lnk");
+        Files.createSymbolicLink(linkPath, directory.toPath());
+
+        Collection<java.nio.file.Path> paths =
+                FileUtils.listFilesInDirectory(linkPath, FileUtils::isJarFile);
+
+        assertThat(paths, containsInAnyOrder(linkPath.resolve(file.getName())));
     }
 
     // ------------------------------------------------------------------------

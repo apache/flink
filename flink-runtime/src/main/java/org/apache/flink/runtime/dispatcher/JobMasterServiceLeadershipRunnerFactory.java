@@ -24,7 +24,7 @@ import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.DefaultSlotPoolServiceSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
@@ -38,8 +38,6 @@ import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFact
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -66,8 +64,8 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
         final JobMasterConfiguration jobMasterConfiguration =
                 JobMasterConfiguration.fromConfiguration(configuration);
 
-        final RunningJobsRegistry runningJobsRegistry =
-                highAvailabilityServices.getRunningJobsRegistry();
+        final JobResultStore jobResultStore = highAvailabilityServices.getJobResultStore();
+
         final LeaderElectionService jobManagerLeaderElectionService =
                 highAvailabilityServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
@@ -83,10 +81,6 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
                     "Adaptive Scheduler is required for reactive mode");
         }
 
-        final ShuffleMaster<?> shuffleMaster =
-                ShuffleServiceLoader.loadShuffleServiceFactory(configuration)
-                        .createShuffleMaster(configuration);
-
         final LibraryCacheManager.ClassLoaderLease classLoaderLease =
                 jobManagerServices
                         .getLibraryCacheManager()
@@ -100,7 +94,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
 
         final DefaultJobMasterServiceFactory jobMasterServiceFactory =
                 new DefaultJobMasterServiceFactory(
-                        jobManagerServices.getScheduledExecutorService(),
+                        jobManagerServices.getIoExecutor(),
                         rpcService,
                         jobMasterConfiguration,
                         jobGraph,
@@ -111,7 +105,6 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
                         jobManagerJobMetricGroupFactory,
                         fatalErrorHandler,
                         userCodeClassLoader,
-                        shuffleMaster,
                         initializationTimestamp);
 
         final DefaultJobMasterServiceProcessFactory jobMasterServiceProcessFactory =
@@ -125,7 +118,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
         return new JobMasterServiceLeadershipRunner(
                 jobMasterServiceProcessFactory,
                 jobManagerLeaderElectionService,
-                runningJobsRegistry,
+                jobResultStore,
                 classLoaderLease,
                 fatalErrorHandler);
     }

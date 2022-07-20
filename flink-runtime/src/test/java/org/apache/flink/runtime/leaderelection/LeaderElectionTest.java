@@ -21,15 +21,19 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedLeaderService;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -38,6 +42,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -45,6 +50,14 @@ import static org.junit.Assert.assertThat;
 /** Tests for leader election. */
 @RunWith(Parameterized.class)
 public class LeaderElectionTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
+    @Rule
+    public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
+            new TestingFatalErrorHandlerResource();
 
     enum LeaderElectionType {
         ZooKeeper,
@@ -78,7 +91,7 @@ public class LeaderElectionTest extends TestLogger {
 
     @Before
     public void setup() throws Exception {
-        serviceClass.setup();
+        serviceClass.setup(testingFatalErrorHandlerResource.getFatalErrorHandler());
     }
 
     @After
@@ -154,7 +167,7 @@ public class LeaderElectionTest extends TestLogger {
     }
 
     private interface ServiceClass {
-        void setup() throws Exception;
+        void setup(FatalErrorHandler fatalErrorHandler) throws Exception;
 
         void teardown() throws Exception;
 
@@ -165,12 +178,12 @@ public class LeaderElectionTest extends TestLogger {
 
         private TestingServer testingServer;
 
-        private CuratorFramework client;
+        private CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper;
 
         private Configuration configuration;
 
         @Override
-        public void setup() throws Exception {
+        public void setup(FatalErrorHandler fatalErrorHandler) throws Exception {
             try {
                 testingServer = new TestingServer();
             } catch (Exception e) {
@@ -183,14 +196,15 @@ public class LeaderElectionTest extends TestLogger {
                     HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
             configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
-            client = ZooKeeperUtils.startCuratorFramework(configuration);
+            curatorFrameworkWrapper =
+                    ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
         }
 
         @Override
         public void teardown() throws Exception {
-            if (client != null) {
-                client.close();
-                client = null;
+            if (curatorFrameworkWrapper != null) {
+                curatorFrameworkWrapper.close();
+                curatorFrameworkWrapper = null;
             }
 
             if (testingServer != null) {
@@ -201,7 +215,8 @@ public class LeaderElectionTest extends TestLogger {
 
         @Override
         public LeaderElectionService createLeaderElectionService() throws Exception {
-            return ZooKeeperUtils.createLeaderElectionService(client, configuration);
+            return ZooKeeperUtils.createLeaderElectionService(
+                    curatorFrameworkWrapper.asCuratorFramework());
         }
     }
 
@@ -209,9 +224,8 @@ public class LeaderElectionTest extends TestLogger {
         private EmbeddedLeaderService embeddedLeaderService;
 
         @Override
-        public void setup() {
-            embeddedLeaderService =
-                    new EmbeddedLeaderService(TestingUtils.defaultExecutionContext());
+        public void setup(FatalErrorHandler fatalErrorHandler) {
+            embeddedLeaderService = new EmbeddedLeaderService(EXECUTOR_RESOURCE.getExecutor());
         }
 
         @Override
@@ -231,7 +245,7 @@ public class LeaderElectionTest extends TestLogger {
     private static final class StandaloneServiceClass implements ServiceClass {
 
         @Override
-        public void setup() throws Exception {
+        public void setup(FatalErrorHandler fatalErrorHandler) throws Exception {
             // noop
         }
 

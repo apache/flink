@@ -140,7 +140,7 @@ DataSet<Long> counts = textLines.mapPartition(new PartitionCounter());
 val textLines: DataSet[String] = // [...]
 // Some is required because the return value must be a Collection.
 // There is an implicit conversion from Option to a Collection.
-val counts = texLines.mapPartition { in => Some(in.size) }
+val counts = textLines.mapPartition { in => Some(in.size) }
 ```
 
 {{< /tab >}}
@@ -204,7 +204,7 @@ DataSet<Tuple2<String, Integer>> out = in.project(2,0);
 Note that the Java compiler cannot infer the return type of `project` operator. This can cause a problem if you call another operator on a result of `project` operator such as:
 
 ```java
-DataSet<Tuple5<String,String,String,String,String>> ds = ....
+DataSet<Tuple5<String,String,String,String,String>> ds = ....;
 DataSet<Tuple1<String>> ds2 = ds.project(0).distinct(0);
 ```
 
@@ -1197,8 +1197,8 @@ public class PointWeighter
 }
 
 DataSet<Tuple2<String, Double>>
-            weightedRatings =
-            ratings.join(weights) // [...]
+        weightedRatings =
+        ratings.join(weights);
 ```
 
 {{< /tab >}}

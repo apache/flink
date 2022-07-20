@@ -44,7 +44,7 @@ MiniBatch 聚合的核心思想是将一组输入的数据缓存在聚合算子�
 
 下图说明了 mini-batch 聚合如何减少状态操作。
 
-<img src="/fig/table-streaming/minibatch_agg.png" width="50%" height="50%" />
+{{<img src="/fig/table-streaming/minibatch_agg.png" width="50%" height="50%" >}}
 
 默认情况下，对于无界聚合算子来说，mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{< ref "docs/dev/table/config" >}}#execution-options)页面。
 
@@ -59,14 +59,14 @@ Window TVF aggregation buffer records in [managed memory]({{< ref "docs/deployme
 {{< tab "Java" >}}
 ```java
 // instantiate table environment
-TableEnvironment tEnv = ...
+TableEnvironment tEnv = ...;
 
 // access flink configuration
-Configuration configuration = tEnv.getConfig().getConfiguration();
+TableConfig configuration = tEnv.getConfig();
 // set low-level key-value options
-configuration.setString("table.exec.mini-batch.enabled", "true"); // enable mini-batch optimization
-configuration.setString("table.exec.mini-batch.allow-latency", "5 s"); // use 5 seconds to buffer input records
-configuration.setString("table.exec.mini-batch.size", "5000"); // the maximum number of records can be buffered by each aggregate operator task
+configuration.set("table.exec.mini-batch.enabled", "true"); // enable mini-batch optimization
+configuration.set("table.exec.mini-batch.allow-latency", "5 s"); // use 5 seconds to buffer input records
+configuration.set("table.exec.mini-batch.size", "5000"); // the maximum number of records can be buffered by each aggregate operator task
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -75,11 +75,11 @@ configuration.setString("table.exec.mini-batch.size", "5000"); // the maximum nu
 val tEnv: TableEnvironment = ...
 
 // access flink configuration
-val configuration = tEnv.getConfig().getConfiguration()
+val configuration = tEnv.getConfig()
 // set low-level key-value options
-configuration.setString("table.exec.mini-batch.enabled", "true") // enable mini-batch optimization
-configuration.setString("table.exec.mini-batch.allow-latency", "5 s") // use 5 seconds to buffer input records
-configuration.setString("table.exec.mini-batch.size", "5000") // the maximum number of records can be buffered by each aggregate operator task
+configuration.set("table.exec.mini-batch.enabled", "true") // enable mini-batch optimization
+configuration.set("table.exec.mini-batch.allow-latency", "5 s") // use 5 seconds to buffer input records
+configuration.set("table.exec.mini-batch.size", "5000") // the maximum number of records can be buffered by each aggregate operator task
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -88,11 +88,11 @@ configuration.setString("table.exec.mini-batch.size", "5000") // the maximum num
 t_env = ...
 
 # access flink configuration
-configuration = t_env.get_config().get_configuration();
+configuration = t_env.get_config()
 # set low-level key-value options
-configuration.set_string("table.exec.mini-batch.enabled", "true"); # enable mini-batch optimization
-configuration.set_string("table.exec.mini-batch.allow-latency", "5 s"); # use 5 seconds to buffer input records
-configuration.set_string("table.exec.mini-batch.size", "5000"); # the maximum number of records can be buffered by each aggregate operator task
+configuration.set("table.exec.mini-batch.enabled", "true") # enable mini-batch optimization
+configuration.set("table.exec.mini-batch.allow-latency", "5 s") # use 5 seconds to buffer input records
+configuration.set("table.exec.mini-batch.size", "5000") # the maximum number of records can be buffered by each aggregate operator task
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -111,7 +111,7 @@ GROUP BY color
 
 下图显示了 local-global 聚合如何提高性能。
 
-<img src="/fig/table-streaming/local_agg.png" width="70%" height="70%" />
+{{<img src="/fig/table-streaming/local_agg.png" width="70%" height="70%" >}}
 
 
 
@@ -121,7 +121,7 @@ GROUP BY color
 {{< tab "Java" >}}
 ```java
 // instantiate table environment
-TableEnvironment tEnv = ...
+TableEnvironment tEnv = ...;
 
 // access flink configuration
 Configuration configuration = tEnv.getConfig().getConfiguration();
@@ -138,12 +138,12 @@ configuration.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE"); // e
 val tEnv: TableEnvironment = ...
 
 // access flink configuration
-val configuration = tEnv.getConfig().getConfiguration()
+val configuration = tEnv.getConfig()
 // set low-level key-value options
-configuration.setString("table.exec.mini-batch.enabled", "true") // local-global aggregation depends on mini-batch is enabled
-configuration.setString("table.exec.mini-batch.allow-latency", "5 s")
-configuration.setString("table.exec.mini-batch.size", "5000")
-configuration.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE") // enable two-phase, i.e. local-global aggregation
+configuration.set("table.exec.mini-batch.enabled", "true") // local-global aggregation depends on mini-batch is enabled
+configuration.set("table.exec.mini-batch.allow-latency", "5 s")
+configuration.set("table.exec.mini-batch.size", "5000")
+configuration.set("table.optimizer.agg-phase-strategy", "TWO_PHASE") // enable two-phase, i.e. local-global aggregation
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -152,12 +152,12 @@ configuration.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE") // en
 t_env = ...
 
 # access flink configuration
-configuration = t_env.get_config().get_configuration();
+configuration = t_env.get_config()
 # set low-level key-value options
-configuration.set_string("table.exec.mini-batch.enabled", "true"); # local-global aggregation depends on mini-batch is enabled
-configuration.set_string("table.exec.mini-batch.allow-latency", "5 s");
-configuration.set_string("table.exec.mini-batch.size", "5000");
-configuration.set_string("table.optimizer.agg-phase-strategy", "TWO_PHASE"); # enable two-phase, i.e. local-global aggregation
+configuration.set("table.exec.mini-batch.enabled", "true") # local-global aggregation depends on mini-batch is enabled
+configuration.set("table.exec.mini-batch.allow-latency", "5 s")
+configuration.set("table.exec.mini-batch.size", "5000")
+configuration.set("table.optimizer.agg-phase-strategy", "TWO_PHASE") # enable two-phase, i.e. local-global aggregation
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -193,7 +193,7 @@ GROUP BY day
 
 下图显示了拆分 distinct 聚合如何提高性能（假设颜色表示 days，字母表示 user_id）。
 
-<img src="/fig/table-streaming/distinct_split.png" width="70%" height="70%" />
+{{<img src="/fig/table-streaming/distinct_split.png" width="70%" height="70%" >}}
 
 
 注意：上面是可以从这个优化中受益的最简单的示例。除此之外，Flink 还支持拆分更复杂的聚合查询，例如，多个具有不同 distinct key （例如 `COUNT(DISTINCT a), SUM(DISTINCT b)` ）的 distinct 聚合，可以与其他非 distinct 聚合（例如 `SUM`、`MAX`、`MIN`、`COUNT` ）一起使用。
@@ -206,11 +206,10 @@ GROUP BY day
 {{< tab "Java" >}}
 ```java
 // instantiate table environment
-TableEnvironment tEnv = ...
+TableEnvironment tEnv = ...;
 
-tEnv.getConfig()        // access high-level configuration
-  .getConfiguration()   // set low-level key-value options
-  .setString("table.optimizer.distinct-agg.split.enabled", "true");  // enable distinct agg split
+tEnv.getConfig()
+  .set("table.optimizer.distinct-agg.split.enabled", "true");  // enable distinct agg split
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -218,9 +217,8 @@ tEnv.getConfig()        // access high-level configuration
 // instantiate table environment
 val tEnv: TableEnvironment = ...
 
-tEnv.getConfig         // access high-level configuration
-  .getConfiguration    // set low-level key-value options
-  .setString("table.optimizer.distinct-agg.split.enabled", "true")  // enable distinct agg split
+tEnv.getConfig
+  .set("table.optimizer.distinct-agg.split.enabled", "true")  // enable distinct agg split
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -228,9 +226,7 @@ tEnv.getConfig         // access high-level configuration
 # instantiate table environment
 t_env = ...
 
-t_env.get_config()        # access high-level configuration
-  .get_configuration()    # set low-level key-value options
-  .set_string("table.optimizer.distinct-agg.split.enabled", "true"); # enable distinct agg split
+t_env.get_config().set("table.optimizer.distinct-agg.split.enabled", "true") # enable distinct agg split
 ```
 {{< /tab >}}
 {{< /tabs >}}

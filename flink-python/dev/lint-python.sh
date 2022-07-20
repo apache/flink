@@ -35,7 +35,7 @@ function download() {
         DOWNLOAD_STATUS="$?"
     fi
     if [ $DOWNLOAD_STATUS -ne 0 ]; then
-        echo "Dowload failed.You can try again"
+        echo "Download failed.You can try again"
         exit $DOWNLOAD_STATUS
     fi
 }
@@ -182,13 +182,13 @@ function install_wget() {
 
 # The script choose miniconda as our package management tool.
 # The script use miniconda to create all kinds of python versions and
-# some pakcages including checks such as tox and flake8.
+# some packages including checks such as tox and flake8.
 
 function install_miniconda() {
     OS_TO_CONDA_URL=("https://repo.continuum.io/miniconda/Miniconda3-4.7.10-MacOSX-x86_64.sh" \
         "https://repo.continuum.io/miniconda/Miniconda3-4.7.10-Linux-x86_64.sh")
-    print_function "STEP" "download miniconda..."
     if [ ! -f "$CONDA_INSTALL" ]; then
+        print_function "STEP" "download miniconda..."
         download ${OS_TO_CONDA_URL[$1]} $CONDA_INSTALL_SH
         chmod +x $CONDA_INSTALL_SH
         if [ $? -ne 0 ]; then
@@ -203,26 +203,32 @@ function install_miniconda() {
                 exit 1
             fi
         fi
+        print_function "STEP" "download miniconda... [SUCCESS]"
     fi
-    print_function "STEP" "download miniconda... [SUCCESS]"
 
-    print_function "STEP" "installing conda..."
     if [ ! -d "$CURRENT_DIR/.conda" ]; then
+        print_function "STEP" "installing conda..."
         $CONDA_INSTALL_SH -b -p $CURRENT_DIR/.conda 2>&1 >/dev/null
+
+        # orjson depend on pip >= 20.3
+        print_function "STEP" "upgrade pip..."
+        $CURRENT_DIR/.conda/bin/python -m pip install --upgrade pip 2>&1 >/dev/null
+        print_function "STEP" "upgrade pip... [SUCCESS]"
+
         if [ $? -ne 0 ]; then
             echo "install miniconda failed"
             exit $CONDA_INSTALL_STATUS
         fi
+        print_function "STEP" "install conda ... [SUCCESS]"
     fi
-    print_function "STEP" "install conda ... [SUCCESS]"
 }
 
 # Install some kinds of py env.
 function install_py_env() {
     if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
-        py_env=("3.8")
+        py_env=("3.9")
     else
-        py_env=("3.6" "3.7" "3.8")
+        py_env=("3.6" "3.7" "3.8" "3.9")
     fi
     for ((i=0;i<${#py_env[@]};i++)) do
         if [ -d "$CURRENT_DIR/.conda/envs/${py_env[i]}" ]; then
@@ -274,7 +280,7 @@ function install_tox() {
     # tox 3.14.0 depends on both 0.19 and 0.23 of importlib_metadata at the same time and
     # conda will try to install both these two versions and it will cause problems occasionally.
     # Using pip as the package manager could avoid this problem.
-    $CURRENT_DIR/install_command.sh -q virtualenv==16.0.0 tox==3.14.0 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q virtualenv==20.10.0 tox==3.14.0 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install tox failed \
         please try to exec the script again.\
@@ -298,7 +304,7 @@ function install_flake8() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q flake8==3.7.9 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q flake8==4.0.1 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install flake8 failed \
         please try to exec the script again.\
@@ -322,7 +328,7 @@ function install_sphinx() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q Sphinx==2.4.4 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q Sphinx==3.1.0 Docutils==0.17.1 "Jinja2<3.1.0" 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install sphinx failed \
         please try to exec the script again.\
@@ -378,26 +384,26 @@ function install_environment() {
     # step-1 install wget
     # the file size of the miniconda.sh is too big to use "wget" tool to download instead
     # of the "curl" in the weak network environment.
-    print_function "STEP" "installing wget..."
     if [ $STEP -lt 1 ]; then
+        print_function "STEP" "installing wget..."
         install_wget ${SUPPORT_OS[$os_index]}
         STEP=1
         checkpoint_stage $STAGE $STEP
+        print_function "STEP" "install wget... [SUCCESS]"
     fi
-    print_function "STEP" "install wget... [SUCCESS]"
 
     # step-2 install miniconda
-    print_function "STEP" "installing miniconda..."
     if [ $STEP -lt 2 ]; then
+        print_function "STEP" "installing miniconda..."
         create_dir $CURRENT_DIR/download
         install_miniconda $os_index
         STEP=2
         checkpoint_stage $STAGE $STEP
+        print_function "STEP" "install miniconda... [SUCCESS]"
     fi
-    print_function "STEP" "install miniconda... [SUCCESS]"
 
-    # step-3 install python environment whcih includes
-    # 3.6 3.7 3.8
+    # step-3 install python environment which includes
+    # 3.6 3.7 3.8 3.9
     if [ $STEP -lt 3 ] && [ `need_install_component "py_env"` = true ]; then
         print_function "STEP" "installing python environment..."
         install_py_env
@@ -460,7 +466,7 @@ function create_dir() {
 # Set created py-env in $PATH for tox's creating virtual env
 function activate () {
     if [ ! -d $CURRENT_DIR/.conda/envs ]; then
-        echo "For some unkown reasons,missing the directory $CURRENT_DIR/.conda/envs,\
+        echo "For some unknown reasons, missing the directory $CURRENT_DIR/.conda/envs,\
         you should exec the script with the option: -f"
         exit 1
     fi
@@ -471,7 +477,7 @@ function activate () {
     done
     export PATH 2>/dev/null
     if [ $? -ne 0 ]; then
-        echo "For some unkown reasons, the py package is not complete,\
+        echo "For some unknown reasons, the py package is not complete,\
         you should exec the script with the option: -f"
         exit 1
     fi
@@ -578,7 +584,7 @@ function check_stage() {
 #########################
 # Tox check
 function tox_check() {
-    LATEST_PYTHON="py38"
+    LATEST_PYTHON="py39"
     print_function "STAGE" "tox checks"
     # Set created py-env in $PATH for tox's creating virtual env
     activate
@@ -588,9 +594,9 @@ function tox_check() {
 
     if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
         # Only run test in latest python version triggered by a Git push
-        $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini -e ${LATEST_PYTHON} --recreate 2>&1 | tee -a $LOG_FILE
+        $TOX_PATH -vv -c $FLINK_PYTHON_DIR/tox.ini -e ${LATEST_PYTHON} --recreate 2>&1 | tee -a $LOG_FILE
     else
-        $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
+        $TOX_PATH -vv -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
     fi
 
     TOX_RESULT=$((grep -c "congratulations :)" "$LOG_FILE") 2>&1)
@@ -613,7 +619,7 @@ function flake8_check() {
 
     print_function "STAGE" "flake8 checks"
     if [ ! -f "$FLAKE8_PATH" ]; then
-        echo "For some unkown reasons, the flake8 package is not complete,\
+        echo "For some unknown reasons, the flake8 package is not complete,\
         you should exec the script with the parameter: -f"
     fi
 
@@ -657,6 +663,7 @@ function sphinx_check() {
     else
         print_function "STAGE" "sphinx checks... [SUCCESS]"
     fi
+    popd
 }
 
 # mypy check
@@ -685,25 +692,31 @@ CURRENT_DIR="$(cd "$( dirname "$0" )" && pwd)"
 FLINK_PYTHON_DIR=$(dirname "$CURRENT_DIR")
 
 # conda home path
-CONDA_HOME=$CURRENT_DIR/.conda
+if [ -z "${FLINK_CONDA_HOME+x}" ]; then
+    CONDA_HOME="$CURRENT_DIR/.conda"
+    ENV_HOME="$CONDA_HOME"
+else
+    CONDA_HOME=$FLINK_CONDA_HOME
+    ENV_HOME="${CONDA_PREFIX-$CONDA_HOME}"
+fi
 
 # conda path
 CONDA_PATH=$CONDA_HOME/bin/conda
 
 # pip path
-PIP_PATH=$CONDA_HOME/bin/pip
+PIP_PATH=$ENV_HOME/bin/pip
 
 # tox path
-TOX_PATH=$CONDA_HOME/bin/tox
+TOX_PATH=$ENV_HOME/bin/tox
 
 # flake8 path
-FLAKE8_PATH=$CONDA_HOME/bin/flake8
+FLAKE8_PATH=$ENV_HOME/bin/flake8
 
 # sphinx path
-SPHINX_PATH=$CONDA_HOME/bin/sphinx-build
+SPHINX_PATH=$ENV_HOME/bin/sphinx-build
 
 # mypy path
-MYPY_PATH=${CONDA_HOME}/bin/mypy
+MYPY_PATH=$ENV_HOME/bin/mypy
 
 _OLD_PATH="$PATH"
 
@@ -755,6 +768,10 @@ SUPPORTED_INSTALLATION_COMPONENTS=()
 get_all_supported_install_components
 
 INSTALLATION_COMPONENTS=()
+
+# whether remove the installed python environment.
+CLEAN_UP_FLAG=0
+
 # parse_opts
 USAGE="
 usage: $0 [options]
@@ -772,7 +789,7 @@ usage: $0 [options]
 -l          list all checks supported.
 Examples:
   ./lint-python -s basic        =>  install environment with basic components.
-  ./lint-python -s py_env       =>  install environment with python env(3.6,3.7,3.8).
+  ./lint-python -s py_env       =>  install environment with python env(3.6,3.7,3.8,3.9).
   ./lint-python -s all          =>  install environment with all components such as python env,tox,flake8,sphinx,mypy etc.
   ./lint-python -s tox,flake8   =>  install environment with tox,flake8.
   ./lint-python -s tox -f       =>  reinstall environment with tox.
@@ -781,8 +798,9 @@ Examples:
   ./lint-python                 =>  exec all checks.
   ./lint-python -f              =>  reinstall environment with all components and exec all checks.
   ./lint-python -l              =>  list all checks supported.
+  ./lint-python -r              =>  clean up python environment.
 "
-while getopts "hfs:i:e:l" arg; do
+while getopts "hfs:i:e:lr" arg; do
     case "$arg" in
         h)
             printf "%s\\n" "$USAGE"
@@ -807,6 +825,10 @@ while getopts "hfs:i:e:l" arg; do
             done
             exit 2
             ;;
+        r)
+            printf "clean up python environment:\n"
+            CLEAN_UP_FLAG=1
+            ;;
         ?)
             printf "ERROR: did not recognize option '%s', please try -h\\n" "$1"
             exit 1
@@ -816,6 +838,15 @@ done
 
 # decides whether to skip check stage
 skip_checks=0
+
+if [[ ${CLEAN_UP_FLAG} -eq 1 ]]; then
+    printf "clean up python environment"
+    rm -rf ${CONDA_HOME}
+    rm -rf ${STAGE_FILE}
+    rm -rf ${FLINK_PYTHON_DIR}/.tox
+    skip_checks=1
+fi
+
 if [ ! -z "$INSTALLATION_COMPONENTS" ]; then
     parse_component_args
     skip_checks=1
@@ -834,7 +865,9 @@ else
 fi
 
 # install environment
-install_environment
+if [[ ${CLEAN_UP_FLAG} -eq 0 ]]; then
+    install_environment
+fi
 
 pushd "$FLINK_PYTHON_DIR" &> /dev/null
 # exec all selected checks

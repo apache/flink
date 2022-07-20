@@ -21,24 +21,23 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.file.table.PartitionFetcher;
+import org.apache.flink.connector.file.table.PartitionReader;
 import org.apache.flink.connectors.hive.read.HiveInputFormatPartitionReader;
 import org.apache.flink.connectors.hive.read.HivePartitionFetcherContextBase;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.FileSystemLookupFunction;
-import org.apache.flink.table.filesystem.PartitionFetcher;
-import org.apache.flink.table.filesystem.PartitionReader;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.mapred.JobConf;
@@ -50,10 +49,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.flink.table.filesystem.FileSystemOptions.LOOKUP_JOIN_CACHE_TTL;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
+import static org.apache.flink.connectors.hive.HiveOptions.LOOKUP_JOIN_CACHE_TTL;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
 
 /**
  * Hive Table Source that has lookup ability.
@@ -147,10 +146,7 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
 
     private TableFunction<RowData> getLookupFunction(int[] keys) {
 
-        final String defaultPartitionName =
-                jobConf.get(
-                        HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
-                        HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
+        final String defaultPartitionName = JobConfUtils.getDefaultPartitionName(jobConf);
         PartitionFetcher.Context<HiveTablePartition> fetcherContext =
                 new HiveTablePartitionFetcherContext(
                         tablePath,
@@ -246,6 +242,7 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
 
         PartitionReader<HiveTablePartition, RowData> partitionReader =
                 new HiveInputFormatPartitionReader(
+                        flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM),
                         jobConf,
                         hiveVersion,
                         tablePath,

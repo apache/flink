@@ -18,6 +18,13 @@
 
 <div class="background" *ngIf="tasks">
   <ng-container *ngFor="let status of statusList">
-    <span *ngIf="tasks[status]" nz-tooltip [nzTitle]="status" [style.background]="colorMap[status]">{{ tasks[status] }}</span>
+    <span
+      *ngIf="tasks[status]"
+      nz-tooltip
+      [nzTooltipTitle]="status"
+      [style.background]="colorMap[status]"
+    >
+      {{ tasks[status] }}
+    </span>
   </ng-container>
 </div>

@@ -18,35 +18,86 @@
 
 package org.apache.flink.metrics.prometheus;
 
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.metrics.MetricConfig;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST_URL;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.PORT;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Test for {@link PrometheusPushGatewayReporter}. */
-public class PrometheusPushGatewayReporterTest extends TestLogger {
+class PrometheusPushGatewayReporterTest {
 
     @Test
-    public void testParseGroupingKey() {
+    void testParseGroupingKey() {
         Map<String, String> groupingKey =
                 PrometheusPushGatewayReporterFactory.parseGroupingKey("k1=v1;k2=v2");
-        Assert.assertNotNull(groupingKey);
-        Assert.assertEquals("v1", groupingKey.get("k1"));
-        Assert.assertEquals("v2", groupingKey.get("k2"));
+        assertThat(groupingKey).containsEntry("k1", "v1");
+        assertThat(groupingKey).containsEntry("k2", "v2");
     }
 
     @Test
-    public void testParseIncompleteGroupingKey() {
+    void testParseIncompleteGroupingKey() {
         Map<String, String> groupingKey =
                 PrometheusPushGatewayReporterFactory.parseGroupingKey("k1=");
-        Assert.assertTrue(groupingKey.isEmpty());
+        assertThat(groupingKey).isEmpty();
 
         groupingKey = PrometheusPushGatewayReporterFactory.parseGroupingKey("=v1");
-        Assert.assertTrue(groupingKey.isEmpty());
+        assertThat(groupingKey).isEmpty();
 
         groupingKey = PrometheusPushGatewayReporterFactory.parseGroupingKey("k1");
-        Assert.assertTrue(groupingKey.isEmpty());
+        assertThat(groupingKey).isEmpty();
+    }
+
+    @Test
+    void testConnectToPushGatewayUsingHostAndPort() {
+        PrometheusPushGatewayReporterFactory factory = new PrometheusPushGatewayReporterFactory();
+        MetricConfig metricConfig = new MetricConfig();
+        metricConfig.setProperty(HOST.key(), "localhost");
+        metricConfig.setProperty(PORT.key(), "18080");
+        String gatewayBaseURL = factory.createMetricReporter(metricConfig).hostUrl.toString();
+        assertThat(gatewayBaseURL).isEqualTo("http://localhost:18080");
+    }
+
+    @Test
+    void testConnectToPushGatewayUsingHostUrl() {
+        PrometheusPushGatewayReporterFactory factory = new PrometheusPushGatewayReporterFactory();
+        MetricConfig metricConfig = new MetricConfig();
+        metricConfig.setProperty(HOST_URL.key(), "https://localhost:18080");
+        String gatewayBaseURL = factory.createMetricReporter(metricConfig).hostUrl.toString();
+        assertThat(gatewayBaseURL).isEqualTo("https://localhost:18080");
+    }
+
+    @Test
+    void testConnectToPushGatewayPreferHostUrl() {
+        PrometheusPushGatewayReporterFactory factory = new PrometheusPushGatewayReporterFactory();
+        MetricConfig metricConfig = new MetricConfig();
+        metricConfig.setProperty(HOST_URL.key(), "https://localhost:18080");
+        metricConfig.setProperty(HOST.key(), "localhost1");
+        metricConfig.setProperty(PORT.key(), "18081");
+        String gatewayBaseURL = factory.createMetricReporter(metricConfig).hostUrl.toString();
+        assertThat(gatewayBaseURL).isEqualTo("https://localhost:18080");
+    }
+
+    @Test
+    void testConnectToPushGatewayThrowsExceptionWithoutHostInformation() {
+        PrometheusPushGatewayReporterFactory factory = new PrometheusPushGatewayReporterFactory();
+        MetricConfig metricConfig = new MetricConfig();
+        assertThatThrownBy(() -> factory.createMetricReporter(metricConfig))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        metricConfig.setProperty(HOST.key(), "localhost");
+        assertThatThrownBy(() -> factory.createMetricReporter(metricConfig))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        metricConfig.clear();
+        metricConfig.setProperty(PORT.key(), "18080");
+        assertThatThrownBy(() -> factory.createMetricReporter(metricConfig))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

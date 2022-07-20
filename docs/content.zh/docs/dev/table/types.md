@@ -1,5 +1,5 @@
 ---
-title: "Data Types"
+title: "数据类型"
 weight: 21
 type: docs
 aliases:
@@ -24,57 +24,57 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Data Types
+<a name="data-types"></a>
 
-Flink SQL has a rich set of native data types available to users.
+# 数据类型
 
-Data Type
+Flink SQL 为用户提供了一系列丰富的原始数据类型。
+
+<a name="data-type"></a>
+
+数据类型
 ---------
 
-A *data type* describes the logical type of a value in the table ecosystem.
-It can be used to declare input and/or output types of operations.
+在 Flink 的 Table 生态系统中，*数据类型* 描述了数据的逻辑类型，可以用来表示转换过程中输入、输出的类型。
 
-Flink's data types are similar to the SQL standard's *data type* terminology but also contain information
-about the nullability of a value for efficient handling of scalar expressions.
+Flink 的数据类型类似于 SQL 标准中的术语*数据类型*，但包含了值的可空性，以便于更好地处理标量表达式。
 
-Examples of data types are:
+以下是一些数据类型的例子：
 - `INT`
 - `INT NOT NULL`
 - `INTERVAL DAY TO SECOND(3)`
 - `ROW<myField ARRAY<BOOLEAN>, myOtherField TIMESTAMP(3)>`
 
-A list of all pre-defined data types can be found [below](#list-of-data-types).
+可在[下文](#list-of-data-types)中找到所有预先定义好的数据类型。
 
-### Data Types in the Table API
+<a name="data-types-in-the-table-api"></a>
 
-{{< tabs "dataytes" >}}
+### Table API 中的数据类型
+
+{{< tabs "datatypes" >}}
 {{< tab "Java/Scala" >}}
-Users of the JVM-based API work with instances of `org.apache.flink.table.types.DataType` within the Table API or when
-defining connectors, catalogs, or user-defined functions. 
+在定义 connector、catalog、用户自定义函数时，使用 JVM 相关 API 的用户可能会使用到 Table API 中基于 `org.apache.flink.table.types.DataType` 的一些实例。
 
-A `DataType` instance has two responsibilities:
-- **Declaration of a logical type** which does not imply a concrete physical representation for transmission
-or storage but defines the boundaries between JVM-based/Python languages and the table ecosystem.
-- *Optional:* **Giving hints about the physical representation of data to the planner** which is useful at the edges to other APIs.
+`数据类型` 实例有两个职责：
+- **作为逻辑类型的表现形式**，定义 JVM 类语言或 Python 语言与 Table 生态系统的边界，而不是以具体的物理表现形式存在于数据的传输过程或存储中。
+- *可选的:* 在与其他 API 进行数据交换时，**为 Planner 提供这些数据物理层面的相关提示**。
 
-For JVM-based languages, all pre-defined data types are available in `org.apache.flink.table.api.DataTypes`.
+对于基于 JVM 的语言，所有预定义的数据类型都可以在 `org.apache.flink.table.api.DataTypes` 下找到。
 {{< /tab >}}
 {{< tab "Python" >}}
-Users of the Python API work with instances of `pyflink.table.types.DataType` within the Python Table API or when 
-defining Python user-defined functions.
+在 Python 语言定义用户自定义函数时，使用 Python API 的用户
+可能会使用到 Python API 中基于 `pyflink.table.types.DataType` 的一些实例。
 
-A `DataType` instance has such a responsibility:
-- **Declaration of a logical type** which does not imply a concrete physical representation for transmission
-or storage but defines the boundaries between Python languages and the table ecosystem.
+`数据类型` 实例有如下职责：
+- **作为逻辑类型的表现形式**，定义 JVM 类语言或 Python 语言与 Table 生态系统的边界，而不是以具体的物理表现形式存在于数据的传输过程或存储中。
 
-For Python language, those types are available in `pyflink.table.types.DataTypes`.
+对于 Python 语言，这些类型可以在 `pyflink.table.types.DataTypes` 下找到。
 {{< /tab >}}
 {{< /tabs >}}
 
 {{< tabs "84cf5e1c-c899-42cb-8fdf-6ae59fdd012c" >}}
 {{< tab "Java" >}}
-It is recommended to add a star import to your table programs for having a fluent API:
-
+使用 Table API 编程时，建议使用星号引入所有相关依赖，以获得更流畅的 API 使用体验：
 ```java
 import static org.apache.flink.table.api.DataTypes.*;
 
@@ -82,12 +82,12 @@ DataType t = INTERVAL(DAY(), SECOND(3));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-It is recommended to add a star import to your table programs for having a fluent API:
+使用 Table API 编程时，建议使用星号引入所有相关依赖，以获得更流畅的 API 使用体验：
 
 ```scala
 import org.apache.flink.table.api.DataTypes._
 
-val t: DataType = INTERVAL(DAY(), SECOND(3));
+val t: DataType = INTERVAL(DAY(), SECOND(3))
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -100,83 +100,38 @@ t = DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND(3))
 {{< /tab >}}
 {{< /tabs >}}
 
+<a name="physical-hints"></a>
 
-#### Physical Hints
+#### 物理提示
 
-Physical hints are required at the edges of the table ecosystem where the SQL-based type system ends and
-programming-specific data types are required. Hints indicate the data format that an implementation
-expects.
+在Table 生态系统中，当需要将 SQL 中的数据类型对应到实际编程语言中的数据类型时，就需要有物理提示。物理提示明确了对应过程中应该使用哪种数据格式。
 
-For example, a data source could express that it produces values for logical `TIMESTAMP`s using a `java.sql.Timestamp` class
-instead of using `java.time.LocalDateTime` which would be the default. With this information, the runtime is able to convert
-the produced class into its internal data format. In return, a data sink can declare the data format it consumes from the runtime.
+比如，在 source 端产生数据时，可以规定：`TIMESTAMP` 的逻辑类型，在底层要使用 `java.sql.Timestamp` 这个类表示，而不是使用默认的 `java.time.LocalDateTime` 类。有了物理提示，可以帮助 Flink 运行时根据提供的类将数据转换为其内部数据格式。同样在 sink 端，定义好数据格式，以便能从 Flink 运行时获取、转换数据。
 
-Here are some examples of how to declare a bridging conversion class:
+下面的例子展示了如何声明一个桥接转换类：
 
 {{< tabs "hints" >}}
 {{< tab "Java" >}}
 ```java
-// tell the runtime to not produce or consume java.time.LocalDateTime instances
-// but java.sql.Timestamp
+// 告诉 Flink 运行时使用 java.sql.Timestamp 处理数据，而不是 java.time.LocalDateTime
 DataType t = DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class);
 
-// tell the runtime to not produce or consume boxed integer arrays
-// but primitive int arrays
+// 告诉 Flink 运行时使用基本的 int 数组来处理数据，而不是用包装类 Integer 数组
 DataType t = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(int[].class);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// tell the runtime to not produce or consume java.time.LocalDateTime instances
-// but java.sql.Timestamp
-val t: DataType = DataTypes.TIMESTAMP(3).bridgedTo(classOf[java.sql.Timestamp]);
+// 告诉 Flink 运行时使用 java.sql.Timestamp 处理数据，而不是 java.time.LocalDateTime
+val t: DataType = DataTypes.TIMESTAMP(3).bridgedTo(classOf[java.sql.Timestamp])
 
-// tell the runtime to not produce or consume boxed integer arrays
-// but primitive int arrays
-val t: DataType = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(classOf[Array[Int]]);
+// 告诉 Flink 运行时使用基本的 int 数组来处理数据，而不是用包装类 Integer 数组
+val t: DataType = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(classOf[Array[Int]])
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-<span class="label label-danger">Attention</span> Please note that physical hints are usually only required if the
-API is extended. Users of predefined sources/sinks/functions do not need to define such hints. Hints within
-a table program (e.g. `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`) are ignored.
-
-{{< tabs "table" >}}
-{{< tab "Java/Scala" >}}
-The default planner supports the following set of SQL types:
-
-| Data Type | Remarks for Data Type |
-|:----------|:----------------------|
-| `CHAR` | |
-| `VARCHAR` | |
-| `STRING` | |
-| `BOOLEAN` | |
-| `BYTES` | `BINARY` and `VARBINARY` are not supported yet. |
-| `DECIMAL` | Supports fixed precision and scale. |
-| `TINYINT` | |
-| `SMALLINT` | |
-| `INTEGER` | |
-| `BIGINT` | |
-| `FLOAT` | |
-| `DOUBLE` | |
-| `DATE` | |
-| `TIME` | Supports only a precision of `0`. |
-| `TIMESTAMP` | |
-| `TIMESTAMP_LTZ` | |
-| `INTERVAL` | Supports only interval of `MONTH` and `SECOND(3)`. |
-| `ARRAY` | |
-| `MULTISET` | |
-| `MAP` | |
-| `ROW` | |
-| `RAW` | |
-| structured types | Only exposed in user-defined functions yet. |
-
-{{< /tab >}}
-{{< tab "Python" >}}
-N/A
-{{< /tab >}}
-{{< /tabs >}}
+<span class="label label-danger">注意</span> 请记住，只有在扩展 API 时才需要使用到物理提示。使用预定义的 source、sink 以及 Flink 函数时，不需要用到物理提示。在使用 Table API 编写程序时，Flink 会忽略物理提示（例如 `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`）。
 
 List of Data Types
 ------------------
@@ -190,6 +145,36 @@ For the JVM-based Table API those types are also available in `org.apache.flink.
 For the Python Table API, those types are available in `pyflink.table.types.DataTypes`.
 {{< /tab >}}
 {{< /tabs >}}
+
+The default planner supports the following set of SQL types:
+
+| Data Type        | Remarks for Data Type                              |
+|:-----------------|:---------------------------------------------------|
+| `CHAR`           |                                                    |
+| `VARCHAR`        |                                                    |
+| `STRING`         |                                                    |
+| `BOOLEAN`        |                                                    |
+| `BINARY`         |                                                    |
+| `VARBINARY`      |                                                    |
+| `BYTES`          |                                                    |
+| `DECIMAL`        | Supports fixed precision and scale.                |
+| `TINYINT`        |                                                    |
+| `SMALLINT`       |                                                    |
+| `INTEGER`        |                                                    |
+| `BIGINT`         |                                                    |
+| `FLOAT`          |                                                    |
+| `DOUBLE`         |                                                    |
+| `DATE`           |                                                    |
+| `TIME`           | Supports only a precision of `0`.                  |
+| `TIMESTAMP`      |                                                    |
+| `TIMESTAMP_LTZ`  |                                                    |
+| `INTERVAL`       | Supports only interval of `MONTH` and `SECOND(3)`. |
+| `ARRAY`          |                                                    |
+| `MULTISET`       |                                                    |
+| `MAP`            |                                                    |
+| `ROW`            |                                                    |
+| `RAW`            |                                                    |
+| Structured types | Only exposed in user-defined functions yet.        |
 
 ### Character Strings
 
@@ -1256,7 +1241,7 @@ zero, one or more attributes. Each attribute consists of a name and a type.
 
 There are two kinds of structured types:
 
-- Types that are stored in a catalog and are identified by a _catalog identifer_ (like `cat.db.MyType`). Those
+- Types that are stored in a catalog and are identified by a _catalog identifier_ (like `cat.db.MyType`). Those
 are equal to the SQL standard definition of structured types.
 
 - Anonymously defined, unregistered types (usually reflectively extracted) that are identified by
@@ -1487,6 +1472,92 @@ Not supported.
 {{< /tab >}}
 {{< /tabs >}}
 
+<a name="casting"></a>
+
+CAST 方法
+-------
+
+Flink Table API 和 Flink SQL 支持从 `输入` 数据类型 到 `目标` 数据类型的转换。有的转换
+无论输入值是什么都能保证转换成功，而有些转换则会在运行时失败（即不可能转换为 `目标` 数据类型对应的值）。
+例如，将 `INT` 数据类型的值转换为 `STRING` 数据类型一定能转换成功，但无法保证将 `STRING` 数据类型转换为 `INT` 数据类型。
+
+在生成执行计划时，Flink 的 SQL 检查器会拒绝提交那些不可能直接转换为 `目标` 数据类型的SQL，并抛出 `ValidationException` 异常，
+例如从 `TIMESTAMP` 类型转化到 `INTERVAL` 类型。
+然而有些查询即使通过了 SQL 检查器的验证，依旧可能会在运行期间转换失败，这就需要用户正确处理这些失败了。
+
+在 Flink Table API 和 Flink SQL 中，可以用下面两个内置方法来进行转换操作：
+
+* `CAST`：定义在 SQL 标准的 CAST 方法。在某些容易发生转换失败的查询场景中，当实际输入数据不合法时，作业便会运行失败。类型推导会保留输入类型的可空性。
+* `TRY_CAST`：常规 CAST 方法的扩展，当转换失败时返回 `NULL`。该方法的返回值允许为空。
+
+例如：
+
+```sql
+CAST('42' AS INT) --- 结果返回数字 42 的 INT 格式（非空）
+CAST(NULL AS VARCHAR) --- 结果返回 VARCHAR 类型的空值
+CAST('non-number' AS INT) --- 抛出异常，并停止作业
+
+TRY_CAST('42' AS INT) --- 结果返回数字 42 的 INT 格式
+TRY_CAST(NULL AS VARCHAR) --- 结果返回 VARCHAR 类型的空值
+TRY_CAST('non-number' AS INT) --- 结果返回 INT 类型的空值
+COALESCE(TRY_CAST('non-number' AS INT), 0) --- 结果返回数字 0 的 INT 格式（非空）
+```
+
+下表展示了各个类型的转换程度，"Y" 表示支持，"!" 表示转换可能会失败，"N" 表示不支持：
+
+| 输入类型\目标类型                              | `CHAR`¹/<br/>`VARCHAR`¹/<br/>`STRING` | `BINARY`¹/<br/>`VARBINARY`¹/<br/>`BYTES` | `BOOLEAN` | `DECIMAL` | `TINYINT` | `SMALLINT` | `INTEGER` | `BIGINT` | `FLOAT` | `DOUBLE` | `DATE` | `TIME` | `TIMESTAMP` | `TIMESTAMP_LTZ` | `INTERVAL` | `ARRAY` | `MULTISET` | `MAP` | `ROW` | `STRUCTURED` | `RAW` |
+|:---------------------------------------|:-------------------------------------:|:----------------------------------------:|:---------:|:---------:|:---------:|:----------:|:---------:|:--------:|:-------:|:--------:|:------:|:------:|:-----------:|:---------------:|:----------:|:-------:|:----------:|:-----:|:-----:|:------------:|:-----:|
+| `CHAR`/<br/>`VARCHAR`/<br/>`STRING`    |                   Y                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   !    |      !      |        !        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `BINARY`/<br/>`VARBINARY`/<br/>`BYTES` |                   Y                   |                    Y                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `BOOLEAN`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `DECIMAL`                              |                   Y                   |                    N                     |     N     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `TINYINT`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `SMALLINT`                             |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `INTEGER`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     Y⁵     |    N    |     N      |   N   |   N   |      N       |   N   |
+| `BIGINT`                               |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     Y⁶     |    N    |     N      |   N   |   N   |      N       |   N   |
+| `FLOAT`                                |                   Y                   |                    N                     |     N     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `DOUBLE`                               |                   Y                   |                    N                     |     N     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `DATE`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   N    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `TIME`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `TIMESTAMP`                            |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `TIMESTAMP_LTZ`                        |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `INTERVAL`                             |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |    Y⁵     |    Y⁶    |    N    |    N     |   N    |   N    |      N      |        N        |     Y      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `ARRAY`                                |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |   !³    |     N      |   N   |   N   |      N       |   N   |
+| `MULTISET`                             |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     !³     |   N   |   N   |      N       |   N   |
+| `MAP`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |  !³   |   N   |      N       |   N   |
+| `ROW`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |  !³   |      N       |   N   |
+| `STRUCTURED`                           |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      !³      |   N   |
+| `RAW`                                  |                   Y                   |                    !                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |  Y⁴   |
+
+备注：
+
+1. 所有转化到具有固长或变长的类型时会根据类型的定义来裁剪或填充数据。
+2. 使用 `TO_TIMESTAMP` 方法和 `TO_TIMESTAMP_LTZ` 方法的场景，不要使用 `CAST` 或 `TRY_CAST`。
+3. 支持转换，当且仅当用其内部数据结构也支持转化时。转换可能会失败，当且仅当用其内部数据结构也可能会转换失败。
+4. 支持转换，当且仅当用使用 `RAW` 的类和类的序列化器一样。
+5. 支持转换，当且仅当用使用 `INTERVAL` 做“月”到“年”的转换。
+6. 支持转换，当且仅当用使用 `INTERVAL` 做“天”到“时间”的转换。
+
+请注意：无论是 `CAST` 还是 `TRY_CAST`，当输入为 `NULL` ，输出也为 `NULL`。
+
+<a name="legacy-casting"></a>
+
+### 旧版本 CAST 方法
+
+用户可以通过将参数 `table.exec.legacy-cast-behaviour` 设置为 `enabled` 来启用 1.15 版本之前的 CAST 行为。
+在 Flink 1.15 版本此参数默认为 disabled。
+
+如果设置为 enabled，请注意以下问题：
+
+* 转换为 `CHAR`/`VARCHAR`/`BINARY`/`VARBINARY` 数据类型时，不再自动修剪（trim）或填充（pad）。
+* 使用 `CAST` 时不再会因为转化失败而停止作业，只会返回 `NULL`，但不会像 `TRY_CAST` 那样推断正确的类型。
+* `CHAR`/`VARCHAR`/`STRING` 的转换结果会有一些细微的差别。
+
+{{< hint warning >}}
+我们 **不建议** 配置此参数，而是 **强烈建议** 在新项目中保持这个参数为默认禁用，以使用最新版本的 CAST 方法。
+在下一个版本，这个参数会被移除。
+{{< /hint >}}
+
 Data Type Extraction
 --------------------
 
@@ -1530,7 +1601,7 @@ information similar to `java.util.Map[java.lang.Object, java.lang.Object]`.
 | `java.time.LocalDateTime`   | `TIMESTAMP(9)`                      |
 | `java.time.OffsetDateTime`  | `TIMESTAMP(9) WITH TIME ZONE`       |
 | `java.time.Instant`         | `TIMESTAMP_LTZ(9)`                  |
-| `java.time.Duration`        | `INVERVAL SECOND(9)`                |
+| `java.time.Duration`        | `INTERVAL SECOND(9)`                |
 | `java.time.Period`          | `INTERVAL YEAR(4) TO MONTH`         |
 | `byte[]`                    | `BYTES`                             |
 | `T[]`                       | `ARRAY<T>`                          |
@@ -1577,7 +1648,7 @@ class User {
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-```java
+```scala
 import org.apache.flink.table.annotation.DataTypeHint
 
 class User {

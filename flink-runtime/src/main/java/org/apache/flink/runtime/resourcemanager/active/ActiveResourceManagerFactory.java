@@ -30,7 +30,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerImpl;
 import org.apache.flink.runtime.metrics.ThresholdMeter;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
@@ -39,10 +38,12 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 
 /**
@@ -91,8 +92,9 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
             Configuration configuration,
             ResourceID resourceId,
             RpcService rpcService,
-            HighAvailabilityServices highAvailabilityServices,
+            UUID leaderSessionId,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             FatalErrorHandler fatalErrorHandler,
             ClusterInformation clusterInformation,
             @Nullable String webInterfaceUrl,
@@ -111,9 +113,10 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
                         configuration, webInterfaceUrl, rpcService.getAddress()),
                 configuration,
                 rpcService,
+                leaderSessionId,
                 resourceId,
-                highAvailabilityServices,
                 heartbeatServices,
+                delegationTokenManager,
                 resourceManagerRuntimeServices.getSlotManager(),
                 ResourceManagerPartitionTrackerImpl::new,
                 resourceManagerRuntimeServices.getJobLeaderIdService(),

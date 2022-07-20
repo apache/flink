@@ -47,7 +47,8 @@ public class NoOpTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<T
     }
 
     @Override
-    public ReaderOutput<T> createMainOutput(PushingAsyncDataInput.DataOutput<T> output) {
+    public ReaderOutput<T> createMainOutput(
+            PushingAsyncDataInput.DataOutput<T> output, WatermarkUpdateListener watermarkEmitted) {
         checkNotNull(output);
         return new TimestampsOnlyOutput<>(output, timestamps);
     }
@@ -113,6 +114,11 @@ public class NoOpTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<T
         @Override
         public void markIdle() {
             // do nothing, because without watermarks there is no idleness
+        }
+
+        @Override
+        public void markActive() {
+            // do nothing, it was never idle
         }
 
         @Override

@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
@@ -33,7 +34,7 @@ import org.junit.Test;
 import java.util.List;
 import java.util.stream.IntStream;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ChangelogCollectResult}. */
 public class ChangelogCollectResultTest {
@@ -54,7 +55,7 @@ public class ChangelogCollectResultTest {
         int count = 0;
         boolean running = true;
         while (running) {
-            final TypedResult<List<Row>> result = changelogResult.retrieveChanges();
+            final TypedResult<List<RowData>> result = changelogResult.retrieveChanges();
             Thread.sleep(100); // slow the processing down
             switch (result.getType()) {
                 case EMPTY:
@@ -70,6 +71,6 @@ public class ChangelogCollectResultTest {
                     throw new SqlExecutionException("Unknown result type: " + result.getType());
             }
         }
-        assertEquals(totalCount, count);
+        assertThat(count).isEqualTo(totalCount);
     }
 }

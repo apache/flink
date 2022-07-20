@@ -19,9 +19,9 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.data.RowData;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,10 +29,10 @@ import java.util.List;
 /** Collects results and returns them as a changelog. */
 public class ChangelogCollectResult extends CollectResultBase implements ChangelogResult {
 
-    private final List<Row> changeRecordBuffer;
+    private final List<RowData> changeRecordBuffer;
     @VisibleForTesting protected static final int CHANGE_RECORD_BUFFER_SIZE = 5_000;
 
-    public ChangelogCollectResult(TableResult tableResult) {
+    public ChangelogCollectResult(TableResultInternal tableResult) {
         super(tableResult);
         // prepare for changelog
         changeRecordBuffer = new ArrayList<>();
@@ -45,7 +45,7 @@ public class ChangelogCollectResult extends CollectResultBase implements Changel
     }
 
     @Override
-    public TypedResult<List<Row>> retrieveChanges() {
+    public TypedResult<List<RowData>> retrieveChanges() {
         synchronized (resultLock) {
             // retrieval thread is alive return a record if available
             // but the program must not have failed
@@ -53,7 +53,7 @@ public class ChangelogCollectResult extends CollectResultBase implements Changel
                 if (changeRecordBuffer.isEmpty()) {
                     return TypedResult.empty();
                 } else {
-                    final List<Row> change = new ArrayList<>(changeRecordBuffer);
+                    final List<RowData> change = new ArrayList<>(changeRecordBuffer);
                     changeRecordBuffer.clear();
                     resultLock.notify();
                     return TypedResult.payload(change);
@@ -61,7 +61,7 @@ public class ChangelogCollectResult extends CollectResultBase implements Changel
             }
             // retrieval thread is dead but there is still a record to be delivered
             else if (!isRetrieving() && !changeRecordBuffer.isEmpty()) {
-                final List<Row> change = new ArrayList<>(changeRecordBuffer);
+                final List<RowData> change = new ArrayList<>(changeRecordBuffer);
                 changeRecordBuffer.clear();
                 return TypedResult.payload(change);
             }
@@ -75,7 +75,7 @@ public class ChangelogCollectResult extends CollectResultBase implements Changel
     // --------------------------------------------------------------------------------------------
 
     @Override
-    protected void processRecord(Row row) {
+    protected void processRecord(RowData row) {
         synchronized (resultLock) {
             // wait if the buffer is full
             if (changeRecordBuffer.size() >= CHANGE_RECORD_BUFFER_SIZE) {

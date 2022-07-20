@@ -25,6 +25,8 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl.EmptyDiscardStateObjectForRegister;
+import org.apache.flink.runtime.state.SharedStateRegistryKey;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 
@@ -88,7 +90,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
      * rescaled. The key is the partition id and the value contains all subtask indexes of the
      * output operator before rescaling. Note that this field is only set by {@link
      * StateAssignmentOperation} and will not be persisted in the checkpoint itself as it can only
-     * be calculated if the the post-recovery scale factor is known.
+     * be calculated if the post-recovery scale factor is known.
      */
     private final InflightDataRescalingDescriptor inputRescalingDescriptor;
 
@@ -96,8 +98,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
      * The input channel mappings per input set when the input operator for a gate was rescaled. The
      * key is the gate index and the value contains all subtask indexes of the input operator before
      * rescaling. Note that this field is only set by {@link StateAssignmentOperation} and will not
-     * be persisted in the checkpoint itself as it can only be calculated if the the post-recovery
-     * scale factor is known.
+     * be persisted in the checkpoint itself as it can only be calculated if the post-recovery scale
+     * factor is known.
      */
     private final InflightDataRescalingDescriptor outputRescalingDescriptor;
 
@@ -106,6 +108,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
      * to not deserialize the state handle when gathering stats.
      */
     private final long stateSize;
+
+    private final long checkpointedSize;
 
     private OperatorSubtaskState(
             StateObjectCollection<OperatorStateHandle> managedOperatorState,
@@ -133,6 +137,14 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         calculateStateSize += inputChannelState.getStateSize();
         calculateStateSize += resultSubpartitionState.getStateSize();
         stateSize = calculateStateSize;
+
+        long calculateCheckpointedSize = managedOperatorState.getCheckpointedSize();
+        calculateCheckpointedSize += rawOperatorState.getCheckpointedSize();
+        calculateCheckpointedSize += managedKeyedState.getCheckpointedSize();
+        calculateCheckpointedSize += rawKeyedState.getCheckpointedSize();
+        calculateCheckpointedSize += inputChannelState.getCheckpointedSize();
+        calculateCheckpointedSize += resultSubpartitionState.getCheckpointedSize();
+        this.checkpointedSize = calculateCheckpointedSize;
     }
 
     @VisibleForTesting
@@ -205,23 +217,41 @@ public class OperatorSubtaskState implements CompositeStateHandle {
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
-        registerSharedState(sharedStateRegistry, managedKeyedState);
-        registerSharedState(sharedStateRegistry, rawKeyedState);
+    public void registerSharedStates(SharedStateRegistry sharedStateRegistry, long checkpointID) {
+        registerSharedState(sharedStateRegistry, managedKeyedState, checkpointID);
+        registerSharedState(sharedStateRegistry, rawKeyedState, checkpointID);
     }
 
     private static void registerSharedState(
-            SharedStateRegistry sharedStateRegistry, Iterable<KeyedStateHandle> stateHandles) {
+            SharedStateRegistry sharedStateRegistry,
+            Iterable<KeyedStateHandle> stateHandles,
+            long checkpointID) {
         for (KeyedStateHandle stateHandle : stateHandles) {
             if (stateHandle != null) {
-                stateHandle.registerSharedStates(sharedStateRegistry);
+                // Registering state handle to the given sharedStateRegistry serves one purpose:
+                // update the status of the checkpoint in sharedStateRegistry to which the state
+                // handle belongs.
+                sharedStateRegistry.registerReference(
+                        new SharedStateRegistryKey(stateHandle.getStateHandleId().getKeyString()),
+                        new EmptyDiscardStateObjectForRegister(stateHandle.getStateHandleId()),
+                        checkpointID);
+                stateHandle.registerSharedStates(sharedStateRegistry, checkpointID);
             }
         }
     }
 
     @Override
+    public long getCheckpointedSize() {
+        return checkpointedSize;
+    }
+
+    @Override
     public long getStateSize() {
         return stateSize;
+    }
+
+    public boolean isFinished() {
+        return false;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -275,6 +305,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         result = 31 * result + getInputRescalingDescriptor().hashCode();
         result = 31 * result + getOutputRescalingDescriptor().hashCode();
         result = 31 * result + (int) (getStateSize() ^ (getStateSize() >>> 32));
+        result = 31 * result + (int) (getCheckpointedSize() ^ (getCheckpointedSize() >>> 32));
         return result;
     }
 
@@ -295,6 +326,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                 + resultSubpartitionState
                 + ", stateSize="
                 + stateSize
+                + ", checkpointedSize="
+                + checkpointedSize
                 + '}';
     }
 
@@ -305,6 +338,18 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                 || rawKeyedState.hasState()
                 || inputChannelState.hasState()
                 || resultSubpartitionState.hasState();
+    }
+
+    public Builder toBuilder() {
+        return builder()
+                .setManagedKeyedState(managedKeyedState)
+                .setManagedOperatorState(managedOperatorState)
+                .setRawOperatorState(rawOperatorState)
+                .setRawKeyedState(rawKeyedState)
+                .setInputChannelState(inputChannelState)
+                .setResultSubpartitionState(resultSubpartitionState)
+                .setInputRescalingDescriptor(inputRescalingDescriptor)
+                .setOutputRescalingDescriptor(outputRescalingDescriptor);
     }
 
     public static Builder builder() {

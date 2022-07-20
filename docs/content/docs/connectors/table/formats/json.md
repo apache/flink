@@ -31,6 +31,8 @@ under the License.
 
 The [JSON](https://www.json.org/json-en.html) format allows to read and write JSON data based on an JSON schema. Currently, the JSON schema is derived from table schema.
 
+The JSON format supports append-only streams, unless you're using a connector that explicitly support retract streams and/or upsert streams like the [Upsert Kafka]({{< ref "docs/connectors/table/upsert-kafka" >}}) connector. If you need to write retract streams and/or upsert streams, we suggest you to look at CDC JSON formats like [Debezium JSON]({{< ref "docs/connectors/table/formats/debezium" >}}) and [Canal JSON]({{< ref "docs/connectors/table/formats/canal" >}}).
+
 Dependencies
 ------------
 
@@ -67,15 +69,17 @@ Format Options
       <tr>
         <th class="text-left" style="width: 25%">Option</th>
         <th class="text-center" style="width: 8%">Required</th>
+        <th class="text-center" style="width: 8%">Forwarded</th>
         <th class="text-center" style="width: 7%">Default</th>
         <th class="text-center" style="width: 10%">Type</th>
-        <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-center" style="width: 42%">Description</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>format</h5></td>
       <td>required</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Specify what format to use, here should be <code>'json'</code>.</td>
@@ -83,6 +87,7 @@ Format Options
     <tr>
       <td><h5>json.fail-on-missing-field</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>Whether to fail if a field is missing or not.</td>
@@ -90,6 +95,7 @@ Format Options
     <tr>
       <td><h5>json.ignore-parse-errors</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>Skip fields and rows with parse errors instead of failing.
@@ -98,6 +104,7 @@ Format Options
     <tr>
       <td><h5>json.timestamp-format.standard</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;"><code>'SQL'</code></td>
       <td>String</td>
       <td>Specify the input and output timestamp format for <code>TIMESTAMP</code> and <code>TIMESTAMP_LTZ</code> type. Currently supported values are <code>'SQL'</code> and <code>'ISO-8601'</code>:
@@ -112,6 +119,7 @@ Format Options
     <tr>
       <td><h5>json.map-null-key.mode</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;"><code>'FAIL'</code></td>
       <td>String</td>
       <td>Specify the handling mode when serializing null keys for map data. Currently supported values are <code>'FAIL'</code>, <code>'DROP'</code> and <code>'LITERAL'</code>:
@@ -125,6 +133,7 @@ Format Options
     <tr>
       <td><h5>json.map-null-key.literal</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">'null'</td>
       <td>String</td>
       <td>Specify string literal to replace null key when <code>'json.map-null-key.mode'</code> is LITERAL.</td>
@@ -132,6 +141,7 @@ Format Options
     <tr>
       <td><h5>json.encode.decimal-as-plain-number</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>Encode all decimals as plain numbers instead of possible scientific notations. By default, decimals may be written using scientific notation. For example, <code>0.000000027</code> is encoded as <code>2.7E-8</code> by default, and will be written as <code>0.000000027</code> if set this option to true.</td>

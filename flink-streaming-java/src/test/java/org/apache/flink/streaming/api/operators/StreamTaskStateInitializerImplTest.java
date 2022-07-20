@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImplTest;
 import org.apache.flink.runtime.state.TestTaskLocalStateStore;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
@@ -62,11 +63,13 @@ import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.OptionalLong;
 import java.util.Random;
 
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.state.OperatorStateHandle.Mode.SPLIT_DISTRIBUTE;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -202,7 +205,7 @@ public class StreamTaskStateInitializerImplTest {
         taskStateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
 
         JobManagerTaskRestore jobManagerTaskRestore =
-                new JobManagerTaskRestore(0L, taskStateSnapshot);
+                new JobManagerTaskRestore(42L, taskStateSnapshot);
 
         StreamTaskStateInitializer streamTaskStateManager =
                 streamTaskStateManager(mockingBackend, jobManagerTaskRestore, false);
@@ -235,6 +238,7 @@ public class StreamTaskStateInitializerImplTest {
                 stateContext.rawOperatorStateInputs();
 
         Assert.assertTrue("Expected the context to be restored", stateContext.isRestored());
+        Assert.assertEquals(OptionalLong.of(42L), stateContext.getRestoredCheckpointId());
 
         Assert.assertNotNull(operatorStateBackend);
         Assert.assertNotNull(keyedStateBackend);
@@ -277,10 +281,11 @@ public class StreamTaskStateInitializerImplTest {
             boolean createTimerServiceManager) {
 
         JobID jobID = new JobID(42L, 43L);
-        ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+        ExecutionAttemptID executionAttemptID = createExecutionAttemptId();
         TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
 
         TaskLocalStateStore taskLocalStateStore = new TestTaskLocalStateStore();
+        InMemoryStateChangelogStorage changelogStorage = new InMemoryStateChangelogStorage();
 
         TaskStateManager taskStateManager =
                 TaskStateManagerImplTest.taskStateManager(
@@ -288,9 +293,14 @@ public class StreamTaskStateInitializerImplTest {
                         executionAttemptID,
                         checkpointResponderMock,
                         jobManagerTaskRestore,
-                        taskLocalStateStore);
+                        taskLocalStateStore,
+                        changelogStorage);
 
-        DummyEnvironment dummyEnvironment = new DummyEnvironment("test-task", 1, 0);
+        DummyEnvironment dummyEnvironment =
+                new DummyEnvironment(
+                        "test-task",
+                        1,
+                        executionAttemptID.getExecutionVertexId().getSubtaskIndex());
         dummyEnvironment.setTaskStateManager(taskStateManager);
 
         if (createTimerServiceManager) {

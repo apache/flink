@@ -128,7 +128,10 @@ public class TaskExecutorProcessUtils {
         if (!taskExecutorProcessSpec.getExtendedResources().isEmpty()) {
             configs.put(
                     ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(),
-                    String.join(";", taskExecutorProcessSpec.getExtendedResources().keySet()));
+                    '"'
+                            + String.join(
+                                    ";", taskExecutorProcessSpec.getExtendedResources().keySet())
+                            + '"');
             taskExecutorProcessSpec
                     .getExtendedResources()
                     .forEach(

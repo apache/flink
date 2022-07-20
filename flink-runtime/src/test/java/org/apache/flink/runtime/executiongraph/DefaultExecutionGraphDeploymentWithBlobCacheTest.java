@@ -43,12 +43,14 @@ public class DefaultExecutionGraphDeploymentWithBlobCacheTest
         Configuration config = new Configuration();
         // always offload the serialized job and task information
         config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
-        blobServer = new BlobServer(config, new VoidBlobStore());
+        blobServer = new BlobServer(config, TEMPORARY_FOLDER.newFolder(), new VoidBlobStore());
         blobServer.start();
         blobWriter = blobServer;
 
         InetSocketAddress serverAddress = new InetSocketAddress("localhost", blobServer.getPort());
-        blobCache = new PermanentBlobCache(config, new VoidBlobStore(), serverAddress);
+        blobCache =
+                new PermanentBlobCache(
+                        config, TEMPORARY_FOLDER.newFolder(), new VoidBlobStore(), serverAddress);
     }
 
     @After

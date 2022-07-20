@@ -39,8 +39,9 @@ public class DeclarativeSlotPoolServiceFactory implements SlotPoolServiceFactory
 
     @Nonnull
     @Override
-    public SlotPoolService createSlotPoolService(@Nonnull JobID jobId) {
+    public SlotPoolService createSlotPoolService(
+            @Nonnull JobID jobId, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
         return new DeclarativeSlotPoolService(
-                jobId, new DefaultDeclarativeSlotPoolFactory(), clock, idleSlotTimeout, rpcTimeout);
+                jobId, declarativeSlotPoolFactory, clock, idleSlotTimeout, rpcTimeout);
     }
 }

@@ -33,8 +33,8 @@ public final class OperatorStateCheckpointOutputStream
     private LongArrayList partitionOffsets;
     private final long initialPosition;
 
-    public OperatorStateCheckpointOutputStream(
-            CheckpointStreamFactory.CheckpointStateOutputStream delegate) throws IOException {
+    public OperatorStateCheckpointOutputStream(CheckpointStateOutputStream delegate)
+            throws IOException {
 
         super(delegate);
         this.partitionOffsets = new LongArrayList(16);

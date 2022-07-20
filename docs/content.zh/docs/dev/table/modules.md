@@ -35,6 +35,10 @@ For example, users can define their own geo functions and plug them into Flink a
 Flink SQL and Table APIs. Another example is users can load an out-of-shelf Hive module to use Hive built-in 
 functions as Flink built-in functions.
 
+Furthermore, a module can provide built-in [table source and sink factories]({{< ref "docs/dev/table/sourcessinks" >}}#planning)
+which disable Flink's default discovery mechanism based on Java’s Service Provider Interfaces (SPI),
+or influence how connectors of temporary tables should be created without a corresponding catalog.
+
 ## Module Types
 
 ### CoreModule
@@ -83,8 +87,8 @@ Users can use SQL to load/unload/use/list modules in both Table API and SQL CLI.
 {{< tabs "SQL snippets" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().build();
-TableEnvironment tableEnv = TableEnvironment.create(setting);
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
+TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 // Show initially loaded and enabled modules
 tableEnv.executeSql("SHOW MODULES").print();
@@ -168,7 +172,7 @@ tableEnv.executeSql("SHOW FULL MODULES").print();
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance().useBlinkPlanner().build()
+val settings = EnvironmentSettings.inStreamingMode()
 val tableEnv = TableEnvironment.create(setting)
 
 // Show initially loaded and enabled modules
@@ -256,7 +260,7 @@ tableEnv.executeSql("SHOW FULL MODULES").print()
 from pyflink.table import *
 
 # environment configuration
-settings = EnvironmentSettings.new_instance().use_blink_planner().build()
+settings = EnvironmentSettings.inStreamingMode()
 t_env = TableEnvironment.create(settings)
 
 # Show initially loaded and enabled modules
@@ -456,8 +460,8 @@ Users can use Java, Scala or Python to load/unload/use/list modules programmatic
 {{< tabs "API snippets" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().build();
-TableEnvironment tableEnv = TableEnvironment.create(setting);
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
+TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 // Show initially loaded and enabled modules
 tableEnv.listModules();
@@ -541,7 +545,7 @@ tableEnv.listFullModules();
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance().useBlinkPlanner().build()
+val settings = EnvironmentSettings.inStreamingMode()
 val tableEnv = TableEnvironment.create(setting)
 
 // Show initially loaded and enabled modules
@@ -629,7 +633,7 @@ tableEnv.listFullModules()
 from pyflink.table import *
 
 # environment configuration
-settings = EnvironmentSettings.new_instance().use_blink_planner().build()
+settings = EnvironmentSettings.inStreamingMode()
 t_env = TableEnvironment.create(settings)
 
 # Show initially loaded and enabled modules

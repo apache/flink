@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-import static org.apache.flink.cep.operator.CepOperatorTestUtilities.getCepTestHarness;
+import static org.apache.flink.cep.utils.CepOperatorTestUtilities.getCepTestHarness;
 import static org.apache.flink.cep.utils.EventBuilder.event;
 import static org.apache.flink.cep.utils.OutputAsserter.assertOutput;
 

@@ -18,6 +18,8 @@
 
 package org.apache.flink.metrics.reporter;
 
+import org.apache.flink.annotation.Public;
+
 import java.util.Properties;
 
 /**
@@ -27,11 +29,8 @@ import java.util.Properties;
  * plugin, so long as the reporter jar is self-contained (excluding Flink dependencies) and contains
  * a {@code META-INF/services/org.apache.flink.metrics.reporter.MetricReporterFactory} file
  * containing the qualified class name of the factory.
- *
- * <p>Reporters that previously relied on reflection for instantiation can use the {@link
- * InstantiateViaFactory} annotation to redirect reflection-base instantiation attempts to the
- * factory instead.
  */
+@Public
 public interface MetricReporterFactory {
 
     /**

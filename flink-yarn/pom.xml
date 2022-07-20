@@ -23,11 +23,10 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.14-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.16-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-yarn_${scala.binary.version}</artifactId>
+	<artifactId>flink-yarn</artifactId>
 	<name>Flink : Yarn</name>
 	<packaging>jar</packaging>
 
@@ -43,13 +42,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -88,7 +87,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -99,7 +98,7 @@ under the License.
 			<artifactId>hadoop-hdfs</artifactId>
 			<scope>test</scope>
 			<type>test-jar</type>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>log4j</groupId>
@@ -113,7 +112,7 @@ under the License.
 			<artifactId>hadoop-common</artifactId>
 			<scope>test</scope>
 			<type>test-jar</type>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>log4j</groupId>
@@ -149,7 +148,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-aws</artifactId>
-					<version>${hadoop.version}</version>
+					<version>${flink.hadoop.version}</version>
 					<scope>test</scope>
 					<exclusions>
 						<exclusion>
@@ -211,23 +210,6 @@ under the License.
 						</goals>
 						<configuration>
 							<skip>true</skip>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-						<configuration>
-							<excludes>
-								<exclude>resource-types.xml</exclude>
-							</excludes>
 						</configuration>
 					</execution>
 				</executions>

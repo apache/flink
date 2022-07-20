@@ -28,19 +28,58 @@ This page describes how to debug in PyFlink.
 
 ## Logging Infos
 
-Python UDFs can log contextual and debug information via standard Python logging modules. 
+### Client Side Logging
+
+You can log contextual and debug information via `print` or standard Python logging modules in
+PyFlink jobs in places outside Python UDFs. The logging messages will be printed in the log files
+of the client during job submission.
 
 ```python
-@udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())
+from pyflink.table import EnvironmentSettings, TableEnvironment
+
+# create a TableEnvironment
+env_settings = EnvironmentSettings.in_streaming_mode()
+table_env = TableEnvironment.create(env_settings)
+
+table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
+
+# use logging modules
+import logging
+logging.warning(table.get_schema())
+
+# use print function
+print(table.get_schema())
+```
+
+**Note:** The default logging level at client side is `WARNING` and so only messages with logging
+level `WARNING` or above will appear in the log files of the client.
+
+### Server Side Logging
+
+You can log contextual and debug information via `print` or standard Python logging modules in Python UDFs. 
+The logging messages will be printed in the log files of the `TaskManagers` during job execution.
+
+```python
+from pyflink.table import DataTypes
+from pyflink.table.udf import udf
+
+import logging
+
+@udf(result_type=DataTypes.BIGINT())
 def add(i, j):
-    import logging
+    # use logging modules
     logging.info("debug")
+    # use print function
+    print('debug')
     return i + j
 ```
 
+**Note:** The default logging level at server side is `INFO` and so only messages with logging level `INFO` or above
+will appear in the log files of the `TaskManagers`.
+
 ## Accessing Logs
 
-If the environment variable `FLINK_HOME` is set, logs will be written in the log directory under `FLINK_HOME`.
+If environment variable `FLINK_HOME` is set, logs will be written in the log directory under `FLINK_HOME`.
 Otherwise, logs will be placed in the directory of the PyFlink module. You can execute the following command to find
 the log directory of the PyFlink module:
 
@@ -49,6 +88,13 @@ $ python -c "import pyflink;import os;print(os.path.dirname(os.path.abspath(pyfl
 ```
 
 ## Debugging Python UDFs
+
+### Local Debug
+
+You can debug your python functions directly in IDEs such as PyCharm.
+
+### Remote Debug
+
 You can make use of the [`pydevd_pycharm`](https://pypi.org/project/pydevd-pycharm/) tool of PyCharm to debug Python UDFs.
 
 1. Create a Python Remote Debug in PyCharm
@@ -71,3 +117,13 @@ You can make use of the [`pydevd_pycharm`](https://pypi.org/project/pydevd-pycha
 4. Start the previously created Python Remote Debug Server
 
 5. Run your Python Code
+
+## Profiling Python UDFs
+
+You can enable the profile to analyze performance bottlenecks.
+
+```python
+t_env.get_config().set("python.profile.enabled", "true")
+``` 
+
+Then you can see the profile result in [logs](#accessing-logs)

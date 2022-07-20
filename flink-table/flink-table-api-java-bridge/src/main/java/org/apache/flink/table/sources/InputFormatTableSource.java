@@ -32,8 +32,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToL
  *
  * @param <T> Type of the bounded {@link InputFormat} created by this {@link TableSource}.
  * @deprecated This interface has been replaced by {@link DynamicTableSource}. The new interface
- *     produces internal data structures and only works with the Blink planner. See FLIP-95 for more
- *     information.
+ *     produces internal data structures. See FLIP-95 for more information.
  */
 @Deprecated
 @Experimental

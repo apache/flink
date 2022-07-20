@@ -20,11 +20,13 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.WithinType;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.Test;
 
@@ -1508,5 +1510,130 @@ public class NotPatternITCase extends TestLogger {
         NFA<Event> nfa = compile(pattern, false);
 
         return feedNFA(inputEvents, nfa);
+    }
+
+    @Test
+    public void testNotFollowedByWithinFirstAndLastAtEnd() throws Exception {
+        testNotFollowedByWithinAtEnd(WithinType.FIRST_AND_LAST);
+    }
+
+    @Test
+    public void testNotFollowedByWithinPreviousAndCurrentAtEnd() throws Exception {
+        testNotFollowedByWithinAtEnd(WithinType.PREVIOUS_AND_CURRENT);
+    }
+
+    public void testNotFollowedByWithinAtEnd(WithinType withinType) throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        Event a1 = new Event(40, "a", 1.0);
+        Event b1 = new Event(41, "b", 2.0);
+        Event a2 = new Event(42, "a", 3.0);
+        Event c = new Event(43, "c", 4.0);
+        Event b2 = new Event(44, "b", 5.0);
+        Event a3 = new Event(45, "a", 7.0);
+        Event b3 = new Event(46, "b", 8.0);
+
+        inputEvents.add(new StreamRecord<>(a1, 1));
+        inputEvents.add(new StreamRecord<>(b1, 2));
+        inputEvents.add(new StreamRecord<>(a2, 4));
+        inputEvents.add(new StreamRecord<>(c, 5));
+        inputEvents.add(new StreamRecord<>(b2, 10));
+        inputEvents.add(new StreamRecord<>(a3, 11));
+        inputEvents.add(new StreamRecord<>(b3, 13));
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("a")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .notFollowedBy("b")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("b");
+                                    }
+                                })
+                        .within(Time.milliseconds(3), withinType);
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        final List<List<Event>> matches = feedNFA(inputEvents, nfa);
+
+        comparePatterns(matches, Lists.<List<Event>>newArrayList(Lists.newArrayList(a2)));
+    }
+
+    @Test
+    public void testNotFollowByBeforeTimesWithin() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        Event a1 = new Event(40, "a", 1.0);
+        Event b1 = new Event(41, "b", 2.0);
+        Event a2 = new Event(42, "a", 3.0);
+        Event c1 = new Event(43, "c", 4.0);
+        Event c2 = new Event(44, "c", 5.0);
+        Event a3 = new Event(45, "a", 7.0);
+        Event c3 = new Event(46, "c", 8.0);
+        Event c4 = new Event(47, "c", 8.0);
+
+        inputEvents.add(new StreamRecord<>(a1, 1));
+        inputEvents.add(new StreamRecord<>(b1, 2));
+        inputEvents.add(new StreamRecord<>(a2, 10));
+        inputEvents.add(new StreamRecord<>(c1, 11));
+        inputEvents.add(new StreamRecord<>(c2, 12));
+        inputEvents.add(new StreamRecord<>(a3, 20));
+        inputEvents.add(new StreamRecord<>(c3, 21));
+        inputEvents.add(new StreamRecord<>(c4, 24));
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("a")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .notFollowedBy("b")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("b");
+                                    }
+                                })
+                        .followedBy("c")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("c");
+                                    }
+                                })
+                        .times(0, 2)
+                        .within(Time.milliseconds(3));
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        final List<List<Event>> matches = feedNFA(inputEvents, nfa);
+
+        comparePatterns(
+                matches,
+                Lists.<List<Event>>newArrayList(
+                        Lists.newArrayList(a1),
+                        Lists.newArrayList(a2),
+                        Lists.newArrayList(a2, c1),
+                        Lists.newArrayList(a2, c1, c2),
+                        Lists.newArrayList(a3),
+                        Lists.newArrayList(a3, c3)));
     }
 }

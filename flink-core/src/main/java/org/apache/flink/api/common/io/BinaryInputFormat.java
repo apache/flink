@@ -147,7 +147,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
             FileStatus last = files.get(files.size() - 1);
             final BlockLocation[] blocks =
                     last.getPath().getFileSystem().getFileBlockLocations(last, 0, last.getLen());
-            for (int index = files.size(); index < minNumSplits; index++) {
+            for (int index = inputSplits.size(); index < minNumSplits; index++) {
                 inputSplits.add(
                         new FileInputSplit(
                                 index, last.getPath(), last.getLen(), 0, blocks[0].getHosts()));

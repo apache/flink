@@ -40,7 +40,8 @@ Cluster](#flink-cluster) is bound to the lifetime of the Flink Application.
 
 A Flink Job Cluster is a dedicated [Flink Cluster](#flink-cluster) that only
 executes a single [Flink Job](#flink-job). The lifetime of the
-[Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Job.
+[Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Job. 
+This deployment mode has been deprecated since Flink 1.15.  
 
 #### Flink Cluster
 
@@ -102,6 +103,13 @@ per running [Flink Job](#flink-job).
 
 JobMasters are one of the components running in the [JobManager](#flink-jobmanager). A JobMaster is
 responsible for supervising the execution of the [Tasks](#task) of a single job.
+
+#### JobResultStore
+
+The JobResultStore is a Flink component that persists the results of globally terminated
+(i.e. finished, cancelled or failed) jobs to a filesystem, allowing the results to outlive
+a finished job. These results are then used by Flink to determine whether jobs should
+be subject to recovery in highly-available clusters.
 
 #### Logical Graph
 
@@ -171,6 +179,10 @@ RocksDB).
 A Sub-Task is a [Task](#task) responsible for processing a [partition](#partition) of
 the data stream. The term "Sub-Task" emphasizes that there are multiple parallel Tasks for the same
 [Operator](#operator) or [Operator Chain](#operator-chain).
+
+#### Table Program
+
+A generic term for pipelines declared with Flink's relational APIs (Table API or SQL).
 
 #### Task
 

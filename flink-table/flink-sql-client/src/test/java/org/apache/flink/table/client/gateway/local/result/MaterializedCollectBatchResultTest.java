@@ -20,10 +20,14 @@ package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
-import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
@@ -31,23 +35,30 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.function.Function;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MaterializedCollectBatchResult}. */
-public class MaterializedCollectBatchResultTest {
+public class MaterializedCollectBatchResultTest extends BaseMaterializedResultTest {
 
     @Test
     public void testSnapshot() throws Exception {
-        ResolvedSchema schema =
+        final ResolvedSchema schema =
                 ResolvedSchema.physical(
                         new String[] {"f0", "f1"},
-                        new DataType[] {DataTypes.STRING(), DataTypes.BIGINT()});
+                        new DataType[] {DataTypes.STRING(), DataTypes.INT()});
+
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        final DataStructureConverter<RowData, Row> rowConverter =
+                (DataStructureConverter)
+                        DataStructureConverters.getConverter(schema.toPhysicalRowDataType());
 
         try (TestMaterializedCollectBatchResult result =
                 new TestMaterializedCollectBatchResult(
                         new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema),
-                        Integer.MAX_VALUE)) {
+                        Integer.MAX_VALUE,
+                        createInternalBinaryRowDataConverter(schema.toPhysicalRowDataType()))) {
 
             result.isRetrieving = true;
 
@@ -56,37 +67,71 @@ public class MaterializedCollectBatchResultTest {
             result.processRecord(Row.of("A", 1));
             result.processRecord(Row.of("C", 2));
 
-            assertEquals(TypedResult.payload(4), result.snapshot(1));
+            assertThat(result.snapshot(1)).isEqualTo(TypedResult.payload(4));
 
-            assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(1));
-            assertEquals(Collections.singletonList(Row.of("B", 1)), result.retrievePage(2));
-            assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(3));
-            assertEquals(Collections.singletonList(Row.of("C", 2)), result.retrievePage(4));
+            assertRowEquals(
+                    Collections.singletonList(Row.of("A", 1)),
+                    result.retrievePage(1),
+                    rowConverter);
+            assertRowEquals(
+                    Collections.singletonList(Row.of("B", 1)),
+                    result.retrievePage(2),
+                    rowConverter);
+            assertRowEquals(
+                    Collections.singletonList(Row.of("A", 1)),
+                    result.retrievePage(3),
+                    rowConverter);
+            assertRowEquals(
+                    Collections.singletonList(Row.of("C", 2)),
+                    result.retrievePage(4),
+                    rowConverter);
 
             result.processRecord(Row.of("A", 1));
 
-            assertEquals(TypedResult.payload(5), result.snapshot(1));
+            assertThat(result.snapshot(1)).isEqualTo(TypedResult.payload(5));
 
-            assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(1));
-            assertEquals(Collections.singletonList(Row.of("B", 1)), result.retrievePage(2));
-            assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(3));
-            assertEquals(Collections.singletonList(Row.of("C", 2)), result.retrievePage(4));
-            assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(5));
+            assertRowEquals(
+                    Collections.singletonList(Row.of("A", 1)),
+                    result.retrievePage(1),
+                    rowConverter);
+            assertRowEquals(
+                    Collections.singletonList(Row.of("B", 1)),
+                    result.retrievePage(2),
+                    rowConverter);
+            assertRowEquals(
+                    Collections.singletonList(Row.of("A", 1)),
+                    result.retrievePage(3),
+                    rowConverter);
+            assertRowEquals(
+                    Collections.singletonList(Row.of("C", 2)),
+                    result.retrievePage(4),
+                    rowConverter);
+            assertRowEquals(
+                    Collections.singletonList(Row.of("A", 1)),
+                    result.retrievePage(5),
+                    rowConverter);
         }
     }
 
     @Test
     public void testLimitedSnapshot() throws Exception {
-        ResolvedSchema schema =
+        final ResolvedSchema schema =
                 ResolvedSchema.physical(
                         new String[] {"f0", "f1"},
-                        new DataType[] {DataTypes.STRING(), DataTypes.BIGINT()});
+                        new DataType[] {DataTypes.STRING(), DataTypes.INT()});
+
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        final DataStructureConverter<RowData, Row> rowConverter =
+                (DataStructureConverter)
+                        DataStructureConverters.getConverter(schema.toPhysicalRowDataType());
 
         try (TestMaterializedCollectBatchResult result =
                 new TestMaterializedCollectBatchResult(
                         new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema),
                         2, // limit the materialized table to 2 rows
-                        3)) { // with 3 rows overcommitment
+                        3,
+                        createInternalBinaryRowDataConverter(
+                                schema.toPhysicalRowDataType()))) { // with 3 rows overcommitment
             result.isRetrieving = true;
 
             result.processRecord(Row.of("D", 1));
@@ -94,27 +139,36 @@ public class MaterializedCollectBatchResultTest {
             result.processRecord(Row.of("B", 1));
             result.processRecord(Row.of("A", 1));
 
-            assertEquals(
+            assertRowEquals(
                     Arrays.asList(
                             null, null, Row.of("B", 1), Row.of("A", 1)), // two over-committed rows
-                    result.getMaterializedTable());
+                    result.getMaterializedTable(),
+                    rowConverter);
 
-            assertEquals(TypedResult.payload(2), result.snapshot(1));
+            assertThat(result.snapshot(1)).isEqualTo(TypedResult.payload(2));
 
-            assertEquals(Collections.singletonList(Row.of("B", 1)), result.retrievePage(1));
-            assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(2));
+            assertRowEquals(
+                    Collections.singletonList(Row.of("B", 1)),
+                    result.retrievePage(1),
+                    rowConverter);
+            assertRowEquals(
+                    Collections.singletonList(Row.of("A", 1)),
+                    result.retrievePage(2),
+                    rowConverter);
 
             result.processRecord(Row.of("C", 1));
 
-            assertEquals(
+            assertRowEquals(
                     Arrays.asList(Row.of("A", 1), Row.of("C", 1)), // limit clean up has taken place
-                    result.getMaterializedTable());
+                    result.getMaterializedTable(),
+                    rowConverter);
 
             result.processRecord(Row.of("A", 1));
 
-            assertEquals(
+            assertRowEquals(
                     Arrays.asList(null, Row.of("C", 1), Row.of("A", 1)),
-                    result.getMaterializedTable());
+                    result.getMaterializedTable(),
+                    rowConverter);
         }
     }
 
@@ -125,20 +179,34 @@ public class MaterializedCollectBatchResultTest {
     private static class TestMaterializedCollectBatchResult extends MaterializedCollectBatchResult
             implements AutoCloseable {
 
+        private final Function<Row, BinaryRowData> converter;
+
         public boolean isRetrieving;
 
         public TestMaterializedCollectBatchResult(
-                TableResult tableResult, int maxRowCount, int overcommitThreshold) {
+                TableResultInternal tableResult,
+                int maxRowCount,
+                int overcommitThreshold,
+                Function<Row, BinaryRowData> converter) {
             super(tableResult, maxRowCount, overcommitThreshold);
+            this.converter = converter;
         }
 
-        public TestMaterializedCollectBatchResult(TableResult tableResult, int maxRowCount) {
+        public TestMaterializedCollectBatchResult(
+                TableResultInternal tableResult,
+                int maxRowCount,
+                Function<Row, BinaryRowData> converter) {
             super(tableResult, maxRowCount);
+            this.converter = converter;
         }
 
         @Override
         protected boolean isRetrieving() {
             return isRetrieving;
+        }
+
+        public void processRecord(Row row) {
+            processRecord(converter.apply(row));
         }
     }
 }

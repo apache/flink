@@ -18,9 +18,14 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
 /** An instance of this class represents a snapshot of the io-related metrics of a single task. */
 public class IOMetrics implements Serializable {
@@ -33,18 +38,51 @@ public class IOMetrics implements Serializable {
     protected long numBytesIn;
     protected long numBytesOut;
 
-    public IOMetrics(Meter recordsIn, Meter recordsOut, Meter bytesIn, Meter bytesOut) {
+    protected long accumulateBackPressuredTime;
+    protected double accumulateBusyTime;
+    protected long accumulateIdleTime;
+
+    protected final Map<IntermediateResultPartitionID, Long> numBytesProducedOfPartitions =
+            new HashMap<>();
+
+    public IOMetrics(
+            Meter recordsIn,
+            Meter recordsOut,
+            Meter bytesIn,
+            Meter bytesOut,
+            Map<IntermediateResultPartitionID, Counter> numBytesProducedCounters,
+            Gauge<Long> accumulatedBackPressuredTime,
+            Gauge<Long> accumulatedIdleTime,
+            Gauge<Double> accumulatedBusyTime) {
         this.numRecordsIn = recordsIn.getCount();
         this.numRecordsOut = recordsOut.getCount();
         this.numBytesIn = bytesIn.getCount();
         this.numBytesOut = bytesOut.getCount();
+        this.accumulateBackPressuredTime = accumulatedBackPressuredTime.getValue();
+        this.accumulateBusyTime = accumulatedBusyTime.getValue();
+        this.accumulateIdleTime = accumulatedIdleTime.getValue();
+
+        for (Map.Entry<IntermediateResultPartitionID, Counter> counter :
+                numBytesProducedCounters.entrySet()) {
+            numBytesProducedOfPartitions.put(counter.getKey(), counter.getValue().getCount());
+        }
     }
 
-    public IOMetrics(long numBytesIn, long numBytesOut, long numRecordsIn, long numRecordsOut) {
+    public IOMetrics(
+            long numBytesIn,
+            long numBytesOut,
+            long numRecordsIn,
+            long numRecordsOut,
+            long accumulateIdleTime,
+            long accumulateBusyTime,
+            long accumulateBackPressuredTime) {
         this.numBytesIn = numBytesIn;
         this.numBytesOut = numBytesOut;
         this.numRecordsIn = numRecordsIn;
         this.numRecordsOut = numRecordsOut;
+        this.accumulateIdleTime = accumulateIdleTime;
+        this.accumulateBusyTime = accumulateBusyTime;
+        this.accumulateBackPressuredTime = accumulateBackPressuredTime;
     }
 
     public long getNumRecordsIn() {
@@ -61,5 +99,21 @@ public class IOMetrics implements Serializable {
 
     public long getNumBytesOut() {
         return numBytesOut;
+    }
+
+    public double getAccumulateBusyTime() {
+        return accumulateBusyTime;
+    }
+
+    public long getAccumulateBackPressuredTime() {
+        return accumulateBackPressuredTime;
+    }
+
+    public long getAccumulateIdleTime() {
+        return accumulateIdleTime;
+    }
+
+    public Map<IntermediateResultPartitionID, Long> getNumBytesProducedOfPartitions() {
+        return numBytesProducedOfPartitions;
     }
 }

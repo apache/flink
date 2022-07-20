@@ -30,9 +30,9 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.client.JobInitializationException;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.function.SupplierWithException;
 

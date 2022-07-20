@@ -19,7 +19,7 @@
 package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.filesystem.ContinuousPartitionFetcher;
+import org.apache.flink.connector.file.table.ContinuousPartitionFetcher;
 
 /**
  * Context for Hive continuous partition fetcher.

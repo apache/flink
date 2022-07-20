@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -51,10 +51,10 @@ public class FullSnapshotAsyncWriter<K>
             checkpointStreamSupplier;
 
     @Nonnull private final FullSnapshotResources<K> snapshotResources;
-    @Nonnull private final CheckpointType checkpointType;
+    @Nonnull private final SnapshotType snapshotType;
 
     public FullSnapshotAsyncWriter(
-            @Nonnull CheckpointType checkpointType,
+            @Nonnull SnapshotType snapshotType,
             @Nonnull
                     SupplierWithException<CheckpointStreamWithResultProvider, Exception>
                             checkpointStreamSupplier,
@@ -62,7 +62,7 @@ public class FullSnapshotAsyncWriter<K>
 
         this.checkpointStreamSupplier = checkpointStreamSupplier;
         this.snapshotResources = snapshotResources;
-        this.checkpointType = checkpointType;
+        this.snapshotType = snapshotType;
     }
 
     @Override
@@ -78,7 +78,7 @@ public class FullSnapshotAsyncWriter<K>
 
         if (snapshotCloseableRegistry.unregisterCloseable(checkpointStreamWithResultProvider)) {
             final CheckpointStreamWithResultProvider.KeyedStateHandleFactory stateHandleFactory;
-            if (checkpointType.isSavepoint()) {
+            if (snapshotType.isSavepoint()) {
                 stateHandleFactory = KeyGroupsSavepointStateHandle::new;
             } else {
                 stateHandleFactory = KeyGroupsStateHandle::new;
@@ -136,7 +136,7 @@ public class FullSnapshotAsyncWriter<K>
         byte[] previousValue = null;
         DataOutputView kgOutView = null;
         OutputStream kgOutStream = null;
-        CheckpointStreamFactory.CheckpointStateOutputStream checkpointOutputStream =
+        CheckpointStateOutputStream checkpointOutputStream =
                 checkpointStreamWithResultProvider.getCheckpointOutputStream();
 
         try {

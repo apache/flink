@@ -28,6 +28,7 @@ import org.apache.flink.util.Preconditions;
  * It wraps the target {@link OperatorID} for the bootstrapped operator, as well as the {@link
  * BootstrapTransformation} that defines how the state is bootstrapped.
  */
+@Deprecated
 @Internal
 public class BootstrapTransformationWithID<T> {
 

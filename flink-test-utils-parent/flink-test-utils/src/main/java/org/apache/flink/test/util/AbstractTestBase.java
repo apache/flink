@@ -21,6 +21,7 @@ package org.apache.flink.test.util;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.ClassRule;
@@ -56,14 +57,14 @@ import java.io.IOException;
  *
  * </pre>
  */
-public abstract class AbstractTestBase extends TestBaseUtils {
+public abstract class AbstractTestBase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTestBase.class);
 
     private static final int DEFAULT_PARALLELISM = 4;
 
     @ClassRule
-    public static MiniClusterWithClientResource miniClusterResource =
+    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
             new MiniClusterWithClientResource(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
@@ -74,16 +75,16 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 
     @After
     public final void cleanupRunningJobs() throws Exception {
-        if (!miniClusterResource.getMiniCluster().isRunning()) {
+        if (!MINI_CLUSTER_RESOURCE.getMiniCluster().isRunning()) {
             // do nothing if the MiniCluster is not running
             LOG.warn("Mini cluster is not running after the test!");
             return;
         }
 
-        for (JobStatusMessage path : miniClusterResource.getClusterClient().listJobs().get()) {
+        for (JobStatusMessage path : MINI_CLUSTER_RESOURCE.getClusterClient().listJobs().get()) {
             if (!path.getJobState().isTerminalState()) {
                 try {
-                    miniClusterResource.getClusterClient().cancel(path.getJobId()).get();
+                    MINI_CLUSTER_RESOURCE.getClusterClient().cancel(path.getJobId()).get();
                 } catch (Exception ignored) {
                     // ignore exceptions when cancelling dangling jobs
                 }

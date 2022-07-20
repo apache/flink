@@ -31,11 +31,16 @@ constructFlinkClassPath() {
         fi
     done < <(find "$FLINK_LIB_DIR" ! -type d -name '*.jar' -print0 | sort -z)
 
-    if [[ "$FLINK_DIST" == "" ]]; then
-        # write error message to stderr since stdout is stored as the classpath
-        (>&2 echo "[ERROR] Flink distribution jar not found in $FLINK_LIB_DIR.")
+    local FLINK_DIST_COUNT
+    FLINK_DIST_COUNT="$(echo "$FLINK_DIST" | wc -l)"
 
-        # exit function with empty classpath to force process failure
+    # If flink-dist*.jar cannot be resolved write error messages to stderr since stdout is stored
+    # as the classpath and exit function with empty classpath to force process failure
+    if [[ "$FLINK_DIST" == "" ]]; then
+        (>&2 echo "[ERROR] Flink distribution jar not found in $FLINK_LIB_DIR.")
+        exit 1
+    elif [[ "$FLINK_DIST_COUNT" -gt 1 ]]; then
+        (>&2 echo "[ERROR] Multiple flink-dist*.jar found in $FLINK_LIB_DIR. Please resolve.")
         exit 1
     fi
 
@@ -43,13 +48,18 @@ constructFlinkClassPath() {
 }
 
 findFlinkDistJar() {
-    local FLINK_DIST="`find "$FLINK_LIB_DIR" -name 'flink-dist*.jar'`"
+    local FLINK_DIST
+    FLINK_DIST="$(find "$FLINK_LIB_DIR" -name 'flink-dist*.jar')"
+    local FLINK_DIST_COUNT
+    FLINK_DIST_COUNT="$(echo "$FLINK_DIST" | wc -l)"
 
+    # If flink-dist*.jar cannot be resolved write error messages to stderr since stdout is stored
+    # as the classpath and exit function with empty classpath to force process failure
     if [[ "$FLINK_DIST" == "" ]]; then
-        # write error message to stderr since stdout is stored as the classpath
         (>&2 echo "[ERROR] Flink distribution jar not found in $FLINK_LIB_DIR.")
-
-        # exit function with empty classpath to force process failure
+        exit 1
+    elif [[ "$FLINK_DIST_COUNT" -gt 1 ]]; then
+        (>&2 echo "[ERROR] Multiple flink-dist*.jar found in $FLINK_LIB_DIR. Please resolve.")
         exit 1
     fi
 
@@ -375,7 +385,7 @@ if [ -n "${HBASE_CONF_DIR}" ]; then
     INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:${HBASE_CONF_DIR}"
 fi
 
-# Auxilliary function which extracts the name of host from a line which
+# Auxiliary function which extracts the name of host from a line which
 # also potentially includes topology information and the taskManager type
 extractHostName() {
     # handle comments: extract first part of string (before first # character)
@@ -502,7 +512,7 @@ extractExecutionResults() {
 
     execution_results=$(echo "${output}" | grep ${EXECUTION_PREFIX})
     num_lines=$(echo "${execution_results}" | wc -l)
-    # explicit check for empty result, becuase if execution_results is empty, then wc returns 1
+    # explicit check for empty result, because if execution_results is empty, then wc returns 1
     if [[ -z ${execution_results} ]]; then
         echo "[ERROR] The execution result is empty." 1>&2
         exit 1
@@ -526,7 +536,7 @@ extractLoggingOutputs() {
 
 parseResourceParamsAndExportLogs() {
   local cmd=$1
-  java_utils_output=$(runBashJavaUtilsCmd ${cmd} "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)" "$@")
+  java_utils_output=$(runBashJavaUtilsCmd ${cmd} "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)" "${@:2}")
   logging_output=$(extractLoggingOutputs "${java_utils_output}")
   params_output=$(extractExecutionResults "${java_utils_output}" 2)
 
@@ -552,9 +562,9 @@ logs: $logging_output
 }
 
 parseJmArgsAndExportLogs() {
-  parseResourceParamsAndExportLogs GET_JM_RESOURCE_PARAMS
+  parseResourceParamsAndExportLogs GET_JM_RESOURCE_PARAMS "$@"
 }
 
 parseTmArgsAndExportLogs() {
-  parseResourceParamsAndExportLogs GET_TM_RESOURCE_PARAMS
+  parseResourceParamsAndExportLogs GET_TM_RESOURCE_PARAMS "$@"
 }

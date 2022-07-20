@@ -24,13 +24,14 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.util.StringUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -38,68 +39,65 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
-import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** General tests for the {@link AbstractKubernetesParameters}. */
-public class AbstractKubernetesParametersTest extends TestLogger {
+public class AbstractKubernetesParametersTest {
 
     private final Configuration flinkConfig = new Configuration();
     private final TestingKubernetesParameters testingKubernetesParameters =
             new TestingKubernetesParameters(flinkConfig);
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
     @Test
-    public void testClusterIdMustNotBeBlank() {
+    void testClusterIdMustNotBeBlank() {
         flinkConfig.set(KubernetesConfigOptions.CLUSTER_ID, "  ");
-        assertThrows(
-                "must not be blank",
-                IllegalArgumentException.class,
-                testingKubernetesParameters::getClusterId);
+        assertThatThrownBy(testingKubernetesParameters::getClusterId)
+                .satisfies(anyCauseMatches(IllegalArgumentException.class, "must not be blank"));
     }
 
     @Test
-    public void testClusterIdLengthLimitation() {
+    void testClusterIdLengthLimitation() {
         final String stringWithIllegalLength =
                 StringUtils.generateRandomAlphanumericString(
                         new Random(), Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID + 1);
         flinkConfig.set(KubernetesConfigOptions.CLUSTER_ID, stringWithIllegalLength);
-        assertThrows(
-                "must be no more than "
-                        + Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID
-                        + " characters",
-                IllegalArgumentException.class,
-                testingKubernetesParameters::getClusterId);
+        assertThatThrownBy(testingKubernetesParameters::getClusterId)
+                .satisfies(
+                        anyCauseMatches(
+                                IllegalArgumentException.class,
+                                "must be no more than "
+                                        + Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID
+                                        + " characters"));
     }
 
     @Test
-    public void getConfigDirectory() {
+    void getConfigDirectory() {
         final String confDir = "/path/of/flink-conf";
         flinkConfig.set(DeploymentOptionsInternal.CONF_DIR, confDir);
-        assertThat(testingKubernetesParameters.getConfigDirectory(), is(confDir));
+        assertThat(testingKubernetesParameters.getConfigDirectory()).isEqualTo(confDir);
     }
 
     @Test
-    public void getConfigDirectoryFallbackToPodConfDir() {
+    void getConfigDirectoryFallbackToPodConfDir() {
         final String confDirInPod = flinkConfig.get(KubernetesConfigOptions.FLINK_CONF_DIR);
-        assertThat(testingKubernetesParameters.getConfigDirectory(), is(confDirInPod));
+        assertThat(testingKubernetesParameters.getConfigDirectory()).isEqualTo(confDirInPod);
     }
 
     @Test
-    public void testGetLocalHadoopConfigurationDirectoryReturnEmptyWhenHadoopEnvIsNotSet()
+    void testGetLocalHadoopConfigurationDirectoryReturnEmptyWhenHadoopEnvIsNotSet()
             throws Exception {
         runTestWithEmptyEnv(
                 () -> {
                     final Optional<String> optional =
                             testingKubernetesParameters.getLocalHadoopConfigurationDirectory();
-                    assertThat(optional.isPresent(), is(false));
+                    assertThat(optional).isNotPresent();
                 });
     }
 
     @Test
-    public void testGetLocalHadoopConfigurationDirectoryFromHadoopConfDirEnv() throws Exception {
+    void testGetLocalHadoopConfigurationDirectoryFromHadoopConfDirEnv() throws Exception {
         runTestWithEmptyEnv(
                 () -> {
                     final String hadoopConfDir = "/etc/hadoop/conf";
@@ -107,38 +105,40 @@ public class AbstractKubernetesParametersTest extends TestLogger {
 
                     final Optional<String> optional =
                             testingKubernetesParameters.getLocalHadoopConfigurationDirectory();
-                    assertThat(optional.isPresent(), is(true));
-                    assertThat(optional.get(), is(hadoopConfDir));
+                    assertThat(optional).isPresent();
+                    assertThat(optional.get()).isEqualTo(hadoopConfDir);
                 });
     }
 
     @Test
-    public void testGetLocalHadoopConfigurationDirectoryFromHadoop2HomeEnv() throws Exception {
+    void testGetLocalHadoopConfigurationDirectoryFromHadoop2HomeEnv(@TempDir Path temporaryFolder)
+            throws Exception {
         runTestWithEmptyEnv(
                 () -> {
-                    final String hadoopHome = temporaryFolder.getRoot().getAbsolutePath();
-                    temporaryFolder.newFolder("etc", "hadoop");
+                    final String hadoopHome = temporaryFolder.toAbsolutePath().toString();
+                    Files.createDirectories(temporaryFolder.resolve(Paths.get("etc", "hadoop")));
                     setEnv(Constants.ENV_HADOOP_HOME, hadoopHome);
 
                     final Optional<String> optional =
                             testingKubernetesParameters.getLocalHadoopConfigurationDirectory();
-                    assertThat(optional.isPresent(), is(true));
-                    assertThat(optional.get(), is(hadoopHome + "/etc/hadoop"));
+                    assertThat(optional).isPresent();
+                    assertThat(optional.get()).isEqualTo(hadoopHome + "/etc/hadoop");
                 });
     }
 
     @Test
-    public void testGetLocalHadoopConfigurationDirectoryFromHadoop1HomeEnv() throws Exception {
+    void testGetLocalHadoopConfigurationDirectoryFromHadoop1HomeEnv(@TempDir Path temporaryFolder)
+            throws Exception {
         runTestWithEmptyEnv(
                 () -> {
-                    final String hadoopHome = temporaryFolder.getRoot().getAbsolutePath();
-                    temporaryFolder.newFolder("conf");
+                    final String hadoopHome = temporaryFolder.toAbsolutePath().toString();
+                    Files.createDirectory(temporaryFolder.resolve("conf"));
                     setEnv(Constants.ENV_HADOOP_HOME, hadoopHome);
 
                     final Optional<String> optional =
                             testingKubernetesParameters.getLocalHadoopConfigurationDirectory();
-                    assertThat(optional.isPresent(), is(true));
-                    assertThat(optional.get(), is(hadoopHome + "/conf"));
+                    assertThat(optional).isPresent();
+                    assertThat(optional.get()).isEqualTo(hadoopHome + "/conf");
                 });
     }
 
@@ -166,6 +166,11 @@ public class AbstractKubernetesParametersTest extends TestLogger {
 
         @Override
         public Map<String, String> getLabels() {
+            throw new UnsupportedOperationException("NOT supported");
+        }
+
+        @Override
+        public Map<String, String> getSelectors() {
             throw new UnsupportedOperationException("NOT supported");
         }
 

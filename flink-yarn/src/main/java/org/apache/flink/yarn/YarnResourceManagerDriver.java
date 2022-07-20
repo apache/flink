@@ -28,19 +28,21 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.resourcemanager.active.AbstractResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+import org.apache.flink.runtime.util.ResourceManagerUtils;
 import org.apache.flink.runtime.webmonitor.history.HistoryServerUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
@@ -55,7 +57,6 @@ import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -71,6 +72,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Phaser;
 import java.util.stream.Collectors;
 
 /** Implementation of {@link ResourceManagerDriver} for Yarn deployment. */
@@ -116,6 +118,10 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     private TaskExecutorProcessSpecContainerResourcePriorityAdapter
             taskExecutorProcessSpecContainerResourcePriorityAdapter;
 
+    private String taskManagerNodeLabel;
+
+    private final Phaser trackerOfReleasedResources;
+
     public YarnResourceManagerDriver(
             Configuration flinkConfig,
             YarnResourceManagerDriverConfiguration configuration,
@@ -147,11 +153,15 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
                 flinkConfig.getInteger(
                         YarnConfigOptions.CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS);
 
+        this.taskManagerNodeLabel =
+                flinkConfig.getString(YarnConfigOptions.TASK_MANAGER_NODE_LABEL);
+
         this.registerApplicationMasterResponseReflector =
                 new RegisterApplicationMasterResponseReflector(log);
 
         this.yarnResourceManagerClientFactory = yarnResourceManagerClientFactory;
         this.yarnNodeManagerClientFactory = yarnNodeManagerClientFactory;
+        this.trackerOfReleasedResources = new Phaser();
     }
 
     // ------------------------------------------------------------------------
@@ -188,7 +198,11 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     }
 
     @Override
-    public CompletableFuture<Void> terminate() {
+    public void terminate() throws Exception {
+        // wait for all containers to stop
+        trackerOfReleasedResources.register();
+        trackerOfReleasedResources.arriveAndAwaitAdvance();
+
         // shut down all components
         Exception exception = null;
 
@@ -208,9 +222,9 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
             }
         }
 
-        return exception == null
-                ? FutureUtils.completedVoidFuture()
-                : FutureUtils.completedExceptionally(exception);
+        if (exception != null) {
+            throw exception;
+        }
     }
 
     @Override
@@ -258,7 +272,9 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         } else {
             final Priority priority = priorityAndResourceOpt.get().getPriority();
             final Resource resource = priorityAndResourceOpt.get().getResource();
-            resourceManagerClient.addContainerRequest(getContainerRequest(resource, priority));
+            resourceManagerClient.addContainerRequest(
+                    ContainerRequestReflector.INSTANCE.getContainerRequest(
+                            resource, priority, taskManagerNodeLabel));
 
             // make sure we transmit the request fast and receive fast news of granted allocations
             resourceManagerClient.setHeartbeatInterval(containerRequestHeartbeatIntervalMillis);
@@ -280,6 +296,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     public void releaseResource(YarnWorkerNode workerNode) {
         final Container container = workerNode.getContainer();
         log.info("Stopping container {}.", workerNode.getResourceID().getStringWithMetadata());
+        trackerOfReleasedResources.register();
         nodeManagerClient.stopContainerAsync(container.getId(), container.getNodeId());
         resourceManagerClient.releaseAssignedContainer(container.getId());
     }
@@ -476,24 +493,11 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     }
 
     private RegisterApplicationMasterResponse registerApplicationMaster() throws Exception {
-        final int restPort;
-        final String webInterfaceUrl = configuration.getWebInterfaceUrl();
-        final String rpcAddress = configuration.getRpcAddress();
-
-        if (webInterfaceUrl != null) {
-            final int lastColon = webInterfaceUrl.lastIndexOf(':');
-
-            if (lastColon == -1) {
-                restPort = -1;
-            } else {
-                restPort = Integer.parseInt(webInterfaceUrl.substring(lastColon + 1));
-            }
-        } else {
-            restPort = -1;
-        }
-
         return resourceManagerClient.registerApplicationMaster(
-                rpcAddress, restPort, webInterfaceUrl);
+                configuration.getRpcAddress(),
+                ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl(
+                        configuration.getWebInterfaceUrl()),
+                configuration.getWebInterfaceUrl());
     }
 
     private void getContainersFromPreviousAttempts(
@@ -514,8 +518,6 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
             recoveredWorkers.add(worker);
         }
 
-        // Should not invoke resource event handler on the main thread executor.
-        // We are in the initializing thread. The main thread executor is not yet ready.
         getResourceEventHandler().onPreviousAttemptWorkersRecovered(recoveredWorkers);
     }
 
@@ -544,13 +546,6 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
                     return FinalApplicationStatus.UNDEFINED;
             }
         }
-    }
-
-    @Nonnull
-    @VisibleForTesting
-    static AMRMClient.ContainerRequest getContainerRequest(
-            Resource containerResource, Priority priority) {
-        return new AMRMClient.ContainerRequest(containerResource, null, null, priority);
     }
 
     @VisibleForTesting
@@ -589,7 +584,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
                             getResourceEventHandler()
                                     .onWorkerTerminated(
                                             new ResourceID(containerId),
-                                            containerStatus.getDiagnostics());
+                                            getContainerCompletedCause(containerStatus));
                         }
                     });
         }
@@ -662,6 +657,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         @Override
         public void onContainerStopped(ContainerId containerId) {
             log.debug("Succeeded to call YARN Node Manager to stop container {}.", containerId);
+            trackerOfReleasedResources.arriveAndDeregister();
         }
 
         @Override
@@ -683,10 +679,61 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
         @Override
         public void onStopContainerError(ContainerId containerId, Throwable throwable) {
+            trackerOfReleasedResources.arriveAndDeregister();
             log.warn(
                     "Error while calling YARN Node Manager to stop container {}.",
                     containerId,
                     throwable);
         }
+    }
+
+    public static String getContainerCompletedCause(ContainerStatus containerStatus) {
+        final String completeContainerMessage;
+        switch (containerStatus.getExitStatus()) {
+            case ContainerExitStatus.SUCCESS:
+                completeContainerMessage =
+                        String.format(
+                                "Container %s exited normally. Diagnostics: %s",
+                                containerStatus.getContainerId().toString(),
+                                containerStatus.getDiagnostics());
+                break;
+            case ContainerExitStatus.PREEMPTED:
+                completeContainerMessage =
+                        String.format(
+                                "Container %s was preempted by yarn. Diagnostics: %s",
+                                containerStatus.getContainerId().toString(),
+                                containerStatus.getDiagnostics());
+                break;
+            case ContainerExitStatus.INVALID:
+                completeContainerMessage =
+                        String.format(
+                                "Container %s was invalid. Diagnostics: %s",
+                                containerStatus.getContainerId().toString(),
+                                containerStatus.getDiagnostics());
+                break;
+            case ContainerExitStatus.ABORTED:
+                completeContainerMessage =
+                        String.format(
+                                "Container %s killed by YARN, either due to being released by the application or being 'lost' due to node failures etc. Diagnostics: %s",
+                                containerStatus.getContainerId().toString(),
+                                containerStatus.getDiagnostics());
+                break;
+            case ContainerExitStatus.DISKS_FAILED:
+                completeContainerMessage =
+                        String.format(
+                                "Container %s is failed because threshold number of the nodemanager-local-directories or"
+                                        + " threshold number of the nodemanager-log-directories have become bad. Diagnostics: %s",
+                                containerStatus.getContainerId().toString(),
+                                containerStatus.getDiagnostics());
+                break;
+            default:
+                completeContainerMessage =
+                        String.format(
+                                "Container %s marked as failed.\n Exit code:%s.\n Diagnostics:%s",
+                                containerStatus.getContainerId().toString(),
+                                containerStatus.getExitStatus(),
+                                containerStatus.getDiagnostics());
+        }
+        return completeContainerMessage;
     }
 }

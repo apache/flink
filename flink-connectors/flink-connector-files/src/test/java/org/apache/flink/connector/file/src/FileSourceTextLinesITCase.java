@@ -21,7 +21,7 @@ package org.apache.flink.connector.file.src;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.connector.file.src.reader.TextLineFormat;
+import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -31,16 +31,14 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.experimental.categories.Category;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -59,20 +57,18 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPOutputStream;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** MiniCluster-based integration test for the {@link FileSource}. */
-public class FileSourceTextLinesITCase extends TestLogger {
+class FileSourceTextLinesITCase {
 
     private static final int PARALLELISM = 4;
 
-    @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+    @TempDir private static java.nio.file.Path tmpDir;
 
-    @Rule
-    public final MiniClusterWithClientResource miniClusterResource =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(PARALLELISM)
@@ -86,8 +82,10 @@ public class FileSourceTextLinesITCase extends TestLogger {
 
     /** This test runs a job reading bounded input with a stream record format (text lines). */
     @Test
-    public void testBoundedTextFileSource() throws Exception {
-        testBoundedTextFileSource(FailoverType.NONE);
+    void testBoundedTextFileSource(
+            @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
+        testBoundedTextFileSource(tmpTestDir, FailoverType.NONE, miniCluster);
     }
 
     /**
@@ -95,8 +93,10 @@ public class FileSourceTextLinesITCase extends TestLogger {
      * restarts TaskManager.
      */
     @Test
-    public void testBoundedTextFileSourceWithTaskManagerFailover() throws Exception {
-        testBoundedTextFileSource(FailoverType.TM);
+    void testBoundedTextFileSourceWithTaskManagerFailover(
+            @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
+        testBoundedTextFileSource(tmpTestDir, FailoverType.TM, miniCluster);
     }
 
     /**
@@ -104,12 +104,16 @@ public class FileSourceTextLinesITCase extends TestLogger {
      * triggers JobManager failover.
      */
     @Test
-    public void testBoundedTextFileSourceWithJobManagerFailover() throws Exception {
-        testBoundedTextFileSource(FailoverType.JM);
+    void testBoundedTextFileSourceWithJobManagerFailover(
+            @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
+        testBoundedTextFileSource(tmpTestDir, FailoverType.JM, miniCluster);
     }
 
-    private void testBoundedTextFileSource(FailoverType failoverType) throws Exception {
-        final File testDir = TMP_FOLDER.newFolder();
+    private void testBoundedTextFileSource(
+            java.nio.file.Path tmpTestDir, FailoverType failoverType, MiniCluster miniCluster)
+            throws Exception {
+        final File testDir = tmpTestDir.toFile();
 
         // our main test data
         writeAllFiles(testDir);
@@ -119,7 +123,8 @@ public class FileSourceTextLinesITCase extends TestLogger {
         writeHiddenJunkFiles(testDir);
 
         final FileSource<String> source =
-                FileSource.forRecordStreamFormat(new TextLineFormat(), Path.fromLocalFile(testDir))
+                FileSource.forRecordStreamFormat(
+                                new TextLineInputFormat(), Path.fromLocalFile(testDir))
                         .build();
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -138,11 +143,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
         final JobID jobId = client.client.getJobID();
 
         RecordCounterToFail.waitToFail();
-        triggerFailover(
-                failoverType,
-                jobId,
-                RecordCounterToFail::continueProcessing,
-                miniClusterResource.getMiniCluster());
+        triggerFailover(failoverType, jobId, RecordCounterToFail::continueProcessing, miniCluster);
 
         final List<String> result = new ArrayList<>();
         while (client.iterator.hasNext()) {
@@ -157,8 +158,10 @@ public class FileSourceTextLinesITCase extends TestLogger {
      * record format (text lines).
      */
     @Test
-    public void testContinuousTextFileSource() throws Exception {
-        testContinuousTextFileSource(FailoverType.NONE);
+    void testContinuousTextFileSource(
+            @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
+        testContinuousTextFileSource(tmpTestDir, FailoverType.NONE, miniCluster);
     }
 
     /**
@@ -166,9 +169,11 @@ public class FileSourceTextLinesITCase extends TestLogger {
      * record format (text lines) and restarts TaskManager.
      */
     @Test
-    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21450
-    public void testContinuousTextFileSourceWithTaskManagerFailover() throws Exception {
-        testContinuousTextFileSource(FailoverType.TM);
+    @Tag("FailsWithAdaptiveScheduler.class") // FLINK-21450
+    void testContinuousTextFileSourceWithTaskManagerFailover(
+            @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
+        testContinuousTextFileSource(tmpTestDir, FailoverType.TM, miniCluster);
     }
 
     /**
@@ -176,15 +181,20 @@ public class FileSourceTextLinesITCase extends TestLogger {
      * record format (text lines) and triggers JobManager failover.
      */
     @Test
-    public void testContinuousTextFileSourceWithJobManagerFailover() throws Exception {
-        testContinuousTextFileSource(FailoverType.JM);
+    void testContinuousTextFileSourceWithJobManagerFailover(
+            @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
+        testContinuousTextFileSource(tmpTestDir, FailoverType.JM, miniCluster);
     }
 
-    private void testContinuousTextFileSource(FailoverType type) throws Exception {
-        final File testDir = TMP_FOLDER.newFolder();
+    private void testContinuousTextFileSource(
+            java.nio.file.Path tmpTestDir, FailoverType type, MiniCluster miniCluster)
+            throws Exception {
+        final File testDir = tmpTestDir.toFile();
 
         final FileSource<String> source =
-                FileSource.forRecordStreamFormat(new TextLineFormat(), Path.fromLocalFile(testDir))
+                FileSource.forRecordStreamFormat(
+                                new TextLineInputFormat(), Path.fromLocalFile(testDir))
                         .monitorContinuously(Duration.ofMillis(5))
                         .build();
 
@@ -216,7 +226,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
             writeFile(testDir, i);
             final boolean failAfterHalfOfInput = i == LINES_PER_FILE.length / 2;
             if (failAfterHalfOfInput) {
-                triggerFailover(type, jobId, () -> {}, miniClusterResource.getMiniCluster());
+                triggerFailover(type, jobId, () -> {}, miniCluster);
             }
         }
 
@@ -282,7 +292,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
         Arrays.sort(expected);
         Arrays.sort(actual);
 
-        assertThat(actual, equalTo(expected));
+        assertThat(actual).isEqualTo(expected);
     }
 
     // ------------------------------------------------------------------------
@@ -421,7 +431,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
         // file,
         // but just construct the file path
         final File stagingFile =
-                new File(TMP_FOLDER.getRoot(), ".tmp-" + UUID.randomUUID().toString());
+                new File(tmpDir.getParent().toFile(), ".tmp-" + UUID.randomUUID().toString());
 
         try (final FileOutputStream fileOut = new FileOutputStream(stagingFile);
                 final OutputStream out = streamEncoderFactory.apply(fileOut);
@@ -435,9 +445,9 @@ public class FileSourceTextLinesITCase extends TestLogger {
         }
 
         final File parent = file.getParentFile();
-        assertTrue(parent.mkdirs() || parent.exists());
+        assertThat(parent.mkdirs() || parent.exists()).isTrue();
 
-        assertTrue(stagingFile.renameTo(file));
+        assertThat(stagingFile.renameTo(file)).isTrue();
     }
 
     // ------------------------------------------------------------------------

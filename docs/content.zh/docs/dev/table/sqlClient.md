@@ -74,20 +74,20 @@ CLI 为维护和可视化结果提供**三种模式**。
 **表格模式**（table mode）在内存中实体化结果，并将结果用规则的分页表格可视化展示出来。执行如下命令启用：
 
 ```text
-SET sql-client.execution.result-mode=table;
+SET 'sql-client.execution.result-mode' = 'table';
 ```
 
 **变更日志模式**（changelog mode）不会实体化和可视化结果，而是由插入（`+`）和撤销（`-`）组成的持续查询产生结果流。
 
 ```text
-SET sql-client.execution.result-mode=changelog;
+SET 'sql-client.execution.result-mode' = 'changelog';
 ```
 
 **Tableau模式**（tableau mode）更接近传统的数据库，会将执行的结果以制表的形式直接打在屏幕之上。具体显示的内容会取决于作业
 执行模式的不同(`execution.type`)：
 
 ```text
-SET sql-client.execution.result-mode=tableau;
+SET 'sql-client.execution.result-mode' = 'tableau';
 ```
 
 注意当你使用这个模式运行一个流式查询的时候，Flink 会将结果持续的打印在当前的屏幕之上。如果这个流式查询的输入是有限的数据集，
@@ -171,15 +171,6 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
 
   Syntax: [embedded] [OPTIONS]
   "embedded" mode options:
-         -d,--defaults <environment file>      Deprecated feature: the environment
-                                               properties with which every new
-                                               session is initialized. Properties
-                                               might be overwritten by session
-                                               properties.
-         -e,--environment <environment file>   Deprecated feature: the environment
-                                               properties to be imported into the
-                                               session. It might overwrite default
-                                               environment properties.
          -f,--file <script file>               Script file that should be executed.
                                                In this mode, the client will not
                                                open an interactive terminal.
@@ -210,8 +201,7 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
          -pyarch,--pyArchives <arg>            Add python archive files for job. The
                                                archive files will be extracted to
                                                the working directory of python UDF
-                                               worker. Currently only zip-format is
-                                               supported. For each archive file, a
+                                               worker. For each archive file, a
                                                target directory be specified. If the
                                                target directory name is specified,
                                                the archive file will be extracted to
@@ -242,8 +232,8 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
                                                --pyExecutable
                                                /usr/local/bin/python3). The python
                                                UDF worker depends on Python 3.6+,
-                                               Apache Beam (version == 2.27.0), Pip
-                                               (version >= 7.1.0) and SetupTools
+                                               Apache Beam (version == 2.38.0), Pip
+                                               (version >= 20.3) and SetupTools
                                                (version >= 37.0.0). Please ensure
                                                that the specified environment meets
                                                the above requirements.
@@ -339,30 +329,29 @@ CREATE FUNCTION foo.bar.AggregateUDF AS myUDF;
 
 -- Properties that change the fundamental execution behavior of a table program.
 
-SET table.planner = blink; -- planner: either 'blink' (default) or 'old'
-SET execution.runtime-mode = streaming; -- execution mode either 'batch' or 'streaming'
-SET sql-client.execution.result-mode = table; -- available values: 'table', 'changelog' and 'tableau'
-SET sql-client.execution.max-table-result.rows = 10000; -- optional: maximum number of maintained rows
-SET parallelism.default = 1; -- optional: Flink's parallelism (1 by default)
-SET pipeline.auto-watermark-interval = 200; --optional: interval for periodic watermarks
-SET pipeline.max-parallelism = 10; -- optional: Flink's maximum parallelism
-SET table.exec.state.ttl=1000; -- optional: table program's idle state time
-SET restart-strategy = fixed-delay;
+SET 'execution.runtime-mode' = 'streaming'; -- execution mode either 'batch' or 'streaming'
+SET 'sql-client.execution.result-mode' = 'table'; -- available values: 'table', 'changelog' and 'tableau'
+SET 'sql-client.execution.max-table-result.rows' = '10000'; -- optional: maximum number of maintained rows
+SET 'parallelism.default' = '1'; -- optional: Flink's parallelism (1 by default)
+SET 'pipeline.auto-watermark-interval' = '200'; --optional: interval for periodic watermarks
+SET 'pipeline.max-parallelism' = '10'; -- optional: Flink's maximum parallelism
+SET 'table.exec.state.ttl' = '1000'; -- optional: table program's idle state time
+SET 'restart-strategy' = 'fixed-delay';
 
 -- Configuration options for adjusting and tuning table programs.
 
-SET table.optimizer.join-reorder-enabled = true;
-SET table.exec.spill-compression.enabled = true;
-SET table.exec.spill-compression.block-size = 128kb;
+SET 'table.optimizer.join-reorder-enabled' = 'true';
+SET 'table.exec.spill-compression.enabled' = 'true';
+SET 'table.exec.spill-compression.block-size' = '128kb';
 ```
 
 This configuration:
 
 - connects to Hive catalogs and uses `MyCatalog` as the current catalog with `MyDatabase` as the current database of the catalog,
-- defines a table `MyTableSource` that can read data from a CSV file,
+- defines a table `MyTable` that can read data from a CSV file,
 - defines a view `MyCustomView` that declares a virtual table using a SQL query,
 - defines a user-defined function `myUDF` that can be instantiated using the class name,
-- uses the blink planner in streaming mode for running statements and a parallelism of 1,
+- uses streaming mode for running statements and a parallelism of 1,
 - runs exploratory queries in the `table` result mode,
 - and makes some planner adjustments around join reordering and spilling via configuration options.
 
@@ -375,20 +364,21 @@ When using `-i <init.sql>` option to initialize SQL Client session, the followin
 
 When execute queries or insert statements, please enter the interactive mode or use the -f option to submit the SQL statements.
 
-<span class="label label-danger">Attention</span> If SQL Client meets errors in initialization, SQL Client will exit with error messages.
+<span class="label label-danger">Attention</span> If SQL Client receives errors during initialization, SQL Client will exit with error messages.
 
 ### Dependencies
 
-The SQL Client does not require to setup a Java project using Maven or SBT. Instead, you can pass the
-dependencies as regular JAR files that get submitted to the cluster. You can either specify each JAR
-file separately (using `--jar`) or define entire library directories (using `--library`). For
+The SQL Client does not require setting up a Java project using Maven, Gradle, or sbt. Instead, you
+can pass the dependencies as regular JAR files that get submitted to the cluster. You can either specify
+each JAR file separately (using `--jar`) or define entire library directories (using `--library`). For
 connectors to external systems (such as Apache Kafka) and corresponding data formats (such as JSON),
 Flink provides **ready-to-use JAR bundles**. These JAR files can be downloaded for each release from
 the Maven central repository.
 
-The full list of offered SQL JARs and documentation about how to use them can be found on the [connection to external systems page]({{< ref "docs/connectors/table/overview" >}}).
+The full list of offered SQL JARs can be found on the [connection to external systems page]({{< ref "docs/connectors/table/overview" >}}).
 
-{{< top >}}
+You can refer to the [configuration]({{< ref "docs/dev/configuration/connector" >}}) section for
+information on how to configure connector and format dependencies.
 
 Use SQL Client to submit job
 ----------------------------
@@ -399,17 +389,17 @@ In both modes, SQL Client supports to parse and execute all types of the Flink s
 
 ### Interactive Command Line
 
-In interactive Command Line, the SQL Client reads user inputs and executes the statement when getting semicolon (`;`).
+In interactive Command Line, the SQL Client reads user inputs and executes the statement terminated by semicolon (`;`).
 
 SQL Client will print success message if the statement is executed successfully. When getting errors, SQL Client will also print error messages.
 By default, the error message only contains the error cause. In order to print the full exception stack for debugging, please set the
-`sql-client.verbose` to true through command `SET sql-client.verbose = true;`.
+`sql-client.verbose` to true through command `SET 'sql-client.verbose' = 'true';`.
 
 ### Execute SQL Files
 
 SQL Client supports to execute a SQL script file with the `-f` option. SQL Client will execute
 statements one by one in the SQL script file and print execution messages for each executed statements.
-Once a statement is failed, the SQL Client will exist and all the remaining statements will not be executed.
+Once a statement fails, the SQL Client will exit and all the remaining statements will not be executed.
 
 An example of such a file is presented below.
 
@@ -429,19 +419,19 @@ CREATE TEMPORARY TABLE users (
 );
 
 -- set sync mode
-SET table.dml-sync=true;
+SET 'table.dml-sync' = 'true';
 
 -- set the job name
-SET pipeline.name=SqlJob;
+SET 'pipeline.name' = 'SqlJob';
 
 -- set the queue that the job submit to
-SET yarn.application.queue=root;
+SET 'yarn.application.queue' = 'root';
 
--- set the job parallism
-SET parallism.default=100;
+-- set the job parallelism
+SET 'parallelism.default' = '100';
 
 -- restore from the specific savepoint path
-SET execution.savepoint.path=/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab;
+SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
 
 INSERT INTO pageviews_enriched
 SELECT *
@@ -456,7 +446,7 @@ This configuration:
 - set the savepoint path,
 - submit a sql job that load the savepoint from the specified savepoint path.
 
-<span class="label label-danger">Attention</span> Comparing to interactive mode, SQL Client will stop execution and exits when meets errors.
+<span class="label label-danger">Attention</span> Compared to the interactive mode, SQL Client will stop execution and exit when there are errors.
 
 ### Execute a set of SQL statements
 
@@ -470,13 +460,15 @@ of executing multiple queries.
 
 #### Syntax
 ```sql
-BEGIN STATEMENT SET;
+EXECUTE STATEMENT SET 
+BEGIN
   -- one or more INSERT INTO statements
   { INSERT INTO|OVERWRITE <select_statement>; }+
 END;
 ```
 
 <span class="label label-danger">Attention</span> The statements of enclosed in the `STATEMENT SET` must be separated by a semicolon (;).
+The old syntax `BEGIN STATEMENT SET; ... END;` is deprecated, may be removed in the future version.
 
 {{< tabs "statement set" >}}
 
@@ -515,22 +507,20 @@ Flink SQL> CREATE TABLE uniqueview (
 > );
 [INFO] Execute statement succeed.
 
-Flink SQL> BEGIN STATEMENT SET;
-[INFO] Begin a statement set.
-
-Flink SQL> INSERT INTO pageviews
+Flink SQL> EXECUTE STATEMENT SET
+> BEGIN
+>
+> INSERT INTO pageview
 > SELECT page_id, count(1)
 > FROM pageviews
 > GROUP BY page_id;
-[INFO] Add SQL update statement to the statement set.
-
-Flink SQL> INSERT INTO uniqueview
+>
+> INSERT INTO uniqueview
 > SELECT page_id, count(distinct user_id)
 > FROM pageviews
 > GROUP BY page_id;
-[INFO] Add SQL update statement to the statement set.
-
-Flink SQL> END;
+>
+> END;
 [INFO] Submitting SQL update statement to the cluster...
 [INFO] SQL update statement has been successfully submitted to the cluster:
 Job ID: 6b1af540c0c0bb3fcfcad50ac037c862
@@ -569,9 +559,10 @@ CREATE TABLE uniqueview (
   'table-name' = 'uniqueview'
 );
 
-BEGIN STATEMENT SET;
+EXECUTE STATEMENT SET
+BEGIN
 
-INSERT INTO pageviews
+INSERT INTO pageview
 SELECT page_id, count(1)
 FROM pageviews
 GROUP BY page_id;
@@ -604,12 +595,12 @@ Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 
 <span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's `restart strategy` takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
 
-However, for batch users, it's more common that the next DML statement requires to wait util the
+However, for batch users, it's more common that the next DML statement requires waiting until the
 previous DML statement finishes. In order to execute DML statements synchronously, you can set
-`table.dml-sync` option true in SQL Client.
+`table.dml-sync` option `true` in SQL Client.
 
 ```sql
-Flink SQL> SET table.dml-sync = true;
+Flink SQL> SET 'table.dml-sync' = 'true';
 [INFO] Session property has been set.
 
 Flink SQL> INSERT INTO MyTableSink SELECT * FROM MyTableSource;
@@ -625,7 +616,7 @@ Flink SQL> INSERT INTO MyTableSink SELECT * FROM MyTableSource;
 Flink supports to start the job with specified savepoint. In SQL Client, it's allowed to use `SET` command to specify the path of the savepoint.
 
 ```sql
-Flink SQL> SET execution.savepoint.path=/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab;
+Flink SQL> SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
 [INFO] Session property has been set.
 
 -- all the following DML statements will be restroed from the specified savepoint path
@@ -648,7 +639,7 @@ For more details about creating and managing savepoints, please refer to [Job Li
 SQL Client supports to define job name for queries and DML statements through `SET` command.
 
 ```sql
-Flink SQL> SET pipeline.name= 'kafka-to-hive' ;
+Flink SQL> SET 'pipeline.name' = 'kafka-to-hive';
 [INFO] Session property has been set.
 
 -- all the following DML statements will use the specified job name.
@@ -666,43 +657,11 @@ If the option `pipeline.name` is not specified, SQL Client will generate a defau
 
 {{< top >}}
 
-Compatibility
--------------
-
-To be compatible with before, SQL Client still supports to initialize with environment YAML file and allows to `SET` the key in YAML file.
-When set the key defined in YAML file, the SQL Client will print the warning messages to inform.
-
-```sql
-Flink SQL> SET execution.type = batch;
-[WARNING] The specified key 'execution.type' is deprecated. Please use 'execution.runtime-mode' instead.
-[INFO] Session property has been set.
-
--- all the following DML statements will be restored from the specified savepoint path
-Flink SQL> INSERT INTO ...
-```
-
-When using `SET` command to print the properties, the SQL Client will also print all the properties.
-To distinguish the deprecated key, the sql client use the '[DEPRECATED]' as the identifier.
-
-```sql
-Flink SQL>SET;
-execution.runtime-mode=batch
-sql-client.execution.result-mode=table
-table.planner=blink
-[DEPRECATED] execution.planner=blink
-[DEPRECATED] execution.result-mode=table
-[DEPRECATED] execution.type=batch
-```
-
-If you want to see more information about environment files, please refer to [previous docs version](https://ci.apache.org/projects/flink/flink-docs-release-1.12/dev/table/sqlClient.html#environment-files)
-
-{{< top >}}
-
 <a name="limitations--future"></a>
 
 局限与未来
 --------------------
 
-当前的 SQL 客户端仅支持嵌入式模式。在将来，社区计划提供基于 REST 的 [SQL 客户端网关（Gateway）](sqlClient.html#limitations--future) 的功能，详见 [FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client) 和 [FLIP-91](https://cwiki.apache.org/confluence/display/FLINK/FLIP-91%3A+Support+SQL+Client+Gateway)。
+当前的 SQL 客户端仅支持嵌入式模式。在将来，社区计划提供基于 REST 的 SQL 客户端网关（Gateway) 的功能，详见 [FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client) 和 [FLIP-91](https://cwiki.apache.org/confluence/display/FLINK/FLIP-91%3A+Support+SQL+Client+Gateway)。
 
 {{< top >}}

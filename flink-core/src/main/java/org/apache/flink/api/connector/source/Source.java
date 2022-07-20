@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.Serializable;
@@ -31,7 +31,7 @@ import java.io.Serializable;
  * @param <SplitT> The type of splits handled by the source.
  * @param <EnumChkT> The type of the enumerator checkpoints.
  */
-@PublicEvolving
+@Public
 public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Serializable {
 
     /**
@@ -57,7 +57,7 @@ public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Seriali
      *
      * @param enumContext The {@link SplitEnumeratorContext context} for the split enumerator.
      * @return A new SplitEnumerator.
-     * @throws Exception The implementor is free to forward all exceptions directly. * Exceptions
+     * @throws Exception The implementor is free to forward all exceptions directly. Exceptions
      *     thrown from this method cause JobManager failure/recovery.
      */
     SplitEnumerator<SplitT, EnumChkT> createEnumerator(SplitEnumeratorContext<SplitT> enumContext)
@@ -70,7 +70,7 @@ public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Seriali
      *     enumerator.
      * @param checkpoint The checkpoint to restore the SplitEnumerator from.
      * @return A SplitEnumerator restored from the given checkpoint.
-     * @throws Exception The implementor is free to forward all exceptions directly. * Exceptions
+     * @throws Exception The implementor is free to forward all exceptions directly. Exceptions
      *     thrown from this method cause JobManager failure/recovery.
      */
     SplitEnumerator<SplitT, EnumChkT> restoreEnumerator(
@@ -90,7 +90,7 @@ public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Seriali
 
     /**
      * Creates the serializer for the {@link SplitEnumerator} checkpoint. The serializer is used for
-     * the result of the {@link SplitEnumerator#snapshotState()} method.
+     * the result of the {@link SplitEnumerator#snapshotState} method.
      *
      * @return The serializer for the SplitEnumerator checkpoint.
      */

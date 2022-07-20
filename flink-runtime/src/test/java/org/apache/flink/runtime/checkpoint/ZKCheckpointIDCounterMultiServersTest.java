@@ -21,19 +21,19 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionState;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionState;
 
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.util.concurrent.atomic.AtomicLong;
-
-import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.number.OrderingComparison.greaterThan;
 import static org.junit.Assert.assertThat;
 
 /** Tests for {@link ZooKeeperCheckpointIDCounter} in a ZooKeeper ensemble. */
@@ -53,7 +53,8 @@ public final class ZKCheckpointIDCounterMultiServersTest extends TestLogger {
         final Configuration configuration = new Configuration();
         configuration.setString(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
-        final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
+        final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
+                ZooKeeperUtils.startCuratorFramework(configuration, NoOpFatalErrorHandler.INSTANCE);
 
         try {
             OneShotLatch connectionLossLatch = new OneShotLatch();
@@ -64,27 +65,20 @@ public final class ZKCheckpointIDCounterMultiServersTest extends TestLogger {
                             connectionLossLatch, reconnectedLatch);
 
             ZooKeeperCheckpointIDCounter idCounter =
-                    new ZooKeeperCheckpointIDCounter(client, "/checkpoint-id-counter", listener);
+                    new ZooKeeperCheckpointIDCounter(
+                            curatorFrameworkWrapper.asCuratorFramework(), listener);
             idCounter.start();
 
-            AtomicLong localCounter = new AtomicLong(1L);
-
-            assertThat(
-                    "ZooKeeperCheckpointIDCounter doesn't properly work.",
-                    idCounter.getAndIncrement(),
-                    is(localCounter.getAndIncrement()));
+            final long initialID = idCounter.getAndIncrement();
 
             zooKeeperResource.restart();
 
             connectionLossLatch.await();
             reconnectedLatch.await();
 
-            assertThat(
-                    "ZooKeeperCheckpointIDCounter doesn't properly work after reconnected.",
-                    idCounter.getAndIncrement(),
-                    is(localCounter.getAndIncrement()));
+            assertThat(idCounter.getAndIncrement(), greaterThan(initialID));
         } finally {
-            client.close();
+            curatorFrameworkWrapper.close();
         }
     }
 

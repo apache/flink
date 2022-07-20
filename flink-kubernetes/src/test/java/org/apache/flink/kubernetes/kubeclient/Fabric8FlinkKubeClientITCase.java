@@ -18,17 +18,16 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
-import org.apache.flink.kubernetes.KubernetesResource;
+import org.apache.flink.kubernetes.KubernetesExtension;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,17 +39,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.hamcrest.Matchers.everyItem;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * IT Tests for {@link org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClient} with real K8s
  * server and client.
  */
-public class Fabric8FlinkKubeClientITCase extends TestLogger {
+class Fabric8FlinkKubeClientITCase {
 
-    @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
+    @RegisterExtension
+    private static final KubernetesExtension kubernetesExtension = new KubernetesExtension();
 
     private static final String TEST_CONFIG_MAP_NAME = "test-config-map";
 
@@ -69,9 +67,9 @@ public class Fabric8FlinkKubeClientITCase extends TestLogger {
 
     private ExecutorService executorService;
 
-    @Before
-    public void setup() throws Exception {
-        flinkKubeClient = kubernetesResource.getFlinkKubeClient();
+    @BeforeEach
+    void setup() throws Exception {
+        flinkKubeClient = kubernetesExtension.getFlinkKubeClient();
         flinkKubeClient
                 .createConfigMap(
                         new KubernetesConfigMap(
@@ -87,8 +85,8 @@ public class Fabric8FlinkKubeClientITCase extends TestLogger {
                         data.size(), new ExecutorThreadFactory("test-leader-io"));
     }
 
-    @After
-    public void teardown() throws Exception {
+    @AfterEach
+    void teardown() throws Exception {
         executorService.shutdownNow();
         flinkKubeClient.deleteConfigMap(TEST_CONFIG_MAP_NAME).get();
     }
@@ -99,7 +97,7 @@ public class Fabric8FlinkKubeClientITCase extends TestLogger {
      * could work.
      */
     @Test
-    public void testCheckAndUpdateConfigMapConcurrently() throws Exception {
+    void testCheckAndUpdateConfigMapConcurrently() throws Exception {
         // Start multiple instances to update ConfigMap concurrently
         final List<CompletableFuture<Void>> futures = new ArrayList<>();
         final int target = 10;
@@ -130,7 +128,7 @@ public class Fabric8FlinkKubeClientITCase extends TestLogger {
                                                                 return Optional.of(configMap);
                                                             })
                                                     .join();
-                                    assertThat(updated, is(true));
+                                    assertThat(updated).isTrue();
                                     try {
                                         // Simulate the update interval
                                         Thread.sleep((long) (updateIntervalMs * Math.random()));
@@ -145,7 +143,7 @@ public class Fabric8FlinkKubeClientITCase extends TestLogger {
         // All the value should be increased exactly to the target
         final Optional<KubernetesConfigMap> configMapOpt =
                 flinkKubeClient.getConfigMap(TEST_CONFIG_MAP_NAME);
-        assertThat(configMapOpt.isPresent(), is(true));
-        assertThat(configMapOpt.get().getData().values(), everyItem(is(String.valueOf(target))));
+        assertThat(configMapOpt).isPresent();
+        assertThat(configMapOpt.get().getData().values()).containsOnly(String.valueOf(target));
     }
 }

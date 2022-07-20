@@ -27,6 +27,12 @@
             <td>The thread priority used for Flink's internal metric query service. The thread is created by Akka's thread pool executor. The range of the priority is from 1 (MIN_PRIORITY) to 10 (MAX_PRIORITY). Warning, increasing this value may bring the main Flink components down.</td>
         </tr>
         <tr>
+            <td><h5>metrics.job.status.enable</h5></td>
+            <td style="word-wrap: break-word;">CURRENT_TIME</td>
+            <td><p>List&lt;Enum&gt;</p></td>
+            <td>The selection of job status metrics that should be reported.<br /><br />Possible values:<ul><li>"STATE": For a given state, return 1 if the job is currently in that state, otherwise return 0.</li><li>"CURRENT_TIME": For a given state, if the job is currently in that state, return the time since the job transitioned into that state, otherwise return 0.</li><li>"TOTAL_TIME": For a given state, return how much time the job has spent in that state in total.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>metrics.latency.granularity</h5></td>
             <td style="word-wrap: break-word;">"operator"</td>
             <td>String</td>
@@ -51,16 +57,46 @@
             <td>Configures the parameter &lt;parameter&gt; for the reporter named &lt;name&gt;.</td>
         </tr>
         <tr>
-            <td><h5>metrics.reporter.&lt;name&gt;.class</h5></td>
+            <td><h5>metrics.reporter.&lt;name&gt;.factory.class</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The reporter class to use for the reporter named &lt;name&gt;.</td>
+            <td>The reporter factory class to use for the reporter named &lt;name&gt;.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.filter.excludes</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>List&lt;String&gt;</td>
+            <td>The metrics that should be excluded for the reporter named &lt;name&gt;. The format is identical to <code class="highlighter-rouge">filter.includes</code><br /></td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.filter.includes</h5></td>
+            <td style="word-wrap: break-word;">"*:*:*"</td>
+            <td>List&lt;String&gt;</td>
+            <td>The metrics that should be included for the reporter named &lt;name&gt;. Filters are specified as a list, with each filter following this format:<br /><code class="highlighter-rouge">&lt;scope&gt;[:&lt;name&gt;[,&lt;name&gt;][:&lt;type&gt;[,&lt;type&gt;]]]</code><br />A metric matches a filter if the scope pattern and at least one of the name patterns and at least one of the types match.<br /><ul><li>scope: Filters based on the logical scope.<br />Specified as a pattern where <code class="highlighter-rouge">*</code> matches any sequence of characters and <code class="highlighter-rouge">.</code> separates scope components.<br /><br />For example:<br /> "<code class="highlighter-rouge">jobmanager.job</code>" matches any job-related metrics on the JobManager,<br /> "<code class="highlighter-rouge">*.job</code>" matches all job-related metrics and<br /> "<code class="highlighter-rouge">*.job.*</code>" matches all metrics below the job-level (i.e., task/operator metrics etc.).<br /><br /></li><li>name: Filters based on the metric name.<br />Specified as a comma-separate list of patterns where <code class="highlighter-rouge">*</code> matches any sequence of characters.<br /><br />For example, "<code class="highlighter-rouge">*Records*,*Bytes*</code>" matches any metrics where the name contains <code class="highlighter-rouge">"Records" or "Bytes"</code>.<br /><br /></li><li>type: Filters based on the metric type. Specified as a comma-separated list of metric types: <code class="highlighter-rouge">[counter, meter, gauge, histogram]</code></li></ul>Examples:<ul><li>"<code class="highlighter-rouge">*:numRecords*</code>" Matches metrics like <code class="highlighter-rouge">numRecordsIn</code>.</li><li>"<code class="highlighter-rouge">*.job.task.operator:numRecords*</code>" Matches metrics like <code class="highlighter-rouge">numRecordsIn</code> on the operator level.</li><li>"<code class="highlighter-rouge">*.job.task.operator:numRecords*:meter</code>" Matches meter metrics like <code class="highlighter-rouge">numRecordsInPerSecond</code> on the operator level.</li><li>"<code class="highlighter-rouge">*:numRecords*,numBytes*:counter,meter</code>" Matches all counter/meter metrics like or <code class="highlighter-rouge">numRecordsInPerSecond</code>.</li></ul></td>
         </tr>
         <tr>
             <td><h5>metrics.reporter.&lt;name&gt;.interval</h5></td>
             <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
-            <td>The reporter interval to use for the reporter named &lt;name&gt;.</td>
+            <td>The reporter interval to use for the reporter named &lt;name&gt;. Only applicable to push-based reporters.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.scope.delimiter</h5></td>
+            <td style="word-wrap: break-word;">"."</td>
+            <td>String</td>
+            <td>The delimiter used to assemble the metric identifier for the reporter named &lt;name&gt;.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.scope.variables.additional</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>Map</td>
+            <td>The map of additional variables that should be included for the reporter named &lt;name&gt;. Only applicable to tag-based reporters.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.scope.variables.excludes</h5></td>
+            <td style="word-wrap: break-word;">"."</td>
+            <td>String</td>
+            <td>The set of variables that should be excluded for the reporter named &lt;name&gt;. Only applicable to tag-based reporters.</td>
         </tr>
         <tr>
             <td><h5>metrics.reporters</h5></td>
@@ -78,37 +114,37 @@
             <td><h5>metrics.scope.jm</h5></td>
             <td style="word-wrap: break-word;">"&lt;host&gt;.jobmanager"</td>
             <td>String</td>
-            <td>Defines the scope format string that is applied to all metrics scoped to a JobManager.</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a JobManager. Only effective when a identifier-based reporter is configured.</td>
         </tr>
         <tr>
             <td><h5>metrics.scope.jm.job</h5></td>
             <td style="word-wrap: break-word;">"&lt;host&gt;.jobmanager.&lt;job_name&gt;"</td>
             <td>String</td>
-            <td>Defines the scope format string that is applied to all metrics scoped to a job on a JobManager.</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a job on a JobManager. Only effective when a identifier-based reporter is configured</td>
         </tr>
         <tr>
             <td><h5>metrics.scope.operator</h5></td>
             <td style="word-wrap: break-word;">"&lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;operator_name&gt;.&lt;subtask_index&gt;"</td>
             <td>String</td>
-            <td>Defines the scope format string that is applied to all metrics scoped to an operator.</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to an operator. Only effective when a identifier-based reporter is configured</td>
         </tr>
         <tr>
             <td><h5>metrics.scope.task</h5></td>
             <td style="word-wrap: break-word;">"&lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;task_name&gt;.&lt;subtask_index&gt;"</td>
             <td>String</td>
-            <td>Defines the scope format string that is applied to all metrics scoped to a task.</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a task. Only effective when a identifier-based reporter is configured</td>
         </tr>
         <tr>
             <td><h5>metrics.scope.tm</h5></td>
             <td style="word-wrap: break-word;">"&lt;host&gt;.taskmanager.&lt;tm_id&gt;"</td>
             <td>String</td>
-            <td>Defines the scope format string that is applied to all metrics scoped to a TaskManager.</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a TaskManager. Only effective when a identifier-based reporter is configured</td>
         </tr>
         <tr>
             <td><h5>metrics.scope.tm.job</h5></td>
             <td style="word-wrap: break-word;">"&lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;"</td>
             <td>String</td>
-            <td>Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager.</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager. Only effective when a identifier-based reporter is configured</td>
         </tr>
         <tr>
             <td><h5>metrics.system-resource</h5></td>

@@ -71,8 +71,7 @@ public class CheckpointConfigHandler
 
     @Override
     protected CheckpointConfigInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, JobMessageParameters> request,
-            AccessExecutionGraph executionGraph)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionGraph executionGraph)
             throws RestHandlerException {
         return createCheckpointConfigInfo(executionGraph);
     }
@@ -117,6 +116,11 @@ public class CheckpointConfigHandler
 
             String stateBackendName = executionGraph.getStateBackendName().orElse(null);
             String checkpointStorageName = executionGraph.getCheckpointStorageName().orElse(null);
+            long periodicMaterializeIntervalMillis =
+                    executionGraph
+                            .getArchivedExecutionConfig()
+                            .getPeriodicMaterializeIntervalMillis();
+            String changelogStorageName = executionGraph.getChangelogStorageName().orElse(null);
 
             return new CheckpointConfigInfo(
                     checkpointCoordinatorConfiguration.isExactlyOnce()
@@ -131,7 +135,10 @@ public class CheckpointConfigHandler
                     checkpointStorageName,
                     checkpointCoordinatorConfiguration.isUnalignedCheckpointsEnabled(),
                     checkpointCoordinatorConfiguration.getTolerableCheckpointFailureNumber(),
-                    checkpointCoordinatorConfiguration.getAlignmentTimeout());
+                    checkpointCoordinatorConfiguration.getAlignedCheckpointTimeout(),
+                    checkpointCoordinatorConfiguration.isEnableCheckpointsAfterTasksFinish(),
+                    periodicMaterializeIntervalMillis,
+                    changelogStorageName);
         }
     }
 }

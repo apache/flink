@@ -41,7 +41,9 @@ import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class InnerJoinOperatorBaseTest implements Serializable {
@@ -162,7 +164,7 @@ public class InnerJoinOperatorBaseTest implements Serializable {
                                     executionConfig,
                                     cpTasks,
                                     accumulatorMap,
-                                    new UnregisteredMetricsGroup()),
+                                    UnregisteredMetricsGroup.createOperatorMetricGroup()),
                             executionConfig);
 
             executionConfig.enableObjectReuse();
@@ -176,7 +178,7 @@ public class InnerJoinOperatorBaseTest implements Serializable {
                                     executionConfig,
                                     cpTasks,
                                     accumulatorMap,
-                                    new UnregisteredMetricsGroup()),
+                                    UnregisteredMetricsGroup.createOperatorMetricGroup()),
                             executionConfig);
 
             assertEquals(expected, resultSafe);

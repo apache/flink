@@ -36,7 +36,7 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
@@ -47,9 +47,9 @@ import org.junit.Test;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.cep.operator.CepOperatorTestUtilities.getCepTestHarness;
 import static org.apache.flink.cep.operator.CepRuntimeContextTest.MockProcessFunctionAsserter.assertFunction;
 import static org.apache.flink.cep.utils.CepOperatorBuilder.createOperatorForNFA;
+import static org.apache.flink.cep.utils.CepOperatorTestUtilities.getCepTestHarness;
 import static org.apache.flink.cep.utils.EventBuilder.event;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
@@ -107,7 +107,8 @@ public class CepRuntimeContextTest extends TestLogger {
     @Test
     public void testCepRuntimeContext() {
         final String taskName = "foobarTask";
-        final MetricGroup metricGroup = new UnregisteredMetricsGroup();
+        final OperatorMetricGroup metricGroup =
+                UnregisteredMetricsGroup.createOperatorMetricGroup();
         final int numberOfParallelSubtasks = 42;
         final int indexOfSubtask = 43;
         final int attemptNumber = 1337;

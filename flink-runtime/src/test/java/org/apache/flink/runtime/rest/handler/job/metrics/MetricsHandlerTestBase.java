@@ -101,11 +101,12 @@ public abstract class MetricsHandlerTestBase<T extends AbstractMetricsHandler> e
         @SuppressWarnings("unchecked")
         final CompletableFuture<MetricCollectionResponseBody> completableFuture =
                 metricsHandler.handleRequest(
-                        new HandlerRequest<>(
+                        HandlerRequest.resolveParametersAndCreate(
                                 EmptyRequestBody.getInstance(),
                                 metricsHandler.getMessageHeaders().getUnresolvedMessageParameters(),
                                 pathParameters,
-                                Collections.emptyMap()),
+                                Collections.emptyMap(),
+                                Collections.emptyList()),
                         mockDispatcherGateway);
 
         assertTrue(completableFuture.isDone());

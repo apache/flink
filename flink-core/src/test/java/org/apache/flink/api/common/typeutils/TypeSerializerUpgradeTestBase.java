@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matcher;
@@ -36,6 +36,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.not;
@@ -51,10 +52,10 @@ import static org.junit.Assume.assumeThat;
 public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedElementT>
         extends TestLogger {
 
-    public static final MigrationVersion[] MIGRATION_VERSIONS =
-            MigrationVersion.v1_11.orHigher().toArray(new MigrationVersion[0]);
+    public static final FlinkVersion CURRENT_VERSION = FlinkVersion.v1_15;
 
-    public static final MigrationVersion CURRENT_VERSION = MigrationVersion.v1_12;
+    public static final Set<FlinkVersion> MIGRATION_VERSIONS =
+            FlinkVersion.rangeOf(FlinkVersion.v1_11, CURRENT_VERSION);
 
     private final TestSpecification<PreviousElementT, UpgradedElementT> testSpecification;
 
@@ -99,7 +100,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
          * TypeSerializerSchemaCompatibility}.
          */
         Matcher<TypeSerializerSchemaCompatibility<UpgradedElementT>> schemaCompatibilityMatcher(
-                MigrationVersion version);
+                FlinkVersion version);
     }
 
     private static class ClassLoaderSafePreUpgradeSetup<PreviousElementT>
@@ -190,7 +191,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<UpgradedElementT>>
-                schemaCompatibilityMatcher(MigrationVersion version) {
+                schemaCompatibilityMatcher(FlinkVersion version) {
             try (ThreadContextClassLoader ignored =
                     new ThreadContextClassLoader(verifierClassloader)) {
                 return delegateVerifier.schemaCompatibilityMatcher(version);
@@ -208,25 +209,25 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
      */
     public static class TestSpecification<PreviousElementT, UpgradedElementT> {
         private final String name;
-        private final MigrationVersion migrationVersion;
+        private final FlinkVersion flinkVersion;
         private final ClassLoaderSafePreUpgradeSetup<PreviousElementT> setup;
         private final ClassLoaderSafeUpgradeVerifier<UpgradedElementT> verifier;
 
         public TestSpecification(
                 String name,
-                MigrationVersion migrationVersion,
+                FlinkVersion flinkVersion,
                 Class<? extends PreUpgradeSetup<PreviousElementT>> setupClass,
                 Class<? extends UpgradeVerifier<UpgradedElementT>> verifierClass)
                 throws Exception {
             this.name = checkNotNull(name);
-            this.migrationVersion = checkNotNull(migrationVersion);
+            this.flinkVersion = checkNotNull(flinkVersion);
             this.setup = new ClassLoaderSafePreUpgradeSetup<>(setupClass);
             this.verifier = new ClassLoaderSafeUpgradeVerifier<>(verifierClass);
         }
 
         @Override
         public String toString() {
-            return name + " / " + migrationVersion;
+            return name + " / " + flinkVersion;
         }
     }
 
@@ -238,7 +239,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 
     /**
      * Execute this test to generate test files. Remember to be using the correct branch when
-     * generating the test files, e.g. to generate test files for {@link MigrationVersion#v1_8}, you
+     * generating the test files, e.g. to generate test files for {@link FlinkVersion#v1_8}, you
      * should be under the release-1.8 branch.
      */
     @Test
@@ -283,7 +284,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                     TypeSerializerSchemaCompatibility.incompatible(),
                     not(
                             testSpecification.verifier.schemaCompatibilityMatcher(
-                                    testSpecification.migrationVersion)));
+                                    testSpecification.flinkVersion)));
 
             TypeSerializerSnapshot<UpgradedElementT> restoredSerializerSnapshot =
                     snapshotUnderTest();
@@ -292,7 +293,6 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                     restoredSerializerSnapshot.restoreSerializer();
             assertSerializerIsValid(
                     restoredSerializer,
-                    true,
                     dataUnderTest(),
                     testSpecification.verifier.testDataMatcher());
         }
@@ -313,7 +313,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             assertThat(
                     upgradeCompatibility,
                     testSpecification.verifier.schemaCompatibilityMatcher(
-                            testSpecification.migrationVersion));
+                            testSpecification.flinkVersion));
         }
     }
 
@@ -346,10 +346,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 
             // .. and then assert that the upgraded serializer is valid with the migrated data
             assertSerializerIsValid(
-                    upgradedSerializer,
-                    false,
-                    migratedData,
-                    testSpecification.verifier.testDataMatcher());
+                    upgradedSerializer, migratedData, testSpecification.verifier.testDataMatcher());
         }
     }
 
@@ -373,7 +370,6 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                     upgradeCompatibility.getReconfiguredSerializer();
             assertSerializerIsValid(
                     reconfiguredUpgradedSerializer,
-                    false,
                     dataUnderTest(),
                     testSpecification.verifier.testDataMatcher());
         }
@@ -397,7 +393,6 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 
             assertSerializerIsValid(
                     upgradedSerializer,
-                    false,
                     dataUnderTest(),
                     testSpecification.verifier.testDataMatcher());
         }
@@ -420,20 +415,20 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
      * </ul>
      */
     private static <T> void assertSerializerIsValid(
-            TypeSerializer<T> serializer,
-            boolean isRestoreSerializer,
-            DataInputView dataInput,
-            Matcher<T> testDataMatcher)
+            TypeSerializer<T> serializer, DataInputView dataInput, Matcher<T> testDataMatcher)
             throws Exception {
 
         DataInputView serializedData =
                 readAndThenWriteData(dataInput, serializer, serializer, testDataMatcher);
-        if (!isRestoreSerializer) {
-            TypeSerializerSnapshot<T> snapshot = writeAndThenReadSerializerSnapshot(serializer);
-            TypeSerializer<T> restoreSerializer = snapshot.restoreSerializer();
-            readAndThenWriteData(
-                    serializedData, restoreSerializer, restoreSerializer, testDataMatcher);
-        }
+        TypeSerializerSnapshot<T> snapshot = writeAndThenReadSerializerSnapshot(serializer);
+        TypeSerializer<T> restoreSerializer = snapshot.restoreSerializer();
+        serializedData =
+                readAndThenWriteData(
+                        serializedData, restoreSerializer, restoreSerializer, testDataMatcher);
+
+        TypeSerializer<T> duplicateSerializer = snapshot.restoreSerializer().duplicate();
+        readAndThenWriteData(
+                serializedData, duplicateSerializer, duplicateSerializer, testDataMatcher);
     }
 
     // ------------------------------------------------------------------------------
@@ -472,12 +467,12 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                 + "/src/test/resources/"
                 + testSpecification.name
                 + "-"
-                + testSpecification.migrationVersion;
+                + testSpecification.flinkVersion;
     }
 
     private TypeSerializerSnapshot<UpgradedElementT> snapshotUnderTest() throws Exception {
         return readSerializerSnapshot(
-                contentsOf(getSerializerSnapshotFilePath()), testSpecification.migrationVersion);
+                contentsOf(getSerializerSnapshotFilePath()), testSpecification.flinkVersion);
     }
 
     private DataInputView dataUnderTest() {
@@ -502,10 +497,10 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
     }
 
     private static <T> void writeSerializerSnapshot(
-            DataOutputView out, TypeSerializer<T> serializer, MigrationVersion migrationVersion)
+            DataOutputView out, TypeSerializer<T> serializer, FlinkVersion flinkVersion)
             throws IOException {
 
-        if (migrationVersion.isNewerVersionThan(MigrationVersion.v1_6)) {
+        if (flinkVersion.isNewerVersionThan(FlinkVersion.v1_6)) {
             writeSerializerSnapshotCurrentFormat(out, serializer);
         } else {
             writeSerializerSnapshotPre17Format(out, serializer);
@@ -530,10 +525,10 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
     }
 
     private static <T> TypeSerializerSnapshot<T> readSerializerSnapshot(
-            DataInputView in, MigrationVersion migrationVersion) throws IOException {
+            DataInputView in, FlinkVersion flinkVersion) throws IOException {
 
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        if (migrationVersion.isNewerVersionThan(MigrationVersion.v1_6)) {
+        if (flinkVersion.isNewerVersionThan(FlinkVersion.v1_6)) {
             return readSerializerSnapshotCurrentFormat(in, classLoader);
         } else {
             return readSerializerSnapshotPre17Format(in, classLoader);

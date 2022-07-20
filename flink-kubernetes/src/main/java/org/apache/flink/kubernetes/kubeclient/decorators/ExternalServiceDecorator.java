@@ -23,7 +23,6 @@ import org.apache.flink.kubernetes.utils.Constants;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.ServiceBuilder;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -42,37 +41,24 @@ public class ExternalServiceDecorator extends AbstractKubernetesStepDecorator {
 
     @Override
     public List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException {
-        final String serviceName =
-                getExternalServiceName(kubernetesJobManagerParameters.getClusterId());
+        final Service service =
+                kubernetesJobManagerParameters
+                        .getRestServiceExposedType()
+                        .serviceType()
+                        .buildUpExternalRestService(kubernetesJobManagerParameters);
 
-        final Service externalService =
-                new ServiceBuilder()
-                        .withApiVersion(Constants.API_VERSION)
-                        .withNewMetadata()
-                        .withName(serviceName)
-                        .withLabels(kubernetesJobManagerParameters.getCommonLabels())
-                        .withAnnotations(kubernetesJobManagerParameters.getRestServiceAnnotations())
-                        .endMetadata()
-                        .withNewSpec()
-                        .withType(kubernetesJobManagerParameters.getRestServiceExposedType().name())
-                        .withSelector(kubernetesJobManagerParameters.getLabels())
-                        .addNewPort()
-                        .withName(Constants.REST_PORT_NAME)
-                        .withPort(kubernetesJobManagerParameters.getRestPort())
-                        .withNewTargetPort(kubernetesJobManagerParameters.getRestBindPort())
-                        .endPort()
-                        .endSpec()
-                        .build();
-
-        return Collections.singletonList(externalService);
+        return Collections.singletonList(service);
     }
 
-    /** Generate name of the external Service. */
+    /** Generate name of the external rest Service. */
     public static String getExternalServiceName(String clusterId) {
         return clusterId + Constants.FLINK_REST_SERVICE_SUFFIX;
     }
 
-    /** Generate namespaced name of the external Service. */
+    /**
+     * Generate namespaced name of the external rest Service by cluster Id, This is used by other
+     * project, so do not delete it.
+     */
     public static String getNamespacedExternalServiceName(String clusterId, String namespace) {
         return getExternalServiceName(clusterId) + "." + namespace;
     }

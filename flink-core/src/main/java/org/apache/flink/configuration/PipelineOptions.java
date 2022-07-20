@@ -29,7 +29,6 @@ import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
-import static org.apache.flink.configuration.description.TextElement.text;
 
 /** The {@link ConfigOption configuration options} for job execution. */
 @PublicEvolving
@@ -106,20 +105,7 @@ public class PipelineOptions {
             key("pipeline.closure-cleaner-level")
                     .enumType(ClosureCleanerLevel.class)
                     .defaultValue(ClosureCleanerLevel.RECURSIVE)
-                    .withDescription(
-                            Description.builder()
-                                    .text("Configures the mode in which the closure cleaner works")
-                                    .list(
-                                            text(
-                                                    "%s - disables the closure cleaner completely",
-                                                    code(ClosureCleanerLevel.NONE.toString())),
-                                            text(
-                                                    "%s - cleans only the top-level class without recursing into fields",
-                                                    code(ClosureCleanerLevel.TOP_LEVEL.toString())),
-                                            text(
-                                                    "%s - cleans all the fields recursively",
-                                                    code(ClosureCleanerLevel.RECURSIVE.toString())))
-                                    .build());
+                    .withDescription("Configures the mode in which the closure cleaner works.");
 
     public static final ConfigOption<Boolean> FORCE_AVRO =
             key("pipeline.force-avro")
@@ -273,4 +259,27 @@ public class PipelineOptions {
                                             TextElement.code(
                                                     "name:file1,path:`file:///tmp/file1`;name:file2,path:`hdfs:///tmp/file2`"))
                                     .build());
+
+    public static final ConfigOption<VertexDescriptionMode> VERTEX_DESCRIPTION_MODE =
+            key("pipeline.vertex-description-mode")
+                    .enumType(VertexDescriptionMode.class)
+                    .defaultValue(VertexDescriptionMode.TREE)
+                    .withDescription("The mode how we organize description of a job vertex.");
+
+    /** The mode how we organize description of a vertex. */
+    @PublicEvolving
+    public enum VertexDescriptionMode {
+        /** Organizes the description in a multi line tree mode. */
+        TREE,
+        /** Organizes the description in a single line cascading mode, which is similar to name. */
+        CASCADING
+    }
+
+    public static final ConfigOption<Boolean> VERTEX_NAME_INCLUDE_INDEX_PREFIX =
+            key("pipeline.vertex-name-include-index-prefix")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether name of vertex includes topological index or not. "
+                                    + "When it is true, the name will have a prefix of index of the vertex, like '[vertex-0]Source: source'. It is false by default");
 }

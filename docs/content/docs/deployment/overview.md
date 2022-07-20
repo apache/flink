@@ -64,7 +64,6 @@ When deploying Flink, there are often multiple options available for each buildi
                     <li><a href="{{< ref "docs/ops/rest_api" >}}">REST Endpoint</a></li>
                     <li><a href="{{< ref "docs/dev/table/sqlClient" >}}">SQL Client</a></li>
                     <li><a href="{{< ref "docs/deployment/repls/python_shell" >}}">Python REPL</a></li>
-                    <li><a href="{{< ref "docs/deployment/repls/scala_shell" >}}">Scala REPL</a></li>
                 </ul>
             </td>
         </tr>
@@ -85,7 +84,6 @@ When deploying Flink, there are often multiple options available for each buildi
                     </li>
                     <li><a href="{{< ref "docs/deployment/resource-providers/native_kubernetes" >}}">Kubernetes</a></li>
                     <li><a href="{{< ref "docs/deployment/resource-providers/yarn" >}}">YARN</a></li>
-                    <li><a href="{{< ref "docs/deployment/resource-providers/mesos" >}}">Mesos</a></li>
                 </ul>
             </td>
         </tr>
@@ -124,7 +122,7 @@ When deploying Flink, there are often multiple options available for each buildi
         <tr>
             <td>Resource Provider</td>
             <td>
-                Flink can be deployed through different Resource Provider Frameworks, such as Kubernetes, YARN or Mesos.
+                Flink can be deployed through different Resource Provider Frameworks, such as Kubernetes or YARN.
             </td>
             <td>See <a href="#jmimpls">JobManager</a> implementations above.</td>
         </tr>
@@ -155,13 +153,29 @@ When deploying Flink, there are often multiple options available for each buildi
 </table>
 
 
+### Repeatable Resource Cleanup
+
+Once a job has reached a globally terminal state of either finished, failed or cancelled, the
+external component resources associated with the job are then cleaned up. In the event of a
+failure when cleaning up a resource, Flink will attempt to retry the cleanup. You can
+[configure]({{< ref "docs/deployment/config#retryable-cleanup" >}}) the retry strategy used. 
+Reaching the maximum number of retries without succeeding will leave the job in a dirty state. 
+Its artifacts would need to be cleaned up manually (see the 
+[High Availability Services / JobResultStore]({{< ref "docs/deployment/ha/overview#jobresultstore" >}})
+section for further details). Restarting the very same job (i.e. using the same 
+job ID) will result in the cleanup being restarted without running the job again.
+
+There is currently an issue with the cleanup of CompletedCheckpoints that failed to be deleted 
+while subsuming them as part of the usual CompletedCheckpoint management. These artifacts are 
+not covered by the repeatable cleanup, i.e. they have to be deleted manually, still. This is 
+covered by [FLINK-26606](https://issues.apache.org/jira/browse/FLINK-26606).
 
 ## Deployment Modes
 
 Flink can execute applications in one of three ways:
 - in Application Mode,
-- in a Per-Job Mode,
-- in Session Mode.
+- in Session Mode,
+- in a Per-Job Mode (deprecated).
 
  The above modes differ in:
  - the cluster lifecycle and resource isolation guarantees
@@ -169,9 +183,9 @@ Flink can execute applications in one of three ways:
 
 
 <!-- Image source: https://docs.google.com/drawings/d/1EfloufuOp1A7YDwZmBEsHKRLIrrbtRkoWRPcfZI5RYQ/edit?usp=sharing -->
-{{< img class="img-fluid" width="80%" style="margin: 15px" src="/fig/deployment_modes.svg" alt="Figure for Deployment Modes" >}}
+{{< img class="img-fluid" width="100%" style="margin: 15px" src="/fig/deployment_modes.svg" alt="Figure for Deployment Modes" >}}
 
-#### Application Mode
+### Application Mode
     
 In all the other modes, the application's `main()` method is executed on the client side. This process 
 includes downloading the application's dependencies locally, executing the `main()` to extract a representation
@@ -181,21 +195,24 @@ network bandwidth to download dependencies and ship binaries to the cluster, and
 `main()`. This problem can be more pronounced when the Client is shared across users.
 
 Building on this observation, the *Application Mode* creates a cluster per submitted application, but this time,
-the `main()` method of the application is executed on the JobManager. Creating a cluster per application can be 
-seen as creating a session cluster shared only among the jobs of a particular application, and torn down when
+the `main()` method of the application is executed by the *JobManager*. Creating a cluster per application can be 
+seen as creating a session cluster shared only among the jobs of a particular application, and turning down when
 the application finishes. With this architecture, the *Application Mode* provides the same resource isolation
-and load balancing guarantees as the *Per-Job* mode, but at the granularity of a whole application. Executing 
-the `main()` on the JobManager allows for saving the CPU cycles required, but also save the bandwidth required
-for downloading the dependencies locally. Furthermore, it allows for more even spread of the network load for
-downloading the dependencies of the applications in the cluster, as there is one JobManager per application.
+and load balancing guarantees as the *Per-Job* mode, but at the granularity of a whole application.
+
+The *Application Mode* builds on an assumption that the user jars are already available on the classpath (`usrlib` folder)
+of all Flink components that needs access to it (*JobManager*, *TaskManager*). In other words, your application comes
+bundled with the Flink distribution. This allows the application mode to speed up the deployment / recovery process, by
+not having to distribute the user jars to the Flink components via RPC as the other deployment modes do.
 
 {{< hint info >}}
-In the Application Mode, the `main()` is executed on the cluster and not on the client, 
-as in the other modes. This may have implications for your code as, for example, any paths you register in 
-your environment using the `registerCachedFile()` must be accessible by the JobManager of your application.
+The application mode assumes that the user jars are bundled with the Flink distribution.
+
+Executing the `main()` method on the cluster may have other implications for your code, such as any paths you register
+in your environment using the `registerCachedFile()` must be accessible by the JobManager of your application.
 {{< /hint >}}
 
-Compared to the *Per-Job* mode, the *Application Mode* allows the submission of applications consisting of
+Compared to the *Per-Job (deprecated)* mode, the *Application Mode* allows the submission of applications consisting of
 multiple jobs. The order of job execution is not affected by the deployment mode but by the call used
 to launch the job. Using `execute()`, which is blocking, establishes an order and it will lead to the 
 execution of the "next"  job being postponed until "this" job finishes. Using `executeAsync()`, which is 
@@ -205,19 +222,13 @@ non-blocking, will lead to the "next" job starting before "this" job finishes.
 The Application Mode allows for multi-`execute()` applications but 
 High-Availability is not supported in these cases. High-Availability in Application Mode is only
 supported for single-`execute()` applications.
+
+Additionally, when any of multiple running jobs in Application Mode (submitted for example using 
+`executeAsync()`) gets cancelled, all jobs will be stopped and the JobManager will shut down. 
+Regular job completions (by the sources shutting down) are supported.
 {{< /hint >}}
 
-#### Per-Job Mode
-
-Aiming at providing better resource isolation guarantees, the *Per-Job* mode uses the available resource provider
-framework (e.g. YARN, Kubernetes) to spin up a cluster for each submitted job. This cluster is available to 
-that job only. When the job finishes, the cluster is torn down and any lingering resources (files, etc) are
-cleared up. This provides better resource isolation, as a misbehaving job can only bring down its own 
-TaskManagers. In addition, it spreads the load of book-keeping across multiple JobManagers, as there is 
-one per job. For these reasons, the *Per-Job* resource allocation model is the preferred mode by many 
-production reasons.
-
-#### Session Mode
+### Session Mode
 
 *Session mode* assumes an already running cluster and uses the resources of that cluster to execute any 
 submitted application. Applications executed in the same (session) cluster use, and consequently compete
@@ -229,17 +240,29 @@ restarting jobs accessing the filesystem concurrently and making it unavailable 
 Additionally, having a single cluster running multiple jobs implies more load for the JobManager, who 
 is responsible for the book-keeping of all the jobs in the cluster.
 
+### Per-Job Mode (deprecated)
 
-#### Summary
+{{< hint danger >}}
+Per-job mode is only supported by YARN and has been deprecated in Flink 1.15. 
+It will be dropped in [FLINK-26000](https://issues.apache.org/jira/browse/FLINK-26000).
+Please consider application mode to launch a dedicated cluster per-job on YARN. 
+{{< /hint >}}
+
+Aiming at providing better resource isolation guarantees, the *Per-Job* mode uses the available resource provider
+framework (e.g. YARN) to spin up a cluster for each submitted job. This cluster is available to
+that job only. When the job finishes, the cluster is torn down and any lingering resources (files, etc) are
+cleared up. This provides better resource isolation, as a misbehaving job can only bring down its own
+TaskManagers. In addition, it spreads the load of book-keeping across multiple JobManagers, as there is
+one per job.
+
+### Summary
 
 In *Session Mode*, the cluster lifecycle is independent of that of any job running on the cluster
-and the resources are shared across all jobs. The *Per-Job* mode pays the price of spinning up a cluster
-for every submitted job, but this comes with better isolation guarantees as the resources are not shared 
-across jobs. In this case, the lifecycle of the cluster is bound to that of the job. Finally, the 
+and the resources are shared across all jobs. 
 *Application Mode* creates a session cluster per application and executes the application's `main()` 
-method on the cluster.
-
-
+method on the cluster. 
+It thus comes with better resource isolation as the resources are only used by the job(s) launched from a single `main()` method. 
+This comes at the price of spining up a dedicated cluster for each application. 
 
 ## Vendor Solutions
 
@@ -291,7 +314,7 @@ Supported Environment:
 
 #### Huawei Cloud Stream Service
 
-[Website](https://www.huaweicloud.com/en-us/product/cs.html)
+[Website](https://www.huaweicloud.com/intl/en-us/product/cs.html)
 
 Supported Environment:
 {{< label Huawei Cloud >}}

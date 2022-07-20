@@ -20,8 +20,8 @@ package org.apache.flink.runtime.checkpoint.channel;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
@@ -31,6 +31,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -39,9 +41,8 @@ import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteReque
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.write;
 
 /**
- * {@link ChannelStateWriter} implemented using {@link
- * CheckpointStreamFactory.CheckpointStateOutputStream CheckpointStateOutputStreams}. Internally, it
- * has by default
+ * {@link ChannelStateWriter} implemented using {@link CheckpointStateOutputStream
+ * CheckpointStateOutputStreams}. Internally, it has by default
  *
  * <ul>
  *   <li>one stream per checkpoint; having multiple streams would mean more files written and more
@@ -170,6 +171,22 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
                 startSeqNum,
                 data == null ? 0 : data.length);
         enqueue(write(checkpointId, info, data), false);
+    }
+
+    @Override
+    public void addOutputDataFuture(
+            long checkpointId,
+            ResultSubpartitionInfo info,
+            int startSeqNum,
+            CompletableFuture<List<Buffer>> dataFuture)
+            throws IllegalArgumentException {
+        LOG.trace(
+                "{} adding output data future, checkpoint {}, channel: {}, startSeqNum: {}",
+                taskName,
+                checkpointId,
+                info,
+                startSeqNum);
+        enqueue(write(checkpointId, info, dataFuture), false);
     }
 
     @Override

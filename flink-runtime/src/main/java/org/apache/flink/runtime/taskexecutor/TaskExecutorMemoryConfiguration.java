@@ -22,7 +22,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.MoreObjects;
+import org.apache.flink.shaded.guava30.com.google.common.base.MoreObjects;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -38,12 +38,11 @@ import static org.apache.flink.configuration.TaskManagerOptions.MANAGED_MEMORY_S
 import static org.apache.flink.configuration.TaskManagerOptions.NETWORK_MEMORY_MAX;
 import static org.apache.flink.configuration.TaskManagerOptions.TASK_HEAP_MEMORY;
 import static org.apache.flink.configuration.TaskManagerOptions.TASK_OFF_HEAP_MEMORY;
-import static org.apache.flink.configuration.TaskManagerOptions.TOTAL_FLINK_MEMORY;
-import static org.apache.flink.configuration.TaskManagerOptions.TOTAL_PROCESS_MEMORY;
+import static org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils.calculateTotalFlinkMemoryFromComponents;
+import static org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils.calculateTotalProcessMemoryFromComponents;
 
 /** TaskExecutorConfiguration collects the configuration of a TaskExecutor instance. */
 public class TaskExecutorMemoryConfiguration implements Serializable {
-
     public static final String FIELD_NAME_FRAMEWORK_HEAP = "frameworkHeap";
     public static final String FIELD_NAME_TASK_HEAP = "taskHeap";
 
@@ -116,8 +115,8 @@ public class TaskExecutorMemoryConfiguration implements Serializable {
                 getConfigurationValue(config, MANAGED_MEMORY_SIZE),
                 getConfigurationValue(config, JVM_METASPACE),
                 getConfigurationValue(config, JVM_OVERHEAD_MAX),
-                getConfigurationValue(config, TOTAL_FLINK_MEMORY),
-                getConfigurationValue(config, TOTAL_PROCESS_MEMORY));
+                calculateTotalFlinkMemoryFromComponents(config),
+                calculateTotalProcessMemoryFromComponents(config));
     }
 
     @JsonCreator

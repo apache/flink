@@ -13,7 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.runtime.metrics.ReporterSetupTest$TestReporterFactory
-org.apache.flink.runtime.metrics.ReporterSetupTest$FailingFactory
-org.apache.flink.runtime.metrics.ReporterSetupTest$InstantiationTypeTrackingTestReporterFactory
-org.apache.flink.runtime.metrics.ReporterSetupTest$ConfigExposingReporterFactory
+org.apache.flink.runtime.testutils.InMemoryReporter$Factory

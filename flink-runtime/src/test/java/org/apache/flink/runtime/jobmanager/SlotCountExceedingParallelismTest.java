@@ -31,9 +31,9 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.TestLogger;
 
@@ -68,7 +68,7 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 
     private static Configuration getFlinkConfiguration() {
         final Configuration config = new Configuration();
-        config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
+        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT);
 
         return config;
     }

@@ -25,13 +25,12 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.metrics.LogicalScopeProvider;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
-import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
@@ -58,15 +57,10 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
     private static final Pattern UNALLOWED_CHAR_PATTERN = Pattern.compile("[^a-zA-Z0-9:_]");
     private static final CharacterFilter CHARACTER_FILTER =
-            new CharacterFilter() {
-                @Override
-                public String filterCharacters(String input) {
-                    return replaceInvalidChars(input);
-                }
-            };
+            AbstractPrometheusReporter::replaceInvalidChars;
 
-    private static final char SCOPE_SEPARATOR = '_';
-    private static final String SCOPE_PREFIX = "flink" + SCOPE_SEPARATOR;
+    @VisibleForTesting static final char SCOPE_SEPARATOR = '_';
+    @VisibleForTesting static final String SCOPE_PREFIX = "flink" + SCOPE_SEPARATOR;
 
     private final Map<String, AbstractMap.SimpleImmutableEntry<Collector, Integer>>
             collectorsWithCountByMetricName = new HashMap<>();
@@ -157,62 +151,77 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
             String scopedMetricName,
             String helpString) {
         Collector collector;
-        if (metric instanceof Gauge || metric instanceof Counter || metric instanceof Meter) {
-            collector =
-                    io.prometheus.client.Gauge.build()
-                            .name(scopedMetricName)
-                            .help(helpString)
-                            .labelNames(toArray(dimensionKeys))
-                            .create();
-        } else if (metric instanceof Histogram) {
-            collector =
-                    new HistogramSummaryProxy(
-                            (Histogram) metric,
-                            scopedMetricName,
-                            helpString,
-                            dimensionKeys,
-                            dimensionValues);
-        } else {
-            log.warn(
-                    "Cannot create collector for unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
-                    metric.getClass().getName());
-            collector = null;
+        switch (metric.getMetricType()) {
+            case GAUGE:
+            case COUNTER:
+            case METER:
+                collector =
+                        io.prometheus.client.Gauge.build()
+                                .name(scopedMetricName)
+                                .help(helpString)
+                                .labelNames(toArray(dimensionKeys))
+                                .create();
+                break;
+            case HISTOGRAM:
+                collector =
+                        new HistogramSummaryProxy(
+                                (Histogram) metric,
+                                scopedMetricName,
+                                helpString,
+                                dimensionKeys,
+                                dimensionValues);
+                break;
+            default:
+                log.warn(
+                        "Cannot create collector for unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
+                        metric.getClass().getName());
+                collector = null;
         }
         return collector;
     }
 
     private void addMetric(Metric metric, List<String> dimensionValues, Collector collector) {
-        if (metric instanceof Gauge) {
-            ((io.prometheus.client.Gauge) collector)
-                    .setChild(gaugeFrom((Gauge) metric), toArray(dimensionValues));
-        } else if (metric instanceof Counter) {
-            ((io.prometheus.client.Gauge) collector)
-                    .setChild(gaugeFrom((Counter) metric), toArray(dimensionValues));
-        } else if (metric instanceof Meter) {
-            ((io.prometheus.client.Gauge) collector)
-                    .setChild(gaugeFrom((Meter) metric), toArray(dimensionValues));
-        } else if (metric instanceof Histogram) {
-            ((HistogramSummaryProxy) collector).addChild((Histogram) metric, dimensionValues);
-        } else {
-            log.warn(
-                    "Cannot add unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
-                    metric.getClass().getName());
+        switch (metric.getMetricType()) {
+            case GAUGE:
+                ((io.prometheus.client.Gauge) collector)
+                        .setChild(gaugeFrom((Gauge<?>) metric), toArray(dimensionValues));
+                break;
+            case COUNTER:
+                ((io.prometheus.client.Gauge) collector)
+                        .setChild(gaugeFrom((Counter) metric), toArray(dimensionValues));
+                break;
+            case METER:
+                ((io.prometheus.client.Gauge) collector)
+                        .setChild(gaugeFrom((Meter) metric), toArray(dimensionValues));
+                break;
+            case HISTOGRAM:
+                ((HistogramSummaryProxy) collector).addChild((Histogram) metric, dimensionValues);
+                break;
+            default:
+                log.warn(
+                        "Cannot add unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
+                        metric.getClass().getName());
         }
     }
 
     private void removeMetric(Metric metric, List<String> dimensionValues, Collector collector) {
-        if (metric instanceof Gauge) {
-            ((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
-        } else if (metric instanceof Counter) {
-            ((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
-        } else if (metric instanceof Meter) {
-            ((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
-        } else if (metric instanceof Histogram) {
-            ((HistogramSummaryProxy) collector).remove(dimensionValues);
-        } else {
-            log.warn(
-                    "Cannot remove unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
-                    metric.getClass().getName());
+        switch (metric.getMetricType()) {
+            case GAUGE:
+                ((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
+                break;
+            case COUNTER:
+                ((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
+                break;
+            case METER:
+                ((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
+                break;
+            case HISTOGRAM:
+                ((HistogramSummaryProxy) collector).remove(dimensionValues);
+                break;
+            default:
+                log.warn(
+                        "Cannot remove unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
+                        metric.getClass().getName());
         }
     }
 
@@ -249,14 +258,13 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private static String getLogicalScope(MetricGroup group) {
-        return ((FrontMetricGroup<AbstractMetricGroup<?>>) group)
+        return LogicalScopeProvider.castFrom(group)
                 .getLogicalScope(CHARACTER_FILTER, SCOPE_SEPARATOR);
     }
 
     @VisibleForTesting
-    io.prometheus.client.Gauge.Child gaugeFrom(Gauge gauge) {
+    io.prometheus.client.Gauge.Child gaugeFrom(Gauge<?> gauge) {
         return new io.prometheus.client.Gauge.Child() {
             @Override
             public double get() {

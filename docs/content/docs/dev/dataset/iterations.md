@@ -30,7 +30,7 @@ Iterative algorithms occur in many domains of data analysis, such as *machine le
 
 Flink programs implement iterative algorithms by defining a **step function** and embedding it into a special iteration operator. There are two  variants of this operator: **Iterate** and **Delta Iterate**. Both operators repeatedly invoke the step function on the current iteration state until a certain termination condition is reached.
 
-Here, we provide background on both operator variants and outline their usage. The [programming guide](index.html) explains how to implement the operators in both Scala and Java. We also support both **vertex-centric and gather-sum-apply iterations** through Flink's graph processing API, [Gelly]({{< ref "docs/libs/gelly/overview" >}}).
+Here, we provide background on both operator variants and outline their usage. The [programming guide]({{< ref "docs/dev/dataset/overview" >}}) explains how to implement the operators in both Scala and Java. We also support both **vertex-centric and gather-sum-apply iterations** through Flink's graph processing API, [Gelly]({{< ref "docs/libs/gelly/overview" >}}).
 
 The following table provides an overview of both operators:
 
@@ -115,11 +115,9 @@ while (!terminationCriterion()) {
 setFinalState(state);
 ```
 
-<div class="panel panel-default">
-	<div class="panel-body">
-	See the <strong><a href="index.html">Programming Guide</a> </strong> for details and code examples.
-	</div>
-</div>
+{{< hint info >}}
+See the **[Programming Guide]({{< ref "docs/dev/dataset/overview" >}})** for details and code examples.
+{{< /hint >}}
 
 ### Example: Incrementing Numbers
 
@@ -173,17 +171,15 @@ IterationState solution = getInitialSolution();
 while (!terminationCriterion()) {
 	(delta, workset) = step(workset, solution);
 
-	solution.update(delta)
+	solution.update(delta);
 }
 
 setFinalState(solution);
 ```
 
-<div class="panel panel-default">
-	<div class="panel-body">
-	See the <strong><a href="index.html">programming guide</a></strong> for details and code examples.
-	</div>
-</div>
+{{< hint info >}}
+See the **[Programming Guide]({{< ref "docs/dev/dataset/overview" >}})** for details and code examples.
+{{< /hint >}}
 
 ### Example: Propagate Minimum in Graph
 

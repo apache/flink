@@ -24,7 +24,6 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 import org.apache.flink.yarn.util.TestUtils;
 
@@ -39,52 +38,43 @@ import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.File;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for various utilities. */
-public class UtilsTest extends TestLogger {
+class UtilsTest {
     private static final Logger LOG = LoggerFactory.getLogger(UtilsTest.class);
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir File temporaryFolder;
 
     @Test
-    public void testUberjarLocator() {
+    void testUberjarLocator() {
         File dir = TestUtils.findFile("..", new TestUtils.RootDirFilenameFilter());
-        Assert.assertNotNull(dir);
-        Assert.assertTrue(dir.getName().endsWith(".jar"));
+        assertThat(dir).isNotNull();
+        assertThat(dir.getName()).endsWith(".jar");
         dir = dir.getParentFile().getParentFile(); // from uberjar to lib to root
-        Assert.assertTrue(dir.exists());
-        Assert.assertTrue(dir.isDirectory());
-        List<String> files = Arrays.asList(dir.list());
-        Assert.assertTrue(files.contains("lib"));
-        Assert.assertTrue(files.contains("bin"));
-        Assert.assertTrue(files.contains("conf"));
+        assertThat(dir).exists().isDirectory();
+        assertThat(dir.list()).contains("lib", "bin", "conf");
     }
 
     @Test
-    public void testCreateTaskExecutorCredentials() throws Exception {
-        File root = temporaryFolder.getRoot();
+    void testCreateTaskExecutorCredentials() throws Exception {
+        File root = temporaryFolder;
         File home = new File(root, "home");
         boolean created = home.mkdir();
-        assertTrue(created);
+        assertThat(created).isTrue();
 
         Configuration flinkConf = new Configuration();
         YarnConfiguration yarnConf = new YarnConfiguration();
@@ -112,16 +102,23 @@ public class UtilsTest extends TestLogger {
         final YarnResourceManagerDriverConfiguration yarnResourceManagerDriverConfiguration =
                 new YarnResourceManagerDriverConfiguration(env, "localhost", null);
 
-        File credentialFile = temporaryFolder.newFile("container_tokens");
+        File credentialFile = temporaryFolder.toPath().resolve("container_tokens").toFile();
+        credentialFile.createNewFile();
         final Text amRmTokenKind = AMRMTokenIdentifier.KIND_NAME;
         final Text hdfsDelegationTokenKind = new Text("HDFS_DELEGATION_TOKEN");
-        final Text service = new Text("test-service");
+        final Text amRmTokenService = new Text("rm-ip:8030");
+        final Text hdfsDelegationTokenService = new Text("ha-hdfs:hadoop-namespace");
         Credentials amCredentials = new Credentials();
         amCredentials.addToken(
-                amRmTokenKind, new Token<>(new byte[4], new byte[4], amRmTokenKind, service));
+                amRmTokenService,
+                new Token<>(new byte[4], new byte[4], amRmTokenKind, amRmTokenService));
         amCredentials.addToken(
-                hdfsDelegationTokenKind,
-                new Token<>(new byte[4], new byte[4], hdfsDelegationTokenKind, service));
+                hdfsDelegationTokenService,
+                new Token<>(
+                        new byte[4],
+                        new byte[4],
+                        hdfsDelegationTokenKind,
+                        hdfsDelegationTokenService));
         amCredentials.writeTokenStorageFile(
                 new org.apache.hadoop.fs.Path(credentialFile.getAbsolutePath()), yarnConf);
 
@@ -171,7 +168,7 @@ public class UtilsTest extends TestLogger {
                 hasHdfsDelegationToken = true;
             }
         }
-        assertTrue(hasHdfsDelegationToken);
-        assertFalse(hasAmRmToken);
+        assertThat(hasHdfsDelegationToken).isTrue();
+        assertThat(hasAmRmToken).isFalse();
     }
 }

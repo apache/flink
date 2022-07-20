@@ -245,7 +245,8 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
     private boolean inWindow; // Allow nested aggregates
 
-    private final ValidationErrorFunction validationErrorFunction = new ValidationErrorFunction();
+    private final SqlValidatorImpl.ValidationErrorFunction validationErrorFunction =
+            new SqlValidatorImpl.ValidationErrorFunction();
 
     // TypeCoercion instance used for implicit type coercion.
     private TypeCoercion typeCoercion;
@@ -4710,6 +4711,12 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                         Static.RESOURCE.illegalExpressionForTemporal(
                                 dataType.getSqlTypeName().getName()));
             }
+            if (ns instanceof IdentifierNamespace && ns.resolve() instanceof WithItemNamespace) {
+                // If the snapshot is used over a CTE, then we don't have a concrete underlying
+                // table to operate on. This will be rechecked later in the planner rules.
+                return;
+            }
+            assert ns.getTable() != null;
             if (!ns.getTable().isTemporal()) {
                 List<String> qualifiedName = ns.getTable().getQualifiedName();
                 String tableName = qualifiedName.get(qualifiedName.size() - 1);

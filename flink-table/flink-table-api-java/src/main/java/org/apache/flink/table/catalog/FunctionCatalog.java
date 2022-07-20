@@ -21,7 +21,6 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -41,10 +40,13 @@ import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -65,6 +67,7 @@ public final class FunctionCatalog {
     private final ReadableConfig config;
     private final CatalogManager catalogManager;
     private final ModuleManager moduleManager;
+    private ClassLoader classLoader;
 
     private final Map<String, CatalogFunction> tempSystemFunctions = new LinkedHashMap<>();
     private final Map<ObjectIdentifier, CatalogFunction> tempCatalogFunctions =
@@ -77,15 +80,19 @@ public final class FunctionCatalog {
     private PlannerTypeInferenceUtil plannerTypeInferenceUtil;
 
     public FunctionCatalog(
-            TableConfig config, CatalogManager catalogManager, ModuleManager moduleManager) {
-        this(checkNotNull(config).getConfiguration(), catalogManager, moduleManager);
-    }
-
-    public FunctionCatalog(
-            ReadableConfig config, CatalogManager catalogManager, ModuleManager moduleManager) {
+            ReadableConfig config,
+            CatalogManager catalogManager,
+            ModuleManager moduleManager,
+            ClassLoader classLoader) {
         this.config = checkNotNull(config);
         this.catalogManager = checkNotNull(catalogManager);
         this.moduleManager = checkNotNull(moduleManager);
+        this.classLoader = classLoader;
+    }
+
+    /** Updates the classloader, this is a temporary solution until FLINK-14055 is fixed. */
+    public void updateClassLoader(ClassLoader classLoader) {
+        this.classLoader = classLoader;
     }
 
     public void setPlannerTypeInferenceUtil(PlannerTypeInferenceUtil plannerTypeInferenceUtil) {
@@ -333,13 +340,14 @@ public final class FunctionCatalog {
     public FunctionLookup asLookup(Function<String, UnresolvedIdentifier> parser) {
         return new FunctionLookup() {
             @Override
-            public Optional<Result> lookupFunction(String stringIdentifier) {
+            public Optional<ContextResolvedFunction> lookupFunction(String stringIdentifier) {
                 UnresolvedIdentifier unresolvedIdentifier = parser.apply(stringIdentifier);
                 return lookupFunction(unresolvedIdentifier);
             }
 
             @Override
-            public Optional<FunctionLookup.Result> lookupFunction(UnresolvedIdentifier identifier) {
+            public Optional<ContextResolvedFunction> lookupFunction(
+                    UnresolvedIdentifier identifier) {
                 return FunctionCatalog.this.lookupFunction(identifier);
             }
 
@@ -353,7 +361,7 @@ public final class FunctionCatalog {
         };
     }
 
-    public Optional<FunctionLookup.Result> lookupFunction(UnresolvedIdentifier identifier) {
+    public Optional<ContextResolvedFunction> lookupFunction(UnresolvedIdentifier identifier) {
         // precise function reference
         if (identifier.getDatabaseName().isPresent()) {
             return resolvePreciseFunctionReference(catalogManager.qualifyIdentifier(identifier));
@@ -548,7 +556,7 @@ public final class FunctionCatalog {
         return result;
     }
 
-    private Optional<FunctionLookup.Result> resolvePreciseFunctionReference(ObjectIdentifier oi) {
+    private Optional<ContextResolvedFunction> resolvePreciseFunctionReference(ObjectIdentifier oi) {
         // resolve order:
         // 1. Temporary functions
         // 2. Catalog functions
@@ -557,7 +565,7 @@ public final class FunctionCatalog {
 
         if (potentialResult != null) {
             return Optional.of(
-                    new FunctionLookup.Result(
+                    ContextResolvedFunction.temporary(
                             FunctionIdentifier.of(oi),
                             getFunctionDefinition(oi.getObjectName(), potentialResult)));
         }
@@ -582,7 +590,8 @@ public final class FunctionCatalog {
                     fd = getFunctionDefinition(oi.asSummaryString(), catalogFunction);
                 }
 
-                return Optional.of(new FunctionLookup.Result(FunctionIdentifier.of(oi), fd));
+                return Optional.of(
+                        ContextResolvedFunction.permanent(FunctionIdentifier.of(oi), fd));
             } catch (FunctionNotExistException e) {
                 // Ignore
             }
@@ -591,7 +600,7 @@ public final class FunctionCatalog {
         return Optional.empty();
     }
 
-    private Optional<FunctionLookup.Result> resolveAmbiguousFunctionReference(String funcName) {
+    private Optional<ContextResolvedFunction> resolveAmbiguousFunctionReference(String funcName) {
         // resolve order:
         // 1. Temporary system functions
         // 2. System functions
@@ -601,7 +610,7 @@ public final class FunctionCatalog {
         String normalizedName = FunctionIdentifier.normalizeName(funcName);
         if (tempSystemFunctions.containsKey(normalizedName)) {
             return Optional.of(
-                    new FunctionLookup.Result(
+                    ContextResolvedFunction.temporary(
                             FunctionIdentifier.of(funcName),
                             getFunctionDefinition(
                                     normalizedName, tempSystemFunctions.get(normalizedName))));
@@ -619,7 +628,7 @@ public final class FunctionCatalog {
                 .map(
                         fd ->
                                 Optional.of(
-                                        new FunctionLookup.Result(
+                                        ContextResolvedFunction.permanent(
                                                 FunctionIdentifier.of(funcName), fd)))
                 .orElseGet(() -> resolvePreciseFunctionReference(oi));
     }
@@ -631,21 +640,18 @@ public final class FunctionCatalog {
         // In this situation the UDF have not been validated and cleaned, so we need to validate it
         // and clean its closure here.
         // If the input is instance of `ScalarFunctionDefinition`, `TableFunctionDefinition` and so
-        // on,
-        // it means it uses the old type inference. We assume that they have been validated before
-        // being
-        // wrapped.
-        if (function instanceof InlineCatalogFunction
-                && ((InlineCatalogFunction) function).getDefinition()
-                        instanceof UserDefinedFunction) {
-
+        // on, it means it uses the old type inference. We assume that they have been validated
+        // before being wrapped.
+        if (function instanceof InlineCatalogFunction) {
             FunctionDefinition definition = ((InlineCatalogFunction) function).getDefinition();
-            UserDefinedFunctionHelper.prepareInstance(config, (UserDefinedFunction) definition);
+            if (definition instanceof UserDefinedFunction) {
+                UserDefinedFunctionHelper.prepareInstance(config, (UserDefinedFunction) definition);
+            }
+            // Skip validation if it's not a UserDefinedFunction.
         } else if (function.getFunctionLanguage() == FunctionLanguage.JAVA) {
-            ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
             UserDefinedFunctionHelper.validateClass(
                     (Class<? extends UserDefinedFunction>)
-                            contextClassLoader.loadClass(function.getClassName()));
+                            classLoader.loadClass(function.getClassName()));
         }
     }
 
@@ -657,8 +663,7 @@ public final class FunctionCatalog {
             return ((InlineCatalogFunction) function).getDefinition();
         }
         return UserDefinedFunctionHelper.instantiateFunction(
-                Thread.currentThread()
-                        .getContextClassLoader(), // TODO use classloader of catalog manager in the
+                classLoader,
                 // future
                 config,
                 name,
@@ -709,6 +714,11 @@ public final class FunctionCatalog {
         @Override
         public FunctionLanguage getFunctionLanguage() {
             return FunctionLanguage.JAVA;
+        }
+
+        @Override
+        public List<ResourceUri> getFunctionResources() {
+            return Collections.emptyList();
         }
 
         public FunctionDefinition getDefinition() {

@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -44,6 +45,7 @@ import java.util.List;
 import java.util.Random;
 
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -277,6 +279,26 @@ public class ExecutionConfigTest extends TestLogger {
                 configuration, Thread.currentThread().getContextClassLoader());
 
         assertThat(configFromConfiguration, equalTo(configFromSetters));
+    }
+
+    @Test
+    public void testLoadingIsDynamicGraphFromConfiguration() {
+        testLoadingIsDynamicGraphFromConfiguration(
+                JobManagerOptions.SchedulerType.AdaptiveBatch, true);
+        testLoadingIsDynamicGraphFromConfiguration(JobManagerOptions.SchedulerType.Ng, false);
+        testLoadingIsDynamicGraphFromConfiguration(JobManagerOptions.SchedulerType.Adaptive, false);
+    }
+
+    private void testLoadingIsDynamicGraphFromConfiguration(
+            JobManagerOptions.SchedulerType schedulerType, boolean expectIsDynamicGraph) {
+        Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.SCHEDULER, schedulerType);
+
+        ExecutionConfig configFromConfiguration = new ExecutionConfig();
+        configFromConfiguration.configure(
+                configuration, Thread.currentThread().getContextClassLoader());
+
+        assertThat(configFromConfiguration.isDynamicGraph(), is(expectIsDynamicGraph));
     }
 
     @Test

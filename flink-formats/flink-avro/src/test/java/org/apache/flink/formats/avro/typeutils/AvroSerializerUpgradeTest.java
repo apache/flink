@@ -18,12 +18,12 @@
 
 package org.apache.flink.formats.avro.typeutils;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.formats.avro.generated.Address;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -47,18 +47,18 @@ public class AvroSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obj
     @Parameterized.Parameters(name = "Test Specification = {0}")
     public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "generic-avro-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             GenericAvroSerializerSetup.class,
                             GenericAvroSerializerVerifier.class));
 
             testSpecifications.add(
                     new TestSpecification<>(
                             "specific-avro-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             SpecificAvroSerializerSetup.class,
                             SpecificAvroSerializerVerifier.class));
         }
@@ -120,7 +120,7 @@ public class AvroSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obj
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<GenericRecord>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -182,7 +182,7 @@ public class AvroSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obj
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<Address>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }

@@ -37,17 +37,16 @@ under the License.
 
 连接器可以和多种多样的第三方系统进行交互。目前支持以下系统:
 
- * [Apache Kafka](kafka.html) (source/sink)
- * [Apache Cassandra](cassandra.html) (sink)
- * [Amazon Kinesis Streams](kinesis.html) (source/sink)
- * [Elasticsearch](elasticsearch.html) (sink)
- * [FileSystem（包括 Hadoop ） - 仅支持流](streamfile_sink.html) (sink)
- * [FileSystem（包括 Hadoop ） - 流批统一](file_sink.html) (sink)
- * [RabbitMQ](rabbitmq.html) (source/sink)
- * [Apache NiFi](nifi.html) (source/sink)
- * [Twitter Streaming API](twitter.html) (source)
- * [Google PubSub](pubsub.html) (source/sink)
- * [JDBC](jdbc.html) (sink)
+ * [Apache Kafka]({{< ref "docs/connectors/datastream/kafka" >}}) (source/sink)
+ * [Apache Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (sink)
+ * [Amazon Kinesis Streams]({{< ref "docs/connectors/datastream/kinesis" >}}) (source/sink)
+ * [Elasticsearch]({{< ref "docs/connectors/datastream/elasticsearch" >}}) (sink)
+ * [FileSystem]({{< ref "docs/connectors/datastream/filesystem" >}}) (sink)
+ * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)
+ * [Google PubSub]({{< ref "docs/connectors/datastream/pubsub" >}}) (source/sink)
+ * [Hybrid Source]({{< ref "docs/connectors/datastream/hybridsource" >}}) (source)
+ * [Apache Pulsar]({{< ref "docs/connectors/datastream/pulsar" >}}) (source)
+ * [JDBC]({{< ref "docs/connectors/datastream/jdbc" >}}) (sink)
 
 请记住，在使用一种连接器时，通常需要额外的第三方组件，比如：数据存储服务器或者消息队列。
 要注意这些列举的连接器是 Flink 工程的一部分，包含在发布的源码中，但是不包含在二进制发行版中。
@@ -63,7 +62,7 @@ Flink 还有些一些额外的连接器通过 [Apache Bahir](https://bahir.apach
  * [Akka](https://bahir.apache.org/docs/flink/current/flink-streaming-akka/) (sink)
  * [Netty](https://bahir.apache.org/docs/flink/current/flink-streaming-netty/) (source)
 
-## 连接Fink的其他方法
+## 连接Flink的其他方法
 
 ### 异步 I/O
 

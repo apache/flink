@@ -25,6 +25,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -57,8 +58,25 @@ public final class SlotPoolTestUtils {
     public static Collection<SlotOffer> offerSlots(
             DeclarativeSlotPool slotPool,
             Collection<? extends SlotOffer> slotOffers,
+            TaskManagerLocation taskManagerLocation) {
+        return slotPool.offerSlots(
+                slotOffers, taskManagerLocation, createTaskManagerGateway(null), 0);
+    }
+
+    @Nonnull
+    public static Collection<SlotOffer> offerSlots(
+            DeclarativeSlotPool slotPool,
+            Collection<? extends SlotOffer> slotOffers,
             TaskManagerGateway taskManagerGateway) {
         return slotPool.offerSlots(
                 slotOffers, new LocalTaskManagerLocation(), taskManagerGateway, 0);
+    }
+
+    @Nonnull
+    public static Collection<SlotOffer> offerSlots(
+            SlotPool slotPool,
+            Collection<SlotOffer> slotOffers,
+            TaskManagerGateway taskManagerGateway) {
+        return slotPool.offerSlots(new LocalTaskManagerLocation(), taskManagerGateway, slotOffers);
     }
 }

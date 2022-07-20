@@ -26,11 +26,9 @@ import org.apache.flink.util.OperatingSystem;
 
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -50,17 +48,20 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.client.python.PythonEnvUtils.PYFLINK_CLIENT_EXECUTABLE;
 import static org.apache.flink.client.python.PythonEnvUtils.preparePythonEnvironment;
+import static org.apache.flink.python.PythonOptions.PYTHON_ARCHIVES;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for the {@link PythonEnvUtils}. */
-public class PythonEnvUtilsTest {
+class PythonEnvUtilsTest {
 
     private String tmpDirPath;
 
-    @Before
-    public void prepareTestEnvironment() {
+    @BeforeEach
+    void prepareTestEnvironment() {
         File tmpDirFile =
                 new File(System.getProperty("java.io.tmpdir"), "pyflink_" + UUID.randomUUID());
         tmpDirFile.mkdirs();
@@ -68,9 +69,9 @@ public class PythonEnvUtilsTest {
     }
 
     @Test
-    public void testPreparePythonEnvironment() throws IOException {
+    void testPreparePythonEnvironment() throws IOException {
         // Skip this test on Windows as we can not control the Window Driver letters.
-        Assume.assumeFalse(OperatingSystem.isWindows());
+        assumeThat(OperatingSystem.isWindows()).isFalse();
 
         // xxx/a.zip, xxx/subdir/b.py, xxx/subdir/c.zip
         File zipFile = new File(tmpDirPath + File.separator + "a.zip");
@@ -130,11 +131,11 @@ public class PythonEnvUtilsTest {
                 Arrays.stream(env.pythonPath.split(File.pathSeparator))
                         .map(PythonEnvUtilsTest::replaceUUID)
                         .collect(Collectors.toSet());
-        Assert.assertEquals(expectedPythonPaths, actualPaths);
+        assertThat(actualPaths).isEqualTo(expectedPythonPaths);
     }
 
     @Test
-    public void testStartPythonProcess() {
+    void testStartPythonProcess() {
         PythonEnvUtils.PythonEnvironment pythonEnv = new PythonEnvUtils.PythonEnvironment();
         pythonEnv.tempDirectory = tmpDirPath;
         pythonEnv.pythonPath = tmpDirPath;
@@ -166,7 +167,7 @@ public class PythonEnvUtilsTest {
             }
             String cmdResult = new String(Files.readAllBytes(new File(result).toPath()));
             // Check if the working directory of python process is the same as java process.
-            Assert.assertEquals(cmdResult, System.getProperty("user.dir"));
+            assertThat(cmdResult).isEqualTo(System.getProperty("user.dir"));
             pythonProcess.destroyForcibly();
             pyFile.delete();
             new File(result).delete();
@@ -176,14 +177,22 @@ public class PythonEnvUtilsTest {
     }
 
     @Test
-    public void testSetPythonExecutable() throws IOException {
+    void testSetPythonExecutable() throws IOException {
         Configuration config = new Configuration();
 
+        File zipFile = new File(tmpDirPath + File.separator + "venv.zip");
+        try (ZipArchiveOutputStream zipOut =
+                new ZipArchiveOutputStream(new FileOutputStream(zipFile))) {
+            ZipArchiveEntry entry = new ZipArchiveEntry("zipDir" + "/zipfile0");
+            zipOut.putArchiveEntry(entry);
+            zipOut.write(new byte[] {1, 1, 1, 1, 1});
+            zipOut.closeArchiveEntry();
+        }
         PythonEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
         if (OperatingSystem.isWindows()) {
-            Assert.assertEquals("python.exe", env.pythonExec);
+            assertThat(env.pythonExec).isEqualTo("python.exe");
         } else {
-            Assert.assertEquals("python", env.pythonExec);
+            assertThat(env.pythonExec).isEqualTo("python");
         }
 
         Map<String, String> systemEnv = new HashMap<>(System.getenv());
@@ -191,19 +200,37 @@ public class PythonEnvUtilsTest {
         CommonTestUtils.setEnv(systemEnv);
         try {
             env = preparePythonEnvironment(config, null, tmpDirPath);
-            Assert.assertEquals("python3", env.pythonExec);
+            assertThat(env.pythonExec).isEqualTo("python3");
         } finally {
             systemEnv.remove(PYFLINK_CLIENT_EXECUTABLE);
             CommonTestUtils.setEnv(systemEnv);
         }
 
+        config.setString(PYTHON_ARCHIVES, zipFile.getPath());
+        systemEnv = new HashMap<>(System.getenv());
+        systemEnv.put(PYFLINK_CLIENT_EXECUTABLE, "venv.zip/venv/bin/python");
+        CommonTestUtils.setEnv(systemEnv);
+        try {
+            env = preparePythonEnvironment(config, null, tmpDirPath);
+            assertThat(env.pythonExec).isEqualTo("venv.zip/venv/bin/python");
+        } finally {
+            systemEnv.remove(PYFLINK_CLIENT_EXECUTABLE);
+            CommonTestUtils.setEnv(systemEnv);
+        }
+        java.nio.file.Path[] files =
+                FileUtils.listDirectory(new File(env.archivesDirectory).toPath());
+        assertThat(files).hasSize(1);
+        assertThat(files[0].getFileName().toString()).isEqualTo(zipFile.getName());
+
+        config.removeConfig(PYTHON_ARCHIVES);
+
         config.set(PYTHON_CLIENT_EXECUTABLE, "/usr/bin/python");
         env = preparePythonEnvironment(config, null, tmpDirPath);
-        Assert.assertEquals("/usr/bin/python", env.pythonExec);
+        assertThat(env.pythonExec).isEqualTo("/usr/bin/python");
     }
 
     @Test
-    public void testPrepareEnvironmentWithEntryPointScript() throws IOException {
+    void testPrepareEnvironmentWithEntryPointScript() throws IOException {
         File entryFile = new File(tmpDirPath + File.separator + "test.py");
         // The file must actually exist
         entryFile.createNewFile();
@@ -222,11 +249,11 @@ public class PythonEnvUtilsTest {
                 Arrays.stream(env.pythonPath.split(File.pathSeparator))
                         .map(PythonEnvUtilsTest::replaceUUID)
                         .collect(Collectors.toSet());
-        Assert.assertEquals(expectedPythonPaths, actualPaths);
+        assertThat(actualPaths).isEqualTo(expectedPythonPaths);
     }
 
-    @After
-    public void cleanEnvironment() {
+    @AfterEach
+    void cleanEnvironment() {
         FileUtils.deleteDirectoryQuietly(new File(tmpDirPath));
     }
 

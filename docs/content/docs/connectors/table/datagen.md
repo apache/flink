@@ -39,7 +39,7 @@ Usage
 -----
 
 By default, a DataGen table will create an unbounded number of rows with a random value for each column.
-For variable sized types, char/varchar/string/array/map/multiset, the length can be specified.
+For variable sized types, char/varchar/binary/varbinary/string/array/map/multiset, the length can be specified.
 Additionally, a total number of rows can be specified, resulting in a bounded table.
 
 There also exists a sequence generator, where users specify a sequence of start and end values.
@@ -58,7 +58,7 @@ CREATE TABLE Orders (
 )
 ```
 
-Often, the data generator connector is used in conjuction with the ``LIKE`` clause to mock out physical tables.
+Often, the data generator connector is used in conjunction with the ``LIKE`` clause to mock out physical tables.
 
 ```sql
 CREATE TABLE Orders (
@@ -101,6 +101,16 @@ Types
         </tr>
         <tr>
             <td>VARCHAR</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>BINARY</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>VARBINARY</td>
             <td>random / sequence</td>
             <td></td>
         </tr>
@@ -157,12 +167,18 @@ Types
         <tr>
             <td>TIMESTAMP</td>
             <td>random</td>
-            <td>Always resolves to the current timestamp of the local machine.</td>
+            <td>
+                Resolves a past timestamp relative to the current timestamp of the local machine.
+                The max past can be specified by the 'max-past' option.
+            </td>
         </tr>
         <tr>
             <td>TIMESTAMP_LTZ</td>
             <td>random</td>
-            <td>Always resolves to the current timestamp of the local machine.</td>
+            <td>
+                Resolves a past timestamp relative to the current timestamp of the local machine.
+                The max past can be specified by the 'max-past' option.
+            </td>
         </tr>
         <tr>
             <td>INTERVAL YEAR TO MONTH</td>
@@ -254,11 +270,18 @@ Connector Options
       <td>Maximum value of random generator, work for numeric types.</td>
     </tr>
     <tr>
+      <td><h5>fields.#.max-past</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">0</td>
+      <td>Duration</td>
+      <td>Maximum past of timestamp random generator, only works for timestamp types.</td>
+    </tr>
+    <tr>
       <td><h5>fields.#.length</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
-      <td>Size or length of the collection for generating char/varchar/string/array/map/multiset types.</td>
+      <td>Size or length of the collection for generating char/varchar/binary/varbinary/string/array/map/multiset types.</td>
     </tr>
     <tr>
       <td><h5>fields.#.start</h5></td>

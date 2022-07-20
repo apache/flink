@@ -17,14 +17,15 @@
  */
 
 import { Pipe, PipeTransform } from '@angular/core';
-import { isNil } from 'utils';
+
+import { isNil } from '@flink-runtime-web/utils';
 
 @Pipe({
   name: 'humanizeDuration'
 })
 export class HumanizeDurationPipe implements PipeTransform {
-  transform(value: number, short: boolean = false): any {
-    if (isNil(value)) {
+  public transform(value: number, short: boolean = false): string {
+    if (isNil(value) || isNaN(value)) {
       return '-';
     } else if (value < 0) {
       return '-';

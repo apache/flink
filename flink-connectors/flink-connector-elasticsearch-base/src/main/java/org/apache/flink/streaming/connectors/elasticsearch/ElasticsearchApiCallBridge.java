@@ -74,6 +74,16 @@ public interface ElasticsearchApiCallBridge<C extends AutoCloseable> extends Ser
     Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse);
 
     /**
+     * Sets the bulk flush interval, in milliseconds on the provided {@link BulkProcessor.Builder}.
+     * The builder will be later on used to instantiate the actual {@link BulkProcessor}.
+     *
+     * @param builder the {@link BulkProcessor.Builder} to configure.
+     * @param flushIntervalMillis the flush interval in milliseconds.
+     */
+    void configureBulkProcessorFlushInterval(
+            BulkProcessor.Builder builder, long flushIntervalMillis);
+
+    /**
      * Set backoff-related configurations on the provided {@link BulkProcessor.Builder}. The builder
      * will be later on used to instantiate the actual {@link BulkProcessor}.
      *
@@ -100,13 +110,10 @@ public interface ElasticsearchApiCallBridge<C extends AutoCloseable> extends Ser
      * Creates a {@link RequestIndexer} that is able to work with {@link BulkProcessor} binary
      * compatible.
      */
-    default RequestIndexer createBulkProcessorIndexer(
+    RequestIndexer createBulkProcessorIndexer(
             BulkProcessor bulkProcessor,
             boolean flushOnCheckpoint,
-            AtomicLong numPendingRequestsRef) {
-        return new PreElasticsearch6BulkProcessorIndexer(
-                bulkProcessor, flushOnCheckpoint, numPendingRequestsRef);
-    }
+            AtomicLong numPendingRequestsRef);
 
     /** Perform any necessary state cleanup. */
     default void cleanup() {

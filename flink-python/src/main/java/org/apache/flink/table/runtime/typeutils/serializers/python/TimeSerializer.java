@@ -30,9 +30,7 @@ import java.sql.Time;
 import java.util.TimeZone;
 
 /**
- * Uses int instead of long as the serialized value. It not only reduces the length of the
- * serialized value, but also makes the serialized value consistent between the legacy planner and
- * the blink planner.
+ * Uses int instead of long as the serialized value. It reduces the length of the serialized value.
  */
 @Internal
 public class TimeSerializer extends TypeSerializerSingleton<Time> {

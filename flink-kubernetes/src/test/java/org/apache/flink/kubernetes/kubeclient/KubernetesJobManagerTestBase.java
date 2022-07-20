@@ -31,7 +31,9 @@ import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerPar
 public class KubernetesJobManagerTestBase extends KubernetesPodTestBase {
 
     protected static final double JOB_MANAGER_CPU = 2.0;
+    protected static final double JOB_MANAGER_CPU_LIMIT_FACTOR = 1.5;
     protected static final int JOB_MANAGER_MEMORY = 768;
+    protected static final double JOB_MANAGER_MEMORY_LIMIT_FACTOR = 2;
 
     protected static final int REST_PORT = 9081;
     protected static final String REST_BIND_PORT = "9082";
@@ -49,11 +51,17 @@ public class KubernetesJobManagerTestBase extends KubernetesPodTestBase {
         this.flinkConfig.set(JobManagerOptions.PORT, RPC_PORT);
         this.flinkConfig.set(BlobServerOptions.PORT, Integer.toString(BLOB_SERVER_PORT));
         this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU, JOB_MANAGER_CPU);
+        this.flinkConfig.set(
+                KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT_FACTOR, JOB_MANAGER_CPU_LIMIT_FACTOR);
+        this.flinkConfig.set(
+                KubernetesConfigOptions.JOB_MANAGER_MEMORY_LIMIT_FACTOR,
+                JOB_MANAGER_MEMORY_LIMIT_FACTOR);
         this.customizedEnvs.forEach(
                 (k, v) ->
                         this.flinkConfig.setString(
                                 ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX + k, v));
         this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_LABELS, userLabels);
+        this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS, userAnnotations);
         this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_NODE_SELECTOR, nodeSelector);
         this.flinkConfig.set(
                 JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(JOB_MANAGER_MEMORY));

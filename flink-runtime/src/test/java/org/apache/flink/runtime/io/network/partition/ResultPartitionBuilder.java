@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
@@ -79,6 +79,8 @@ public class ResultPartitionBuilder {
     private boolean sslEnabled = false;
 
     private String compressionCodec = "LZ4";
+
+    private int maxOverdraftBuffersPerGate = 5;
 
     public ResultPartitionBuilder setResultPartitionIndex(int partitionIndex) {
         this.partitionIndex = partitionIndex;
@@ -203,6 +205,11 @@ public class ResultPartitionBuilder {
         return this;
     }
 
+    public ResultPartitionBuilder setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {
+        this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
+        return this;
+    }
+
     public ResultPartition build() {
         ResultPartitionFactory resultPartitionFactory =
                 new ResultPartitionFactory(
@@ -220,7 +227,8 @@ public class ResultPartitionBuilder {
                         maxBuffersPerChannel,
                         sortShuffleMinBuffers,
                         sortShuffleMinParallelism,
-                        sslEnabled);
+                        sslEnabled,
+                        maxOverdraftBuffersPerGate);
 
         SupplierWithException<BufferPool, IOException> factory =
                 bufferPoolFactory.orElseGet(

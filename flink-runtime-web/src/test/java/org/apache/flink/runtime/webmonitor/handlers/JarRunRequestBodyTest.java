@@ -19,11 +19,12 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
 
 import java.util.Arrays;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JarRunRequestBody}. */
 public class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRunRequestBody> {
@@ -36,18 +37,27 @@ public class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRun
     @Override
     protected JarRunRequestBody getTestRequestInstance() {
         return new JarRunRequestBody(
-                "hello", "world", Arrays.asList("boo", "far"), 4, new JobID(), true, "foo/bar");
+                "hello",
+                "world",
+                Arrays.asList("boo", "far"),
+                4,
+                new JobID(),
+                true,
+                "foo/bar",
+                RestoreMode.CLAIM);
     }
 
     @Override
     protected void assertOriginalEqualsToUnmarshalled(
             final JarRunRequestBody expected, final JarRunRequestBody actual) {
-        assertEquals(expected.getEntryClassName(), actual.getEntryClassName());
-        assertEquals(expected.getProgramArguments(), actual.getProgramArguments());
-        assertEquals(expected.getProgramArgumentsList(), actual.getProgramArgumentsList());
-        assertEquals(expected.getParallelism(), actual.getParallelism());
-        assertEquals(expected.getJobId(), actual.getJobId());
-        assertEquals(expected.getAllowNonRestoredState(), actual.getAllowNonRestoredState());
-        assertEquals(expected.getSavepointPath(), actual.getSavepointPath());
+        assertThat(actual.getEntryClassName()).isEqualTo(expected.getEntryClassName());
+        assertThat(actual.getProgramArguments()).isEqualTo(expected.getProgramArguments());
+        assertThat(actual.getProgramArgumentsList()).isEqualTo(expected.getProgramArgumentsList());
+        assertThat(actual.getParallelism()).isEqualTo(expected.getParallelism());
+        assertThat(actual.getJobId()).isEqualTo(expected.getJobId());
+        assertThat(actual.getAllowNonRestoredState())
+                .isEqualTo(expected.getAllowNonRestoredState());
+        assertThat(actual.getSavepointPath()).isEqualTo(expected.getSavepointPath());
+        assertThat(actual.getRestoreMode()).isEqualTo(expected.getRestoreMode());
     }
 }

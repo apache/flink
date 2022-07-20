@@ -19,12 +19,11 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -99,13 +98,13 @@ public class BlobCacheDeleteTest extends TestLogger {
     private void testDelete(@Nullable JobID jobId1, @Nullable JobID jobId2) throws IOException {
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore());
+        try (BlobServer server =
+                        new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
                 BlobCacheService cache =
                         new BlobCacheService(
                                 config,
+                                temporaryFolder.newFolder(),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
 
@@ -135,6 +134,7 @@ public class BlobCacheDeleteTest extends TestLogger {
             assertTrue(server.getStorageLocation(jobId1, key1).exists());
             // delete on server so that the cache cannot re-download
             assertTrue(server.deleteInternal(jobId1, key1));
+            assertFalse(server.getStorageLocation(jobId1, key1).exists());
             verifyDeleted(cache, jobId1, key1);
             // deleting one BLOB should not affect another BLOB with a different key
             // (and keys are always different now)
@@ -179,13 +179,12 @@ public class BlobCacheDeleteTest extends TestLogger {
     private void testDeleteTransientAlreadyDeleted(@Nullable final JobID jobId) throws IOException {
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore());
+        try (BlobServer server =
+                        new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
                 BlobCacheService cache =
                         new BlobCacheService(
                                 config,
+                                temporaryFolder.newFolder(),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
 
@@ -233,15 +232,14 @@ public class BlobCacheDeleteTest extends TestLogger {
         assumeTrue(!OperatingSystem.isWindows()); // setWritable doesn't work on Windows.
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
         File blobFile = null;
         File directory = null;
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore());
+        try (BlobServer server =
+                        new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
                 BlobCacheService cache =
                         new BlobCacheService(
                                 config,
+                                temporaryFolder.newFolder(),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
 
@@ -309,9 +307,6 @@ public class BlobCacheDeleteTest extends TestLogger {
             throws IOException, InterruptedException, ExecutionException {
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
         final int concurrentDeleteOperations = 3;
         final ExecutorService executor = Executors.newFixedThreadPool(concurrentDeleteOperations);
 
@@ -320,10 +315,12 @@ public class BlobCacheDeleteTest extends TestLogger {
 
         final byte[] data = {1, 2, 3};
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore());
+        try (BlobServer server =
+                        new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
                 BlobCacheService cache =
                         new BlobCacheService(
                                 config,
+                                temporaryFolder.newFolder(),
                                 new VoidBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
 

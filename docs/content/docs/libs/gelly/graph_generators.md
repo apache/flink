@@ -168,7 +168,7 @@ val graph = new CycleGraph(env.getJavaEnv, vertexCount).generate()
 
 ## Echo Graph
 
-An [echo graph](http://mathworld.wolfram.com/EchoGraph.html) is a
+An echo graph is a
 [circulant graph](#circulant-graph) with `n` vertices defined by the width of a
 single range of offsets centered at `n/2`. A vertex is connected to 'far'
 vertices, which connect to 'near' vertices, which connect to 'far' vertices, ....
@@ -304,7 +304,7 @@ two `endpoint` vertices with degree `1` and all midpoint vertices with degree
 ```java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-long vertexCount = 5
+long vertexCount = 5;
 
 Graph<LongValue, NullValue, NullValue> graph = new PathGraph(env, vertexCount)
     .generate();
@@ -417,7 +417,7 @@ An undirected graph containing isolated two-paths where every vertex has degree
 ```java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-long vertexPairCount = 4
+long vertexPairCount = 4;
 
 // note: configured with the number of vertex pairs
 Graph<LongValue, NullValue, NullValue> graph = new SingletonEdgeGraph(env, vertexPairCount)

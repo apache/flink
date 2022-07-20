@@ -20,11 +20,9 @@ package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -35,10 +33,11 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -90,11 +89,8 @@ public class JobSubmitHandlerTest extends TestLogger {
     @Before
     public void setup() throws IOException {
         Configuration config = new Configuration(configuration);
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY,
-                TEMPORARY_FOLDER.newFolder().getAbsolutePath());
 
-        blobServer = new BlobServer(config, new VoidBlobStore());
+        blobServer = new BlobServer(config, TEMPORARY_FOLDER.newFolder(), new VoidBlobStore());
         blobServer.start();
     }
 
@@ -109,7 +105,7 @@ public class JobSubmitHandlerTest extends TestLogger {
     public void testSerializationFailureHandling() throws Exception {
         final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
         DispatcherGateway mockGateway =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
                         .build();
@@ -119,7 +115,7 @@ public class JobSubmitHandlerTest extends TestLogger {
                         () -> CompletableFuture.completedFuture(mockGateway),
                         RpcUtils.INF_TIMEOUT,
                         Collections.emptyMap(),
-                        TestingUtils.defaultExecutor(),
+                        Executors.directExecutor(),
                         configuration);
 
         JobSubmitRequestBody request =
@@ -128,7 +124,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 
         try {
             handler.handleRequest(
-                    new HandlerRequest<>(request, EmptyMessageParameters.getInstance()),
+                    HandlerRequest.create(request, EmptyMessageParameters.getInstance()),
                     mockGateway);
             Assert.fail();
         } catch (RestHandlerException rhe) {
@@ -144,7 +140,7 @@ public class JobSubmitHandlerTest extends TestLogger {
             objectOut.writeObject(JobGraphTestUtils.emptyJobGraph());
         }
 
-        TestingDispatcherGateway.Builder builder = new TestingDispatcherGateway.Builder();
+        TestingDispatcherGateway.Builder builder = TestingDispatcherGateway.newBuilder();
         builder.setBlobServerPort(blobServer.getPort())
                 .setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
                 .setHostname("localhost");
@@ -155,7 +151,7 @@ public class JobSubmitHandlerTest extends TestLogger {
                         () -> CompletableFuture.completedFuture(mockGateway),
                         RpcUtils.INF_TIMEOUT,
                         Collections.emptyMap(),
-                        TestingUtils.defaultExecutor(),
+                        Executors.directExecutor(),
                         configuration);
 
         JobSubmitRequestBody request =
@@ -165,11 +161,9 @@ public class JobSubmitHandlerTest extends TestLogger {
                         Collections.emptyList());
 
         handler.handleRequest(
-                        new HandlerRequest<>(
+                        HandlerRequest.create(
                                 request,
                                 EmptyMessageParameters.getInstance(),
-                                Collections.emptyMap(),
-                                Collections.emptyMap(),
                                 Collections.singleton(jobGraphFile.toFile())),
                         mockGateway)
                 .get();
@@ -184,7 +178,7 @@ public class JobSubmitHandlerTest extends TestLogger {
         }
         final Path countExceedingFile = TEMPORARY_FOLDER.newFile().toPath();
 
-        TestingDispatcherGateway.Builder builder = new TestingDispatcherGateway.Builder();
+        TestingDispatcherGateway.Builder builder = TestingDispatcherGateway.newBuilder();
         builder.setBlobServerPort(blobServer.getPort())
                 .setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
                 .setHostname("localhost");
@@ -195,7 +189,7 @@ public class JobSubmitHandlerTest extends TestLogger {
                         () -> CompletableFuture.completedFuture(mockGateway),
                         RpcUtils.INF_TIMEOUT,
                         Collections.emptyMap(),
-                        TestingUtils.defaultExecutor(),
+                        Executors.directExecutor(),
                         configuration);
 
         JobSubmitRequestBody request =
@@ -206,11 +200,9 @@ public class JobSubmitHandlerTest extends TestLogger {
 
         try {
             handler.handleRequest(
-                            new HandlerRequest<>(
+                            HandlerRequest.create(
                                     request,
                                     EmptyMessageParameters.getInstance(),
-                                    Collections.emptyMap(),
-                                    Collections.emptyMap(),
                                     Arrays.asList(
                                             jobGraphFile.toFile(), countExceedingFile.toFile())),
                             mockGateway)
@@ -230,7 +222,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 
         CompletableFuture<JobGraph> submittedJobGraphFuture = new CompletableFuture<>();
         DispatcherGateway dispatcherGateway =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setBlobServerPort(blobServer.getPort())
                         .setSubmitFunction(
                                 submittedJobGraph -> {
@@ -244,7 +236,7 @@ public class JobSubmitHandlerTest extends TestLogger {
                         () -> CompletableFuture.completedFuture(dispatcherGateway),
                         RpcUtils.INF_TIMEOUT,
                         Collections.emptyMap(),
-                        TestingUtils.defaultExecutor(),
+                        Executors.directExecutor(),
                         configuration);
 
         final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
@@ -269,11 +261,9 @@ public class JobSubmitHandlerTest extends TestLogger {
                                         dcEntryName, artifactFile.getFileName().toString())));
 
         handler.handleRequest(
-                        new HandlerRequest<>(
+                        HandlerRequest.create(
                                 request,
                                 EmptyMessageParameters.getInstance(),
-                                Collections.emptyMap(),
-                                Collections.emptyMap(),
                                 Arrays.asList(
                                         jobGraphFile.toFile(),
                                         jarFile.toFile(),
@@ -292,7 +282,7 @@ public class JobSubmitHandlerTest extends TestLogger {
     public void testFailedJobSubmission() throws Exception {
         final String errorMessage = "test";
         DispatcherGateway mockGateway =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobgraph ->
                                         FutureUtils.completedExceptionally(
@@ -304,7 +294,7 @@ public class JobSubmitHandlerTest extends TestLogger {
                         () -> CompletableFuture.completedFuture(mockGateway),
                         RpcUtils.INF_TIMEOUT,
                         Collections.emptyMap(),
-                        TestingUtils.defaultExecutor(),
+                        Executors.directExecutor(),
                         configuration);
 
         final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
@@ -322,11 +312,9 @@ public class JobSubmitHandlerTest extends TestLogger {
 
         try {
             handler.handleRequest(
-                            new HandlerRequest<>(
+                            HandlerRequest.create(
                                     request,
                                     EmptyMessageParameters.getInstance(),
-                                    Collections.emptyMap(),
-                                    Collections.emptyMap(),
                                     Collections.singletonList(jobGraphFile.toFile())),
                             mockGateway)
                     .get();

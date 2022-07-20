@@ -24,182 +24,208 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# System (Built-in) Functions
+# 系统（内置）函数
 
-Flink Table API & SQL provides users with a set of built-in functions for data transformations. This page gives a brief overview of them.
-If a function that you need is not supported yet, you can implement a [user-defined function]({{< ref "docs/dev/table/functions/udfs" >}}).
-If you think that the function is general enough, please <a href="https://issues.apache.org/jira/secure/CreateIssue!default.jspa">open a Jira issue</a> for it with a detailed description.
+Flink Table API & SQL 为用户提供了一组内置的数据转换函数。本页简要介绍了它们。如果你需要的函数尚不支持，你可以实现
+[用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})。如果你觉得这个函数够通用，请
+<a href="https://issues.apache.org/jira/secure/CreateIssue!default.jspa">创建一个 Jira issue</a>并详细
+说明。
 
-Scalar Functions
+标量函数
 ----------------
 
-The scalar functions take zero, one or more values as the input and return a single value as the result.
+标量函数将零、一个或多个值作为输入并返回单个值作为结果。
 
-### Comparison Functions
+### 比较函数
 
-{{< sql_functions "comparison" >}}
+{{< sql_functions_zh "comparison" >}}
 
-### Logical Functions
+### 逻辑函数
 
-{{< sql_functions "logical" >}}
+{{< sql_functions_zh "logical" >}}
 
-### Arithmetic Functions
+### 算术函数
 
-{{< sql_functions "arithmetic" >}}
+{{< sql_functions_zh "arithmetic" >}}
 
-### String Functions
+### 字符串函数
 
-{{< sql_functions "string" >}}
+{{< sql_functions_zh "string" >}}
 
-### Temporal Functions
+### 时间函数
 
-{{< sql_functions "temporal" >}}
+{{< sql_functions_zh "temporal" >}}
 
-### Conditional Functions
+### 条件函数
 
-{{< sql_functions "conditional" >}}
+{{< sql_functions_zh "conditional" >}}
 
-### Type Conversion Functions
+### 类型转换函数
 
-{{< sql_functions "conversion" >}}
+{{< sql_functions_zh "conversion" >}}
 
-### Collection Functions
+### 集合函数
 
-{{< sql_functions "collection" >}}
+{{< sql_functions_zh "collection" >}}
 
-### Value Construction Functions
+### JSON Functions
 
-{{< sql_functions "valueconstruction" >}}
+JSON functions make use of JSON path expressions as described in ISO/IEC TR 19075-6 of the SQL
+standard. Their syntax is inspired by and adopts many features of ECMAScript, but is neither a
+subset nor superset thereof.
 
-### Value Access Functions
+Path expressions come in two flavors, lax and strict. When omitted, it defaults to the strict mode.
+Strict mode is intended to examine data from a schema perspective and will throw errors whenever
+data does not adhere to the path expression. However, functions like `JSON_VALUE` allow defining
+fallback behavior if an error is encountered. Lax mode, on the other hand, is more forgiving and
+converts errors to empty sequences.
 
-{{< sql_functions "valueaccess" >}}
+The special character `$` denotes the root node in a JSON path. Paths can access properties (`$.a`),
+array elements (`$.a[0].b`), or branch over all elements in an array (`$.a[*].b`).
 
-### Grouping Functions
+Known Limitations:
+* Not all features of Lax mode are currently supported correctly. This is an upstream bug
+  (CALCITE-4717). Non-standard behavior is not guaranteed.
 
-{{< sql_functions "grouping" >}}
+{{< sql_functions "json" >}}
 
-### Hash Functions
+### 值构建函数
 
-{{< sql_functions "hashfunctions" >}}
+{{< sql_functions_zh "valueconstruction" >}}
 
-### Auxiliary Functions
+### 值获取函数
 
-{{< sql_functions "auxilary" >}}
+{{< sql_functions_zh "valueaccess" >}}
 
-Aggregate Functions
+### 分组函数
+
+{{< sql_functions_zh "grouping" >}}
+
+### 哈希函数
+
+{{< sql_functions_zh "hashfunctions" >}}
+
+### 辅助函数
+
+{{< sql_functions_zh "auxiliary" >}}
+
+聚合函数
 -------------------
 
-The aggregate functions take an expression across all the rows as the input and return a single aggregated value as the result. 
+聚合函数将所有的行作为输入，并返回单个聚合值作为结果。
 
-{{< sql_functions "aggregate" >}}
+{{< sql_functions_zh "aggregate" >}}
 
-Time Interval and Point Unit Specifiers
+时间间隔单位和时间点单位标识符
 ---------------------------------------
 
-The following table lists specifiers for time interval and time point units. 
+下表列出了时间间隔单位和时间点单位标识符。
 
-For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
+对于 Table API，请使用 `_` 代替空格（例如 `DAY_TO_HOUR`）。
 
-| Time Interval Unit       | Time Point Unit                |
-| :----------------------- | :----------------------------- |
-| `MILLENIUM` _(SQL-only)_ |                                |
-| `CENTURY` _(SQL-only)_   |                                |
-| `YEAR`                   | `YEAR`                         |
-| `YEAR TO MONTH`          |                                |
-| `QUARTER`                | `QUARTER`                      |
-| `MONTH`                  | `MONTH`                        |
-| `WEEK`                   | `WEEK`                         |
-| `DAY`                    | `DAY`                          |
-| `DAY TO HOUR`            |                                |
-| `DAY TO MINUTE`          |                                |
-| `DAY TO SECOND`          |                                |
-| `HOUR`                   | `HOUR`                         |
-| `HOUR TO MINUTE`         |                                |
-| `HOUR TO SECOND`         |                                |
-| `MINUTE`                 | `MINUTE`                       |
-| `MINUTE TO SECOND`       |                                |
-| `SECOND`                 | `SECOND`                       |
-|                          | `MILLISECOND`                  |
-|                          | `MICROSECOND`                  |
-| `DOY` _(SQL-only)_       |                                |
-| `DOW` _(SQL-only)_       |                                |
-|                          | `SQL_TSI_YEAR` _(SQL-only)_    |
-|                          | `SQL_TSI_QUARTER` _(SQL-only)_ |
-|                          | `SQL_TSI_MONTH` _(SQL-only)_   |
-|                          | `SQL_TSI_WEEK` _(SQL-only)_    |
-|                          | `SQL_TSI_DAY` _(SQL-only)_     |
-|                          | `SQL_TSI_HOUR` _(SQL-only)_    |
-|                          | `SQL_TSI_MINUTE` _(SQL-only)_  |
-|                          | `SQL_TSI_SECOND ` _(SQL-only)_ |
+| 时间间隔单位                | 时间点单位                        |
+| :------------------------ | :------------------------------ |
+| `MILLENNIUM`              |                                 |
+| `CENTURY`                 |                                 |
+| `DECADE`                  |                                 |
+| `YEAR`                    | `YEAR`                          |
+| `YEAR TO MONTH`           |                                 |
+| `QUARTER`                 | `QUARTER`                       |
+| `MONTH`                   | `MONTH`                         |
+| `WEEK`                    | `WEEK`                          |
+| `DAY`                     | `DAY`                           |
+| `DAY TO HOUR`             |                                 |
+| `DAY TO MINUTE`           |                                 |
+| `DAY TO SECOND`           |                                 |
+| `HOUR`                    | `HOUR`                          |
+| `HOUR TO MINUTE`          |                                 |
+| `HOUR TO SECOND`          |                                 |
+| `MINUTE`                  | `MINUTE`                        |
+| `MINUTE TO SECOND`        |                                 |
+| `SECOND`                  | `SECOND`                        |
+| `MILLISECOND`             | `MILLISECOND`                   |
+| `MICROSECOND`             | `MICROSECOND`                   |
+| `NANOSECOND`              |                                 |
+| `EPOCH`                   |                                 |
+| `DOY` _（仅适用SQL）_       |                                 |
+| `DOW` _（仅适用SQL）_       |                                 |
+| `ISODOW` _（仅适用SQL）_    |                                 |
+| `ISOYEAR` _（仅适用SQL）_   |                                 |
+|                           | `SQL_TSI_YEAR` _（仅适用SQL）_    |
+|                           | `SQL_TSI_QUARTER` _（仅适用SQL）_ |
+|                           | `SQL_TSI_MONTH` _（仅适用SQL）_   |
+|                           | `SQL_TSI_WEEK` _（仅适用SQL）_    |
+|                           | `SQL_TSI_DAY` _（仅适用SQL）_     |
+|                           | `SQL_TSI_HOUR` _（仅适用SQL）_    |
+|                           | `SQL_TSI_MINUTE` _（仅适用SQL）_  |
+|                           | `SQL_TSI_SECOND ` _（仅适用SQL）_ |
 
 {{< top >}}
 
-Column Functions
+列函数
 ---------------------------------------
 
-The column functions are used to select or deselect table columns.
+列函数用于选择或丢弃表的列。
 
 {{< hint info >}}
-Column functions are only used in Table API.
+列函数仅在 Table API 中使用。
 {{< /hint >}}
 
-| SYNTAX              | DESC                         |
-| :--------------------- | :-------------------------- |
-| withColumns(...)         | select the specified columns                  |
-| withoutColumns(...)        | deselect the columns specified                  |
+| 语法                      | 描述                         |
+| :----------------------- | :--------------------------- |
+| withColumns(...)         | 选择指定的列                   |
+| withoutColumns(...)      | 选择除指定列以外的列            |
 
-The detailed syntax is as follows:
+详细语法如下：
 
 ```text
-columnFunction:
+列函数:
     withColumns(columnExprs)
     withoutColumns(columnExprs)
 
-columnExprs:
+多列表达式:
     columnExpr [, columnExpr]*
 
-columnExpr:
+单列表达式:
     columnRef | columnIndex to columnIndex | columnName to columnName
 
-columnRef:
+列引用:
     columnName(The field name that exists in the table) | columnIndex(a positive integer starting from 1)
 ```
+列函数的用法如下表所示（假设我们有一个包含 5 列的表：`(a: Int, b: Long, c: String, d:String, e: String)`）：
 
-The usage of the column function is illustrated in the following table. (Suppose we have a table with 5 columns: `(a: Int, b: Long, c: String, d:String, e: String)`):
-
-| API | Usage | Description |
+| 接口 | 用法举例 | 描述 |
 |-|-|-|
-| withColumns(*)| select("withColumns(*)") | select("*") = select("a, b, c, d, e") | all the columns |
-| withColumns(m to n) | select("withColumns(2 to 4)") = select("b, c, d") | columns from m to n |
-|  withColumns(m, n, k)  | select("withColumns(1, 3, e)") = select("a, c, e") |  columns m, n, k |
-|  withColumns(m, n to k)  | select("withColumns(1, 3 to 5)") = select("a, c, d ,e") |  mixing of the above two representation |
-|  withoutColumns(m to n) | select("withoutColumns(2 to 4)") = select("a, e") |  deselect columns from m to n |
-|  withoutColumns(m, n, k) | select("withoutColumns(1, 3, 5)") = select("b, d") |  deselect columns m, n, k |
-|  withoutColumns(m, n to k) | select("withoutColumns(1, 3 to 5)") = select("b") |  mixing of the above two representation |
+| withColumns($(*)) | select(withColumns($("*")))  = select($("a"), $("b"), $("c"), $("d"), $("e")) | 全部列 |
+| withColumns(m to n) | select(withColumns(range(2, 4))) = select($("b"), $("c"), $("d")) | 第 m 到第 n 列 |
+| withColumns(m, n, k)  | select(withColumns(lit(1), lit(3), $("e"))) = select($("a"), $("c"), $("e")) | 第 m、n、k 列 |
+| withColumns(m, n to k)  | select(withColumns(lit(1), range(3, 5))) = select($("a"), $("c"), $("d"), $("e")) |  以上两种用法的混合 |
+| withoutColumns(m to n) | select(withoutColumns(range(2, 4))) = select($("a"), $("e")) |  不选从第 m 到第 n 列 |
+| withoutColumns(m, n, k) | select(withoutColumns(lit(1), lit(3), lit(5))) = select($("b"), $("d")) |  不选第 m、n、k 列 |
+| withoutColumns(m, n to k) | select(withoutColumns(lit(1), range(3, 5))) = select($("b")) |  以上两种用法的混合 |
 
-The column functions can be used in all places where column fields are expected, such as `select, groupBy, orderBy, UDFs etc.` e.g.:
+列函数可用于所有需要列字段的地方，例如 `select、groupBy、orderBy、UDFs` 等函数，例如：
 
 {{< tabs "402fe551-5fb9-4b17-bd64-e05cbd56b4cc" >}}
 {{< tab "Java" >}}
 ```java
 table
-   .groupBy("withColumns(1 to 3)")
-   .select("withColumns(a to b), myUDAgg(myUDF(withColumns(5 to 20)))")
+    .groupBy(withColumns(range(1, 3)))
+    .select(withColumns(range("a", "b")), myUDAgg(myUDF(withColumns(range(5, 20)))));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 table
-   .groupBy(withColumns(1 to 3))
-   .select(withColumns('a to 'b), myUDAgg(myUDF(withColumns(5 to 20))))
+    .groupBy(withColumns(range(1, 3)))
+    .select(withColumns('a to 'b), myUDAgg(myUDF(withColumns(5 to 20))))
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-table \
-    .group_by("withColumns(1 to 3)") \
-    .select("withColumns(a to b), myUDAgg(myUDF(withColumns(5 to 20)))")
+table
+    .group_by(with_columns(range_(1, 3)))
+    .select(with_columns(range_('a', 'b')), myUDAgg(myUDF(with_columns(range_(5, 20)))))
 ```
 {{< /tab >}}
 {{< /tabs >}}

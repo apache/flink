@@ -27,7 +27,7 @@ import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnect
 
 import javax.annotation.Nullable;
 
-/** Basic information about a {@link TaskManagerSlot}. */
+/** Basic information about a TaskManager slot. */
 public interface TaskManagerSlotInformation {
 
     SlotID getSlotId();

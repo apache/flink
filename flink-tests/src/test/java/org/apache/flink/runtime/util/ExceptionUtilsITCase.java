@@ -55,23 +55,25 @@ public class ExceptionUtilsITCase extends TestLogger {
     @Test
     public void testIsDirectOutOfMemoryError() throws IOException, InterruptedException {
         String className = DummyDirectAllocatingProgram.class.getName();
-        String out = run(className, Collections.emptyList(), DIRECT_MEMORY_SIZE, -1);
-        assertThat(out, is(""));
+        RunResult result = run(className, Collections.emptyList(), DIRECT_MEMORY_SIZE, -1);
+        assertThat(result.getErrorOut() + "|" + result.getStandardOut(), is("|"));
     }
 
     @Test
     public void testIsMetaspaceOutOfMemoryError() throws IOException, InterruptedException {
         String className = DummyClassLoadingProgram.class.getName();
         // load only one class and record required Metaspace
-        String normalOut =
+        RunResult normalOut =
                 run(className, getDummyClassLoadingProgramArgs(1), -1, INITIAL_BIG_METASPACE_SIZE);
-        long okMetaspace = Long.parseLong(normalOut);
+        long okMetaspace = Long.parseLong(normalOut.getStandardOut());
         // load more classes to cause 'OutOfMemoryError: Metaspace'
-        String oomOut = run(className, getDummyClassLoadingProgramArgs(1000), -1, okMetaspace);
-        assertThat(oomOut, is(""));
+        RunResult oomOut = run(className, getDummyClassLoadingProgramArgs(1000), -1, okMetaspace);
+        // 'OutOfMemoryError: Metaspace' errors are caught, hence no output means we produced the
+        // expected exception.
+        assertThat(oomOut.getErrorOut() + "|" + oomOut.getStandardOut(), is("|"));
     }
 
-    private static String run(
+    private static RunResult run(
             String className, Iterable<String> args, long directMemorySize, long metaspaceSize)
             throws InterruptedException, IOException {
         TestProcessBuilder taskManagerProcessBuilder = new TestProcessBuilder(className);
@@ -91,8 +93,26 @@ public class ExceptionUtilsITCase extends TestLogger {
         taskManagerProcessBuilder.withCleanEnvironment();
         TestProcess p = taskManagerProcessBuilder.start();
         p.getProcess().waitFor();
-        assertThat(p.getErrorOutput().toString().trim(), is(""));
-        return p.getProcessOutput().toString().trim();
+        return new RunResult(
+                p.getErrorOutput().toString().trim(), p.getProcessOutput().toString().trim());
+    }
+
+    private static final class RunResult {
+        private final String errorOut;
+        private final String standardOut;
+
+        public RunResult(String errorOut, String standardOut) {
+            this.errorOut = errorOut;
+            this.standardOut = standardOut;
+        }
+
+        public String getErrorOut() {
+            return errorOut;
+        }
+
+        public String getStandardOut() {
+            return standardOut;
+        }
     }
 
     private static Collection<String> getDummyClassLoadingProgramArgs(int numberOfLoadedClasses) {
@@ -120,7 +140,10 @@ public class ExceptionUtilsITCase extends TestLogger {
         }
     }
 
-    /** Dummy java program to generate Metaspace OOM. */
+    /**
+     * Dummy java program to generate Metaspace OOM. The program will catch Metaspace out of memory
+     * errors and produce no output in this case.
+     */
     public static class DummyClassLoadingProgram {
         private DummyClassLoadingProgram() {}
 

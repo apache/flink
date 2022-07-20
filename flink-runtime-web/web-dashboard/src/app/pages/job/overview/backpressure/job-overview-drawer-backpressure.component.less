@@ -16,6 +16,31 @@
  * limitations under the License.
  */
 
-.pressure-badge {
-  margin-top: -4px;
+@import "theme";
+
+:host {
+  ::ng-deep {
+    .ant-table-cell {
+      font-size: @font-size-sm;
+    }
+
+    ::-webkit-scrollbar {
+      display: none;
+    }
+
+    nz-table,
+    nz-spin,
+    cdk-virtual-scroll-viewport,
+    nz-table-inner-scroll,
+    .ant-spin-container,
+    .ant-table {
+      height: 100%;
+    }
+  }
+
+  flink-backpressure-badge,
+  flink-dynamic-host {
+    display: inline-block;
+    margin-left: @margin-xss;
+  }
 }

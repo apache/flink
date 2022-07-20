@@ -36,7 +36,7 @@ import org.apache.hadoop.mapred.JobConf;
 import java.io.IOException;
 import java.util.Map;
 
-import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_SIZE;
+import static org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch.DEFAULT_SIZE;
 
 /** Orc {@link SplitReader} to read files using {@link ParquetColumnarRowSplitReader}. */
 public class HiveVectorizedParquetSplitReader implements SplitReader {

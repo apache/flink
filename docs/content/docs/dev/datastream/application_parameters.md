@@ -48,13 +48,13 @@ The `ParameterTool` provides a set of predefined static methods for reading the 
 The following method will read a [Properties](https://docs.oracle.com/javase/tutorial/essential/environment/properties.html) file and provide the key/value pairs:
 ```java
 String propertiesFilePath = "/home/sam/flink/myjob.properties";
-ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFilePath);
+ParameterTool parameters = ParameterTool.fromPropertiesFile(propertiesFilePath);
 
 File propertiesFile = new File(propertiesFilePath);
-ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFile);
+ParameterTool parameters = ParameterTool.fromPropertiesFile(propertiesFile);
 
 InputStream propertiesFileInputStream = new FileInputStream(file);
-ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFileInputStream);
+ParameterTool parameters = ParameterTool.fromPropertiesFile(propertiesFileInputStream);
 ```
 
 
@@ -63,7 +63,7 @@ ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFileInputSt
 This allows getting arguments like `--input hdfs:///mydata --elements 42` from the command line.
 ```java
 public static void main(String[] args) {
-    ParameterTool parameter = ParameterTool.fromArgs(args);
+    ParameterTool parameters = ParameterTool.fromArgs(args);
     // .. regular code ..
 ```
 
@@ -73,7 +73,7 @@ public static void main(String[] args) {
 When starting a JVM, you can pass system properties to it: `-Dinput=hdfs:///mydata`. You can also initialize the `ParameterTool` from these system properties:
 
 ```java
-ParameterTool parameter = ParameterTool.fromSystemProperties();
+ParameterTool parameters = ParameterTool.fromSystemProperties();
 ```
 
 
@@ -86,10 +86,10 @@ Now that we've got the parameters from somewhere (see above) we can use them in 
 The `ParameterTool` itself has methods for accessing the values.
 ```java
 ParameterTool parameters = // ...
-parameter.getRequired("input");
-parameter.get("output", "myDefaultValue");
-parameter.getLong("expectedCount", -1L);
-parameter.getNumberOfParameters()
+parameters.getRequired("input");
+parameters.get("output", "myDefaultValue");
+parameters.getLong("expectedCount", -1L);
+parameters.getNumberOfParameters();
 // .. there are more methods available.
 ```
 
@@ -99,14 +99,14 @@ For example, you could set the parallelism of a operator like this:
 ```java
 ParameterTool parameters = ParameterTool.fromArgs(args);
 int parallelism = parameters.get("mapParallelism", 2);
-DataSet<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer()).setParallelism(parallelism);
+DataStream<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer()).setParallelism(parallelism);
 ```
 
 Since the `ParameterTool` is serializable, you can pass it to the functions itself:
 
 ```java
 ParameterTool parameters = ParameterTool.fromArgs(args);
-DataSet<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer(parameters));
+DataStream<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer(parameters));
 ```
 
 and then use it inside the function for getting values from the command line.

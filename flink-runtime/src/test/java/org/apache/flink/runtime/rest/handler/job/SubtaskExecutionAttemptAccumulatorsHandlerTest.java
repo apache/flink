@@ -26,7 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
@@ -35,10 +35,10 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptMessageParameter
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsInfo;
 import org.apache.flink.runtime.rest.messages.job.UserAccumulator;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Test;
 
@@ -47,6 +47,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 
 /** Tests of {@link SubtaskExecutionAttemptAccumulatorsHandler}. */
@@ -68,11 +69,11 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest extends TestLogger {
                         new DefaultExecutionGraphCache(
                                 restHandlerConfiguration.getTimeout(),
                                 Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
-                        TestingUtils.defaultExecutor());
+                        Executors.directExecutor());
 
         // Instance a empty request.
-        final HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request =
-                new HandlerRequest<>(
+        final HandlerRequest<EmptyRequestBody> request =
+                HandlerRequest.create(
                         EmptyRequestBody.getInstance(), new SubtaskAttemptMessageParameters());
 
         final Map<String, OptionalFailure<Accumulator<?, ?>>> userAccumulators = new HashMap<>(3);
@@ -93,13 +94,12 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest extends TestLogger {
                 new ArchivedExecution(
                         accumulatorResults,
                         null,
-                        new ExecutionAttemptID(),
-                        attemptNum,
+                        createExecutionAttemptId(new JobVertexID(), subtaskIndex, attemptNum),
                         ExecutionState.FINISHED,
                         null,
                         null,
                         null,
-                        subtaskIndex,
+                        new long[ExecutionState.values().length],
                         new long[ExecutionState.values().length]);
 
         // Invoke tested method.

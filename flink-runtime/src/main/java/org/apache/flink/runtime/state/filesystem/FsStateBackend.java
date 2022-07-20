@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -73,7 +74,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <pre>{@code
  * 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
  * 		env.setStateBackend(new HashMapStateBackend());
- * 		env.getCheckpointConfig().setCheckpointStorage("hdfs://checkpoints");
+ * 		env.getCheckpointConfig().setCheckpointStorage("hdfs:///checkpoints");
  * }</pre>
  *
  * <p>If you are configuring your state backend via the {@code flink-conf.yaml} please make the
@@ -493,6 +494,17 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
      * true for this state backend.
      */
     public boolean isUsingAsynchronousSnapshots() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsNoClaimRestoreMode() {
+        // we never share any files, all snapshots are full
+        return true;
+    }
+
+    @Override
+    public boolean supportsSavepointFormat(SavepointFormatType formatType) {
         return true;
     }
 

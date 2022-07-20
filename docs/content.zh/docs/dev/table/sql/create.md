@@ -33,6 +33,7 @@ CREATE 语句用于向当前或指定的 [Catalog]({{< ref "docs/dev/table/catal
 目前 Flink SQL 支持下列 CREATE 语句：
 
 - CREATE TABLE
+- CREATE CATALOG
 - CREATE DATABASE
 - CREATE VIEW
 - CREATE FUNCTION
@@ -92,19 +93,18 @@ tableEnv.executeSql(
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tableEnv = TableEnvironment.create(settings)
+val tableEnv = TableEnvironment.create(...)
 
 // 对已注册的表进行 SQL 查询
 // 注册名为 “Orders” 的表
-tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 // 在表上执行 SQL 查询，并把得到的结果作为一个新的表
 val result = tableEnv.sqlQuery(
-  "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
+  "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 
 // 对已注册的表进行 INSERT 操作
 // 注册 TableSink
-tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)");
+tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)")
 // 在表上执行 INSERT 语句并向 TableSink 发出结果
 tableEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
@@ -112,8 +112,7 @@ tableEnv.executeSql(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = TableEnvironment.create(settings)
+table_env = TableEnvironment.create(...)
 
 # 对已经注册的表进行 SQL 查询
 # 注册名为 “Orders” 的表
@@ -575,7 +574,7 @@ CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [catalog_name.][db_name.]view_name
 {{< top >}}
 
 ## CREATE FUNCTION
-{% highlight sql%}
+```sql
 CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   [IF NOT EXISTS] [[catalog_name.]db_name.]function_name
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON]

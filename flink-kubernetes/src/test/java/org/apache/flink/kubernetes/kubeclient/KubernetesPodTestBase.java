@@ -42,6 +42,14 @@ public class KubernetesPodTestBase extends KubernetesTestBase {
                 }
             };
 
+    protected final Map<String, String> userAnnotations =
+            new HashMap<String, String>() {
+                {
+                    put("annotation1", "value1");
+                    put("annotation2", "value2");
+                }
+            };
+
     protected final Map<String, String> nodeSelector =
             new HashMap<String, String>() {
                 {

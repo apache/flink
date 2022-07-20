@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionHistory;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 
 /**
@@ -82,19 +84,20 @@ public abstract class AbstractSubtaskAttemptHandler<
 
     @Override
     protected R handleRequest(
-            HandlerRequest<EmptyRequestBody, M> request, AccessExecutionVertex executionVertex)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionVertex executionVertex)
             throws RestHandlerException {
         final Integer attemptNumber = request.getPathParameter(SubtaskAttemptPathParameter.class);
 
         final AccessExecution currentAttempt = executionVertex.getCurrentExecutionAttempt();
+        final ExecutionHistory executionHistory = executionVertex.getExecutionHistory();
         if (attemptNumber == currentAttempt.getAttemptNumber()) {
             return handleRequest(request, currentAttempt);
-        } else if (attemptNumber >= 0 && attemptNumber < currentAttempt.getAttemptNumber()) {
-            final AccessExecution execution =
-                    executionVertex.getPriorExecutionAttempt(attemptNumber);
+        } else if (executionHistory.isValidAttemptNumber(attemptNumber)) {
+            final Optional<? extends AccessExecution> execution =
+                    executionHistory.getHistoricalExecution(attemptNumber);
 
-            if (execution != null) {
-                return handleRequest(request, execution);
+            if (execution.isPresent()) {
+                return handleRequest(request, execution.get());
             } else {
                 throw new RestHandlerException(
                         "Attempt "
@@ -119,6 +122,6 @@ public abstract class AbstractSubtaskAttemptHandler<
      * @throws RestHandlerException the rest handler exception
      */
     protected abstract R handleRequest(
-            HandlerRequest<EmptyRequestBody, M> request, AccessExecution execution)
+            HandlerRequest<EmptyRequestBody> request, AccessExecution execution)
             throws RestHandlerException;
 }

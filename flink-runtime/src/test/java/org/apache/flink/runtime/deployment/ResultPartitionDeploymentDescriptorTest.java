@@ -38,6 +38,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -49,7 +50,7 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 
     private static final IntermediateResultPartitionID partitionId =
             new IntermediateResultPartitionID();
-    private static final ExecutionAttemptID producerExecutionId = new ExecutionAttemptID();
+    private static final ExecutionAttemptID producerExecutionId = createExecutionAttemptId();
 
     private static final ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
     private static final int numberOfSubpartitions = 24;
@@ -108,7 +109,7 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
                     ShuffleDescriptor shuffleDescriptor) throws IOException {
         ResultPartitionDeploymentDescriptor orig =
                 new ResultPartitionDeploymentDescriptor(
-                        partitionDescriptor, shuffleDescriptor, numberOfSubpartitions, true);
+                        partitionDescriptor, shuffleDescriptor, numberOfSubpartitions);
         ResultPartitionDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
         verifyResultPartitionDeploymentDescriptorCopy(copy);
         return copy;
@@ -121,6 +122,5 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
         assertThat(copy.getPartitionId(), is(partitionId));
         assertThat(copy.getPartitionType(), is(partitionType));
         assertThat(copy.getNumberOfSubpartitions(), is(numberOfSubpartitions));
-        assertThat(copy.notifyPartitionDataAvailable(), is(true));
     }
 }

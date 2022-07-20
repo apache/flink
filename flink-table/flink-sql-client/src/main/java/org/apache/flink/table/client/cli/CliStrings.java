@@ -19,10 +19,15 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
+import org.apache.commons.lang3.StringUtils;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /** Utility class that contains all strings for CLI commands and messages. */
 public final class CliStrings {
@@ -36,95 +41,108 @@ public final class CliStrings {
 
     // --------------------------------------------------------------------------------------------
 
+    private static final String CMD_DESC_DELIMITER = "\t\t";
+
+    /** SQL Client HELP command helper class. */
+    private static final class SQLCliCommandsDescriptions {
+        private int commandMaxLength;
+        private final Map<String, String> commandsDescriptions;
+
+        public SQLCliCommandsDescriptions() {
+            this.commandsDescriptions = new LinkedHashMap<>();
+            this.commandMaxLength = -1;
+        }
+
+        public SQLCliCommandsDescriptions commandDescription(String command, String description) {
+            Preconditions.checkState(
+                    StringUtils.isNotBlank(command), "content of command must not be empty.");
+            Preconditions.checkState(
+                    StringUtils.isNotBlank(description),
+                    "content of command's description must not be empty.");
+            this.updateMaxCommandLength(command.length());
+            this.commandsDescriptions.put(command, description);
+            return this;
+        }
+
+        private void updateMaxCommandLength(int newLength) {
+            Preconditions.checkState(newLength > 0);
+            if (this.commandMaxLength < newLength) {
+                this.commandMaxLength = newLength;
+            }
+        }
+
+        public AttributedString build() {
+            AttributedStringBuilder attributedStringBuilder = new AttributedStringBuilder();
+            if (!this.commandsDescriptions.isEmpty()) {
+                this.commandsDescriptions.forEach(
+                        (cmd, cmdDesc) -> {
+                            attributedStringBuilder
+                                    .style(AttributedStyle.DEFAULT.bold())
+                                    .append(
+                                            String.format(
+                                                    String.format("%%-%ds", commandMaxLength), cmd))
+                                    .append(CMD_DESC_DELIMITER)
+                                    .style(AttributedStyle.DEFAULT)
+                                    .append(cmdDesc)
+                                    .append('\n');
+                        });
+            }
+            return attributedStringBuilder.toAttributedString();
+        }
+    }
+
+    private static final AttributedString SQL_CLI_COMMANDS_DESCRIPTIONS =
+            new SQLCliCommandsDescriptions()
+                    .commandDescription("HELP", "Prints the available commands.")
+                    .commandDescription("QUIT/EXIT", "Quits the SQL CLI client.")
+                    .commandDescription("CLEAR", "Clears the current terminal.")
+                    .commandDescription(
+                            "SET",
+                            "Sets a session configuration property. Syntax: \"SET '<key>'='<value>';\". Use \"SET;\" for listing all properties.")
+                    .commandDescription(
+                            "RESET",
+                            "Resets a session configuration property. Syntax: \"RESET '<key>';\". Use \"RESET;\" for reset all session properties.")
+                    .commandDescription(
+                            "INSERT INTO",
+                            "Inserts the results of a SQL SELECT query into a declared table sink.")
+                    .commandDescription(
+                            "INSERT OVERWRITE",
+                            "Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data.")
+                    .commandDescription(
+                            "SELECT", "Executes a SQL SELECT query on the Flink cluster.")
+                    .commandDescription(
+                            "EXPLAIN",
+                            "Describes the execution plan of a query or table with the given name.")
+                    .commandDescription(
+                            "BEGIN STATEMENT SET",
+                            "Begins a statement set. Syntax: \"BEGIN STATEMENT SET;\"")
+                    .commandDescription("END", "Ends a statement set. Syntax: \"END;\"")
+                    .commandDescription(
+                            "ADD JAR",
+                            "Adds the specified jar file to the submitted jobs' classloader. Syntax: \"ADD JAR '<path_to_filename>.jar'\"")
+                    .commandDescription(
+                            "REMOVE JAR",
+                            "Removes the specified jar file from the submitted jobs' classloader. Syntax: \"REMOVE JAR '<path_to_filename>.jar'\"")
+                    .commandDescription(
+                            "SHOW JARS",
+                            "Shows the list of user-specified jar dependencies. This list is impacted by the --jar and --library startup options as well as the ADD/REMOVE JAR commands.")
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
+
     public static final AttributedString MESSAGE_HELP =
             new AttributedStringBuilder()
                     .append("The following commands are available:\n\n")
-                    .append(formatCommand("CLEAR", "Clears the current terminal."))
-                    .append(
-                            formatCommand(
-                                    "CREATE TABLE",
-                                    "Create table under current catalog and database."))
-                    .append(
-                            formatCommand(
-                                    "DROP TABLE",
-                                    "Drop table with optional catalog and database. Syntax: 'DROP TABLE [IF EXISTS] <name>;'"))
-                    .append(
-                            formatCommand(
-                                    "CREATE VIEW",
-                                    "Creates a virtual table from a SQL query. Syntax: 'CREATE VIEW <name> AS <query>;'"))
-                    .append(
-                            formatCommand(
-                                    "DESCRIBE",
-                                    "Describes the schema of a table with the given name."))
-                    .append(
-                            formatCommand(
-                                    "DROP VIEW",
-                                    "Deletes a previously created virtual table. Syntax: 'DROP VIEW <name>;'"))
-                    .append(
-                            formatCommand(
-                                    "EXPLAIN",
-                                    "Describes the execution plan of a query or table with the given name."))
-                    .append(formatCommand("HELP", "Prints the available commands."))
-                    .append(
-                            formatCommand(
-                                    "INSERT INTO",
-                                    "Inserts the results of a SQL SELECT query into a declared table sink."))
-                    .append(
-                            formatCommand(
-                                    "INSERT OVERWRITE",
-                                    "Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data."))
-                    .append(formatCommand("QUIT", "Quits the SQL CLI client."))
-                    .append(
-                            formatCommand(
-                                    "RESET",
-                                    "Resets a session configuration property. Syntax: 'RESET <key>;'. Use 'RESET;' for reset all session properties."))
-                    .append(
-                            formatCommand(
-                                    "SELECT", "Executes a SQL SELECT query on the Flink cluster."))
-                    .append(
-                            formatCommand(
-                                    "SET",
-                                    "Sets a session configuration property. Syntax: 'SET <key>=<value>;'. Use 'SET;' for listing all properties."))
-                    .append(
-                            formatCommand(
-                                    "SHOW FUNCTIONS",
-                                    "Shows all user-defined and built-in functions or only user-defined functions. Syntax: 'SHOW [USER] FUNCTIONS;'"))
-                    .append(formatCommand("SHOW TABLES", "Shows all registered tables."))
-                    .append(
-                            formatCommand(
-                                    "SOURCE",
-                                    "Reads a SQL SELECT query from a file and executes it on the Flink cluster."))
-                    .append(
-                            formatCommand(
-                                    "USE CATALOG",
-                                    "Sets the current catalog. The current database is set to the catalog's default one. Experimental! Syntax: 'USE CATALOG <name>;'"))
-                    .append(
-                            formatCommand(
-                                    "USE",
-                                    "Sets the current default database. Experimental! Syntax: 'USE <name>;'"))
-                    .append(
-                            formatCommand(
-                                    "LOAD MODULE",
-                                    "Load a module. Syntax: 'LOAD MODULE <name> [WITH ('<key1>' = "
-                                            + "'<value1>' [, '<key2>' = '<value2>', ...])];'"))
-                    .append(
-                            formatCommand(
-                                    "UNLOAD MODULE",
-                                    "Unload a module. Syntax: 'UNLOAD MODULE <name>;'"))
-                    .append(
-                            formatCommand(
-                                    "USE MODULES",
-                                    "Enable loaded modules. Syntax: 'USE MODULES <name1> [, <name2>, ...];'"))
-                    .append(
-                            formatCommand(
-                                    "BEGIN STATEMENT SET",
-                                    "Begins a statement set. Syntax: 'BEGIN STATEMENT SET;'"))
-                    .append(formatCommand("END", "Ends a statement set. Syntax: 'END;'"))
+                    .append(SQL_CLI_COMMANDS_DESCRIPTIONS)
                     .style(AttributedStyle.DEFAULT.underline())
                     .append("\nHint")
                     .style(AttributedStyle.DEFAULT)
                     .append(
-                            ": Make sure that a statement ends with ';' for finalizing (multi-line) statements.")
+                            ": Make sure that a statement ends with \";\" for finalizing (multi-line) statements.")
+                    // About Documentation Link.
+                    .style(AttributedStyle.DEFAULT)
+                    .append(
+                            "\nYou can also type any Flink SQL statement, please visit https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/table/sql/overview/ for more details.")
                     .toAttributedString();
 
     public static final String MESSAGE_WELCOME;
@@ -224,6 +242,12 @@ public final class CliStrings {
             "Execute statement in sync mode. Please wait for the execution finish...";
 
     public static final String MESSAGE_EXECUTE_STATEMENT = "Execute statement succeed.";
+
+    public static final String MESSAGE_ADD_JAR_STATEMENT =
+            "The specified jar is added into session classloader.";
+
+    public static final String MESSAGE_REMOVE_JAR_STATEMENT =
+            "The specified jar is removed from session classloader.";
 
     // --------------------------------------------------------------------------------------------
 
@@ -351,16 +375,5 @@ public final class CliStrings {
         }
 
         return builder.toAttributedString();
-    }
-
-    private static AttributedString formatCommand(String cmd, String description) {
-        return new AttributedStringBuilder()
-                .style(AttributedStyle.DEFAULT.bold())
-                .append(cmd)
-                .append("\t\t")
-                .style(AttributedStyle.DEFAULT)
-                .append(description)
-                .append('\n')
-                .toAttributedString();
     }
 }

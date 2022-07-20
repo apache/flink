@@ -18,22 +18,26 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
-import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.checkpointing.TestBarrierHandlerFactory;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 /** A builder for creating instances of {@link CheckpointedInputGate} for tests. */
 public class TestCheckpointedInputGateBuilder {
@@ -58,6 +62,15 @@ public class TestCheckpointedInputGateBuilder {
      */
     public TestCheckpointedInputGateBuilder withRemoteChannels() {
         this.gateBuilder = this::buildRemoteGate;
+        return this;
+    }
+
+    /**
+     * Uses all channels as {@link RemoteInputChannel RemoteInputChannels} except the channel from
+     * testChannelIds which should be {@link TestInputChannel}.
+     */
+    public TestCheckpointedInputGateBuilder withMixedChannels(Integer... testChannelIds) {
+        this.gateBuilder = () -> buildMixedGate(testChannelIds);
         return this;
     }
 
@@ -101,6 +114,22 @@ public class TestCheckpointedInputGateBuilder {
             channels[i] = new TestInputChannel(gate, i, false, true);
         }
         gate.setInputChannels(channels);
+        return gate;
+    }
+
+    private SingleInputGate buildMixedGate(Integer... testChannelIds) throws IOException {
+        Set<Integer> testChannelIdSet = new HashSet<>(Arrays.asList(testChannelIds));
+        SingleInputGate gate = buildRemoteGate();
+        InputChannel[] channels = new InputChannel[numChannels];
+        for (int i = 0; i < numChannels; i++) {
+            if (testChannelIdSet.contains(i)) {
+                channels[i] = new TestInputChannel(gate, i, false, true);
+            } else {
+                channels[i] = gate.getChannel(i);
+            }
+        }
+        gate.setInputChannels(channels);
+
         return gate;
     }
 

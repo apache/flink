@@ -34,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * <p>This format makes no difference between creating readers from scratch (new file) or from a
  * checkpoint. Because of that, if the reader actively checkpoints its position (via the {@link
  * Reader#getCheckpointedPosition()} method) then the checkpointed offset must be a byte offset in
- * the file from which the stream can be resumed as if it were te beginning of the file.
+ * the file from which the stream can be resumed as if it were the beginning of the file.
  *
  * <p>For all other details, please check the docs of {@link StreamFormat}.
  *

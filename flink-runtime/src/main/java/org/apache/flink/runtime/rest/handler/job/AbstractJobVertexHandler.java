@@ -80,7 +80,7 @@ public abstract class AbstractJobVertexHandler<
 
     @Override
     protected R handleRequest(
-            HandlerRequest<EmptyRequestBody, M> request, AccessExecutionGraph executionGraph)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionGraph executionGraph)
             throws RestHandlerException {
 
         final JobVertexID jobVertexID = request.getPathParameter(JobVertexIdPathParameter.class);
@@ -105,6 +105,6 @@ public abstract class AbstractJobVertexHandler<
      * @throws RestHandlerException if the handler could not process the request
      */
     protected abstract R handleRequest(
-            HandlerRequest<EmptyRequestBody, M> request, AccessExecutionJobVertex jobVertex)
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionJobVertex jobVertex)
             throws RestHandlerException;
 }

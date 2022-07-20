@@ -22,6 +22,7 @@ import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConsta
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
+import org.apache.flink.util.ExceptionUtils;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.ClientConfiguration;
@@ -50,6 +51,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -420,6 +422,8 @@ public class KinesisProxy implements KinesisProxyInterface {
     protected boolean isRecoverableSdkClientException(SdkClientException ex) {
         if (ex instanceof AmazonServiceException) {
             return KinesisProxy.isRecoverableException((AmazonServiceException) ex);
+        } else if (ExceptionUtils.findThrowable(ex, SocketTimeoutException.class).isPresent()) {
+            return true;
         }
         // customizations may decide to retry other errors, such as read timeouts
         return false;

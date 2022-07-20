@@ -38,8 +38,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.sort.ExternalSorter;
 import org.apache.flink.runtime.operators.sort.Sorter;
@@ -53,9 +53,6 @@ import org.apache.flink.util.MutableObjectIterator;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 
 /**
  * DataSinkTask which is executed by a task manager. The task hands the data to an output format.
@@ -90,8 +87,6 @@ public class DataSinkTask<IT> extends AbstractInvokable {
     private volatile boolean taskCanceled;
 
     private volatile boolean cleanupCalled;
-
-    private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 
     /**
      * Create an Invokable task and set its environment.
@@ -135,8 +130,8 @@ public class DataSinkTask<IT> extends AbstractInvokable {
         {
             Counter tmpNumRecordsIn;
             try {
-                OperatorIOMetricGroup ioMetricGroup =
-                        ((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup();
+                InternalOperatorIOMetricGroup ioMetricGroup =
+                        ((InternalOperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup();
                 ioMetricGroup.reuseInputMetricsForTask();
                 ioMetricGroup.reuseOutputMetricsForTask();
                 tmpNumRecordsIn = ioMetricGroup.getNumRecordsInCounter();
@@ -294,7 +289,6 @@ public class DataSinkTask<IT> extends AbstractInvokable {
             }
 
             BatchTask.clearReaders(new MutableReader<?>[] {inputReader});
-            terminationFuture.complete(null);
         }
 
         if (!this.taskCanceled) {
@@ -305,7 +299,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
     }
 
     @Override
-    public Future<Void> cancel() throws Exception {
+    public void cancel() throws Exception {
         this.taskCanceled = true;
         OutputFormat<IT> format = this.format;
         if (format != null) {
@@ -326,7 +320,6 @@ public class DataSinkTask<IT> extends AbstractInvokable {
         }
 
         LOG.debug(getLogString("Cancelling data sink operator"));
-        return terminationFuture;
     }
 
     /**

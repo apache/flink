@@ -41,7 +41,9 @@ Python 标量函数的行为由名为 `eval` 的方法定义，`eval` 方法支�
 以下示例显示了如何定义自己的 Python 哈希函数、如何在 TableEnvironment 中注册它以及如何在作业中使用它。
 
 ```python
-from pyflink.table.expressions import call 
+from pyflink.table.expressions import call, col
+from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.udf import ScalarFunction, udf
 
 class HashCode(ScalarFunction):
   def __init__(self):
@@ -50,13 +52,13 @@ class HashCode(ScalarFunction):
   def eval(self, s):
     return hash(s) * self.factor
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
 hash_code = udf(HashCode(), result_type=DataTypes.BIGINT())
 
 # 在 Python Table API 中使用 Python 自定义函数
-my_table.select(my_table.string, my_table.bigint, hash_code(my_table.bigint), call(hash_code, my_table.bigint))
+my_table.select(col("string"), col("bigint"), hash_code(col("bigint")), call(hash_code, col("bigint")))
 
 # 在 SQL API 中使用 Python 自定义函数
 table_env.create_temporary_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
@@ -78,16 +80,17 @@ public class HashCode extends ScalarFunction {
   }
 }
 '''
-from pyflink.table.expressions import call
+from pyflink.table.expressions import call, col
+from pyflink.table import TableEnvironment, EnvironmentSettings
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
 # 注册 Java 函数
 table_env.create_java_temporary_function("hash_code", "my.java.function.HashCode")
 
 # 在 Python Table API 中使用 Java 函数
-my_table.select(call('hash_code', my_table.string))
+my_table.select(call('hash_code', col("string")))
 
 # 在 SQL API 中使用 Java 函数
 table_env.sql_query("SELECT string, bigint, hash_code(string) FROM MyTable")
@@ -128,10 +131,10 @@ add = udf(functools.partial(partial_add, k=1), result_type=DataTypes.BIGINT())
 # 注册 Python 自定义函数
 table_env.create_temporary_function("add", add)
 # 在 Python Table API 中使用 Python 自定义函数
-my_table.select("add(a, b)")
+my_table.select(call('add', col('a'), col('b')))
 
 # 也可以在 Python Table API 中直接使用 Python 自定义函数
-my_table.select(add(my_table.a, my_table.b))
+my_table.select(add(col('a'), col('b')))
 ```
 
 <a name="table-functions"></a>
@@ -143,12 +146,16 @@ my_table.select(add(my_table.a, my_table.b))
 以下示例说明了如何定义自己的 Python 自定义表值函数，将其注册到 TableEnvironment 中，并在作业中使用它。
 
 ```python
+from pyflink.table.expressions import col
+from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.udf import TableFunction, udtf
+
 class Split(TableFunction):
     def eval(self, string):
         for s in string.split(" "):
             yield s, len(s)
 
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 my_table = ...  # type: Table, table schema: [a: String]
 
@@ -156,14 +163,13 @@ my_table = ...  # type: Table, table schema: [a: String]
 split = udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()])
 
 # 在 Python Table API 中使用 Python 表值函数
-my_table.join_lateral(split(my_table.a).alias("word, length"))
-my_table.left_outer_join_lateral(split(my_table.a).alias("word, length"))
+my_table.join_lateral(split(col("a")).alias("word", "length"))
+my_table.left_outer_join_lateral(split(col("a")).alias("word", "length"))
 
 # 在 SQL API 中使用 Python 表值函数
 table_env.create_temporary_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
 table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
-
 ```
 
 除此之外，还支持在 Python Table API 程序中使用 Java / Scala 表值函数。
@@ -184,9 +190,10 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
     }
 }
 '''
-from pyflink.table.expressions import call
+from pyflink.table.expressions import call, col
+from pyflink.table import TableEnvironment, EnvironmentSettings
 
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 my_table = ...  # type: Table, table schema: [a: String]
 
@@ -194,8 +201,8 @@ my_table = ...  # type: Table, table schema: [a: String]
 table_env.create_java_temporary_function("split", "my.java.function.Split")
 
 # 在 Python Table API 中使用表值函数。 "alias"指定表的字段名称。
-my_table.join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
-my_table.left_outer_join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
+my_table.join_lateral(call('split', col('a')).alias("word", "length")).select(col('a'), col('word'), col('length'))
+my_table.left_outer_join_lateral(call('split', col('a')).alias("word", "length")).select(col('a'), col('word'), col('length'))
 
 # 注册 Python 函数。
 
@@ -235,7 +242,7 @@ def iterable_func(x):
 
 A user-defined aggregate function (_UDAGG_) maps scalar values of multiple rows to a new scalar value.
 
-**NOTE:** Currently the general user-defined aggregate function is only supported in the GroupBy aggregation and Group Window Aggregation of the blink planner in streaming mode. For batch mode, it's currently not supported and it is recommended to use the [Vectorized Aggregate Functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions).
+**NOTE:** Currently the general user-defined aggregate function is only supported in the GroupBy aggregation and Group Window Aggregation in streaming mode. For batch mode, it's currently not supported and it is recommended to use the [Vectorized Aggregate Functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions).
 
 The behavior of an aggregate function is centered around the concept of an accumulator. The _accumulator_
 is an intermediate data structure that stores the aggregated values until a final aggregation result
@@ -301,7 +308,7 @@ class WeightedAvg(AggregateFunction):
             DataTypes.FIELD("f1", DataTypes.BIGINT())])
 
 
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 # the result type and accumulator type can also be specified in the udaf decorator:
 # weighted_avg = udaf(WeightedAvg(), result_type=DataTypes.BIGINT(), accumulator_type=...)
@@ -312,23 +319,23 @@ t = table_env.from_elements([(1, 2, "Lee"),
                              (7, 8, "Lee")]).alias("value", "count", "name")
 
 # call function "inline" without registration in Table API
-result = t.group_by(t.name).select(weighted_avg(t.value, t.count).alias("avg")).to_pandas()
-print(result)
+result = t.group_by(col("name")).select(weighted_avg(col("value"), col("count")).alias("avg")).execute()
+result.print()
 
 # register function
 table_env.create_temporary_function("weighted_avg", WeightedAvg())
 
 # call registered function in Table API
-result = t.group_by(t.name).select(call("weighted_avg", t.value, t.count).alias("avg")).to_pandas()
-print(result)
+result = t.group_by(col("name")).select(call("weighted_avg", col("value"), col("count")).alias("avg")).execute()
+result.print()
 
 # register table
 table_env.create_temporary_view("source", t)
 
 # call registered function in SQL
 result = table_env.sql_query(
-    "SELECT weighted_avg(`value`, `count`) AS avg FROM source GROUP BY name").to_pandas()
-print(result)
+    "SELECT weighted_avg(`value`, `count`) AS avg FROM source GROUP BY name").execute()
+result.print()
 
 # use the general Python aggregate function in GroupBy Window Aggregation
 tumble_window = Tumble.over(lit(1).hours) \
@@ -337,10 +344,9 @@ tumble_window = Tumble.over(lit(1).hours) \
 
 result = t.window(tumble_window) \
         .group_by(col('w'), col('name')) \
-        .select("w.start, w.end, weighted_avg(value, count)") \
-        .to_pandas()
-print(result)
-
+        .select(col('w').start, col('w').end, weighted_avg(col('value'), col('count'))) \
+        .execute()
+result.print()
 ```
 
 The `accumulate(...)` method of our `WeightedAvg` class takes three input arguments. The first one is the accumulator
@@ -416,8 +422,7 @@ A user-defined table aggregate function (_UDTAGG_) maps scalar values of multipl
 The returned record may consist of one or more fields. If an output record consists of only a single field,
 the structured record can be omitted, and a scalar value can be emitted that will be implicitly wrapped into a row by the runtime.
 
-**NOTE:** Currently the general user-defined table aggregate function is only supported in the GroupBy aggregation
-of the blink planner in streaming mode.
+**NOTE:** Currently the general user-defined table aggregate function is only supported in the GroupBy aggregation in streaming mode.
 
 Similar to an [aggregate function](#aggregate-functions), the behavior of a table aggregate is centered around the concept of an accumulator.
 The accumulator is an intermediate data structure that stores the aggregated values until a final aggregation result is computed.
@@ -429,7 +434,7 @@ the function is called to compute and return the final result.
 
 The following example illustrates the aggregation process:
 
-<img alt="UDTAGG mechanism" src="/fig/udtagg-mechanism-python.png" width="80%">
+{{<img alt="UDTAGG mechanism" src="/fig/udtagg-mechanism-python.png" width="80%">}}
 
 In the example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,
 and `price`) and 5 rows. We would like to find the 2 highest prices of all beverages in the table, i.e.,
@@ -449,6 +454,7 @@ The following example shows how to define your own aggregate function and call i
 ```python
 from pyflink.common import Row
 from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.expressions import col
 from pyflink.table.udf import udtaf, TableAggregateFunction
 
 class Top2(TableAggregateFunction):
@@ -476,26 +482,34 @@ class Top2(TableAggregateFunction):
             [DataTypes.FIELD("a", DataTypes.BIGINT())])
 
 
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 # the result type and accumulator type can also be specified in the udtaf decorator:
 # top2 = udtaf(Top2(), result_type=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]), accumulator_type=DataTypes.ARRAY(DataTypes.BIGINT()))
 top2 = udtaf(Top2())
 t = table_env.from_elements([(1, 'Hi', 'Hello'),
-                              (3, 'Hi', 'hi'),
-                              (5, 'Hi2', 'hi'),
-                              (7, 'Hi', 'Hello'),
-                              (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
+                             (3, 'Hi', 'hi'),
+                             (5, 'Hi2', 'hi'),
+                             (7, 'Hi', 'Hello'),
+                             (2, 'Hi', 'Hello')],
+                            ['a', 'b', 'c'])
 
 # call function "inline" without registration in Table API
-result = t.group_by(t.b).flat_aggregate(top2).select('*').to_pandas()
+t.group_by(col('b')).flat_aggregate(top2).select(col('*')).execute().print()
 
 # the result is:
-#      b    a
-# 0  Hi2  5.0
-# 1  Hi2  NaN
-# 2   Hi  7.0
-# 3   Hi  3.0
++----+--------------------------------+----------------------+
+| op |                              b |                    a |
++----+--------------------------------+----------------------+
+| +I |                             Hi |                    1 |
+| +I |                             Hi |               <NULL> |
+| -D |                             Hi |                    1 |
+| -D |                             Hi |               <NULL> |
+| +I |                             Hi |                    7 |
+| +I |                             Hi |                    3 |
+| +I |                            Hi2 |                    5 |
+| +I |                            Hi2 |               <NULL> |
++----+--------------------------------+----------------------+
 
 ```
 
@@ -550,29 +564,4 @@ class ListViewConcatTableAggregateFunction(TableAggregateFunction):
 
     def get_result_type(self):
         return DataTypes.ROW([DataTypes.FIELD("a", DataTypes.STRING())])
-```
-
-## 打包 UDFs
-
-如果你在非 local 模式下运行 Python UDFs 和 Pandas UDFs，且 Python UDFs 没有定义在含 `main()` 入口的 Python 主文件中，强烈建议你通过 [`python-files`]({{< ref "docs/dev/python/python_config" >}}#python-files) 配置项指定 Python UDF 的定义。
-否则，如果你将 Python UDFs 定义在名为 `my_udf.py` 的文件中，你可能会遇到 `ModuleNotFoundError: No module named 'my_udf'` 这样的报错。
-
-## 在 UDF 中载入资源
-
-有时候，我们想在 UDF 中只载入一次资源，然后反复使用该资源进行计算。例如，你想在 UDF 中首先载入一个巨大的深度学习模型，然后使用该模型多次进行预测。
-
-你要做的是重载 `UserDefinedFunction` 类的 `open` 方法。
-
-```python
-class Predict(ScalarFunction):
-    def open(self, function_context):
-        import pickle
-
-        with open("resources.zip/resources/model.pkl", "rb") as f:
-            self.model = pickle.load(f)
-
-    def eval(self, x):
-        return self.model.predict(x)
-
-predict = udf(Predict(), result_type=DataTypes.DOUBLE(), func_type="pandas")
 ```

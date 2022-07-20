@@ -20,10 +20,12 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
@@ -58,12 +60,20 @@ public interface TableEnvironmentInternal extends TableEnvironment {
     OperationTreeBuilder getOperationTreeBuilder();
 
     /**
+     * Creates a table from a table source.
+     *
+     * @param source table source used as table
+     */
+    @Deprecated
+    Table fromTableSource(TableSource<?> source);
+
+    /**
      * Execute the given modify operations and return the execution result.
      *
      * @param operations The operations to be executed.
      * @return the affected row counts (-1 means unknown).
      */
-    TableResult executeInternal(List<ModifyOperation> operations);
+    TableResultInternal executeInternal(List<ModifyOperation> operations);
 
     /**
      * Execute the given operation and return the execution result.
@@ -71,7 +81,7 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      * @param operation The operation to be executed.
      * @return the content of the execution result.
      */
-    TableResult executeInternal(Operation operation);
+    TableResultInternal executeInternal(Operation operation);
 
     /**
      * Returns the AST of this table and the execution plan to compute the result of this table.
@@ -110,67 +120,12 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      */
     void registerTableSinkInternal(String name, TableSink<?> configuredSink);
 
-    /**
-     * Get the json plan for the given statement.
-     *
-     * <p>The statement can only be DML.
-     *
-     * <p>The json plan is the string json representation of an optimized ExecNode plan for the
-     * given statement. An ExecNode plan can be serialized to json plan, and a json plan can be
-     * deserialized to an ExecNode plan.
-     *
-     * <p>NOTES: Only the Blink planner supports this method.
-     *
-     * <p><b>NOTES</b>: This is an experimental feature now.
-     *
-     * @param stmt The SQL statement to generate json plan.
-     * @return the string json representation of an optimized ExecNode plan for the given statement.
-     */
     @Experimental
-    String getJsonPlan(String stmt);
+    CompiledPlan compilePlan(List<ModifyOperation> operations);
 
-    /**
-     * Get the json plan for the given {@link ModifyOperation}s. see {@link #getJsonPlan(String)}
-     * for more info about json plan.
-     *
-     * <p>NOTES: Only the Blink planner supports this method.
-     *
-     * <p><b>NOTES</b>: This is an experimental feature now.
-     *
-     * @param operations the {@link ModifyOperation}s to generate json plan.
-     * @return the string json representation of an optimized ExecNode plan for the given
-     *     operations.
-     */
     @Experimental
-    String getJsonPlan(List<ModifyOperation> operations);
+    TableResultInternal executePlan(InternalPlan plan);
 
-    /**
-     * Returns the execution plan for the given json plan. A SQL statement can be converted to json
-     * plan through {@link #getJsonPlan(String)}.
-     *
-     * <p>NOTES: Only the Blink planner supports this method.
-     *
-     * <p><b>NOTES</b>: This is an experimental feature now.
-     *
-     * @param jsonPlan The json plan to be explained.
-     * @param extraDetails The extra explain details which the explain result should include, e.g.
-     *     estimated cost, changelog mode for streaming
-     * @return the execution plan.
-     */
     @Experimental
-    String explainJsonPlan(String jsonPlan, ExplainDetail... extraDetails);
-
-    /**
-     * Execute the given json plan, and return the execution result. A SQL statement can be
-     * converted to json plan through {@link #getJsonPlan(String)}.
-     *
-     * <p>NOTES: Only the Blink planner supports this method.
-     *
-     * <p><b>NOTES</b>: This is an experimental feature now.
-     *
-     * @param jsonPlan The json plan to be executed.
-     * @return the affected row count for `DML` (-1 means unknown).
-     */
-    @Experimental
-    TableResult executeJsonPlan(String jsonPlan);
+    String explainPlan(InternalPlan compiledPlan, ExplainDetail... extraDetails);
 }

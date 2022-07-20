@@ -1,0 +1,164 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAllNullable">
+    <Resource name="sql">
+      <![CDATA[SELECT COALESCE(f0, f2) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[COALESCE($0, $2)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[COALESCE(f0, f2) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDropCoalesce">
+    <Resource name="sql">
+      <![CDATA[SELECT COALESCE(f1, '-') FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[COALESCE($1, _UTF-16LE'-')])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[f1 AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyLastNonNull">
+    <Resource name="sql">
+      <![CDATA[SELECT COALESCE(f0, f1) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[COALESCE($0, $1)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[COALESCE(f0, f1) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDropLastConstant">
+    <Resource name="sql">
+      <![CDATA[SELECT COALESCE(f0, f1, '-') FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[COALESCE($0, $1, _UTF-16LE'-')])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[COALESCE(f0, f1) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterCoalesce">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T WHERE COALESCE(f0, f1, '-') = 'abc']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1], f2=[$2])
++- LogicalFilter(condition=[=(COALESCE($0, $1, _UTF-16LE'-'), _UTF-16LE'abc')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[f0, f1, f2], where=[=(COALESCE(f0, f1), 'abc')])
++- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinCoalesce">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T t1 LEFT JOIN T t2 ON COALESCE(t1.f0, '-', t1.f2) = t2.f0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1], f2=[$2], f00=[$4], f10=[$5], f20=[$6])
++- LogicalJoin(condition=[=($3, $4)], joinType=[left])
+   :- LogicalProject(f0=[$0], f1=[$1], f2=[$2], $f3=[COALESCE($0, _UTF-16LE'-', $2)])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[f0, f1, f2, f00, f10, f20])
++- Join(joinType=[LeftOuterJoin], where=[=($f3, f00)], select=[f0, f1, f2, $f3, f00, f10, f20], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[$f3]])
+   :  +- Calc(select=[f0, f1, f2, COALESCE(f0, '-') AS $f3])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+   +- Exchange(distribution=[hash[f0]])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultipleCoalesces">
+    <Resource name="sql">
+      <![CDATA[SELECT COALESCE(1),
+COALESCE(1, 2),
+COALESCE(cast(NULL as int), 2),
+COALESCE(1, cast(NULL as int)),
+COALESCE(cast(NULL as int), cast(NULL as int), 3),
+COALESCE(4, cast(NULL as int), cast(NULL as int), cast(NULL as int)),
+COALESCE('1'),
+COALESCE('1', '23'),
+COALESCE(cast(NULL as varchar), '2'),
+COALESCE('1', cast(NULL as varchar)),
+COALESCE(cast(NULL as varchar), cast(NULL as varchar), '3'),
+COALESCE('4', cast(NULL as varchar), cast(NULL as varchar), cast(NULL as varchar)),
+COALESCE(1.0),
+COALESCE(1.0, 2),
+COALESCE(cast(NULL as double), 2.0),
+COALESCE(cast(NULL as double), 2.0, 3.0),
+COALESCE(2.0, cast(NULL as double), 3.0),
+COALESCE(cast(NULL as double), cast(NULL as double))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[COALESCE(1)], EXPR$1=[COALESCE(1, 2)], EXPR$2=[COALESCE(null:INTEGER, 2)], EXPR$3=[COALESCE(1, null:INTEGER)], EXPR$4=[COALESCE(null:INTEGER, null:INTEGER, 3)], EXPR$5=[COALESCE(4, null:INTEGER, null:INTEGER, null:INTEGER)], EXPR$6=[COALESCE(_UTF-16LE'1')], EXPR$7=[COALESCE(_UTF-16LE'1', _UTF-16LE'23')], EXPR$8=[COALESCE(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'2')], EXPR$9=[COALESCE(_UTF-16LE'1', null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")], EXPR$10=[COALESCE(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'3')], EXPR$11=[COALESCE(_UTF-16LE'4', null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")], EXPR$12=[COALESCE(1.0:DECIMAL(2, 1))], EXPR$13=[COALESCE(1.0:DECIMAL(11, 1), 2:DECIMAL(11, 1))], EXPR$14=[COALESCE(null:DOUBLE, 2.0:DOUBLE)], EXPR$15=[COALESCE(null:DOUBLE, 2.0:DOUBLE, 3.0:DOUBLE)], EXPR$16=[COALESCE(2.0:DOUBLE, null:DOUBLE, 3.0:DOUBLE)], EXPR$17=[COALESCE(null:DOUBLE, null:DOUBLE)])
++- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[1 AS EXPR$0, 1 AS EXPR$1, 2 AS EXPR$2, 1 AS EXPR$3, 3 AS EXPR$4, 4 AS EXPR$5, '1' AS EXPR$6, '1' AS EXPR$7, '2' AS EXPR$8, '1' AS EXPR$9, '3' AS EXPR$10, '4' AS EXPR$11, 1.0 AS EXPR$12, 1.0 AS EXPR$13, 2E0 AS EXPR$14, 2E0 AS EXPR$15, 2.0 AS EXPR$16, null:DOUBLE AS EXPR$17])
++- Values(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

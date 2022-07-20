@@ -28,20 +28,24 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 /** A mock SourceReader class. */
 public class MockSourceReader
         extends SingleThreadMultiplexSourceReaderBase<
-                int[], Integer, MockSourceSplit, AtomicInteger> {
+                int[], Integer, MockSourceSplit, MockSplitState> {
 
     public MockSourceReader(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue,
             Supplier<SplitReader<int[], MockSourceSplit>> splitFetcherSupplier,
             Configuration config,
             SourceReaderContext context) {
-        super(elementsQueue, splitFetcherSupplier, new MockRecordEmitter(), config, context);
+        super(
+                elementsQueue,
+                splitFetcherSupplier,
+                new MockRecordEmitter(context.metricGroup()),
+                config,
+                context);
     }
 
     public MockSourceReader(
@@ -49,20 +53,25 @@ public class MockSourceReader
             SingleThreadFetcherManager<int[], MockSourceSplit> splitSplitFetcherManager,
             Configuration config,
             SourceReaderContext context) {
-        super(elementsQueue, splitSplitFetcherManager, new MockRecordEmitter(), config, context);
+        super(
+                elementsQueue,
+                splitSplitFetcherManager,
+                new MockRecordEmitter(context.metricGroup()),
+                config,
+                context);
     }
 
     @Override
-    protected void onSplitFinished(Map<String, AtomicInteger> finishedSplitIds) {}
+    protected void onSplitFinished(Map<String, MockSplitState> finishedSplitIds) {}
 
     @Override
-    protected AtomicInteger initializedState(MockSourceSplit split) {
-        return new AtomicInteger(split.index());
+    protected MockSplitState initializedState(MockSourceSplit split) {
+        return new MockSplitState(split.index(), split.endIndex());
     }
 
     @Override
-    protected MockSourceSplit toSplitType(String splitId, AtomicInteger splitState) {
-        return new MockSourceSplit(Integer.parseInt(splitId), splitState.get());
+    protected MockSourceSplit toSplitType(String splitId, MockSplitState splitState) {
+        return new MockSourceSplit(Integer.parseInt(splitId), splitState.getRecordIndex());
     }
 
     @Override

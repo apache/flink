@@ -23,10 +23,10 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FileSystemValidator;
-import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.OldCsvValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.TableSchemaUtils;
@@ -47,8 +47,6 @@ import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_PATH;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_TYPE_VALUE;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_COMMENT_PREFIX;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELD_DELIMITER;
@@ -59,17 +57,23 @@ import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_QUOTE_CH
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_TYPE_VALUE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 
-/** Factory base for creating configured instances of {@link CsvTableSource}. */
+/**
+ * Factory base for creating configured instances of {@link CsvTableSource}.
+ *
+ * @deprecated The legacy CSV connector has been replaced by {@code FileSource}. It is kept only to
+ *     support tests for the legacy connector stack.
+ */
 @Internal
+@Deprecated
 public abstract class CsvTableSourceFactoryBase implements TableFactory {
 
     @Override
     public Map<String, String> requiredContext() {
         Map<String, String> context = new HashMap<>();
         context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE);
-        context.put(FORMAT_TYPE, FORMAT_TYPE_VALUE);
+        context.put(TableFactoryService.FORMAT_TYPE, FORMAT_TYPE_VALUE);
         context.put(CONNECTOR_PROPERTY_VERSION, "1");
-        context.put(FORMAT_PROPERTY_VERSION, "1");
+        context.put(TableFactoryService.FORMAT_PROPERTY_VERSION, "1");
         return context;
     }
 
@@ -81,7 +85,7 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
         properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TYPE);
         properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.DATA_TYPE);
         properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.NAME);
-        properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
+        properties.add(TableFactoryService.FORMAT_DERIVE_SCHEMA);
         properties.add(FORMAT_FIELD_DELIMITER);
         properties.add(FORMAT_LINE_DELIMITER);
         properties.add(FORMAT_QUOTE_CHARACTER);

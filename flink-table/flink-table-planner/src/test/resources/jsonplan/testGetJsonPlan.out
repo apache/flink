@@ -1,0 +1,104 @@
+{
+  "flinkVersion": "",
+  "nodes": [
+    {
+      "id": 1,
+      "type": "stream-exec-table-source-scan_1",
+      "scanTableSource": {
+        "table": {
+          "identifier": "`default_catalog`.`default_database`.`MyTable`",
+          "resolvedTable": {
+            "schema": {
+              "columns": [
+                {
+                  "name": "a",
+                  "dataType": "BIGINT"
+                },
+                {
+                  "name": "b",
+                  "dataType": "INT"
+                },
+                {
+                  "name": "c",
+                  "dataType": "VARCHAR(2147483647)"
+                }
+              ],
+              "watermarkSpecs": []
+            },
+            "partitionKeys": [],
+            "options": {
+              "connector": "values",
+              "bounded": "false"
+            }
+          }
+        }
+      },
+      "outputType": "ROW<`a` BIGINT, `b` INT, `c` VARCHAR(2147483647)>",
+      "description": "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
+      "inputProperties": []
+    },
+    {
+      "id": 2,
+      "type": "stream-exec-sink_1",
+      "configuration":{
+        "table.exec.sink.keyed-shuffle":"AUTO",
+        "table.exec.sink.not-null-enforcer":"ERROR",
+        "table.exec.sink.type-length-enforcer":"IGNORE",
+        "table.exec.sink.upsert-materialize":"AUTO"
+      },
+      "dynamicTableSink": {
+        "table": {
+          "identifier": "`default_catalog`.`default_database`.`MySink`",
+          "resolvedTable": {
+            "schema": {
+              "columns": [
+                {
+                  "name": "a",
+                  "dataType": "BIGINT"
+                },
+                {
+                  "name": "b",
+                  "dataType": "INT"
+                },
+                {
+                  "name": "c",
+                  "dataType": "VARCHAR(2147483647)"
+                }
+              ],
+              "watermarkSpecs": []
+            },
+            "partitionKeys": [],
+            "options": {
+              "connector": "values",
+              "table-sink-class": "DEFAULT"
+            }
+          }
+        }
+      },
+      "inputChangelogMode": [
+        "INSERT"
+      ],
+      "inputProperties": [
+        {
+          "requiredDistribution": {
+            "type": "UNKNOWN"
+          },
+          "damBehavior": "PIPELINED",
+          "priority": 0
+        }
+      ],
+      "outputType": "ROW<`a` BIGINT, `b` INT, `c` VARCHAR(2147483647)>",
+      "description": "Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])"
+    }
+  ],
+  "edges": [
+    {
+      "source": 1,
+      "target": 2,
+      "shuffle": {
+        "type": "FORWARD"
+      },
+      "shuffleMode": "PIPELINED"
+    }
+  ]
+}

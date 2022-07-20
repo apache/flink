@@ -19,11 +19,8 @@
 package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -33,6 +30,10 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Tests for all DataTypes and Dialects of JDBC connector. */
 @RunWith(Parameterized.class)
 public class JdbcDataTypeTest {
@@ -41,11 +42,11 @@ public class JdbcDataTypeTest {
             "CREATE TABLE T(\n"
                     + "f0 %s\n"
                     + ") WITH (\n"
-                    + "  'connector.type'='jdbc',\n"
-                    + "  'connector.url'='"
+                    + "  'connector'='jdbc',\n"
+                    + "  'url'='"
                     + "jdbc:%s:memory:test"
                     + "',\n"
-                    + "  'connector.table'='myTable'\n"
+                    + "  'table-name'='myTable'\n"
                     + ")";
 
     @Parameterized.Parameters(name = "{index}: {0}")
@@ -100,6 +101,22 @@ public class JdbcDataTypeTest {
                 createTestItem("postgresql", "TIMESTAMP WITHOUT TIME ZONE"),
                 createTestItem("postgresql", "VARBINARY"),
                 createTestItem("postgresql", "ARRAY<INTEGER>"),
+                createTestItem("oracle", "CHAR"),
+                createTestItem("oracle", "VARCHAR"),
+                createTestItem("oracle", "BOOLEAN"),
+                createTestItem("oracle", "TINYINT"),
+                createTestItem("oracle", "SMALLINT"),
+                createTestItem("oracle", "INTEGER"),
+                createTestItem("oracle", "BIGINT"),
+                createTestItem("oracle", "FLOAT"),
+                createTestItem("oracle", "DOUBLE"),
+                createTestItem("oracle", "DECIMAL(10, 4)"),
+                createTestItem("oracle", "DECIMAL(38, 18)"),
+                createTestItem("oracle", "DATE"),
+                createTestItem("oracle", "TIME"),
+                createTestItem("oracle", "TIMESTAMP(3)"),
+                createTestItem("oracle", "TIMESTAMP WITHOUT TIME ZONE"),
+                createTestItem("oracle", "VARBINARY"),
 
                 // Unsupported types throws errors.
                 createTestItem(
@@ -125,7 +142,7 @@ public class JdbcDataTypeTest {
                 createTestItem(
                         "mysql",
                         "TIMESTAMP(9) WITHOUT TIME ZONE",
-                        "The precision of field 'f0' is out of the TIMESTAMP precision range [1, 6] supported by MySQL dialect."),
+                        "The precision of field 'f0' is out of the TIMESTAMP precision range [0, 6] supported by MySQL dialect."),
                 createTestItem(
                         "mysql",
                         "TIMESTAMP_LTZ(3)",
@@ -143,14 +160,18 @@ public class JdbcDataTypeTest {
                         "TIMESTAMP(9) WITHOUT TIME ZONE",
                         "The precision of field 'f0' is out of the TIMESTAMP precision range [1, 6] supported by PostgreSQL dialect."),
                 createTestItem(
-                        "postgresql",
-                        "TIMESTAMP_LTZ(3)",
-                        "The PostgreSQL dialect doesn't support type: TIMESTAMP_LTZ(3)."));
+                        "postgresql", "TIMESTAMP_LTZ(3)", "Unsupported type:TIMESTAMP_LTZ(3)"),
+                createTestItem(
+                        "oracle", "BINARY", "The Oracle dialect doesn't support type: BINARY(1)."),
+                createTestItem(
+                        "oracle",
+                        "VARBINARY(10)",
+                        "The Oracle dialect doesn't support type: VARBINARY(10)."));
     }
 
     private static TestItem createTestItem(Object... args) {
-        assert args.length >= 2;
-        TestItem item = TestItem.fromDialetAndType((String) args[0], (String) args[1]);
+        assertThat(args).hasSizeGreaterThanOrEqualTo(2);
+        TestItem item = TestItem.fromDialectAndType((String) args[0], (String) args[1]);
         if (args.length == 3) {
             item.withExpectError((String) args[2]);
         }
@@ -164,19 +185,13 @@ public class JdbcDataTypeTest {
         String sqlDDL = String.format(DDL_FORMAT, testItem.dataTypeExpr, testItem.dialect);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         tEnv.executeSql(sqlDDL);
 
         if (testItem.expectError != null) {
-            try {
-                tEnv.sqlQuery("SELECT * FROM T");
-            } catch (Exception ex) {
-                Assert.assertTrue(ex.getCause() instanceof ValidationException);
-                Assert.assertEquals(testItem.expectError, ex.getCause().getMessage());
-            }
+            assertThatThrownBy(() -> tEnv.sqlQuery("SELECT * FROM T"))
+                    .satisfies(anyCauseMatches(testItem.expectError));
         } else {
             tEnv.sqlQuery("SELECT * FROM T");
         }
@@ -196,7 +211,7 @@ public class JdbcDataTypeTest {
             this.dataTypeExpr = dataTypeExpr;
         }
 
-        static TestItem fromDialetAndType(String dialect, String dataTypeExpr) {
+        static TestItem fromDialectAndType(String dialect, String dataTypeExpr) {
             return new TestItem(dialect, dataTypeExpr);
         }
 

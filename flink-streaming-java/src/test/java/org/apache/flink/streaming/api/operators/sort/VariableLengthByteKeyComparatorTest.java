@@ -26,11 +26,10 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link VariableLengthByteKeyComparator}. */
-public class VariableLengthByteKeyComparatorTest
+class VariableLengthByteKeyComparatorTest
         extends ComparatorTestBase<Tuple2<byte[], StreamRecord<String>>> {
     @Override
     protected Order[] getTestedOrder() {
@@ -54,8 +53,8 @@ public class VariableLengthByteKeyComparatorTest
             String message,
             Tuple2<byte[], StreamRecord<String>> should,
             Tuple2<byte[], StreamRecord<String>> is) {
-        assertThat(message, should.f0, equalTo(is.f0));
-        assertThat(message, should.f1, equalTo(is.f1));
+        assertThat(is.f0).as(message).isEqualTo(should.f0);
+        assertThat(is.f1).as(message).isEqualTo(should.f1);
     }
 
     @Override

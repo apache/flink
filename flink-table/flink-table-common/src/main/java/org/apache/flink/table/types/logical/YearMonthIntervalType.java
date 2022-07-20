@@ -76,6 +76,7 @@ public final class YearMonthIntervalType extends LogicalType {
      *
      * <p>Note: The order of this enum reflects the granularity from coarse to fine.
      */
+    @PublicEvolving
     public enum YearMonthResolution {
         YEAR,
         YEAR_TO_MONTH,

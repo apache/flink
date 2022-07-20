@@ -81,6 +81,10 @@ public class OperatorState implements CompositeStateHandle {
         return operatorID;
     }
 
+    public boolean isFullyFinished() {
+        return false;
+    }
+
     public void putState(int subtaskIndex, OperatorSubtaskState subtaskState) {
         Preconditions.checkNotNull(subtaskState);
 
@@ -137,6 +141,24 @@ public class OperatorState implements CompositeStateHandle {
         return maxParallelism;
     }
 
+    public OperatorState copyAndDiscardInFlightData() {
+        OperatorState newState = new OperatorState(operatorID, parallelism, maxParallelism);
+
+        for (Map.Entry<Integer, OperatorSubtaskState> originalSubtaskStateEntry :
+                operatorSubtaskStates.entrySet()) {
+            newState.putState(
+                    originalSubtaskStateEntry.getKey(),
+                    originalSubtaskStateEntry
+                            .getValue()
+                            .toBuilder()
+                            .setResultSubpartitionState(StateObjectCollection.empty())
+                            .setInputChannelState(StateObjectCollection.empty())
+                            .build());
+        }
+
+        return newState;
+    }
+
     @Override
     public void discardState() throws Exception {
         for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
@@ -149,10 +171,14 @@ public class OperatorState implements CompositeStateHandle {
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
+    public void registerSharedStates(SharedStateRegistry sharedStateRegistry, long checkpointID) {
         for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
-            operatorSubtaskState.registerSharedStates(sharedStateRegistry);
+            operatorSubtaskState.registerSharedStates(sharedStateRegistry, checkpointID);
         }
+    }
+
+    public boolean hasSubtaskStates() {
+        return operatorSubtaskStates.size() > 0;
     }
 
     @Override
@@ -163,6 +189,20 @@ public class OperatorState implements CompositeStateHandle {
             OperatorSubtaskState operatorSubtaskState = operatorSubtaskStates.get(i);
             if (operatorSubtaskState != null) {
                 result += operatorSubtaskState.getStateSize();
+            }
+        }
+
+        return result;
+    }
+
+    @Override
+    public long getCheckpointedSize() {
+        long result = coordinatorState == null ? 0L : coordinatorState.getStateSize();
+
+        for (int i = 0; i < parallelism; i++) {
+            OperatorSubtaskState operatorSubtaskState = operatorSubtaskStates.get(i);
+            if (operatorSubtaskState != null) {
+                result += operatorSubtaskState.getCheckpointedSize();
             }
         }
 

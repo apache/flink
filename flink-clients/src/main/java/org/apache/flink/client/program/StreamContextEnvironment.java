@@ -17,6 +17,7 @@
 
 package org.apache.flink.client.program;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -26,6 +27,7 @@ import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.dispatcher.ConfigurationNotAllowedMessage;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -33,9 +35,20 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ShutdownHookUtil;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.MapDifference;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Maps;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -55,8 +68,15 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
     private final boolean suppressSysout;
 
     private final boolean enforceSingleJobExecution;
+    private final byte[] originalCheckpointConfigSerialized;
+    private final byte[] originalExecutionConfigSerialized;
+    private final Configuration originalConfiguration;
 
     private int jobCounter;
+
+    private final Collection<String> errorMessages;
+
+    private final boolean allowConfigurations;
 
     public StreamContextEnvironment(
             final PipelineExecutorServiceLoader executorServiceLoader,
@@ -64,10 +84,33 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
             final ClassLoader userCodeClassLoader,
             final boolean enforceSingleJobExecution,
             final boolean suppressSysout) {
+        this(
+                executorServiceLoader,
+                configuration,
+                userCodeClassLoader,
+                enforceSingleJobExecution,
+                suppressSysout,
+                true,
+                Collections.emptyList());
+    }
+
+    @Internal
+    public StreamContextEnvironment(
+            final PipelineExecutorServiceLoader executorServiceLoader,
+            final Configuration configuration,
+            final ClassLoader userCodeClassLoader,
+            final boolean enforceSingleJobExecution,
+            final boolean suppressSysout,
+            final boolean allowConfigurations,
+            final Collection<String> errorMessages) {
         super(executorServiceLoader, configuration, userCodeClassLoader);
         this.suppressSysout = suppressSysout;
         this.enforceSingleJobExecution = enforceSingleJobExecution;
-
+        this.allowConfigurations = allowConfigurations;
+        this.originalCheckpointConfigSerialized = serializeConfig(checkpointCfg);
+        this.originalExecutionConfigSerialized = serializeConfig(config);
+        this.originalConfiguration = new Configuration(configuration);
+        this.errorMessages = errorMessages;
         this.jobCounter = 0;
     }
 
@@ -93,15 +136,22 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
         }
     }
 
+    private void checkNotAllowedConfigurations() throws MutatedConfigurationException {
+        errorMessages.addAll(collectNotAllowedConfigurations());
+        if (!errorMessages.isEmpty()) {
+            throw new MutatedConfigurationException(errorMessages);
+        }
+    }
+
     private JobExecutionResult getJobExecutionResult(final JobClient jobClient) throws Exception {
         checkNotNull(jobClient);
 
         JobExecutionResult jobExecutionResult;
-        if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
+        if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
             CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
                     jobClient.getJobExecutionResult();
 
-            if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+            if (configuration.getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
                 Thread shutdownHook =
                         ShutdownHookUtil.addShutdownHook(
                                 () -> {
@@ -121,7 +171,9 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
             }
 
             jobExecutionResult = jobExecutionResultFuture.get();
-            System.out.println(jobExecutionResult);
+            if (!suppressSysout) {
+                System.out.println(jobExecutionResult);
+            }
         } else {
             jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
         }
@@ -131,6 +183,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
     @Override
     public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
+        checkNotAllowedConfigurations();
         validateAllowedExecution();
         final JobClient jobClient = super.executeAsync(streamGraph);
 
@@ -159,6 +212,18 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
             final boolean suppressSysout) {
         StreamExecutionEnvironmentFactory factory =
                 conf -> {
+                    final List<String> errors = new ArrayList<>();
+                    final boolean allowConfigurations =
+                            configuration.getBoolean(
+                                    DeploymentOptions.ALLOW_CLIENT_JOB_CONFIGURATIONS);
+                    if (!allowConfigurations && !conf.toMap().isEmpty()) {
+                        conf.toMap()
+                                .forEach(
+                                        (k, v) ->
+                                                errors.add(
+                                                        ConfigurationNotAllowedMessage
+                                                                .ofConfigurationKeyAndValue(k, v)));
+                    }
                     Configuration mergedConfiguration = new Configuration();
                     mergedConfiguration.addAll(configuration);
                     mergedConfiguration.addAll(conf);
@@ -167,12 +232,65 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                             mergedConfiguration,
                             userCodeClassLoader,
                             enforceSingleJobExecution,
-                            suppressSysout);
+                            suppressSysout,
+                            allowConfigurations,
+                            errors);
                 };
         initializeContextEnvironment(factory);
     }
 
     public static void unsetAsContext() {
         resetContextEnvironment();
+    }
+
+    private List<String> collectNotAllowedConfigurations() {
+        final List<String> errors = new ArrayList<>();
+        if (allowConfigurations) {
+            return errors;
+        }
+        final MapDifference<String, String> diff =
+                Maps.difference(originalConfiguration.toMap(), configuration.toMap());
+        diff.entriesOnlyOnRight()
+                .forEach(
+                        (k, v) ->
+                                errors.add(
+                                        ConfigurationNotAllowedMessage.ofConfigurationKeyAndValue(
+                                                k, v)));
+        diff.entriesOnlyOnLeft()
+                .forEach(
+                        (k, v) ->
+                                errors.add(
+                                        ConfigurationNotAllowedMessage.ofConfigurationRemoved(
+                                                k, v)));
+        diff.entriesDiffering()
+                .forEach(
+                        (k, v) ->
+                                errors.add(
+                                        ConfigurationNotAllowedMessage.ofConfigurationChange(
+                                                k, v)));
+
+        if (!Arrays.equals(originalCheckpointConfigSerialized, serializeConfig(checkpointCfg))) {
+            errors.add(
+                    ConfigurationNotAllowedMessage.ofConfigurationObject(
+                            checkpointCfg.getClass().getSimpleName()));
+        }
+
+        if (!Arrays.equals(originalExecutionConfigSerialized, serializeConfig(config))) {
+            errors.add(
+                    ConfigurationNotAllowedMessage.ofConfigurationObject(
+                            config.getClass().getSimpleName()));
+        }
+        return errors;
+    }
+
+    private static byte[] serializeConfig(Serializable config) {
+        try (final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                final ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+            oos.writeObject(config);
+            oos.flush();
+            return bos.toByteArray();
+        } catch (IOException e) {
+            throw new FlinkRuntimeException("Cannot serialize configuration.", e);
+        }
     }
 }

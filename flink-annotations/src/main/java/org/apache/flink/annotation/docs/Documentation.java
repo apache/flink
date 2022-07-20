@@ -65,6 +65,8 @@ public final class Documentation {
         public static final String COMMON_HIGH_AVAILABILITY = "common_high_availability";
         public static final String COMMON_HIGH_AVAILABILITY_ZOOKEEPER =
                 "common_high_availability_zk";
+        public static final String COMMON_HIGH_AVAILABILITY_JOB_RESULT_STORE =
+                "common_high_availability_jrs";
         public static final String COMMON_MEMORY = "common_memory";
         public static final String COMMON_MISCELLANEOUS = "common_miscellaneous";
 
@@ -76,6 +78,8 @@ public final class Documentation {
 
         public static final String STATE_BACKEND_LATENCY_TRACKING =
                 "state_backend_latency_tracking";
+
+        public static final String STATE_BACKEND_CHANGELOG = "state_backend_changelog";
 
         public static final String EXPERT_CLASS_LOADING = "expert_class_loading";
         public static final String EXPERT_DEBUGGING_AND_TUNING = "expert_debugging_and_tuning";
@@ -91,12 +95,15 @@ public final class Documentation {
         public static final String EXPERT_SECURITY_SSL = "expert_security_ssl";
         public static final String EXPERT_ROCKSDB = "expert_rocksdb";
         public static final String EXPERT_CLUSTER = "expert_cluster";
+        public static final String EXPERT_JOB_MANAGER = "expert_jobmanager";
 
         public static final String ALL_JOB_MANAGER = "all_jobmanager";
         public static final String ALL_TASK_MANAGER = "all_taskmanager";
         public static final String ALL_TASK_MANAGER_NETWORK = "all_taskmanager_network";
 
         public static final String DEPRECATED_FILE_SINKS = "deprecated_file_sinks";
+
+        public static final String METRIC_REPORTERS = "metric_reporters";
 
         private Sections() {}
     }
@@ -140,7 +147,9 @@ public final class Documentation {
     @Target({ElementType.FIELD, ElementType.TYPE})
     @Retention(RetentionPolicy.RUNTIME)
     @Internal
-    public @interface SuffixOption {}
+    public @interface SuffixOption {
+        String value();
+    }
 
     /**
      * Annotation used on config option fields or REST API message headers to exclude it from

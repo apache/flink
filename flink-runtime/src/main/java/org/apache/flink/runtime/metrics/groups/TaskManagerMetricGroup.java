@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.CharacterFilter;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
@@ -46,7 +46,7 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetr
 
     private final String taskManagerId;
 
-    public TaskManagerMetricGroup(MetricRegistry registry, String hostname, String taskManagerId) {
+    TaskManagerMetricGroup(MetricRegistry registry, String hostname, String taskManagerId) {
         super(
                 registry,
                 registry.getScopeFormats()
@@ -55,6 +55,11 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetr
                 null);
         this.hostname = hostname;
         this.taskManagerId = taskManagerId;
+    }
+
+    public static TaskManagerMetricGroup createTaskManagerMetricGroup(
+            MetricRegistry metricRegistry, String hostName, ResourceID resourceID) {
+        return new TaskManagerMetricGroup(metricRegistry, hostName, resourceID.toString());
     }
 
     public String hostname() {
@@ -75,61 +80,33 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetr
     //  job groups
     // ------------------------------------------------------------------------
 
-    public TaskMetricGroup addTaskForJob(
-            final JobID jobId,
-            final String jobName,
-            final JobVertexID jobVertexId,
-            final ExecutionAttemptID executionAttemptId,
-            final String taskName,
-            final int subtaskIndex,
-            final int attemptNumber) {
+    public TaskManagerJobMetricGroup addJob(JobID jobId, String jobName) {
         Preconditions.checkNotNull(jobId);
-
         String resolvedJobName = jobName == null || jobName.isEmpty() ? jobId.toString() : jobName;
-
-        // we cannot strictly lock both our map modification and the job group modification
-        // because it might lead to a deadlock
-        while (true) {
-            // get or create a jobs metric group
-            TaskManagerJobMetricGroup currentJobGroup;
-            synchronized (this) {
-                currentJobGroup = jobs.get(jobId);
-
-                if (currentJobGroup == null || currentJobGroup.isClosed()) {
-                    currentJobGroup =
-                            new TaskManagerJobMetricGroup(registry, this, jobId, resolvedJobName);
-                    jobs.put(jobId, currentJobGroup);
-                }
+        TaskManagerJobMetricGroup jobGroup;
+        synchronized (this) { // synchronization isn't strictly necessary as of FLINK-24864
+            jobGroup = jobs.get(jobId);
+            if (jobGroup == null) {
+                jobGroup = new TaskManagerJobMetricGroup(registry, this, jobId, resolvedJobName);
+                jobs.put(jobId, jobGroup);
             }
-
-            // try to add another task. this may fail if we found a pre-existing job metrics
-            // group and it is closed concurrently
-            TaskMetricGroup taskGroup =
-                    currentJobGroup.addTask(
-                            jobVertexId, executionAttemptId, taskName, subtaskIndex, attemptNumber);
-
-            if (taskGroup != null) {
-                // successfully added the next task
-                return taskGroup;
-            }
-
-            // else fall through the loop
         }
+        return jobGroup;
     }
 
-    public void removeJobMetricsGroup(JobID jobId, TaskManagerJobMetricGroup group) {
-        if (jobId == null || group == null || !group.isClosed()) {
-            return;
-        }
+    @VisibleForTesting
+    public TaskManagerJobMetricGroup getJobMetricsGroup(JobID jobId) {
+        return jobs.get(jobId);
+    }
 
-        synchronized (this) {
-            // optimistically remove the currently contained group, and check later if it was
-            // correct
-            TaskManagerJobMetricGroup containedGroup = jobs.remove(jobId);
-
-            // check if another group was actually contained, and restore that one
-            if (containedGroup != null && containedGroup != group) {
-                jobs.put(jobId, containedGroup);
+    public void removeJobMetricsGroup(JobID jobId) {
+        if (jobId != null) {
+            TaskManagerJobMetricGroup groupToClose;
+            synchronized (this) { // synchronization isn't strictly necessary as of FLINK-24864
+                groupToClose = jobs.remove(jobId);
+            }
+            if (groupToClose != null) {
+                groupToClose.close();
             }
         }
     }

@@ -9,6 +9,48 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.avg-data-volume-per-task</h5></td>
+            <td style="word-wrap: break-word;">1 gb</td>
+            <td>MemorySize</td>
+            <td>The average size of data volume to expect each task instance to process if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Note that since the parallelism of the vertices is adjusted to a power of 2, the actual average size will be 0.75~1.5 times this value. It is also important to note that when data skew occurs or the decided parallelism reaches the <code class="highlighter-rouge">jobmanager.adaptive-batch-scheduler.max-parallelism</code> (due to too much data), the data actually processed by some tasks may far exceed this value.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.default-source-parallelism</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The default parallelism of source vertices if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.max-parallelism</h5></td>
+            <td style="word-wrap: break-word;">128</td>
+            <td>Integer</td>
+            <td>The upper bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Currently, this option should be configured as a power of 2, otherwise it will also be rounded down to a power of 2 automatically.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.min-parallelism</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The lower bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Currently, this option should be configured as a power of 2, otherwise it will also be rounded up to a power of 2 automatically.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.speculative.block-slow-node-duration</h5></td>
+            <td style="word-wrap: break-word;">1 min</td>
+            <td>Duration</td>
+            <td>Controls how long an detected slow node should be blocked for.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.speculative.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Controls whether to enable speculative execution.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.speculative.max-concurrent-executions</h5></td>
+            <td style="word-wrap: break-word;">2</td>
+            <td>Integer</td>
+            <td>Controls the maximum number of execution attempts of each operator that can execute concurrently, including the original one and speculative ones.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.adaptive-scheduler.min-parallelism-increase</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
@@ -36,13 +78,31 @@
             <td><h5>jobmanager.execution.attempts-history-size</h5></td>
             <td style="word-wrap: break-word;">16</td>
             <td>Integer</td>
-            <td>The maximum number of prior execution attempts kept in history.</td>
+            <td>The maximum number of historical execution attempts kept in history.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.execution.failover-strategy</h5></td>
             <td style="word-wrap: break-word;">"region"</td>
             <td>String</td>
-            <td>This option specifies how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Restarts all tasks to recover the job.</li><li>'region': Restarts all tasks that could be affected by the task failure. More details can be found <a href="../dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy">here</a>.</li></ul></td>
+            <td>This option specifies how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Restarts all tasks to recover the job.</li><li>'region': Restarts all tasks that could be affected by the task failure. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery/#restart-pipelined-region-failover-strategy">here</a>.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.future-pool.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The size of the future thread pool to execute future callbacks for all spawned JobMasters. If no value is specified, then Flink defaults to the number of available CPU cores.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.io-pool.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The size of the IO thread pool to run blocking operations for all spawned JobMasters. This includes recovery and completion of checkpoints. Increase this value if you experience slow checkpoint operations when running many jobs. If no value is specified, then Flink defaults to the number of available CPU cores.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.resource-id</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.retrieve-taskmanager-hostname</h5></td>
@@ -78,7 +138,13 @@
             <td><h5>jobstore.max-capacity</h5></td>
             <td style="word-wrap: break-word;">2147483647</td>
             <td>Integer</td>
-            <td>The max number of completed jobs that can be kept in the job store.</td>
+            <td>The max number of completed jobs that can be kept in the job store. NOTICE: if memory store keeps too many jobs in session cluster, it may cause FullGC or OOM in jm.</td>
+        </tr>
+        <tr>
+            <td><h5>jobstore.type</h5></td>
+            <td style="word-wrap: break-word;">File</td>
+            <td><p>Enum</p></td>
+            <td>Determines which job store implementation is used in session cluster. Accepted values are:<ul><li>'File': the file job store keeps the archived execution graphs in files</li><li>'Memory': the memory job store keeps the archived execution graphs in memory. You may need to limit the <code class="highlighter-rouge">jobstore.max-capacity</code> to mitigate FullGC or OOM when there are too many graphs</li></ul><br /><br />Possible values:<ul><li>"File"</li><li>"Memory"</li></ul></td>
         </tr>
         <tr>
             <td><h5>web.exception-history-size</h5></td>

@@ -66,7 +66,7 @@ public class JobVertexWatermarksHandlerTest {
     private MetricFetcher metricFetcher;
     private MetricStore.TaskMetricStore taskMetricStore;
     private JobVertexWatermarksHandler watermarkHandler;
-    private HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request;
+    private HandlerRequest<EmptyRequestBody> request;
     private AccessExecutionJobVertex vertex;
 
     @Before
@@ -96,11 +96,12 @@ public class JobVertexWatermarksHandlerTest {
         pathParameters.put(JobVertexIdPathParameter.KEY, TEST_VERTEX_ID.toString());
 
         request =
-                new HandlerRequest<>(
+                HandlerRequest.resolveParametersAndCreate(
                         EmptyRequestBody.getInstance(),
                         new JobVertexMessageParameters(),
                         pathParameters,
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptyList());
 
         vertex = Mockito.mock(AccessExecutionJobVertex.class);
         Mockito.when(vertex.getJobVertexId()).thenReturn(TEST_VERTEX_ID);

@@ -26,7 +26,6 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -49,13 +48,16 @@ import org.apache.flink.runtime.rest.util.TestRestHandler;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.rpc.exceptions.EndpointNotStartedException;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -69,6 +71,7 @@ import org.apache.commons.io.IOUtils;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -95,14 +98,17 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -124,6 +130,10 @@ public class RestServerEndpointITCase extends TestLogger {
     private static final String JOB_ID_KEY = "jobid";
     private static final Time timeout = Time.seconds(10L);
     private static final int TEST_REST_MAX_CONTENT_LENGTH = 4096;
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -195,10 +205,6 @@ public class RestServerEndpointITCase extends TestLogger {
             HttpsURLConnection.setDefaultSSLSocketFactory(sslClientContext.getSocketFactory());
         }
 
-        RestServerEndpointConfiguration serverConfig =
-                RestServerEndpointConfiguration.fromConfiguration(config);
-        RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
-
         RestfulGateway mockRestfulGateway = new TestingRestfulGateway.Builder().build();
 
         final GatewayRetriever<RestfulGateway> mockGatewayRetriever =
@@ -234,7 +240,7 @@ public class RestServerEndpointITCase extends TestLogger {
                         mockGatewayRetriever, RpcUtils.INF_TIMEOUT, temporaryFolder.getRoot());
 
         serverEndpoint =
-                TestRestServerEndpoint.builder(serverConfig)
+                TestRestServerEndpoint.builder(config)
                         .withHandler(new TestHeaders(), testHandler)
                         .withHandler(TestUploadHeaders.INSTANCE, testUploadHandler)
                         .withHandler(testVersionHandler)
@@ -243,8 +249,9 @@ public class RestServerEndpointITCase extends TestLogger {
                         .withHandler(
                                 WebContentHandlerSpecification.getInstance(),
                                 staticFileServerHandler)
+                        .withHandler(new TestUnavailableHandler(mockGatewayRetriever))
                         .buildAndStart();
-        restClient = new TestRestClient(clientConfig);
+        restClient = new RestClient(config, EXECUTOR_RESOURCE.getExecutor());
 
         serverAddress = serverEndpoint.getServerAddress();
     }
@@ -639,13 +646,9 @@ public class RestServerEndpointITCase extends TestLogger {
         config.setString(RestOptions.ADDRESS, "localhost");
         config.setString(RestOptions.BIND_PORT, portRangeStart + "-" + portRangeEnd);
 
-        final RestServerEndpointConfiguration serverConfig =
-                RestServerEndpointConfiguration.fromConfiguration(config);
-
-        try (RestServerEndpoint serverEndpoint1 =
-                        TestRestServerEndpoint.builder(serverConfig).build();
+        try (RestServerEndpoint serverEndpoint1 = TestRestServerEndpoint.builder(config).build();
                 RestServerEndpoint serverEndpoint2 =
-                        TestRestServerEndpoint.builder(serverConfig).build()) {
+                        TestRestServerEndpoint.builder(config).build()) {
 
             serverEndpoint1.start();
             serverEndpoint2.start();
@@ -672,15 +675,12 @@ public class RestServerEndpointITCase extends TestLogger {
 
     @Test
     public void testEndpointsMustBeUnique() throws Exception {
-        final RestServerEndpointConfiguration serverConfig =
-                RestServerEndpointConfiguration.fromConfiguration(config);
-
         assertThrows(
                 "REST handler registration",
                 FlinkRuntimeException.class,
                 () -> {
                     try (TestRestServerEndpoint restServerEndpoint =
-                            TestRestServerEndpoint.builder(serverConfig)
+                            TestRestServerEndpoint.builder(config)
                                     .withHandler(new TestHeaders(), testHandler)
                                     .withHandler(new TestHeaders(), testUploadHandler)
                                     .build()) {
@@ -692,15 +692,12 @@ public class RestServerEndpointITCase extends TestLogger {
 
     @Test
     public void testDuplicateHandlerRegistrationIsForbidden() throws Exception {
-        final RestServerEndpointConfiguration serverConfig =
-                RestServerEndpointConfiguration.fromConfiguration(config);
-
         assertThrows(
                 "Duplicate REST handler",
                 FlinkRuntimeException.class,
                 () -> {
                     try (TestRestServerEndpoint restServerEndpoint =
-                            TestRestServerEndpoint.builder(serverConfig)
+                            TestRestServerEndpoint.builder(config)
                                     .withHandler(new TestHeaders(), testHandler)
                                     .withHandler(TestUploadHeaders.INSTANCE, testHandler)
                                     .build()) {
@@ -708,6 +705,21 @@ public class RestServerEndpointITCase extends TestLogger {
                         return null;
                     }
                 });
+    }
+
+    @Test
+    public void testOnUnavailableRpcEndpointReturns503() throws IOException {
+        CompletableFuture<EmptyResponseBody> response =
+                restClient.sendRequest(
+                        serverAddress.getHostName(),
+                        serverAddress.getPort(),
+                        TestUnavailableHeaders.INSTANCE);
+
+        assertThatThrownBy(response::get)
+                .extracting(x -> ExceptionUtils.findThrowable(x, RestClientException.class))
+                .extracting(Optional::get)
+                .extracting(RestClientException::getHttpResponseStatus)
+                .isEqualTo(HttpResponseStatus.SERVICE_UNAVAILABLE);
     }
 
     private static File getTestResource(final String fileName) {
@@ -757,8 +769,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
         @Override
         protected CompletableFuture<TestResponse> handleRequest(
-                @Nonnull HandlerRequest<TestRequest, TestParameters> request,
-                RestfulGateway gateway) {
+                @Nonnull HandlerRequest<TestRequest> request, RestfulGateway gateway) {
             assertEquals(request.getPathParameter(JobIDPathParameter.class), PATH_JOB_ID);
             assertEquals(request.getQueryParameter(JobIDQueryParameter.class).get(0), QUERY_JOB_ID);
 
@@ -792,13 +803,6 @@ public class RestServerEndpointITCase extends TestLogger {
         parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
         parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
         return parameters;
-    }
-
-    static class TestRestClient extends RestClient {
-
-        TestRestClient(RestClientConfiguration configuration) {
-            super(configuration, TestingUtils.defaultExecutor());
-        }
     }
 
     private static class TestRequest implements RequestBody {
@@ -980,7 +984,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
         @Override
         protected CompletableFuture<EmptyResponseBody> handleRequest(
-                @Nonnull final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+                @Nonnull final HandlerRequest<EmptyRequestBody> request,
                 @Nonnull final RestfulGateway gateway)
                 throws RestHandlerException {
             Collection<Path> uploadedFiles =
@@ -1026,8 +1030,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
         @Override
         protected CompletableFuture<EmptyResponseBody> handleRequest(
-                @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
-                @Nonnull RestfulGateway gateway)
+                @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
                 throws RestHandlerException {
             return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
         }
@@ -1177,6 +1180,59 @@ public class RestServerEndpointITCase extends TestLogger {
         @Override
         public boolean acceptsFileUploads() {
             return true;
+        }
+    }
+
+    private enum TestUnavailableHeaders
+            implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+        INSTANCE;
+
+        @Override
+        public HttpMethodWrapper getHttpMethod() {
+            return HttpMethodWrapper.GET;
+        }
+
+        @Override
+        public String getTargetRestEndpointURL() {
+            return "/unavailable";
+        }
+
+        @Override
+        public Class<EmptyRequestBody> getRequestClass() {
+            return EmptyRequestBody.class;
+        }
+
+        @Override
+        public Class<EmptyResponseBody> getResponseClass() {
+            return EmptyResponseBody.class;
+        }
+
+        @Override
+        public HttpResponseStatus getResponseStatusCode() {
+            return HttpResponseStatus.OK;
+        }
+
+        @Override
+        public String getDescription() {
+            return "";
+        }
+
+        @Override
+        public EmptyMessageParameters getUnresolvedMessageParameters() {
+            return EmptyMessageParameters.getInstance();
+        }
+    }
+
+    private static class TestUnavailableHandler
+            extends TestRestHandler<
+                    RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+
+        protected TestUnavailableHandler(GatewayRetriever<RestfulGateway> leaderRetriever) {
+            super(
+                    leaderRetriever,
+                    TestUnavailableHeaders.INSTANCE,
+                    FutureUtils.completedExceptionally(
+                            new EndpointNotStartedException("test exception")));
         }
     }
 }

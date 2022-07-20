@@ -20,7 +20,7 @@ package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.local.result.ChangelogCollectResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
@@ -50,7 +50,7 @@ public class ResultStore {
      * Creates a result. Might start threads or opens sockets so every created result must be
      * closed.
      */
-    public DynamicResult createResult(ReadableConfig config, TableResult tableResult) {
+    public DynamicResult createResult(ReadableConfig config, TableResultInternal tableResult) {
         // validate
         if (config.get(EXECUTION_RESULT_MODE).equals(CHANGELOG)
                 && config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.BATCH)) {

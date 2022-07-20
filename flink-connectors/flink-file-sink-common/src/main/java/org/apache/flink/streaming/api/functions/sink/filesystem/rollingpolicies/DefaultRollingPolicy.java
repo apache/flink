@@ -19,11 +19,13 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.time.Duration;
 
 /**
  * The default implementation of the {@link RollingPolicy}.
@@ -151,6 +153,18 @@ public final class DefaultRollingPolicy<IN, BucketID> implements RollingPolicy<I
          *
          * @param size the allowed part size.
          */
+        public DefaultRollingPolicy.PolicyBuilder withMaxPartSize(final MemorySize size) {
+            Preconditions.checkNotNull(size, "Rolling policy memory size cannot be null");
+            return new PolicyBuilder(size.getBytes(), rolloverInterval, inactivityInterval);
+        }
+
+        /**
+         * Sets the part size above which a part file will have to roll.
+         *
+         * @param size the allowed part size.
+         * @deprecated Use {@link #withMaxPartSize(MemorySize)} instead.
+         */
+        @Deprecated
         public DefaultRollingPolicy.PolicyBuilder withMaxPartSize(final long size) {
             Preconditions.checkState(size > 0L);
             return new PolicyBuilder(size, rolloverInterval, inactivityInterval);
@@ -163,10 +177,41 @@ public final class DefaultRollingPolicy<IN, BucketID> implements RollingPolicy<I
          * setting.
          *
          * @param interval the allowed inactivity interval.
+         * @deprecated Use {@link #withInactivityInterval(Duration)} instead.
          */
+        @Deprecated
         public DefaultRollingPolicy.PolicyBuilder withInactivityInterval(final long interval) {
             Preconditions.checkState(interval > 0L);
             return new PolicyBuilder(partSize, rolloverInterval, interval);
+        }
+
+        /**
+         * Sets the interval of allowed inactivity after which a part file will have to roll. The
+         * frequency at which this is checked is controlled by the {@link
+         * org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink.RowFormatBuilder#withBucketCheckInterval(long)}
+         * setting.
+         *
+         * @param interval the allowed inactivity interval.
+         */
+        public DefaultRollingPolicy.PolicyBuilder withInactivityInterval(final Duration interval) {
+            Preconditions.checkNotNull(
+                    interval, "Rolling policy inactivity interval cannot be null");
+            return new PolicyBuilder(partSize, rolloverInterval, interval.toMillis());
+        }
+
+        /**
+         * Sets the max time a part file can stay open before having to roll. The frequency at which
+         * this is checked is controlled by the {@link
+         * org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink.RowFormatBuilder#withBucketCheckInterval(long)}
+         * setting.
+         *
+         * @param interval the desired rollover interval.
+         * @deprecated Use {@link #withRolloverInterval(Duration)} instead.
+         */
+        @Deprecated
+        public DefaultRollingPolicy.PolicyBuilder withRolloverInterval(final long interval) {
+            Preconditions.checkState(interval > 0L);
+            return new PolicyBuilder(partSize, interval, inactivityInterval);
         }
 
         /**
@@ -177,9 +222,9 @@ public final class DefaultRollingPolicy<IN, BucketID> implements RollingPolicy<I
          *
          * @param interval the desired rollover interval.
          */
-        public DefaultRollingPolicy.PolicyBuilder withRolloverInterval(final long interval) {
-            Preconditions.checkState(interval > 0L);
-            return new PolicyBuilder(partSize, interval, inactivityInterval);
+        public DefaultRollingPolicy.PolicyBuilder withRolloverInterval(final Duration interval) {
+            Preconditions.checkNotNull(interval, "Rolling policy rollover interval cannot be null");
+            return new PolicyBuilder(partSize, interval.toMillis(), inactivityInterval);
         }
 
         /** Creates the actual policy. */

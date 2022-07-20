@@ -32,6 +32,9 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketOptions;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Arrays;
@@ -116,6 +119,36 @@ public class NetUtils {
         }
     }
 
+    /**
+     * Calls {@link ServerSocket#accept()} on the provided server socket, suppressing any thrown
+     * {@link SocketTimeoutException}s. This is a workaround for the underlying JDK-8237858 bug in
+     * JDK 11 that can cause errant SocketTimeoutExceptions to be thrown at unexpected times.
+     *
+     * <p>This method expects the provided ServerSocket has no timeout set (SO_TIMEOUT of 0),
+     * indicating an infinite timeout. It will suppress all SocketTimeoutExceptions, even if a
+     * ServerSocket with a non-zero timeout is passed in.
+     *
+     * @param serverSocket a ServerSocket with {@link SocketOptions#SO_TIMEOUT SO_TIMEOUT} set to 0;
+     *     if SO_TIMEOUT is greater than 0, then this method will suppress SocketTimeoutException;
+     *     must not be null; SO_TIMEOUT option must be set to 0
+     * @return the new Socket
+     * @throws IOException see {@link ServerSocket#accept()}
+     * @see <a href="https://bugs.openjdk.java.net/browse/JDK-8237858">JDK-8237858</a>
+     */
+    public static Socket acceptWithoutTimeout(ServerSocket serverSocket) throws IOException {
+        Preconditions.checkArgument(
+                serverSocket.getSoTimeout() == 0, "serverSocket SO_TIMEOUT option must be 0");
+        while (true) {
+            try {
+                return serverSocket.accept();
+            } catch (SocketTimeoutException exception) {
+                // This should be impossible given that the socket timeout is set to zero
+                // which indicates an infinite timeout. This is due to the underlying JDK-8237858
+                // bug. We retry the accept call indefinitely to replicate the expected behavior.
+            }
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  Lookup of to free ports
     // ------------------------------------------------------------------------
@@ -125,12 +158,17 @@ public class NetUtils {
      *
      * @return A non-occupied port.
      */
-    public static int getAvailablePort() {
+    public static Port getAvailablePort() {
         for (int i = 0; i < 50; i++) {
             try (ServerSocket serverSocket = new ServerSocket(0)) {
                 int port = serverSocket.getLocalPort();
                 if (port != 0) {
-                    return port;
+                    FileLock fileLock = new FileLock(NetUtils.class.getName() + port);
+                    if (fileLock.tryLock()) {
+                        return new Port(port, fileLock);
+                    } else {
+                        fileLock.unlockAndDestroy();
+                    }
                 }
             } catch (IOException ignored) {
             }
@@ -464,5 +502,30 @@ public class NetUtils {
      */
     public static boolean isValidHostPort(int port) {
         return 0 <= port && port <= 65535;
+    }
+
+    /**
+     * Port wrapper class which holds a {@link FileLock} until it releases. Used to avoid race
+     * condition among multiple threads/processes.
+     */
+    public static class Port implements AutoCloseable {
+        private final int port;
+        private final FileLock fileLock;
+
+        public Port(int port, FileLock fileLock) throws IOException {
+            Preconditions.checkNotNull(fileLock, "FileLock should not be null");
+            Preconditions.checkState(fileLock.isValid(), "FileLock should be locked");
+            this.port = port;
+            this.fileLock = fileLock;
+        }
+
+        public int getPort() {
+            return port;
+        }
+
+        @Override
+        public void close() throws Exception {
+            fileLock.unlockAndDestroy();
+        }
     }
 }

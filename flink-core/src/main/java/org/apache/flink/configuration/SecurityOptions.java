@@ -21,6 +21,7 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
+import java.time.Duration;
 import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -28,6 +29,7 @@ import static org.apache.flink.configuration.description.LineBreakElement.linebr
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The set of configuration options relating to security. */
 public class SecurityOptions {
@@ -89,7 +91,7 @@ public class SecurityOptions {
                     .noDefaultValue()
                     .withDescription(
                             "Specify the local location of the krb5.conf file. If defined, this conf would be mounted on the JobManager and "
-                                    + "TaskManager containers/pods for Kubernetes, Yarn and Mesos. Note: The KDC defined needs to be visible from inside the containers.");
+                                    + "TaskManager containers/pods for Kubernetes and Yarn. Note: The KDC defined needs to be visible from inside the containers.");
 
     @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
     public static final ConfigOption<Boolean> KERBEROS_LOGIN_USETICKETCACHE =
@@ -107,6 +109,56 @@ public class SecurityOptions {
                             "A comma-separated list of login contexts to provide the Kerberos credentials to"
                                     + " (for example, `Client,KafkaClient` to use the credentials for ZooKeeper authentication and for"
                                     + " Kafka authentication)");
+
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<Boolean> KERBEROS_FETCH_DELEGATION_TOKEN =
+            key("security.kerberos.fetch.delegation-token")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Indicates whether to fetch the delegation tokens for external services the Flink job needs to contact. "
+                                    + "Only HDFS and HBase are supported. It is used in Yarn deployments. "
+                                    + "If true, Flink will fetch HDFS and HBase delegation tokens and inject them into Yarn AM containers. "
+                                    + "If false, Flink will assume that the delegation tokens are managed outside of Flink. "
+                                    + "As a consequence, it will not fetch delegation tokens for HDFS and HBase. "
+                                    + "You may need to disable this option, if you rely on submission mechanisms, e.g. Apache Oozie, "
+                                    + "to handle delegation tokens.");
+
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<Duration> KERBEROS_RELOGIN_PERIOD =
+            key("security.kerberos.relogin.period")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(1))
+                    .withDescription(
+                            "The time period when keytab login happens automatically in order to always have a valid TGT.");
+
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<Duration> KERBEROS_TOKENS_RENEWAL_RETRY_BACKOFF =
+            key("security.kerberos.tokens.renewal.retry.backoff")
+                    .durationType()
+                    .defaultValue(Duration.ofHours(1))
+                    .withDescription(
+                            "The time period how long to wait before retrying to obtain new delegation tokens after a failure.");
+
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<Double> KERBEROS_TOKENS_RENEWAL_TIME_RATIO =
+            key("security.kerberos.tokens.renewal.time-ratio")
+                    .doubleType()
+                    .defaultValue(0.75)
+                    .withDescription(
+                            "Ratio of the tokens's expiration time when new credentials should be re-obtained.");
+
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<List<String>> KERBEROS_HADOOP_FILESYSTEMS_TO_ACCESS =
+            key("security.kerberos.access.hadoopFileSystems")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDeprecatedKeys("yarn.security.kerberos.additionalFileSystems")
+                    .withDescription(
+                            "A comma-separated list of Kerberos-secured Hadoop filesystems Flink is going to access. For example, "
+                                    + "security.kerberos.access.hadoopFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. "
+                                    + "The JobManager needs to have access to these filesystems to retrieve the security tokens.");
 
     // ------------------------------------------------------------------------
     //  ZooKeeper Security Options
@@ -496,4 +548,26 @@ public class SecurityOptions {
                                     + "channel. If the `close_notify` was not flushed in the given timeout the channel will be closed "
                                     + "forcibly. (-1 = use system default)")
                     .withDeprecatedKeys("security.ssl.close-notify-flush-timeout");
+
+    /**
+     * Checks whether SSL for internal communication (rpc, data transport, blob server) is enabled.
+     */
+    public static boolean isInternalSSLEnabled(Configuration sslConfig) {
+        @SuppressWarnings("deprecation")
+        final boolean fallbackFlag = sslConfig.getBoolean(SSL_ENABLED);
+        return sslConfig.getBoolean(SSL_INTERNAL_ENABLED, fallbackFlag);
+    }
+
+    /** Checks whether SSL for the external REST endpoint is enabled. */
+    public static boolean isRestSSLEnabled(Configuration sslConfig) {
+        @SuppressWarnings("deprecation")
+        final boolean fallbackFlag = sslConfig.getBoolean(SSL_ENABLED);
+        return sslConfig.getBoolean(SSL_REST_ENABLED, fallbackFlag);
+    }
+
+    /** Checks whether mutual SSL authentication for the external REST endpoint is enabled. */
+    public static boolean isRestSSLAuthenticationEnabled(Configuration sslConfig) {
+        checkNotNull(sslConfig, "sslConfig");
+        return isRestSSLEnabled(sslConfig) && sslConfig.getBoolean(SSL_REST_AUTHENTICATION_ENABLED);
+    }
 }

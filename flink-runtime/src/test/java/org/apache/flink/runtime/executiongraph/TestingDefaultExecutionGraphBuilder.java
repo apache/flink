@@ -19,14 +19,14 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
@@ -39,15 +39,13 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Builder of {@link ExecutionGraph} used in testing. */
@@ -60,24 +58,22 @@ public class TestingDefaultExecutionGraphBuilder {
         return new TestingDefaultExecutionGraphBuilder();
     }
 
-    private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
-    private Executor ioExecutor = TestingUtils.defaultExecutor();
-    private Time rpcTimeout = AkkaUtils.getDefaultTimeout();
+    private Time rpcTimeout = Time.fromDuration(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue());
     private ClassLoader userClassLoader = DefaultExecutionGraph.class.getClassLoader();
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
-    private Time allocationTimeout = AkkaUtils.getDefaultTimeout();
-    private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
+    private ShuffleMaster<?> shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
     private JobMasterPartitionTracker partitionTracker = NoOpJobMasterPartitionTracker.INSTANCE;
     private Configuration jobMasterConfig = new Configuration();
     private JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
-    private MetricGroup metricGroup = new UnregisteredMetricsGroup();
     private CompletedCheckpointStore completedCheckpointStore =
             new StandaloneCompletedCheckpointStore(1);
     private CheckpointIDCounter checkpointIdCounter = new StandaloneCheckpointIDCounter();
     private ExecutionDeploymentListener executionDeploymentListener =
             NoOpExecutionDeploymentListener.get();
-    private ExecutionStateUpdateListener executionStateUpdateListener = (execution, newState) -> {};
+    private ExecutionStateUpdateListener executionStateUpdateListener =
+            (execution, previousState, newState) -> {};
     private VertexParallelismStore vertexParallelismStore;
+    private ExecutionJobVertex.Factory executionJobVertexFactory = new ExecutionJobVertex.Factory();
 
     private TestingDefaultExecutionGraphBuilder() {}
 
@@ -88,17 +84,6 @@ public class TestingDefaultExecutionGraphBuilder {
 
     public TestingDefaultExecutionGraphBuilder setJobGraph(JobGraph jobGraph) {
         this.jobGraph = jobGraph;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setFutureExecutor(
-            ScheduledExecutorService futureExecutor) {
-        this.futureExecutor = futureExecutor;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setIoExecutor(Executor ioExecutor) {
-        this.ioExecutor = ioExecutor;
         return this;
     }
 
@@ -117,11 +102,6 @@ public class TestingDefaultExecutionGraphBuilder {
         return this;
     }
 
-    public TestingDefaultExecutionGraphBuilder setAllocationTimeout(Time allocationTimeout) {
-        this.allocationTimeout = allocationTimeout;
-        return this;
-    }
-
     public TestingDefaultExecutionGraphBuilder setShuffleMaster(ShuffleMaster<?> shuffleMaster) {
         this.shuffleMaster = shuffleMaster;
         return this;
@@ -130,11 +110,6 @@ public class TestingDefaultExecutionGraphBuilder {
     public TestingDefaultExecutionGraphBuilder setPartitionTracker(
             JobMasterPartitionTracker partitionTracker) {
         this.partitionTracker = partitionTracker;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setMetricGroup(MetricGroup metricGroup) {
-        this.metricGroup = metricGroup;
         return this;
     }
 
@@ -168,18 +143,25 @@ public class TestingDefaultExecutionGraphBuilder {
         return this;
     }
 
-    public DefaultExecutionGraph build() throws JobException, JobExecutionException {
+    public TestingDefaultExecutionGraphBuilder setExecutionJobVertexFactory(
+            ExecutionJobVertex.Factory executionJobVertexFactory) {
+        this.executionJobVertexFactory = executionJobVertexFactory;
+        return this;
+    }
+
+    private DefaultExecutionGraph build(
+            boolean isDynamicGraph, ScheduledExecutorService executorService)
+            throws JobException, JobExecutionException {
         return DefaultExecutionGraphBuilder.buildGraph(
                 jobGraph,
                 jobMasterConfig,
-                futureExecutor,
-                ioExecutor,
+                executorService,
+                executorService,
                 userClassLoader,
                 completedCheckpointStore,
                 new CheckpointsCleaner(),
                 checkpointIdCounter,
                 rpcTimeout,
-                metricGroup,
                 blobWriter,
                 LOG,
                 shuffleMaster,
@@ -191,6 +173,19 @@ public class TestingDefaultExecutionGraphBuilder {
                 System.currentTimeMillis(),
                 new DefaultVertexAttemptNumberStore(),
                 Optional.ofNullable(vertexParallelismStore)
-                        .orElseGet(() -> SchedulerBase.computeVertexParallelismStore(jobGraph)));
+                        .orElseGet(() -> SchedulerBase.computeVertexParallelismStore(jobGraph)),
+                () -> new CheckpointStatsTracker(0, new UnregisteredMetricsGroup()),
+                isDynamicGraph,
+                executionJobVertexFactory);
+    }
+
+    public DefaultExecutionGraph build(ScheduledExecutorService executorService)
+            throws JobException, JobExecutionException {
+        return build(false, executorService);
+    }
+
+    public DefaultExecutionGraph buildDynamicGraph(ScheduledExecutorService executorService)
+            throws JobException, JobExecutionException {
+        return build(true, executorService);
     }
 }

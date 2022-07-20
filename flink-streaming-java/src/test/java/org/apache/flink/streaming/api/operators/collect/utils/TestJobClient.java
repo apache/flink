@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
@@ -79,12 +80,15 @@ public class TestJobClient implements JobClient, CoordinationRequestGateway {
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
+            boolean advanceToEndOfEventTime,
+            @Nullable String savepointDirectory,
+            SavepointFormatType formatType) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
+    public CompletableFuture<String> triggerSavepoint(
+            @Nullable String savepointDirectory, SavepointFormatType formatType) {
         throw new UnsupportedOperationException();
     }
 

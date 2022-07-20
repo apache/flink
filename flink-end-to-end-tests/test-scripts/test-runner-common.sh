@@ -109,10 +109,17 @@ function log_environment_info {
     jps
 
     echo "Disk information"
-    df -hH
+    df -h
 
-    echo "Allocated ports"
-    sudo netstat -tulpn
+    echo "##[group]Top 15 biggest directories in terms of used disk space"
+    du -a . | sort -n -r | head -n 15
+
+    if sudo -n true 2>/dev/null; then
+      echo "Allocated ports"
+      sudo netstat -tulpn
+    else
+      echo "Could not retrieve allocated ports because no sudo rights."
+    fi
 
     echo "Running docker containers"
     docker ps -a

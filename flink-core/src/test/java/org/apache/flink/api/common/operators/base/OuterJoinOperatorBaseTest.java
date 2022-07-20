@@ -89,7 +89,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
                         executionConfig,
                         cpTasks,
                         accumulatorMap,
-                        new UnregisteredMetricsGroup());
+                        UnregisteredMetricsGroup.createOperatorMetricGroup());
     }
 
     @Test

@@ -90,7 +90,7 @@ public class MusicProfilesITCase extends MultipleProgramsTestBase {
         TestBaseUtils.compareResultsByLinesInMemory(expectedTopSongs, topSongsResultPath);
 
         ArrayList<String> list = new ArrayList<>();
-        TestBaseUtils.readAllResultLines(list, communitiesResultPath, new String[] {}, false);
+        TestBaseUtils.readAllResultLines(list, communitiesResultPath);
 
         String[] result = list.toArray(new String[list.size()]);
         Arrays.sort(result);

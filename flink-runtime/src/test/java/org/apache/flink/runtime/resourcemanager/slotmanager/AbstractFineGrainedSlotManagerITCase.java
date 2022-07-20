@@ -315,7 +315,7 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                                                 .registerTaskManager(
                                                         taskManagerConnection,
                                                         slotReport,
-                                                        DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                        DEFAULT_SLOT_RESOURCE_PROFILE,
                                                         DEFAULT_SLOT_RESOURCE_PROFILE);
                                         getSlotManager()
                                                 .processResourceRequirements(resourceRequirements1);
@@ -378,6 +378,113 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                                     "The slot has not been allocated to the expected job id.",
                                     resourceRequirements2.getJobId(),
                                     slot.getJobId());
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testRegisterPendingResourceAfterClearingRequirement() throws Exception {
+        final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> allocateResourceFutures = new CompletableFuture<>();
+        final CompletableFuture<Void> registerFuture = new CompletableFuture<>();
+        final ResourceRequirements resourceRequirements = createResourceRequirementsForSingleSlot();
+        final TaskExecutorGateway taskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setRequestSlotFunction(
+                                tuple6 -> {
+                                    allocationIdFuture.complete(tuple6.f2);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .createTestingTaskExecutorGateway();
+        final ResourceID resourceID = ResourceID.generate();
+        final TaskExecutorConnection taskManagerConnection =
+                new TaskExecutorConnection(resourceID, taskExecutorGateway);
+        final SlotReport slotReport = new SlotReport();
+        new Context() {
+            {
+                resourceActionsBuilder.setAllocateResourceConsumer(
+                        ignored -> allocateResourceFutures.complete(null));
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            resourceRequirements));
+                            assertFutureCompleteAndReturn(allocateResourceFutures);
+                            runInMainThread(
+                                    () -> {
+                                        getSlotManager()
+                                                .clearResourceRequirements(
+                                                        resourceRequirements.getJobId());
+                                        getSlotManager()
+                                                .registerTaskManager(
+                                                        taskManagerConnection,
+                                                        slotReport,
+                                                        DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                        DEFAULT_SLOT_RESOURCE_PROFILE);
+                                        registerFuture.complete(null);
+                                    });
+                            assertFutureCompleteAndReturn(registerFuture);
+                            assertFutureNotComplete(allocationIdFuture);
+                            assertEquals(
+                                    getTaskManagerTracker().getPendingTaskManagers().size(), 0);
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testRegisterPendingResourceAfterEmptyResourceRequirement() throws Exception {
+        final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> allocateResourceFutures = new CompletableFuture<>();
+        final CompletableFuture<Void> registerFuture = new CompletableFuture<>();
+        final ResourceRequirements resourceRequirements = createResourceRequirementsForSingleSlot();
+        final TaskExecutorGateway taskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setRequestSlotFunction(
+                                tuple6 -> {
+                                    allocationIdFuture.complete(tuple6.f2);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .createTestingTaskExecutorGateway();
+        final ResourceID resourceID = ResourceID.generate();
+        final TaskExecutorConnection taskManagerConnection =
+                new TaskExecutorConnection(resourceID, taskExecutorGateway);
+        final SlotReport slotReport = new SlotReport();
+        new Context() {
+            {
+                resourceActionsBuilder.setAllocateResourceConsumer(
+                        ignored -> allocateResourceFutures.complete(null));
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            resourceRequirements));
+                            assertFutureCompleteAndReturn(allocateResourceFutures);
+                            runInMainThread(
+                                    () -> {
+                                        getSlotManager()
+                                                .processResourceRequirements(
+                                                        ResourceRequirements.empty(
+                                                                resourceRequirements.getJobId(),
+                                                                resourceRequirements
+                                                                        .getTargetAddress()));
+                                        getSlotManager()
+                                                .registerTaskManager(
+                                                        taskManagerConnection,
+                                                        slotReport,
+                                                        DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                        DEFAULT_SLOT_RESOURCE_PROFILE);
+                                        registerFuture.complete(null);
+                                    });
+                            assertFutureCompleteAndReturn(registerFuture);
+                            assertFutureNotComplete(allocationIdFuture);
+                            assertEquals(
+                                    getTaskManagerTracker().getPendingTaskManagers().size(), 0);
                         });
             }
         };

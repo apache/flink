@@ -126,6 +126,7 @@ public class InputChannelTest {
                     inputGate,
                     channelIndex,
                     partitionId,
+                    0,
                     initialBackoff,
                     maxBackoff,
                     new SimpleCounter(),
@@ -136,7 +137,10 @@ public class InputChannelTest {
         public void resumeConsumption() {}
 
         @Override
-        void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {}
+        public void acknowledgeAllRecordsProcessed() throws IOException {}
+
+        @Override
+        void requestSubpartition() throws IOException, InterruptedException {}
 
         @Override
         Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
@@ -153,5 +157,13 @@ public class InputChannelTest {
 
         @Override
         void releaseAllResources() throws IOException {}
+
+        @Override
+        void announceBufferSize(int newBufferSize) {}
+
+        @Override
+        int getBuffersInUseCount() {
+            return 0;
+        }
     }
 }

@@ -52,11 +52,8 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
@@ -66,6 +63,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -98,23 +96,17 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
-import static org.apache.flink.table.types.TypeTestingUtils.hasConversionClass;
-import static org.apache.flink.table.types.TypeTestingUtils.hasLogicalType;
+import static org.apache.flink.table.test.TableAssertions.assertThat;
 import static org.apache.flink.table.types.logical.DayTimeIntervalType.DEFAULT_DAY_PRECISION;
 import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND;
 import static org.apache.flink.table.types.utils.DataTypeFactoryMock.dummyRaw;
-import static org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter.toDataType;
-import static org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter.toLogicalType;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DataTypes} and {@link LogicalTypeDataTypeConverter}. */
-@RunWith(Parameterized.class)
-public class DataTypesTest {
+class DataTypesTest {
 
-    @Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        return Arrays.asList(
+    private static Stream<TestSpec> testData() {
+        return Stream.of(
                 TestSpec.forDataType(CHAR(2))
                         .expectLogicalType(new CharType(2))
                         .expectConversionClass(String.class),
@@ -122,7 +114,7 @@ public class DataTypesTest {
                         .expectLogicalType(new VarCharType(2))
                         .expectConversionClass(String.class),
                 TestSpec.forDataType(STRING())
-                        .expectLogicalType(new VarCharType(VarCharType.MAX_LENGTH))
+                        .expectLogicalType(VarCharType.STRING_TYPE)
                         .expectConversionClass(String.class),
                 TestSpec.forDataType(BOOLEAN())
                         .expectLogicalType(new BooleanType())
@@ -298,58 +290,54 @@ public class DataTypesTest {
                         .expectResolvedDataType(dummyRaw(DayOfWeek.class)));
     }
 
-    @Parameter public TestSpec testSpec;
-
-    @Test
-    public void testLogicalType() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testLogicalType(TestSpec testSpec) {
         if (testSpec.expectedLogicalType != null) {
             final DataType dataType =
                     testSpec.typeFactory.createDataType(testSpec.abstractDataType);
-
-            assertThat(dataType, hasLogicalType(testSpec.expectedLogicalType));
-
+            assertThat(dataType).hasLogicalType(testSpec.expectedLogicalType);
             assertThat(
-                    toDataType(testSpec.expectedLogicalType)
-                            .bridgedTo(dataType.getConversionClass()),
-                    equalTo(dataType));
-
-            assertThat(toLogicalType(dataType), equalTo(testSpec.expectedLogicalType));
+                            DataTypes.of(testSpec.expectedLogicalType)
+                                    .bridgedTo(dataType.getConversionClass()))
+                    .isEqualTo(dataType);
         }
     }
 
-    @Test
-    public void testConversionClass() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testConversionClass(TestSpec testSpec) {
         if (testSpec.expectedConversionClass != null) {
-            final DataType dataType =
-                    testSpec.typeFactory.createDataType(testSpec.abstractDataType);
-            assertThat(dataType, hasConversionClass(testSpec.expectedConversionClass));
+            assertThat(testSpec.typeFactory.createDataType(testSpec.abstractDataType))
+                    .hasConversionClass(testSpec.expectedConversionClass);
         }
     }
 
-    @Test
-    public void testChildren() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testChildren(TestSpec testSpec) {
         if (testSpec.expectedChildren != null) {
-            final DataType dataType =
-                    testSpec.typeFactory.createDataType(testSpec.abstractDataType);
-            assertThat(dataType.getChildren(), equalTo(testSpec.expectedChildren));
+            assertThat(testSpec.typeFactory.createDataType(testSpec.abstractDataType))
+                    .getChildren()
+                    .isEqualTo(testSpec.expectedChildren);
         }
     }
 
-    @Test
-    public void testUnresolvedString() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testUnresolvedString(TestSpec testSpec) {
         if (testSpec.expectedUnresolvedString != null) {
-            assertThat(
-                    testSpec.abstractDataType.toString(),
-                    equalTo(testSpec.expectedUnresolvedString));
+            assertThat(testSpec.abstractDataType.toString())
+                    .isEqualTo(testSpec.expectedUnresolvedString);
         }
     }
 
-    @Test
-    public void testResolvedDataType() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testResolvedDataType(TestSpec testSpec) {
         if (testSpec.expectedResolvedDataType != null) {
-            final DataType dataType =
-                    testSpec.typeFactory.createDataType(testSpec.abstractDataType);
-            assertThat(dataType, equalTo(testSpec.expectedResolvedDataType));
+            assertThat(testSpec.typeFactory.createDataType(testSpec.abstractDataType))
+                    .isEqualTo(testSpec.expectedResolvedDataType);
         }
     }
 

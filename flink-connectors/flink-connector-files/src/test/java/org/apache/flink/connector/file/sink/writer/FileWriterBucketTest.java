@@ -25,6 +25,7 @@ import org.apache.flink.connector.file.sink.utils.NoOpCommitter;
 import org.apache.flink.connector.file.sink.utils.NoOpRecoverable;
 import org.apache.flink.connector.file.sink.utils.NoOpRecoverableFsDataOutputStream;
 import org.apache.flink.connector.file.sink.utils.NoOpRecoverableWriter;
+import org.apache.flink.connector.file.table.FileSystemTableSink;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
@@ -39,32 +40,32 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RowWiseBucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Fail.fail;
 
 /** Tests for {@link FileWriterBucket}. */
-public class FileWriterBucketTest {
-
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+class FileWriterBucketTest {
 
     @Test
-    public void testOnCheckpointNoPendingRecoverable() throws IOException {
-        File outDir = TEMP_FOLDER.newFolder();
+    void testOnCheckpointNoPendingRecoverable(@TempDir java.nio.file.Path tmpDir)
+            throws IOException {
+        File outDir = tmpDir.toFile();
         Path path = new Path(outDir.toURI());
 
         TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
@@ -80,16 +81,17 @@ public class FileWriterBucketTest {
         FileWriterBucketState bucketState = bucket.snapshotState();
 
         compareNumberOfPendingAndInProgress(fileSinkCommittables, 0, 0);
-        assertEquals(BUCKET_ID, bucketState.getBucketId());
-        assertEquals(path, bucketState.getBucketPath());
-        assertNotNull(
-                "The bucket should have in-progress recoverable",
-                bucketState.getInProgressFileRecoverable());
+        assertThat(bucketState.getBucketId()).isEqualTo(BUCKET_ID);
+        assertThat(bucketState.getBucketPath()).isEqualTo(path);
+        assertThat(bucketState.getInProgressFileRecoverable())
+                .as("The bucket should have in-progress recoverable")
+                .isNotNull();
     }
 
     @Test
-    public void testOnCheckpointRollingOnCheckpoint() throws IOException {
-        File outDir = TEMP_FOLDER.newFolder();
+    void testOnCheckpointRollingOnCheckpoint(@TempDir java.nio.file.Path tmpDir)
+            throws IOException {
+        File outDir = tmpDir.toFile();
         Path path = new Path(outDir.toURI());
 
         TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
@@ -105,16 +107,17 @@ public class FileWriterBucketTest {
         FileWriterBucketState bucketState = bucket.snapshotState();
 
         compareNumberOfPendingAndInProgress(fileSinkCommittables, 1, 0);
-        assertEquals(BUCKET_ID, bucketState.getBucketId());
-        assertEquals(path, bucketState.getBucketPath());
-        assertNull(
-                "The bucket should not have in-progress recoverable",
-                bucketState.getInProgressFileRecoverable());
+        assertThat(bucketState.getBucketId()).isEqualTo(BUCKET_ID);
+        assertThat(bucketState.getBucketPath()).isEqualTo(path);
+        assertThat(bucketState.getInProgressFileRecoverable())
+                .as("The bucket should not have in-progress recoverable")
+                .isNull();
     }
 
     @Test
-    public void testOnCheckpointMultiplePendingFiles() throws IOException {
-        File outDir = TEMP_FOLDER.newFolder();
+    void testOnCheckpointMultiplePendingFiles(@TempDir java.nio.file.Path tmpDir)
+            throws IOException {
+        File outDir = tmpDir.toFile();
         Path path = new Path(outDir.toURI());
 
         TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
@@ -133,16 +136,17 @@ public class FileWriterBucketTest {
 
         // The last element would not roll
         compareNumberOfPendingAndInProgress(fileSinkCommittables, 2, 0);
-        assertEquals(BUCKET_ID, bucketState.getBucketId());
-        assertEquals(path, bucketState.getBucketPath());
-        assertNotNull(
-                "The bucket should not have in-progress recoverable",
-                bucketState.getInProgressFileRecoverable());
+        assertThat(bucketState.getBucketId()).isEqualTo(BUCKET_ID);
+        assertThat(bucketState.getBucketPath()).isEqualTo(path);
+        assertThat(bucketState.getInProgressFileRecoverable())
+                .as("The bucket should not have in-progress recoverable")
+                .isNotNull();
     }
 
     @Test
-    public void testOnCheckpointWithInProgressFileToCleanup() throws IOException {
-        File outDir = TEMP_FOLDER.newFolder();
+    void testOnCheckpointWithInProgressFileToCleanup(@TempDir java.nio.file.Path tmpDir)
+            throws IOException {
+        File outDir = tmpDir.toFile();
         Path path = new Path(outDir.toURI());
 
         TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
@@ -164,16 +168,16 @@ public class FileWriterBucketTest {
         FileWriterBucketState bucketState = bucket.snapshotState();
 
         compareNumberOfPendingAndInProgress(fileSinkCommittables, 0, 1);
-        assertEquals(BUCKET_ID, bucketState.getBucketId());
-        assertEquals(path, bucketState.getBucketPath());
-        assertNotNull(
-                "The bucket should not have in-progress recoverable",
-                bucketState.getInProgressFileRecoverable());
+        assertThat(bucketState.getBucketId()).isEqualTo(BUCKET_ID);
+        assertThat(bucketState.getBucketPath()).isEqualTo(path);
+        assertThat(bucketState.getInProgressFileRecoverable())
+                .as("The bucket should not have in-progress recoverable")
+                .isNotNull();
     }
 
     @Test
-    public void testFlush() throws IOException {
-        File outDir = TEMP_FOLDER.newFolder();
+    void testFlush(@TempDir java.nio.file.Path tmpDir) throws IOException {
+        File outDir = tmpDir.toFile();
         Path path = new Path(outDir.toURI());
 
         TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
@@ -189,18 +193,18 @@ public class FileWriterBucketTest {
         List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(true);
 
         compareNumberOfPendingAndInProgress(fileSinkCommittables, 1, 0);
-        assertNull(
-                "The bucket should not have in-progress part after flushed",
-                bucket.getInProgressPart());
+        assertThat(bucket.getInProgressPart())
+                .as("The bucket should not have in-progress part after flushed")
+                .isNull();
     }
 
     @Test
-    public void testRollingOnProcessingTime() throws IOException {
-        File outDir = TEMP_FOLDER.newFolder();
+    void testRollingOnProcessingTime(@TempDir java.nio.file.Path tmpDir) throws IOException {
+        File outDir = tmpDir.toFile();
         Path path = new Path(outDir.toURI());
 
         RollingPolicy<String, String> onProcessingTimeRollingPolicy =
-                DefaultRollingPolicy.builder().withRolloverInterval(10).build();
+                DefaultRollingPolicy.builder().withRolloverInterval(Duration.ofMillis(10)).build();
 
         TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
         FileWriterBucket<String> bucket =
@@ -213,46 +217,99 @@ public class FileWriterBucketTest {
         bucket.write("test-element", 12);
 
         bucket.onProcessingTime(20);
-        assertNotNull(
-                "The bucket should not roll since interval is not reached",
-                bucket.getInProgressPart());
+        assertThat(bucket.getInProgressPart())
+                .as("The bucket should not roll since interval is not reached")
+                .isNotNull();
 
         bucket.write("test-element", 21);
         bucket.onProcessingTime(21);
-        assertNull("The bucket should roll since interval is reached", bucket.getInProgressPart());
+        assertThat(bucket.getInProgressPart())
+                .as("The bucket should roll since interval is reached")
+                .isNull();
         List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
         compareNumberOfPendingAndInProgress(fileSinkCommittables, 1, 0);
+    }
+
+    @Test
+    void testTableRollingOnProcessingTime(@TempDir java.nio.file.Path tmpDir) throws IOException {
+        File outDir = tmpDir.toFile();
+        Path path = new Path(outDir.toURI());
+
+        FileSystemTableSink.TableRollingPolicy tableRollingPolicy =
+                new FileSystemTableSink.TableRollingPolicy(
+                        false,
+                        Long.MAX_VALUE,
+                        Duration.ofMillis(20).toMillis(),
+                        Duration.ofMillis(10).toMillis());
+
+        TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
+        FileWriterBucket<RowData> bucket =
+                createRowDataBucket(
+                        recoverableWriter,
+                        path,
+                        tableRollingPolicy,
+                        OutputFileConfig.builder().build());
+        bucket.write(GenericRowData.of(StringData.fromString("test-element")), 11);
+        bucket.write(GenericRowData.of(StringData.fromString("test-element")), 12);
+
+        bucket.onProcessingTime(21);
+        assertThat(bucket.getInProgressPart())
+                .as("The bucket should not roll since interval and inactivity not reached")
+                .isNotNull();
+
+        bucket.onProcessingTime(22);
+        assertThat(bucket.getInProgressPart())
+                .as("The bucket should roll since inactivity is reached")
+                .isNull();
+
+        bucket.write(GenericRowData.of(StringData.fromString("test-element")), 11);
+        bucket.write(GenericRowData.of(StringData.fromString("test-element")), 21);
+        bucket.onProcessingTime(30);
+        assertThat(bucket.getInProgressPart())
+                .as("The bucket should not roll since interval and inactivity not reached")
+                .isNotNull();
+
+        bucket.onProcessingTime(31);
+        assertThat(bucket.getInProgressPart())
+                .as("The bucket should roll since interval is reached")
+                .isNull();
+        List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
+        compareNumberOfPendingAndInProgress(fileSinkCommittables, 2, 0);
     }
 
     // --------------------------- Checking Restore ---------------------------
     @Test
-    public void testRestoreWithInprogressFileNotSupportResume() throws IOException {
+    void testRestoreWithInprogressFileNotSupportResume() throws IOException {
         StubNonResumableWriter nonResumableWriter = new StubNonResumableWriter();
         FileWriterBucket<String> bucket =
                 getRestoredBucketWithOnlyInProgressPart(nonResumableWriter, DEFAULT_ROLLING_POLICY);
-        assertNull("The in-progress file should be pre-committed", bucket.getInProgressPart());
+        assertThat(bucket.getInProgressPart())
+                .as("The in-progress file should be pre-committed")
+                .isNull();
 
         List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
         FileWriterBucketState bucketState = bucket.snapshotState();
         compareNumberOfPendingAndInProgress(fileSinkCommittables, 1, 0);
-        assertNull(
-                "The bucket should not have in-progress recoverable",
-                bucketState.getInProgressFileRecoverable());
+        assertThat(bucketState.getInProgressFileRecoverable())
+                .as("The bucket should not have in-progress recoverable")
+                .isNull();
     }
 
     @Test
-    public void testRestoreWithInprogressFileSupportResume() throws IOException {
+    void testRestoreWithInprogressFileSupportResume() throws IOException {
         StubResumableWriter resumableWriter = new StubResumableWriter();
         FileWriterBucket<String> bucket =
                 getRestoredBucketWithOnlyInProgressPart(resumableWriter, DEFAULT_ROLLING_POLICY);
-        assertNotNull("The in-progress file should be recovered", bucket.getInProgressPart());
+        assertThat(bucket.getInProgressPart())
+                .as("The in-progress file should be recovered")
+                .isNotNull();
 
         List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
         FileWriterBucketState bucketState = bucket.snapshotState();
         compareNumberOfPendingAndInProgress(fileSinkCommittables, 0, 0);
-        assertNotNull(
-                "The bucket should have in-progress recoverable",
-                bucketState.getInProgressFileRecoverable());
+        assertThat(bucketState.getInProgressFileRecoverable())
+                .as("The bucket should have in-progress recoverable")
+                .isNotNull();
     }
 
     /**
@@ -260,16 +317,16 @@ public class FileWriterBucketTest {
      * from {@code StreamingFileSink}.
      */
     @Test
-    public void testRestoringWithOnlyPendingFiles() throws IOException {
+    void testRestoringWithOnlyPendingFiles() throws IOException {
         final int noOfPendingFileCheckpoints = 4;
 
         StubResumableWriter resumableWriter = new StubResumableWriter();
         FileWriterBucket<String> bucket =
                 getRestoredBucketWithOnlyPendingFiles(
                         resumableWriter, DEFAULT_ROLLING_POLICY, noOfPendingFileCheckpoints);
-        assertNull("There should be no in-progress file", bucket.getInProgressPart());
+        assertThat(bucket.getInProgressPart()).as("There should be no in-progress file").isNull();
         // There is one pending file for each checkpoint
-        assertEquals(noOfPendingFileCheckpoints, bucket.getPendingFiles().size());
+        assertThat(bucket.getPendingFiles()).hasSize(noOfPendingFileCheckpoints);
 
         List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
         bucket.snapshotState();
@@ -277,7 +334,7 @@ public class FileWriterBucketTest {
     }
 
     @Test
-    public void testMergeWithInprogressFileNotSupportResume() throws IOException {
+    void testMergeWithInprogressFileNotSupportResume() throws IOException {
         FileWriterBucket<String> bucket1 =
                 getRestoredBucketWithOnlyInProgressPart(
                         new StubNonResumableWriter(), DEFAULT_ROLLING_POLICY);
@@ -285,18 +342,20 @@ public class FileWriterBucketTest {
                 getRestoredBucketWithOnlyInProgressPart(
                         new StubNonResumableWriter(), DEFAULT_ROLLING_POLICY);
         bucket1.merge(bucket2);
-        assertNull("The in-progress file should be pre-committed", bucket1.getInProgressPart());
+        assertThat(bucket1.getInProgressPart())
+                .as("The in-progress file should be pre-committed")
+                .isNull();
 
         List<FileSinkCommittable> fileSinkCommittables = bucket1.prepareCommit(false);
         FileWriterBucketState bucketState = bucket1.snapshotState();
         compareNumberOfPendingAndInProgress(fileSinkCommittables, 2, 0);
-        assertNull(
-                "The bucket should have in-progress recoverable",
-                bucketState.getInProgressFileRecoverable());
+        assertThat(bucketState.getInProgressFileRecoverable())
+                .as("The bucket should have in-progress recoverable")
+                .isNull();
     }
 
     @Test
-    public void testMergeWithInprogressFileSupportResume() throws IOException {
+    void testMergeWithInprogressFileSupportResume() throws IOException {
         FileWriterBucket<String> bucket1 =
                 getRestoredBucketWithOnlyInProgressPart(
                         new StubResumableWriter(), DEFAULT_ROLLING_POLICY);
@@ -304,14 +363,16 @@ public class FileWriterBucketTest {
                 getRestoredBucketWithOnlyInProgressPart(
                         new StubResumableWriter(), DEFAULT_ROLLING_POLICY);
         bucket1.merge(bucket2);
-        assertNotNull("The in-progress file should be recovered", bucket1.getInProgressPart());
+        assertThat(bucket1.getInProgressPart())
+                .as("The in-progress file should be recovered")
+                .isNotNull();
 
         List<FileSinkCommittable> fileSinkCommittables = bucket1.prepareCommit(false);
         FileWriterBucketState bucketState = bucket1.snapshotState();
         compareNumberOfPendingAndInProgress(fileSinkCommittables, 1, 0);
-        assertNotNull(
-                "The bucket should not have in-progress recoverable",
-                bucketState.getInProgressFileRecoverable());
+        assertThat(bucketState.getInProgressFileRecoverable())
+                .as("The bucket should not have in-progress recoverable")
+                .isNotNull();
     }
 
     // ------------------------------- Mock Classes --------------------------------
@@ -433,6 +494,8 @@ public class FileWriterBucketTest {
 
     private static final Encoder<String> ENCODER = new SimpleStringEncoder<>();
 
+    private static final Encoder<RowData> rowDataENCODER = new SimpleStringEncoder<>();
+
     private static final RollingPolicy<String, String> DEFAULT_ROLLING_POLICY =
             DefaultRollingPolicy.builder().build();
 
@@ -456,6 +519,20 @@ public class FileWriterBucketTest {
                 outputFileConfig);
     }
 
+    private static FileWriterBucket<RowData> createRowDataBucket(
+            RecoverableWriter writer,
+            Path bucketPath,
+            RollingPolicy<RowData, String> rollingPolicy,
+            OutputFileConfig outputFileConfig) {
+
+        return FileWriterBucket.getNew(
+                BUCKET_ID,
+                bucketPath,
+                new RowWiseBucketWriter(writer, rowDataENCODER),
+                rollingPolicy,
+                outputFileConfig);
+    }
+
     private static TestRecoverableWriter getRecoverableWriter(Path path) {
         try {
             final FileSystem fs = FileSystem.get(path.toUri());
@@ -468,7 +545,7 @@ public class FileWriterBucketTest {
             }
             return new TestRecoverableWriter((LocalFileSystem) fs);
         } catch (IOException e) {
-            fail();
+            fail("Test failed");
         }
         return null;
     }
@@ -490,8 +567,8 @@ public class FileWriterBucketTest {
             }
         }
 
-        assertEquals(expectedPendingFiles, numPendingFiles);
-        assertEquals(expectedInProgressFiles, numInProgressFiles);
+        assertThat(numPendingFiles).isEqualTo(expectedPendingFiles);
+        assertThat(numInProgressFiles).isEqualTo(expectedInProgressFiles);
     }
 
     private FileWriterBucket<String> getRestoredBucketWithOnlyInProgressPart(

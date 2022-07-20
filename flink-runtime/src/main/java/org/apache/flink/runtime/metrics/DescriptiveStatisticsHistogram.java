@@ -22,11 +22,14 @@ import org.apache.flink.metrics.HistogramStatistics;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
+import java.io.Serializable;
+
 /**
  * The {@link DescriptiveStatisticsHistogram} use a DescriptiveStatistics {@link
  * DescriptiveStatistics} as a Flink {@link Histogram}.
  */
-public class DescriptiveStatisticsHistogram implements org.apache.flink.metrics.Histogram {
+public class DescriptiveStatisticsHistogram implements Histogram, Serializable {
+    private static final long serialVersionUID = 1L;
 
     private final CircularDoubleArray descriptiveStatistics;
 
@@ -50,7 +53,8 @@ public class DescriptiveStatisticsHistogram implements org.apache.flink.metrics.
     }
 
     /** Fixed-size array that wraps around at the end and has a dynamic start position. */
-    static class CircularDoubleArray {
+    static class CircularDoubleArray implements Serializable {
+        private static final long serialVersionUID = 1L;
         private final double[] backingArray;
         private int nextPos = 0;
         private boolean fullSize = false;

@@ -16,14 +16,20 @@
   ~ limitations under the License.
   -->
 
-<nz-card [nzBordered]="false" [nzTitle]="'Uploaded Jars'" [nzLoading]="isLoading" [nzExtra]="extraTemplate">
+<nz-card
+  [nzBordered]="false"
+  [nzTitle]="'Uploaded Jars'"
+  [nzLoading]="isLoading"
+  [nzExtra]="extraTemplate"
+>
   <ng-container *ngIf="!isYarn">
     <nz-table
       [nzSize]="'small'"
       [nzData]="listOfJar"
       [nzFrontPagination]="false"
       [nzShowPagination]="false"
-      class="no-border">
+      [nzBordered]="false"
+    >
       <thead>
         <tr>
           <th>Name</th>
@@ -33,20 +39,25 @@
         </tr>
       </thead>
       <tbody>
-        <ng-container *ngFor="let jar of listOfJar; trackBy:trackJarBy;">
+        <ng-container *ngFor="let jar of listOfJar; trackBy: trackById">
           <tr (click)="expandJar(jar)" class="clickable">
-            <td>{{jar.name}}</td>
-            <td>{{jar.uploaded | date:'yyyy-MM-dd, HH:mm:ss'}}</td>
+            <td>{{ jar.name }}</td>
+            <td>{{ jar.uploaded | date: 'yyyy-MM-dd, HH:mm:ss' }}</td>
             <td>
               <div *ngFor="let entries of jar.entry">
-                {{entries.name}}
+                {{ entries.name }}
               </div>
-              <div *ngIf="jar.entry.length===0">
-                -
-              </div>
+              <div *ngIf="jar.entry.length === 0">-</div>
             </td>
             <td class="delete-jar">
-              <a nz-popconfirm (click)="$event.stopPropagation();" (nzOnConfirm)="deleteJar(jar)" nzTitle="Are you sure delete this jar?">Delete</a>
+              <a
+                nz-popconfirm
+                (click)="$event.stopPropagation()"
+                (nzOnConfirm)="deleteJar(jar)"
+                nzPopconfirmTitle="Are you sure delete this jar?"
+              >
+                Delete
+              </a>
             </td>
           </tr>
           <tr [nzExpand]="expandedMap.get(jar.id)">
@@ -55,38 +66,50 @@
                 <nz-form-item>
                   <nz-form-control>
                     <nz-input-group [nzPrefix]="apiTemplate">
-                      <input formControlName="entryClass" nz-input placeholder="Entry Class">
+                      <input formControlName="entryClass" nz-input placeholder="Entry Class" />
                     </nz-input-group>
-                    <ng-template #apiTemplate><i nz-icon type="deployment-unit" theme="outline"></i></ng-template>
+                    <ng-template #apiTemplate>
+                      <i nz-icon nzType="deployment-unit" nzTheme="outline"></i>
+                    </ng-template>
                   </nz-form-control>
                 </nz-form-item>
                 <nz-form-item>
                   <nz-form-control>
                     <nz-input-group [nzPrefix]="loginTemplate">
-                      <input formControlName="parallelism" nz-input placeholder="Parallelism">
+                      <input formControlName="parallelism" nz-input placeholder="Parallelism" />
                     </nz-input-group>
-                    <ng-template #loginTemplate><i nz-icon type="login"></i></ng-template>
+                    <ng-template #loginTemplate><i nz-icon nzType="login"></i></ng-template>
                   </nz-form-control>
                 </nz-form-item>
                 <nz-form-item>
                   <nz-form-control>
                     <nz-input-group [nzPrefix]="settingTemplate">
-                      <input formControlName="programArgs" nz-input placeholder="Program Arguments">
+                      <input
+                        formControlName="programArgs"
+                        nz-input
+                        placeholder="Program Arguments"
+                      />
                     </nz-input-group>
-                    <ng-template #settingTemplate><i nz-icon type="setting"></i></ng-template>
+                    <ng-template #settingTemplate><i nz-icon nzType="setting"></i></ng-template>
                   </nz-form-control>
                 </nz-form-item>
                 <nz-form-item>
                   <nz-form-control>
                     <nz-input-group [nzPrefix]="folderTemplate">
-                      <input formControlName="savepointPath" nz-input placeholder="Savepoint Path">
+                      <input
+                        formControlName="savepointPath"
+                        nz-input
+                        placeholder="Savepoint Path"
+                      />
                     </nz-input-group>
-                    <ng-template #folderTemplate><i nz-icon type="folder"></i></ng-template>
+                    <ng-template #folderTemplate><i nz-icon nzType="folder"></i></ng-template>
                   </nz-form-control>
                 </nz-form-item>
                 <nz-form-item>
                   <nz-form-control>
-                    <label nz-checkbox formControlName="allowNonRestoredState">Allow Non Restored State</label>
+                    <label nz-checkbox formControlName="allowNonRestoredState">
+                      Allow Non Restored State
+                    </label>
                   </nz-form-control>
                 </nz-form-item>
                 <nz-form-item>
@@ -103,21 +126,50 @@
     </nz-table>
   </ng-container>
   <ng-container *ngIf="!noAccess && isYarn">
-    <span *ngIf="!address">Yarn's AM proxy doesn't allow file uploads. Please wait while we fetch an alternate url for you to use</span>
-    <span *ngIf="address">Yarn's AM proxy doesn't allow file uploads. You can visit&nbsp;<a [attr.href]="address+'/#/submit'">here</a>&nbsp;to access this functionality.</span>
+    <span *ngIf="!address">
+      Yarn's AM proxy doesn't allow file uploads. Please wait while we fetch an alternate url for
+      you to use
+    </span>
+    <span *ngIf="address">
+      Yarn's AM proxy doesn't allow file uploads. You can visit&nbsp;
+      <a [attr.href]="address + '/#/submit'">here</a>
+      &nbsp;to access this functionality.
+    </span>
   </ng-container>
 </nz-card>
 <ng-template #extraTemplate>
   <div class="extra" *ngIf="!noAccess && !isYarn">
     <ng-container *ngIf="!isUploading">
-      <input flinkFileRead type="file" class="input-file" id="upload-file" (fileRead)="uploadJar($event)">
+      <input
+        flinkFileRead
+        type="file"
+        class="input-file"
+        id="upload-file"
+        (fileRead)="uploadJar($event)"
+      />
       <label for="upload-file" class="upload ant-btn-primary ant-btn ant-btn-sm">
-        <span><i nz-icon type="plus"></i>Add New</span>
+        <span>
+          <i nz-icon nzType="plus"></i>
+          Add New
+        </span>
       </label>
     </ng-container>
-    <nz-progress *ngIf="isUploading" [nzPercent]="progress" nzSize="small" [nzShowInfo]="false"></nz-progress>
+    <nz-progress
+      *ngIf="isUploading"
+      [nzPercent]="progress"
+      nzSize="small"
+      [nzShowInfo]="false"
+    ></nz-progress>
   </div>
 </ng-template>
-<nz-drawer [nzHeight]="'100%'" [nzVisible]="planVisible" [nzPlacement]="'bottom'" [nzTitle]="'Plan Visualization'" (nzOnClose)="hidePlan()">
-  <flink-dagre></flink-dagre>
+<nz-drawer
+  [nzHeight]="'100%'"
+  [nzVisible]="planVisible"
+  [nzPlacement]="'bottom'"
+  [nzTitle]="'Plan Visualization'"
+  (nzOnClose)="hidePlan()"
+>
+  <ng-container *nzDrawerContent>
+    <flink-dagre></flink-dagre>
+  </ng-container>
 </nz-drawer>

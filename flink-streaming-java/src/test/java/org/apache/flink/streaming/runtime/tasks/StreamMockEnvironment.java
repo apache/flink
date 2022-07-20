@@ -71,6 +71,7 @@ import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
@@ -114,6 +115,8 @@ public class StreamMockEnvironment implements Environment {
     private final UserCodeClassLoader userCodeClassLoader =
             TestingUserCodeClassLoader.newBuilder().build();
 
+    private final boolean collectNetworkEvents;
+
     @Nullable private Consumer<Throwable> externalExceptionHandler;
 
     private TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
@@ -135,14 +138,15 @@ public class StreamMockEnvironment implements Environment {
             TaskStateManager taskStateManager) {
         this(
                 new JobID(),
-                new ExecutionAttemptID(),
+                createExecutionAttemptId(),
                 jobConfig,
                 taskConfig,
                 executionConfig,
                 memorySize,
                 inputSplitProvider,
                 bufferSize,
-                taskStateManager);
+                taskStateManager,
+                false);
     }
 
     public StreamMockEnvironment(
@@ -154,19 +158,20 @@ public class StreamMockEnvironment implements Environment {
             long offHeapMemorySize,
             MockInputSplitProvider inputSplitProvider,
             int bufferSize,
-            TaskStateManager taskStateManager) {
+            TaskStateManager taskStateManager,
+            boolean collectNetworkEvents) {
 
         this.jobID = jobID;
         this.executionAttemptID = executionAttemptID;
 
-        int subtaskIndex = 0;
+        int subtaskIndex = executionAttemptID.getExecutionVertexId().getSubtaskIndex();
         this.taskInfo =
                 new TaskInfo(
                         "", /* task name */
                         1, /* num key groups / max parallelism */
                         subtaskIndex, /* index of this subtask */
                         1, /* num subtasks */
-                        0 /* attempt number */);
+                        executionAttemptID.getAttemptNumber() /* attempt number */);
         this.jobConfiguration = jobConfig;
         this.taskConfiguration = taskConfig;
         this.inputs = new LinkedList<>();
@@ -183,7 +188,10 @@ public class StreamMockEnvironment implements Environment {
         this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
 
         KvStateRegistry registry = new KvStateRegistry();
-        this.kvStateRegistry = registry.createTaskRegistry(jobID, getJobVertexId());
+        this.kvStateRegistry =
+                registry.createTaskRegistry(
+                        jobID, executionAttemptID.getExecutionVertexId().getJobVertexId());
+        this.collectNetworkEvents = collectNetworkEvents;
     }
 
     public StreamMockEnvironment(
@@ -210,9 +218,14 @@ public class StreamMockEnvironment implements Environment {
 
     public <T> void addOutput(
             final Collection<Object> outputList, final TypeSerializer<T> serializer) {
+        addOutput(
+                new RecordOrEventCollectingResultPartitionWriter<T>(
+                        outputList, serializer, collectNetworkEvents));
+    }
+
+    public void addOutput(ResultPartitionWriter resultPartitionWriter) {
         try {
-            outputs.add(
-                    new RecordOrEventCollectingResultPartitionWriter<T>(outputList, serializer));
+            outputs.add(resultPartitionWriter);
         } catch (Throwable t) {
             t.printStackTrace();
             fail(t.getMessage());

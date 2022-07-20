@@ -19,13 +19,15 @@ package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
+
+import static org.apache.flink.streaming.util.retryable.AsyncRetryStrategies.NO_RETRY_STRATEGY;
 
 /**
  * The factory of {@link AsyncWaitOperator}.
@@ -39,23 +41,28 @@ public class AsyncWaitOperatorFactory<IN, OUT> extends AbstractStreamOperatorFac
     private final long timeout;
     private final int capacity;
     private final AsyncDataStream.OutputMode outputMode;
-    private MailboxExecutor mailboxExecutor;
+    private final AsyncRetryStrategy<OUT> asyncRetryStrategy;
 
     public AsyncWaitOperatorFactory(
             AsyncFunction<IN, OUT> asyncFunction,
             long timeout,
             int capacity,
             AsyncDataStream.OutputMode outputMode) {
+        this(asyncFunction, timeout, capacity, outputMode, NO_RETRY_STRATEGY);
+    }
+
+    public AsyncWaitOperatorFactory(
+            AsyncFunction<IN, OUT> asyncFunction,
+            long timeout,
+            int capacity,
+            AsyncDataStream.OutputMode outputMode,
+            AsyncRetryStrategy<OUT> asyncRetryStrategy) {
         this.asyncFunction = asyncFunction;
         this.timeout = timeout;
         this.capacity = capacity;
         this.outputMode = outputMode;
         this.chainingStrategy = ChainingStrategy.ALWAYS;
-    }
-
-    @Override
-    public void setMailboxExecutor(MailboxExecutor mailboxExecutor) {
-        this.mailboxExecutor = mailboxExecutor;
+        this.asyncRetryStrategy = asyncRetryStrategy;
     }
 
     @Override
@@ -67,8 +74,9 @@ public class AsyncWaitOperatorFactory<IN, OUT> extends AbstractStreamOperatorFac
                         timeout,
                         capacity,
                         outputMode,
+                        asyncRetryStrategy,
                         processingTimeService,
-                        mailboxExecutor);
+                        getMailboxExecutor());
         asyncWaitOperator.setup(
                 parameters.getContainingTask(),
                 parameters.getStreamConfig(),

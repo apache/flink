@@ -42,7 +42,8 @@ public class SystemResourcesCounterTest {
             do {
                 Thread.sleep(1);
                 cpuIdle = systemResources.getCpuIdle();
-            } while (initialCpuIdle == cpuIdle || Double.isNaN(cpuIdle) || cpuIdle == 0.0);
+            } while (systemResources.isAlive()
+                    && (initialCpuIdle == cpuIdle || Double.isNaN(cpuIdle) || cpuIdle == 0.0));
         } finally {
             systemResources.shutdown();
             systemResources.join();
@@ -54,7 +55,8 @@ public class SystemResourcesCounterTest {
                         + systemResources.getCpuSoftIrq()
                         + systemResources.getCpuSys()
                         + systemResources.getCpuUser()
-                        + systemResources.getIOWait();
+                        + systemResources.getIOWait()
+                        + systemResources.getCpuSteal();
 
         assertTrue(
                 "There should be at least one processor", systemResources.getProcessorsCount() > 0);

@@ -48,10 +48,13 @@ public class ExceptionHistoryEntry extends ErrorInfo {
      * @param failedExecution the failed {@code Execution}.
      * @param taskName the name of the task.
      * @return The {@code ExceptionHistoryEntry}.
+     * @throws NullPointerException if {@code null} is passed as one of the parameters.
      * @throws IllegalArgumentException if the passed {@code Execution} does not provide a {@link
      *     Execution#getFailureInfo() failureInfo}.
      */
     public static ExceptionHistoryEntry create(AccessExecution failedExecution, String taskName) {
+        Preconditions.checkNotNull(failedExecution, "No Execution is specified.");
+        Preconditions.checkNotNull(taskName, "No task name is specified.");
         Preconditions.checkArgument(
                 failedExecution.getFailureInfo().isPresent(),
                 "The selected Execution " + failedExecution.getAttemptId() + " didn't fail.");
@@ -62,6 +65,12 @@ public class ExceptionHistoryEntry extends ErrorInfo {
                 failure.getTimestamp(),
                 taskName,
                 failedExecution.getAssignedResourceLocation());
+    }
+
+    /** Creates an {@code ExceptionHistoryEntry} that is not based on an {@code Execution}. */
+    public static ExceptionHistoryEntry createGlobal(Throwable cause) {
+        return new ExceptionHistoryEntry(
+                cause, System.currentTimeMillis(), null, (ArchivedTaskManagerLocation) null);
     }
 
     /**

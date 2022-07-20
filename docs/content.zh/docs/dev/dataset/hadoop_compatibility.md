@@ -32,7 +32,7 @@ reusing code that was implemented for Hadoop MapReduce.
 
 You can:
 
-- use Hadoop's `Writable` [data types]({{< ref "docs/dev/serialization/types_serialization" >}}#supported-data-types) in Flink programs.
+- use Hadoop's `Writable` [data types]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}#supported-data-types) in Flink programs.
 - use any Hadoop `InputFormat` as a [DataSource](index.html#data-sources).
 - use any Hadoop `OutputFormat` as a [DataSink](index.html#data-sinks).
 - use a Hadoop `Mapper` as [FlatMapFunction](dataset_transformations.html#flatmap).
@@ -74,7 +74,7 @@ a `hadoop-client` dependency such as:
 <dependency>
     <groupId>org.apache.hadoop</groupId>
     <artifactId>hadoop-client</artifactId>
-    <version>2.8.3</version>
+    <version>2.8.5</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -88,7 +88,7 @@ The former is used for input formats derived
 from `FileInputFormat` while the latter has to be used for general purpose
 input formats.
 The resulting `InputFormat` can be used to create a data source by using
-`ExecutionEnvironmen#createInput`.
+`ExecutionEnvironment#createInput`.
 
 The resulting `DataSet` contains 2-tuples where the first field
 is the key and the second field is the value retrieved from the Hadoop
@@ -142,7 +142,7 @@ The following example shows how to use Hadoop's `TextOutputFormat`.
 
 ```java
 // Obtain the result we want to emit
-DataSet<Tuple2<Text, IntWritable>> hadoopResult = [...]
+DataSet<Tuple2<Text, IntWritable>> hadoopResult = [...];
 
 // Set up the Hadoop TextOutputFormat.
 HadoopOutputFormat<Text, IntWritable> hadoopOF =
@@ -198,7 +198,7 @@ The following example shows how to use Hadoop `Mapper` and `Reducer` functions.
 
 ```java
 // Obtain data to process somehow.
-DataSet<Tuple2<LongWritable, Text>> text = [...]
+DataSet<Tuple2<LongWritable, Text>> text = [...];
 
 DataSet<Tuple2<Text, LongWritable>> result = text
   // use Hadoop Mapper (Tokenizer) as MapFunction

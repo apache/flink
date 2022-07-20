@@ -26,7 +26,7 @@ import java.util.Collections;
 import java.util.Optional;
 
 /** A test for the {@link TypeSerializer TypeSerializers} used for the Kafka producer state. */
-public class FlinkKafkaProducerStateSerializerTest
+class FlinkKafkaProducerStateSerializerTest
         extends SerializerTestBase<
                 TwoPhaseCommitSinkFunction.State<
                         FlinkKafkaProducer.KafkaTransactionState,

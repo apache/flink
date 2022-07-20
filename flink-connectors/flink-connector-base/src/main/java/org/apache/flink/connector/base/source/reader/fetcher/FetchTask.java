@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader.fetcher;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -28,6 +29,7 @@ import java.util.Collection;
 import java.util.function.Consumer;
 
 /** The default fetch task that fetches the records into the element queue. */
+@Internal
 class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
     private final SplitReader<E, SplitT> splitReader;
     private final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue;

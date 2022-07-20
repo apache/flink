@@ -120,4 +120,8 @@ public class TestingLeaderElectionService implements LeaderElectionService {
     public synchronized CompletableFuture<Void> getStartFuture() {
         return startFuture;
     }
+
+    public synchronized boolean isStopped() {
+        return contender == null;
+    }
 }

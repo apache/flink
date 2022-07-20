@@ -51,7 +51,7 @@ public abstract class RecoverableFsDataOutputStream extends FSDataOutputStream {
      * as a "close in order to dispose" or "close on failure".
      *
      * <p>In order to persist all previously written data, one needs to call the {@link
-     * #closeForCommit()} method and call {@link Committer#commit()} on the retured committer
+     * #closeForCommit()} method and call {@link Committer#commit()} on the returned committer
      * object.
      *
      * @throws IOException Thrown if an error occurred during closing.

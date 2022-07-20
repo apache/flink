@@ -21,7 +21,6 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.NoOpCheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
@@ -121,7 +120,6 @@ public class DefaultJobTableTest extends TestLogger {
                 new NoOpTaskManagerActions(),
                 NoOpCheckpointResponder.INSTANCE,
                 new TestGlobalAggregateManager(),
-                new NoOpResultPartitionConsumableNotifier(),
                 new NoOpPartitionProducerStateChecker());
     }
 

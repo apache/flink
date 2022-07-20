@@ -69,4 +69,9 @@ public class ClusterDataSetDeleteTriggerHeaders
     public String getTargetRestEndpointURL() {
         return URL;
     }
+
+    @Override
+    public String operationId() {
+        return "deleteClusterDataSet";
+    }
 }

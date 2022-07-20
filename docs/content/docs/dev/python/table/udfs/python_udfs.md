@@ -28,7 +28,7 @@ under the License.
 
 User-defined functions are important features, because they significantly extend the expressiveness of Python Table API programs.
 
-**NOTE:** Python UDF execution requires Python version (3.6, 3.7 or 3.8) with PyFlink installed. It's required on both the client side and the cluster side. 
+**NOTE:** Python UDF execution requires Python version (3.6, 3.7, 3.8 or 3.9) with PyFlink installed. It's required on both the client side and the cluster side. 
 
 ## Scalar Functions
 
@@ -41,7 +41,9 @@ The following example shows how to define your own Python hash code function, re
 Note that you can configure your scalar function via a constructor before it is registered:
 
 ```python
-from pyflink.table.expressions import call 
+from pyflink.table.expressions import call, col
+from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.udf import ScalarFunction, udf
 
 class HashCode(ScalarFunction):
   def __init__(self):
@@ -50,13 +52,13 @@ class HashCode(ScalarFunction):
   def eval(self, s):
     return hash(s) * self.factor
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
 hash_code = udf(HashCode(), result_type=DataTypes.BIGINT())
 
 # use the Python function in Python Table API
-my_table.select(my_table.string, my_table.bigint, hash_code(my_table.bigint), call(hash_code, my_table.bigint))
+my_table.select(col("string"), col("bigint"), hash_code(col("bigint")), call(hash_code, col("bigint")))
 
 # use the Python function in SQL API
 table_env.create_temporary_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
@@ -78,16 +80,17 @@ public class HashCode extends ScalarFunction {
   }
 }
 '''
-from pyflink.table.expressions import call
+from pyflink.table.expressions import call, col
+from pyflink.table import TableEnvironment, EnvironmentSettings
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
 # register the Java function
 table_env.create_java_temporary_function("hash_code", "my.java.function.HashCode")
 
 # use the Java function in Python Table API
-my_table.select(call('hash_code', my_table.string))
+my_table.select(call('hash_code', col("string")))
 
 # use the Java function in SQL API
 table_env.sql_query("SELECT string, bigint, hash_code(string) FROM MyTable")
@@ -129,10 +132,10 @@ add = udf(functools.partial(partial_add, k=1), result_type=DataTypes.BIGINT())
 # register the Python function
 table_env.create_temporary_function("add", add)
 # use the function in Python Table API
-my_table.select("add(a, b)")
+my_table.select(call('add', col('a'), col('b')))
 
 # You can also use the Python function in Python Table API directly
-my_table.select(add(my_table.a, my_table.b))
+my_table.select(add(col('a'), col('b')))
 ```
 
 ## Table Functions
@@ -145,12 +148,16 @@ The following example shows how to define your own Python multi emit function, r
 TableEnvironment, and call it in a query.
 
 ```python
+from pyflink.table.expressions import col
+from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.udf import TableFunction, udtf
+
 class Split(TableFunction):
     def eval(self, string):
         for s in string.split(" "):
             yield s, len(s)
 
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 my_table = ...  # type: Table, table schema: [a: String]
 
@@ -158,8 +165,8 @@ my_table = ...  # type: Table, table schema: [a: String]
 split = udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()])
 
 # use the Python Table Function in Python Table API
-my_table.join_lateral(split(my_table.a).alias("word, length"))
-my_table.left_outer_join_lateral(split(my_table.a).alias("word, length"))
+my_table.join_lateral(split(col("a")).alias("word", "length"))
+my_table.left_outer_join_lateral(split(col("a")).alias("word", "length"))
 
 # use the Python Table function in SQL API
 table_env.create_temporary_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
@@ -186,9 +193,10 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
     }
 }
 '''
-from pyflink.table.expressions import call
+from pyflink.table.expressions import call, col
+from pyflink.table import TableEnvironment, EnvironmentSettings
 
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 my_table = ...  # type: Table, table schema: [a: String]
 
@@ -196,8 +204,8 @@ my_table = ...  # type: Table, table schema: [a: String]
 table_env.create_java_temporary_function("split", "my.java.function.Split")
 
 # Use the table function in the Python Table API. "alias" specifies the field names of the table.
-my_table.join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
-my_table.left_outer_join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
+my_table.join_lateral(call('split', col('a')).alias("word", "length")).select(col('a'), col('word'), col('length'))
+my_table.left_outer_join_lateral(call('split', col('a')).alias("word", "length")).select(col('a'), col('word'), col('length'))
 
 # Register the python function.
 
@@ -235,7 +243,7 @@ def iterable_func(x):
 
 A user-defined aggregate function (_UDAGG_) maps scalar values of multiple rows to a new scalar value.
 
-**NOTE:** Currently the general user-defined aggregate function is only supported in the GroupBy aggregation and Group Window Aggregation of the blink planner in streaming mode. For batch mode, it's currently not supported and it is recommended to use the [Vectorized Aggregate Functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions).
+**NOTE:** Currently the general user-defined aggregate function is only supported in the GroupBy aggregation and Group Window Aggregation in streaming mode. For batch mode, it's currently not supported and it is recommended to use the [Vectorized Aggregate Functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions).
 
 The behavior of an aggregate function is centered around the concept of an accumulator. The _accumulator_
 is an intermediate data structure that stores the aggregated values until a final aggregation result
@@ -302,7 +310,7 @@ class WeightedAvg(AggregateFunction):
             DataTypes.FIELD("f1", DataTypes.BIGINT())])
 
 
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 # the result type and accumulator type can also be specified in the udaf decorator:
 # weighted_avg = udaf(WeightedAvg(), result_type=DataTypes.BIGINT(), accumulator_type=...)
@@ -313,23 +321,23 @@ t = table_env.from_elements([(1, 2, "Lee"),
                              (7, 8, "Lee")]).alias("value", "count", "name")
 
 # call function "inline" without registration in Table API
-result = t.group_by(t.name).select(weighted_avg(t.value, t.count).alias("avg")).to_pandas()
-print(result)
+result = t.group_by(col("name")).select(weighted_avg(col("value"), col("count")).alias("avg")).execute()
+result.print()
 
 # register function
 table_env.create_temporary_function("weighted_avg", WeightedAvg())
 
 # call registered function in Table API
-result = t.group_by(t.name).select(call("weighted_avg", t.value, t.count).alias("avg")).to_pandas()
-print(result)
+result = t.group_by(col("name")).select(call("weighted_avg", col("value"), col("count")).alias("avg")).execute()
+result.print()
 
 # register table
 table_env.create_temporary_view("source", t)
 
 # call registered function in SQL
 result = table_env.sql_query(
-    "SELECT weighted_avg(`value`, `count`) AS avg FROM source GROUP BY name").to_pandas()
-print(result)
+    "SELECT weighted_avg(`value`, `count`) AS avg FROM source GROUP BY name").execute()
+result.print()
 
 # use the general Python aggregate function in GroupBy Window Aggregation
 tumble_window = Tumble.over(lit(1).hours) \
@@ -338,10 +346,9 @@ tumble_window = Tumble.over(lit(1).hours) \
 
 result = t.window(tumble_window) \
         .group_by(col('w'), col('name')) \
-        .select("w.start, w.end, weighted_avg(value, count)") \
-        .to_pandas()
-print(result)
-
+        .select(col('w').start, col('w').end, weighted_avg(col('value'), col('count'))) \
+        .execute()
+result.print()
 ```
 
 The `accumulate(...)` method of our `WeightedAvg` class takes three input arguments. The first one is the accumulator
@@ -417,8 +424,7 @@ A user-defined table aggregate function (_UDTAGG_) maps scalar values of multipl
 The returned record may consist of one or more fields. If an output record consists of only a single field,
 the structured record can be omitted, and a scalar value can be emitted that will be implicitly wrapped into a row by the runtime.
 
-**NOTE:** Currently the general user-defined table aggregate function is only supported in the GroupBy aggregation
-of the blink planner in streaming mode.
+**NOTE:** Currently the general user-defined table aggregate function is only supported in the GroupBy aggregation in streaming mode.
 
 Similar to an [aggregate function](#aggregate-functions), the behavior of a table aggregate is centered around the concept of an accumulator.
 The accumulator is an intermediate data structure that stores the aggregated values until a final aggregation result is computed.
@@ -430,7 +436,7 @@ the function is called to compute and return the final result.
 
 The following example illustrates the aggregation process:
 
-<img alt="UDTAGG mechanism" src="/fig/udtagg-mechanism-python.png" width="80%">
+{{<img alt="UDTAGG mechanism" src="/fig/udtagg-mechanism-python.png" width="80%">}}
 
 In the example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,
 and `price`) and 5 rows. We would like to find the 2 highest prices of all beverages in the table, i.e.,
@@ -450,6 +456,7 @@ The following example shows how to define your own aggregate function and call i
 ```python
 from pyflink.common import Row
 from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.expressions import col
 from pyflink.table.udf import udtaf, TableAggregateFunction
 
 class Top2(TableAggregateFunction):
@@ -477,19 +484,20 @@ class Top2(TableAggregateFunction):
             [DataTypes.FIELD("a", DataTypes.BIGINT())])
 
 
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 # the result type and accumulator type can also be specified in the udtaf decorator:
 # top2 = udtaf(Top2(), result_type=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]), accumulator_type=DataTypes.ARRAY(DataTypes.BIGINT()))
 top2 = udtaf(Top2())
 t = table_env.from_elements([(1, 'Hi', 'Hello'),
-                              (3, 'Hi', 'hi'),
-                              (5, 'Hi2', 'hi'),
-                              (7, 'Hi', 'Hello'),
-                              (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
+                             (3, 'Hi', 'hi'),
+                             (5, 'Hi2', 'hi'),
+                             (7, 'Hi', 'Hello'),
+                             (2, 'Hi', 'Hello')],
+                            ['a', 'b', 'c'])
 
 # call function "inline" without registration in Table API
-result = t.group_by(t.b).flat_aggregate(top2).select('*').to_pandas()
+t.group_by(col('b')).flat_aggregate(top2).select(col('*')).execute().print()
 
 # the result is:
 #      b    a

@@ -49,16 +49,26 @@ class PartitionRequestClientFactory {
 
     private final int retryNumber;
 
+    private final int maxNumberOfConnections;
+
     private final ConcurrentMap<ConnectionID, CompletableFuture<NettyPartitionRequestClient>>
             clients = new ConcurrentHashMap<>();
 
-    PartitionRequestClientFactory(NettyClient nettyClient) {
-        this(nettyClient, 0);
+    private final boolean connectionReuseEnabled;
+
+    PartitionRequestClientFactory(NettyClient nettyClient, boolean connectionReuseEnabled) {
+        this(nettyClient, 0, 1, connectionReuseEnabled);
     }
 
-    PartitionRequestClientFactory(NettyClient nettyClient, int retryNumber) {
+    PartitionRequestClientFactory(
+            NettyClient nettyClient,
+            int retryNumber,
+            int maxNumberOfConnections,
+            boolean connectionReuseEnabled) {
         this.nettyClient = nettyClient;
         this.retryNumber = retryNumber;
+        this.maxNumberOfConnections = maxNumberOfConnections;
+        this.connectionReuseEnabled = connectionReuseEnabled;
     }
 
     /**
@@ -67,6 +77,11 @@ class PartitionRequestClientFactory {
      */
     NettyPartitionRequestClient createPartitionRequestClient(ConnectionID connectionId)
             throws IOException, InterruptedException {
+        // We map the input ConnectionID to a new value to restrict the number of tcp connections
+        connectionId =
+                new ConnectionID(
+                        connectionId.getAddress(),
+                        connectionId.getConnectionIndex() % maxNumberOfConnections);
         while (true) {
             final CompletableFuture<NettyPartitionRequestClient> newClientFuture =
                     new CompletableFuture<>();
@@ -98,12 +113,18 @@ class PartitionRequestClientFactory {
 
             // Make sure to increment the reference count before handing a client
             // out to ensure correct bookkeeping for channel closing.
-            if (client.incrementReferenceCounter()) {
+            if (client.validateClientAndIncrementReferenceCounter()) {
                 return client;
+            } else if (client.canBeDisposed()) {
+                client.closeConnection();
             } else {
                 destroyPartitionRequestClient(connectionId, client);
             }
         }
+    }
+
+    public boolean isConnectionReuseEnabled() {
+        return connectionReuseEnabled;
     }
 
     private NettyPartitionRequestClient connectWithRetries(ConnectionID connectionId)
@@ -131,7 +152,10 @@ class PartitionRequestClientFactory {
     private NettyPartitionRequestClient connect(ConnectionID connectionId)
             throws RemoteTransportException, InterruptedException {
         try {
-            Channel channel = nettyClient.connect(connectionId.getAddress()).await().channel();
+            // It's important to use `sync` here because it waits for this future until it is
+            // done, and rethrows the cause of the failure if this future failed. `await` only
+            // waits for this future to be completed, without throwing the error.
+            Channel channel = nettyClient.connect(connectionId.getAddress()).sync().channel();
             NetworkClientHandler clientHandler = channel.pipeline().get(NetworkClientHandler.class);
             return new NettyPartitionRequestClient(channel, clientHandler, connectionId, this);
         } catch (InterruptedException e) {
@@ -153,7 +177,7 @@ class PartitionRequestClientFactory {
         if (entry != null && !entry.isDone()) {
             entry.thenAccept(
                     client -> {
-                        if (client.disposeIfNotUsed()) {
+                        if (client.canBeDisposed()) {
                             clients.remove(connectionId, entry);
                         }
                     });

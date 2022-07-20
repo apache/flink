@@ -53,12 +53,15 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN;
@@ -86,6 +89,7 @@ public class ChannelPersistenceITCase {
     public void testReadWritten() throws Exception {
         byte[] inputChannelInfoData = randomBytes(1024);
         byte[] resultSubpartitionInfoData = randomBytes(1024);
+        byte[] resultSubpartitionInfoFutureData = randomBytes(1024);
         int partitionIndex = 0;
 
         SequentialChannelStateReader reader =
@@ -97,9 +101,12 @@ public class ChannelPersistenceITCase {
                                                 new InputChannelInfo(0, 0), inputChannelInfoData),
                                         singletonMap(
                                                 new ResultSubpartitionInfo(partitionIndex, 0),
-                                                resultSubpartitionInfoData))));
+                                                resultSubpartitionInfoData),
+                                        singletonMap(
+                                                new ResultSubpartitionInfo(partitionIndex, 1),
+                                                resultSubpartitionInfoFutureData))));
 
-        NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 1024);
+        NetworkBufferPool networkBufferPool = new NetworkBufferPool(6, 1024);
         try {
             int numChannels = 1;
             InputGate gate = buildGate(networkBufferPool, numChannels);
@@ -107,12 +114,13 @@ public class ChannelPersistenceITCase {
             assertArrayEquals(
                     inputChannelInfoData, collectBytes(gate::pollNext, BufferOrEvent::getBuffer));
 
+            int subpartitions = 2;
             BufferWritingResultPartition resultPartition =
                     buildResultPartition(
                             networkBufferPool,
                             ResultPartitionType.PIPELINED,
                             partitionIndex,
-                            numChannels);
+                            subpartitions);
             reader.readOutputData(new BufferWritingResultPartition[] {resultPartition}, false);
             ResultSubpartitionView view =
                     resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
@@ -120,6 +128,13 @@ public class ChannelPersistenceITCase {
                     resultSubpartitionInfoData,
                     collectBytes(
                             () -> Optional.ofNullable(view.getNextBuffer()),
+                            BufferAndBacklog::buffer));
+            ResultSubpartitionView futureView =
+                    resultPartition.createSubpartitionView(1, new NoOpBufferAvailablityListener());
+            assertArrayEquals(
+                    resultSubpartitionInfoFutureData,
+                    collectBytes(
+                            () -> Optional.ofNullable(futureView.getNextBuffer()),
                             BufferAndBacklog::buffer));
         } finally {
             networkBufferPool.destroy();
@@ -165,7 +180,8 @@ public class ChannelPersistenceITCase {
                                                 numberOfSubpartitions,
                                                 Integer.MAX_VALUE,
                                                 numberOfSubpartitions,
-                                                Integer.MAX_VALUE))
+                                                Integer.MAX_VALUE,
+                                                0))
                         .build();
         resultPartition.setup();
         return (BufferWritingResultPartition) resultPartition;
@@ -224,11 +240,14 @@ public class ChannelPersistenceITCase {
     private ChannelStateWriteResult write(
             long checkpointId,
             Map<InputChannelInfo, byte[]> icMap,
-            Map<ResultSubpartitionInfo, byte[]> rsMap)
+            Map<ResultSubpartitionInfo, byte[]> rsMap,
+            Map<ResultSubpartitionInfo, byte[]> rsFutureMap)
             throws Exception {
-        int maxStateSize = sizeOfBytes(icMap) + sizeOfBytes(rsMap) + Long.BYTES * 2;
+        int maxStateSize =
+                sizeOfBytes(icMap) + sizeOfBytes(rsMap) + sizeOfBytes(rsFutureMap) + Long.BYTES * 3;
         Map<InputChannelInfo, Buffer> icBuffers = wrapWithBuffers(icMap);
         Map<ResultSubpartitionInfo, Buffer> rsBuffers = wrapWithBuffers(rsMap);
+        Map<ResultSubpartitionInfo, Buffer> rsFutureBuffers = wrapWithBuffers(rsFutureMap);
         try (ChannelStateWriterImpl writer =
                 new ChannelStateWriterImpl("test", 0, getStreamFactoryFactory(maxStateSize))) {
             writer.open();
@@ -244,6 +263,12 @@ public class ChannelPersistenceITCase {
                         ofElements(Buffer::recycleBuffer, e.getValue()));
             }
             writer.finishInput(checkpointId);
+            for (Map.Entry<ResultSubpartitionInfo, Buffer> e : rsFutureBuffers.entrySet()) {
+                CompletableFuture<List<Buffer>> dataFuture = new CompletableFuture<>();
+                writer.addOutputDataFuture(
+                        checkpointId, e.getKey(), SEQUENCE_NUMBER_UNKNOWN, dataFuture);
+                dataFuture.complete(singletonList(e.getValue()));
+            }
             for (Map.Entry<ResultSubpartitionInfo, Buffer> e : rsBuffers.entrySet()) {
                 writer.addOutputData(
                         checkpointId, e.getKey(), SEQUENCE_NUMBER_UNKNOWN, e.getValue());
@@ -268,8 +293,12 @@ public class ChannelPersistenceITCase {
             }
 
             @Override
-            public CheckpointStreamFactory.CheckpointStateOutputStream
-                    createTaskOwnedStateStream() {
+            public CheckpointStateOutputStream createTaskOwnedStateStream() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public CheckpointStateToolset createTaskOwnedCheckpointStateToolset() {
                 throw new UnsupportedOperationException();
             }
         };

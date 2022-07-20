@@ -97,7 +97,8 @@ import org.apache.flink.util.Collector;
  * }</pre>
  *
  * <p>For storing a user-defined function in a catalog, the class must have a default constructor
- * and must be instantiable during runtime.
+ * and must be instantiable during runtime. Anonymous functions in Table API can only be persisted
+ * if the function is not stateful (i.e. containing only transient and static fields).
  *
  * <p>In the API, a table function can be used as follows:
  *
@@ -135,7 +136,7 @@ import org.apache.flink.util.Collector;
 public abstract class TableFunction<T> extends UserDefinedFunction {
 
     /** The code generated collector used to emit rows. */
-    private Collector<T> collector;
+    private transient Collector<T> collector;
 
     /** Internal use. Sets the current collector. */
     public final void setCollector(Collector<T> collector) {

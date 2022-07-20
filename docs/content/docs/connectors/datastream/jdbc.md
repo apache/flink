@@ -30,17 +30,10 @@ This connector provides a sink that writes data to a JDBC database.
 
 To use it, add the following dependency to your project (along with your JDBC driver):
 
-{{< artifact flink-connector-jdbc withScalaVersion >}}
+{{< artifact flink-connector-jdbc >}}
 
-A driver dependency is also required to connect to a specified database. Here are drivers currently supported:
-
-| Driver      |      Group Id      |      Artifact Id       |      JAR         |
-| :-----------| :------------------| :----------------------| :----------------|
-| MySQL       |       `mysql`      | `mysql-connector-java` | [Download](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) |
-| PostgreSQL  |  `org.postgresql`  |      `postgresql`      | [Download](https://jdbc.postgresql.org/download.html) |
-| Derby       | `org.apache.derby` |        `derby`         | [Download](http://db.apache.org/derby/derby_downloads.html) |
-
-Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
+Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
+A driver dependency is also required to connect to a specified database. Please consult your database documentation on how to add the corresponding driver.
 
 ## `JdbcSink.sink`
 
@@ -80,7 +73,7 @@ JdbcExecutionOptions.builder()
         .withBatchIntervalMs(200)             // optional: default = 0, meaning no time-based execution is done
         .withBatchSize(1000)                  // optional: default = 5000 values
         .withMaxRetries(5)                    // optional: default = 3 
-.build()
+.build();
 ```
 
 A JDBC batch is executed as soon as one of the following conditions is true:
@@ -152,15 +145,14 @@ public class JdbcSinkExample {
 Since 1.13, Flink JDBC sink supports exactly-once mode. 
 The implementation relies on the JDBC driver support of XA 
 [standard](https://pubs.opengroup.org/onlinepubs/009680699/toc.pdf).
+Most drivers support XA if the database also supports XA (so the driver is usually the same).
 
 To use it, create a sink using `exactlyOnceSink()` method as above and additionally provide:
 - {{< javadoc name="exactly-once options" file="org/apache/flink/connector/jdbc/JdbcExactlyOnceOptions.html" >}}
 - {{< javadoc name="execution options" file="org/apache/flink/connector/jdbc/JdbcExecutionOptions.html" >}}
 - [XA DataSource](https://docs.oracle.com/javase/8/docs/api/javax/sql/XADataSource.html) Supplier
 
-**ATTENTION!** Currently `JdbcSink.exactlyOnceSink` can ensure exactly once semantics
-with `JdbcExecutionOptions.maxRetries == 0`; otherwise, duplicated results maybe produced.
-
+For example:
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env
@@ -187,11 +179,47 @@ env
                 });
 env.execute();
 ```
-Postgres XADataSource Example:
+**NOTE:** Some databases only allow a single XA transaction per connection (e.g. PostgreSQL, MySQL).
+In such cases, please use the following API to construct `JdbcExactlyOnceOptions`:
 ```java
-PGXADataSource pgxaDataSource = new PGXADataSource();
-pgxaDataSource.setUrl(
-"jdbc:postgresql://localhost:5432/postgres");
+JdbcExactlyOnceOptions.builder()
+.withTransactionPerConnection(true)
+.build();
 ```
+This will make Flink use a separate connection for every XA transaction. This may require adjusting connection limits.
+For PostgreSQL and MySQL, this can be done by increasing `max_connections`.
+
+Furthermore, XA needs to be enabled and/or configured in some databases.
+For PostgreSQL, you should set `max_prepared_transactions` to some value greater than zero.
+For MySQL v8+, you should grant `XA_RECOVER_ADMIN` to Flink DB user.
+
+**ATTENTION:** Currently, `JdbcSink.exactlyOnceSink` can ensure exactly once semantics
+with `JdbcExecutionOptions.maxRetries == 0`; otherwise, duplicated results maybe produced.
+
+### `XADataSource` examples
+PostgreSQL `XADataSource` example:
+```java
+PGXADataSource xaDataSource = new org.postgresql.xa.PGXADataSource();
+xaDataSource.setUrl("jdbc:postgresql://localhost:5432/postgres");
+xaDataSource.setUser(username);
+xaDataSource.setPassword(password);
+```
+
+MySQL `XADataSource` example:
+```java
+MysqlXADataSource xaDataSource = new com.mysql.cj.jdbc.MysqlXADataSource();
+xaDataSource.setUrl("jdbc:mysql://localhost:3306/");
+xaDataSource.setUser(username);
+xaDataSource.setPassword(password);
+```
+
+Oracle `XADataSource` example:
+```java
+OracleXADataSource xaDataSource = new oracle.jdbc.xa.OracleXADataSource();
+xaDataSource.setURL("jdbc:oracle:oci8:@");
+xaDataSource.setUser("scott");
+xaDataSource.setPassword("tiger");
+```
+Please also take Oracle connection pooling into account.
 
 Please refer to the `JdbcXaSinkFunction` documentation for more details.

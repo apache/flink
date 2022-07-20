@@ -64,7 +64,6 @@ When deploying Flink, there are often multiple options available for each buildi
                     <li><a href="{{< ref "docs/ops/rest_api" >}}">REST Endpoint</a></li>
                     <li><a href="{{< ref "docs/dev/table/sqlClient" >}}">SQL Client</a></li>
                     <li><a href="{{< ref "docs/deployment/repls/python_shell" >}}">Python REPL</a></li>
-                    <li><a href="{{< ref "docs/deployment/repls/scala_shell" >}}">Scala REPL</a></li>
                 </ul>
             </td>
         </tr>
@@ -85,7 +84,6 @@ When deploying Flink, there are often multiple options available for each buildi
                     </li>
                     <li><a href="{{< ref "docs/deployment/resource-providers/native_kubernetes" >}}">Kubernetes</a></li>
                     <li><a href="{{< ref "docs/deployment/resource-providers/yarn" >}}">YARN</a></li>
-                    <li><a href="{{< ref "docs/deployment/resource-providers/mesos" >}}">Mesos</a></li>
                 </ul>
             </td>
         </tr>
@@ -124,7 +122,7 @@ When deploying Flink, there are often multiple options available for each buildi
         <tr>
             <td>Resource Provider</td>
             <td>
-                Flink can be deployed through different Resource Provider Frameworks, such as Kubernetes, YARN or Mesos.
+                Flink can be deployed through different Resource Provider Frameworks, such as Kubernetes or YARN.
             </td>
             <td>See <a href="#jmimpls">JobManager</a> implementations above.</td>
         </tr>
@@ -154,7 +152,22 @@ When deploying Flink, there are often multiple options available for each buildi
     </tbody>
 </table>
 
+### Repeatable Resource Cleanup
 
+Once a job has reached a globally terminal state of either finished, failed or cancelled, the
+external component resources associated with the job are then cleaned up. In the event of a
+failure when cleaning up a resource, Flink will attempt to retry the cleanup. You can
+[configure]({{< ref "docs/deployment/config#retryable-cleanup" >}}) the retry strategy used.
+Reaching the maximum number of retries without succeeding will leave the job in a dirty state.
+Its artifacts would need to be cleaned up manually (see the
+[High Availability Services / JobResultStore]({{< ref "docs/deployment/ha/overview#jobresultstore" >}})
+section for further details). Restarting the very same job (i.e. using the same
+job ID) will result in the cleanup being restarted without running the job again.
+
+There is currently an issue with the cleanup of CompletedCheckpoints that failed to be deleted
+while subsuming them as part of the usual CompletedCheckpoint management. These artifacts are
+not covered by the repeatable cleanup, i.e. they have to be deleted manually, still. This is
+covered by [FLINK-26606](https://issues.apache.org/jira/browse/FLINK-26606).
 
 ## Deployment Modes
 
@@ -205,6 +218,10 @@ non-blocking, will lead to the "next" job starting before "this" job finishes.
 The Application Mode allows for multi-`execute()` applications but 
 High-Availability is not supported in these cases. High-Availability in Application Mode is only
 supported for single-`execute()` applications.
+
+Additionally, when any of multiple running jobs in Application Mode (submitted for example using 
+`executeAsync()`) gets cancelled, all jobs will be stopped and the JobManager will shut down. 
+Regular job completions (by the sources shutting down) are supported.
 {{< /hint >}}
 
 #### Per-Job Mode
@@ -291,7 +308,7 @@ Supported Environment:
 
 #### Huawei Cloud Stream Service
 
-[Website](https://www.huaweicloud.com/en-us/product/cs.html)
+[Website](https://www.huaweicloud.com/intl/zh-cn/product/cs.html)
 
 Supported Environment:
 {{< label Huawei Cloud >}}

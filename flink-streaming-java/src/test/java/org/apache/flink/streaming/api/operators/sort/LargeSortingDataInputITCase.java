@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -26,7 +27,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
@@ -35,6 +35,7 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
@@ -42,7 +43,7 @@ import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -81,12 +82,13 @@ public class LargeSortingDataInputITCase {
                                 true,
                                 1.0,
                                 new Configuration(),
-                                new DummyInvokable())) {
-            InputStatus inputStatus;
+                                new DummyInvokable(),
+                                new ExecutionConfig())) {
+            DataInputStatus inputStatus;
             VerifyingOutput<Integer> output = new VerifyingOutput<>(keySelector);
             do {
                 inputStatus = sortingDataInput.emitNext(output);
-            } while (inputStatus != InputStatus.END_OF_INPUT);
+            } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
             assertThat(output.getSeenRecords(), equalTo(numberOfRecords));
         }
@@ -109,12 +111,13 @@ public class LargeSortingDataInputITCase {
                                 true,
                                 1.0,
                                 new Configuration(),
-                                new DummyInvokable())) {
-            InputStatus inputStatus;
+                                new DummyInvokable(),
+                                new ExecutionConfig())) {
+            DataInputStatus inputStatus;
             VerifyingOutput<String> output = new VerifyingOutput<>(keySelector);
             do {
                 inputStatus = sortingDataInput.emitNext(output);
-            } while (inputStatus != InputStatus.END_OF_INPUT);
+            } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
             assertThat(output.getSeenRecords(), equalTo(numberOfRecords));
         }
@@ -143,7 +146,8 @@ public class LargeSortingDataInputITCase {
                             environment.getIOManager(),
                             true,
                             1.0,
-                            new Configuration());
+                            new Configuration(),
+                            new ExecutionConfig());
 
             StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortedInputs();
             try (StreamTaskInput<Tuple3<Integer, String, byte[]>> sortedInput1 =
@@ -164,10 +168,10 @@ public class LargeSortingDataInputITCase {
                                     new StreamOneInputProcessor(
                                             sortedInput2, output, new DummyOperatorChain())
                                 });
-                InputStatus inputStatus;
+                DataInputStatus inputStatus;
                 do {
                     inputStatus = multiSortedProcessor.processInput();
-                } while (inputStatus != InputStatus.END_OF_INPUT);
+                } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
                 assertThat(output.getSeenRecords(), equalTo(numberOfRecords * 2));
             }
@@ -210,7 +214,7 @@ public class LargeSortingDataInputITCase {
         public void emitWatermark(Watermark watermark) throws Exception {}
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {}
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {}
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {}
@@ -250,19 +254,22 @@ public class LargeSortingDataInputITCase {
         }
 
         @Override
-        public InputStatus emitNext(DataOutput<Tuple3<Integer, String, byte[]>> output)
+        public DataInputStatus emitNext(DataOutput<Tuple3<Integer, String, byte[]>> output)
                 throws Exception {
-            if (recordsGenerated >= numberOfRecords) {
-                return InputStatus.END_OF_INPUT;
+            if (recordsGenerated == numberOfRecords) {
+                recordsGenerated++;
+                return DataInputStatus.END_OF_DATA;
+            } else if (recordsGenerated > numberOfRecords) {
+                return DataInputStatus.END_OF_INPUT;
             }
 
             output.emitRecord(
                     new StreamRecord<>(
                             Tuple3.of(rnd.nextInt(), randomString(rnd.nextInt(256)), buffer), 1));
-            if (recordsGenerated++ >= numberOfRecords) {
-                return InputStatus.END_OF_INPUT;
+            if (recordsGenerated++ == numberOfRecords) {
+                return DataInputStatus.END_OF_DATA;
             } else {
-                return InputStatus.MORE_AVAILABLE;
+                return DataInputStatus.MORE_AVAILABLE;
             }
         }
 

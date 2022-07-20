@@ -37,7 +37,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.utils.TypeConversions;
 
@@ -53,8 +52,11 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ARRAY;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.MAP;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.NULL;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExplicitCast;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /** Utility class for creating valid {@link ValuesQueryOperation} operation. */
 @Internal
@@ -157,7 +159,7 @@ class ValuesOperationFactory {
         // if the expression is a literal try converting the literal in place instead of casting
         if (sourceExpression instanceof ValueLiteralExpression) {
             // Assign a type to a null literal
-            if (hasRoot(sourceLogicalType, LogicalTypeRoot.NULL)) {
+            if (sourceLogicalType.is(NULL)) {
                 return Optional.of(valueLiteral(null, targetDataType));
             }
 
@@ -188,16 +190,15 @@ class ValuesOperationFactory {
         if (sourceExpression instanceof CallExpression) {
             FunctionDefinition functionDefinition =
                     ((CallExpression) sourceExpression).getFunctionDefinition();
-            if (functionDefinition == BuiltInFunctionDefinitions.ROW
-                    && hasRoot(targetLogicalType, LogicalTypeRoot.ROW)) {
+            if (functionDefinition == BuiltInFunctionDefinitions.ROW && targetLogicalType.is(ROW)) {
                 return convertRowToExpectedType(
                         sourceExpression, (FieldsDataType) targetDataType, postResolverFactory);
             } else if (functionDefinition == BuiltInFunctionDefinitions.ARRAY
-                    && hasRoot(targetLogicalType, LogicalTypeRoot.ARRAY)) {
+                    && targetLogicalType.is(ARRAY)) {
                 return convertArrayToExpectedType(
                         sourceExpression, (CollectionDataType) targetDataType, postResolverFactory);
             } else if (functionDefinition == BuiltInFunctionDefinitions.MAP
-                    && hasRoot(targetLogicalType, LogicalTypeRoot.MAP)) {
+                    && targetLogicalType.is(MAP)) {
                 return convertMapToExpectedType(
                         sourceExpression, (KeyValueDataType) targetDataType, postResolverFactory);
             }

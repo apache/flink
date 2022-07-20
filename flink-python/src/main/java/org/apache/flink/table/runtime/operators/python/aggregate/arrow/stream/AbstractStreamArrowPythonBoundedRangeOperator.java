@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.TimeDomain;
@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Iterator;
@@ -50,20 +51,20 @@ public abstract class AbstractStreamArrowPythonBoundedRangeOperator<K>
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType outputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             int inputTimeFieldIndex,
             long lowerBoundary,
-            int[] groupingSet,
-            int[] udafInputOffsets) {
+            GeneratedProjection inputGeneratedProjection) {
         super(
                 config,
                 pandasAggFunctions,
                 inputType,
-                outputType,
+                udfInputType,
+                udfOutputType,
                 inputTimeFieldIndex,
                 lowerBoundary,
-                groupingSet,
-                udafInputOffsets);
+                inputGeneratedProjection);
     }
 
     @Override
@@ -112,9 +113,9 @@ public abstract class AbstractStreamArrowPythonBoundedRangeOperator<K>
 
     @Override
     @SuppressWarnings("ConstantConditions")
-    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-        byte[] udafResult = resultTuple.f0;
-        int length = resultTuple.f1;
+    public void emitResult(Tuple3<String, byte[], Integer> resultTuple) throws Exception {
+        byte[] udafResult = resultTuple.f1;
+        int length = resultTuple.f2;
         bais.setBuffer(udafResult, 0, length);
         int rowCount = arrowSerializer.load();
         for (int i = 0; i < rowCount; i++) {

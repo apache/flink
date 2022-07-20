@@ -25,8 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.14-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.16-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
@@ -76,7 +75,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -89,10 +88,33 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<configuration>
+					<scala>
+						<scalafmt>
+							<version>${spotless.scalafmt.version}</version>
+							<file>${project.basedir}/../../.scalafmt.conf</file>
+						</scalafmt>
+						<licenseHeader>
+							<content>${spotless.license.header}</content>
+							<delimiter>${spotless.delimiter}</delimiter>
+						</licenseHeader>
+					</scala>
+				</configuration>
+			</plugin>
 			<!-- activate API compatibility checks -->
 			<plugin>
 				<groupId>com.github.siom79.japicmp</groupId>
@@ -169,15 +191,6 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
-			</plugin>
-
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
 			</plugin>
 
 			<!-- Add test classes to test jar in order to test WritableTypeInfo. -->

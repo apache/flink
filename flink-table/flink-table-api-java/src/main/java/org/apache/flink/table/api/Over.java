@@ -20,7 +20,6 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionParser;
 
 import java.util.Arrays;
 
@@ -52,38 +51,8 @@ public final class Over {
      * @param partitionBy list of field references
      * @return an over window with defined partitioning
      */
-    public static OverWindowPartitioned partitionBy(String partitionBy) {
-        return new OverWindowPartitioned(ExpressionParser.parseExpressionList(partitionBy));
-    }
-
-    /**
-     * Partitions the elements on some partition keys.
-     *
-     * <p>Each partition is individually sorted and aggregate functions are applied to each
-     * partition separately.
-     *
-     * @param partitionBy list of field references
-     * @return an over window with defined partitioning
-     */
     public static OverWindowPartitioned partitionBy(Expression... partitionBy) {
         return new OverWindowPartitioned(Arrays.asList(partitionBy));
-    }
-
-    /**
-     * Specifies the time attribute on which rows are ordered.
-     *
-     * <p>For streaming tables, reference a rowtime or proctime time attribute here to specify the
-     * time mode.
-     *
-     * <p>For batch tables, refer to a timestamp or long attribute.
-     *
-     * @param orderBy field reference
-     * @return an over window with defined order
-     * @deprecated use {@link #orderBy(Expression)}
-     */
-    @Deprecated
-    public static OverWindowPartitionedOrdered orderBy(String orderBy) {
-        return partitionBy().orderBy(orderBy);
     }
 
     /**

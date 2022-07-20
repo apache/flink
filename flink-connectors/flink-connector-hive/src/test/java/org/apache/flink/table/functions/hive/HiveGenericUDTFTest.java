@@ -23,6 +23,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
@@ -43,8 +44,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link HiveGenericUDTF}. */
 public class HiveGenericUDTFTest {
@@ -62,7 +66,7 @@ public class HiveGenericUDTFTest {
 
         udf.eval(5, 4);
 
-        assertEquals(Arrays.asList(Row.of(9), Row.of(9)), collector.result);
+        assertThat(collector.result).isEqualTo(Arrays.asList(Row.of(9), Row.of(9)));
 
         // Test empty input and empty output
         constantArgs = new Object[] {};
@@ -73,7 +77,7 @@ public class HiveGenericUDTFTest {
 
         udf.eval();
 
-        assertEquals(Arrays.asList(), collector.result);
+        assertThat(collector.result).isEqualTo(Arrays.asList());
     }
 
     @Test
@@ -86,9 +90,8 @@ public class HiveGenericUDTFTest {
 
         udf.eval("1,2,3,5");
 
-        assertEquals(
-                Arrays.asList(Row.of("1"), Row.of("2"), Row.of("3"), Row.of("5")),
-                collector.result);
+        assertThat(collector.result)
+                .isEqualTo(Arrays.asList(Row.of("1"), Row.of("2"), Row.of("3"), Row.of("5")));
     }
 
     @Test
@@ -108,7 +111,7 @@ public class HiveGenericUDTFTest {
 
         udf.eval(2, "a", "b", "c", "d");
 
-        assertEquals(Arrays.asList(Row.of("a", "b"), Row.of("c", "d")), collector.result);
+        assertThat(collector.result).isEqualTo(Arrays.asList(Row.of("a", "b"), Row.of("c", "d")));
     }
 
     @Test
@@ -121,7 +124,8 @@ public class HiveGenericUDTFTest {
 
         udf.eval(new Integer[] {1, 2, 3});
 
-        assertEquals(Arrays.asList(Row.of(0, 1), Row.of(1, 2), Row.of(2, 3)), collector.result);
+        assertThat(collector.result)
+                .isEqualTo(Arrays.asList(Row.of(0, 1), Row.of(1, 2), Row.of(2, 3)));
     }
 
     @Test
@@ -140,20 +144,27 @@ public class HiveGenericUDTFTest {
 
         udf.eval(new Row[] {Row.of(1, 2.2d), Row.of(3, 4.4d)});
 
-        assertEquals(Arrays.asList(Row.of(1, 2.2), Row.of(3, 4.4)), collector.result);
+        assertThat(collector.result).isEqualTo(Arrays.asList(Row.of(1, 2.2), Row.of(3, 4.4)));
     }
 
     private static HiveGenericUDTF init(
             Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
         HiveFunctionWrapper<GenericUDTF> wrapper = new HiveFunctionWrapper(hiveUdfClass.getName());
 
-        HiveGenericUDTF udf = new HiveGenericUDTF(wrapper, hiveShim);
+        CallContextMock callContext = new CallContextMock();
+        callContext.argumentDataTypes = Arrays.asList(argTypes);
+        callContext.argumentValues =
+                Arrays.stream(constantArgs).map(Optional::ofNullable).collect(Collectors.toList());
+        callContext.argumentLiterals =
+                Arrays.stream(constantArgs).map(Objects::nonNull).collect(Collectors.toList());
 
-        udf.setArgumentTypesAndConstants(constantArgs, argTypes);
-        udf.getHiveResultType(constantArgs, argTypes);
+        HiveGenericUDTF udf = new HiveGenericUDTF(wrapper, hiveShim);
+        udf.setArguments(callContext);
+        udf.inferReturnType();
 
         ObjectInspector[] argumentInspectors =
-                HiveInspectors.toInspectors(hiveShim, constantArgs, argTypes);
+                HiveInspectors.getArgInspectors(
+                        hiveShim, HiveFunctionArguments.create(callContext));
         ObjectInspector returnInspector = wrapper.createFunction().initialize(argumentInspectors);
 
         udf.open(null);

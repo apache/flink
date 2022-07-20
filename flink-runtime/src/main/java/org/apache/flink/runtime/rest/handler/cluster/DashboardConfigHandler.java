@@ -54,13 +54,16 @@ public class DashboardConfigHandler
 
         dashboardConfiguration =
                 DashboardConfiguration.from(
-                        refreshInterval, ZonedDateTime.now(), webSubmitEnabled, webCancelEnabled);
+                        refreshInterval,
+                        ZonedDateTime.now(),
+                        webSubmitEnabled,
+                        webCancelEnabled,
+                        false);
     }
 
     @Override
     public CompletableFuture<DashboardConfiguration> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
-            @Nonnull RestfulGateway gateway) {
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway) {
         return CompletableFuture.completedFuture(dashboardConfiguration);
     }
 }

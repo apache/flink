@@ -75,6 +75,7 @@ public interface LookupTableSource extends DynamicTableSource {
      * instances that are {@link Serializable} can be directly passed into the runtime
      * implementation class.
      */
+    @PublicEvolving
     interface LookupContext extends DynamicTableSource.Context {
 
         /**
@@ -99,6 +100,7 @@ public interface LookupTableSource extends DynamicTableSource {
      * @see TableFunctionProvider
      * @see AsyncTableFunctionProvider
      */
+    @PublicEvolving
     interface LookupRuntimeProvider {
         // marker interface
     }

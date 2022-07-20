@@ -18,15 +18,16 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.rocksdb.BlockBasedTableConfig;
-import org.rocksdb.BloomFilter;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.CompactionStyle;
-import org.rocksdb.DBOptions;
-import org.rocksdb.InfoLogLevel;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.MemorySize;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import org.rocksdb.CompactionStyle;
+
+import javax.annotation.Nullable;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The {@code PredefinedOptions} are configuration settings for the {@link
@@ -38,6 +39,11 @@ import java.util.Collection;
  *
  * <p>All of them effectively disable the RocksDB log by default because this file would grow
  * indefinitely and will be deleted with the TM anyway.
+ *
+ * <p>The {@code PredefinedOptions} are designed to cope with different situations. If some
+ * configurations should be enabled unconditionally, they are not included in any of the pre-defined
+ * options. Please check {@link RocksDBResourceContainer#createBaseCommonDBOptions()} and {@link
+ * RocksDBResourceContainer#createBaseCommonColumnOptions()} for common settings.
  */
 public enum PredefinedOptions {
 
@@ -47,29 +53,9 @@ public enum PredefinedOptions {
      * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
      * to sync data to stable storage.
      *
-     * <p>The following options are set:
-     *
-     * <ul>
-     *   <li>setUseFsync(false)
-     *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
-     *   <li>setStatsDumpPeriodSec(0)
-     * </ul>
+     * <p>There are no specified options here.
      */
-    DEFAULT {
-
-        @Override
-        public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
-            return new DBOptions()
-                    .setUseFsync(false)
-                    .setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
-                    .setStatsDumpPeriodSec(0);
-        }
-
-        @Override
-        public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
-            return new ColumnFamilyOptions();
-        }
-    },
+    DEFAULT(Collections.emptyMap()),
 
     /**
      * Pre-defined options for regular spinning hard disks.
@@ -82,36 +68,25 @@ public enum PredefinedOptions {
      * <ul>
      *   <li>setCompactionStyle(CompactionStyle.LEVEL)
      *   <li>setLevelCompactionDynamicLevelBytes(true)
-     *   <li>setIncreaseParallelism(4)
-     *   <li>setUseFsync(false)
+     *   <li>setMaxBackgroundJobs(4)
      *   <li>setDisableDataSync(true)
      *   <li>setMaxOpenFiles(-1)
-     *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
-     *   <li>setStatsDumpPeriodSec(0)
      * </ul>
      *
      * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
      * to sync data to stable storage.
      */
-    SPINNING_DISK_OPTIMIZED {
+    SPINNING_DISK_OPTIMIZED(
+            new HashMap<ConfigOption<?>, Object>() {
+                private static final long serialVersionUID = 1L;
 
-        @Override
-        public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
-            return new DBOptions()
-                    .setIncreaseParallelism(4)
-                    .setUseFsync(false)
-                    .setMaxOpenFiles(-1)
-                    .setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
-                    .setStatsDumpPeriodSec(0);
-        }
-
-        @Override
-        public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
-            return new ColumnFamilyOptions()
-                    .setCompactionStyle(CompactionStyle.LEVEL)
-                    .setLevelCompactionDynamicLevelBytes(true);
-        }
-    },
+                {
+                    put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
+                    put(RocksDBConfigurableOptions.MAX_OPEN_FILES, -1);
+                    put(RocksDBConfigurableOptions.COMPACTION_STYLE, CompactionStyle.LEVEL);
+                    put(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, true);
+                }
+            }),
 
     /**
      * Pre-defined options for better performance on regular spinning hard disks, at the cost of a
@@ -128,58 +103,38 @@ public enum PredefinedOptions {
      *   <li>setTargetFileSizeBase(256 MBytes)
      *   <li>setMaxBytesForLevelBase(1 GByte)
      *   <li>setWriteBufferSize(64 MBytes)
-     *   <li>setIncreaseParallelism(4)
+     *   <li>setMaxBackgroundJobs(4)
      *   <li>setMinWriteBufferNumberToMerge(3)
      *   <li>setMaxWriteBufferNumber(4)
-     *   <li>setUseFsync(false)
      *   <li>setMaxOpenFiles(-1)
-     *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
-     *   <li>setStatsDumpPeriodSec(0)
      *   <li>BlockBasedTableConfig.setBlockCacheSize(256 MBytes)
-     *   <li>BlockBasedTableConfigsetBlockSize(128 KBytes)
+     *   <li>BlockBasedTableConfig.setBlockSize(128 KBytes)
      * </ul>
      *
      * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
      * to sync data to stable storage.
      */
-    SPINNING_DISK_OPTIMIZED_HIGH_MEM {
+    SPINNING_DISK_OPTIMIZED_HIGH_MEM(
+            new HashMap<ConfigOption<?>, Object>() {
+                private static final long serialVersionUID = 1L;
 
-        @Override
-        public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
-            return new DBOptions()
-                    .setIncreaseParallelism(4)
-                    .setUseFsync(false)
-                    .setMaxOpenFiles(-1)
-                    .setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
-                    .setStatsDumpPeriodSec(0);
-        }
-
-        @Override
-        public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
-
-            final long blockCacheSize = 256 * 1024 * 1024;
-            final long blockSize = 128 * 1024;
-            final long targetFileSize = 256 * 1024 * 1024;
-            final long writeBufferSize = 64 * 1024 * 1024;
-
-            BloomFilter bloomFilter = new BloomFilter();
-            handlesToClose.add(bloomFilter);
-
-            return new ColumnFamilyOptions()
-                    .setCompactionStyle(CompactionStyle.LEVEL)
-                    .setLevelCompactionDynamicLevelBytes(true)
-                    .setTargetFileSizeBase(targetFileSize)
-                    .setMaxBytesForLevelBase(4 * targetFileSize)
-                    .setWriteBufferSize(writeBufferSize)
-                    .setMinWriteBufferNumberToMerge(3)
-                    .setMaxWriteBufferNumber(4)
-                    .setTableFormatConfig(
-                            new BlockBasedTableConfig()
-                                    .setBlockCacheSize(blockCacheSize)
-                                    .setBlockSize(blockSize)
-                                    .setFilter(bloomFilter));
-        }
-    },
+                {
+                    put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
+                    put(RocksDBConfigurableOptions.MAX_OPEN_FILES, -1);
+                    put(RocksDBConfigurableOptions.COMPACTION_STYLE, CompactionStyle.LEVEL);
+                    put(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, true);
+                    put(
+                            RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE,
+                            MemorySize.parse("256mb"));
+                    put(RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE, MemorySize.parse("1gb"));
+                    put(RocksDBConfigurableOptions.WRITE_BUFFER_SIZE, MemorySize.parse("64mb"));
+                    put(RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE, 3);
+                    put(RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER, 4);
+                    put(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE, MemorySize.parse("256mb"));
+                    put(RocksDBConfigurableOptions.BLOCK_SIZE, MemorySize.parse("128kb"));
+                    put(RocksDBConfigurableOptions.USE_BLOOM_FILTER, true);
+                }
+            }),
 
     /**
      * Pre-defined options for Flash SSDs.
@@ -190,69 +145,54 @@ public enum PredefinedOptions {
      * <p>The following options are set:
      *
      * <ul>
-     *   <li>setIncreaseParallelism(4)
-     *   <li>setUseFsync(false)
+     *   <li>setMaxBackgroundJobs(4)
      *   <li>setDisableDataSync(true)
      *   <li>setMaxOpenFiles(-1)
-     *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
-     *   <li>setStatsDumpPeriodSec(0)
      * </ul>
      *
      * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
      * to sync data to stable storage.
      */
-    FLASH_SSD_OPTIMIZED {
+    FLASH_SSD_OPTIMIZED(
+            new HashMap<ConfigOption<?>, Object>() {
+                private static final long serialVersionUID = 1L;
 
-        @Override
-        public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
-            return new DBOptions()
-                    .setIncreaseParallelism(4)
-                    .setUseFsync(false)
-                    .setMaxOpenFiles(-1)
-                    .setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
-                    .setStatsDumpPeriodSec(0);
-        }
-
-        @Override
-        public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
-            return new ColumnFamilyOptions();
-        }
-    };
+                {
+                    put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
+                    put(RocksDBConfigurableOptions.MAX_OPEN_FILES, -1);
+                }
+            });
 
     // ------------------------------------------------------------------------
 
-    /**
-     * Creates the {@link DBOptions}for this pre-defined setting.
-     *
-     * @param handlesToClose The collection to register newly created {@link
-     *     org.rocksdb.RocksObject}s.
-     * @return The pre-defined options object.
-     */
-    public abstract DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose);
+    /** Settings kept in this pre-defined options. */
+    private final Map<String, Object> options;
 
-    /**
-     * @return The pre-defined options object.
-     * @deprecated use {@link #createColumnOptions(Collection)} instead.
-     */
-    public DBOptions createDBOptions() {
-        return createDBOptions(new ArrayList<>());
+    PredefinedOptions(Map<ConfigOption<?>, Object> initMap) {
+        options = new HashMap<>(initMap.size());
+        for (Map.Entry<ConfigOption<?>, Object> entry : initMap.entrySet()) {
+            options.put(entry.getKey().key(), entry.getValue());
+        }
     }
 
     /**
-     * Creates the {@link org.rocksdb.ColumnFamilyOptions}for this pre-defined setting.
+     * Get a option value according to the pre-defined values. If not defined, return the default
+     * value.
      *
-     * @param handlesToClose The collection to register newly created {@link
-     *     org.rocksdb.RocksObject}s.
-     * @return The pre-defined options object.
+     * @param option the option.
+     * @param <T> the option value type.
+     * @return the value if defined, otherwise return the default value.
      */
-    public abstract ColumnFamilyOptions createColumnOptions(
-            Collection<AutoCloseable> handlesToClose);
-
-    /**
-     * @return The pre-defined options object.
-     * @deprecated use {@link #createColumnOptions(Collection)} instead.
-     */
-    public ColumnFamilyOptions createColumnOptions() {
-        return createColumnOptions(new ArrayList<>());
+    @Nullable
+    @SuppressWarnings("unchecked")
+    <T> T getValue(ConfigOption<T> option) {
+        Object value = options.get(option.key());
+        if (value == null) {
+            value = option.defaultValue();
+        }
+        if (value == null) {
+            return null;
+        }
+        return (T) value;
     }
 }

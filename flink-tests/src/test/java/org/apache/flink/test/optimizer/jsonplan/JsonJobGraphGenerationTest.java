@@ -40,6 +40,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -86,6 +87,11 @@ public class JsonJobGraphGenerationTest {
         if (err != null) {
             System.setOut(err);
         }
+    }
+
+    @AfterClass
+    public static void resetContextEnvironment() {
+        TestingExecutionEnvironment.unset();
     }
 
     @Test
@@ -366,6 +372,10 @@ public class JsonJobGraphGenerationTest {
                             return env;
                         }
                     });
+        }
+
+        public static void unset() {
+            ExecutionEnvironment.resetContextEnvironment();
         }
     }
 }

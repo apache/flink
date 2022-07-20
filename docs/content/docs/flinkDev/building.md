@@ -31,12 +31,11 @@ This page covers how to build Flink {{< version >}} from sources.
 
 ## Build Flink
 
-In order to build Flink you need the source code. Either [download the source of a release](https://flink.apache.org/downloads.html) or [clone the git repository]({{< github_repo >}}).
+In order to build Flink you need the source code. Either [download the source of a release]({{< downloads >}}) or [clone the git repository]({{< github_repo >}}).
 
-In addition you need **Maven 3** and a **JDK** (Java Development Kit). Flink requires **at least Java 8** to build.
+In addition you need **Maven 3** and a **JDK** (Java Development Kit). Flink requires **at least Java 11** to build.
 
-*NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.2.5 creates the libraries properly.
-To build unit tests use Java 8u51 or above to prevent failures in unit tests that use the PowerMock runner.*
+*NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.2.5 creates the libraries properly.*
 
 To clone from git, enter:
 
@@ -52,11 +51,20 @@ mvn clean install -DskipTests
 
 This instructs [Maven](http://maven.apache.org) (`mvn`) to first remove all existing builds (`clean`) and then create a new Flink binary (`install`).
 
-To speed up the build you can skip tests, QA plugins, and JavaDocs:
+To speed up the build you can:
+- skip tests by using ' -DskipTests'
+- skip QA plugins and javadoc generation by using the `fast` Maven profile
+- skip the WebUI compilation by using the `skip-webui-build` Maven profile
+- use Maven's parallel build feature, e.g., 'mvn package -T 1C' will attempt to build 1 module for each CPU core in parallel.
+  {{< hint warning >}}
+  Parallel builds may deadlock due to a bug in the maven-shade-plugin. It is recommended to only use it as a 2 steps process, where you first run `mvn validate/test-compile/test` in parallel, and then run `mvn package/verify/install` with a single thread.
+  {{< /hint >}}
 
+The build script will be:
 ```bash
-mvn clean install -DskipTests -Dfast
+mvn clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
 ```
+The `fast` and `skip-webui-build` profiles have a significant impact on the build time, particularly on slower storage devices, due to them reading/writing many small files.
 
 ## Build PyFlink
 
@@ -66,11 +74,11 @@ mvn clean install -DskipTests -Dfast
 
     If you want to build a PyFlink package that can be used for pip installation, you need to build the Flink project first, as described in [Build Flink](#build-flink).
 
-2. Python version(3.6, 3.7 or 3.8) is required
+2. Python version(3.6, 3.7, 3.8 or 3.9) is required
 
     ```shell
     $ python --version
-    # the version printed here must be 3.6, 3.7 or 3.8
+    # the version printed here must be 3.6, 3.7, 3.8 or 3.9
     ```
 
 3. Build PyFlink with Cython extension support (optional)
@@ -89,22 +97,22 @@ mvn clean install -DskipTests -Dfast
 
 #### Installation
 
-Then go to the root directory of flink source code and run this command to build the sdist package and wheel package of apache-flink and apache-flink-libraries:
+Then go to the root directory of flink source code and run this command to build the sdist package and wheel package of `apache-flink` and `apache-flink-libraries`:
 
 ```bash
-cd flink-python; python setup.py sdist bdist_wheel; cd apache-flink-libraries; python setup.py sdist bdist_wheel; cd ..;
+cd flink-python; python setup.py sdist bdist_wheel; cd apache-flink-libraries; python setup.py sdist; cd ..;
 ```
 
-The sdist and wheel packages of will be found under `./flink-python/apache-flink-libraries/dist/`. Either of them could be used for pip installation, such as:
+The sdist package of `apache-flink-libraries` will be found under `./flink-python/apache-flink-libraries/dist/`. It could be installed as following:
 
 ```bash
 python -m pip install apache-flink-libraries/dist/*.tar.gz
 ```
 
-The sdist and wheel packages of will be found under `./flink-python/dist/`. Either of them could be used for pip installation, such as:
+The sdist and wheel packages of `apache-flink` will be found under `./flink-python/dist/`. Either of them could be used for installation, such as:
 
 ```bash
-python -m pip install dist/*.tar.gz
+python -m pip install dist/*.whl
 ```
 
 ## Dependency Shading

@@ -29,6 +29,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.UUID;
 
 /**
  * A {@link MessageHeaders} for testing purpose. Its request body, response body and message
@@ -42,15 +43,24 @@ public class TestEmptyMessageHeaders
 
     private final String url;
     private final String description;
+    private final String operationId;
 
     public TestEmptyMessageHeaders() {
-        this.url = URL;
-        this.description = DESCRIPTION;
+        this(URL, DESCRIPTION, UUID.randomUUID().toString());
     }
 
     public TestEmptyMessageHeaders(String url, String description) {
+        this(url, description, UUID.randomUUID().toString());
+    }
+
+    public TestEmptyMessageHeaders(String operationId) {
+        this(URL, DESCRIPTION, operationId);
+    }
+
+    private TestEmptyMessageHeaders(String url, String description, String operationId) {
         this.url = url;
         this.description = description;
+        this.operationId = operationId;
     }
 
     @Override
@@ -71,6 +81,11 @@ public class TestEmptyMessageHeaders
     @Override
     public HttpResponseStatus getResponseStatusCode() {
         return HttpResponseStatus.OK;
+    }
+
+    @Override
+    public String operationId() {
+        return operationId;
     }
 
     @Override

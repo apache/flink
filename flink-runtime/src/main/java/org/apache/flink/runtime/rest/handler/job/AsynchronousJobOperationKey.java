@@ -37,6 +37,8 @@ import static java.util.Objects.requireNonNull;
 @Immutable
 public class AsynchronousJobOperationKey extends OperationKey {
 
+    private static final long serialVersionUID = -4907777251835275859L;
+
     private final JobID jobId;
 
     private AsynchronousJobOperationKey(final TriggerId triggerId, final JobID jobId) {
@@ -46,6 +48,15 @@ public class AsynchronousJobOperationKey extends OperationKey {
 
     public static AsynchronousJobOperationKey of(final TriggerId triggerId, final JobID jobId) {
         return new AsynchronousJobOperationKey(triggerId, jobId);
+    }
+
+    /**
+     * Get the job id for the given operation key.
+     *
+     * @return job id
+     */
+    public JobID getJobId() {
+        return jobId;
     }
 
     @Override
@@ -69,5 +80,16 @@ public class AsynchronousJobOperationKey extends OperationKey {
     @Override
     public int hashCode() {
         return Objects.hash(super.hashCode(), jobId);
+    }
+
+    @Override
+    public String toString() {
+        return getClass().getSimpleName()
+                + "{"
+                + "triggerId="
+                + getTriggerId()
+                + ", jobId="
+                + jobId
+                + '}';
     }
 }

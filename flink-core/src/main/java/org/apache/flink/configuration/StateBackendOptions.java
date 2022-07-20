@@ -88,4 +88,12 @@ public class StateBackendOptions {
                     .defaultValue(128)
                     .withDescription(
                             "Defines the number of measured latencies to maintain at each state access operation.");
+
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_LATENCY_TRACKING)
+    public static final ConfigOption<Boolean> LATENCY_TRACK_STATE_NAME_AS_VARIABLE =
+            ConfigOptions.key("state.backend.latency-track.state-name-as-variable")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether to expose state name as a variable if tracking latency.");
 }

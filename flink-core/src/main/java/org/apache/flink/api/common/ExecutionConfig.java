@@ -24,16 +24,21 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.util.Preconditions;
 
 import com.esotericsoftware.kryo.Serializer;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -42,6 +47,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -124,12 +130,21 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     private boolean forceAvro = false;
     private long autoWatermarkInterval = 200;
 
+    // ---------- statebackend related configurations ------------------------------
     /**
      * Interval in milliseconds for sending latency tracking marks from the sources to the sinks.
      */
     private long latencyTrackingInterval = MetricOptions.LATENCY_INTERVAL.defaultValue();
 
     private boolean isLatencyTrackingConfigured = false;
+
+    /** Interval in milliseconds to perform periodic changelog materialization. */
+    private long periodicMaterializeIntervalMillis =
+            StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL.defaultValue().toMillis();
+
+    /** Max allowed number of consecutive failures for changelog materialization */
+    private int materializationMaxAllowedFailures =
+            StateChangelogOptions.MATERIALIZATION_MAX_FAILURES_ALLOWED.defaultValue();
 
     /**
      * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
@@ -138,6 +153,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
     private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
             new RestartStrategies.FallbackRestartStrategyConfiguration();
+
+    private boolean isDynamicGraph = false;
 
     private long taskCancellationIntervalMillis = -1;
 
@@ -276,6 +293,26 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     @Internal
     public boolean isLatencyTrackingConfigured() {
         return isLatencyTrackingConfigured;
+    }
+
+    @Internal
+    public long getPeriodicMaterializeIntervalMillis() {
+        return periodicMaterializeIntervalMillis;
+    }
+
+    @Internal
+    public void setPeriodicMaterializeIntervalMillis(Duration periodicMaterializeInterval) {
+        this.periodicMaterializeIntervalMillis = periodicMaterializeInterval.toMillis();
+    }
+
+    @Internal
+    public int getMaterializationMaxAllowedFailures() {
+        return materializationMaxAllowedFailures;
+    }
+
+    @Internal
+    public void setMaterializationMaxAllowedFailures(int materializationMaxAllowedFailures) {
+        this.materializationMaxAllowedFailures = materializationMaxAllowedFailures;
     }
 
     /**
@@ -435,6 +472,16 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         } else {
             return restartStrategyConfiguration;
         }
+    }
+
+    @Internal
+    public void setDynamicGraph(boolean dynamicGraph) {
+        isDynamicGraph = dynamicGraph;
+    }
+
+    @Internal
+    public boolean isDynamicGraph() {
+        return isDynamicGraph;
     }
 
     /**
@@ -903,7 +950,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                     && registeredKryoTypes.equals(other.registeredKryoTypes)
                     && registeredPojoTypes.equals(other.registeredPojoTypes)
                     && taskCancellationIntervalMillis == other.taskCancellationIntervalMillis
-                    && useSnapshotCompression == other.useSnapshotCompression;
+                    && useSnapshotCompression == other.useSnapshotCompression
+                    && isDynamicGraph == other.isDynamicGraph;
 
         } else {
             return false;
@@ -929,7 +977,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 registeredKryoTypes,
                 registeredPojoTypes,
                 taskCancellationIntervalMillis,
-                useSnapshotCompression);
+                useSnapshotCompression,
+                isDynamicGraph);
     }
 
     @Override
@@ -987,6 +1036,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 + registeredKryoTypes
                 + ", registeredPojoTypes="
                 + registeredPojoTypes
+                + ", isDynamicGraph="
+                + isDynamicGraph
                 + '}';
     }
 
@@ -1052,15 +1103,23 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     }
 
     /** Configuration settings for the closure cleaner. */
-    public enum ClosureCleanerLevel {
-        /** Disable the closure cleaner completely. */
-        NONE,
+    public enum ClosureCleanerLevel implements DescribedEnum {
+        NONE(text("Disables the closure cleaner completely.")),
 
-        /** Clean only the top-level class without recursing into fields. */
-        TOP_LEVEL,
+        TOP_LEVEL(text("Cleans only the top-level class without recursing into fields.")),
 
-        /** Clean all the fields recursively. */
-        RECURSIVE
+        RECURSIVE(text("Cleans all fields recursively."));
+
+        private final InlineElement description;
+
+        ClosureCleanerLevel(InlineElement description) {
+            this.description = description;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 
     /**
@@ -1101,6 +1160,13 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 .ifPresent(this::setLatencyTrackingInterval);
 
         configuration
+                .getOptional(StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL)
+                .ifPresent(this::setPeriodicMaterializeIntervalMillis);
+        configuration
+                .getOptional(StateChangelogOptions.MATERIALIZATION_MAX_FAILURES_ALLOWED)
+                .ifPresent(this::setMaterializationMaxAllowedFailures);
+
+        configuration
                 .getOptional(PipelineOptions.MAX_PARALLELISM)
                 .ifPresent(this::setMaxParallelism);
         configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).ifPresent(this::setParallelism);
@@ -1131,6 +1197,14 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 .getOptional(PipelineOptions.KRYO_REGISTERED_CLASSES)
                 .map(c -> loadClasses(c, classLoader, "Could not load kryo type to be registered."))
                 .ifPresent(c -> this.registeredKryoTypes = c);
+
+        configuration
+                .getOptional(JobManagerOptions.SCHEDULER)
+                .ifPresent(
+                        schedulerType ->
+                                this.setDynamicGraph(
+                                        schedulerType
+                                                == JobManagerOptions.SchedulerType.AdaptiveBatch));
     }
 
     private LinkedHashSet<Class<?>> loadClasses(

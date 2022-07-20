@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StateHandleID;
@@ -42,6 +43,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -59,10 +61,30 @@ public class RocksDBStateUploaderTest extends TestLogger {
         SpecifiedException expectedException =
                 new SpecifiedException("throw exception while multi thread upload states.");
 
-        CheckpointStreamFactory.CheckpointStateOutputStream outputStream =
+        CheckpointStateOutputStream outputStream =
                 createFailingCheckpointStateOutputStream(expectedException);
         CheckpointStreamFactory checkpointStreamFactory =
-                (CheckpointedStateScope scope) -> outputStream;
+                new CheckpointStreamFactory() {
+                    @Override
+                    public CheckpointStateOutputStream createCheckpointStateOutputStream(
+                            CheckpointedStateScope scope) throws IOException {
+                        return outputStream;
+                    }
+
+                    @Override
+                    public boolean canFastDuplicate(
+                            StreamStateHandle stateHandle, CheckpointedStateScope scope)
+                            throws IOException {
+                        return false;
+                    }
+
+                    @Override
+                    public List<StreamStateHandle> duplicate(
+                            List<StreamStateHandle> stateHandles, CheckpointedStateScope scope)
+                            throws IOException {
+                        return null;
+                    }
+                };
 
         File file = temporaryFolder.newFile(String.valueOf(UUID.randomUUID()));
         generateRandomFileContent(file.getPath(), 20);
@@ -71,7 +93,10 @@ public class RocksDBStateUploaderTest extends TestLogger {
         filePaths.put(new StateHandleID("mockHandleID"), file.toPath());
         try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(5)) {
             rocksDBStateUploader.uploadFilesToCheckpointFs(
-                    filePaths, checkpointStreamFactory, new CloseableRegistry());
+                    filePaths,
+                    checkpointStreamFactory,
+                    CheckpointedStateScope.SHARED,
+                    new CloseableRegistry());
             fail();
         } catch (Exception e) {
             assertEquals(expectedException, e);
@@ -110,7 +135,10 @@ public class RocksDBStateUploaderTest extends TestLogger {
         try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(5)) {
             Map<StateHandleID, StreamStateHandle> sstFiles =
                     rocksDBStateUploader.uploadFilesToCheckpointFs(
-                            sstFilePaths, checkpointStreamFactory, new CloseableRegistry());
+                            sstFilePaths,
+                            checkpointStreamFactory,
+                            CheckpointedStateScope.SHARED,
+                            new CloseableRegistry());
 
             for (Map.Entry<StateHandleID, Path> entry : sstFilePaths.entrySet()) {
                 assertStateContentEqual(
@@ -119,9 +147,9 @@ public class RocksDBStateUploaderTest extends TestLogger {
         }
     }
 
-    private CheckpointStreamFactory.CheckpointStateOutputStream
-            createFailingCheckpointStateOutputStream(IOException failureException) {
-        return new CheckpointStreamFactory.CheckpointStateOutputStream() {
+    private CheckpointStateOutputStream createFailingCheckpointStateOutputStream(
+            IOException failureException) {
+        return new CheckpointStateOutputStream() {
             @Nullable
             @Override
             public StreamStateHandle closeAndGetHandle() {

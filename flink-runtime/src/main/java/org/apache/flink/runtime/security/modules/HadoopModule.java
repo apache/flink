@@ -92,13 +92,14 @@ public class HadoopModule implements SecurityModule {
                     // and does not fallback to using Kerberos tickets
                     Credentials credentialsToBeAdded = new Credentials();
                     final Text hdfsDelegationTokenKind = new Text("HDFS_DELEGATION_TOKEN");
+                    final Text hbaseDelegationTokenKind = new Text("HBASE_AUTH_TOKEN");
                     Collection<Token<? extends TokenIdentifier>> usrTok =
                             credentialsFromTokenStorageFile.getAllTokens();
-                    // If UGI use keytab for login, do not load HDFS delegation token.
+                    // If UGI use keytab for login, do not load HDFS/HBase delegation token.
                     for (Token<? extends TokenIdentifier> token : usrTok) {
-                        if (!token.getKind().equals(hdfsDelegationTokenKind)) {
-                            final Text id = new Text(token.getIdentifier());
-                            credentialsToBeAdded.addToken(id, token);
+                        if (!token.getKind().equals(hdfsDelegationTokenKind)
+                                && !token.getKind().equals(hbaseDelegationTokenKind)) {
+                            credentialsToBeAdded.addToken(token.getService(), token);
                         }
                     }
 

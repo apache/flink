@@ -20,15 +20,22 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.connector.kafka.sink.KafkaSink;
+import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumState;
+import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.formats.avro.AvroRowDataSerializationSchema;
 import org.apache.flink.formats.avro.RowDataToAvroConverters;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroSerializationSchema;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
@@ -37,14 +44,17 @@ import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkFunctionProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
+import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestFormatFactory;
+import org.apache.flink.table.factories.utils.FactoryMocks;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.AtomicDataType;
@@ -61,17 +71,15 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.AVRO_CONFLUENT;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.AVRO_CONFLUENT;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link UpsertKafkaDynamicTableFactory}. */
 public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
@@ -150,16 +158,12 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                         null,
                         SOURCE_TOPIC,
                         UPSERT_KAFKA_SOURCE_PROPERTIES);
-        assertEquals(actualSource, expectedSource);
+        assertThat(actualSource).isEqualTo(expectedSource);
 
         final KafkaDynamicSource actualUpsertKafkaSource = (KafkaDynamicSource) actualSource;
         ScanTableSource.ScanRuntimeProvider provider =
                 actualUpsertKafkaSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
-        assertThat(provider, instanceOf(SourceFunctionProvider.class));
-        final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
-        final SourceFunction<RowData> sourceFunction =
-                sourceFunctionProvider.createSourceFunction();
-        assertThat(sourceFunction, instanceOf(FlinkKafkaConsumer.class));
+        assertKafkaSource(provider);
     }
 
     @Test
@@ -177,22 +181,24 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                         null,
                         SINK_TOPIC,
                         UPSERT_KAFKA_SINK_PROPERTIES,
+                        DeliveryGuarantee.AT_LEAST_ONCE,
                         SinkBufferFlushMode.DISABLED,
                         null);
 
         // Test sink format.
         final KafkaDynamicSink actualUpsertKafkaSink = (KafkaDynamicSink) actualSink;
-        assertEquals(expectedSink, actualSink);
+        assertThat(actualSink).isEqualTo(expectedSink);
 
         // Test kafka producer.
         DynamicTableSink.SinkRuntimeProvider provider =
                 actualUpsertKafkaSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        assertThat(provider, instanceOf(SinkFunctionProvider.class));
-        final SinkFunctionProvider sinkFunctionProvider = (SinkFunctionProvider) provider;
-        final SinkFunction<RowData> sinkFunction = sinkFunctionProvider.createSinkFunction();
-        assertThat(sinkFunction, instanceOf(FlinkKafkaProducer.class));
+        assertThat(provider).isInstanceOf(SinkV2Provider.class);
+        final SinkV2Provider sinkFunctionProvider = (SinkV2Provider) provider;
+        final Sink<RowData> sink = sinkFunctionProvider.createSink();
+        assertThat(sink).isInstanceOf(KafkaSink.class);
     }
 
+    @SuppressWarnings("rawtypes")
     @Test
     public void testBufferedTableSink() {
         // Construct table sink using options and table sink factory.
@@ -216,20 +222,35 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                         null,
                         SINK_TOPIC,
                         UPSERT_KAFKA_SINK_PROPERTIES,
+                        DeliveryGuarantee.AT_LEAST_ONCE,
                         new SinkBufferFlushMode(100, 1000L),
                         null);
 
         // Test sink format.
         final KafkaDynamicSink actualUpsertKafkaSink = (KafkaDynamicSink) actualSink;
-        assertEquals(expectedSink, actualSink);
+        assertThat(actualSink).isEqualTo(expectedSink);
 
         // Test kafka producer.
         DynamicTableSink.SinkRuntimeProvider provider =
                 actualUpsertKafkaSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        assertThat(provider, instanceOf(SinkFunctionProvider.class));
-        final SinkFunctionProvider sinkFunctionProvider = (SinkFunctionProvider) provider;
-        final SinkFunction<RowData> sinkFunction = sinkFunctionProvider.createSinkFunction();
-        assertThat(sinkFunction, instanceOf(BufferedUpsertSinkFunction.class));
+        assertThat(provider).isInstanceOf(DataStreamSinkProvider.class);
+        final DataStreamSinkProvider sinkProvider = (DataStreamSinkProvider) provider;
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        sinkProvider.consumeDataStream(
+                n -> Optional.empty(), env.fromElements(new BinaryRowData(1)));
+        final StreamOperatorFactory<?> sinkOperatorFactory =
+                env.getStreamGraph().getStreamNodes().stream()
+                        .filter(n -> n.getOperatorName().contains("Writer"))
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "Expected operator with name Sink in stream graph."))
+                        .getOperatorFactory();
+        assertThat(sinkOperatorFactory).isInstanceOf(SinkWriterOperatorFactory.class);
+        org.apache.flink.api.connector.sink2.Sink sink =
+                ((SinkWriterOperatorFactory) sinkOperatorFactory).getSink();
+        assertThat(sink).isInstanceOf(ReducingUpsertSink.class);
     }
 
     @Test
@@ -249,16 +270,17 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                         null,
                         SINK_TOPIC,
                         UPSERT_KAFKA_SINK_PROPERTIES,
+                        DeliveryGuarantee.AT_LEAST_ONCE,
                         SinkBufferFlushMode.DISABLED,
                         100);
-        assertEquals(expectedSink, actualSink);
+        assertThat(actualSink).isEqualTo(expectedSink);
 
         final DynamicTableSink.SinkRuntimeProvider provider =
                 actualSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        assertThat(provider, instanceOf(SinkFunctionProvider.class));
-        final SinkFunctionProvider sinkFunctionProvider = (SinkFunctionProvider) provider;
-        assertTrue(sinkFunctionProvider.getParallelism().isPresent());
-        assertEquals(100, (long) sinkFunctionProvider.getParallelism().get());
+        assertThat(provider).isInstanceOf(SinkV2Provider.class);
+        final SinkV2Provider sinkProvider = (SinkV2Provider) provider;
+        assertThat(sinkProvider.getParallelism()).isPresent();
+        assertThat((long) sinkProvider.getParallelism().get()).isEqualTo(100);
     }
 
     @Test
@@ -267,9 +289,9 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         verifyEncoderSubject(
                 options -> {
                     options.put("value.format", "avro-confluent");
-                    options.put("value.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("value.avro-confluent.url", TEST_REGISTRY_URL);
                     options.put("key.format", "avro-confluent");
-                    options.put("key.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("key.avro-confluent.url", TEST_REGISTRY_URL);
                 },
                 DEFAULT_VALUE_SUBJECT,
                 DEFAULT_KEY_SUBJECT);
@@ -278,7 +300,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         verifyEncoderSubject(
                 options -> {
                     options.put("value.format", "avro-confluent");
-                    options.put("value.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("value.avro-confluent.url", TEST_REGISTRY_URL);
                     options.put("key.format", "csv");
                 },
                 DEFAULT_VALUE_SUBJECT,
@@ -289,7 +311,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                 options -> {
                     options.put("value.format", "json");
                     options.put("key.format", "avro-confluent");
-                    options.put("key.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("key.avro-confluent.url", TEST_REGISTRY_URL);
                 },
                 "N/A",
                 DEFAULT_KEY_SUBJECT);
@@ -298,10 +320,10 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         verifyEncoderSubject(
                 options -> {
                     options.put("value.format", "avro-confluent");
-                    options.put("value.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("value.avro-confluent.url", TEST_REGISTRY_URL);
                     options.put("key.format", "avro-confluent");
-                    options.put("key.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
-                    options.put("key.avro-confluent.schema-registry.subject", "sub2");
+                    options.put("key.avro-confluent.url", TEST_REGISTRY_URL);
+                    options.put("key.avro-confluent.subject", "sub2");
                 },
                 DEFAULT_VALUE_SUBJECT,
                 "sub2");
@@ -310,10 +332,10 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         verifyEncoderSubject(
                 options -> {
                     options.put("value.format", "avro-confluent");
-                    options.put("value.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
-                    options.put("value.avro-confluent.schema-registry.subject", "sub1");
+                    options.put("value.avro-confluent.url", TEST_REGISTRY_URL);
+                    options.put("value.avro-confluent.subject", "sub1");
                     options.put("key.format", "avro-confluent");
-                    options.put("key.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("key.avro-confluent.url", TEST_REGISTRY_URL);
                 },
                 "sub1",
                 DEFAULT_KEY_SUBJECT);
@@ -334,8 +356,9 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         final RowType rowType = (RowType) SINK_SCHEMA.toSinkRowDataType().getLogicalType();
         final String valueFormat =
                 options.getOrDefault(
-                        FactoryUtil.FORMAT.key(), options.get(KafkaOptions.VALUE_FORMAT.key()));
-        final String keyFormat = options.get(KafkaOptions.KEY_FORMAT.key());
+                        FactoryUtil.FORMAT.key(),
+                        options.get(KafkaConnectorOptions.VALUE_FORMAT.key()));
+        final String keyFormat = options.get(KafkaConnectorOptions.KEY_FORMAT.key());
 
         KafkaDynamicSink sink = (KafkaDynamicSink) createTableSink(SINK_SCHEMA, options);
 
@@ -343,18 +366,17 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
             SerializationSchema<RowData> actualValueEncoder =
                     sink.valueEncodingFormat.createRuntimeEncoder(
                             new SinkRuntimeProviderContext(false), SINK_SCHEMA.toSinkRowDataType());
-            assertEquals(
-                    createConfluentAvroSerSchema(rowType, expectedValueSubject),
-                    actualValueEncoder);
+            assertThat(actualValueEncoder)
+                    .isEqualTo(createConfluentAvroSerSchema(rowType, expectedValueSubject));
         }
 
         if (AVRO_CONFLUENT.equals(keyFormat)) {
-            assert sink.keyEncodingFormat != null;
+            assertThat(sink.keyEncodingFormat).isNotNull();
             SerializationSchema<RowData> actualKeyEncoder =
                     sink.keyEncodingFormat.createRuntimeEncoder(
                             new SinkRuntimeProviderContext(false), SINK_SCHEMA.toSinkRowDataType());
-            assertEquals(
-                    createConfluentAvroSerSchema(rowType, expectedKeySubject), actualKeyEncoder);
+            assertThat(actualKeyEncoder)
+                    .isEqualTo(createConfluentAvroSerSchema(rowType, expectedKeySubject));
         }
     }
 
@@ -565,7 +587,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         return options;
     }
 
-    private static KafkaDynamicSource createExpectedScanSource(
+    private KafkaDynamicSource createExpectedScanSource(
             DataType producedDataType,
             DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
             DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat,
@@ -587,7 +609,8 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                 StartupMode.EARLIEST,
                 Collections.emptyMap(),
                 0,
-                true);
+                true,
+                FactoryMocks.IDENTIFIER.asSummaryString());
     }
 
     private static KafkaDynamicSink createExpectedSink(
@@ -599,6 +622,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
             String keyPrefix,
             String topic,
             Properties properties,
+            DeliveryGuarantee deliveryGuarantee,
             SinkBufferFlushMode flushMode,
             Integer parallelism) {
         return new KafkaDynamicSink(
@@ -612,9 +636,27 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                 topic,
                 properties,
                 null,
-                KafkaSinkSemantic.AT_LEAST_ONCE,
+                deliveryGuarantee,
                 true,
                 flushMode,
-                parallelism);
+                parallelism,
+                null);
+    }
+
+    private void assertKafkaSource(ScanTableSource.ScanRuntimeProvider provider) {
+        assertThat(provider).isInstanceOf(DataStreamScanProvider.class);
+        final DataStreamScanProvider dataStreamScanProvider = (DataStreamScanProvider) provider;
+        final Transformation<RowData> transformation =
+                dataStreamScanProvider
+                        .produceDataStream(
+                                n -> Optional.empty(),
+                                StreamExecutionEnvironment.createLocalEnvironment())
+                        .getTransformation();
+        assertThat(transformation).isInstanceOf(SourceTransformation.class);
+        SourceTransformation<RowData, KafkaPartitionSplit, KafkaSourceEnumState>
+                sourceTransformation =
+                        (SourceTransformation<RowData, KafkaPartitionSplit, KafkaSourceEnumState>)
+                                transformation;
+        assertThat(sourceTransformation.getSource()).isInstanceOf(KafkaSource.class);
     }
 }

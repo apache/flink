@@ -95,11 +95,11 @@ function start_hadoop_cluster() {
 
 function build_image() {
     echo "Predownloading Hadoop tarball"
-    cache_path=$(get_artifact "http://archive.apache.org/dist/hadoop/common/hadoop-2.8.4/hadoop-2.8.4.tar.gz")
-    ln "$cache_path" "$END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/hadoop-2.8.4.tar.gz"
+    cache_path=$(get_artifact "http://archive.apache.org/dist/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz")
+    ln "$cache_path" "$END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/hadoop-2.8.5.tar.gz"
 
     echo "Building Hadoop Docker container"
-    docker build --build-arg HADOOP_VERSION=2.8.4 \
+    docker build --build-arg HADOOP_VERSION=2.8.5 \
         -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/Dockerfile \
         -t flink/docker-hadoop-secure-cluster:latest \
         $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/
@@ -197,7 +197,7 @@ function wait_for_single_yarn_application {
 
     echo "Application ID: $application_id"
 
-    # wait for the application to finish succesfully
+    # wait for the application to finish successfully
     start_time=$(date +%s)
     application_state="UNDEFINED"
     while [[ $application_state != "FINISHED" ]]; do

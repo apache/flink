@@ -18,11 +18,13 @@
 
 package org.apache.flink.formats.avro.glue.schema.registry;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.formats.avro.SchemaCoder;
 
 import java.util.Map;
 
 /** Provider for {@link GlueSchemaRegistryAvroSchemaCoder}. */
+@PublicEvolving
 public class GlueSchemaRegistryAvroSchemaCoderProvider implements SchemaCoder.SchemaCoderProvider {
     private final String transportName;
     private final Map<String, Object> configs;

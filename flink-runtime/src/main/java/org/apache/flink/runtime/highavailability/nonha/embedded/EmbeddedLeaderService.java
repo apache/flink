@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

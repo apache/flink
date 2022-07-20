@@ -19,12 +19,14 @@
 package org.apache.flink.runtime.scheduler.exceptionhistory;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.Set;
+import java.util.Collections;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -36,7 +38,7 @@ public class RootExceptionHistoryEntry extends ExceptionHistoryEntry {
 
     private static final long serialVersionUID = -7647332765867297434L;
 
-    private final Set<ExceptionHistoryEntry> concurrentExceptions;
+    private final Iterable<ExceptionHistoryEntry> concurrentExceptions;
 
     /**
      * Creates a {@code RootExceptionHistoryEntry} based on the passed {@link
@@ -84,6 +86,30 @@ public class RootExceptionHistoryEntry extends ExceptionHistoryEntry {
         return createRootExceptionHistoryEntry(cause, timestamp, null, null, executions);
     }
 
+    public static RootExceptionHistoryEntry fromExceptionHistoryEntry(
+            ExceptionHistoryEntry entry, Iterable<ExceptionHistoryEntry> entries) {
+        return new RootExceptionHistoryEntry(
+                entry.getException(), entry.getTimestamp(), null, null, entries);
+    }
+
+    /**
+     * Creates a {@code RootExceptionHistoryEntry} based on the passed {@link ErrorInfo}. No
+     * concurrent failures will be added.
+     *
+     * @param errorInfo The failure information that shall be used to initialize the {@code
+     *     RootExceptionHistoryEntry}.
+     * @return The {@code RootExceptionHistoryEntry} instance.
+     * @throws NullPointerException if {@code errorInfo} is {@code null} or the passed info does not
+     *     contain a {@code Throwable}.
+     * @throws IllegalArgumentException if the passed {@code timestamp} is not bigger than {@code
+     *     0}.
+     */
+    public static RootExceptionHistoryEntry fromGlobalFailure(ErrorInfo errorInfo) {
+        Preconditions.checkNotNull(errorInfo, "errorInfo");
+        return fromGlobalFailure(
+                errorInfo.getException(), errorInfo.getTimestamp(), Collections.emptyList());
+    }
+
     private static RootExceptionHistoryEntry createRootExceptionHistoryEntry(
             Throwable cause,
             long timestamp,
@@ -101,7 +127,7 @@ public class RootExceptionHistoryEntry extends ExceptionHistoryEntry {
                                 execution ->
                                         ExceptionHistoryEntry.create(
                                                 execution, execution.getVertexWithAttempt()))
-                        .collect(Collectors.toSet()));
+                        .collect(Collectors.toList()));
     }
 
     /**
@@ -121,7 +147,7 @@ public class RootExceptionHistoryEntry extends ExceptionHistoryEntry {
             long timestamp,
             @Nullable String failingTaskName,
             @Nullable TaskManagerLocation taskManagerLocation,
-            Set<ExceptionHistoryEntry> concurrentExceptions) {
+            Iterable<ExceptionHistoryEntry> concurrentExceptions) {
         super(cause, timestamp, failingTaskName, taskManagerLocation);
         this.concurrentExceptions = concurrentExceptions;
     }

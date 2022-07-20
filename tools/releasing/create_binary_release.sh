@@ -24,7 +24,7 @@ SCALA_VERSION=${SCALA_VERSION:-none}
 SKIP_GPG=${SKIP_GPG:-false}
 MVN=${MVN:-mvn}
 
-if [ -z "${RELEASE_VERSION}" ]; then
+if [ -z "${RELEASE_VERSION:-}" ]; then
     echo "RELEASE_VERSION was not set."
     exit 1
 fi
@@ -66,8 +66,6 @@ make_binary_release() {
 
   if [ $SCALA_VERSION = "2.12" ]; then
       FLAGS="-Dscala-2.12"
-  elif [ $SCALA_VERSION = "2.11" ]; then
-      FLAGS="-Dscala-2.11"
   else
       echo "Invalid Scala version ${SCALA_VERSION}"
   fi
@@ -131,8 +129,8 @@ make_python_release() {
   cp ${pyflink_actual_name} "${PYTHON_RELEASE_DIR}/${pyflink_release_name}"
 
   wheel_packages_num=0
-  # py36,py37,py38 for mac and linux (6 wheel packages)
-  EXPECTED_WHEEL_PACKAGES_NUM=6
+  # py36,py37,py38,py39 for mac and linux (10 wheel packages)
+  EXPECTED_WHEEL_PACKAGES_NUM=10
   # Need to move the downloaded wheel packages from Azure CI to the directory flink-python/dist manually.
   for wheel_file in *.whl; do
     if [[ ! ${wheel_file} =~ ^apache_flink-$PYFLINK_VERSION- ]]; then
@@ -169,7 +167,6 @@ make_python_release() {
 
 if [ "$SCALA_VERSION" == "none" ]; then
   make_binary_release "2.12"
-  make_binary_release "2.11"
   make_python_release
 else
   make_binary_release "$SCALA_VERSION"

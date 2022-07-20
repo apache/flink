@@ -20,6 +20,8 @@ package org.apache.flink.runtime.state.ttl.mock;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
+import org.apache.flink.runtime.state.CheckpointStateToolset;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
@@ -27,8 +29,12 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
 import javax.annotation.Nullable;
+
+import java.io.IOException;
+import java.util.List;
 
 public class MockCheckpointStorage implements CheckpointStorage {
     @Override
@@ -55,7 +61,7 @@ public class MockCheckpointStorage implements CheckpointStorage {
             }
 
             @Override
-            public void initializeBaseLocations() {}
+            public void initializeBaseLocationsForCheckpoint() {}
 
             @Override
             public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId) {
@@ -64,6 +70,19 @@ public class MockCheckpointStorage implements CheckpointStorage {
                     @Override
                     public CheckpointStateOutputStream createCheckpointStateOutputStream(
                             CheckpointedStateScope scope) {
+                        return null;
+                    }
+
+                    @Override
+                    public boolean canFastDuplicate(
+                            StreamStateHandle stateHandle, CheckpointedStateScope scope) {
+                        return false;
+                    }
+
+                    @Override
+                    public List<StreamStateHandle> duplicate(
+                            List<StreamStateHandle> stateHandles, CheckpointedStateScope scope)
+                            throws IOException {
                         return null;
                     }
 
@@ -95,8 +114,12 @@ public class MockCheckpointStorage implements CheckpointStorage {
             }
 
             @Override
-            public CheckpointStreamFactory.CheckpointStateOutputStream
-                    createTaskOwnedStateStream() {
+            public CheckpointStateOutputStream createTaskOwnedStateStream() {
+                return null;
+            }
+
+            @Override
+            public CheckpointStateToolset createTaskOwnedCheckpointStateToolset() {
                 return null;
             }
         };

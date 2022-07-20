@@ -18,20 +18,31 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.SharedCount;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.VersionedValue;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionState;
+import org.apache.flink.shaded.curator5.com.google.common.collect.Sets;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.api.CuratorEvent;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.api.CuratorEventType;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.shared.SharedCount;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.shared.VersionedValue;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionState;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -76,15 +87,12 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
      * Creates a {@link ZooKeeperCheckpointIDCounter} instance.
      *
      * @param client Curator ZooKeeper client
-     * @param counterPath ZooKeeper path for the counter. It's sufficient to have a path per-job.
      */
     public ZooKeeperCheckpointIDCounter(
-            CuratorFramework client,
-            String counterPath,
-            LastStateConnectionStateListener connectionStateListener) {
+            CuratorFramework client, LastStateConnectionStateListener connectionStateListener) {
         this.client = checkNotNull(client, "Curator client");
-        this.counterPath = checkNotNull(counterPath, "Counter path");
-        this.sharedCount = new SharedCount(client, counterPath, 1);
+        this.counterPath = ZooKeeperUtils.getCheckpointIdCounterPath();
+        this.sharedCount = new SharedCount(client, counterPath, INITIAL_CHECKPOINT_ID);
         this.connectionStateListener = connectionStateListener;
     }
 
@@ -102,21 +110,64 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
     }
 
     @Override
-    public void shutdown(JobStatus jobStatus) throws Exception {
+    public CompletableFuture<Void> shutdown(JobStatus jobStatus) {
         synchronized (startStopLock) {
             if (isStarted) {
                 LOG.info("Shutting down.");
-                sharedCount.close();
+                try {
+                    sharedCount.close();
+                } catch (IOException e) {
+                    return FutureUtils.completedExceptionally(e);
+                }
 
                 client.getConnectionStateListenable().removeListener(connectionStateListener);
 
                 if (jobStatus.isGloballyTerminalState()) {
                     LOG.info("Removing {} from ZooKeeper", counterPath);
-                    client.delete().deletingChildrenIfNeeded().inBackground().forPath(counterPath);
+                    try {
+                        final CompletableFuture<Void> deletionFuture = new CompletableFuture<>();
+                        client.delete()
+                                .inBackground(
+                                        (curatorFramework, curatorEvent) ->
+                                                handleDeletionOfCounterPath(
+                                                        curatorEvent, deletionFuture))
+                                .forPath(counterPath);
+                        return deletionFuture;
+                    } catch (Exception e) {
+                        return FutureUtils.completedExceptionally(e);
+                    }
                 }
 
                 isStarted = false;
             }
+        }
+
+        return FutureUtils.completedVoidFuture();
+    }
+
+    private void handleDeletionOfCounterPath(
+            CuratorEvent curatorEvent, CompletableFuture<Void> deletionFuture) {
+        Preconditions.checkArgument(
+                curatorEvent.getType() == CuratorEventType.DELETE,
+                "An unexpected CuratorEvent was monitored: " + curatorEvent.getType());
+        Preconditions.checkArgument(
+                counterPath.endsWith(curatorEvent.getPath()),
+                "An unexpected path was selected for deletion: " + curatorEvent.getPath());
+
+        final KeeperException.Code eventCode =
+                KeeperException.Code.get(curatorEvent.getResultCode());
+        if (Sets.immutableEnumSet(KeeperException.Code.OK, KeeperException.Code.NONODE)
+                .contains(eventCode)) {
+            deletionFuture.complete(null);
+        } else {
+            final String namespacedCounterPath =
+                    ZooKeeperUtils.generateZookeeperPath(client.getNamespace(), counterPath);
+            deletionFuture.completeExceptionally(
+                    new FlinkException(
+                            String.format(
+                                    "An error occurred while shutting down the CheckpointIDCounter in path '%s'.",
+                                    namespacedCounterPath),
+                            KeeperException.create(eventCode, namespacedCounterPath)));
         }
     }
 
@@ -175,5 +226,10 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
                         throw new IllegalStateException("Connection state: " + lastState);
                     }
                 });
+    }
+
+    @VisibleForTesting
+    String getPath() {
+        return counterPath;
     }
 }

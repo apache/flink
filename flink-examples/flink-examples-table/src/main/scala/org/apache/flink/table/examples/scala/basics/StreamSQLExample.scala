@@ -17,23 +17,22 @@
  */
 package org.apache.flink.table.examples.scala.basics
 
-import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 
 /**
-  * Simple example for demonstrating the use of SQL on a Stream Table in Scala.
-  *
-  * <p>Usage: <code>StreamSQLExample --planner &lt;blink|flink&gt;</code><br>
-  *
-  * <p>This example shows how to:
-  *  - Convert DataStreams to Tables
-  *  - Register a Table under a name
-  *  - Run a StreamSQL query on the registered Table
-  *
-  */
+ * Simple example for demonstrating the use of SQL on a table backed by a [[DataStream]] in Scala
+ * DataStream API.
+ *
+ * In particular, the example shows how to
+ *   - convert two bounded data streams to tables,
+ *   - register a table as a view under a name,
+ *   - run a stream SQL query on registered and unregistered tables,
+ *   - and convert the insert-only table back to a data stream.
+ *
+ * The example executes a single Flink job. The results are written to stdout.
+ */
 object StreamSQLExample {
 
   // *************************************************************************
@@ -42,55 +41,38 @@ object StreamSQLExample {
 
   def main(args: Array[String]): Unit = {
 
-    val params = ParameterTool.fromArgs(args)
-    val planner = if (params.has("planner")) params.get("planner") else "blink"
-
-    // set up execution environment
+    // set up the Scala DataStream API
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = if (planner == "blink") {  // use blink planner in streaming mode
-      val settings = EnvironmentSettings.newInstance()
-          .useBlinkPlanner()
-          .inStreamingMode()
-          .build()
-      StreamTableEnvironment.create(env, settings)
-    } else if (planner == "flink") {  // use flink planner in streaming mode
-      val settings = EnvironmentSettings.newInstance()
-          .useOldPlanner()
-          .inStreamingMode()
-          .build()
-      StreamTableEnvironment.create(env, settings)
-    } else {
-      System.err.println("The planner is incorrect. Please run 'StreamSQLExample --planner <planner>', " +
-        "where planner (it is either flink or blink, and the default is blink) indicates whether the " +
-        "example uses flink planner or blink planner.")
-      return
-    }
 
-    val orderA: DataStream[Order] = env.fromCollection(Seq(
-      Order(1L, "beer", 3),
-      Order(1L, "diaper", 4),
-      Order(3L, "rubber", 2)))
+    // set up the Scala Table API
+    val tableEnv = StreamTableEnvironment.create(env)
 
-    val orderB: DataStream[Order] = env.fromCollection(Seq(
-      Order(2L, "pen", 3),
-      Order(2L, "rubber", 3),
-      Order(4L, "beer", 1)))
+    val orderA =
+      env.fromCollection(Seq(Order(1L, "beer", 3), Order(1L, "diaper", 4), Order(3L, "rubber", 2)))
 
-    // convert DataStream to Table
-    val tableA = tEnv.fromDataStream(orderA, $"user", $"product", $"amount")
-    // register DataStream as Table
-    tEnv.createTemporaryView("OrderB", orderB, $"user", $"product", $"amount")
+    val orderB =
+      env.fromCollection(Seq(Order(2L, "pen", 3), Order(2L, "rubber", 3), Order(4L, "beer", 1)))
+
+    // convert the first DataStream to a Table object
+    // it will be used "inline" and is not registered in a catalog
+    val tableA = tableEnv.fromDataStream(orderA)
+
+    // convert the second DataStream and register it as a view
+    // it will be accessible under a name
+    tableEnv.createTemporaryView("TableB", orderB)
 
     // union the two tables
-    val result = tEnv.sqlQuery(
-      s"""
-         |SELECT * FROM $tableA WHERE amount > 2
-         |UNION ALL
-         |SELECT * FROM OrderB WHERE amount < 2
+    val result = tableEnv.sqlQuery(s"""
+                                      |SELECT * FROM $tableA WHERE amount > 2
+                                      |UNION ALL
+                                      |SELECT * FROM TableB WHERE amount < 2
         """.stripMargin)
 
-    result.toAppendStream[Order].print()
+    // convert the Table back to an insert-only DataStream of type `Order`
+    tableEnv.toDataStream(result, classOf[Order]).print()
 
+    // after the table program is converted to a DataStream program,
+    // we must use `env.execute()` to submit the job
     env.execute()
   }
 
@@ -98,6 +80,6 @@ object StreamSQLExample {
   //     USER DATA TYPES
   // *************************************************************************
 
+  /** Simple case class. */
   case class Order(user: Long, product: String, amount: Int)
-
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.connector.source.lib.util;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.connector.source.SourceSplit;
 
 import java.util.Iterator;
@@ -28,6 +29,7 @@ import java.util.Iterator;
  *
  * @param <E> The type of the elements returned by the iterator.
  */
+@Public
 public interface IteratorSourceSplit<E, IterT extends Iterator<E>> extends SourceSplit {
 
     /** Gets the iterator over the elements of this split. */

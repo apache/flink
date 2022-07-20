@@ -18,19 +18,22 @@
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.aws.util.AWSAsyncSinkUtil;
+import org.apache.flink.connector.aws.util.AWSGeneralUtil;
+import org.apache.flink.connector.kinesis.sink.KinesisStreamsConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutRecordPublisherConfiguration;
 import org.apache.flink.streaming.connectors.kinesis.util.AwsV2Util;
 import org.apache.flink.util.Preconditions;
 
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.ClientConfigurationFactory;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.utils.AttributeMap;
 
 import java.util.Properties;
 
 import static java.util.Collections.emptyList;
+import static software.amazon.awssdk.http.SdkHttpConfigurationOption.TCP_KEEPALIVE;
 
 /** Creates instances of {@link KinesisProxyV2}. */
 @Internal
@@ -47,16 +50,35 @@ public class KinesisProxyV2Factory {
     public static KinesisProxyV2Interface createKinesisProxyV2(final Properties configProps) {
         Preconditions.checkNotNull(configProps);
 
-        final ClientConfiguration clientConfiguration =
-                new ClientConfigurationFactory().getConfig();
+        final AttributeMap convertedProperties = AwsV2Util.convertProperties(configProps);
+        final AttributeMap.Builder clientConfiguration = AttributeMap.builder();
+        populateDefaultValues(clientConfiguration);
+
         final SdkAsyncHttpClient httpClient =
-                AwsV2Util.createHttpClient(
-                        clientConfiguration, NettyNioAsyncHttpClient.builder(), configProps);
+                AWSGeneralUtil.createAsyncHttpClient(
+                        convertedProperties.merge(clientConfiguration.build()),
+                        NettyNioAsyncHttpClient.builder());
         final FanOutRecordPublisherConfiguration configuration =
                 new FanOutRecordPublisherConfiguration(configProps, emptyList());
+
+        Properties legacyConfigProps = new Properties(configProps);
+        legacyConfigProps.setProperty(
+                KinesisStreamsConfigConstants.KINESIS_CLIENT_USER_AGENT_PREFIX,
+                AWSAsyncSinkUtil.formatFlinkUserAgentPrefix(
+                        KinesisStreamsConfigConstants.BASE_KINESIS_USER_AGENT_PREFIX_FORMAT));
+
         final KinesisAsyncClient client =
-                AwsV2Util.createKinesisAsyncClient(configProps, clientConfiguration, httpClient);
+                AWSAsyncSinkUtil.createAwsAsyncClient(
+                        legacyConfigProps,
+                        httpClient,
+                        KinesisAsyncClient.builder(),
+                        KinesisStreamsConfigConstants.BASE_KINESIS_USER_AGENT_PREFIX_FORMAT,
+                        KinesisStreamsConfigConstants.KINESIS_CLIENT_USER_AGENT_PREFIX);
 
         return new KinesisProxyV2(client, httpClient, configuration, BACKOFF);
+    }
+
+    private static void populateDefaultValues(final AttributeMap.Builder clientConfiguration) {
+        clientConfiguration.put(TCP_KEEPALIVE, true);
     }
 }

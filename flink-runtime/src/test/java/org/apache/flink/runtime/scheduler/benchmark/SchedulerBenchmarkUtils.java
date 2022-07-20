@@ -36,15 +36,17 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
-import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 
 /** Utilities for scheduler benchmarks. */
 public class SchedulerBenchmarkUtils {
@@ -91,7 +93,10 @@ public class SchedulerBenchmarkUtils {
     }
 
     public static ExecutionGraph createAndInitExecutionGraph(
-            List<JobVertex> jobVertices, JobConfiguration jobConfiguration) throws Exception {
+            List<JobVertex> jobVertices,
+            JobConfiguration jobConfiguration,
+            ScheduledExecutorService scheduledExecutorService)
+            throws Exception {
 
         final JobGraph jobGraph = createJobGraph(jobVertices, jobConfiguration);
 
@@ -99,7 +104,12 @@ public class SchedulerBenchmarkUtils {
                 ComponentMainThreadExecutorServiceAdapter.forMainThread();
 
         final DefaultScheduler scheduler =
-                SchedulerTestingUtils.createScheduler(jobGraph, mainThreadExecutor);
+                new DefaultSchedulerBuilder(jobGraph, mainThreadExecutor, scheduledExecutorService)
+                        .setIoExecutor(scheduledExecutorService)
+                        .setFutureExecutor(scheduledExecutorService)
+                        .setDelayExecutor(
+                                new ScheduledExecutorServiceAdapter(scheduledExecutorService))
+                        .build();
 
         return scheduler.getExecutionGraph();
     }
@@ -107,17 +117,14 @@ public class SchedulerBenchmarkUtils {
     public static void deployTasks(
             ExecutionGraph executionGraph,
             JobVertexID jobVertexID,
-            TestingLogicalSlotBuilder slotBuilder,
-            boolean sendScheduleOrUpdateConsumersMessage)
+            TestingLogicalSlotBuilder slotBuilder)
             throws JobException, ExecutionException, InterruptedException {
 
         for (ExecutionVertex vertex : executionGraph.getJobVertex(jobVertexID).getTaskVertices()) {
             LogicalSlot slot = slotBuilder.createTestingLogicalSlot();
             Execution execution = vertex.getCurrentExecutionAttempt();
-            execution
-                    .registerProducedPartitions(
-                            slot.getTaskManagerLocation(), sendScheduleOrUpdateConsumersMessage)
-                    .get();
+            execution.transitionState(ExecutionState.SCHEDULED);
+            execution.registerProducedPartitions(slot.getTaskManagerLocation()).get();
             assignResourceAndDeploy(vertex, slot);
         }
     }
@@ -128,9 +135,9 @@ public class SchedulerBenchmarkUtils {
 
         for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
             LogicalSlot slot = slotBuilder.createTestingLogicalSlot();
-            vertex.getCurrentExecutionAttempt()
-                    .registerProducedPartitions(slot.getTaskManagerLocation(), true)
-                    .get();
+            Execution execution = vertex.getCurrentExecutionAttempt();
+            execution.transitionState(ExecutionState.SCHEDULED);
+            execution.registerProducedPartitions(slot.getTaskManagerLocation()).get();
             assignResourceAndDeploy(vertex, slot);
         }
     }

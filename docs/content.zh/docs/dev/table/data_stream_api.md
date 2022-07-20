@@ -24,11 +24,6 @@ under the License.
 
 # DataStream API Integration
 
-{{< hint info >}}
-This page only discusses the integration with DataStream API in JVM languages such as Java or Scala.
-For Python, see the [Python API]({{< ref "docs/dev/python/overview" >}}) area.
-{{< /hint >}}
-
 Both Table API and DataStream API are equally important when it comes to defining a data
 processing pipeline.
 
@@ -44,11 +39,6 @@ in real-time processing scenarios that might be initialized with historical data
 For efficient execution, both APIs offer processing bounded streams in an optimized batch execution
 mode. However, since batch is just a special case of streaming, it is also possible to run pipelines
 of bounded streams in regular streaming execution mode.
-
-{{< hint warning >}}
-Both DataStream API and Table API provide their own way of enabling the batch execution mode at the
-moment. In the near future, this will be further unified.
-{{< /hint >}}
 
 Pipelines in one API can be defined end-to-end without dependencies on the other API. However, it
 might be useful to mix both APIs for various reasons:
@@ -72,20 +62,14 @@ mentioned here for completeness.
 
 {{< top >}}
 
+<a name="converting-between-datastream-and-table"></a>
+
 Converting between DataStream and Table
 ---------------------------------------
 
-Flink provides a specialized `StreamTableEnvironment` in Java and Scala for integrating with the
+Flink provides a specialized `StreamTableEnvironment` for integrating with the
 DataStream API. Those environments extend the regular `TableEnvironment` with additional methods
 and take the `StreamExecutionEnvironment` used in the DataStream API as a parameter.
-
-{{< hint warning >}}
-Currently, the `StreamTableEnvironment` does not support enabling the batch execution mode yet. Nevertheless,
-bounded streams can be processed there using the streaming execution mode but with lower efficiency.
-
-Note, however, that the general `TableEnvironment` can work in both streaming execution or optimized batch
-execution mode.
-{{< /hint >}}
 
 The following code shows an example of how to go back and forth between the two APIs. Column names
 and types of the `Table` are automatically derived from the `TypeInformation` of the `DataStream`.
@@ -155,11 +139,43 @@ val resultStream = tableEnv.toDataStream(resultTable)
 resultStream.print()
 env.execute()
 
-
 // prints:
 // +I[Alice]
 // +I[Bob]
 // +I[John]
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.table import StreamTableEnvironment
+from pyflink.common.typeinfo import Types
+
+env = StreamExecutionEnvironment.get_execution_environment()
+t_env = StreamTableEnvironment.create(env)
+
+# create a DataStream
+ds = env.from_collection(["Alice", "Bob", "John"], Types.STRING())
+
+# interpret the insert-only DataStream as a Table
+t = t_env.from_data_stream(ds)
+
+# register the Table object as a view and query it
+t_env.create_temporary_view("InputTable", t)
+res_table = t_env.sql_query("SELECT UPPER(f0) FROM InputTable")
+
+# interpret the insert-only Table as a DataStream again
+res_ds = t_env.to_data_stream(res_table)
+
+# add a printing sink and execute in DataStream API
+res_ds.print()
+
+env.execute()
+
+# prints:
+# +I[Alice]
+# +I[Bob]
+# +I[John]
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -169,7 +185,7 @@ In particular, the section discusses how to influence the schema derivation with
 and nested types. It also covers working with event-time and watermarks.
 
 Depending on the kind of query, in many cases the resulting dynamic table is a pipeline that does not
-only produce insert-only changes when coverting the `Table` to a `DataStream` but also produces retractions
+only produce insert-only changes when converting the `Table` to a `DataStream` but also produces retractions
 and other kinds of updates. During table-to-stream conversion, this could lead to an exception similar to
 
 ```
@@ -265,12 +281,166 @@ env.execute()
 // +U[Alice, 112]
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.table import StreamTableEnvironment
+from pyflink.common.typeinfo import Types
+
+# create environments of both APIs
+env = StreamExecutionEnvironment.get_execution_environment()
+t_env = StreamTableEnvironment.create(env)
+
+# create a DataStream
+ds = env.from_collection([("Alice", 12), ("Bob", 10), ("Alice", 100)],
+                          type_info=Types.ROW_NAMED(
+                          ["a", "b"],
+                          [Types.STRING(), Types.INT()]))
+
+input_table = t_env.from_data_stream(ds).alias("name", "score")
+
+# register the Table object as a view and query it
+# the query contains an aggregation that produces updates
+t_env.create_temporary_view("InputTable", input_table)
+res_table = t_env.sql_query("SELECT name, SUM(score) FROM InputTable GROUP BY name")
+
+# interpret the updating Table as a changelog DataStream
+res_stream = t_env.to_changelog_stream(res_table)
+
+# add a printing sink and execute in DataStream API
+res_stream.print()
+env.execute()
+
+# prints:
+# +I[Alice, 12]
+# +I[Bob, 10]
+# -U[Alice, 12]
+# +U[Alice, 112]
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 The complete semantics of `fromChangelogStream` and `toChangelogStream` can be found in the [dedicated section below](#handling-of-insert-only-streams).
 In particular, the section discusses how to influence the schema derivation with more complex and nested
 types. It covers working with event-time and watermarks. It discusses how to declare a primary key and
 changelog mode for the input and output streams.
+
+The example above shows how the final result is computed incrementally by continuously emitting [row-wise
+updates]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}) for each incoming record. However, in
+cases where the input streams are finite (i.e. *bounded*), a result can be computed more efficiently
+by leveraging batch processing principles.
+
+In batch processing, operators can be executed in successive stages that consume the entire input table
+before emitting results. For example, a join operator can sort both bounded inputs before performing
+the actual joining (i.e. *sort-merge join algorithm*), or build a hash table from one input before
+consuming the other (i.e. build/probe phase of the *hash join algorithm*).
+
+Both DataStream API and Table API offer a specialized *batch runtime mode*.
+
+The following example illustrates that the unified pipeline is able to process both batch and streaming data
+by just switching a flag.
+
+{{< tabs "61a8a0b8-c38b-48f3-b52e-563546139380" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+
+// setup DataStream API
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+// set the batch runtime mode
+env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+// uncomment this for streaming mode
+// env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
+
+// setup Table API
+// the table environment adopts the runtime mode during initialization
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+
+// define the same pipeline as above
+
+// prints in BATCH mode:
+// +I[Bob, 10]
+// +I[Alice, 112]
+
+// prints in STREAMING mode:
+// +I[Alice, 12]
+// +I[Bob, 10]
+// -U[Alice, 12]
+// +U[Alice, 112]
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.api.common.RuntimeExecutionMode
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+
+// setup DataStream API
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+
+// set the batch runtime mode
+env.setRuntimeMode(RuntimeExecutionMode.BATCH)
+
+// uncomment this for streaming mode
+// env.setRuntimeMode(RuntimeExecutionMode.STREAMING)
+
+// setup Table API
+// the table environment adopts the runtime mode during initialization
+val tableEnv = StreamTableEnvironment.create(env)
+
+// define the same pipeline as above
+
+// prints in BATCH mode:
+// +I[Bob, 10]
+// +I[Alice, 112]
+
+// prints in STREAMING mode:
+// +I[Alice, 12]
+// +I[Bob, 10]
+// -U[Alice, 12]
+// +U[Alice, 112]
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode
+from pyflink.table import StreamTableEnvironment
+
+# setup DataStream API
+env = StreamExecutionEnvironment.get_execution_environment()
+
+# set the batch runtime mode
+env.set_runtime_mode(RuntimeExecutionMode.BATCH)
+
+# uncomment this for streaming mode
+# env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
+
+# setup Table API
+# the table environment adopts the runtime mode during initialization
+table_env = StreamTableEnvironment.create(env)
+
+# define the same pipeline as above
+# prints in BATCH mode:
+# +I[Bob, 10]
+# +I[Alice, 112]
+
+# prints in STREAMING mode:
+# +I[Alice, 12]
+# +I[Bob, 10]
+# -U[Alice, 12]
+# +U[Alice, 112]
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+Once the changelog is applied to an external system (e.g. a key-value store), one can see that both
+modes are able to produce exactly the same output table. By consuming all input data before emitting
+results, the changelog of the batch mode consists solely of insert-only changes. See
+also the [dedicated batch mode section below](#batch-runtime-mode) for more insights.
 
 ### Dependencies and Imports
 
@@ -327,14 +497,25 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+# imports for Python DataStream API
+from pyflink.datastream import *
+
+# imports for Table API to Python DataStream API
+from pyflink.table import *
+```
+{{< /tab >}}
 {{< /tabs >}}
+
+请查阅[配置]({{< ref "docs/dev/configuration/overview" >}})小节了解更多细节。
 
 ### Configuration
 
 The `TableEnvironment` will adopt all configuration options from the passed `StreamExecutionEnvironment`.
 However, it cannot be guaranteed that further changes to the configuration of `StreamExecutionEnvironment`
-are propagated to the `StreamTableEnvironment` after its instantiation. Also, the reverse propagation
-of options from Table API to DataStream API is not supported.
+are propagated to the `StreamTableEnvironment` after its instantiation. The propagation of options
+from Table API to DataStream API happens during planning.
 
 We recommend setting all configuration options in DataStream API early before switching to Table API.
 
@@ -400,6 +581,32 @@ tableEnv.getConfig.setLocalTimeZone(ZoneId.of("Europe/Berlin"))
 // start defining your pipelines in both APIs...
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.table import StreamTableEnvironment
+from pyflink.datastream.checkpointing_mode import CheckpointingMode
+
+
+# create Python DataStream API
+env = StreamExecutionEnvironment.get_execution_environment()
+
+# set various configuration early
+env.set_max_parallelism(256)
+
+env.get_config().add_default_kryo_serializer("type_class_name", "serializer_class_name")
+
+env.get_checkpoint_config().set_checkpointing_mode(CheckpointingMode.EXACTLY_ONCE)
+
+# then switch to Python Table API
+t_env = StreamTableEnvironment.create(env)
+
+# set configuration early
+t_env.get_config().set_local_timezone("Europe/Berlin")
+
+# start defining your pipelines in both APIs...
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ### Execution Behavior
@@ -413,50 +620,72 @@ behavior is slightly different between Table API and DataStream API.
 
 **DataStream API**
 
-The DataStream API's `StreamExecutionEnvironment` acts as a _builder pattern_ to construct
+The DataStream API's `StreamExecutionEnvironment` uses a _builder pattern_ to construct
 a complex pipeline. The pipeline possibly splits into multiple branches that might or might not end with
-a sink.
-
-At least one sink must be defined. Otherwise, the following exception is thrown:
-```
-java.lang.IllegalStateException: No operators defined in streaming topology. Cannot execute.
-```
+a sink. The environment buffers all these defined branches until it comes to job submission.
 
 `StreamExecutionEnvironment.execute()` submits the entire constructed pipeline and clears the builder
 afterward. In other words: no sources and sinks are declared anymore, and a new pipeline can be
 added to the builder. Thus, every DataStream program usually ends with a call to `StreamExecutionEnvironment.execute()`.
 Alternatively, `DataStream.executeAndCollect()` implicitly defines a sink for streaming the results to
-the local client and only executes the current branch.
+the local client.
 
 **Table API**
 
-In the Table API, branching pipelines is only supported within a `StatementSet` where each branch must
+In the Table API, branching pipelines are only supported within a `StatementSet` where each branch must
 declare a final sink. Both `TableEnvironment` and also `StreamTableEnvironment` do not offer a dedicated
 general `execute()` method. Instead, they offer methods for submitting a single source-to-sink
 pipeline or a statement set:
 
+{{< tabs "47a32814-abea-11eb-8529-0242ac133403" >}}
+{{< tab "Java" >}}
 ```java
 // execute with explicit sink
-tableEnv.from("InputTable").executeInsert("OutputTable")
+tableEnv.from("InputTable").insertInto("OutputTable").execute();
 
-tableEnv.executeSql("INSERT INTO OutputTable SELECT * FROM InputTable")
+tableEnv.executeSql("INSERT INTO OutputTable SELECT * FROM InputTable");
 
 tableEnv.createStatementSet()
-    .addInsert("OutputTable", tableEnv.from("InputTable"))
-    .addInsert("OutputTable2", tableEnv.from("InputTable"))
-    .execute()
+    .add(tableEnv.from("InputTable").insertInto("OutputTable"))
+    .add(tableEnv.from("InputTable").insertInto("OutputTable2"))
+    .execute();
 
 tableEnv.createStatementSet()
     .addInsertSql("INSERT INTO OutputTable SELECT * FROM InputTable")
     .addInsertSql("INSERT INTO OutputTable2 SELECT * FROM InputTable")
-    .execute()
+    .execute();
 
 // execute with implicit local sink
 
-tableEnv.from("InputTable").execute().print()
+tableEnv.from("InputTable").execute().print();
 
-tableEnv.executeSql("SELECT * FROM InputTable").print()
+tableEnv.executeSql("SELECT * FROM InputTable").print();
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# execute with explicit sink
+table_env.from_path("input_table").execute_insert("output_table")
+
+table_env.execute_sql("INSERT INTO output_table SELECT * FROM input_table")
+
+table_env.create_statement_set() \
+    .add_insert("output_table", input_table) \
+    .add_insert("output_table2", input_table) \
+    .execute()
+
+table_env.create_statement_set() \
+    .add_insert_sql("INSERT INTO output_table SELECT * FROM input_table") \
+    .add_insert_sql("INSERT INTO output_table2 SELECT * FROM input_table") \
+    .execute()
+
+# execute with implicit local sink
+table_env.from_path("input_table").execute().print()
+
+table_env.execute_sql("SELECT * FROM input_table").print()
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 To combine both execution behaviors, every call to `StreamTableEnvironment.toDataStream`
 or `StreamTableEnvironment.toChangelogStream` will materialize (i.e. compile) the Table API sub-pipeline
@@ -464,22 +693,490 @@ and insert it into the DataStream API pipeline builder. This means that `StreamE
 or `DataStream.executeAndCollect` must be called afterwards. An execution in Table API will not trigger
 these "external parts".
 
+{{< tabs "47a32814-abea-11eb-8529-0242ac133504" >}}
+{{< tab "Java" >}}
 ```java
 // (1)
 
 // adds a branch with a printing sink to the StreamExecutionEnvironment
-tableEnv.toDataStream(table).print()
+tableEnv.toDataStream(table).print();
 
 // (2)
 
 // executes a Table API end-to-end pipeline as a Flink job and prints locally,
 // thus (1) has still not been executed
-table.execute().print()
+table.execute().print();
 
 // executes the DataStream API pipeline with the sink defined in (1) as a
 // Flink job, (2) was already running before
+env.execute();
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# (1)
+
+# adds a branch with a printing sink to the StreamExecutionEnvironment
+table_env.to_data_stream(table).print()
+
+# (2)
+# executes a Table API end-to-end pipeline as a Flink job and prints locally,
+# thus (1) has still not been executed
+table.execute().print()
+
+# executes the DataStream API pipeline with the sink defined in (1) as a
+# Flink job, (2) was already running before
 env.execute()
 ```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< top >}}
+
+Batch Runtime Mode
+------------------
+
+The *batch runtime mode* is a specialized execution mode for *bounded* Flink programs.
+
+Generally speaking, *boundedness* is a property of a data source that tells us whether all the records
+coming from that source are known before execution or whether new data will show up, potentially
+indefinitely. A job, in turn, is bounded if all its sources are bounded, and unbounded otherwise.
+
+*Streaming runtime mode*, on the other hand, can be used for both bounded and unbounded jobs.
+
+For more information on the different execution modes, see also the corresponding [DataStream API section]({{< ref "docs/dev/datastream/execution_mode" >}}).
+
+The Table API & SQL planner provides a set of specialized optimizer rules and runtime operators for either
+of the two modes.
+
+Currently, the runtime mode is not derived automatically from sources, thus, it must be set explicitly
+or will be adopted from `StreamExecutionEnvironment` when instantiating a `StreamTableEnvironment`:
+
+{{< tabs "f786b6ff-facc-4102-8833-3669f2fdef38" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
+
+// adopt mode from StreamExecutionEnvironment
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+
+// or
+
+// set mode explicitly for StreamTableEnvironment
+// it will be propagated to StreamExecutionEnvironment during planning
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, EnvironmentSettings.inBatchMode());
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.api.common.RuntimeExecutionMode
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+import org.apache.flink.table.api.EnvironmentSettings
+
+// adopt mode from StreamExecutionEnvironment
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+env.setRuntimeMode(RuntimeExecutionMode.BATCH)
+val tableEnv = StreamTableEnvironment.create(env)
+
+// or
+
+// set mode explicitly for StreamTableEnvironment
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+val tableEnv = StreamTableEnvironment.create(env, EnvironmentSettings.inBatchMode)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode
+from pyflink.table import EnvironmentSettings, StreamTableEnvironment
+
+# adopt mode from StreamExecutionEnvironment
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_runtime_mode(RuntimeExecutionMode.BATCH)
+table_env = StreamTableEnvironment.create(env)
+
+# or
+
+# set mode explicitly for StreamTableEnvironment
+# it will be propagated to StreamExecutionEnvironment during planning
+env = StreamExecutionEnvironment.get_execution_environment()
+table_env = StreamTableEnvironment.create(env, EnvironmentSettings.in_batch_mode())
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+One must meet the following prerequisites before setting the runtime mode to `BATCH`:
+
+- All sources must declare themselves as bounded.
+
+- Currently, table sources must emit insert-only changes.
+
+- Operators need a sufficient amount of [off-heap memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory)
+for sorting and other intermediate results.
+
+- All table operations must be available in batch mode. Currently, some of them are only available in
+streaming mode. Please check the corresponding Table API & SQL pages.
+
+A batch execution has the following implications (among others):
+
+- Progressive watermarks are neither generated nor used in operators. However, sources emit a maximum
+watermark before shutting down.
+
+- Exchanges between tasks might be blocking according to the [`execution.batch-shuffle-mode`]({{< ref "docs/deployment/config" >}}#execution-batch-shuffle-mode).
+This also means potentially less resource requirements compared to executing the same pipeline in streaming mode.
+
+- Checkpointing is disabled. Artificial state backends are inserted.
+
+- Table operations don't produce incremental updates but only a complete final result which converts
+to an insert-only changelog stream.
+
+{{< hint info >}}
+Since batch processing can be considered as *a special case of stream processing*, we recommend implementing
+a streaming pipeline first as it is the most general implementation for both bounded and unbounded data.
+
+In theory, a streaming pipeline can execute all operators. However, in practice, some operations might
+not make much sense as they would lead to ever-growing state and are therefore not supported. A global
+sort would be an example that is only available in batch mode. Simply put: it should be possible to
+run a working streaming pipeline in batch mode but not necessarily vice versa.
+{{< /hint >}}
+
+The following example shows how to play around with batch mode using the [DataGen table source]({{< ref "docs/connectors/table/datagen" >}}).
+Many sources offer options that implicitly make the connector bounded, for example, by defining a
+terminating offset or timestamp. In our example, we limit the number of rows with the `number-of-rows`
+option.
+
+{{< tabs "3f5f5d4e-cd03-48d1-9309-917a6cf55aaa" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableDescriptor;
+
+Table table =
+    tableEnv.from(
+        TableDescriptor.forConnector("datagen")
+            .option("number-of-rows", "10") // make the source bounded
+            .schema(
+                Schema.newBuilder()
+                    .column("uid", DataTypes.TINYINT())
+                    .column("payload", DataTypes.STRING())
+                    .build())
+            .build());
+
+// convert the Table to a DataStream and further transform the pipeline
+tableEnv.toDataStream(table)
+    .keyBy(r -> r.<Byte>getFieldAs("uid"))
+    .map(r -> "My custom operator: " + r.<String>getFieldAs("payload"))
+    .executeAndCollect()
+    .forEachRemaining(System.out::println);
+
+// prints:
+// My custom operator: 9660912d30a43c7b035e15bd...
+// My custom operator: 29f5f706d2144f4a4f9f52a0...
+// ...
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
+
+val table =
+    tableEnv.from(
+        TableDescriptor.forConnector("datagen")
+            .option("number-of-rows", "10") // make the source bounded
+            .schema(
+                Schema.newBuilder()
+                    .column("uid", DataTypes.TINYINT())
+                    .column("payload", DataTypes.STRING())
+                    .build())
+            .build())
+
+// convert the Table to a DataStream and further transform the pipeline
+tableEnv.toDataStream(table)
+    .keyBy(r => r.getFieldAs[Byte]("uid"))
+    .map(r => "My custom operator: " + r.getFieldAs[String]("payload"))
+    .executeAndCollect()
+    .foreach(println)
+
+// prints:
+// My custom operator: 9660912d30a43c7b035e15bd...
+// My custom operator: 29f5f706d2144f4a4f9f52a0...
+// ...
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.table import TableDescriptor, Schema, DataTypes
+
+table = table_env.from_descriptor(
+    TableDescriptor.for_connector("datagen")
+        .option("number-of-rows", "10")
+        .schema(
+        Schema.new_builder()
+            .column("uid", DataTypes.TINYINT())
+            .column("payload", DataTypes.STRING())
+            .build())
+        .build())
+
+# convert the Table to a DataStream and further transform the pipeline
+collect = table_env.to_data_stream(table) \
+    .key_by(lambda r: r[0]) \
+    .map(lambda r: "My custom operator: " + r[1]) \
+    .execute_and_collect()
+
+for c in collect:
+    print(c)
+
+# prints:
+# My custom operator: 9660912d30a43c7b035e15bd...
+# My custom operator: 29f5f706d2144f4a4f9f52a0...
+# ...
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+### Changelog Unification
+
+In most cases, the pipeline definition itself can remain constant in both Table API and DataStream API
+when switching from streaming to batch mode and vice versa. However, as mentioned before, the resulting
+changelog streams might differ due to the avoidance of incremental operations in batch mode.
+
+Time-based operations that rely on event-time and leverage watermarks as a completeness marker are able
+to produce an insert-only changelog stream that is independent of the runtime mode.
+
+The following Java example illustrates a Flink program that is not only unified on an API level but also
+in the resulting changelog stream. The example joins two tables in SQL (`UserTable` and `OrderTable`) using
+an interval join based on the time attributes in both tables (`ts`). It uses DataStream API to implement
+a custom operator that deduplicates the user name using a `KeyedProcessFunction` and value state.
+
+{{< tabs "3f5f5d4e-cd03-48d1-9309-917a6cf66aba" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.Collector;
+
+// setup DataStream API
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+// use BATCH or STREAMING mode
+env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+// setup Table API
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+
+// create a user stream
+DataStream<Row> userStream = env
+    .fromElements(
+        Row.of(LocalDateTime.parse("2021-08-21T13:00:00"), 1, "Alice"),
+        Row.of(LocalDateTime.parse("2021-08-21T13:05:00"), 2, "Bob"),
+        Row.of(LocalDateTime.parse("2021-08-21T13:10:00"), 2, "Bob"))
+    .returns(
+        Types.ROW_NAMED(
+            new String[] {"ts", "uid", "name"},
+            Types.LOCAL_DATE_TIME, Types.INT, Types.STRING));
+
+// create an order stream
+DataStream<Row> orderStream = env
+    .fromElements(
+        Row.of(LocalDateTime.parse("2021-08-21T13:02:00"), 1, 122),
+        Row.of(LocalDateTime.parse("2021-08-21T13:07:00"), 2, 239),
+        Row.of(LocalDateTime.parse("2021-08-21T13:11:00"), 2, 999))
+    .returns(
+        Types.ROW_NAMED(
+            new String[] {"ts", "uid", "amount"},
+            Types.LOCAL_DATE_TIME, Types.INT, Types.INT));
+
+// create corresponding tables
+tableEnv.createTemporaryView(
+    "UserTable",
+    userStream,
+    Schema.newBuilder()
+        .column("ts", DataTypes.TIMESTAMP(3))
+        .column("uid", DataTypes.INT())
+        .column("name", DataTypes.STRING())
+        .watermark("ts", "ts - INTERVAL '1' SECOND")
+        .build());
+
+tableEnv.createTemporaryView(
+    "OrderTable",
+    orderStream,
+    Schema.newBuilder()
+        .column("ts", DataTypes.TIMESTAMP(3))
+        .column("uid", DataTypes.INT())
+        .column("amount", DataTypes.INT())
+        .watermark("ts", "ts - INTERVAL '1' SECOND")
+        .build());
+
+// perform interval join
+Table joinedTable =
+    tableEnv.sqlQuery(
+        "SELECT U.name, O.amount " +
+        "FROM UserTable U, OrderTable O " +
+        "WHERE U.uid = O.uid AND O.ts BETWEEN U.ts AND U.ts + INTERVAL '5' MINUTES");
+
+DataStream<Row> joinedStream = tableEnv.toDataStream(joinedTable);
+
+joinedStream.print();
+
+// implement a custom operator using ProcessFunction and value state
+joinedStream
+    .keyBy(r -> r.<String>getFieldAs("name"))
+    .process(
+        new KeyedProcessFunction<String, Row, String>() {
+
+          ValueState<String> seen;
+
+          @Override
+          public void open(Configuration parameters) {
+              seen = getRuntimeContext().getState(
+                  new ValueStateDescriptor<>("seen", String.class));
+          }
+
+          @Override
+          public void processElement(Row row, Context ctx, Collector<String> out)
+                  throws Exception {
+              String name = row.getFieldAs("name");
+              if (seen.value() == null) {
+                  seen.update(name);
+                  out.collect(name);
+              }
+          }
+        })
+    .print();
+
+// execute unified pipeline
+env.execute();
+
+// prints (in both BATCH and STREAMING mode):
+// +I[Bob, 239]
+// +I[Alice, 122]
+// +I[Bob, 999]
+//
+// Bob
+// Alice
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from datetime import datetime
+from pyflink.common import Row, Types
+from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode,
+    KeyedProcessFunction, RuntimeContext
+from pyflink.datastream.state import ValueStateDescriptor
+from pyflink.table import StreamTableEnvironment, Schema, DataTypes
+
+# setup DataStream API
+env = StreamExecutionEnvironment.get_execution_environment()
+
+# use BATCH or STREAMING mode
+env.set_runtime_mode(RuntimeExecutionMode.BATCH)
+
+# setup Table API
+table_env = StreamTableEnvironment.create(env)
+
+# create a user stream
+t_format = "%Y-%m-%dT%H:%M:%S"
+user_stream = env.from_collection(
+    [Row(datetime.strptime("2021-08-21T13:00:00", t_format), 1, "Alice"),
+     Row(datetime.strptime("2021-08-21T13:05:00", t_format), 2, "Bob"),
+     Row(datetime.strptime("2021-08-21T13:10:00", t_format), 2, "Bob")],
+    type_info=Types.ROW_NAMED(["ts1", "uid", "name"],
+                              [Types.SQL_TIMESTAMP(), Types.INT(), Types.STRING()]))
+
+# create an order stream
+order_stream = env.from_collection(
+    [Row(datetime.strptime("2021-08-21T13:02:00", t_format), 1, 122),
+     Row(datetime.strptime("2021-08-21T13:07:00", t_format), 2, 239),
+     Row(datetime.strptime("2021-08-21T13:11:00", t_format), 2, 999)],
+    type_info=Types.ROW_NAMED(["ts1", "uid", "amount"],
+                        [Types.SQL_TIMESTAMP(), Types.INT(), Types.INT()]))
+
+# # create corresponding tables
+table_env.create_temporary_view(
+    "user_table",
+    user_stream,
+    Schema.new_builder()
+        .column_by_expression("ts", "CAST(ts1 AS TIMESTAMP(3))")
+        .column("uid", DataTypes.INT())
+        .column("name", DataTypes.STRING())
+        .watermark("ts", "ts - INTERVAL '1' SECOND")
+        .build())
+
+table_env.create_temporary_view(
+    "order_table",
+    order_stream,
+    Schema.new_builder()
+        .column_by_expression("ts", "CAST(ts1 AS TIMESTAMP(3))")
+        .column("uid", DataTypes.INT())
+        .column("amount", DataTypes.INT())
+        .watermark("ts", "ts - INTERVAL '1' SECOND")
+        .build())
+
+# perform interval join
+joined_table = table_env.sql_query(
+    "SELECT U.name, O.amount " +
+    "FROM user_table U, order_table O " +
+    "WHERE U.uid = O.uid AND O.ts BETWEEN U.ts AND U.ts + INTERVAL '5' MINUTES")
+
+joined_stream = table_env.to_data_stream(joined_table)
+
+joined_stream.print()
+
+# implement a custom operator using ProcessFunction and value state
+class MyProcessFunction(KeyedProcessFunction):
+
+    def __init__(self):
+        self.seen = None
+
+    def open(self, runtime_context: RuntimeContext):
+        state_descriptor = ValueStateDescriptor("seen", Types.STRING())
+        self.seen = runtime_context.get_state(state_descriptor)
+
+    def process_element(self, value, ctx):
+        name = value[0]
+        if self.seen.value() is None:
+            self.seen.update(name)
+            yield name
+
+joined_stream \
+    .key_by(lambda r: r[0]) \
+    .process(MyProcessFunction()) \
+    .print()
+
+# execute unified pipeline
+env.execute()
+
+# prints (in both BATCH and STREAMING mode):
+# +I[Bob, 239]
+# +I[Alice, 122]
+# +I[Bob, 999]
+#
+# Bob
+# Alice
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 {{< top >}}
 
@@ -501,15 +1198,15 @@ It is a shortcut for `createTemporaryView(String, fromDataStream(DataStream))`.
 - `createTemporaryView(String, DataStream, Schema)`: Registers the stream under a name to access it in SQL.
 It is a shortcut for `createTemporaryView(String, fromDataStream(DataStream, Schema))`.
 
-- `toDataStream(DataStream)`: Converts a table into a stream of insert-only changes. The default
+- `toDataStream(Table)`: Converts a table into a stream of insert-only changes. The default
 stream record type is `org.apache.flink.types.Row`. A single rowtime attribute column is written
 back into the DataStream API's record. Watermarks are propagated as well.
 
-- `toDataStream(DataStream, AbstractDataType)`: Converts a table into a stream of insert-only changes.
+- `toDataStream(Table, AbstractDataType)`: Converts a table into a stream of insert-only changes.
 This method accepts a data type to express the desired stream record type. The planner might insert
 implicit casts and reorders columns to map columns to fields of the (possibly nested) data type.
 
-- `toDataStream(DataStream, Class)`: A shortcut for `toDataStream(DataStream, DataTypes.of(Class))`
+- `toDataStream(Table, Class)`: A shortcut for `toDataStream(Table, DataTypes.of(Class))`
 to quickly create the desired data type reflectively.
 
 From a Table API's perspective, converting from and to DataStream API is similar to reading from or
@@ -697,7 +1394,7 @@ table.printSchema();
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.api.scala._
-import java.time.Instant;
+import java.time.Instant
 
 // some example case class
 case class User(name: String, score: java.lang.Integer, event_time: java.time.Instant)
@@ -819,6 +1516,133 @@ table.printSchema()
 // note: the watermark strategy is not shown due to the inserted column reordering projection
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.common.time import Instant
+from pyflink.common.types import Row
+from pyflink.common.typeinfo import Types
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.table import StreamTableEnvironment, Schema
+
+env = StreamExecutionEnvironment.get_execution_environment()
+t_env = StreamTableEnvironment.create(env)
+ds = env.from_collection([
+    Row("Alice", 12, Instant.of_epoch_milli(1000)),
+    Row("Bob", 5, Instant.of_epoch_milli(1001)),
+    Row("Alice", 10, Instant.of_epoch_milli(1002))],
+    type_info=Types.ROW_NAMED(['name', 'score', 'event_time'], [Types.STRING(), Types.INT(), Types.INSTANT()]))
+
+# === EXAMPLE 1 ===
+
+# derive all physical columns automatically
+
+table = t_env.from_data_stream(ds)
+table.print_schema()
+
+# prints:
+# (
+#  `name` STRING,
+#  `score` INT,
+#  `event_time` TIMESTAMP_LTZ(9)
+# )
+
+
+# === EXAMPLE 2 ===
+
+# derive all physical columns automatically
+# but add computed columns (in this case for creating a proctime attribute column)
+
+table = t_env.from_data_stream(
+    ds,
+    Schema.new_builder()
+        .column_by_expression("proc_time", "PROCTIME()")
+        .build())
+table.print_schema()
+
+# prints:
+# (
+#  `name` STRING,
+#  `score` INT,
+#  `event_time` TIMESTAMP_LTZ(9),
+#  `proc_time` TIMESTAMP_LTZ(3) NOT NULL *PROCTIME* AS PROCTIME()
+# )
+
+# === EXAMPLE 3 ===
+
+# derive all physical columns automatically
+# but add computed columns (in this case for creating a rowtime attribute column)
+# and a custom watermark strategy
+
+table = t_env.from_data_stream(
+          ds,
+          Schema.new_builder()
+              .column_by_expression("rowtime", "CAST(event_time AS TIMESTAMP_LTZ(3))")
+              .watermark("rowtime", "rowtime - INTERVAL '10' SECOND")
+              .build())
+table.print_schema()
+
+# prints:
+# (
+#  `name` STRING,
+#  `score` INT,
+#  `event_time` TIMESTAMP_LTZ(9),
+#  `rowtime` TIMESTAMP_LTZ(3) *ROWTIME* AS CAST(event_time AS TIMESTAMP_LTZ(3)),
+#  WATERMARK FOR `rowtime`: TIMESTAMP_LTZ(3) AS rowtime - INTERVAL '10' SECOND
+# )
+
+# === EXAMPLE 4 ===
+
+# derive all physical columns automatically
+# but access the stream record's timestamp for creating a rowtime attribute column
+# also rely on the watermarks generated in the DataStream API
+
+# we assume that a watermark strategy has been defined for `dataStream` before
+# (not part of this example)
+table = t_env.from_data_stream(
+        ds,
+        Schema.new_builder()
+            .column_by_metadata("rowtime", "TIMESTAMP_LTZ(3)")
+            .watermark("rowtime", "SOURCE_WATERMARK()")
+            .build())
+table.print_schema()
+
+# prints:
+# (
+#  `name` STRING,
+#  `score` INT,
+#  `event_time` TIMESTAMP_LTZ(9),
+#  `rowtime` TIMESTAMP_LTZ(3) *ROWTIME* METADATA,
+#  WATERMARK FOR `rowtime`: TIMESTAMP_LTZ(3) AS SOURCE_WATERMARK()
+# )
+
+
+
+# === EXAMPLE 5 ===
+
+# define physical columns manually
+# in this example,
+#   - we can reduce the default precision of timestamps from 9 to 3
+#   - we also project the columns and put `event_time` to the beginning
+
+table = t_env.from_data_stream(
+        ds,
+        Schema.new_builder()
+            .column("event_time", "TIMESTAMP_LTZ(3)")
+            .column("name", "STRING")
+            .column("score", "INT")
+            .watermark("event_time", "SOURCE_WATERMARK()")
+            .build())
+table.print_schema()
+
+# prints:
+# (
+#  `event_time` TIMESTAMP_LTZ(3) *ROWTIME*,
+#  `name` STRING,
+#  `score` INT
+# )
+# note: the watermark strategy is not shown due to the inserted column reordering projection
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Example 1 illustrates a simple use case when no time-based operations are needed.
@@ -832,9 +1656,12 @@ from the DataStream API (which would be `RAW` in the Table API) with proper data
 
 Since `DataType` is richer than `TypeInformation`, we can easily enable immutable POJOs and other complex
 data structures. The following example in Java shows what is possible. Check also the
-[Data Types & Serialization]({{< ref "docs/dev/serialization/types_serialization" >}}) page of
+[Data Types & Serialization]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}) page of
 the DataStream API for more information about the supported types there.
 
+
+{{< tabs "079cdf25-21ef-4393-ad69-623510038b1b" >}}
+{{< tab "Java" >}}
 ```java
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.DataTypes;
@@ -907,6 +1734,13 @@ table.printSchema();
 //  `user` *User<`name` STRING,`score` INT>*
 // )
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Custom PoJo Class is unsupported in PyFlink now.
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ### Examples for `createTemporaryView`
 
@@ -1053,6 +1887,72 @@ tableEnv.from("MyView").printSchema()
 // )
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.common.typeinfo import Types
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.table import DataTypes, StreamTableEnvironment, Schema
+
+env = StreamExecutionEnvironment.get_execution_environment()
+t_env = StreamTableEnvironment.create(env)
+ds = env.from_collection([(12, "Alice"), (0, "Bob")], type_info=Types.TUPLE([Types.LONG(), Types.STRING()]))
+
+# === EXAMPLE 1 ===
+
+# register the DataStream as view "MyView" in the current session
+# all columns are derived automatically
+
+t_env.create_temporary_view("MyView", ds)
+
+t_env.from_path("MyView").print_schema()
+
+# prints:
+# (
+#  `f0` BIGINT NOT NULL,
+#  `f1` STRING
+# )
+
+# === EXAMPLE 2 ===
+
+# register the DataStream as view "MyView" in the current session,
+# provide a schema to adjust the columns similar to `fromDataStream`
+
+# in this example, the derived NOT NULL information has been removed
+
+t_env.create_temporary_view(
+    "MyView",
+    ds,
+    Schema.new_builder()
+        .column("f0", "BIGINT")
+        .column("f1", "STRING")
+        .build())
+
+t_env.from_path("MyView").print_schema()
+
+# prints:
+# (
+#  `f0` BIGINT,
+#  `f1` STRING
+# )
+
+
+# === EXAMPLE 3 ===
+
+# use the Table API before creating the view if it is only about renaming columns
+
+t_env.create_temporary_view(
+    "MyView",
+    t_env.from_data_stream(ds).alias("id", "name"))
+
+t_env.from_path("MyView").print_schema()
+
+# prints:
+# (
+#  `id` BIGINT NOT NULL,
+#  `name` STRING
+# )
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 {{< top >}}
@@ -1136,14 +2036,16 @@ import org.apache.flink.table.api.DataTypes
 case class User(name: String, score: java.lang.Integer, event_time: java.time.Instant)
 
 tableEnv.executeSql(
-    "CREATE TABLE GeneratedTable "
-    + "("
-    + "  name STRING,"
-    + "  score INT,"
-    + "  event_time TIMESTAMP_LTZ(3),"
-    + "  WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND"
-    + ")"
-    + "WITH ('connector'='datagen')")
+  """
+  CREATE TABLE GeneratedTable (
+    name STRING,
+    score INT,
+    event_time TIMESTAMP_LTZ(3),
+    WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND
+  )
+  WITH ('connector'='datagen')
+  """
+)
 
 val table = tableEnv.from("GeneratedTable")
 
@@ -1167,7 +2069,7 @@ val dataStream: DataStream[Row] = tableEnv.toDataStream(table)
 // since `event_time` is a single rowtime attribute, it is inserted into the DataStream
 // metadata and watermarks are propagated
 
-val dataStream: DataStream[User] = tableEnv.toDataStream(table, User.class)
+val dataStream: DataStream[User] = tableEnv.toDataStream(table, classOf[User])
 
 // data types can be extracted reflectively as above or explicitly defined
 
@@ -1175,18 +2077,44 @@ val dataStream: DataStream[User] =
     tableEnv.toDataStream(
         table,
         DataTypes.STRUCTURED(
-            User.class,
+            classOf[User],
             DataTypes.FIELD("name", DataTypes.STRING()),
             DataTypes.FIELD("score", DataTypes.INT()),
             DataTypes.FIELD("event_time", DataTypes.TIMESTAMP_LTZ(3))))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+t_env.execute_sql(
+    "CREATE TABLE GeneratedTable "
+    + "("
+    + "  name STRING,"
+    + "  score INT,"
+    + "  event_time TIMESTAMP_LTZ(3),"
+    + "  WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND"
+    + ")"
+    + "WITH ('connector'='datagen')");
+
+table = t_env.from_path("GeneratedTable");
+
+
+# === EXAMPLE 1 ===
+
+# use the default conversion to instances of Row
+
+# since `event_time` is a single rowtime attribute, it is inserted into the DataStream
+# metadata and watermarks are propagated
+
+ds = t_env.to_data_stream(table)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
 Note that only non-updating tables are supported by `toDataStream`. Usually, time-based operations
 such as windows, interval joins, or the `MATCH_RECOGNIZE` clause are a good fit for insert-only
-pipelines next to simple operations like projections and filters. Pipelines with operations that
-produce updates can use `toChangelogStream`.
+pipelines next to simple operations like projections and filters.
+
+Pipelines with operations that produce updates can use `toChangelogStream`.
 
 {{< top >}}
 
@@ -1313,8 +2241,8 @@ tableEnv
 // +----+--------------------------------+-------------+
 // | +I |                            Bob |           5 |
 // | +I |                          Alice |          12 |
-// | -D |                          Alice |          12 |
-// | +I |                          Alice |         100 |
+// | -U |                          Alice |          12 |
+// | +U |                          Alice |         100 |
 // +----+--------------------------------+-------------+
 ```
 {{< /tab >}}
@@ -1388,9 +2316,80 @@ tableEnv
 // +----+--------------------------------+-------------+
 // | +I |                            Bob |           5 |
 // | +I |                          Alice |          12 |
-// | -D |                          Alice |          12 |
-// | +I |                          Alice |         100 |
+// | -U |                          Alice |          12 |
+// | +U |                          Alice |         100 |
 // +----+--------------------------------+-------------+
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.common import Row, RowKind
+from pyflink.common.typeinfo import Types
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.table import DataTypes, StreamTableEnvironment, Schema
+
+env = StreamExecutionEnvironment.get_execution_environment()
+t_env = StreamTableEnvironment.create(env)
+
+# === EXAMPLE 1 ===
+
+# create a changelog DataStream
+
+ds = env.from_collection([
+        Row.of_kind(RowKind.INSERT, "Alice", 12),
+        Row.of_kind(RowKind.INSERT, "Bob", 5),
+        Row.of_kind(RowKind.UPDATE_BEFORE, "Alice", 12),
+        Row.of_kind(RowKind.UPDATE_AFTER, "Alice", 100)],
+        type_info=Types.ROW([Types.STRING(),Types.INT()]))
+
+# interpret the DataStream as a Table
+table = t_env.from_changelog_stream(ds)
+
+
+# register the table under a name and perform an aggregation
+t_env.create_temporary_view("InputTable", table)
+t_env.execute_sql("SELECT f0 AS name, SUM(f1) AS score FROM InputTable GROUP BY f0").print()
+
+# prints:
+# +----+--------------------------------+-------------+
+# | op |                           name |       score |
+# +----+--------------------------------+-------------+
+# | +I |                            Bob |           5 |
+# | +I |                          Alice |          12 |
+# | -D |                          Alice |          12 |
+# | +I |                          Alice |         100 |
+# +----+--------------------------------+-------------+
+
+# === EXAMPLE 2 ===
+
+# interpret the stream as an upsert stream (without a need for UPDATE_BEFORE)
+
+# create a changelog DataStream
+ds = env.from_collection([
+        Row.of_kind(RowKind.INSERT, "Alice", 12),
+        Row.of_kind(RowKind.INSERT, "Bob", 5),
+        Row.of_kind(RowKind.UPDATE_AFTER, "Alice", 100)],
+        type_info=Types.ROW([Types.STRING(),Types.INT()]))
+
+# interpret the DataStream as a Table
+table = t_env.from_changelog_stream(
+        ds,
+        Schema.new_builder().primary_key("f0").build(),
+        ChangelogMode.upsert())
+
+# register the table under a name and perform an aggregation
+t_env.create_temporary_view("InputTable", table)
+t_env.execute_sql("SELECT f0 AS name, SUM(f1) AS score FROM InputTable GROUP BY f0").print()
+
+# prints:
+# +----+--------------------------------+-------------+
+# | op |                           name |       score |
+# +----+--------------------------------+-------------+
+# | +I |                            Bob |           5 |
+# | +I |                          Alice |          12 |
+# | -U |                          Alice |          12 |
+# | +U |                          Alice |         100 |
+# +----+--------------------------------+-------------+
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1399,7 +2398,8 @@ The default `ChangelogMode` shown in example 1 should be sufficient for most use
 all kinds of changes.
 
 However, example 2 shows how to limit the kinds of incoming changes for efficiency by reducing the
-number of update messages by 50%.
+number of update messages by 50% using upsert mode. The number of result messages can be reduced by
+defining a primary key and upsert changelog mode for `toChangelogStream`.
 
 ### Examples for `toChangelogStream`
 
@@ -1547,14 +2547,16 @@ import java.time.Instant
 
 // create Table with event-time
 tableEnv.executeSql(
-    "CREATE TABLE GeneratedTable "
-    + "("
-    + "  name STRING,"
-    + "  score INT,"
-    + "  event_time TIMESTAMP_LTZ(3),"
-    + "  WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND"
-    + ")"
-    + "WITH ('connector'='datagen')")
+  """
+  CREATE TABLE GeneratedTable (
+    name STRING,
+    score INT,
+    event_time TIMESTAMP_LTZ(3),
+    WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND
+  )
+  WITH ('connector'='datagen')
+  """
+)
 
 val table = tableEnv.from("GeneratedTable")
 
@@ -1665,6 +2667,90 @@ val dataStream: DataStream[Row] = tableEnv.toChangelogStream(
 // leads to a stream of Row(name: StringData, score: Integer, event_time: Long)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.common import Row
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.datastream.functions import ProcessFunction
+from pyflink.table import DataTypes, StreamTableEnvironment, Schema
+from pyflink.table.expressions import col
+
+env = StreamExecutionEnvironment.get_execution_environment()
+t_env = StreamTableEnvironment.create(env)
+
+# create Table with event-time
+t_env.execute_sql(
+    "CREATE TABLE GeneratedTable "
+    + "("
+    + "  name STRING,"
+    + "  score INT,"
+    + "  event_time TIMESTAMP_LTZ(3),"
+    + "  WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND"
+    + ")"
+    + "WITH ('connector'='datagen')")
+
+table = t_env.from_path("GeneratedTable")
+
+# === EXAMPLE 1 ===
+
+# convert to DataStream in the simplest and most general way possible (no event-time)
+simple_table = t_env.from_elements([Row("Alice", 12), Row("Alice", 2), Row("Bob", 12)],
+                                  DataTypes.ROW([DataTypes.FIELD("name", DataTypes.STRING()),
+                                                DataTypes.FIELD("score", DataTypes.INT())]))
+
+simple_table = simple_table.group_by(col('name')).select(col('name'), col('score').sum)
+
+t_env.to_changelog_stream(simple_table).print()
+
+env.execute()
+
+# prints:
+# +I[Bob, 12]
+# +I[Alice, 12]
+# -U[Alice, 12]
+# +U[Alice, 14]
+
+# === EXAMPLE 2 ===
+
+# convert to DataStream in the simplest and most general way possible (with event-time)
+
+ds = t_env.to_changelog_stream(table)
+
+# since `event_time` is a single time attribute in the schema, it is set as the
+# stream record's timestamp by default; however, at the same time, it remains part of the Row
+
+class MyProcessFunction(ProcessFunction):
+    def process_element(self, row, ctx):
+        print(row)
+        assert ctx.timestamp() == row.event_time.to_epoch_milli()
+
+ds.process(MyProcessFunction())
+
+env.execute()
+
+# === EXAMPLE 3 ===
+
+# convert to DataStream but write out the time attribute as a metadata column which means
+# it is not part of the physical schema anymore
+
+ds = t_env.to_changelog_stream(
+    table,
+    Schema.new_builder()
+        .column("name", "STRING")
+        .column("score", "INT")
+        .column_by_metadata("rowtime", "TIMESTAMP_LTZ(3)")
+        .build())
+
+class MyProcessFunction(ProcessFunction):
+    def process_element(self, row, ctx):
+        print(row)
+        print(ctx.timestamp())
+
+ds.process(MyProcessFunction())
+
+env.execute()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 For more information about which conversions are supported for data types in Example 4, see the
@@ -1674,6 +2760,231 @@ The behavior of `toChangelogStream(Table).executeAndCollect()` is equal to calli
 However, `toChangelogStream(Table)` might be more useful for tests because it allows to access the produced
 watermarks in a subsequent `ProcessFunction` in DataStream API.
 
+{{< top >}}
+
+Adding Table API Pipelines to DataStream API
+--------------------------------------------
+
+A single Flink job can consist of multiple disconnected pipelines that run next to each other.
+
+Source-to-sink pipelines defined in Table API can be attached *as a whole* to the `StreamExecutionEnvironment`
+and will be submitted when calling one of the `execute` methods in the DataStream API.
+
+However, a source does not necessarily have to be a table source but can also be another DataStream
+pipeline that was converted to Table API before. Thus, it is possible to use table sinks for DataStream API
+programs.
+
+The functionality is available through a specialized `StreamStatementSet` instance created with
+`StreamTableEnvironment.createStatementSet()`. By using a statement set, the planner can optimize all
+added statements together and come up with one or more end-to-end pipelines that are added to the
+`StreamExecutionEnvironment` when calling `StreamStatementSet.attachAsDataStream()`.
+
+The following example shows how to add table programs to a DataStream API program within one job.
+
+{{< tabs "de4cd538-4345-49ee-b86e-b308f002e069" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.api.bridge.java.*;
+
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+
+StreamStatementSet statementSet = tableEnv.createStatementSet();
+
+// create some source
+TableDescriptor sourceDescriptor =
+    TableDescriptor.forConnector("datagen")
+        .option("number-of-rows", "3")
+        .schema(
+            Schema.newBuilder()
+                .column("myCol", DataTypes.INT())
+                .column("myOtherCol", DataTypes.BOOLEAN())
+                .build())
+        .build();
+
+// create some sink
+TableDescriptor sinkDescriptor = TableDescriptor.forConnector("print").build();
+
+// add a pure Table API pipeline
+Table tableFromSource = tableEnv.from(sourceDescriptor);
+statementSet.add(tableFromSource.insertInto(sinkDescriptor));
+
+// use table sinks for the DataStream API pipeline
+DataStream<Integer> dataStream = env.fromElements(1, 2, 3);
+Table tableFromStream = tableEnv.fromDataStream(dataStream);
+statementSet.add(tableFromStream.insertInto(sinkDescriptor));
+
+// attach both pipelines to StreamExecutionEnvironment
+// (the statement set will be cleared after calling this method)
+statementSet.attachAsDataStream();
+
+// define other DataStream API parts
+env.fromElements(4, 5, 6).addSink(new DiscardingSink<>());
+
+// use DataStream API to submit the pipelines
+env.execute();
+
+// prints similar to:
+// +I[1618440447, false]
+// +I[1259693645, true]
+// +I[158588930, false]
+// +I[1]
+// +I[2]
+// +I[3]
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink
+import org.apache.flink.streaming.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+val tableEnv = StreamTableEnvironment.create(env)
+
+val statementSet = tableEnv.createStatementSet()
+
+// create some source
+val sourceDescriptor = TableDescriptor.forConnector("datagen")
+    .option("number-of-rows", "3")
+    .schema(Schema.newBuilder
+        .column("myCol", DataTypes.INT)
+        .column("myOtherCol", DataTypes.BOOLEAN).build)
+    .build
+
+// create some sink
+val sinkDescriptor = TableDescriptor.forConnector("print").build
+
+// add a pure Table API pipeline
+val tableFromSource = tableEnv.from(sourceDescriptor)
+statementSet.add(tableFromSource.insertInto(sinkDescriptor))
+
+// use table sinks for the DataStream API pipeline
+val dataStream = env.fromElements(1, 2, 3)
+val tableFromStream = tableEnv.fromDataStream(dataStream)
+statementSet.add(tableFromStream.insertInto(sinkDescriptor))
+
+// attach both pipelines to StreamExecutionEnvironment
+// (the statement set will be cleared calling this method)
+statementSet.attachAsDataStream()
+
+// define other DataStream API parts
+env.fromElements(4, 5, 6).addSink(new DiscardingSink[Int]())
+
+// now use DataStream API to submit the pipelines
+env.execute()
+
+// prints similar to:
+// +I[1618440447, false]
+// +I[1259693645, true]
+// +I[158588930, false]
+// +I[1]
+// +I[2]
+// +I[3]
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.common import Encoder
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.datastream.connectors import StreamingFileSink
+from pyflink.table import StreamTableEnvironment, TableDescriptor, Schema, DataTypes
+    
+env = StreamExecutionEnvironment.get_execution_environment()
+table_env = StreamTableEnvironment.create(env)
+
+statement_set = table_env.create_statement_set()
+
+# create some source
+source_descriptor = TableDescriptor.for_connector("datagen") \
+    .option("number-of-rows", "3") \
+    .schema(
+    Schema.new_builder()
+        .column("my_col", DataTypes.INT())
+        .column("my_other_col", DataTypes.BOOLEAN())
+        .build()) \
+    .build()
+
+# create some sink
+sink_descriptor = TableDescriptor.for_connector("print").build()
+
+# add a pure Table API pipeline
+table_from_source = table_env.from_descriptor(source_descriptor)
+statement_set.add_insert(sink_descriptor, table_from_source)
+
+
+# use table sinks for the DataStream API pipeline
+data_stream = env.from_collection([1, 2, 3])
+table_from_stream = table_env.from_data_stream(data_stream)
+statement_set.add_insert(sink_descriptor, table_from_stream)
+
+# define other DataStream API parts
+env.from_collection([4, 5, 6])
+    .add_sink(StreamingFileSink
+              .for_row_format('/tmp/output', Encoder.simple_string_encoder())
+              .build())
+
+# use DataStream API to submit the pipelines
+env.execute()
+
+# prints similar to:
+# +I[1618440447, false]
+# +I[1259693645, true]
+# +I[158588930, false]
+# +I[1]
+# +I[2]
+# +I[3]
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< top >}}
+
+Implicit Conversions in Scala
+-----------------------------
+
+Users of the Scala API can use all the conversion methods above in a more fluent way by leveraging
+Scala's *implicit* feature.
+
+Those implicits are available in the API when importing the package object via `org.apache.flink.table.api.bridge.scala._`.
+
+If enabled, methods such as `toTable` or `toChangelogTable` can be called directly on a `DataStream`
+object. Similarly, `toDataStream` and `toChangelogStream` are available on `Table` objects. Furthermore,
+`Table` objects will be converted to a changelog stream when requesting a DataStream API specific
+method for `DataStream[Row]`.
+
+{{< hint warning >}}
+The use of an implicit conversion should always be a conscious decision. One should pay attention whether
+the IDE proposes an actual Table API method, or a DataStream API method via implicits.
+
+For example, a `table.execute().collect()` stays in Table API whereas `table.executeAndCollect()` implicitly
+uses the DataStream API's `executeAndCollect()` method and therefore forces an API conversion.
+{{< /hint >}}
+
+```scala
+import org.apache.flink.streaming.api.scala._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.types.Row
+
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+val tableEnv = StreamTableEnvironment.create(env)
+
+val dataStream: DataStream[(Int, String)] = env.fromElements((42, "hello"))
+
+// call toChangelogTable() implicitly on the DataStream object
+val table: Table = dataStream.toChangelogTable(tableEnv)
+
+// force implicit conversion
+val dataStreamAgain1: DataStream[Row] = table
+
+// call toChangelogStream() implicitly on the Table object
+val dataStreamAgain2: DataStream[Row] = table.toChangelogStream
+```
 {{< top >}}
 
 Mapping between TypeInformation and DataType
@@ -1697,6 +3008,16 @@ correctly via the DataStream API's reflective type extraction facilities. If the
 `TypeInformation` is a `CompositeType`, it will be flattened in the first level when deriving a table's
 schema.
 
+{{< hint warning >}}
+The DataStream API is not always able to extract a more specific `TypeInformation` based on [reflection](https://www.oracle.com/technical-resources/articles/java/javareflection.html).
+This often happens silently and leads to `GenericTypeInfo` that is backed by the generic Kryo serializer.
+
+For example, the `Row` class cannot be analyzed reflectively and always needs an explicit type information
+declaration. If no proper type information is declared in DataStream API, the row will show as `RAW`
+data type and the Table API is unable to access its fields. Use `.map(...).returns(TypeInformation)`
+in Java or `.map(...)(TypeInformation)` in Scala to declare type information explicitly.
+{{< /hint >}}
+
 ### TypeInformation to DataType
 
 The following rules apply when converting `TypeInformation` to a `DataType`:
@@ -1717,7 +3038,8 @@ If that is not found during the conversion, the field order will be alphabetical
 configuration is used to materialize the serializer of the raw type. Composite nested fields will not
 be accessible then.
 
-- See {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/types/utils/TypeInfoDataTypeConverter.java" name="TypeInfoDataTypeConverter" >}} for the full translation logic.
+- See {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/types/utils/TypeInfoDataTypeConverter.java" name="TypeInfoDataTypeConverter" >}}
+for the full translation logic.
 
 Use `DataTypes.of(TypeInformation)` to call the above logic in custom schema declaration or in UDFs.
 
@@ -1732,6 +3054,7 @@ Afterward, the type information semantics of the DataStream API need to be consi
 
 {{< top >}}
 
+
 Legacy Conversion
 -----------------
 
@@ -1742,54 +3065,54 @@ In particular, these parts might not be well integrated into many recent new fea
 (e.g. `RowKind` is not correctly set, type systems don't integrate smoothly).
 {{< /hint >}}
 
-<a name="convert-a-datastream-or-dataset-into-a-table"></a>
+<a name="convert-a-datastream-into-a-table"></a>
 
-### 将 DataStream 或 DataSet 转换成表
+### 将 DataStream 转换成表
 
-与在 `TableEnvironment` 注册 `DataStream` 或 `DataSet` 不同，DataStream 和 DataSet 还可以直接转换成 `Table`。如果你想在 Table API 的查询中使用表，这将非常便捷。
+`DataStream` 可以直接转换为 `StreamTableEnvironment` 中的 `Table`。
+结果视图的架构取决于注册集合的数据类型。
 
 {{< tabs "53265853-e08d-4f70-93f8-c0f6d1b75e48" >}}
 {{< tab "Java" >}}
 ```java
-// get StreamTableEnvironment
-// registration of a DataSet in a BatchTableEnvironment is equivalent
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+StreamTableEnvironment tableEnv = ...; 
+DataStream<Tuple2<Long, String>> stream = ...;
 
-DataStream<Tuple2<Long, String>> stream = ...
-
-// Convert the DataStream into a Table with default fields "f0", "f1"
-Table table1 = tableEnv.fromDataStream(stream);
-
-// Convert the DataStream into a Table with fields "myLong", "myString"
 Table table2 = tableEnv.fromDataStream(stream, $("myLong"), $("myString"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// get TableEnvironment
-// registration of a DataSet is equivalent
-val tableEnv = ... // see "Create a TableEnvironment" section
+val tableEnv: StreamTableEnvironment = ???
+val stream: DataStream[(Long, String)] = ???
 
-val stream: DataStream[(Long, String)] = ...
-
-// convert the DataStream into a Table with default fields "_1", "_2"
-val table1: Table = tableEnv.fromDataStream(stream)
-
-// convert the DataStream into a Table with fields "myLong", "myString"
 val table2: Table = tableEnv.fromDataStream(stream, $"myLong", $"myString")
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+t_env = ... # type: StreamTableEnvironment
+
+stream = ... # type: DataStream of Types.TUPLE([Types.LONG(), Types.STRING()])
+
+table2 = t_env.from_data_stream(stream, col('my_long'), col('my_stream'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
 {{< top >}}
 
-<a name="convert-a-table-into-a-datastream-or-dataset"></a>
+<a name="convert-a-table-into-a-datastream"></a>
 
-### 将表转换成 DataStream 或 DataSet
+### 将表转换成 DataStream
 
-`Table` 可以被转换成 `DataStream` 或 `DataSet`。通过这种方式，定制的 DataSet 或 DataStream 程序就可以在 Table API 或者 SQL 的查询结果上运行了。
+`Table` 可以被转换成 `DataStream`。
+通过这种方式，定制的 DataStream 程序就可以在 Table API 或者 SQL 的查询结果上运行了。
 
-将 `Table` 转换为 `DataStream` 或者 `DataSet` 时，你需要指定生成的 `DataStream` 或者 `DataSet` 的数据类型，即，`Table` 的每行数据要转换成的数据类型。通常最方便的选择是转换成 `Row` 。以下列表概述了不同选项的功能：
+将 `Table` 转换为 `DataStream` 时，你需要指定生成的 `DataStream` 
+的数据类型，即，`Table` 的每行数据要转换成的数据类型。
+通常最方便的选择是转换成 `Row` 。
+以下列表概述了不同选项的功能：
 
 - **Row**: 字段按位置映射，字段数量任意，支持 `null` 值，无类型安全（type-safe）检查。
 - **POJO**: 字段按名称映射（POJO 必须按`Table` 中字段名称命名），字段数量任意，支持 `null` 值，无类型安全检查。
@@ -1811,106 +3134,61 @@ val table2: Table = tableEnv.fromDataStream(stream, $"myLong", $"myString")
 {{< tabs "9533a9f4-e6e8-44d7-a29c-33713724eacc" >}}
 {{< tab "Java" >}}
 ```java
-// get StreamTableEnvironment. 
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+StreamTableEnvironment tableEnv = ...; 
 
-// Table with two fields (String name, Integer age)
-Table table = ...
+Table table = tableEnv.fromValues(
+    DataTypes.Row(
+        DataTypes.FIELD("name", DataTypes.STRING()),
+        DataTypes.FIELD("age", DataTypes.INT()),
+    row("john", 35),
+    row("sarah", 32));
 
-// convert the Table into an append DataStream of Row by specifying the class
+// Convert the Table into an append DataStream of Row by specifying the class
 DataStream<Row> dsRow = tableEnv.toAppendStream(table, Row.class);
 
-// convert the Table into an append DataStream of Tuple2<String, Integer> 
-//   via a TypeInformation
-TupleTypeInfo<Tuple2<String, Integer>> tupleType = new TupleTypeInfo<>(
-  Types.STRING(),
-  Types.INT());
-DataStream<Tuple2<String, Integer>> dsTuple = 
-  tableEnv.toAppendStream(table, tupleType);
+// Convert the Table into an append DataStream of Tuple2<String, Integer> with TypeInformation
+TupleTypeInfo<Tuple2<String, Integer>> tupleType = new TupleTypeInfo<>(Types.STRING(), Types.INT());
+DataStream<Tuple2<String, Integer>> dsTuple = tableEnv.toAppendStream(table, tupleType);
 
-// convert the Table into a retract DataStream of Row.
-//   A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 
-//   The boolean field indicates the type of the change. 
-//   True is INSERT, false is DELETE.
-DataStream<Tuple2<Boolean, Row>> retractStream = 
-  tableEnv.toRetractStream(table, Row.class);
+// Convert the Table into a retract DataStream of Row.
+// A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 
+// The boolean field indicates the type of the change. 
+// True is INSERT, false is DELETE.
+DataStream<Tuple2<Boolean, Row>> retractStream = tableEnv.toRetractStream(table, Row.class);
 
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// get TableEnvironment. 
-// registration of a DataSet is equivalent
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
+val tableEnv: StreamTableEnvironment = ???
 
 // Table with two fields (String name, Integer age)
-val table: Table = ...
+val table: Table = tableEnv.fromValues(
+    DataTypes.Row(
+        DataTypes.FIELD("name", DataTypes.STRING()),
+        DataTypes.FIELD("age", DataTypes.INT()),
+    row("john", 35),
+    row("sarah", 32))
 
-// convert the Table into an append DataStream of Row
+// Convert the Table into an append DataStream of Row by specifying the class
 val dsRow: DataStream[Row] = tableEnv.toAppendStream[Row](table)
 
-// convert the Table into an append DataStream of Tuple2[String, Int]
+// Convert the Table into an append DataStream of (String, Integer) with TypeInformation
 val dsTuple: DataStream[(String, Int)] dsTuple = 
   tableEnv.toAppendStream[(String, Int)](table)
 
-// convert the Table into a retract DataStream of Row.
-//   A retract stream of type X is a DataStream[(Boolean, X)]. 
-//   The boolean field indicates the type of the change. 
-//   True is INSERT, false is DELETE.
+// Convert the Table into a retract DataStream of Row.
+// A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 
+// The boolean field indicates the type of the change. 
+// True is INSERT, false is DELETE.
 val retractStream: DataStream[(Boolean, Row)] = tableEnv.toRetractStream[Row](table)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-**注意：** 文档[动态表](streaming/dynamic_tables.html)给出了有关动态表及其属性的详细讨论。
+**注意：** 文档[动态表]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})给出了有关动态表及其属性的详细讨论。
 
 <span class="label label-danger">注意</span> **一旦 Table 被转化为 DataStream，必须使用 StreamExecutionEnvironment 的 execute 方法执行该 DataStream 作业。**
-
-<a name="convert-a-table-into-a-dataset"></a>
-
-#### 将表转换成 DataSet
-
-将 `Table` 转换成 `DataSet` 的过程如下：
-
-{{< tabs "65c0fb90-3108-4dc4-9130-626712549183" >}}
-{{< tab "Java" >}}
-```java
-// get BatchTableEnvironment
-BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
-
-// Table with two fields (String name, Integer age)
-Table table = ...
-
-// convert the Table into a DataSet of Row by specifying a class
-DataSet<Row> dsRow = tableEnv.toDataSet(table, Row.class);
-
-// convert the Table into a DataSet of Tuple2<String, Integer> via a TypeInformation
-TupleTypeInfo<Tuple2<String, Integer>> tupleType = new TupleTypeInfo<>(
-  Types.STRING(),
-  Types.INT());
-DataSet<Tuple2<String, Integer>> dsTuple = 
-  tableEnv.toDataSet(table, tupleType);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-// get TableEnvironment 
-// registration of a DataSet is equivalent
-val tableEnv = BatchTableEnvironment.create(env)
-
-// Table with two fields (String name, Integer age)
-val table: Table = ...
-
-// convert the Table into a DataSet of Row
-val dsRow: DataSet[Row] = tableEnv.toDataSet[Row](table)
-
-// convert the Table into a DataSet of Tuple2[String, Int]
-val dsTuple: DataSet[(String, Int)] = tableEnv.toDataSet[(String, Int)](table)
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-<span class="label label-danger">注意</span> **一旦 Table 被转化为 DataSet，必须使用 ExecutionEnvironment 的 execute 方法执行该 DataSet 作业。**
 
 {{< top >}}
 
@@ -1918,23 +3196,23 @@ val dsTuple: DataSet[(String, Int)] = tableEnv.toDataSet[(String, Int)](table)
 
 ### 数据类型到 Table Schema 的映射
 
-Flink 的 DataStream 和 DataSet APIs 支持多样的数据类型。例如 Tuple（Scala 内置以及Flink Java tuple）、POJO 类型、Scala case class 类型以及 Flink 的 Row 类型等允许嵌套且有多个可在表的表达式中访问的字段的复合数据类型。其他类型被视为原子类型。下面，我们讨论 Table API 如何将这些数据类型类型转换为内部 row 表示形式，并提供将 `DataStream` 转换成 `Table` 的样例。
+Flink 的 DataStream API 支持多样的数据类型。
+例如 Tuple（Scala 内置，Flink Java tuple 和 Python tuples）、POJO 类型、Scala case class 类型以及 Flink 的 Row 类型等允许嵌套且有多个可在表的表达式中访问的字段的复合数据类型。其他类型被视为原子类型。下面，我们讨论 Table API 如何将这些数据类型类型转换为内部 row 表示形式，并提供将 `DataStream` 转换成 `Table` 的样例。
 
 数据类型到 table schema 的映射有两种方式：**基于字段位置**或**基于字段名称**。
 
 **基于位置映射**
 
-基于位置的映射可在保持字段顺序的同时为字段提供更有意义的名称。这种映射方式可用于*具有特定的字段顺序*的复合数据类型以及原子类型。如 tuple、row 以及 case class 这些复合数据类型都有这样的字段顺序。然而，POJO 类型的字段则必须通过名称映射（参见下一章）。可以将字段投影出来，但不能使用`as`重命名。
+基于位置的映射可在保持字段顺序的同时为字段提供更有意义的名称。这种映射方式可用于*具有特定的字段顺序*的复合数据类型以及原子类型。如 tuple、row 以及 case class 这些复合数据类型都有这样的字段顺序。然而，POJO 类型的字段则必须通过名称映射（参见下一章）。可以将字段投影出来，但不能使用`as`(Java 和 Scala) 或者 `alias`(Python)重命名。
 
 定义基于位置的映射时，输入数据类型中一定不能存在指定的名称，否则 API 会假定应该基于字段名称进行映射。如果未指定任何字段名称，则使用默认的字段名称和复合数据类型的字段顺序，或者使用 `f0` 表示原子类型。
 
 {{< tabs "1abe538a-9dc4-4fb4-900a-f27cb888d20d" >}}
 {{< tab "Java" >}}
 ```java
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section;
 
-DataStream<Tuple2<Long, Integer>> stream = ...
+DataStream<Tuple2<Long, Integer>> stream = ...;
 
 // convert DataStream into Table with field "myLong" only
 Table table = tableEnv.fromDataStream(stream, $("myLong"));
@@ -1957,6 +3235,22 @@ val table: Table = tableEnv.fromDataStream(stream, $"myLong")
 val table: Table = tableEnv.fromDataStream(stream, $"myLong", $"myInt")
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.table.expressions import col
+
+# get a TableEnvironment
+t_env = ... # see "Create a TableEnvironment" section
+
+stream = ... # type: DataStream of Types.Tuple([Types.LONG(), Types.INT()])
+
+# convert DataStream into Table with field "my_long" only
+table = t_env.from_data_stream(stream, col('my_long'))
+
+# convert DataStream into Table with field names "my_long" and "my_int"
+table = t_env.from_data_stream(stream, col('my_long'), col('my_int'))
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 **基于名称的映射**
@@ -1968,10 +3262,9 @@ val table: Table = tableEnv.fromDataStream(stream, $"myLong", $"myInt")
 {{< tabs "e6952073-a5a0-45ff-800e-bd4126c09b26" >}}
 {{< tab "Java" >}}
 ```java
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
-DataStream<Tuple2<Long, Integer>> stream = ...
+DataStream<Tuple2<Long, Integer>> stream = ...;
 
 // convert DataStream into Table with field "f1" only
 Table table = tableEnv.fromDataStream(stream, $("f1"));
@@ -2000,52 +3293,99 @@ val table: Table = tableEnv.fromDataStream(stream, $"_2", $"_1")
 val table: Table = tableEnv.fromDataStream(stream, $"_2" as "myInt", $"_1" as "myLong")
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.table.expressions import col
+
+# get a TableEnvironment
+t_env = ... # see "Create a TableEnvironment" section
+
+stream = ... # type: DataStream of Types.Tuple([Types.LONG(), Types.INT()])
+
+# convert DataStream into Table with field "f1" only
+table = t_env.from_data_stream(stream, col('f1'))
+
+# convert DataStream into Table with swapped fields
+table = t_env.from_data_stream(stream, col('f1'), col('f0'))
+
+# convert DataStream into Table with swapped fields and field names "my_int" and "my_long"
+table = t_env.from_data_stream(stream, col('f1').alias('my_int'), col('f0').alias('my_long'))
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 <a name="atomic-types"></a>
 
 #### 原子类型
 
-Flink 将基础数据类型（`Integer`、`Double`、`String`）或者通用数据类型（不可再拆分的数据类型）视为原子类型。原子类型的 `DataStream` 或者 `DataSet` 会被转换成只有一条属性的 `Table`。属性的数据类型可以由原子类型推断出，还可以重新命名属性。
+Flink 将基础数据类型（`Integer`、`Double`、`String`）或者通用数据类型（不可再拆分的数据类型）视为原子类型。
+原子类型的 `DataStream` 会被转换成只有一条属性的 `Table`。
+属性的数据类型可以由原子类型推断出，还可以重新命名属性。
 
 {{< tabs "03abca94-5825-4ba7-8ef0-213362c3aaff" >}}
 {{< tab "Java" >}}
 ```java
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+StreamTableEnvironment tableEnv = ...;
 
-DataStream<Long> stream = ...
+DataStream<Long> stream = ...;
 
-// convert DataStream into Table with field name "myLong"
+// Convert DataStream into Table with field name "myLong"
 Table table = tableEnv.fromDataStream(stream, $("myLong"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// get a TableEnvironment
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
+val tableEnv: StreamTableEnvironment = ???
 
 val stream: DataStream[Long] = ...
 
-// convert DataStream into Table with field name "myLong"
+// Convert DataStream into Table with default field name "f0"
+val table: Table = tableEnv.fromDataStream(stream)
+
+// Convert DataStream into Table with field name "myLong"
 val table: Table = tableEnv.fromDataStream(stream, $"myLong")
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.table.expressions import col
+
+t_env = ... 
+
+stream = ... # types: DataStream of Types.Long()
+
+# Convert DataStream into Table with default field name "f0"
+table = t_env.from_data_stream(stream)
+
+# Convert DataStream into Table with field name "my_long"
+table = t_env.from_data_stream(stream, col('my_long'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
 <a name="tuples-scala-and-java-and-case-classes-scala-only"></a>
 
-#### Tuple类型（Scala 和 Java）和 Case Class类型（仅 Scala）
+#### Tuple类型（Scala , Java 和 Python）和 Case Class类型（仅 Scala）
 
-Flink 支持 Scala 的内置 tuple 类型并给 Java 提供自己的 tuple 类型。两种 tuple 的 DataStream 和 DataSet 都能被转换成表。可以通过提供所有字段名称来重命名字段（基于位置映射）。如果没有指明任何字段名称，则会使用默认的字段名称。如果引用了原始字段名称（对于 Flink tuple 为`f0`、`f1` ... ...，对于 Scala tuple 为`_1`、`_2` ... ...），则 API 会假定映射是基于名称的而不是基于位置的。基于名称的映射可以通过 `as` 对字段和投影进行重新排序。
+Flink 支持 Scala 的内置 tuple 类型并给 Java 提供自己的 tuple 类型。
+两种 tuple 的 DataStream 都能被转换成表。
+可以通过提供所有字段名称来重命名字段（基于位置映射）。
+如果没有指明任何字段名称，则会使用默认的字段名称。
+如果引用了原始字段名称（对于 Flink tuple 为`f0`、`f1` ... ...，对于 Scala tuple 为`_1`、`_2` ... ...），则 API 会假定映射是基于名称的而不是基于位置的。
+基于名称的映射可以通过 `as` 对字段和投影进行重新排序。
 
 {{< tabs "130f44c6-7432-465a-ae8a-b4c436888361" >}}
 {{< tab "Java" >}}
+Flink 给 Java 提供自己的 tuple 类型。
+tuple 的 DataStream 都能被转换成表。
+可以通过提供所有字段名称来重命名字段（基于位置映射）。
+如果没有指明任何字段名称，则会使用默认的字段名称。
+如果引用了原始字段名称（对于 Flink tuple 为`f0`、`f1` ... ...），则 API 会假定映射是基于名称的而不是基于位置的。
+基于名称的映射可以通过 `as` 对字段和投影进行重新排序。
 ```java
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
-DataStream<Tuple2<Long, String>> stream = ...
+DataStream<Tuple2<Long, String>> stream = ...;
 
 // convert DataStream into Table with renamed field names "myLong", "myString" (position-based)
 Table table = tableEnv.fromDataStream(stream, $("myLong"), $("myString"));
@@ -2061,6 +3401,12 @@ Table table = tableEnv.fromDataStream(stream, $("f1").as("myString"), $("f0").as
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
+Flink 支持 Scala 的内置 tuple 类型。
+tuple 的 DataStream 都能被转换成表。
+可以通过提供所有字段名称来重命名字段（基于位置映射）。
+如果没有指明任何字段名称，则会使用默认的字段名称。
+如果引用了原始字段名称（对于 Scala tuple 为`_1`、`_2` ... ...），则 API 会假定映射是基于名称的而不是基于位置的。
+基于名称的映射可以通过 `as` 对字段和投影进行重新排序。
 ```scala
 // get a TableEnvironment
 val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
@@ -2091,24 +3437,50 @@ val table: Table = tableEnv.fromDataStream(stream, $"age" as "myAge", $"name" as
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+Flink 支持 Python 的内置 tuple 类型。
+tuple 的 DataStream 都能被转换成表。
+可以通过提供所有字段名称来重命名字段（基于位置映射）。
+如果没有指明任何字段名称，则会使用默认的字段名称。
+如果引用了原始字段名称（对于 Python tuple 为`f0`、`f1` ... ...），则 API 会假定映射是基于名称的而不是基于位置的。
+基于名称的映射可以通过 `alias` 对字段和投影进行重新排序。
+
+```python
+from pyflink.table.expressions import col
+
+stream = ... # type: DataStream of Types.TUPLE([Types.LONG(), Types.STRING()])
+
+# convert DataStream into Table with renamed field names "my_long", "my_string" (position-based)
+table = t_env.from_data_stream(stream, col('my_long'), col('my_string'))
+
+# convert DataStream into Table with reordered fields "f1", "f0" (name-based)
+table = t_env.from_data_stream(stream, col('f1'), col('f0'))
+
+# convert DataStream into Table with projected field "f1" (name-based)
+table = t_env.from_data_stream(stream, col('f1'))
+
+# convert DataStream into Table with reordered and aliased fields "my_string", "my_long" (name-based)
+table = t_env.from_data_stream(stream, col('f1').alias('my_string'), col('f0').alias('my_long'))
+
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 <a name="pojo-java-and-scala"></a>
 
 #### POJO 类型 （Java 和 Scala）
 
-Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{< ref "docs/dev/serialization/types_serialization" >}}#pojos).
+Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}#pojos).
 
-在不指定字段名称的情况下将 POJO 类型的 `DataStream` 或 `DataSet` 转换成 `Table` 时，将使用原始 POJO 类型字段的名称。名称映射需要原始名称，并且不能按位置进行。字段可以使用别名（带有 `as` 关键字）来重命名，重新排序和投影。
+在不指定字段名称的情况下将 POJO 类型的 `DataStream` 转换成 `Table` 时，将使用原始 POJO 类型字段的名称。名称映射需要原始名称，并且不能按位置进行。字段可以使用别名（带有 `as` 关键字）来重命名，重新排序和投影。
 
 {{< tabs "c4bd0a25-c14c-44f8-8353-add5c453c4fd" >}}
 {{< tab "Java" >}}
 ```java
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
 // Person is a POJO with fields "name" and "age"
-DataStream<Person> stream = ...
+DataStream<Person> stream = ...;
 
 // convert DataStream into Table with renamed fields "myAge", "myName" (name-based)
 Table table = tableEnv.fromDataStream(stream, $("age").as("myAge"), $("name").as("myName"));
@@ -2138,58 +3510,82 @@ val table: Table = tableEnv.fromDataStream(stream, $"name")
 val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName")
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+PyFlink 暂时还不支持自定义 PoJo 类型
+{{< /tab >}}
 {{< /tabs >}}
 
 <a name="row"></a>
 
 #### Row类型
 
-`Row` 类型支持任意数量的字段以及具有 `null` 值的字段。字段名称可以通过 `RowTypeInfo` 指定，也可以在将 `Row` 的 `DataStream` 或 `DataSet` 转换为 `Table` 时指定。Row 类型的字段映射支持基于名称和基于位置两种方式。字段可以通过提供所有字段的名称的方式重命名（基于位置映射）或者分别选择进行投影/排序/重命名（基于名称映射）。
+`Row` 类型支持任意数量的字段以及具有 `null` 值的字段。字段名称可以通过 `RowTypeInfo` 指定，也可以在将 `Row` 的 `DataStream` 转换为 `Table` 时指定。
+Row 类型的字段映射支持基于名称和基于位置两种方式。
+字段可以通过提供所有字段的名称的方式重命名（基于位置映射）或者分别选择进行投影/排序/重命名（基于名称映射）。
 
 {{< tabs "3434160b-c826-4064-897c-18d7d7cf7103" >}}
 {{< tab "Java" >}}
 ```java
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+StreamTableEnvironment tableEnv = ...; 
 
 // DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
-DataStream<Row> stream = ...
+DataStream<Row> stream = ...;
 
-// convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
+// Convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
 Table table = tableEnv.fromDataStream(stream, $("myName"), $("myAge"));
 
-// convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
+// Convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
 Table table = tableEnv.fromDataStream(stream, $("name").as("myName"), $("age").as("myAge"));
 
-// convert DataStream into Table with projected field "name" (name-based)
+// Convert DataStream into Table with projected field "name" (name-based)
 Table table = tableEnv.fromDataStream(stream, $("name"));
 
-// convert DataStream into Table with projected and renamed field "myName" (name-based)
+// Convert DataStream into Table with projected and renamed field "myName" (name-based)
 Table table = tableEnv.fromDataStream(stream, $("name").as("myName"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// get a TableEnvironment
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
+val tableEnv: StreamTableEnvironment = ???
 
 // DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
 val stream: DataStream[Row] = ...
 
-// convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
+// Convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
 val table: Table = tableEnv.fromDataStream(stream, $"myName", $"myAge")
 
-// convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
+// Convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
 val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName", $"age" as "myAge")
 
-// convert DataStream into Table with projected field "name" (name-based)
+// Convert DataStream into Table with projected field "name" (name-based)
 val table: Table = tableEnv.fromDataStream(stream, $"name")
 
-// convert DataStream into Table with projected and renamed field "myName" (name-based)
+// Convert DataStream into Table with projected and renamed field "myName" (name-based)
 val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName")
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.table.expressions import col
+
+t_env = ...; 
+
+# DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
+stream = ...
+
+# Convert DataStream into Table with renamed field names "my_name", "my_age" (position-based)
+table = t_env.from_data_stream(stream, col('my_name'), col('my_age'))
+
+# Convert DataStream into Table with renamed fields "my_name", "my_age" (name-based)
+table = t_env.from_data_stream(stream, col('name').alias('my_name'), col('age').alias('my_age'))
+
+# Convert DataStream into Table with projected field "name" (name-based)
+table = t_env.from_data_stream(stream, col('name'))
+
+# Convert DataStream into Table with projected and renamed field "my_name" (name-based)
+table = t_env.from_data_stream(stream, col('name').alias("my_name"))
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
 {{< top >}}
-

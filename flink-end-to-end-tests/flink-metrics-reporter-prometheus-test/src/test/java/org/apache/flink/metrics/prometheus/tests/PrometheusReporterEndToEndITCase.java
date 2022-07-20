@@ -20,12 +20,11 @@ package org.apache.flink.metrics.prometheus.tests;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.prometheus.PrometheusReporter;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.prometheus.PrometheusReporterFactory;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.CommandLineWrapper;
 import org.apache.flink.tests.util.cache.DownloadCache;
-import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
@@ -45,7 +44,6 @@ import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -61,13 +59,10 @@ import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.metrics.prometheus.tests.PrometheusReporterEndToEndITCase.TestParams.InstantiationType.FACTORY;
-import static org.apache.flink.metrics.prometheus.tests.PrometheusReporterEndToEndITCase.TestParams.InstantiationType.REFLECTION;
 import static org.apache.flink.tests.util.AutoClosableProcess.runBlocking;
 import static org.apache.flink.tests.util.AutoClosableProcess.runNonBlocking;
 
 /** End-to-end test for the PrometheusReporter. */
-@Category(TravisGroup1.class)
 @RunWith(Parameterized.class)
 public class PrometheusReporterEndToEndITCase extends TestLogger {
 
@@ -133,32 +128,14 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
                                 builder.moveJar(
                                         PROMETHEUS_JAR_PREFIX,
                                         JarLocation.PLUGINS,
-                                        JarLocation.LIB),
-                        REFLECTION),
-                TestParams.from(
-                        "Jar in 'lib'",
-                        builder ->
-                                builder.moveJar(
-                                        PROMETHEUS_JAR_PREFIX,
-                                        JarLocation.PLUGINS,
-                                        JarLocation.LIB),
-                        FACTORY),
-                TestParams.from("Jar in 'plugins'", builder -> {}, REFLECTION),
-                TestParams.from("Jar in 'plugins'", builder -> {}, FACTORY),
+                                        JarLocation.LIB)),
+                TestParams.from("Jar in 'plugins'", builder -> {}),
                 TestParams.from(
                         "Jar in 'lib' and 'plugins'",
                         builder -> {
                             builder.copyJar(
                                     PROMETHEUS_JAR_PREFIX, JarLocation.PLUGINS, JarLocation.LIB);
-                        },
-                        REFLECTION),
-                TestParams.from(
-                        "Jar in 'lib' and 'plugins'",
-                        builder -> {
-                            builder.copyJar(
-                                    PROMETHEUS_JAR_PREFIX, JarLocation.PLUGINS, JarLocation.LIB);
-                        },
-                        FACTORY));
+                        }));
     }
 
     @Rule public final FlinkResource dist;
@@ -166,7 +143,7 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
     public PrometheusReporterEndToEndITCase(TestParams params) {
         final FlinkResourceSetup.FlinkResourceSetupBuilder builder = FlinkResourceSetup.builder();
         params.getBuilderSetup().accept(builder);
-        builder.addConfiguration(getFlinkConfig(params.getInstantiationType()));
+        builder.addConfiguration(getFlinkConfig());
         dist = new LocalStandaloneFlinkResourceFactory().create(builder.build());
     }
 
@@ -174,24 +151,14 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 
     @Rule public final DownloadCache downloadCache = DownloadCache.get();
 
-    private static Configuration getFlinkConfig(TestParams.InstantiationType instantiationType) {
+    private static Configuration getFlinkConfig() {
         final Configuration config = new Configuration();
 
-        switch (instantiationType) {
-            case FACTORY:
-                config.setString(
-                        ConfigConstants.METRICS_REPORTER_PREFIX
-                                + "prom."
-                                + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
-                        PrometheusReporterFactory.class.getName());
-                break;
-            case REFLECTION:
-                config.setString(
-                        ConfigConstants.METRICS_REPORTER_PREFIX
-                                + "prom."
-                                + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
-                        PrometheusReporter.class.getCanonicalName());
-        }
+        config.setString(
+                ConfigConstants.METRICS_REPORTER_PREFIX
+                        + "prom."
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
+                PrometheusReporterFactory.class.getName());
 
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "prom.port", "9000-9100");
         return config;
@@ -326,42 +293,27 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
     static class TestParams {
         private final String jarLocationDescription;
         private final Consumer<FlinkResourceSetup.FlinkResourceSetupBuilder> builderSetup;
-        private final InstantiationType instantiationType;
 
         private TestParams(
                 String jarLocationDescription,
-                Consumer<FlinkResourceSetup.FlinkResourceSetupBuilder> builderSetup,
-                InstantiationType instantiationType) {
+                Consumer<FlinkResourceSetup.FlinkResourceSetupBuilder> builderSetup) {
             this.jarLocationDescription = jarLocationDescription;
             this.builderSetup = builderSetup;
-            this.instantiationType = instantiationType;
         }
 
         public static TestParams from(
                 String jarLocationDesription,
-                Consumer<FlinkResourceSetup.FlinkResourceSetupBuilder> builderSetup,
-                InstantiationType instantiationType) {
-            return new TestParams(jarLocationDesription, builderSetup, instantiationType);
+                Consumer<FlinkResourceSetup.FlinkResourceSetupBuilder> builderSetup) {
+            return new TestParams(jarLocationDesription, builderSetup);
         }
 
         public Consumer<FlinkResourceSetup.FlinkResourceSetupBuilder> getBuilderSetup() {
             return builderSetup;
         }
 
-        public InstantiationType getInstantiationType() {
-            return instantiationType;
-        }
-
         @Override
         public String toString() {
-            return jarLocationDescription
-                    + ", instantiated via "
-                    + instantiationType.name().toLowerCase();
-        }
-
-        public enum InstantiationType {
-            REFLECTION,
-            FACTORY
+            return jarLocationDescription;
         }
     }
 }

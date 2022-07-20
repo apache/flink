@@ -32,7 +32,6 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -49,6 +48,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -88,7 +88,8 @@ public interface ExecutionGraph extends AccessExecutionGraph {
             StateBackend checkpointStateBackend,
             CheckpointStorage checkpointStorage,
             CheckpointStatsTracker statsTracker,
-            CheckpointsCleaner checkpointsCleaner);
+            CheckpointsCleaner checkpointsCleaner,
+            String changelogStorage);
 
     @Nullable
     CheckpointCoordinator getCheckpointCoordinator();
@@ -121,8 +122,6 @@ public interface ExecutionGraph extends AccessExecutionGraph {
      */
     long getNumberOfRestarts();
 
-    int getTotalNumberOfVertices();
-
     Map<IntermediateDataSetID, IntermediateResult> getAllIntermediateResults();
 
     /**
@@ -142,7 +141,7 @@ public interface ExecutionGraph extends AccessExecutionGraph {
 
     void setInternalTaskFailuresListener(InternalFailuresListener internalTaskFailuresListener);
 
-    void attachJobGraph(List<JobVertex> topologiallySorted) throws JobException;
+    void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException;
 
     void transitionToRunning();
 
@@ -193,15 +192,6 @@ public interface ExecutionGraph extends AccessExecutionGraph {
      */
     boolean updateState(TaskExecutionStateTransition state);
 
-    /**
-     * Mark the data of a result partition to be available. Note that only PIPELINED partitions are
-     * accepted because it is for the case that a TM side PIPELINED result partition has data
-     * produced and notifies JM.
-     *
-     * @param partitionId specifying the result partition whose data have become available
-     */
-    void notifyPartitionDataAvailable(ResultPartitionID partitionId);
-
     Map<ExecutionAttemptID, Execution> getRegisteredExecutions();
 
     void registerJobStatusListener(JobStatusListener listener);
@@ -212,4 +202,26 @@ public interface ExecutionGraph extends AccessExecutionGraph {
 
     @Nonnull
     ComponentMainThreadExecutor getJobMasterMainThreadExecutor();
+
+    /**
+     * Initialize the given execution job vertex, mainly includes creating execution vertices
+     * according to the parallelism, and connecting to the predecessors.
+     *
+     * @param ejv The execution job vertex that needs to be initialized.
+     * @param createTimestamp The timestamp for creating execution vertices, used to initialize the
+     *     first Execution with.
+     */
+    void initializeJobVertex(ExecutionJobVertex ejv, long createTimestamp) throws JobException;
+
+    /**
+     * Notify that some job vertices have been newly initialized, execution graph will try to update
+     * scheduling topology.
+     *
+     * @param vertices The execution job vertices that are newly initialized.
+     */
+    void notifyNewlyInitializedJobVertices(List<ExecutionJobVertex> vertices);
+
+    Optional<String> findVertexWithAttempt(final ExecutionAttemptID attemptId);
+
+    Optional<AccessExecution> findExecution(final ExecutionAttemptID attemptId);
 }

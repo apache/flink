@@ -115,11 +115,9 @@ while (!terminationCriterion()) {
 setFinalState(state);
 ```
 
-<div class="panel panel-default">
-	<div class="panel-body">
-	See the <strong><a href="index.html">Programming Guide</a> </strong> for details and code examples.
-	</div>
-</div>
+{{< hint info >}}
+See the **[Programming Guide]({{< ref "docs/dev/dataset/overview" >}})** for details and code examples.
+{{< /hint >}}
 
 ### Example: Incrementing Numbers
 
@@ -173,17 +171,15 @@ IterationState solution = getInitialSolution();
 while (!terminationCriterion()) {
 	(delta, workset) = step(workset, solution);
 
-	solution.update(delta)
+	solution.update(delta);
 }
 
 setFinalState(solution);
 ```
 
-<div class="panel panel-default">
-	<div class="panel-body">
-	See the <strong><a href="index.html">programming guide</a></strong> for details and code examples.
-	</div>
-</div>
+{{< hint info >}}
+See the **[Programming Guide]({{< ref "docs/dev/dataset/overview" >}})** for details and code examples.
+{{< /hint >}}
 
 ### Example: Propagate Minimum in Graph
 

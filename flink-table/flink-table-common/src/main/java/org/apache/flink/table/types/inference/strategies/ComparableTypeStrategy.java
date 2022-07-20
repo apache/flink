@@ -33,7 +33,7 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.StructuredType;
-import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
+import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -41,12 +41,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
-
 /**
  * An {@link InputTypeStrategy} that checks if all input arguments can be compared with each other
- * with the minimal provided comparision.
+ * with the minimal provided comparison.
  *
  * <p>It requires at least one argument. In case of one argument, the argument must be comparable
  * with itself (e.g. for aggregations).
@@ -56,17 +53,17 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRo
  */
 @Internal
 public final class ComparableTypeStrategy implements InputTypeStrategy {
-    private final StructuredComparision requiredComparision;
+    private final StructuredComparison requiredComparison;
     private final ConstantArgumentCount argumentCount;
 
     public ComparableTypeStrategy(
-            ConstantArgumentCount argumentCount, StructuredComparision requiredComparision) {
+            ConstantArgumentCount argumentCount, StructuredComparison requiredComparison) {
         Preconditions.checkArgument(
                 argumentCount.getMinCount().map(c -> c >= 1).orElse(false),
                 "Comparable type strategy requires at least one argument. Actual minimal argument count: %s",
                 argumentCount.getMinCount().map(Objects::toString).orElse("<None>"));
-        Preconditions.checkArgument(requiredComparision != StructuredComparision.NONE);
-        this.requiredComparision = requiredComparision;
+        Preconditions.checkArgument(requiredComparison != StructuredComparison.NONE);
+        this.requiredComparison = requiredComparison;
         this.argumentCount = argumentCount;
     }
 
@@ -82,12 +79,11 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
         if (argumentDataTypes.size() == 1) {
             final LogicalType argType = argumentDataTypes.get(0).getLogicalType();
             if (!areComparable(argType, argType)) {
-                if (throwOnFailure) {
-                    throw callContext.newValidationError(
-                            "Type '%s' should support %s comparison with itself.",
-                            argType, comparisonToString());
-                }
-                return Optional.empty();
+                return callContext.fail(
+                        throwOnFailure,
+                        "Type '%s' should support %s comparison with itself.",
+                        argType,
+                        comparisonToString());
             }
         } else {
             for (int i = 0; i < argumentDataTypes.size() - 1; i++) {
@@ -95,13 +91,13 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
                 final LogicalType secondType = argumentDataTypes.get(i + 1).getLogicalType();
 
                 if (!areComparable(firstType, secondType)) {
-                    if (throwOnFailure) {
-                        throw callContext.newValidationError(
-                                "All types in a comparison should support %s comparison with each other. "
-                                        + "Can not compare %s with %s",
-                                comparisonToString(), firstType, secondType);
-                    }
-                    return Optional.empty();
+                    return callContext.fail(
+                            throwOnFailure,
+                            "All types in a comparison should support %s comparison with each other. "
+                                    + "Can not compare %s with %s",
+                            comparisonToString(),
+                            firstType,
+                            secondType);
                 }
             }
         }
@@ -110,7 +106,7 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
     }
 
     private String comparisonToString() {
-        return requiredComparision == StructuredComparision.EQUALS
+        return requiredComparison == StructuredComparison.EQUALS
                 ? "'EQUALS'"
                 : "both 'EQUALS' and 'ORDER'";
     }
@@ -128,7 +124,7 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
         }
 
         // everything is comparable with null, it should return null in that case
-        if (hasRoot(firstType, LogicalTypeRoot.NULL) || hasRoot(secondType, LogicalTypeRoot.NULL)) {
+        if (firstType.is(LogicalTypeRoot.NULL) || secondType.is(LogicalTypeRoot.NULL)) {
             return true;
         }
 
@@ -136,26 +132,24 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
             return areTypesOfSameRootComparable(firstType, secondType);
         }
 
-        if (hasFamily(firstType, LogicalTypeFamily.NUMERIC)
-                && hasFamily(secondType, LogicalTypeFamily.NUMERIC)) {
+        if (firstType.is(LogicalTypeFamily.NUMERIC) && secondType.is(LogicalTypeFamily.NUMERIC)) {
             return true;
         }
 
         // DATE + ALL TIMESTAMPS
-        if (hasFamily(firstType, LogicalTypeFamily.DATETIME)
-                && hasFamily(secondType, LogicalTypeFamily.DATETIME)) {
+        if (firstType.is(LogicalTypeFamily.DATETIME) && secondType.is(LogicalTypeFamily.DATETIME)) {
             return true;
         }
 
         // VARCHAR + CHAR (we do not compare collations here)
-        if (hasFamily(firstType, LogicalTypeFamily.CHARACTER_STRING)
-                && hasFamily(secondType, LogicalTypeFamily.CHARACTER_STRING)) {
+        if (firstType.is(LogicalTypeFamily.CHARACTER_STRING)
+                && secondType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             return true;
         }
 
         // VARBINARY + BINARY
-        if (hasFamily(firstType, LogicalTypeFamily.BINARY_STRING)
-                && hasFamily(secondType, LogicalTypeFamily.BINARY_STRING)) {
+        if (firstType.is(LogicalTypeFamily.BINARY_STRING)
+                && secondType.is(LogicalTypeFamily.BINARY_STRING)) {
             return true;
         }
 
@@ -195,7 +189,7 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
     }
 
     private boolean areStructuredTypesComparable(LogicalType firstType, LogicalType secondType) {
-        return firstType.equals(secondType) && hasRequiredComparision((StructuredType) firstType);
+        return firstType.equals(secondType) && hasRequiredComparison((StructuredType) firstType);
     }
 
     private boolean areConstructedTypesComparable(LogicalType firstType, LogicalType secondType) {
@@ -217,18 +211,19 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
 
     @Override
     public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-        return Collections.singletonList(Signature.of(Signature.Argument.of("<COMPARABLE>...")));
+        return Collections.singletonList(
+                Signature.of(Signature.Argument.ofGroupVarying("COMPARABLE")));
     }
 
-    private Boolean hasRequiredComparision(StructuredType structuredType) {
-        switch (requiredComparision) {
+    private Boolean hasRequiredComparison(StructuredType structuredType) {
+        switch (requiredComparison) {
             case EQUALS:
-                return structuredType.getComparision().isEquality();
+                return structuredType.getComparison().isEquality();
             case FULL:
-                return structuredType.getComparision().isComparison();
+                return structuredType.getComparison().isComparison();
             case NONE:
             default:
-                // this is not important, required comparision will never be NONE
+                // this is not important, required comparison will never be NONE
                 return true;
         }
     }

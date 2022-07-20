@@ -19,15 +19,18 @@
 package org.apache.flink.connector.jdbc.catalog;
 
 import org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.AbstractCatalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
@@ -45,23 +48,36 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.Factory;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.commons.compress.utils.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Predicate;
 
+import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.PASSWORD;
+import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.TABLE_NAME;
+import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.URL;
+import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.USERNAME;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory.IDENTIFIER;
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Abstract catalog for any JDBC catalogs. */
@@ -128,12 +144,17 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
     // ------ retrieve PK constraint ------
 
     protected Optional<UniqueConstraint> getPrimaryKey(
-            DatabaseMetaData metaData, String schema, String table) throws SQLException {
+            DatabaseMetaData metaData, String database, String schema, String table)
+            throws SQLException {
 
         // According to the Javadoc of java.sql.DatabaseMetaData#getPrimaryKeys,
         // the returned primary key columns are ordered by COLUMN_NAME, not by KEY_SEQ.
         // We need to sort them based on the KEY_SEQ value.
-        ResultSet rs = metaData.getPrimaryKeys(null, schema, table);
+        // In the currently supported database dialects MySQL and Postgres,
+        // the database term is equivalent to catalog term.
+        // We need to pass the database name as catalog parameter for retrieving primary keys by
+        // full table identifier.
+        ResultSet rs = metaData.getPrimaryKeys(database, schema, table);
 
         Map<Integer, String> keySeqColumnName = new HashMap<>();
         String pkName = null;
@@ -141,6 +162,9 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
             String columnName = rs.getString("COLUMN_NAME");
             pkName = rs.getString("PK_NAME"); // all the PK_NAME should be the same
             int keySeq = rs.getInt("KEY_SEQ");
+            Preconditions.checkState(
+                    !keySeqColumnName.containsKey(keySeq - 1),
+                    "The field(s) of primary key must be from the same table.");
             keySeqColumnName.put(keySeq - 1, columnName); // KEY_SEQ is 1-based index
         }
         List<String> pkFields =
@@ -188,7 +212,76 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public CatalogDatabase getDatabase(String databaseName)
+            throws DatabaseNotExistException, CatalogException {
+
+        Preconditions.checkState(
+                !StringUtils.isNullOrWhitespaceOnly(databaseName),
+                "Database name must not be blank.");
+        if (listDatabases().contains(databaseName)) {
+            return new CatalogDatabaseImpl(Collections.emptyMap(), null);
+        } else {
+            throw new DatabaseNotExistException(getName(), databaseName);
+        }
+    }
+
     // ------ tables and views ------
+
+    @Override
+    public CatalogBaseTable getTable(ObjectPath tablePath)
+            throws TableNotExistException, CatalogException {
+
+        if (!tableExists(tablePath)) {
+            throw new TableNotExistException(getName(), tablePath);
+        }
+
+        String databaseName = tablePath.getDatabaseName();
+        String dbUrl = baseUrl + databaseName;
+
+        try (Connection conn = DriverManager.getConnection(dbUrl, username, pwd)) {
+            DatabaseMetaData metaData = conn.getMetaData();
+            Optional<UniqueConstraint> primaryKey =
+                    getPrimaryKey(
+                            metaData,
+                            databaseName,
+                            getSchemaName(tablePath),
+                            getTableName(tablePath));
+
+            PreparedStatement ps =
+                    conn.prepareStatement(
+                            String.format("SELECT * FROM %s;", getSchemaTableName(tablePath)));
+
+            ResultSetMetaData resultSetMetaData = ps.getMetaData();
+
+            String[] columnNames = new String[resultSetMetaData.getColumnCount()];
+            DataType[] types = new DataType[resultSetMetaData.getColumnCount()];
+
+            for (int i = 1; i <= resultSetMetaData.getColumnCount(); i++) {
+                columnNames[i - 1] = resultSetMetaData.getColumnName(i);
+                types[i - 1] = fromJDBCType(tablePath, resultSetMetaData, i);
+                if (resultSetMetaData.isNullable(i) == ResultSetMetaData.columnNoNulls) {
+                    types[i - 1] = types[i - 1].notNull();
+                }
+            }
+
+            Schema.Builder schemaBuilder = Schema.newBuilder().fromFields(columnNames, types);
+            primaryKey.ifPresent(
+                    pk -> schemaBuilder.primaryKeyNamed(pk.getName(), pk.getColumns()));
+            Schema tableSchema = schemaBuilder.build();
+
+            Map<String, String> props = new HashMap<>();
+            props.put(CONNECTOR.key(), IDENTIFIER);
+            props.put(URL.key(), dbUrl);
+            props.put(USERNAME.key(), username);
+            props.put(PASSWORD.key(), pwd);
+            props.put(TABLE_NAME.key(), getSchemaTableName(tablePath));
+            return CatalogTable.of(tableSchema, null, Lists.newArrayList(), props);
+        } catch (Exception e) {
+            throw new CatalogException(
+                    String.format("Failed getting table %s", tablePath.getFullName()), e);
+        }
+    }
 
     @Override
     public void dropTable(ObjectPath tablePath, boolean ignoreIfNotExists)
@@ -385,6 +478,55 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
             CatalogColumnStatistics columnStatistics,
             boolean ignoreIfNotExists)
             throws PartitionNotExistException, CatalogException {
+        throw new UnsupportedOperationException();
+    }
+
+    protected List<String> extractColumnValuesBySQL(
+            String connUrl,
+            String sql,
+            int columnIndex,
+            Predicate<String> filterFunc,
+            Object... params) {
+
+        List<String> columnValues = Lists.newArrayList();
+
+        try (Connection conn = DriverManager.getConnection(connUrl, username, pwd);
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            if (Objects.nonNull(params) && params.length > 0) {
+                for (int i = 0; i < params.length; i++) {
+                    ps.setObject(i + 1, params[i]);
+                }
+            }
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                String columnValue = rs.getString(columnIndex);
+                if (Objects.isNull(filterFunc) || filterFunc.test(columnValue)) {
+                    columnValues.add(columnValue);
+                }
+            }
+            return columnValues;
+        } catch (Exception e) {
+            throw new CatalogException(
+                    String.format(
+                            "The following SQL query could not be executed (%s): %s", connUrl, sql),
+                    e);
+        }
+    }
+
+    protected DataType fromJDBCType(ObjectPath tablePath, ResultSetMetaData metadata, int colIndex)
+            throws SQLException {
+        throw new UnsupportedOperationException();
+    }
+
+    protected String getTableName(ObjectPath tablePath) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected String getSchemaName(ObjectPath tablePath) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected String getSchemaTableName(ObjectPath tablePath) {
         throw new UnsupportedOperationException();
     }
 }

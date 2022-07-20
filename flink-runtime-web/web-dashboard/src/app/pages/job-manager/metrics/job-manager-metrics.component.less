@@ -18,59 +18,55 @@
 
 @import "theme";
 
-.wrapper {
-  margin: 24px;
-}
+:host {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow: auto;
+  padding: @padding-md;
 
-.header-icon {
-  position: relative;
-  top: 1px;
-}
-
-.flink-memory-model {
-  margin-bottom: 24px;
   ::ng-deep {
-    table {
-      border-collapse: collapse;
+    .ant-table-cell {
+      font-size: @font-size-sm;
     }
-    .ant-table-small {
-      border: none;
-      .ant-table-body {
-        margin: 0;
-        overflow: hidden !important;
+  }
+
+  .header-icon {
+    position: relative;
+    top: 1px;
+  }
+
+  nz-progress {
+    display: block;
+    width: 90%;
+
+    ::ng-deep {
+      .ant-progress-inner {
+        border-radius: 0;
       }
-      tr {
-        &:hover {
-          td, th {
+    }
+  }
+
+  .flink-memory-model {
+    margin-bottom: @margin-md;
+
+    .table-header {
+      font-weight: 500;
+    }
+
+    ::ng-deep {
+      .ant-table-small {
+        tr:hover {
+          td,
+          th {
             background: transparent;
           }
         }
       }
-      td, th {
-        border-collapse: collapse;
-        border: 1px solid @border-color-split !important;
-        &.table-header {
-          background: @table-header-bg !important;
-          color: @table-header-color;
-          font-weight: 500;
-        }
-      }
     }
   }
-}
 
-nz-progress {
-  display: block;
-  width: 90%;
-  ::ng-deep {
-    .ant-progress-inner {
-      border-radius: 0 !important;
-    }
-  }
-}
-
-nz-card {
-  &:last-child {
-    margin-top: 16px;
+  .top-margin {
+    margin-top: @margin-md;
   }
 }

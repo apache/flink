@@ -24,7 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupImpl;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -60,8 +60,15 @@ public class JobVertex implements java.io.Serializable {
      * The IDs of all operators contained in this vertex.
      *
      * <p>The ID pairs are stored depth-first post-order; for the forking chain below the ID's would
-     * be stored as [D, E, B, C, A]. A - B - D \ \ C E This is the same order that operators are
-     * stored in the {@code StreamTask}.
+     * be stored as [D, E, B, C, A].
+     *
+     * <pre>
+     *  A - B - D
+     *   \    \
+     *    C    E
+     * </pre>
+     *
+     * <p>This is the same order that operators are stored in the {@code StreamTask}.
      */
     private final List<OperatorIDPair> operatorIDs;
 
@@ -134,6 +141,17 @@ public class JobVertex implements java.io.Serializable {
      * JSON plan.
      */
     private String resultOptimizerProperties;
+
+    /**
+     * The intermediateDataSetId of the cached intermediate dataset that the job vertex consumes.
+     */
+    private final List<IntermediateDataSetID> intermediateDataSetIdsToConsume = new ArrayList<>();
+
+    /** Indicates whether this job vertex contains source operators. */
+    private boolean containsSourceOperators = false;
+
+    /** Indicates whether this job vertex contains sink operators. */
+    private boolean containsSinkOperators = false;
 
     // --------------------------------------------------------------------------------------------
 
@@ -237,7 +255,7 @@ public class JobVertex implements java.io.Serializable {
         return this.configuration;
     }
 
-    public void setInvokableClass(Class<? extends AbstractInvokable> invokable) {
+    public void setInvokableClass(Class<? extends TaskInvokable> invokable) {
         Preconditions.checkNotNull(invokable);
         this.invokableClassName = invokable.getName();
     }
@@ -257,7 +275,7 @@ public class JobVertex implements java.io.Serializable {
      * @param cl The classloader used to resolve user-defined classes
      * @return The invokable class, <code>null</code> if it is not set
      */
-    public Class<? extends AbstractInvokable> getInvokableClass(ClassLoader cl) {
+    public Class<? extends TaskInvokable> getInvokableClass(ClassLoader cl) {
         if (cl == null) {
             throw new NullPointerException("The classloader must not be null.");
         }
@@ -266,13 +284,12 @@ public class JobVertex implements java.io.Serializable {
         }
 
         try {
-            return Class.forName(invokableClassName, true, cl).asSubclass(AbstractInvokable.class);
+            return Class.forName(invokableClassName, true, cl).asSubclass(TaskInvokable.class);
         } catch (ClassNotFoundException e) {
             throw new RuntimeException("The user-code class could not be resolved.", e);
         } catch (ClassCastException e) {
             throw new RuntimeException(
-                    "The user-code class is no subclass of " + AbstractInvokable.class.getName(),
-                    e);
+                    "The user-code class is no subclass of " + TaskInvokable.class.getName(), e);
         }
     }
 
@@ -291,8 +308,11 @@ public class JobVertex implements java.io.Serializable {
      * @param parallelism The parallelism for the task.
      */
     public void setParallelism(int parallelism) {
-        if (parallelism < 1) {
-            throw new IllegalArgumentException("The parallelism must be at least one.");
+        if (parallelism < 1 && parallelism != ExecutionConfig.PARALLELISM_DEFAULT) {
+            throw new IllegalArgumentException(
+                    "The parallelism must be at least one, or "
+                            + ExecutionConfig.PARALLELISM_DEFAULT
+                            + " (unset).");
         }
         this.parallelism = parallelism;
     }
@@ -461,11 +481,6 @@ public class JobVertex implements java.io.Serializable {
     }
 
     // --------------------------------------------------------------------------------------------
-
-    public IntermediateDataSet createAndAddResultDataSet(ResultPartitionType partitionType) {
-        return createAndAddResultDataSet(new IntermediateDataSetID(), partitionType);
-    }
-
     public IntermediateDataSet createAndAddResultDataSet(
             IntermediateDataSetID id, ResultPartitionType partitionType) {
 
@@ -474,28 +489,25 @@ public class JobVertex implements java.io.Serializable {
         return result;
     }
 
-    public JobEdge connectDataSetAsInput(
-            IntermediateDataSet dataSet, DistributionPattern distPattern) {
-        JobEdge edge = new JobEdge(dataSet, this, distPattern);
-        this.inputs.add(edge);
-        dataSet.addConsumer(edge);
-        return edge;
+    public JobEdge connectNewDataSetAsInput(
+            JobVertex input, DistributionPattern distPattern, ResultPartitionType partitionType) {
+        return connectNewDataSetAsInput(
+                input, distPattern, partitionType, new IntermediateDataSetID());
     }
 
     public JobEdge connectNewDataSetAsInput(
-            JobVertex input, DistributionPattern distPattern, ResultPartitionType partitionType) {
+            JobVertex input,
+            DistributionPattern distPattern,
+            ResultPartitionType partitionType,
+            IntermediateDataSetID intermediateDataSetId) {
 
-        IntermediateDataSet dataSet = input.createAndAddResultDataSet(partitionType);
+        IntermediateDataSet dataSet =
+                input.createAndAddResultDataSet(intermediateDataSetId, partitionType);
 
         JobEdge edge = new JobEdge(dataSet, this, distPattern);
         this.inputs.add(edge);
         dataSet.addConsumer(edge);
         return edge;
-    }
-
-    public void connectIdInput(IntermediateDataSetID dataSetId, DistributionPattern distPattern) {
-        JobEdge edge = new JobEdge(dataSetId, this, distPattern);
-        this.inputs.add(edge);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -520,6 +532,22 @@ public class JobVertex implements java.io.Serializable {
         }
 
         return true;
+    }
+
+    public void markContainsSources() {
+        this.containsSourceOperators = true;
+    }
+
+    public boolean containsSources() {
+        return containsSourceOperators;
+    }
+
+    public void markContainsSinks() {
+        this.containsSinkOperators = true;
+    }
+
+    public boolean containsSinks() {
+        return containsSinkOperators;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -574,6 +602,14 @@ public class JobVertex implements java.io.Serializable {
 
     public void setResultOptimizerProperties(String resultOptimizerProperties) {
         this.resultOptimizerProperties = resultOptimizerProperties;
+    }
+
+    public void addIntermediateDataSetIdToConsume(IntermediateDataSetID intermediateDataSetId) {
+        intermediateDataSetIdsToConsume.add(intermediateDataSetId);
+    }
+
+    public List<IntermediateDataSetID> getIntermediateDataSetIdsToConsume() {
+        return intermediateDataSetIdsToConsume;
     }
 
     // --------------------------------------------------------------------------------------------

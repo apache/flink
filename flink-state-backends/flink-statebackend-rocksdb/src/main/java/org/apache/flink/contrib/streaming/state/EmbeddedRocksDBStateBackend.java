@@ -24,8 +24,13 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
@@ -67,9 +72,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 
+import static org.apache.flink.configuration.description.TextElement.text;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
@@ -91,12 +99,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBackend
         implements ConfigurableStateBackend {
 
-    /** The options to chose for the type of priority queue state. */
-    public enum PriorityQueueStateType {
-        HEAP,
-        ROCKSDB
-    }
-
     private static final long serialVersionUID = 1L;
 
     private static final Logger LOG = LoggerFactory.getLogger(EmbeddedRocksDBStateBackend.class);
@@ -110,6 +112,8 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     private static final int UNDEFINED_NUMBER_OF_TRANSFER_THREADS = -1;
 
     private static final long UNDEFINED_WRITE_BATCH_SIZE = -1;
+
+    private static final double UNDEFINED_OVERLAP_FRACTION_THRESHOLD = -1;
 
     // ------------------------------------------------------------------------
 
@@ -125,6 +129,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     /** The pre-configured option settings. */
     @Nullable private PredefinedOptions predefinedOptions;
 
+    /** The configurable options. */
+    @Nullable private ReadableConfig configurableOptions;
+
     /** The options factory to create the RocksDB options in the cluster. */
     @Nullable private RocksDBOptionsFactory rocksDbOptionsFactory;
 
@@ -138,10 +145,10 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     private final RocksDBMemoryConfiguration memoryConfiguration;
 
     /** This determines the type of priority queue state. */
-    @Nullable private EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType;
+    @Nullable private PriorityQueueStateType priorityQueueStateType;
 
-    /** The default rocksdb metrics options. */
-    private final RocksDBNativeMetricOptions defaultMetricOptions;
+    /** The default rocksdb property-based metrics options. */
+    private final RocksDBNativeMetricOptions nativeMetricOptions;
 
     // -- runtime values, set on TaskManager when initializing / using the backend
 
@@ -163,6 +170,11 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      */
     private long writeBatchSize;
 
+    /**
+     * The threshold of the overlap fraction between the handle's key-group range and target
+     * key-group range.
+     */
+    private double overlapFractionThreshold;
     // ------------------------------------------------------------------------
 
     /** Creates a new {@code EmbeddedRocksDBStateBackend} for storing local state. */
@@ -187,9 +199,10 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     public EmbeddedRocksDBStateBackend(TernaryBoolean enableIncrementalCheckpointing) {
         this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
         this.numberOfTransferThreads = UNDEFINED_NUMBER_OF_TRANSFER_THREADS;
-        this.defaultMetricOptions = new RocksDBNativeMetricOptions();
+        this.nativeMetricOptions = new RocksDBNativeMetricOptions();
         this.memoryConfiguration = new RocksDBMemoryConfiguration();
         this.writeBatchSize = UNDEFINED_WRITE_BATCH_SIZE;
+        this.overlapFractionThreshold = UNDEFINED_OVERLAP_FRACTION_THRESHOLD;
     }
 
     /**
@@ -250,7 +263,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         }
 
         // configure metric options
-        this.defaultMetricOptions = RocksDBNativeMetricOptions.fromConfig(config);
+        this.nativeMetricOptions = RocksDBNativeMetricOptions.fromConfig(config);
 
         // configure RocksDB predefined options
         this.predefinedOptions =
@@ -258,6 +271,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         ? PredefinedOptions.valueOf(config.get(RocksDBOptions.PREDEFINED_OPTIONS))
                         : original.predefinedOptions;
         LOG.info("Using predefined options: {}.", predefinedOptions.name());
+
+        // configurable options
+        this.configurableOptions = mergeConfigurableOptions(original.configurableOptions, config);
 
         // configure RocksDB options factory
         try {
@@ -273,6 +289,15 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
         // configure latency tracking
         latencyTrackingConfigBuilder = original.latencyTrackingConfigBuilder.configure(config);
+
+        // configure overlap fraction threshold
+        overlapFractionThreshold =
+                original.overlapFractionThreshold == UNDEFINED_OVERLAP_FRACTION_THRESHOLD
+                        ? config.get(RESTORE_OVERLAP_FRACTION_THRESHOLD)
+                        : original.overlapFractionThreshold;
+        checkArgument(
+                overlapFractionThreshold >= 0 && this.overlapFractionThreshold <= 1,
+                "Overlap fraction threshold of restoring should be between 0 and 1");
     }
 
     // ------------------------------------------------------------------------
@@ -296,6 +321,18 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     //  State backend methods
     // ------------------------------------------------------------------------
 
+    @Override
+    public boolean supportsNoClaimRestoreMode() {
+        // We are able to create CheckpointType#FULL_CHECKPOINT. (we might potentially reupload some
+        // shared files when taking incremental snapshots)
+        return true;
+    }
+
+    @Override
+    public boolean supportsSavepointFormat(SavepointFormatType formatType) {
+        return true;
+    }
+
     private void lazyInitializeForJob(
             Environment env, @SuppressWarnings("unused") String operatorIdentifier)
             throws IOException {
@@ -308,8 +345,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
         // initialize the paths where the local RocksDB files should be stored
         if (localRocksDbDirectories == null) {
-            // initialize from the temp directories
-            initializedDbBasePaths = env.getIOManager().getSpillingDirectories();
+            initializedDbBasePaths = new File[] {env.getTaskManagerInfo().getTmpWorkingDirectory()};
         } else {
             List<File> dirs = new ArrayList<>(localRocksDbDirectories.length);
             StringBuilder errorMessage = new StringBuilder();
@@ -401,7 +437,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
         // first, make sure that the RocksDB JNI library is loaded
         // we do this explicitly here to have better error handling
-        String tempDir = env.getTaskManagerInfo().getTmpDirectories()[0];
+        String tempDir = env.getTaskManagerInfo().getTmpWorkingDirectory().getAbsolutePath();
         ensureRocksDBIsLoaded(tempDir);
 
         // replace all characters that are not legal for filenames with underscore
@@ -429,7 +465,8 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
             LOG.info("Obtained shared RocksDB cache of size {} bytes", sharedResources.getSize());
         }
         final RocksDBResourceContainer resourceContainer =
-                createOptionsAndResourceContainer(sharedResources);
+                createOptionsAndResourceContainer(
+                        sharedResources, nativeMetricOptions.isStatisticsEnabled());
 
         ExecutionConfig executionConfig = env.getExecutionConfig();
         StreamCompressionDecorator keyGroupCompressionDecorator =
@@ -460,8 +497,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         .setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
                         .setNumberOfTransferingThreads(getNumberOfTransferThreads())
                         .setNativeMetricOptions(
-                                resourceContainer.getMemoryWatcherOptions(defaultMetricOptions))
-                        .setWriteBatchSize(getWriteBatchSize());
+                                resourceContainer.getMemoryWatcherOptions(nativeMetricOptions))
+                        .setWriteBatchSize(getWriteBatchSize())
+                        .setOverlapFractionThreshold(getOverlapFractionThreshold());
         return builder.build();
     }
 
@@ -487,10 +525,12 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
     private RocksDBOptionsFactory configureOptionsFactory(
             @Nullable RocksDBOptionsFactory originalOptionsFactory,
-            String factoryClassName,
+            @Nullable String factoryClassName,
             ReadableConfig config,
             ClassLoader classLoader)
             throws DynamicCodeLoadingException {
+
+        RocksDBOptionsFactory optionsFactory = null;
 
         if (originalOptionsFactory != null) {
             if (originalOptionsFactory instanceof ConfigurableRocksDBOptionsFactory) {
@@ -500,45 +540,58 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
             }
             LOG.info("Using application-defined options factory: {}.", originalOptionsFactory);
 
-            return originalOptionsFactory;
-        }
+            optionsFactory = originalOptionsFactory;
+        } else if (factoryClassName != null) {
+            // Do nothing if user does not define any factory class.
+            if (factoryClassName.equalsIgnoreCase(
+                    DefaultConfigurableOptionsFactory.class.getName())) {
+                // From FLINK-24046, we deprecate the DefaultConfigurableOptionsFactory.
+                LOG.warn(
+                        "{} is deprecated. Please remove this value from the configuration."
+                                + "It is safe to do so since the configurable options will be loaded "
+                                + "in other place. For more information, please refer to FLINK-24046.",
+                        DefaultConfigurableOptionsFactory.class.getName());
+            } else {
+                try {
+                    Class<? extends RocksDBOptionsFactory> clazz =
+                            Class.forName(factoryClassName, false, classLoader)
+                                    .asSubclass(RocksDBOptionsFactory.class);
 
-        // if using DefaultConfigurableOptionsFactory by default, we could avoid reflection to speed
-        // up.
-        if (factoryClassName.equalsIgnoreCase(DefaultConfigurableOptionsFactory.class.getName())) {
-            DefaultConfigurableOptionsFactory optionsFactory =
-                    new DefaultConfigurableOptionsFactory();
-            optionsFactory.configure(config);
-            LOG.info("Using default options factory: {}.", optionsFactory);
+                    optionsFactory = clazz.newInstance();
+                    if (optionsFactory instanceof ConfigurableRocksDBOptionsFactory) {
+                        optionsFactory =
+                                ((ConfigurableRocksDBOptionsFactory) optionsFactory)
+                                        .configure(config);
+                    }
+                    LOG.info("Using configured options factory: {}.", optionsFactory);
 
-            return optionsFactory;
-        } else {
-            try {
-                Class<? extends RocksDBOptionsFactory> clazz =
-                        Class.forName(factoryClassName, false, classLoader)
-                                .asSubclass(RocksDBOptionsFactory.class);
-
-                RocksDBOptionsFactory optionsFactory = clazz.newInstance();
-                if (optionsFactory instanceof ConfigurableRocksDBOptionsFactory) {
-                    optionsFactory =
-                            ((ConfigurableRocksDBOptionsFactory) optionsFactory).configure(config);
+                } catch (ClassNotFoundException e) {
+                    throw new DynamicCodeLoadingException(
+                            "Cannot find configured options factory class: " + factoryClassName, e);
+                } catch (ClassCastException | InstantiationException | IllegalAccessException e) {
+                    throw new DynamicCodeLoadingException(
+                            "The class configured under '"
+                                    + RocksDBOptions.OPTIONS_FACTORY.key()
+                                    + "' is not a valid options factory ("
+                                    + factoryClassName
+                                    + ')',
+                            e);
                 }
-                LOG.info("Using configured options factory: {}.", optionsFactory);
-
-                return optionsFactory;
-            } catch (ClassNotFoundException e) {
-                throw new DynamicCodeLoadingException(
-                        "Cannot find configured options factory class: " + factoryClassName, e);
-            } catch (ClassCastException | InstantiationException | IllegalAccessException e) {
-                throw new DynamicCodeLoadingException(
-                        "The class configured under '"
-                                + RocksDBOptions.OPTIONS_FACTORY.key()
-                                + "' is not a valid options factory ("
-                                + factoryClassName
-                                + ')',
-                        e);
             }
         }
+
+        if (optionsFactory instanceof DefaultConfigurableOptionsFactory) {
+            LOG.warn(
+                    "{} is extending from {}, which is deprecated and will be removed in the "
+                            + "future. It is highly recommended to directly implement the "
+                            + "ConfigurableRocksDBOptionsFactory without extending the {}. "
+                            + "For more information, please refer to FLINK-24046.",
+                    optionsFactory,
+                    DefaultConfigurableOptionsFactory.class.getName(),
+                    DefaultConfigurableOptionsFactory.class.getName());
+        }
+
+        return optionsFactory;
     }
 
     // ------------------------------------------------------------------------
@@ -663,7 +716,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      *
      * @return The type of the priority queue state.
      */
-    public EmbeddedRocksDBStateBackend.PriorityQueueStateType getPriorityQueueStateType() {
+    public PriorityQueueStateType getPriorityQueueStateType() {
         return priorityQueueStateType == null
                 ? TIMER_SERVICE_FACTORY.defaultValue()
                 : priorityQueueStateType;
@@ -673,8 +726,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      * Sets the type of the priority queue state. It will fallback to the default value, if it is
      * not explicitly set.
      */
-    public void setPriorityQueueStateType(
-            EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType) {
+    public void setPriorityQueueStateType(PriorityQueueStateType priorityQueueStateType) {
         this.priorityQueueStateType = checkNotNull(priorityQueueStateType);
     }
 
@@ -721,9 +773,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      * serializable and hold native code references, they must be specified through a factory.
      *
      * <p>The options created by the factory here are applied on top of the pre-defined options
-     * profile selected via {@link #setPredefinedOptions(PredefinedOptions)}. If the pre-defined
-     * options profile is the default ({@link PredefinedOptions#DEFAULT}), then the factory fully
-     * controls the RocksDB options.
+     * profile selected via {@link #setPredefinedOptions(PredefinedOptions)} and user-configured
+     * options from configuration set by {@link #configure(ReadableConfig, ClassLoader)} with keys
+     * in {@link RocksDBConfigurableOptions}.
      *
      * @param optionsFactory The options factory that lazily creates the RocksDB options.
      */
@@ -782,23 +834,50 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         this.writeBatchSize = writeBatchSize;
     }
 
+    double getOverlapFractionThreshold() {
+        return overlapFractionThreshold == UNDEFINED_OVERLAP_FRACTION_THRESHOLD
+                ? RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()
+                : overlapFractionThreshold;
+    }
+
     // ------------------------------------------------------------------------
     //  utilities
     // ------------------------------------------------------------------------
 
+    private ReadableConfig mergeConfigurableOptions(ReadableConfig base, ReadableConfig onTop) {
+        if (base == null) {
+            base = new Configuration();
+        }
+        Configuration configuration = new Configuration();
+        for (ConfigOption<?> option : RocksDBConfigurableOptions.CANDIDATE_CONFIGS) {
+            Optional<?> baseValue = base.getOptional(option);
+            Optional<?> topValue = onTop.getOptional(option);
+
+            if (topValue.isPresent() || baseValue.isPresent()) {
+                Object validValue = topValue.isPresent() ? topValue.get() : baseValue.get();
+                RocksDBConfigurableOptions.checkArgumentValid(option, validValue);
+                configuration.setString(option.key(), validValue.toString());
+            }
+        }
+        return configuration;
+    }
+
     @VisibleForTesting
     RocksDBResourceContainer createOptionsAndResourceContainer() {
-        return createOptionsAndResourceContainer(null);
+        return createOptionsAndResourceContainer(null, false);
     }
 
     @VisibleForTesting
     private RocksDBResourceContainer createOptionsAndResourceContainer(
-            @Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources) {
+            @Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources,
+            boolean enableStatistics) {
 
         return new RocksDBResourceContainer(
+                configurableOptions != null ? configurableOptions : new Configuration(),
                 predefinedOptions != null ? predefinedOptions : PredefinedOptions.DEFAULT,
                 rocksDbOptionsFactory,
-                sharedResources);
+                sharedResources,
+                enableStatistics);
     }
 
     @Override
@@ -894,5 +973,26 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                 org.rocksdb.NativeLibraryLoader.class.getDeclaredField("initialized");
         initField.setAccessible(true);
         initField.setBoolean(null, false);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Enums
+    // ---------------------------------------------------------------------------------------------
+
+    /** The options to chose for the type of priority queue state. */
+    public enum PriorityQueueStateType implements DescribedEnum {
+        HEAP(text("Heap-based")),
+        ROCKSDB(text("Implementation based on RocksDB"));
+
+        private final InlineElement description;
+
+        PriorityQueueStateType(InlineElement description) {
+            this.description = description;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 }

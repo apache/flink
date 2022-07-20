@@ -19,11 +19,11 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,7 +102,15 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 
     @Override
     public void grantLeadership(UUID leaderSessionID) {
-        runActionIfRunning(() -> startNewDispatcherLeaderProcess(leaderSessionID));
+        runActionIfRunning(
+                () -> {
+                    LOG.info(
+                            "{} was granted leadership with leader id {}. Creating new {}.",
+                            getClass().getSimpleName(),
+                            leaderSessionID,
+                            DispatcherLeaderProcess.class.getSimpleName());
+                    startNewDispatcherLeaderProcess(leaderSessionID);
+                });
     }
 
     private void startNewDispatcherLeaderProcess(UUID leaderSessionID) {
@@ -126,11 +134,6 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
     }
 
     private DispatcherLeaderProcess createNewDispatcherLeaderProcess(UUID leaderSessionID) {
-        LOG.debug(
-                "Create new {} with leader session id {}.",
-                DispatcherLeaderProcess.class.getSimpleName(),
-                leaderSessionID);
-
         final DispatcherLeaderProcess newDispatcherLeaderProcess =
                 dispatcherLeaderProcessFactory.create(leaderSessionID);
 
@@ -177,7 +180,15 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 
     @Override
     public void revokeLeadership() {
-        runActionIfRunning(this::stopDispatcherLeaderProcess);
+        runActionIfRunning(
+                () -> {
+                    LOG.info(
+                            "{} was revoked the leadership with leader id {}. Stopping the {}.",
+                            getClass().getSimpleName(),
+                            dispatcherLeaderProcess.getLeaderSessionId(),
+                            DispatcherLeaderProcess.class.getSimpleName());
+                    this.stopDispatcherLeaderProcess();
+                });
     }
 
     private void runActionIfRunning(Runnable runnable) {

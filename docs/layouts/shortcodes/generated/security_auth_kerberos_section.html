@@ -9,6 +9,18 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>security.kerberos.access.hadoopFileSystems</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>A comma-separated list of Kerberos-secured Hadoop filesystems Flink is going to access. For example, security.kerberos.access.hadoopFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. The JobManager needs to have access to these filesystems to retrieve the security tokens.</td>
+        </tr>
+        <tr>
+            <td><h5>security.kerberos.fetch.delegation-token</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Indicates whether to fetch the delegation tokens for external services the Flink job needs to contact. Only HDFS and HBase are supported. It is used in Yarn deployments. If true, Flink will fetch HDFS and HBase delegation tokens and inject them into Yarn AM containers. If false, Flink will assume that the delegation tokens are managed outside of Flink. As a consequence, it will not fetch delegation tokens for HDFS and HBase. You may need to disable this option, if you rely on submission mechanisms, e.g. Apache Oozie, to handle delegation tokens.</td>
+        </tr>
+        <tr>
             <td><h5>security.kerberos.login.contexts</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -31,6 +43,24 @@
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
             <td>Indicates whether to read from your Kerberos ticket cache.</td>
+        </tr>
+        <tr>
+            <td><h5>security.kerberos.relogin.period</h5></td>
+            <td style="word-wrap: break-word;">1 min</td>
+            <td>Duration</td>
+            <td>The time period when keytab login happens automatically in order to always have a valid TGT.</td>
+        </tr>
+        <tr>
+            <td><h5>security.kerberos.tokens.renewal.retry.backoff</h5></td>
+            <td style="word-wrap: break-word;">1 h</td>
+            <td>Duration</td>
+            <td>The time period how long to wait before retrying to obtain new delegation tokens after a failure.</td>
+        </tr>
+        <tr>
+            <td><h5>security.kerberos.tokens.renewal.time-ratio</h5></td>
+            <td style="word-wrap: break-word;">0.75</td>
+            <td>Double</td>
+            <td>Ratio of the tokens's expiration time when new credentials should be re-obtained.</td>
         </tr>
     </tbody>
 </table>

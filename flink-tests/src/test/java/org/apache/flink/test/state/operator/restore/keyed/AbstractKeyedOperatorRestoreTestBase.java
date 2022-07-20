@@ -18,42 +18,31 @@
 
 package org.apache.flink.test.state.operator.restore.keyed;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.state.operator.restore.AbstractOperatorRestoreTestBase;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
 import java.util.Collection;
 
 /** Base class for all keyed operator restore tests. */
 @RunWith(Parameterized.class)
 public abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
 
-    private final MigrationVersion migrationVersion;
+    private final FlinkVersion flinkVersion;
 
     @Parameterized.Parameters(name = "Migrate Savepoint: {0}")
-    public static Collection<MigrationVersion> parameters() {
-        return Arrays.asList(
-                MigrationVersion.v1_3,
-                MigrationVersion.v1_4,
-                MigrationVersion.v1_5,
-                MigrationVersion.v1_6,
-                MigrationVersion.v1_7,
-                MigrationVersion.v1_8,
-                MigrationVersion.v1_9,
-                MigrationVersion.v1_10,
-                MigrationVersion.v1_11,
-                MigrationVersion.v1_12);
+    public static Collection<FlinkVersion> parameters() {
+        return FlinkVersion.rangeOf(FlinkVersion.v1_3, FlinkVersion.v1_15);
     }
 
-    public AbstractKeyedOperatorRestoreTestBase(MigrationVersion migrationVersion) {
-        this.migrationVersion = migrationVersion;
+    public AbstractKeyedOperatorRestoreTestBase(FlinkVersion flinkVersion) {
+        this.flinkVersion = flinkVersion;
     }
 
     @Override
@@ -74,6 +63,6 @@ public abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOpera
 
     @Override
     protected String getMigrationSavepointName() {
-        return "complexKeyed-flink" + migrationVersion;
+        return "complexKeyed-flink" + flinkVersion;
     }
 }

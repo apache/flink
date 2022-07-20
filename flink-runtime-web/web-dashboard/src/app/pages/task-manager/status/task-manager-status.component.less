@@ -19,59 +19,16 @@
 
 :host {
   display: block;
-  background: @component-background;
   padding: 16px 24px 0;
   border-bottom: 1px solid @border-color-split;
-  margin: -24px -24px 0px;
-}
+  background: @component-background;
 
-.wrapper {
-  position: relative;
-}
-
-.name {
-  h2, flink-job-badge {
-    display: inline-block;
-  }
-
-  nz-divider {
-    margin: 0 24px;
-  }
-}
-
-.field {
-  display: flex;
-  font-size: 14px;
-  line-height: 22px;
-  margin-bottom: 12px;
-
-  div {
-    line-height: 22px;
-
-    &:last-child {
-      margin-left: 8px;
-      font-weight: 700;
-      color: @heading-color;
+  .name {
+    h3 {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 }
-
-.status {
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  padding: 12px 12px 0 12px;
-  border: 1px solid @border-color-split;
-  background: darken(@component-background, 1%);
-
-  nz-divider {
-    margin: 0 24px;
-  }
-}
-
-flink-navigation {
-  margin-bottom: -1px;
-  display: block;
-}
-

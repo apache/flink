@@ -18,6 +18,13 @@
 
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+
+import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkState;
+
+/** We are performing aligned checkpoints. We have seen at least a single aligned * barrier. */
 final class CollectingBarriers extends AbstractAlignedBarrierHandlerState {
 
     CollectingBarriers(ChannelState context) {
@@ -26,6 +33,20 @@ final class CollectingBarriers extends AbstractAlignedBarrierHandlerState {
 
     @Override
     protected BarrierHandlerState convertAfterBarrierReceived(ChannelState state) {
+        return this;
+    }
+
+    @Override
+    public BarrierHandlerState endOfPartitionReceived(
+            Controller controller, InputChannelInfo channelInfo) throws IOException {
+        state.channelFinished(channelInfo);
+        if (controller.allBarriersReceived()) {
+            checkState(
+                    controller.getPendingCheckpointBarrier() != null,
+                    "At least one barrier received in collecting barrier state.");
+            return triggerGlobalCheckpoint(controller, controller.getPendingCheckpointBarrier());
+        }
+
         return this;
     }
 }

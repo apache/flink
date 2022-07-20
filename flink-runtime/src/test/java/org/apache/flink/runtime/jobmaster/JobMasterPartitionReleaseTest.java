@@ -26,10 +26,13 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.io.network.partition.AbstractPartitionTrackerTest;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -46,6 +49,7 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -57,6 +61,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -64,6 +69,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 
 /** Tests for the partition release logic of the {@link JobMaster}. */
@@ -131,17 +137,17 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
     @Test
     public void testPartitionReleaseOrPromotionOnJobSuccess() throws Exception {
         testPartitionReleaseOrPromotionOnJobTermination(
-                TestSetup::getReleaseOrPromotePartitionsTargetResourceId, ExecutionState.FINISHED);
+                TestSetup::getPartitionsForReleaseOrPromote, ExecutionState.FINISHED);
     }
 
     @Test
     public void testPartitionReleaseOrPromotionOnJobFailure() throws Exception {
         testPartitionReleaseOrPromotionOnJobTermination(
-                TestSetup::getReleasePartitionsTargetResourceId, ExecutionState.FAILED);
+                TestSetup::getPartitionsForRelease, ExecutionState.FAILED);
     }
 
     private void testPartitionReleaseOrPromotionOnJobTermination(
-            Function<TestSetup, CompletableFuture<ResourceID>> taskExecutorCallSelector,
+            Function<TestSetup, CompletableFuture<Collection<ResultPartitionID>>> callSelector,
             ExecutionState finalExecutionState)
             throws Exception {
         final CompletableFuture<TaskDeploymentDescriptor> taskDeploymentDescriptorFuture =
@@ -157,6 +163,23 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 
         try (final TestSetup testSetup =
                 new TestSetup(rpcService, testingFatalErrorHandler, testingTaskExecutorGateway)) {
+            ResultPartitionID partitionID0 = new ResultPartitionID();
+            ResultPartitionID partitionID1 = new ResultPartitionID();
+            testSetup
+                    .getPartitionTracker()
+                    .setGetAllTrackedPartitionsSupplier(
+                            () -> {
+                                ResultPartitionDeploymentDescriptor partitionDesc0 =
+                                        AbstractPartitionTrackerTest
+                                                .createResultPartitionDeploymentDescriptor(
+                                                        partitionID0, true);
+                                ResultPartitionDeploymentDescriptor partitionDesc1 =
+                                        AbstractPartitionTrackerTest
+                                                .createResultPartitionDeploymentDescriptor(
+                                                        partitionID1, false);
+                                return Arrays.asList(partitionDesc0, partitionDesc1);
+                            });
+
             final JobMasterGateway jobMasterGateway = testSetup.getJobMasterGateway();
 
             // update the execution state of the only execution to target state
@@ -166,10 +189,9 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
             jobMasterGateway.updateTaskExecutionState(
                     new TaskExecutionState(
                             taskDeploymentDescriptor.getExecutionAttemptId(), finalExecutionState));
-
             assertThat(
-                    taskExecutorCallSelector.apply(testSetup).get(),
-                    equalTo(testSetup.getTaskExecutorResourceID()));
+                    callSelector.apply(testSetup).get(),
+                    containsInAnyOrder(partitionID0, partitionID1));
         }
     }
 
@@ -182,12 +204,16 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 
         private final CompletableFuture<ResourceID> taskExecutorIdForStopTracking =
                 new CompletableFuture<>();
-        private final CompletableFuture<ResourceID> taskExecutorIdForPartitionRelease =
-                new CompletableFuture<>();
-        private final CompletableFuture<ResourceID> taskExecutorIdForPartitionReleaseOrPromote =
+
+        private final CompletableFuture<Collection<ResultPartitionID>> partitionsForRelease =
                 new CompletableFuture<>();
 
-        private JobMaster jobMaster;
+        private final CompletableFuture<Collection<ResultPartitionID>>
+                partitionsForReleaseOrPromote = new CompletableFuture<>();
+
+        private final JobMaster jobMaster;
+
+        private final TestingJobMasterPartitionTracker partitionTracker;
 
         public TestSetup(
                 TestingRpcService rpcService,
@@ -203,15 +229,14 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
             haServices.setResourceManagerLeaderRetriever(
                     new SettableLeaderRetrievalService(null, null));
 
-            final TestingJobMasterPartitionTracker partitionTracker =
-                    new TestingJobMasterPartitionTracker();
+            partitionTracker = new TestingJobMasterPartitionTracker();
 
             partitionTracker.setStopTrackingAllPartitionsConsumer(
                     taskExecutorIdForStopTracking::complete);
-            partitionTracker.setStopTrackingAndReleaseAllPartitionsConsumer(
-                    taskExecutorIdForPartitionRelease::complete);
+            partitionTracker.setStopTrackingAndReleasePartitionsConsumer(
+                    partitionsForRelease::complete);
             partitionTracker.setStopTrackingAndReleaseOrPromotePartitionsConsumer(
-                    taskExecutorIdForPartitionReleaseOrPromote::complete);
+                    partitionsForReleaseOrPromote::complete);
 
             Configuration configuration = new Configuration();
             configuration.setString(
@@ -225,8 +250,6 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
                     new JobMasterBuilder(jobGraph, rpcService)
                             .withConfiguration(configuration)
                             .withHighAvailabilityServices(haServices)
-                            .withJobManagerSharedServices(
-                                    new TestingJobManagerSharedServicesBuilder().build())
                             .withFatalErrorHandler(fatalErrorHandler)
                             .withHeartbeatServices(heartbeatServices)
                             .withPartitionTrackerFactory(ignored -> partitionTracker)
@@ -249,9 +272,11 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 
             jobMasterGateway
                     .registerTaskManager(
-                            taskExecutorGateway.getAddress(),
-                            localTaskManagerUnresolvedLocation,
                             jobId,
+                            TaskManagerRegistrationInformation.create(
+                                    taskExecutorGateway.getAddress(),
+                                    localTaskManagerUnresolvedLocation,
+                                    TestingUtils.zeroUUID()),
                             testingTimeout)
                     .get();
 
@@ -267,6 +292,10 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
                     .get();
         }
 
+        public TestingJobMasterPartitionTracker getPartitionTracker() {
+            return partitionTracker;
+        }
+
         public JobMasterGateway getJobMasterGateway() {
             return jobMaster.getSelfGateway(JobMasterGateway.class);
         }
@@ -279,18 +308,18 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
             return taskExecutorIdForStopTracking;
         }
 
-        public CompletableFuture<ResourceID> getReleasePartitionsTargetResourceId() {
-            return taskExecutorIdForPartitionRelease;
+        public CompletableFuture<Collection<ResultPartitionID>> getPartitionsForRelease() {
+            return partitionsForRelease;
         }
 
-        public CompletableFuture<ResourceID> getReleaseOrPromotePartitionsTargetResourceId() {
-            return taskExecutorIdForPartitionReleaseOrPromote;
+        public CompletableFuture<Collection<ResultPartitionID>> getPartitionsForReleaseOrPromote() {
+            return partitionsForReleaseOrPromote;
         }
 
         public void close() throws Exception {
             try {
                 if (jobMaster != null) {
-                    RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+                    RpcUtils.terminateRpcEndpoint(jobMaster);
                 }
             } finally {
                 temporaryFolder.delete();

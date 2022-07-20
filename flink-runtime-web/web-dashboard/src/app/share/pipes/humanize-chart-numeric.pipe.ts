@@ -17,7 +17,9 @@
  */
 
 import { Pipe, PipeTransform } from '@angular/core';
-import { isNil } from 'utils';
+
+import { isNil } from '@flink-runtime-web/utils';
+
 import { HumanizeBytesPipe } from './humanize-bytes.pipe';
 import { HumanizeDurationPipe } from './humanize-duration.pipe';
 
@@ -31,11 +33,11 @@ export class HumanizeChartNumericPipe implements PipeTransform {
     }
     let returnVal = '';
     if (/bytes/i.test(id) && /persecond/i.test(id)) {
-      returnVal = new HumanizeBytesPipe().transform(value) + ' / s';
+      returnVal = `${new HumanizeBytesPipe().transform(value)} / s`;
     } else if (/bytes/i.test(id)) {
       returnVal = new HumanizeBytesPipe().transform(value);
     } else if (/persecond/i.test(id)) {
-      returnVal = value + ' / s';
+      returnVal = `${value} / s`;
     } else if (/time/i.test(id) || /latency/i.test(id)) {
       returnVal = new HumanizeDurationPipe().transform(value, true);
     } else {

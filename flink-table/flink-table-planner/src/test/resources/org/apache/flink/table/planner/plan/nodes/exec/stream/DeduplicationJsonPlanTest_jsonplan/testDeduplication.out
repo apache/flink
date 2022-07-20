@@ -1,0 +1,313 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`srcValuesTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "order_id",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "user",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "product",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "order_time",
+              "dataType" : "TIMESTAMP(3)"
+            }, {
+              "name" : "proctime",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
+                  "operands" : [ ],
+                  "type" : {
+                    "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                    "nullable" : false,
+                    "precision" : 3,
+                    "kind" : "PROCTIME"
+                  }
+                },
+                "serializableString" : "PROCTIME()"
+              }
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "disable-lookup" : "true",
+            "connector" : "values",
+            "bounded" : "false"
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`order_id` BIGINT, `user` VARCHAR(2147483647), `product` VARCHAR(2147483647), `order_time` TIMESTAMP(3)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, srcValuesTable]], fields=[order_id, user, product, order_time])",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "TIMESTAMP(3)"
+    }, {
+      "kind" : "CALL",
+      "internalName" : "$PROCTIME$1",
+      "operands" : [ ],
+      "type" : {
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
+        "precision" : 3,
+        "kind" : "PROCTIME"
+      }
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "order_id",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "user",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "product",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "order_time",
+        "fieldType" : "TIMESTAMP(3)"
+      }, {
+        "name" : "$4",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
+    "description" : "Calc(select=[order_id, user, product, order_time, PROCTIME() AS $4])"
+  }, {
+    "id" : 3,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 2 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "order_id",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "user",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "product",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "order_time",
+        "fieldType" : "TIMESTAMP(3)"
+      }, {
+        "name" : "$4",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[product]])"
+  }, {
+    "id" : 4,
+    "type" : "stream-exec-deduplicate_1",
+    "configuration" : {
+      "table.exec.deduplicate.insert-update-after-sensitive-enabled" : "true",
+      "table.exec.deduplicate.mini-batch.compact-changes-enabled" : "false",
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
+    "uniqueKeys" : [ 2 ],
+    "isRowtime" : false,
+    "keepLastRow" : false,
+    "generateUpdateBefore" : false,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "order_id",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "user",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "product",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "order_time",
+        "fieldType" : "TIMESTAMP(3)"
+      }, {
+        "name" : "$4",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
+    "description" : "Deduplicate(keep=[FirstRow], key=[product], order=[PROCTIME])"
+  }, {
+    "id" : 5,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "TIMESTAMP(3)"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` BIGINT, `user` VARCHAR(2147483647), `product` VARCHAR(2147483647), `order_time` TIMESTAMP(3)>",
+    "description" : "Calc(select=[order_id, user, product, order_time])"
+  }, {
+    "id" : 6,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "order_id",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "user",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "product",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "order_time",
+              "dataType" : "TIMESTAMP(3)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "table-sink-class" : "DEFAULT"
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` BIGINT, `user` VARCHAR(2147483647), `product` VARCHAR(2147483647), `order_time` TIMESTAMP(3)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[order_id, user, product, order_time])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

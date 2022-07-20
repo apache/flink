@@ -42,7 +42,7 @@ class DynamicPropertiesUtil {
                     .valueSeparator('=')
                     .desc(
                             "Allows specifying multiple generic configuration options. The available "
-                                    + "options can be found at https://ci.apache.org/projects/flink/flink-docs-stable/ops/config.html")
+                                    + "options can be found at https://nightlies.apache.org/flink/flink-docs-stable/ops/config.html")
                     .build();
 
     /**

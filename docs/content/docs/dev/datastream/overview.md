@@ -85,11 +85,11 @@ The `StreamExecutionEnvironment` is the basis for all Flink programs. You can
 obtain one using these static methods on `StreamExecutionEnvironment`:
 
 ```java
-getExecutionEnvironment()
+getExecutionEnvironment();
 
-createLocalEnvironment()
+createLocalEnvironment();
 
-createRemoteEnvironment(String host, int port, String... jarFiles)
+createRemoteEnvironment(String host, int port, String... jarFiles);
 ```
 
 Typically, you only need to use `getExecutionEnvironment()`, since this will do
@@ -136,9 +136,9 @@ an outside system by creating a sink. These are just some example methods for
 creating a sink:
 
 ```java
-writeAsText(String path)
+writeAsText(String path);
 
-print()
+print();
 ```
 
 {{< /tab >}}
@@ -218,7 +218,7 @@ The `execute()` method will wait for the job to finish and then return a
 `JobExecutionResult`, this contains execution times and accumulator results.
 
 If you don't want to wait for the job to finish, you can trigger asynchronous
-job execution by calling `executeAysnc()` on the `StreamExecutionEnvironment`.
+job execution by calling `executeAsync()` on the `StreamExecutionEnvironment`.
 It will return a `JobClient` with which you can communicate with the job you
 just submitted. For instance, here is how to implement the semantics of
 `execute()` by using `executeAsync()`.
@@ -236,7 +236,7 @@ happen directly. Rather, each operation is created and added to a dataflow
 graph. The operations are actually executed when the execution is explicitly
 triggered by an `execute()` call on the execution environment.  Whether the
 program is executed locally or on a cluster depends on the type of execution
-environment
+environment.
 
 The lazy evaluation lets you construct sophisticated programs that Flink
 executes as one holistically planned unit.
@@ -744,7 +744,7 @@ List<Tuple2<String, Integer>> data = ...
 DataStream<Tuple2<String, Integer>> myTuples = env.fromCollection(data);
 
 // Create a DataStream from an Iterator
-Iterator<Long> longIt = ...
+Iterator<Long> longIt = ...;
 DataStream<Long> myLongs = env.fromCollection(longIt, Long.class);
 ```
 {{< /tab >}}
@@ -777,10 +777,10 @@ Flink also provides a sink to collect DataStream results for testing and debuggi
 {{< tabs "125e228e-13b5-4c77-93a7-c0f436fcdd2f" >}}
 {{< tab "Java" >}}
 ```java
-import org.apache.flink.streaming.experimental.DataStreamUtils
+import org.apache.flink.streaming.experimental.DataStreamUtils;
 
-DataStream<Tuple2<String, Integer>> myResult = ...
-Iterator<Tuple2<String, Integer>> myOutput = DataStreamUtils.collect(myResult)
+DataStream<Tuple2<String, Integer>> myResult = ...;
+Iterator<Tuple2<String, Integer>> myOutput = DataStreamUtils.collect(myResult);
 ```
 
 {{< /tab >}}

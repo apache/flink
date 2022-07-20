@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -38,7 +39,6 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.TestSourceContext
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
@@ -57,10 +57,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for checking whether {@link FlinkKinesisConsumer} can restore from snapshots that were done
@@ -74,11 +71,11 @@ public class FlinkKinesisConsumerMigrationTest {
 
     /**
      * TODO change this to the corresponding savepoint version to be written (e.g. {@link
-     * MigrationVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on the
-     * writeSnapshot() method to generate savepoints TODO Note: You should generate the savepoint
-     * based on the release branch instead of the master.
+     * FlinkVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on the writeSnapshot()
+     * method to generate savepoints TODO Note: You should generate the savepoint based on the
+     * release branch instead of the master.
      */
-    private final MigrationVersion flinkGenerateSavepointVersion = null;
+    private final FlinkVersion flinkGenerateSavepointVersion = null;
 
     private static final String TEST_STREAM_NAME = "fakeStream1";
     private static final SequenceNumber TEST_SEQUENCE_NUMBER = new SequenceNumber("987654321");
@@ -94,22 +91,25 @@ public class FlinkKinesisConsumerMigrationTest {
         TEST_STATE.put(shardMetadata, TEST_SEQUENCE_NUMBER);
     }
 
-    private final MigrationVersion testMigrateVersion;
+    private final FlinkVersion testMigrateVersion;
 
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
-    public static Collection<MigrationVersion> parameters() {
+    public static Collection<FlinkVersion> parameters() {
         return Arrays.asList(
-                MigrationVersion.v1_3,
-                MigrationVersion.v1_4,
-                MigrationVersion.v1_7,
-                MigrationVersion.v1_8,
-                MigrationVersion.v1_9,
-                MigrationVersion.v1_10,
-                MigrationVersion.v1_11,
-                MigrationVersion.v1_12);
+                FlinkVersion.v1_3,
+                FlinkVersion.v1_4,
+                FlinkVersion.v1_7,
+                FlinkVersion.v1_8,
+                FlinkVersion.v1_9,
+                FlinkVersion.v1_10,
+                FlinkVersion.v1_11,
+                FlinkVersion.v1_12,
+                FlinkVersion.v1_13,
+                FlinkVersion.v1_14,
+                FlinkVersion.v1_15);
     }
 
-    public FlinkKinesisConsumerMigrationTest(MigrationVersion testMigrateVersion) {
+    public FlinkKinesisConsumerMigrationTest(FlinkVersion testMigrateVersion) {
         this.testMigrateVersion = testMigrateVersion;
     }
 
@@ -177,7 +177,7 @@ public class FlinkKinesisConsumerMigrationTest {
         consumerFunction.run(new TestSourceContext<>());
 
         // assert that no state was restored
-        assertTrue(consumerFunction.getRestoredState().isEmpty());
+        assertThat(consumerFunction.getRestoredState()).isEmpty();
 
         // although the restore state is empty, the fetcher should still have been registered the
         // initial discovered shard;
@@ -185,13 +185,13 @@ public class FlinkKinesisConsumerMigrationTest {
         // job wasn't running,
         // and therefore should be consumed from the earliest sequence number
         KinesisStreamShardState restoredShardState = fetcher.getSubscribedShardsState().get(0);
-        assertEquals(TEST_STREAM_NAME, restoredShardState.getStreamShardHandle().getStreamName());
-        assertEquals(
-                TEST_SHARD_ID, restoredShardState.getStreamShardHandle().getShard().getShardId());
-        assertFalse(restoredShardState.getStreamShardHandle().isClosed());
-        assertEquals(
-                SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get(),
-                restoredShardState.getLastProcessedSequenceNum());
+        assertThat(restoredShardState.getStreamShardHandle().getStreamName())
+                .isEqualTo(TEST_STREAM_NAME);
+        assertThat(restoredShardState.getStreamShardHandle().getShard().getShardId())
+                .isEqualTo(TEST_SHARD_ID);
+        assertThat(restoredShardState.getStreamShardHandle().isClosed()).isFalse();
+        assertThat(restoredShardState.getLastProcessedSequenceNum())
+                .isEqualTo(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get());
 
         consumerOperator.close();
         consumerOperator.cancel();
@@ -243,20 +243,22 @@ public class FlinkKinesisConsumerMigrationTest {
         consumerFunction.run(new TestSourceContext<>());
 
         // assert that state is correctly restored
-        assertNotEquals(null, consumerFunction.getRestoredState());
-        assertEquals(1, consumerFunction.getRestoredState().size());
-        assertEquals(TEST_STATE, removeEquivalenceWrappers(consumerFunction.getRestoredState()));
-        assertEquals(1, fetcher.getSubscribedShardsState().size());
-        assertEquals(
-                TEST_SEQUENCE_NUMBER,
-                fetcher.getSubscribedShardsState().get(0).getLastProcessedSequenceNum());
+        assertThat(consumerFunction.getRestoredState()).isNotNull();
+        assertThat(consumerFunction.getRestoredState()).hasSize(1);
+        assertThat(removeEquivalenceWrappers(consumerFunction.getRestoredState()))
+                .isEqualTo(TEST_STATE);
+        assertThat(fetcher.getSubscribedShardsState()).hasSize(1);
+        assertThat(fetcher.getSubscribedShardsState().get(0).getLastProcessedSequenceNum())
+                .isEqualTo(TEST_SEQUENCE_NUMBER);
 
         KinesisStreamShardState restoredShardState = fetcher.getSubscribedShardsState().get(0);
-        assertEquals(TEST_STREAM_NAME, restoredShardState.getStreamShardHandle().getStreamName());
-        assertEquals(
-                TEST_SHARD_ID, restoredShardState.getStreamShardHandle().getShard().getShardId());
-        assertFalse(restoredShardState.getStreamShardHandle().isClosed());
-        assertEquals(TEST_SEQUENCE_NUMBER, restoredShardState.getLastProcessedSequenceNum());
+        assertThat(restoredShardState.getStreamShardHandle().getStreamName())
+                .isEqualTo(TEST_STREAM_NAME);
+        assertThat(restoredShardState.getStreamShardHandle().getShard().getShardId())
+                .isEqualTo(TEST_SHARD_ID);
+        assertThat(restoredShardState.getStreamShardHandle().isClosed()).isFalse();
+        assertThat(restoredShardState.getLastProcessedSequenceNum())
+                .isEqualTo(TEST_SEQUENCE_NUMBER);
 
         consumerOperator.close();
         consumerOperator.cancel();
@@ -336,46 +338,43 @@ public class FlinkKinesisConsumerMigrationTest {
         consumerFunction.run(new TestSourceContext<>());
 
         // assert that state is correctly restored
-        assertNotEquals(null, consumerFunction.getRestoredState());
-        assertEquals(1, consumerFunction.getRestoredState().size());
-        assertEquals(TEST_STATE, removeEquivalenceWrappers(consumerFunction.getRestoredState()));
+        assertThat(consumerFunction.getRestoredState()).isNotNull();
+        assertThat(consumerFunction.getRestoredState()).hasSize(1);
+        assertThat(removeEquivalenceWrappers(consumerFunction.getRestoredState()))
+                .isEqualTo(TEST_STATE);
 
         // assert that the fetcher is registered with all shards, including new shards
-        assertEquals(3, fetcher.getSubscribedShardsState().size());
+        assertThat(fetcher.getSubscribedShardsState()).hasSize(3);
 
         KinesisStreamShardState restoredClosedShardState =
                 fetcher.getSubscribedShardsState().get(0);
-        assertEquals(
-                TEST_STREAM_NAME, restoredClosedShardState.getStreamShardHandle().getStreamName());
-        assertEquals(
-                TEST_SHARD_ID,
-                restoredClosedShardState.getStreamShardHandle().getShard().getShardId());
-        assertTrue(restoredClosedShardState.getStreamShardHandle().isClosed());
-        assertEquals(TEST_SEQUENCE_NUMBER, restoredClosedShardState.getLastProcessedSequenceNum());
+        assertThat(restoredClosedShardState.getStreamShardHandle().getStreamName())
+                .isEqualTo(TEST_STREAM_NAME);
+        assertThat(restoredClosedShardState.getStreamShardHandle().getShard().getShardId())
+                .isEqualTo(TEST_SHARD_ID);
+        assertThat(restoredClosedShardState.getStreamShardHandle().isClosed()).isTrue();
+        assertThat(restoredClosedShardState.getLastProcessedSequenceNum())
+                .isEqualTo(TEST_SEQUENCE_NUMBER);
 
         KinesisStreamShardState restoredNewSplitShard1 = fetcher.getSubscribedShardsState().get(1);
-        assertEquals(
-                TEST_STREAM_NAME, restoredNewSplitShard1.getStreamShardHandle().getStreamName());
-        assertEquals(
-                KinesisShardIdGenerator.generateFromShardOrder(1),
-                restoredNewSplitShard1.getStreamShardHandle().getShard().getShardId());
-        assertFalse(restoredNewSplitShard1.getStreamShardHandle().isClosed());
+        assertThat(restoredNewSplitShard1.getStreamShardHandle().getStreamName())
+                .isEqualTo(TEST_STREAM_NAME);
+        assertThat(restoredNewSplitShard1.getStreamShardHandle().getShard().getShardId())
+                .isEqualTo(KinesisShardIdGenerator.generateFromShardOrder(1));
+        assertThat(restoredNewSplitShard1.getStreamShardHandle().isClosed()).isFalse();
         // new shards should be consumed from the beginning
-        assertEquals(
-                SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get(),
-                restoredNewSplitShard1.getLastProcessedSequenceNum());
+        assertThat(restoredNewSplitShard1.getLastProcessedSequenceNum())
+                .isEqualTo(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get());
 
         KinesisStreamShardState restoredNewSplitShard2 = fetcher.getSubscribedShardsState().get(2);
-        assertEquals(
-                TEST_STREAM_NAME, restoredNewSplitShard2.getStreamShardHandle().getStreamName());
-        assertEquals(
-                KinesisShardIdGenerator.generateFromShardOrder(2),
-                restoredNewSplitShard2.getStreamShardHandle().getShard().getShardId());
-        assertFalse(restoredNewSplitShard2.getStreamShardHandle().isClosed());
+        assertThat(restoredNewSplitShard2.getStreamShardHandle().getStreamName())
+                .isEqualTo(TEST_STREAM_NAME);
+        assertThat(restoredNewSplitShard2.getStreamShardHandle().getShard().getShardId())
+                .isEqualTo(KinesisShardIdGenerator.generateFromShardOrder(2));
+        assertThat(restoredNewSplitShard2.getStreamShardHandle().isClosed()).isFalse();
         // new shards should be consumed from the beginning
-        assertEquals(
-                SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get(),
-                restoredNewSplitShard2.getLastProcessedSequenceNum());
+        assertThat(restoredNewSplitShard2.getLastProcessedSequenceNum())
+                .isEqualTo(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get());
 
         consumerOperator.close();
         consumerOperator.cancel();

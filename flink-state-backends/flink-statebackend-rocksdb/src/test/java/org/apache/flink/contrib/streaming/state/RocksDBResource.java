@@ -27,8 +27,10 @@ import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.InfoLogLevel;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
+import org.rocksdb.Statistics;
 import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +50,8 @@ public class RocksDBResource extends ExternalResource {
 
     /** Factory for {@link DBOptions} and {@link ColumnFamilyOptions}. */
     private final RocksDBOptionsFactory optionsFactory;
+
+    private final boolean enableStatistics;
 
     /** Temporary folder that provides the working directory for the RocksDB instance. */
     private TemporaryFolder temporaryFolder;
@@ -77,8 +81,14 @@ public class RocksDBResource extends ExternalResource {
     private ArrayList<AutoCloseable> handlesToClose = new ArrayList<>();
 
     public RocksDBResource() {
+        this(false);
+    }
+
+    public RocksDBResource(boolean enableStatistics) {
         this(
                 new RocksDBOptionsFactory() {
+                    private static final long serialVersionUID = 1L;
+
                     @Override
                     public DBOptions createDBOptions(
                             DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
@@ -89,8 +99,12 @@ public class RocksDBResource extends ExternalResource {
                             LOG.error("Close previous DBOptions's instance failed.", e);
                         }
 
-                        return PredefinedOptions.FLASH_SSD_OPTIMIZED.createDBOptions(
-                                handlesToClose);
+                        return new DBOptions()
+                                .setMaxBackgroundJobs(4)
+                                .setUseFsync(false)
+                                .setMaxOpenFiles(-1)
+                                .setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
+                                .setStatsDumpPeriodSec(0);
                     }
 
                     @Override
@@ -104,15 +118,16 @@ public class RocksDBResource extends ExternalResource {
                             LOG.error("Close previous ColumnOptions's instance failed.", e);
                         }
 
-                        return PredefinedOptions.FLASH_SSD_OPTIMIZED
-                                .createColumnOptions(handlesToClose)
-                                .optimizeForPointLookup(40960);
+                        return new ColumnFamilyOptions().optimizeForPointLookup(40960);
                     }
-                });
+                },
+                enableStatistics);
     }
 
-    public RocksDBResource(@Nonnull RocksDBOptionsFactory optionsFactory) {
+    public RocksDBResource(
+            @Nonnull RocksDBOptionsFactory optionsFactory, boolean enableStatistics) {
         this.optionsFactory = optionsFactory;
+        this.enableStatistics = enableStatistics;
     }
 
     public ColumnFamilyHandle getDefaultColumnFamily() {
@@ -129,6 +144,10 @@ public class RocksDBResource extends ExternalResource {
 
     public ReadOptions getReadOptions() {
         return readOptions;
+    }
+
+    public DBOptions getDbOptions() {
+        return dbOptions;
     }
 
     public RocksDBWriteBatchWrapper getBatchWrapper() {
@@ -156,16 +175,22 @@ public class RocksDBResource extends ExternalResource {
         this.dbOptions =
                 optionsFactory
                         .createDBOptions(
-                                PredefinedOptions.DEFAULT.createDBOptions(handlesToClose),
+                                new DBOptions()
+                                        .setUseFsync(false)
+                                        .setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
+                                        .setStatsDumpPeriodSec(0),
                                 handlesToClose)
                         .setCreateIfMissing(true);
+        if (enableStatistics) {
+            Statistics statistics = new Statistics();
+            dbOptions.setStatistics(statistics);
+            handlesToClose.add(statistics);
+        }
         this.columnFamilyOptions =
-                optionsFactory.createColumnOptions(
-                        PredefinedOptions.DEFAULT.createColumnOptions(handlesToClose),
-                        handlesToClose);
+                optionsFactory.createColumnOptions(new ColumnFamilyOptions(), handlesToClose);
         this.writeOptions = new WriteOptions();
         this.writeOptions.disableWAL();
-        this.readOptions = RocksDBOperationUtils.createTotalOrderSeekReadOptions();
+        this.readOptions = new ReadOptions();
         this.columnFamilyHandles = new ArrayList<>(1);
         this.rocksDB =
                 RocksDB.open(

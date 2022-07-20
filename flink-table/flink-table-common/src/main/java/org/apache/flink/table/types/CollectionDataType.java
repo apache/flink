@@ -33,7 +33,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
 
 /**
@@ -131,7 +130,7 @@ public final class CollectionDataType extends DataType {
         } else if (conversionClass == MapData.class) {
             return elementDataType.bridgedTo(
                     toInternalConversionClass(elementDataType.getLogicalType()));
-        } else if (hasRoot(logicalType, LogicalTypeRoot.ARRAY) && conversionClass.isArray()) {
+        } else if (logicalType.is(LogicalTypeRoot.ARRAY) && conversionClass.isArray()) {
             // arrays are a special case because their element conversion class depends on the
             // outer conversion class
             return elementDataType.bridgedTo(conversionClass.getComponentType());

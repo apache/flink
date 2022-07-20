@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,350 +20,382 @@ package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
+import org.apache.flink.streaming.api.connector.sink2.CommittableMessageTypeInfo;
+import org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies;
+import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.WithPreCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.WithPreWriteTopology;
+import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
-import org.apache.flink.streaming.runtime.operators.sink.BatchCommitterOperatorFactory;
-import org.apache.flink.streaming.runtime.operators.sink.BatchGlobalCommitterOperatorFactory;
-import org.apache.flink.streaming.runtime.operators.sink.CommittableTypeInformation;
-import org.apache.flink.streaming.runtime.operators.sink.StatefulSinkWriterOperatorFactory;
-import org.apache.flink.streaming.runtime.operators.sink.StatelessSinkWriterOperatorFactory;
-import org.apache.flink.streaming.runtime.operators.sink.StreamingCommitterOperatorFactory;
-import org.apache.flink.streaming.runtime.operators.sink.StreamingGlobalCommitterOperatorFactory;
-import org.apache.flink.streaming.util.graph.StreamGraphUtils;
-import org.apache.flink.util.FlinkRuntimeException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
+import org.apache.flink.streaming.runtime.operators.sink.CommitterOperatorFactory;
+import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
+import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
-import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
-import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.typeToClass;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/** A {@link TransformationTranslator} for the {@link SinkTransformation}. */
+/**
+ * A {@link org.apache.flink.streaming.api.graph.TransformationTranslator} for the {@link
+ * org.apache.flink.streaming.api.transformations.SinkTransformation}.
+ */
 @Internal
-public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCommT>
-        implements TransformationTranslator<
-                Object, SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT>> {
+public class SinkTransformationTranslator<Input, Output>
+        implements TransformationTranslator<Output, SinkTransformation<Input, Output>> {
 
-    protected static final Logger LOG = LoggerFactory.getLogger(SinkTransformationTranslator.class);
-
-    // Currently we only support load the state from streaming file sink;
-    private static final String PREVIOUS_SINK_STATE_NAME = "bucket-states";
+    private static final String COMMITTER_NAME = "Committer";
+    private static final String WRITER_NAME = "Writer";
 
     @Override
     public Collection<Integer> translateForBatch(
-            SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> transformation,
-            Context context) {
-
-        StreamGraphUtils.validateTransformationUid(context.getStreamGraph(), transformation);
-        final int parallelism = getParallelism(transformation, context);
-
-        try {
-            internalTranslate(
-                    transformation,
-                    parallelism,
-                    PREVIOUS_SINK_STATE_NAME,
-                    new BatchCommitterOperatorFactory<>(transformation.getSink()),
-                    1,
-                    1,
-                    new BatchGlobalCommitterOperatorFactory<>(transformation.getSink()),
-                    context);
-        } catch (IOException e) {
-            throw new FlinkRuntimeException(
-                    "Could not add the Committer or GlobalCommitter to the stream graph.", e);
-        }
-        return Collections.emptyList();
+            SinkTransformation<Input, Output> transformation, Context context) {
+        return translateInternal(transformation, context, true);
     }
 
     @Override
     public Collection<Integer> translateForStreaming(
-            SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> transformation,
-            Context context) {
+            SinkTransformation<Input, Output> transformation, Context context) {
+        return translateInternal(transformation, context, false);
+    }
 
-        StreamGraphUtils.validateTransformationUid(context.getStreamGraph(), transformation);
-
-        final int parallelism = getParallelism(transformation, context);
-
-        try {
-            internalTranslate(
-                    transformation,
-                    parallelism,
-                    PREVIOUS_SINK_STATE_NAME,
-                    new StreamingCommitterOperatorFactory<>(transformation.getSink()),
-                    parallelism,
-                    transformation.getMaxParallelism(),
-                    new StreamingGlobalCommitterOperatorFactory<>(transformation.getSink()),
-                    context);
-        } catch (IOException e) {
-            throw new FlinkRuntimeException(
-                    "Could not add the Committer or GlobalCommitter to the stream graph.", e);
-        }
-
+    private Collection<Integer> translateInternal(
+            SinkTransformation<Input, Output> transformation, Context context, boolean batch) {
+        SinkExpander<Input> expander =
+                new SinkExpander<>(
+                        transformation.getInputStream(),
+                        transformation.getSink(),
+                        transformation,
+                        context,
+                        batch);
+        expander.expand();
         return Collections.emptyList();
     }
 
     /**
-     * Add the sink operators to the stream graph.
-     *
-     * @param sinkTransformation The sink transformation that committer and global committer belongs
-     *     to.
-     * @param writerParallelism The parallelism of the writer operator.
-     * @param previousSinkStateName The state name of previous sink's state.
-     * @param committerFactory The committer operator factory.
-     * @param committerParallelism The parallelism of the committer operator.
-     * @param committerMaxParallelism The max parallelism of the committer operator.
-     * @param globalCommitterFactory The global committer operator factory.
+     * Expands the FLIP-143 Sink to a subtopology. Each part of the topology is created after the
+     * previous part of the topology has been completely configured by the user. For example, if a
+     * user explicitly sets the parallelism of the sink, each part of the subtopology can rely on
+     * the input having that parallelism.
      */
-    private void internalTranslate(
-            SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
-            int writerParallelism,
-            @SuppressWarnings("SameParameterValue") @Nullable String previousSinkStateName,
-            OneInputStreamOperatorFactory<CommT, CommT> committerFactory,
-            int committerParallelism,
-            int committerMaxParallelism,
-            OneInputStreamOperatorFactory<CommT, GlobalCommT> globalCommitterFactory,
-            Context context)
-            throws IOException {
+    private static class SinkExpander<T> {
+        private final SinkTransformation<T, ?> transformation;
+        private final Sink<T> sink;
+        private final Context context;
+        private final DataStream<T> inputStream;
+        private final StreamExecutionEnvironment executionEnvironment;
+        private final int environmentParallelism;
+        private final boolean isBatchMode;
+        private final boolean isCheckpointingEnabled;
 
-        StreamGraphUtils.validateTransformationUid(context.getStreamGraph(), sinkTransformation);
-
-        final int writerId =
-                addWriter(sinkTransformation, writerParallelism, previousSinkStateName, context);
-
-        final int committerId =
-                addCommitter(
-                        writerId,
-                        sinkTransformation,
-                        committerFactory,
-                        committerParallelism,
-                        committerMaxParallelism,
-                        context);
-
-        addGlobalCommitter(
-                committerId > 0 ? committerId : writerId,
-                sinkTransformation,
-                globalCommitterFactory,
-                context);
-    }
-
-    /**
-     * Add a sink writer node to the stream graph.
-     *
-     * @param sinkTransformation The transformation that the writer belongs to
-     * @param parallelism The parallelism of the writer
-     * @param previousSinkStateName The state name of previous sink's state.
-     * @return The stream node id of the writer
-     */
-    private int addWriter(
-            SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
-            int parallelism,
-            @Nullable String previousSinkStateName,
-            Context context) {
-        final boolean hasState =
-                sinkTransformation.getSink().getWriterStateSerializer().isPresent();
-        checkState(sinkTransformation.getInputs().size() == 1);
-        @SuppressWarnings("unchecked")
-        final Transformation<InputT> input =
-                (Transformation<InputT>) sinkTransformation.getInputs().get(0);
-        final TypeInformation<InputT> inputTypeInfo = input.getOutputType();
-
-        final StreamOperatorFactory<CommT> writer =
-                hasState
-                        ? new StatefulSinkWriterOperatorFactory<>(
-                                sinkTransformation.getSink(), previousSinkStateName)
-                        : new StatelessSinkWriterOperatorFactory<>(sinkTransformation.getSink());
-
-        final String prefix = "Sink Writer:";
-        final ChainingStrategy chainingStrategy = sinkTransformation.getChainingStrategy();
-
-        if (chainingStrategy != null) {
-            writer.setChainingStrategy(chainingStrategy);
+        public SinkExpander(
+                DataStream<T> inputStream,
+                Sink<T> sink,
+                SinkTransformation<T, ?> transformation,
+                Context context,
+                boolean isBatchMode) {
+            this.inputStream = inputStream;
+            this.executionEnvironment = inputStream.getExecutionEnvironment();
+            this.environmentParallelism = executionEnvironment.getParallelism();
+            this.isCheckpointingEnabled =
+                    executionEnvironment.getCheckpointConfig().isCheckpointingEnabled();
+            this.transformation = transformation;
+            this.sink = sink;
+            this.context = context;
+            this.isBatchMode = isBatchMode;
         }
 
-        return addOperatorToStreamGraph(
-                writer,
-                context.getStreamNodeIds(input),
-                inputTypeInfo,
-                extractCommittableTypeInformation(sinkTransformation.getSink()),
-                String.format("%s %s", prefix, sinkTransformation.getName()),
-                sinkTransformation.getUid(),
-                parallelism,
-                sinkTransformation.getMaxParallelism(),
-                sinkTransformation,
-                context);
-    }
+        private void expand() {
 
-    /**
-     * Try to add a sink committer to the stream graph.
-     *
-     * @param inputId The committer's input stream node id
-     * @param sinkTransformation The transformation that the committer belongs to
-     * @param committerFactory The committer operator's factory
-     * @param parallelism The parallelism of the committer
-     * @return The stream node id of the committer or -1 if the sink topology does not include a
-     *     committer.
-     */
-    private int addCommitter(
-            int inputId,
-            SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
-            OneInputStreamOperatorFactory<CommT, CommT> committerFactory,
-            int parallelism,
-            int maxParallelism,
-            Context context)
-            throws IOException {
+            final int sizeBefore = executionEnvironment.getTransformations().size();
 
-        if (!sinkTransformation.getSink().createCommitter().isPresent()) {
-            return -1;
+            DataStream<T> prewritten = inputStream;
+
+            if (sink instanceof WithPreWriteTopology) {
+                prewritten =
+                        adjustTransformations(
+                                prewritten,
+                                ((WithPreWriteTopology<T>) sink)::addPreWriteTopology,
+                                true);
+            }
+
+            if (sink instanceof TwoPhaseCommittingSink) {
+                addCommittingTopology(sink, prewritten);
+            } else {
+                adjustTransformations(
+                        prewritten,
+                        input ->
+                                input.transform(
+                                        WRITER_NAME,
+                                        CommittableMessageTypeInfo.noOutput(),
+                                        new SinkWriterOperatorFactory<>(sink)),
+                        false);
+            }
+
+            final Set<Integer> expandedSinks = new HashSet<>();
+            final List<Transformation<?>> sinkTransformations =
+                    executionEnvironment
+                            .getTransformations()
+                            .subList(sizeBefore, executionEnvironment.getTransformations().size());
+            sinkTransformations.forEach(t -> expandedSinks.addAll(context.transform(t)));
+            context.getStreamGraph().registerExpandedSinks(expandedSinks);
+
+            // Remove all added sink subtransformations to avoid duplications and allow additional
+            // expansions
+            while (executionEnvironment.getTransformations().size() > sizeBefore) {
+                executionEnvironment
+                        .getTransformations()
+                        .remove(executionEnvironment.getTransformations().size() - 1);
+            }
         }
 
-        final String prefix = "Sink Committer:";
-        final CommittableTypeInformation<CommT> committableTypeInfo =
-                extractCommittableTypeInformation(sinkTransformation.getSink());
-        checkNotNull(committableTypeInfo);
+        private <CommT> void addCommittingTopology(Sink<T> sink, DataStream<T> inputStream) {
+            TwoPhaseCommittingSink<T, CommT> committingSink =
+                    (TwoPhaseCommittingSink<T, CommT>) sink;
+            TypeInformation<CommittableMessage<CommT>> typeInformation =
+                    CommittableMessageTypeInfo.of(committingSink::getCommittableSerializer);
 
-        return addOperatorToStreamGraph(
-                committerFactory,
-                Collections.singletonList(inputId),
-                committableTypeInfo,
-                committableTypeInfo,
-                String.format("%s %s", prefix, sinkTransformation.getName()),
-                sinkTransformation.getUid() == null
-                        ? null
-                        : String.format("%s %s", prefix, sinkTransformation.getUid()),
-                parallelism,
-                maxParallelism,
-                sinkTransformation,
-                context);
-    }
+            DataStream<CommittableMessage<CommT>> written =
+                    adjustTransformations(
+                            inputStream,
+                            input ->
+                                    input.transform(
+                                            WRITER_NAME,
+                                            typeInformation,
+                                            new SinkWriterOperatorFactory<>(sink)),
+                            false);
 
-    /**
-     * Try to add a sink global committer to the stream graph.
-     *
-     * @param inputId The global committer's input stream node id.
-     * @param sinkTransformation The transformation that the global committer belongs to
-     * @param globalCommitterFactory The global committer factory
-     */
-    private void addGlobalCommitter(
-            int inputId,
-            SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
-            OneInputStreamOperatorFactory<CommT, GlobalCommT> globalCommitterFactory,
-            Context context)
-            throws IOException {
+            DataStream<CommittableMessage<CommT>> precommitted = addFailOverRegion(written);
 
-        if (!sinkTransformation.getSink().createGlobalCommitter().isPresent()) {
-            return;
+            if (sink instanceof WithPreCommitTopology) {
+                precommitted =
+                        adjustTransformations(
+                                precommitted,
+                                ((WithPreCommitTopology<T, CommT>) sink)::addPreCommitTopology,
+                                true);
+            }
+
+            DataStream<CommittableMessage<CommT>> committed =
+                    adjustTransformations(
+                            precommitted,
+                            pc ->
+                                    pc.transform(
+                                            COMMITTER_NAME,
+                                            typeInformation,
+                                            new CommitterOperatorFactory<>(
+                                                    committingSink,
+                                                    isBatchMode,
+                                                    isCheckpointingEnabled)),
+                            false);
+
+            if (sink instanceof WithPostCommitTopology) {
+                DataStream<CommittableMessage<CommT>> postcommitted = addFailOverRegion(committed);
+                adjustTransformations(
+                        postcommitted,
+                        pc -> {
+                            ((WithPostCommitTopology<T, CommT>) sink).addPostCommitTopology(pc);
+                            return null;
+                        },
+                        true);
+            }
         }
 
-        final String prefix = "Sink Global Committer:";
-
-        addOperatorToStreamGraph(
-                globalCommitterFactory,
-                Collections.singletonList(inputId),
-                checkNotNull(extractCommittableTypeInformation(sinkTransformation.getSink())),
-                null,
-                String.format("%s %s", prefix, sinkTransformation.getName()),
-                sinkTransformation.getUid() == null
-                        ? null
-                        : String.format("%s %s", prefix, sinkTransformation.getUid()),
-                1,
-                1,
-                sinkTransformation,
-                context);
-    }
-
-    private int getParallelism(
-            SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
-            Context context) {
-        return sinkTransformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
-                ? sinkTransformation.getParallelism()
-                : context.getStreamGraph().getExecutionConfig().getParallelism();
-    }
-
-    /**
-     * Add a operator to the {@link StreamGraph}.
-     *
-     * @param operatorFactory The operator factory
-     * @param inputs A collection of upstream stream node ids.
-     * @param inTypeInfo The input type information of the operator
-     * @param outTypInfo The output type information of the operator
-     * @param name The name of the operator.
-     * @param uid The uid of the operator.
-     * @param parallelism The parallelism of the operator
-     * @param maxParallelism The max parallelism of the operator
-     * @param sinkTransformation The sink transformation which the operator belongs to
-     * @return The stream node id of the operator
-     */
-    private <IN, OUT> int addOperatorToStreamGraph(
-            StreamOperatorFactory<OUT> operatorFactory,
-            Collection<Integer> inputs,
-            TypeInformation<IN> inTypeInfo,
-            TypeInformation<OUT> outTypInfo,
-            String name,
-            @Nullable String uid,
-            int parallelism,
-            int maxParallelism,
-            SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
-            Context context) {
-        final StreamGraph streamGraph = context.getStreamGraph();
-        final String slotSharingGroup = context.getSlotSharingGroup();
-        final int transformationId = Transformation.getNewNodeId();
-
-        streamGraph.addOperator(
-                transformationId,
-                slotSharingGroup,
-                sinkTransformation.getCoLocationGroupKey(),
-                operatorFactory,
-                inTypeInfo,
-                outTypInfo,
-                name);
-
-        streamGraph.setParallelism(transformationId, parallelism);
-        streamGraph.setMaxParallelism(transformationId, maxParallelism);
-
-        StreamGraphUtils.configureBufferTimeout(
-                streamGraph,
-                transformationId,
-                sinkTransformation,
-                context.getDefaultBufferTimeout());
-        if (uid != null) {
-            streamGraph.setTransformationUID(transformationId, uid);
+        /**
+         * Adds a batch exchange that materializes the output first. This is a no-op in STREAMING.
+         */
+        private <I> DataStream<I> addFailOverRegion(DataStream<I> input) {
+            return new DataStream<>(
+                    executionEnvironment,
+                    new PartitionTransformation<>(
+                            input.getTransformation(),
+                            new ForwardPartitioner<>(),
+                            StreamExchangeMode.BATCH));
         }
 
-        for (int input : inputs) {
-            streamGraph.addEdge(input, transformationId, 0);
+        /**
+         * Since user may set specific parallelism on sub topologies, we have to pay attention to
+         * the priority of parallelism at different levels, i.e. sub topologies customized
+         * parallelism > sinkTransformation customized parallelism > environment customized
+         * parallelism. In order to satisfy this rule and keep these customized parallelism values,
+         * the environment parallelism will be set to be {@link ExecutionConfig#PARALLELISM_DEFAULT}
+         * before adjusting transformations. SubTransformations, constructed after that, will have
+         * either the default value or customized value. In this way, any customized value will be
+         * discriminated from the default value and, for any subTransformation with the default
+         * parallelism value, we will then be able to let it inherit the parallelism value from the
+         * previous sinkTransformation. After the adjustment of transformations is closed, the
+         * environment parallelism will be restored back to its original value to keep the
+         * customized parallelism value at environment level.
+         */
+        private <I, R> R adjustTransformations(
+                DataStream<I> inputStream,
+                Function<DataStream<I>, R> action,
+                boolean isExpandedTopology) {
+
+            // Reset the environment parallelism temporarily before adjusting transformations,
+            // we can therefore be aware of any customized parallelism of the sub topology
+            // set by users during the adjustment.
+            executionEnvironment.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT);
+
+            int numTransformsBefore = executionEnvironment.getTransformations().size();
+            R result = action.apply(inputStream);
+            List<Transformation<?>> transformations = executionEnvironment.getTransformations();
+            List<Transformation<?>> expandedTransformations =
+                    transformations.subList(numTransformsBefore, transformations.size());
+
+            final CustomSinkOperatorUidHashes operatorsUidHashes =
+                    transformation.getSinkOperatorsUidHashes();
+            for (Transformation<?> subTransformation : expandedTransformations) {
+
+                String subUid = subTransformation.getUid();
+                if (isExpandedTopology && subUid != null && !subUid.isEmpty()) {
+                    checkState(
+                            transformation.getUid() != null && !transformation.getUid().isEmpty(),
+                            "Sink "
+                                    + transformation.getName()
+                                    + " requires to set a uid since its customized topology"
+                                    + " has set uid for some operators.");
+                }
+
+                // Set the operator uid hashes to support stateful upgrades without prior uids
+                setOperatorUidHashIfPossible(
+                        subTransformation, WRITER_NAME, operatorsUidHashes.getWriterUidHash());
+                setOperatorUidHashIfPossible(
+                        subTransformation,
+                        COMMITTER_NAME,
+                        operatorsUidHashes.getCommitterUidHash());
+                setOperatorUidHashIfPossible(
+                        subTransformation,
+                        StandardSinkTopologies.GLOBAL_COMMITTER_TRANSFORMATION_NAME,
+                        operatorsUidHashes.getGlobalCommitterUidHash());
+
+                concatUid(
+                        subTransformation,
+                        Transformation::getUid,
+                        Transformation::setUid,
+                        subTransformation.getName());
+
+                concatProperty(
+                        subTransformation,
+                        Transformation::getCoLocationGroupKey,
+                        Transformation::setCoLocationGroupKey);
+
+                concatProperty(subTransformation, Transformation::getName, Transformation::setName);
+
+                concatProperty(
+                        subTransformation,
+                        Transformation::getDescription,
+                        Transformation::setDescription);
+
+                Optional<SlotSharingGroup> ssg = transformation.getSlotSharingGroup();
+
+                if (ssg.isPresent() && !subTransformation.getSlotSharingGroup().isPresent()) {
+                    subTransformation.setSlotSharingGroup(ssg.get());
+                }
+
+                // remember that the environment parallelism has been set to be default
+                // at the beginning. SubTransformations, whose parallelism has been
+                // customized, will skip this part. The customized parallelism value set by user
+                // will therefore be kept.
+                if (subTransformation.getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
+                    // In this case, the subTransformation does not contain any customized
+                    // parallelism value and will therefore inherit the parallelism value
+                    // from the sinkTransformation.
+                    subTransformation.setParallelism(transformation.getParallelism());
+                }
+
+                if (subTransformation.getMaxParallelism() < 0
+                        && transformation.getMaxParallelism() > 0) {
+                    subTransformation.setMaxParallelism(transformation.getMaxParallelism());
+                }
+
+                if (transformation.getChainingStrategy() == null
+                        || !(subTransformation instanceof PhysicalTransformation)) {
+                    continue;
+                }
+
+                ((PhysicalTransformation<?>) subTransformation)
+                        .setChainingStrategy(transformation.getChainingStrategy());
+            }
+
+            // Restore the previous parallelism of the environment before adjusting transformations
+            executionEnvironment.setParallelism(environmentParallelism);
+
+            return result;
         }
 
-        return transformationId;
-    }
+        private void setOperatorUidHashIfPossible(
+                Transformation<?> transformation,
+                String writerName,
+                @Nullable String operatorUidHash) {
+            if (operatorUidHash == null || !transformation.getName().equals(writerName)) {
+                return;
+            }
+            transformation.setUidHash(operatorUidHash);
+        }
 
-    private CommittableTypeInformation<CommT> extractCommittableTypeInformation(
-            Sink<InputT, CommT, WriterStateT, GlobalCommT> sink) {
-        if (sink.getCommittableSerializer().isPresent()) {
-            final Type committableType =
-                    TypeExtractor.getParameterType(Sink.class, sink.getClass(), 1);
-            LOG.debug(
-                    "Extracted committable type [{}] from sink [{}].",
-                    committableType.toString(),
-                    sink.getClass().getCanonicalName());
-            return new CommittableTypeInformation<>(
-                    typeToClass(committableType), () -> sink.getCommittableSerializer().get());
-        } else {
-            return null;
+        private void concatUid(
+                Transformation<?> subTransformation,
+                Function<Transformation<?>, String> getter,
+                BiConsumer<Transformation<?>, String> setter,
+                @Nullable String transformationName) {
+            if (transformationName != null && getter.apply(transformation) != null) {
+                // Use the same uid pattern than for Sink V1. We deliberately decided to use the uid
+                // pattern of Flink 1.13 because 1.14 did not have a dedicated committer operator.
+                if (transformationName.equals(COMMITTER_NAME)) {
+                    final String committerFormat = "Sink Committer: %s";
+                    setter.accept(
+                            subTransformation,
+                            String.format(committerFormat, getter.apply(transformation)));
+                    return;
+                }
+                // Set the writer operator uid to the sinks uid to support state migrations
+                if (transformationName.equals(WRITER_NAME)) {
+                    setter.accept(subTransformation, getter.apply(transformation));
+                    return;
+                }
+
+                // Use the same uid pattern than for Sink V1 in Flink 1.14.
+                if (transformationName.equals(
+                        StandardSinkTopologies.GLOBAL_COMMITTER_TRANSFORMATION_NAME)) {
+                    final String committerFormat = "Sink %s Global Committer";
+                    setter.accept(
+                            subTransformation,
+                            String.format(committerFormat, getter.apply(transformation)));
+                    return;
+                }
+            }
+            concatProperty(subTransformation, getter, setter);
+        }
+
+        private void concatProperty(
+                Transformation<?> subTransformation,
+                Function<Transformation<?>, String> getter,
+                BiConsumer<Transformation<?>, String> setter) {
+            if (getter.apply(transformation) != null && getter.apply(subTransformation) != null) {
+                setter.accept(
+                        subTransformation,
+                        getter.apply(transformation) + ": " + getter.apply(subTransformation));
+            }
         }
     }
 }

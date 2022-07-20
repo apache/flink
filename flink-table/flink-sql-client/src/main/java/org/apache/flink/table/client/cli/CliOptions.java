@@ -33,8 +33,6 @@ public class CliOptions {
 
     private final boolean isPrintHelp;
     private final String sessionId;
-    private final URL environment;
-    private final URL defaults;
     private final URL initFile;
     private final URL sqlFile;
     private final List<URL> jars;
@@ -46,8 +44,6 @@ public class CliOptions {
     public CliOptions(
             boolean isPrintHelp,
             String sessionId,
-            URL environment,
-            URL defaults,
             URL initFile,
             URL sqlFile,
             List<URL> jars,
@@ -57,10 +53,8 @@ public class CliOptions {
             Configuration pythonConfiguration) {
         this.isPrintHelp = isPrintHelp;
         this.sessionId = sessionId;
-        this.environment = environment;
         this.initFile = initFile;
         this.sqlFile = sqlFile;
-        this.defaults = defaults;
         this.jars = jars;
         this.libraryDirs = libraryDirs;
         this.updateStatement = updateStatement;
@@ -74,14 +68,6 @@ public class CliOptions {
 
     public String getSessionId() {
         return sessionId;
-    }
-
-    public URL getEnvironment() {
-        return environment;
-    }
-
-    public URL getDefaults() {
-        return defaults;
     }
 
     public @Nullable URL getInitFile() {

@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.catalog.exceptions;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ObjectPath;
 
 /** Exception for trying to create a function that already exists. */
+@PublicEvolving
 public class FunctionAlreadyExistException extends Exception {
 
     private static final String MSG = "Function %s already exists in Catalog %s.";

@@ -24,22 +24,32 @@ import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 /** Tests for the parameter handling of the {@link JarPlanHandler}. */
-public class JarPlanHandlerParameterTest
+class JarPlanHandlerParameterTest
         extends JarHandlerParameterTest<JarPlanRequestBody, JarPlanMessageParameters> {
     private static JarPlanHandler handler;
 
-    @BeforeClass
-    public static void setup() throws Exception {
-        init();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
+
+    @BeforeAll
+    static void setup(@TempDir File tempDir) throws Exception {
+        init(tempDir);
         handler =
                 new JarPlanHandler(
                         gatewayRetriever,
@@ -48,7 +58,7 @@ public class JarPlanHandlerParameterTest
                         JarPlanGetHeaders.getInstance(),
                         jarDir,
                         new Configuration(),
-                        executor,
+                        EXECUTOR_EXTENSION.getExecutor(),
                         jobGraph -> {
                             LAST_SUBMITTED_JOB_GRAPH_REFERENCE.set(jobGraph);
                             return new JobPlanInfo(JsonPlanGenerator.generatePlan(jobGraph));
@@ -119,8 +129,7 @@ public class JarPlanHandlerParameterTest
     }
 
     @Override
-    void handleRequest(HandlerRequest<JarPlanRequestBody, JarPlanMessageParameters> request)
-            throws Exception {
+    void handleRequest(HandlerRequest<JarPlanRequestBody> request) throws Exception {
         handler.handleRequest(request, restfulGateway).get();
     }
 }

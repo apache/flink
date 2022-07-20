@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Matcher;
 import org.junit.runner.RunWith;
@@ -46,18 +46,18 @@ public class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase
     public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "nullable-padded-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             NullablePaddedSerializerSetup.class,
                             NullablePaddedSerializerVerifier.class));
 
             testSpecifications.add(
                     new TestSpecification<>(
                             "nullable-not-padded-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             NullableNotPaddedSerializerSetup.class,
                             NullableNotPaddedSerializerVerifier.class));
         }
@@ -103,7 +103,7 @@ public class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<Long>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -147,7 +147,7 @@ public class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<Long>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }

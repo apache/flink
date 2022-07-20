@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -43,6 +44,8 @@ public interface Output<T> extends Collector<T> {
      * timestamp will be emitted in the future.
      */
     void emitWatermark(Watermark mark);
+
+    void emitWatermarkStatus(WatermarkStatus watermarkStatus);
 
     /**
      * Emits a record to the side output identified by the given {@link OutputTag}.

@@ -24,7 +24,7 @@ from typing import Union, List, Type, Callable, TypeVar, Generic, Iterable
 from pyflink.java_gateway import get_gateway
 from pyflink.metrics import MetricGroup
 from pyflink.table import Expression
-from pyflink.table.types import DataType, _to_java_type, _to_java_data_type
+from pyflink.table.types import DataType, _to_java_data_type
 from pyflink.util import java_utils
 
 __all__ = ['FunctionContext', 'AggregateFunction', 'ScalarFunction', 'TableFunction',
@@ -164,7 +164,7 @@ class ImperativeAggregateFunction(UserDefinedFunction, Generic[T, ACC]):
         :param accumulator: the accumulator which contains the current aggregated results
         :param args: the input value (usually obtained from new arrived data).
         """
-        pass
+        raise RuntimeError("Method retract is not implemented")
 
     def merge(self, accumulator: ACC, accumulators):
         """
@@ -178,7 +178,7 @@ class ImperativeAggregateFunction(UserDefinedFunction, Generic[T, ACC]):
                             custom merge method.
         :param accumulators: a group of accumulators that will be merged.
         """
-        pass
+        raise RuntimeError("Method merge is not implemented")
 
     def get_result_type(self) -> DataType:
         """
@@ -187,7 +187,7 @@ class ImperativeAggregateFunction(UserDefinedFunction, Generic[T, ACC]):
         :return: The :class:`~pyflink.table.types.DataType` of the AggregateFunction's result.
 
         """
-        pass
+        raise RuntimeError("Method get_result_type is not implemented")
 
     def get_accumulator_type(self) -> DataType:
         """
@@ -196,7 +196,7 @@ class ImperativeAggregateFunction(UserDefinedFunction, Generic[T, ACC]):
         :return: The :class:`~pyflink.table.types.DataType` of the AggregateFunction's accumulator.
 
         """
-        pass
+        raise RuntimeError("Method get_accumulator_type is not implemented")
 
 
 class AggregateFunction(ImperativeAggregateFunction):
@@ -323,7 +323,7 @@ class UserDefinedFunctionWrapper(object):
 
         if input_types is not None:
             from pyflink.table.types import RowType
-            if not isinstance(input_types, collections.Iterable) \
+            if not isinstance(input_types, collections.abc.Iterable) \
                     or isinstance(input_types, RowType):
                 input_types = [input_types]
 
@@ -378,7 +378,7 @@ class UserDefinedFunctionWrapper(object):
 
             if self._input_types is not None:
                 j_input_types = java_utils.to_jarray(
-                    gateway.jvm.TypeInformation, [_to_java_type(i) for i in self._input_types])
+                    gateway.jvm.DataType, [_to_java_data_type(i) for i in self._input_types])
             else:
                 j_input_types = None
             j_function_kind = get_python_function_kind()
@@ -416,7 +416,7 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
 
     def _create_judf(self, serialized_func, j_input_types, j_function_kind):
         gateway = get_gateway()
-        j_result_type = _to_java_type(self._result_type)
+        j_result_type = _to_java_data_type(self._result_type)
         PythonScalarFunction = gateway.jvm \
             .org.apache.flink.table.functions.python.PythonScalarFunction
         j_scalar_function = PythonScalarFunction(
@@ -444,7 +444,7 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
             func, input_types, "general", deterministic, name)
 
         from pyflink.table.types import RowType
-        if not isinstance(result_types, collections.Iterable) \
+        if not isinstance(result_types, collections.abc.Iterable) \
                 or isinstance(result_types, RowType):
             result_types = [result_types]
 
@@ -458,9 +458,9 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
 
     def _create_judf(self, serialized_func, j_input_types, j_function_kind):
         gateway = get_gateway()
-        j_result_types = java_utils.to_jarray(gateway.jvm.TypeInformation,
-                                              [_to_java_type(i) for i in self._result_types])
-        j_result_type = gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(j_result_types)
+        j_result_types = java_utils.to_jarray(gateway.jvm.DataType,
+                                              [_to_java_data_type(i) for i in self._result_types])
+        j_result_type = gateway.jvm.DataTypes.ROW(j_result_types)
         PythonTableFunction = gateway.jvm \
             .org.apache.flink.table.functions.python.PythonTableFunction
         j_table_function = PythonTableFunction(

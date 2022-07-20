@@ -23,12 +23,12 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 
 /**
-  * Simple example for demonstrating the use of Table API on a Stream Table.
-  *
-  * This example shows how to:
-  *  - Convert DataStreams to Tables
-  *  - Apply union, select, and filter operations
-  */
+ * Simple example for demonstrating the use of Table API on a Stream Table.
+ *
+ * This example shows how to:
+ *   - Convert DataStreams to Tables
+ *   - Apply union, select, and filter operations
+ */
 object StreamTableExample {
 
   // *************************************************************************
@@ -41,21 +41,20 @@ object StreamTableExample {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env)
 
-    val orderA = env.fromCollection(Seq(
-      Order(1L, "beer", 3),
-      Order(1L, "diaper", 4),
-      Order(3L, "rubber", 2))).toTable(tEnv)
+    val orderA = env
+      .fromCollection(Seq(Order(1L, "beer", 3), Order(1L, "diaper", 4), Order(3L, "rubber", 2)))
+      .toTable(tEnv)
 
-    val orderB = env.fromCollection(Seq(
-      Order(2L, "pen", 3),
-      Order(2L, "rubber", 3),
-      Order(4L, "beer", 1))).toTable(tEnv)
+    val orderB = env
+      .fromCollection(Seq(Order(2L, "pen", 3), Order(2L, "rubber", 3), Order(4L, "beer", 1)))
+      .toTable(tEnv)
 
     // union the two tables
-    val result: DataStream[Order] = orderA.unionAll(orderB)
+    val result: DataStream[Order] = orderA
+      .unionAll(orderB)
       .select('user, 'product, 'amount)
       .where('amount > 2)
-      .toAppendStream[Order]
+      .toDataStream(classOf[Order])
 
     result.print()
 

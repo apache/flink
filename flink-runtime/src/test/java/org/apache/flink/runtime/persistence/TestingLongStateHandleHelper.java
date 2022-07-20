@@ -19,72 +19,162 @@
 package org.apache.flink.runtime.persistence;
 
 import org.apache.flink.runtime.state.RetrievableStateHandle;
+import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.util.AbstractID;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.StringJoiner;
 
 /**
  * Testing implementation for {@link RetrievableStateStorageHelper} and {@link
  * RetrievableStateHandle} with type {@link Long}.
  */
-public class TestingLongStateHandleHelper implements RetrievableStateStorageHelper<Long> {
+public class TestingLongStateHandleHelper
+        implements RetrievableStateStorageHelper<TestingLongStateHandleHelper.LongStateHandle> {
 
-    private final List<LongRetrievableStateHandle> stateHandles = new ArrayList<>();
+    private static final List<LongStateHandle> STATE_STORAGE = new ArrayList<>();
 
     @Override
-    public RetrievableStateHandle<Long> store(Long state) {
-        final LongRetrievableStateHandle stateHandle = new LongRetrievableStateHandle(state);
-        stateHandles.add(stateHandle);
+    public RetrievableStateHandle<LongStateHandle> store(LongStateHandle state) {
+        final int pos = STATE_STORAGE.size();
+        STATE_STORAGE.add(state);
 
-        return stateHandle;
+        return new LongRetrievableStateHandle(pos);
     }
 
-    public List<LongRetrievableStateHandle> getStateHandles() {
-        return stateHandles;
+    public static LongStateHandle createState(long value) {
+        return new LongStateHandle(value);
     }
 
-    /** Testing {@link RetrievableStateStorageHelper} implementation with {@link Long}. */
-    public static class LongRetrievableStateHandle implements RetrievableStateHandle<Long> {
+    public static long getStateHandleValueByIndex(int index) {
+        return STATE_STORAGE.get(index).getValue();
+    }
 
-        private static final long serialVersionUID = -3555329254423838912L;
+    public static int getDiscardCallCountForStateHandleByIndex(int index) {
+        return STATE_STORAGE.get(index).getNumberOfSuccessfulDiscardCalls();
+    }
 
-        private static AtomicInteger numberOfGlobalDiscardCalls = new AtomicInteger(0);
+    public static int getGlobalStorageSize() {
+        return STATE_STORAGE.size();
+    }
 
-        private final Long state;
+    public static void clearGlobalState() {
+        STATE_STORAGE.clear();
+    }
+
+    public static int getGlobalDiscardCount() {
+        return STATE_STORAGE.stream()
+                .mapToInt(LongStateHandle::getNumberOfSuccessfulDiscardCalls)
+                .sum();
+    }
+
+    /**
+     * Serialized callback that can be used in {@code LongStateHandle} to trigger functionality
+     * within the {@link LongStateHandle#discardState()} call.
+     */
+    @FunctionalInterface
+    public interface PreDiscardCallback extends Serializable {
+
+        void run(int discardIdx) throws Exception;
+    }
+
+    /**
+     * {@code LongStateHandle} implements {@link StateObject} to monitor the {@link
+     * StateObject#discardState()} calls.
+     */
+    public static class LongStateHandle implements StateObject {
+
+        private static final long serialVersionUID = -5752042587113549855L;
+
+        private final Long value;
+
+        private final PreDiscardCallback preDiscardCallback;
 
         private int numberOfDiscardCalls = 0;
+        private int numberOfSuccessfulDiscardCalls = 0;
 
-        public LongRetrievableStateHandle(Long state) {
-            this.state = state;
+        public LongStateHandle(long value) {
+            this(
+                    value,
+                    ignored -> {
+                        // No-op.
+                    });
         }
 
-        @Override
-        public Long retrieveState() {
-            return state;
+        public LongStateHandle(long value, PreDiscardCallback preDiscardCallback) {
+            this.value = value;
+            this.preDiscardCallback = preDiscardCallback;
+        }
+
+        public long getValue() {
+            return value;
         }
 
         @Override
         public void discardState() {
-            numberOfGlobalDiscardCalls.incrementAndGet();
-            numberOfDiscardCalls++;
-        }
-
-        @Override
-        public long getStateSize() {
-            return 0;
+            try {
+                preDiscardCallback.run(numberOfDiscardCalls);
+                numberOfSuccessfulDiscardCalls++;
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to discard.", e);
+            } finally {
+                numberOfDiscardCalls++;
+            }
         }
 
         public int getNumberOfDiscardCalls() {
             return numberOfDiscardCalls;
         }
 
-        public static int getNumberOfGlobalDiscardCalls() {
-            return numberOfGlobalDiscardCalls.get();
+        public int getNumberOfSuccessfulDiscardCalls() {
+            return numberOfSuccessfulDiscardCalls;
         }
 
-        public static void clearNumberOfGlobalDiscardCalls() {
-            numberOfGlobalDiscardCalls.set(0);
+        public boolean isDiscarded() {
+            return numberOfSuccessfulDiscardCalls > 0;
+        }
+
+        @Override
+        public long getStateSize() {
+            return 8L;
+        }
+
+        @Override
+        public String toString() {
+            return new StringJoiner(", ", LongStateHandle.class.getSimpleName() + "[", "]")
+                    .add("value=" + value)
+                    .add("numberOfDiscardCalls=" + numberOfDiscardCalls)
+                    .toString();
+        }
+    }
+
+    /** Testing {@link RetrievableStateStorageHelper} implementation with {@link Long}. */
+    public static class LongRetrievableStateHandle
+            implements RetrievableStateHandle<LongStateHandle> {
+
+        private static final long serialVersionUID = -3555329254423838912L;
+
+        private final int stateReference;
+
+        public LongRetrievableStateHandle(int stateReference) {
+            this.stateReference = stateReference;
+        }
+
+        @Override
+        public LongStateHandle retrieveState() {
+            return STATE_STORAGE.get(stateReference);
+        }
+
+        @Override
+        public void discardState() {
+            STATE_STORAGE.get(stateReference).discardState();
+        }
+
+        @Override
+        public long getStateSize() {
+            return AbstractID.SIZE;
         }
     }
 }

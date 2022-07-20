@@ -99,6 +99,34 @@ public class BatchShuffleReadBufferPoolTest {
     }
 
     @Test
+    public void testBufferOperationTimestampUpdated() throws Exception {
+        BatchShuffleReadBufferPool bufferPool = new BatchShuffleReadBufferPool(1024, 1024);
+        long oldTimestamp = bufferPool.getLastBufferOperationTimestamp();
+        Thread.sleep(100);
+        List<MemorySegment> buffers = bufferPool.requestBuffers();
+        assertEquals(1, buffers.size());
+        // The timestamp is updated when requesting buffers successfully
+        assertTrue(bufferPool.getLastBufferOperationTimestamp() > oldTimestamp);
+
+        oldTimestamp = bufferPool.getLastBufferOperationTimestamp();
+        Thread.sleep(100);
+        bufferPool.recycle(buffers);
+        // The timestamp is updated when recycling buffers
+        assertTrue(bufferPool.getLastBufferOperationTimestamp() > oldTimestamp);
+
+        buffers = bufferPool.requestBuffers();
+
+        oldTimestamp = bufferPool.getLastBufferOperationTimestamp();
+        Thread.sleep(100);
+        assertEquals(0, bufferPool.requestBuffers().size());
+        // The timestamp is not updated when requesting buffers is failed
+        assertEquals(oldTimestamp, bufferPool.getLastBufferOperationTimestamp());
+
+        bufferPool.recycle(buffers);
+        bufferPool.destroy();
+    }
+
+    @Test
     public void testBufferFulfilledByRecycledBuffers() throws Exception {
         int numRequestThreads = 2;
         AtomicReference<Throwable> exception = new AtomicReference<>();

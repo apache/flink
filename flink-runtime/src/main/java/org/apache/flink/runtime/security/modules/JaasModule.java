@@ -125,7 +125,7 @@ public class JaasModule implements SecurityModule {
         return currentConfig;
     }
 
-    private static AppConfigurationEntry[] getAppConfigurationEntries(
+    public static AppConfigurationEntry[] getAppConfigurationEntries(
             SecurityConfiguration securityConfig) {
 
         AppConfigurationEntry userKerberosAce = null;

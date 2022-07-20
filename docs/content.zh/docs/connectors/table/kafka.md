@@ -36,7 +36,7 @@ Kafka 连接器提供从 Kafka topic 中消费和写入数据的能力。
 
 {{< sql_download_table "kafka" >}}
 
-Kafka 连接器目前并不包含在 Flink 的二进制发行版中，请查阅 [这里]({{< ref "docs/dev/datastream/project-configuration" >}}) 了解如何在集群运行中引用 Kafka 连接器。
+Kafka 连接器目前并不包含在 Flink 的二进制发行版中，请查阅[这里]({{< ref "docs/dev/configuration/overview" >}})了解如何在集群运行中引用 Kafka 连接器。
 
 如何创建 Kafka 表
 ----------------
@@ -212,11 +212,10 @@ CREATE TABLE KafkaTable (
     </tr>
     <tr>
       <td><h5>properties.group.id</h5></td>
-      <td>required by source</td>
+      <td>对 source 可选，不适用于 sink</td>
       <td style="word-wrap: break-word;">（无）</td>
       <td>String</td>
-      <td>The id of the consumer group for Kafka source, optional for Kafka sink.</td>
-      <td>Kafka source 的 consumer 组 id，对于 Kafka sink 可选填。</td>
+      <td>Kafka source 的消费组 id。如果未指定消费组 ID，则会使用自动生成的 "KafkaSource-{tableIdentifier}" 作为消费组 ID。</td>
     </tr>
     <tr>
       <td><h5>properties.*</h5></td>
@@ -363,7 +362,7 @@ Kafka 消息的消息键和消息体部分都可以使用某种 [格式]({{< ref
 所有的格式配置使用格式识别符作为前缀。
 
 ```sql
-CREATE TABLE KafkaTable (,
+CREATE TABLE KafkaTable (
   `ts` TIMESTAMP(3) METADATA FROM 'timestamp',
   `user_id` BIGINT,
   `item_id` BIGINT,
@@ -530,6 +529,55 @@ Source 输出的 watermark 由读取的分区中最小的 watermark 决定。
 你可以在表配置中设置 [`'table.exec.source.idle-timeout'`]({{< ref "docs/dev/table/config" >}}#table-exec-source-idle-timeout) 选项来避免上述问题。
 
 请参阅 [Kafka watermark 策略]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}#watermark-策略和-kafka-连接器) 以获取更多细节。
+
+### 安全
+要启用加密和认证相关的安全配置，只需将安全配置加上 "properties." 前缀配置在 Kafka 表上即可。下面的代码片段展示了如何配置 Kafka 表以使用
+PLAIN 作为 SASL 机制并提供 JAAS 配置：
+```sql
+CREATE TABLE KafkaTable (
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING,
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp'
+) WITH (
+  'connector' = 'kafka',
+  ...
+  'properties.security.protocol' = 'SASL_PLAINTEXT',
+  'properties.sasl.mechanism' = 'PLAIN',
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";'
+)
+```
+另一个更复杂的例子，使用 SASL_SSL 作为安全协议并使用 SCRAM-SHA-256 作为 SASL 机制：
+```sql
+CREATE TABLE KafkaTable (
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING,
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp'
+) WITH (
+  'connector' = 'kafka',
+  ...
+  'properties.security.protocol' = 'SASL_SSL',
+  /* SSL 配置 */
+  /* 配置服务端提供的 truststore (CA 证书) 的路径 */
+  'properties.ssl.truststore.location' = '/path/to/kafka.client.truststore.jks',
+  'properties.ssl.truststore.password' = 'test1234',
+  /* 如果要求客户端认证，则需要配置 keystore (私钥) 的路径 */
+  'properties.ssl.keystore.location' = '/path/to/kafka.client.keystore.jks',
+  'properties.ssl.keystore.password' = 'test1234',
+  /* SASL 配置 */
+  /* 将 SASL 机制配置为 as SCRAM-SHA-256 */
+  'properties.sasl.mechanism' = 'SCRAM-SHA-256',
+  /* 配置 JAAS */
+  'properties.sasl.jaas.config' = 'org.apache.kafka.common.security.scram.ScramLoginModule required username=\"username\" password=\"password\";'
+)
+```
+
+如果在作业 JAR 中 Kafka 客户端依赖的类路径被重置了（relocate class），登录模块（login module）的类路径可能会不同，因此请根据登录模块在
+JAR 中实际的类路径来改写以上配置。例如在 SQL client JAR 中，Kafka client 依赖被重置在了 `org.apache.flink.kafka.shaded.org.apache.kafka` 路径下，
+因此 plain 登录模块的类路径应写为 `org.apache.flink.kafka.shaded.org.apache.kafka.common.security.plain.PlainLoginModule`。
+
+关于安全配置的详细描述，请参阅 <a href="https://kafka.apache.org/documentation/#security">Apache Kafka 文档中的"安全"一节</a>。
 
 数据类型映射
 ----------------

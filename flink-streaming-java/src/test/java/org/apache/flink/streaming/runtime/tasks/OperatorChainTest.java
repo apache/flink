@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -30,7 +31,6 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.operators.StreamOperatorChainingTest;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
 import org.junit.Test;
@@ -43,7 +43,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 
 /**
  * This class test the {@link OperatorChain}.
@@ -81,15 +80,16 @@ public class OperatorChainTest {
         try (MockEnvironment env = MockEnvironment.builder().build()) {
             final StreamTask<?, ?> containingTask = new MockStreamTaskBuilder(env).build();
 
-            final StreamStatusProvider statusProvider = mock(StreamStatusProvider.class);
             final StreamConfig cfg = new StreamConfig(new Configuration());
-
+            cfg.setOperatorID(new OperatorID());
+            cfg.setStateKeySerializer(new StringSerializer());
+            cfg.serializeAllConfigs();
             final List<StreamOperatorWrapper<?, ?>> operatorWrappers = new ArrayList<>();
 
             // initial output goes to nowhere
             @SuppressWarnings({"unchecked", "rawtypes"})
             WatermarkGaugeExposingOutput<StreamRecord<T>> lastWriter =
-                    new BroadcastingOutputCollector<>(new Output[0], statusProvider);
+                    new BroadcastingOutputCollector<>(new Output[0]);
 
             // build the reverse operators array
             for (int i = 0; i < operators.length; i++) {
@@ -98,7 +98,7 @@ public class OperatorChainTest {
                 if (op instanceof SetupableStreamOperator) {
                     ((SetupableStreamOperator) op).setup(containingTask, cfg, lastWriter);
                 }
-                lastWriter = new ChainingOutput<>(op, statusProvider, null);
+                lastWriter = new ChainingOutput<>(op, null);
 
                 ProcessingTimeService processingTimeService = null;
                 if (op instanceof AbstractStreamOperator) {
@@ -118,7 +118,7 @@ public class OperatorChainTest {
                     (StreamOperatorWrapper<T, OP>)
                             operatorWrappers.get(operatorWrappers.size() - 1);
 
-            return new OperatorChain<>(
+            return new RegularOperatorChain<>(
                     operatorWrappers,
                     new RecordWriterOutput<?>[0],
                     lastWriter,

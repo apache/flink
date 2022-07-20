@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.math.BigDecimal;
 
 /** Test for {@link BigDecSerializer}. */
-public class BigDecSerializerTest extends SerializerTestBase<BigDecimal> {
+class BigDecSerializerTest extends SerializerTestBase<BigDecimal> {
     @Override
     protected TypeSerializer<BigDecimal> createSerializer() {
         return BigDecSerializer.INSTANCE;

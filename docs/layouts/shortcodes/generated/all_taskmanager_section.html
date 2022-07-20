@@ -63,6 +63,12 @@
             <td>Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.memory.min-segment-size</h5></td>
+            <td style="word-wrap: break-word;">256 bytes</td>
+            <td>MemorySize</td>
+            <td>Minimum possible size of memory buffers used by the network stack and the memory manager. ex. can be used for automatic buffer size adjustment.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.memory.segment-size</h5></td>
             <td style="word-wrap: break-word;">32 kb</td>
             <td>MemorySize</td>
@@ -91,7 +97,7 @@
             <td><h5>taskmanager.resource-id</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the "RpcAddress:RpcPort" and a 6-character random string. Notice that this option is not valid in Yarn / Mesos and Native Kubernetes mode.</td>
+            <td>The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the "RpcAddress:RpcPort" and a 6-character random string. Notice that this option is not valid in Yarn and Native Kubernetes mode.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.rpc.port</h5></td>
@@ -103,7 +109,7 @@
             <td><h5>taskmanager.slot.timeout</h5></td>
             <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
-            <td>Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active within the given amount of time. Inactive slots can be caused by an out-dated slot request.</td>
+            <td>Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active within the given amount of time. Inactive slots can be caused by an out-dated slot request. If no value is configured, then it will fall back to <code class="highlighter-rouge">akka.ask.timeout</code>.</td>
         </tr>
     </tbody>
 </table>

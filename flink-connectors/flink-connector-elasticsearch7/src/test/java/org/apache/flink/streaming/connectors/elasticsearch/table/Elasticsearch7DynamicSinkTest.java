@@ -33,12 +33,15 @@ import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.ActionRequest;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.time.ZoneId;
 import java.util.List;
 
 import static org.mockito.Mockito.doAnswer;
@@ -46,7 +49,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /** Tests for {@link Elasticsearch7DynamicSink} parameters. */
-public class Elasticsearch7DynamicSinkTest {
+public class Elasticsearch7DynamicSinkTest extends TestLogger {
 
     private static final String FIELD_KEY = "key";
     private static final String FIELD_FRUIT_NAME = "fruit_name";
@@ -72,6 +75,7 @@ public class Elasticsearch7DynamicSinkTest {
                         new Elasticsearch7Configuration(
                                 getConfig(), this.getClass().getClassLoader()),
                         schema,
+                        ZoneId.systemDefault(),
                         provider);
 
         testSink.getSinkRuntimeProvider(new MockSinkContext()).createSinkFunction();
@@ -95,10 +99,11 @@ public class Elasticsearch7DynamicSinkTest {
     public void testDefaultConfig() {
         final TableSchema schema = createTestSchema();
         Configuration configuration = new Configuration();
-        configuration.setString(ElasticsearchOptions.INDEX_OPTION.key(), INDEX);
-        configuration.setString(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
+        configuration.setString(ElasticsearchConnectorOptions.INDEX_OPTION.key(), INDEX);
+        configuration.setString(ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
         configuration.setString(
-                ElasticsearchOptions.HOSTS_OPTION.key(), SCHEMA + "://" + HOSTNAME + ":" + PORT);
+                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                SCHEMA + "://" + HOSTNAME + ":" + PORT);
 
         BuilderProvider provider = new BuilderProvider();
         final Elasticsearch7DynamicSink testSink =
@@ -107,6 +112,7 @@ public class Elasticsearch7DynamicSinkTest {
                         new Elasticsearch7Configuration(
                                 configuration, this.getClass().getClassLoader()),
                         schema,
+                        ZoneId.systemDefault(),
                         provider);
 
         testSink.getSinkRuntimeProvider(new MockSinkContext()).createSinkFunction();
@@ -125,12 +131,13 @@ public class Elasticsearch7DynamicSinkTest {
     public void testAuthConfig() {
         final TableSchema schema = createTestSchema();
         Configuration configuration = new Configuration();
-        configuration.setString(ElasticsearchOptions.INDEX_OPTION.key(), INDEX);
-        configuration.setString(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
+        configuration.setString(ElasticsearchConnectorOptions.INDEX_OPTION.key(), INDEX);
+        configuration.setString(ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
         configuration.setString(
-                ElasticsearchOptions.HOSTS_OPTION.key(), SCHEMA + "://" + HOSTNAME + ":" + PORT);
-        configuration.setString(ElasticsearchOptions.USERNAME_OPTION.key(), USERNAME);
-        configuration.setString(ElasticsearchOptions.PASSWORD_OPTION.key(), PASSWORD);
+                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                SCHEMA + "://" + HOSTNAME + ":" + PORT);
+        configuration.setString(ElasticsearchConnectorOptions.USERNAME_OPTION.key(), USERNAME);
+        configuration.setString(ElasticsearchConnectorOptions.PASSWORD_OPTION.key(), PASSWORD);
 
         BuilderProvider provider = new BuilderProvider();
         final Elasticsearch7DynamicSink testSink =
@@ -139,6 +146,7 @@ public class Elasticsearch7DynamicSinkTest {
                         new Elasticsearch7Configuration(
                                 configuration, this.getClass().getClassLoader()),
                         schema,
+                        ZoneId.systemDefault(),
                         provider);
 
         testSink.getSinkRuntimeProvider(new MockSinkContext()).createSinkFunction();
@@ -157,23 +165,30 @@ public class Elasticsearch7DynamicSinkTest {
 
     private Configuration getConfig() {
         Configuration configuration = new Configuration();
-        configuration.setString(ElasticsearchOptions.INDEX_OPTION.key(), INDEX);
-        configuration.setString(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
+        configuration.setString(ElasticsearchConnectorOptions.INDEX_OPTION.key(), INDEX);
+        configuration.setString(ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
         configuration.setString(
-                ElasticsearchOptions.HOSTS_OPTION.key(), SCHEMA + "://" + HOSTNAME + ":" + PORT);
+                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                SCHEMA + "://" + HOSTNAME + ":" + PORT);
         configuration.setString(
-                ElasticsearchOptions.BULK_FLUSH_BACKOFF_TYPE_OPTION.key(), "exponential");
-        configuration.setString(ElasticsearchOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION.key(), "123");
+                ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_TYPE_OPTION.key(), "exponential");
         configuration.setString(
-                ElasticsearchOptions.BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION.key(), "3");
-        configuration.setString(ElasticsearchOptions.BULK_FLUSH_INTERVAL_OPTION.key(), "100");
-        configuration.setString(ElasticsearchOptions.BULK_FLUSH_MAX_ACTIONS_OPTION.key(), "1000");
-        configuration.setString(ElasticsearchOptions.BULK_FLASH_MAX_SIZE_OPTION.key(), "1mb");
-        configuration.setString(ElasticsearchOptions.CONNECTION_PATH_PREFIX.key(), "/myapp");
+                ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION.key(), "123");
         configuration.setString(
-                ElasticsearchOptions.FAILURE_HANDLER_OPTION.key(),
+                ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION.key(), "3");
+        configuration.setString(
+                ElasticsearchConnectorOptions.BULK_FLUSH_INTERVAL_OPTION.key(), "100");
+        configuration.setString(
+                ElasticsearchConnectorOptions.BULK_FLUSH_MAX_ACTIONS_OPTION.key(), "1000");
+        configuration.setString(
+                ElasticsearchConnectorOptions.BULK_FLASH_MAX_SIZE_OPTION.key(), "1mb");
+        configuration.setString(
+                ElasticsearchConnectorOptions.CONNECTION_PATH_PREFIX.key(), "/myapp");
+        configuration.setString(
+                ElasticsearchConnectorOptions.FAILURE_HANDLER_OPTION.key(),
                 DummyFailureHandler.class.getName());
-        configuration.setString(ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false");
+        configuration.setString(
+                ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false");
         return configuration;
     }
 
@@ -243,6 +258,11 @@ public class Elasticsearch7DynamicSinkTest {
 
         @Override
         public TypeInformation<?> createTypeInformation(DataType consumedDataType) {
+            return null;
+        }
+
+        @Override
+        public TypeInformation<?> createTypeInformation(LogicalType consumedLogicalType) {
             return null;
         }
 

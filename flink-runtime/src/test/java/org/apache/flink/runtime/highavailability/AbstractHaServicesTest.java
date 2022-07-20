@@ -23,13 +23,15 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.Test;
 
@@ -37,9 +39,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -63,7 +67,8 @@ public class AbstractHaServicesTest extends TestLogger {
                         Executors.directExecutor(),
                         testingBlobStoreService,
                         closeOperations,
-                        () -> closeOperations.offer(CloseOperations.HA_CLEANUP));
+                        () -> closeOperations.offer(CloseOperations.HA_CLEANUP),
+                        ignored -> {});
 
         haServices.closeAndCleanupAllData();
 
@@ -94,7 +99,8 @@ public class AbstractHaServicesTest extends TestLogger {
                         closeOperations,
                         () -> {
                             throw new FlinkException("test exception");
-                        });
+                        },
+                        ignored -> {});
 
         try {
             haServices.closeAndCleanupAllData();
@@ -104,6 +110,29 @@ public class AbstractHaServicesTest extends TestLogger {
         }
 
         assertThat(closeOperations, contains(CloseOperations.HA_CLOSE, CloseOperations.BLOB_CLOSE));
+    }
+
+    @Test
+    public void testCleanupJobData() throws Exception {
+        final Queue<CloseOperations> closeOperations = new ArrayDeque<>(3);
+        final TestingBlobStoreService testingBlobStoreService =
+                new TestingBlobStoreService(closeOperations);
+
+        JobID jobID = new JobID();
+        CompletableFuture<JobID> jobCleanupFuture = new CompletableFuture<>();
+
+        final TestingHaServices haServices =
+                new TestingHaServices(
+                        new Configuration(),
+                        Executors.directExecutor(),
+                        testingBlobStoreService,
+                        closeOperations,
+                        () -> {},
+                        jobCleanupFuture::complete);
+
+        haServices.globalCleanupAsync(jobID, Executors.directExecutor()).join();
+        JobID jobIDCleaned = jobCleanupFuture.get();
+        assertThat(jobIDCleaned, is(jobID));
     }
 
     private enum CloseOperations {
@@ -156,16 +185,29 @@ public class AbstractHaServicesTest extends TestLogger {
 
         private final Queue<? super CloseOperations> closeOperations;
         private final RunnableWithException internalCleanupRunnable;
+        private final ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer;
 
         private TestingHaServices(
                 Configuration config,
                 Executor ioExecutor,
                 BlobStoreService blobStoreService,
                 Queue<? super CloseOperations> closeOperations,
-                RunnableWithException internalCleanupRunnable) {
-            super(config, ioExecutor, blobStoreService);
+                RunnableWithException internalCleanupRunnable,
+                ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer) {
+            super(
+                    config,
+                    ioExecutor,
+                    blobStoreService,
+                    TestingJobResultStore.builder()
+                            .withMarkResultAsCleanConsumer(
+                                    ignoredJobId -> {
+                                        throw new AssertionError(
+                                                "Marking the job as clean shouldn't happen in the HaServices cleanup");
+                                    })
+                            .build());
             this.closeOperations = closeOperations;
             this.internalCleanupRunnable = internalCleanupRunnable;
+            this.internalJobCleanupConsumer = internalJobCleanupConsumer;
         }
 
         @Override
@@ -189,11 +231,6 @@ public class AbstractHaServicesTest extends TestLogger {
         }
 
         @Override
-        protected RunningJobsRegistry createRunningJobsRegistry() {
-            throw new UnsupportedOperationException("Not supported by this test implementation.");
-        }
-
-        @Override
         protected void internalClose() {
             closeOperations.offer(CloseOperations.HA_CLOSE);
         }
@@ -204,22 +241,27 @@ public class AbstractHaServicesTest extends TestLogger {
         }
 
         @Override
-        protected String getLeaderNameForResourceManager() {
+        protected void internalCleanupJobData(JobID jobID) throws Exception {
+            internalJobCleanupConsumer.accept(jobID);
+        }
+
+        @Override
+        protected String getLeaderPathForResourceManager() {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 
         @Override
-        protected String getLeaderNameForDispatcher() {
+        protected String getLeaderPathForDispatcher() {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 
         @Override
-        protected String getLeaderNameForJobManager(JobID jobID) {
+        protected String getLeaderPathForJobManager(JobID jobID) {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 
         @Override
-        protected String getLeaderNameForRestServer() {
+        protected String getLeaderPathForRestServer() {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
     }

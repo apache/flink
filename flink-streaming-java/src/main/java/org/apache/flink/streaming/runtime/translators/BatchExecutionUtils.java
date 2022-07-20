@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -61,10 +62,16 @@ class BatchExecutionUtils {
                 node.addInputRequirement(i, inputRequirements[i]);
             }
             Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights = new HashMap<>();
-            operatorScopeUseCaseWeights.put(ManagedMemoryUseCase.OPERATOR, 1);
+            operatorScopeUseCaseWeights.put(
+                    ManagedMemoryUseCase.OPERATOR,
+                    deriveMemoryWeight(context.getGraphGeneratorConfig()));
             node.setManagedMemoryUseCaseWeights(
                     operatorScopeUseCaseWeights, Collections.emptySet());
         }
+    }
+
+    private static int deriveMemoryWeight(ReadableConfig configuration) {
+        return Math.max(1, configuration.get(ExecutionOptions.SORTED_INPUTS_MEMORY).getMebiBytes());
     }
 
     @SuppressWarnings("rawtypes")

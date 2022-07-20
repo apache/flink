@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.catalog.stats;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.HashMap;
 import java.util.Map;
 
 /** Statistics for a non-partitioned table or a partition of a partitioned table. */
+@PublicEvolving
 public class CatalogTableStatistics {
     public static final CatalogTableStatistics UNKNOWN = new CatalogTableStatistics(-1, -1, -1, -1);
 
@@ -37,7 +40,7 @@ public class CatalogTableStatistics {
     /** The raw data size (size when loaded in memory) in bytes. */
     private final long rawDataSize;
 
-    private Map<String, String> properties;
+    private final Map<String, String> properties;
 
     public CatalogTableStatistics(long rowCount, int fileCount, long totalSize, long rawDataSize) {
         this(rowCount, fileCount, totalSize, rawDataSize, new HashMap<>());

@@ -60,8 +60,7 @@ public class JobsOverviewHandler
 
     @Override
     protected CompletableFuture<MultipleJobsDetails> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
-            @Nonnull RestfulGateway gateway)
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         return gateway.requestMultipleJobDetails(timeout);
     }

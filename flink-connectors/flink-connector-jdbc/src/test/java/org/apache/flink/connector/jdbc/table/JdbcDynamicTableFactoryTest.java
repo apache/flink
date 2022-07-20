@@ -19,18 +19,16 @@
 package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
@@ -41,13 +39,12 @@ import java.util.Map;
 
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Test for {@link JdbcTableSource} and {@link JdbcUpsertTableSink} created by {@link
- * JdbcTableSourceSinkFactory}.
+ * Test for {@link JdbcDynamicTableSource} and {@link JdbcDynamicTableSink} created by {@link
+ * JdbcDynamicTableFactory}.
  */
 public class JdbcDynamicTableFactoryTest {
 
@@ -72,8 +69,8 @@ public class JdbcDynamicTableFactoryTest {
 
         // validation for source
         DynamicTableSource actualSource = createTableSource(SCHEMA, properties);
-        JdbcOptions options =
-                JdbcOptions.builder()
+        JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
                         .setDBUrl("jdbc:derby:memory:mydb")
                         .setTableName("mytable")
                         .setDriverName("org.apache.derby.jdbc.EmbeddedDriver")
@@ -92,8 +89,8 @@ public class JdbcDynamicTableFactoryTest {
                         options,
                         JdbcReadOptions.builder().build(),
                         lookupOptions,
-                        TableSchema.fromResolvedSchema(SCHEMA));
-        assertEquals(expectedSource, actualSource);
+                        SCHEMA.toPhysicalRowDataType());
+        assertThat(actualSource).isEqualTo(expectedSource);
 
         // validation for sink
         DynamicTableSink actualSink = createTableSink(SCHEMA, properties);
@@ -113,11 +110,8 @@ public class JdbcDynamicTableFactoryTest {
                         .build();
         JdbcDynamicTableSink expectedSink =
                 new JdbcDynamicTableSink(
-                        options,
-                        executionOptions,
-                        dmlOptions,
-                        TableSchema.fromResolvedSchema(SCHEMA));
-        assertEquals(expectedSink, actualSink);
+                        options, executionOptions, dmlOptions, SCHEMA.toPhysicalRowDataType());
+        assertThat(actualSink).isEqualTo(expectedSink);
     }
 
     @Test
@@ -132,8 +126,8 @@ public class JdbcDynamicTableFactoryTest {
 
         DynamicTableSource actual = createTableSource(SCHEMA, properties);
 
-        JdbcOptions options =
-                JdbcOptions.builder()
+        JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
                         .setDBUrl("jdbc:derby:memory:mydb")
                         .setTableName("mytable")
                         .build();
@@ -154,12 +148,9 @@ public class JdbcDynamicTableFactoryTest {
                         .build();
         JdbcDynamicTableSource expected =
                 new JdbcDynamicTableSource(
-                        options,
-                        readOptions,
-                        lookupOptions,
-                        TableSchema.fromResolvedSchema(SCHEMA));
+                        options, readOptions, lookupOptions, SCHEMA.toPhysicalRowDataType());
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -171,8 +162,8 @@ public class JdbcDynamicTableFactoryTest {
 
         DynamicTableSource actual = createTableSource(SCHEMA, properties);
 
-        JdbcOptions options =
-                JdbcOptions.builder()
+        JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
                         .setDBUrl("jdbc:derby:memory:mydb")
                         .setTableName("mytable")
                         .build();
@@ -187,9 +178,9 @@ public class JdbcDynamicTableFactoryTest {
                         options,
                         JdbcReadOptions.builder().build(),
                         lookupOptions,
-                        TableSchema.fromResolvedSchema(SCHEMA));
+                        SCHEMA.toPhysicalRowDataType());
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -201,8 +192,8 @@ public class JdbcDynamicTableFactoryTest {
 
         DynamicTableSink actual = createTableSink(SCHEMA, properties);
 
-        JdbcOptions options =
-                JdbcOptions.builder()
+        JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
                         .setDBUrl("jdbc:derby:memory:mydb")
                         .setTableName("mytable")
                         .build();
@@ -222,12 +213,9 @@ public class JdbcDynamicTableFactoryTest {
 
         JdbcDynamicTableSink expected =
                 new JdbcDynamicTableSink(
-                        options,
-                        executionOptions,
-                        dmlOptions,
-                        TableSchema.fromResolvedSchema(SCHEMA));
+                        options, executionOptions, dmlOptions, SCHEMA.toPhysicalRowDataType());
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -237,8 +225,8 @@ public class JdbcDynamicTableFactoryTest {
 
         DynamicTableSink actual = createTableSink(SCHEMA, properties);
 
-        JdbcOptions options =
-                JdbcOptions.builder()
+        JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
                         .setDBUrl("jdbc:derby:memory:mydb")
                         .setTableName("mytable")
                         .setParallelism(2)
@@ -259,147 +247,128 @@ public class JdbcDynamicTableFactoryTest {
 
         JdbcDynamicTableSink expected =
                 new JdbcDynamicTableSink(
-                        options,
-                        executionOptions,
-                        dmlOptions,
-                        TableSchema.fromResolvedSchema(SCHEMA));
+                        options, executionOptions, dmlOptions, SCHEMA.toPhysicalRowDataType());
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
     public void testJdbcValidation() {
         // only password, no username
-        try {
-            Map<String, String> properties = getAllOptions();
-            properties.put("password", "pass");
+        Map<String, String> properties = getAllOptions();
+        properties.put("password", "pass");
 
-            createTableSource(SCHEMA, properties);
-            fail("exception expected");
-        } catch (Throwable t) {
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(
-                                    t,
-                                    "Either all or none of the following options should be provided:\n"
-                                            + "username\npassword")
-                            .isPresent());
-        }
+        Map<String, String> finalProperties = properties;
+        assertThatThrownBy(() -> createTableSource(SCHEMA, finalProperties))
+                .hasStackTraceContaining(
+                        "Either all or none of the following options should be provided:\n"
+                                + "username\npassword");
 
         // read partition properties not complete
-        try {
-            Map<String, String> properties = getAllOptions();
-            properties.put("scan.partition.column", "aaa");
-            properties.put("scan.partition.lower-bound", "-10");
-            properties.put("scan.partition.upper-bound", "100");
+        properties = getAllOptions();
+        properties.put("scan.partition.column", "aaa");
+        properties.put("scan.partition.lower-bound", "-10");
+        properties.put("scan.partition.upper-bound", "100");
 
-            createTableSource(SCHEMA, properties);
-            fail("exception expected");
-        } catch (Throwable t) {
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(
-                                    t,
-                                    "Either all or none of the following options should be provided:\n"
-                                            + "scan.partition.column\n"
-                                            + "scan.partition.num\n"
-                                            + "scan.partition.lower-bound\n"
-                                            + "scan.partition.upper-bound")
-                            .isPresent());
-        }
+        Map<String, String> finalProperties1 = properties;
+        assertThatThrownBy(() -> createTableSource(SCHEMA, finalProperties1))
+                .hasStackTraceContaining(
+                        "Either all or none of the following options should be provided:\n"
+                                + "scan.partition.column\n"
+                                + "scan.partition.num\n"
+                                + "scan.partition.lower-bound\n"
+                                + "scan.partition.upper-bound");
 
         // read partition lower-bound > upper-bound
-        try {
-            Map<String, String> properties = getAllOptions();
-            properties.put("scan.partition.column", "aaa");
-            properties.put("scan.partition.lower-bound", "100");
-            properties.put("scan.partition.upper-bound", "-10");
-            properties.put("scan.partition.num", "10");
+        properties = getAllOptions();
+        properties.put("scan.partition.column", "aaa");
+        properties.put("scan.partition.lower-bound", "100");
+        properties.put("scan.partition.upper-bound", "-10");
+        properties.put("scan.partition.num", "10");
 
-            createTableSource(SCHEMA, properties);
-            fail("exception expected");
-        } catch (Throwable t) {
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(
-                                    t,
-                                    "'scan.partition.lower-bound'='100' must not be larger than "
-                                            + "'scan.partition.upper-bound'='-10'.")
-                            .isPresent());
-        }
+        Map<String, String> finalProperties2 = properties;
+        assertThatThrownBy(() -> createTableSource(SCHEMA, finalProperties2))
+                .hasStackTraceContaining(
+                        "'scan.partition.lower-bound'='100' must not be larger than "
+                                + "'scan.partition.upper-bound'='-10'.");
 
         // lookup cache properties not complete
-        try {
-            Map<String, String> properties = getAllOptions();
-            properties.put("lookup.cache.max-rows", "10");
+        properties = getAllOptions();
+        properties.put("lookup.cache.max-rows", "10");
 
-            createTableSource(SCHEMA, properties);
-            fail("exception expected");
-        } catch (Throwable t) {
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(
-                                    t,
-                                    "Either all or none of the following options should be provided:\n"
-                                            + "lookup.cache.max-rows\n"
-                                            + "lookup.cache.ttl")
-                            .isPresent());
-        }
+        Map<String, String> finalProperties3 = properties;
+        assertThatThrownBy(() -> createTableSource(SCHEMA, finalProperties3))
+                .hasStackTraceContaining(
+                        "Either all or none of the following options should be provided:\n"
+                                + "lookup.cache.max-rows\n"
+                                + "lookup.cache.ttl");
 
         // lookup cache properties not complete
-        try {
-            Map<String, String> properties = getAllOptions();
-            properties.put("lookup.cache.ttl", "1s");
+        properties = getAllOptions();
+        properties.put("lookup.cache.ttl", "1s");
 
-            createTableSource(SCHEMA, properties);
-            fail("exception expected");
-        } catch (Throwable t) {
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(
-                                    t,
-                                    "Either all or none of the following options should be provided:\n"
-                                            + "lookup.cache.max-rows\n"
-                                            + "lookup.cache.ttl")
-                            .isPresent());
-        }
+        Map<String, String> finalProperties4 = properties;
+        assertThatThrownBy(() -> createTableSource(SCHEMA, finalProperties4))
+                .hasStackTraceContaining(
+                        "Either all or none of the following options should be provided:\n"
+                                + "lookup.cache.max-rows\n"
+                                + "lookup.cache.ttl");
 
         // lookup retries shouldn't be negative
-        try {
-            Map<String, String> properties = getAllOptions();
-            properties.put("lookup.max-retries", "-1");
-            createTableSource(SCHEMA, properties);
-            fail("exception expected");
-        } catch (Throwable t) {
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(
-                                    t,
-                                    "The value of 'lookup.max-retries' option shouldn't be negative, but is -1.")
-                            .isPresent());
-        }
+        properties = getAllOptions();
+        properties.put("lookup.max-retries", "-1");
+        Map<String, String> finalProperties5 = properties;
+        assertThatThrownBy(() -> createTableSource(SCHEMA, finalProperties5))
+                .hasStackTraceContaining(
+                        "The value of 'lookup.max-retries' option shouldn't be negative, but is -1.");
 
         // sink retries shouldn't be negative
-        try {
-            Map<String, String> properties = getAllOptions();
-            properties.put("sink.max-retries", "-1");
-            createTableSource(SCHEMA, properties);
-            fail("exception expected");
-        } catch (Throwable t) {
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(
-                                    t,
-                                    "The value of 'sink.max-retries' option shouldn't be negative, but is -1.")
-                            .isPresent());
-        }
+        properties = getAllOptions();
+        properties.put("sink.max-retries", "-1");
+        Map<String, String> finalProperties6 = properties;
+        assertThatThrownBy(() -> createTableSource(SCHEMA, finalProperties6))
+                .hasStackTraceContaining(
+                        "The value of 'sink.max-retries' option shouldn't be negative, but is -1.");
 
         // connection.max-retry-timeout shouldn't be smaller than 1 second
-        try {
-            Map<String, String> properties = getAllOptions();
-            properties.put("connection.max-retry-timeout", "100ms");
-            createTableSource(SCHEMA, properties);
-            fail("exception expected");
-        } catch (Throwable t) {
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(
-                                    t,
-                                    "The value of 'connection.max-retry-timeout' option must be in second granularity and shouldn't be smaller than 1 second, but is 100ms.")
-                            .isPresent());
-        }
+        properties = getAllOptions();
+        properties.put("connection.max-retry-timeout", "100ms");
+        Map<String, String> finalProperties7 = properties;
+        assertThatThrownBy(() -> createTableSource(SCHEMA, finalProperties7))
+                .hasStackTraceContaining(
+                        "The value of 'connection.max-retry-timeout' option must be in second granularity and shouldn't be smaller than 1 second, but is 100ms.");
+    }
+
+    @Test
+    public void testJdbcLookupPropertiesWithExcludeEmptyResult() {
+        Map<String, String> properties = getAllOptions();
+        properties.put("lookup.cache.max-rows", "1000");
+        properties.put("lookup.cache.ttl", "10s");
+        properties.put("lookup.max-retries", "10");
+        properties.put("lookup.cache.caching-missing-key", "true");
+
+        DynamicTableSource actual = createTableSource(SCHEMA, properties);
+
+        JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
+                        .setDBUrl("jdbc:derby:memory:mydb")
+                        .setTableName("mytable")
+                        .build();
+        JdbcLookupOptions lookupOptions =
+                JdbcLookupOptions.builder()
+                        .setCacheMaxSize(1000)
+                        .setCacheExpireMs(10_000)
+                        .setMaxRetryTimes(10)
+                        .setCacheMissingKey(true)
+                        .build();
+        JdbcDynamicTableSource expected =
+                new JdbcDynamicTableSource(
+                        options,
+                        JdbcReadOptions.builder().build(),
+                        lookupOptions,
+                        SCHEMA.toPhysicalRowDataType());
+
+        assertThat(actual).isEqualTo(expected);
     }
 
     private Map<String, String> getAllOptions() {

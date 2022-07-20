@@ -1,8 +1,7 @@
 ---
 title: "Java Lambda Expressions"
-weight: 301
+weight: 300
 type: docs
-bookToc: false
 aliases:
   - /zh/dev/java_lambdas.html
 ---
@@ -25,37 +24,34 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Java Lambda Expressions
+# Java Lambda 表达式
 
-Java 8 introduced several new language features designed for faster and clearer coding. With the most important feature,
-the so-called "Lambda Expressions", it opened the door to functional programming. Lambda expressions allow for implementing and
-passing functions in a straightforward way without having to declare additional (anonymous) classes.
+Java 8 引入了几种新的语言特性，旨在实现更快、更清晰的编码。作为最重要的特性，即所谓的“Lambda 表达式”，它开启了函数式编程的大门。Lambda 表达式允许以简捷的方式实现和传递函数，而无需声明额外的（匿名）类。
 
 {{< hint info >}}
-Flink supports the usage of lambda expressions for all operators of the Java API, however, whenever a lambda expression uses Java generics you need to declare type information *explicitly*. 
+Flink 支持对 Java API 的所有算子使用 Lambda 表达式，但是，当 Lambda 表达式使用 Java 泛型时，你需要 *显式* 地声明类型信息。
 {{< /hint >}}
 
-This document shows how to use lambda expressions and describes current
-limitations. For a general introduction to the Flink API, please refer to the
-[DataSteam API overview]({{< ref "docs/dev/datastream/overview" >}})
+本文档介绍如何使用 Lambda 表达式并描述了其（Lambda 表达式）当前的限制。有关 Flink API 的通用介绍，请参阅 [DataStream API 编程指南]({{< ref "docs/dev/datastream/overview" >}})。
 
-### Examples and Limitations
+## 示例和限制
 
-The following example illustrates how to implement a simple, inline `map()` function that squares its input using a lambda expression.
-The types of input `i` and output parameters of the `map()` function need not to be declared as they are inferred by the Java compiler.
+下面的这个示例演示了如何实现一个简单的内联 `map()` 函数，它使用 Lambda 表达式计算输入值的平方。
+
+不需要声明 `map()` 函数的输入 `i` 和输出参数的数据类型，因为 Java 编译器会对它们做出推断。
 
 ```java
 env.fromElements(1, 2, 3)
-// returns the squared i
+// 返回 i 的平方
 .map(i -> i*i)
 .print();
 ```
 
-Flink can automatically extract the result type information from the implementation of the method signature `OUT map(IN value)` because `OUT` is not generic but `Integer`.
+由于 `OUT` 是 `Integer` 而不是泛型，所以 Flink 可以从方法签名 `OUT map(IN value)` 的实现中自动提取出结果的类型信息。
 
-Unfortunately, functions such as `flatMap()` with a signature `void flatMap(IN value, Collector<OUT> out)` are compiled into `void flatMap(IN value, Collector out)` by the Java compiler. This makes it impossible for Flink to infer the type information for the output type automatically.
+不幸的是，像 `flatMap()` 这样的函数，它的签名 `void flatMap(IN value, Collector<OUT> out)` 被 Java 编译器编译为 `void flatMap(IN value, Collector out)`。这样 Flink 就无法自动推断输出的类型信息了。
 
-Flink will most likely throw an exception similar to the following:
+Flink 很可能抛出如下异常：
 
 ```
 org.apache.flink.api.common.functions.InvalidTypesException: The generic type parameters of 'Collector' are missing.
@@ -64,7 +60,7 @@ org.apache.flink.api.common.functions.InvalidTypesException: The generic type pa
     Otherwise the type has to be specified explicitly using type information.
 ```
 
-In this case, the type information needs to be *specified explicitly*, otherwise the output will be treated as type `Object` which leads to unefficient serialization.
+在这种情况下，需要 *显式* 指定类型信息，否则输出将被视为 `Object` 类型，这会导致低效的序列化。
 
 ```java
 import org.apache.flink.api.common.typeinfo.Types;
@@ -73,7 +69,7 @@ import org.apache.flink.util.Collector;
 
 DataSet<Integer> input = env.fromElements(1, 2, 3);
 
-// collector type must be declared
+// 必须声明 collector 类型
 input.flatMap((Integer number, Collector<String> out) -> {
     StringBuilder builder = new StringBuilder();
     for(int i = 0; i < number; i++) {
@@ -81,36 +77,36 @@ input.flatMap((Integer number, Collector<String> out) -> {
         out.collect(builder.toString());
     }
 })
-// provide type information explicitly
+// 显式提供类型信息
 .returns(Types.STRING)
-// prints "a", "a", "aa", "a", "aa", "aaa"
+// 打印 "a", "a", "aa", "a", "aa", "aaa"
 .print();
 ```
 
-Similar problems occur when using a `map()` function with a generic return type. A method signature `Tuple2<Integer, Integer> map(Integer value)` is erasured to `Tuple2 map(Integer value)` in the example below.
+当使用 `map()` 函数返回泛型类型的时候也会发生类似的问题。下面示例中的方法签名 `Tuple2<Integer, Integer> map(Integer value)` 被擦除为 `Tuple2 map(Integer value)`。
 
 ```java
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 env.fromElements(1, 2, 3)
-    .map(i -> Tuple2.of(i, i))    // no information about fields of Tuple2
+    .map(i -> Tuple2.of(i, i))    // 没有关于 Tuple2 字段的信息
     .print();
 ```
 
-In general, those problems can be solved in multiple ways:
+一般来说，这些问题可以通过多种方式解决：
 
 ```java
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-// use the explicit ".returns(...)"
+// 使用显式的 ".returns(...)"
 env.fromElements(1, 2, 3)
     .map(i -> Tuple2.of(i, i))
     .returns(Types.TUPLE(Types.INT, Types.INT))
     .print();
 
-// use a class instead
+// 使用类来替代
 env.fromElements(1, 2, 3)
     .map(new MyTuple2Mapper())
     .print();
@@ -122,7 +118,7 @@ public static class MyTuple2Mapper extends MapFunction<Integer, Tuple2<Integer, 
     }
 }
 
-// use an anonymous class instead
+// 使用匿名类来替代
 env.fromElements(1, 2, 3)
     .map(new MapFunction<Integer, Tuple2<Integer, Integer>> {
         @Override
@@ -132,7 +128,7 @@ env.fromElements(1, 2, 3)
     })
     .print();
 
-// or in this example use a tuple subclass instead
+// 也可以像这个示例中使用 Tuple 的子类来替代
 env.fromElements(1, 2, 3)
     .map(i -> new DoubleTuple(i, i))
     .print();

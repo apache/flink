@@ -95,8 +95,7 @@ public class SubtaskExecutionAttemptDetailsHandler
 
     @Override
     protected SubtaskExecutionAttemptDetailsInfo handleRequest(
-            HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request,
-            AccessExecution execution)
+            HandlerRequest<EmptyRequestBody> request, AccessExecution execution)
             throws RestHandlerException {
 
         final JobID jobID = request.getPathParameter(JobIDPathParameter.class);
@@ -136,8 +135,8 @@ public class SubtaskExecutionAttemptDetailsHandler
 
                 archive.add(new ArchivedJson(curAttemptPath, curAttemptJson));
 
-                for (int x = 0; x < subtask.getCurrentExecutionAttempt().getAttemptNumber(); x++) {
-                    AccessExecution attempt = subtask.getPriorExecutionAttempt(x);
+                for (AccessExecution attempt :
+                        subtask.getExecutionHistory().getHistoricalExecutions()) {
                     if (attempt != null) {
                         ResponseBody json =
                                 SubtaskExecutionAttemptDetailsInfo.create(

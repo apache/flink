@@ -70,7 +70,8 @@ public class TestingSlotPoolServiceBuilder implements SlotPoolServiceFactory {
 
     @Nonnull
     @Override
-    public SlotPoolService createSlotPoolService(@Nonnull JobID jobId) {
+    public SlotPoolService createSlotPoolService(
+            @Nonnull JobID jobId, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
         return new TestingSlotPoolService(
                 jobId,
                 startConsumer,
@@ -82,6 +83,12 @@ public class TestingSlotPoolServiceBuilder implements SlotPoolServiceFactory {
                 connectToResourceManagerConsumer,
                 disconnectResourceManagerRunnable,
                 createAllocatedSlotReportFunction);
+    }
+
+    public TestingSlotPoolServiceBuilder setConnectToResourceManagerConsumer(
+            Consumer<? super ResourceManagerGateway> connectToResourceManagerConsumer) {
+        this.connectToResourceManagerConsumer = connectToResourceManagerConsumer;
+        return this;
     }
 
     public static TestingSlotPoolServiceBuilder newBuilder() {

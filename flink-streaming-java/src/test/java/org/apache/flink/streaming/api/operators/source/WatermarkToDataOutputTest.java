@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.operators.source;
 
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import org.junit.Test;
 
@@ -66,6 +66,6 @@ public class WatermarkToDataOutputTest {
 
         assertThat(
                 testingOutput.events,
-                contains(StreamStatus.IDLE, StreamStatus.ACTIVE, new Watermark(100L)));
+                contains(WatermarkStatus.IDLE, WatermarkStatus.ACTIVE, new Watermark(100L)));
     }
 }

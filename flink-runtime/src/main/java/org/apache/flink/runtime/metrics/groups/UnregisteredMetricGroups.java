@@ -20,10 +20,10 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+
+import static org.apache.flink.runtime.executiongraph.ExecutionAttemptID.randomId;
 
 /** A collection of safe drop-in replacements for existing {@link ComponentMetricGroup}s. */
 public class UnregisteredMetricGroups {
@@ -62,8 +62,13 @@ public class UnregisteredMetricGroups {
         return new UnregisteredTaskMetricGroup();
     }
 
-    public static OperatorMetricGroup createUnregisteredOperatorMetricGroup() {
+    public static InternalOperatorMetricGroup createUnregisteredOperatorMetricGroup() {
         return new UnregisteredOperatorMetricGroup();
+    }
+
+    private static InternalOperatorMetricGroup createUnregisteredOperatorMetricGroup(
+            TaskMetricGroup parent) {
+        return new UnregisteredOperatorMetricGroup(parent);
     }
 
     /** A safe drop-in replacement for {@link ProcessMetricGroup ProcessMetricGroups}. */
@@ -105,7 +110,7 @@ public class UnregisteredMetricGroups {
         }
 
         @Override
-        public JobManagerJobMetricGroup addJob(JobGraph job) {
+        public JobManagerJobMetricGroup addJob(JobID jobId, String jobName) {
             return createUnregisteredJobManagerJobMetricGroup();
         }
     }
@@ -132,18 +137,6 @@ public class UnregisteredMetricGroups {
         protected UnregisteredTaskManagerMetricGroup() {
             super(NoOpMetricRegistry.INSTANCE, DEFAULT_HOST_NAME, DEFAULT_TASKMANAGER_ID);
         }
-
-        @Override
-        public TaskMetricGroup addTaskForJob(
-                final JobID jobId,
-                final String jobName,
-                final JobVertexID jobVertexId,
-                final ExecutionAttemptID executionAttemptId,
-                final String taskName,
-                final int subtaskIndex,
-                final int attemptNumber) {
-            return createUnregisteredTaskMetricGroup();
-        }
     }
 
     /** A safe drop-in replacement for {@link TaskManagerJobMetricGroup}s. */
@@ -161,49 +154,41 @@ public class UnregisteredMetricGroups {
 
         @Override
         public TaskMetricGroup addTask(
-                final JobVertexID jobVertexId,
-                final ExecutionAttemptID executionAttemptID,
-                final String taskName,
-                final int subtaskIndex,
-                final int attemptNumber) {
+                final ExecutionAttemptID executionAttemptID, final String taskName) {
             return createUnregisteredTaskMetricGroup();
         }
     }
 
     /** A safe drop-in replacement for {@link TaskMetricGroup}s. */
     public static class UnregisteredTaskMetricGroup extends TaskMetricGroup {
-        private static final JobVertexID DEFAULT_VERTEX_ID = new JobVertexID(0, 0);
-        private static final ExecutionAttemptID DEFAULT_ATTEMPT_ID = new ExecutionAttemptID();
+        private static final ExecutionAttemptID DEFAULT_ATTEMPT_ID = randomId();
         private static final String DEFAULT_TASK_NAME = "UnregisteredTask";
 
         protected UnregisteredTaskMetricGroup() {
             super(
                     NoOpMetricRegistry.INSTANCE,
                     new UnregisteredTaskManagerJobMetricGroup(),
-                    DEFAULT_VERTEX_ID,
                     DEFAULT_ATTEMPT_ID,
-                    DEFAULT_TASK_NAME,
-                    0,
-                    0);
+                    DEFAULT_TASK_NAME);
         }
 
         @Override
-        public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
-            return createUnregisteredOperatorMetricGroup();
+        public InternalOperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
+            return createUnregisteredOperatorMetricGroup(this);
         }
     }
 
-    /** A safe drop-in replacement for {@link OperatorMetricGroup}s. */
-    public static class UnregisteredOperatorMetricGroup extends OperatorMetricGroup {
+    /** A safe drop-in replacement for {@link InternalOperatorMetricGroup}s. */
+    public static class UnregisteredOperatorMetricGroup extends InternalOperatorMetricGroup {
         private static final OperatorID DEFAULT_OPERATOR_ID = new OperatorID(0, 0);
         private static final String DEFAULT_OPERATOR_NAME = "UnregisteredOperator";
 
         protected UnregisteredOperatorMetricGroup() {
-            super(
-                    NoOpMetricRegistry.INSTANCE,
-                    new UnregisteredTaskMetricGroup(),
-                    DEFAULT_OPERATOR_ID,
-                    DEFAULT_OPERATOR_NAME);
+            this(new UnregisteredTaskMetricGroup());
+        }
+
+        UnregisteredOperatorMetricGroup(TaskMetricGroup parent) {
+            super(NoOpMetricRegistry.INSTANCE, parent, DEFAULT_OPERATOR_ID, DEFAULT_OPERATOR_NAME);
         }
     }
 }

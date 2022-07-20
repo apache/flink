@@ -145,8 +145,8 @@ public class MergingWindowSet<W extends Window> {
      *
      * @param newWindow The new {@code Window} to add.
      * @param mergeFunction The callback to be invoked in case a merge occurs.
-     * @return The {@code Window} that new new {@code Window} ended up in. This can also be the the
-     *     new {@code Window} itself in case no merge occurred.
+     * @return The {@code Window} that new new {@code Window} ended up in. This can also be the new
+     *     {@code Window} itself in case no merge occurred.
      * @throws Exception
      */
     public W addWindow(W newWindow, MergeFunction<W> mergeFunction) throws Exception {

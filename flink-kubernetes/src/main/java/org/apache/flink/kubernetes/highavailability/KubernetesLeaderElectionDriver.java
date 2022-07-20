@@ -20,11 +20,11 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
+import org.apache.flink.kubernetes.kubeclient.KubernetesSharedWatcher.Watch;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriver;
 import org.apache.flink.runtime.leaderelection.LeaderElectionEventHandler;
@@ -35,12 +35,11 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.concurrent.GuardedBy;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
@@ -55,12 +54,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Kubernetes ConfigMap. Note that the contending lock and leader storage are using the same
  * ConfigMap. And every component(e.g. ResourceManager, Dispatcher, RestEndpoint, JobManager for
  * each job) will have a separate ConfigMap.
+ *
+ * @deprecated in favour of {@link KubernetesMultipleComponentLeaderElectionDriver}
  */
+@Deprecated
 public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
     private static final Logger LOG = LoggerFactory.getLogger(KubernetesLeaderElectionDriver.class);
-
-    private final Object watchLock = new Object();
 
     private final FlinkKubeClient kubeClient;
 
@@ -79,11 +79,12 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
     private volatile boolean running;
 
-    @GuardedBy("watchLock")
-    private KubernetesWatch kubernetesWatch;
+    private final Watch kubernetesWatch;
 
     public KubernetesLeaderElectionDriver(
             FlinkKubeClient kubeClient,
+            KubernetesConfigMapSharedWatcher configMapSharedWatcher,
+            ExecutorService watchExecutorService,
             KubernetesLeaderElectionConfiguration leaderConfig,
             LeaderElectionEventHandler leaderElectionEventHandler,
             FatalErrorHandler fatalErrorHandler) {
@@ -105,7 +106,11 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
         running = true;
         leaderElector.run();
         kubernetesWatch =
-                kubeClient.watchConfigMaps(configMapName, new ConfigMapCallbackHandlerImpl());
+                checkNotNull(configMapSharedWatcher, "ConfigMap Shared Informer")
+                        .watch(
+                                configMapName,
+                                new ConfigMapCallbackHandlerImpl(),
+                                watchExecutorService);
     }
 
     @Override
@@ -118,11 +123,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
         LOG.info("Closing {}.", this);
         leaderElector.stop();
 
-        synchronized (watchLock) {
-            if (kubernetesWatch != null) {
-                kubernetesWatch.close();
-            }
-        }
+        kubernetesWatch.close();
     }
 
     @Override
@@ -194,7 +195,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
         @Override
         public void isLeader() {
-            leaderElectionEventHandler.onGrantLeadership();
+            leaderElectionEventHandler.onGrantLeadership(UUID.randomUUID());
         }
 
         @Override
@@ -246,23 +247,9 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
         @Override
         public void handleError(Throwable throwable) {
-            if (throwable instanceof KubernetesTooOldResourceVersionException) {
-                synchronized (watchLock) {
-                    if (running) {
-                        if (kubernetesWatch != null) {
-                            kubernetesWatch.close();
-                        }
-                        LOG.info("Creating a new watch on ConfigMap {}.", configMapName);
-                        kubernetesWatch =
-                                kubeClient.watchConfigMaps(
-                                        configMapName, new ConfigMapCallbackHandlerImpl());
-                    }
-                }
-            } else {
-                fatalErrorHandler.onFatalError(
-                        new LeaderElectionException(
-                                "Error while watching the ConfigMap " + configMapName, throwable));
-            }
+            fatalErrorHandler.onFatalError(
+                    new LeaderElectionException(
+                            "Error while watching the ConfigMap " + configMapName, throwable));
         }
     }
 

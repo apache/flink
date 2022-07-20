@@ -69,7 +69,7 @@ public class BlobUtilsNonWritableTest extends TestLogger {
                 BlobServerOptions.STORAGE_DIRECTORY,
                 new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS).getAbsolutePath());
         // Should throw an Exception
-        BlobUtils.initLocalStorageDirectory(config);
+        BlobUtils.createBlobStorageDirectory(config, null);
     }
 
     @Test(expected = IOException.class)

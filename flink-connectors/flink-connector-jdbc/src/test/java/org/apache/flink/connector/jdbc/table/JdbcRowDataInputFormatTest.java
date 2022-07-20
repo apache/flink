@@ -21,7 +21,7 @@ package org.apache.flink.connector.jdbc.table;
 import org.apache.flink.connector.jdbc.JdbcDataTestBase;
 import org.apache.flink.connector.jdbc.JdbcTestFixture;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.split.JdbcGenericParameterValuesProvider;
 import org.apache.flink.connector.jdbc.split.JdbcNumericBetweenParametersProvider;
 import org.apache.flink.connector.jdbc.split.JdbcParameterValuesProvider;
@@ -35,7 +35,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -52,6 +51,7 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_BOOKS_S
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_BOOKS_SPLIT_BY_ID;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_EMPTY;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test suite for {@link JdbcRowDataInputFormat}. */
 public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
@@ -69,7 +69,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
                 DataTypes.INT()
             };
     final JdbcDialect dialect =
-            JdbcOptions.builder()
+            JdbcConnectorOptions.builder()
                     .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                     .setTableName(INPUT_TABLE)
                     .build()
@@ -197,7 +197,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
                         .setRowConverter(dialect.getRowConverter(rowType))
                         .build();
         // this query does not exploit parallelism
-        Assert.assertEquals(1, inputFormat.createInputSplits(1).length);
+        assertThat(inputFormat.createInputSplits(1)).hasSize(1);
         inputFormat.openInputFormat();
         inputFormat.open(null);
         RowData row = new GenericRowData(5);
@@ -211,7 +211,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
         }
         inputFormat.close();
         inputFormat.closeInputFormat();
-        Assert.assertEquals(TEST_DATA.length, recordCount);
+        assertThat(recordCount).isEqualTo(TEST_DATA.length);
     }
 
     @Test
@@ -234,7 +234,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
         inputFormat.openInputFormat();
         InputSplit[] splits = inputFormat.createInputSplits(1);
         // this query exploit parallelism (1 split for every id)
-        Assert.assertEquals(TEST_DATA.length, splits.length);
+        assertThat(splits).hasSameSizeAs(TEST_DATA);
         int recordCount = 0;
         RowData row = new GenericRowData(5);
         for (InputSplit split : splits) {
@@ -249,7 +249,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
             inputFormat.close();
         }
         inputFormat.closeInputFormat();
-        Assert.assertEquals(TEST_DATA.length, recordCount);
+        assertThat(recordCount).isEqualTo(TEST_DATA.length);
     }
 
     @Test
@@ -273,7 +273,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
         inputFormat.openInputFormat();
         InputSplit[] splits = inputFormat.createInputSplits(1);
         // assert that a single split was generated
-        Assert.assertEquals(1, splits.length);
+        assertThat(splits).hasSize(1);
         int recordCount = 0;
         RowData row = new GenericRowData(5);
         for (InputSplit split : splits) {
@@ -288,7 +288,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
             inputFormat.close();
         }
         inputFormat.closeInputFormat();
-        Assert.assertEquals(TEST_DATA.length, recordCount);
+        assertThat(recordCount).isEqualTo(TEST_DATA.length);
     }
 
     @Test
@@ -311,7 +311,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
         inputFormat.openInputFormat();
         InputSplit[] splits = inputFormat.createInputSplits(1);
         // this query exploit parallelism (1 split for every queryParameters row)
-        Assert.assertEquals(queryParameters.length, splits.length);
+        assertThat(splits).hasSameSizeAs(queryParameters);
 
         verifySplit(splits[0], TEST_DATA[3].id);
         verifySplit(splits[1], TEST_DATA[0].id + TEST_DATA[1].id);
@@ -335,7 +335,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
             sum += id;
         }
 
-        Assert.assertEquals(expectedIDSum, sum);
+        assertThat(sum).isEqualTo(expectedIDSum);
     }
 
     @Test
@@ -352,7 +352,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
         try {
             inputFormat.openInputFormat();
             inputFormat.open(null);
-            Assert.assertTrue(inputFormat.reachedEnd());
+            assertThat(inputFormat.reachedEnd()).isTrue();
         } finally {
             inputFormat.close();
             inputFormat.closeInputFormat();
@@ -360,15 +360,15 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
     }
 
     private static void assertEquals(JdbcTestFixture.TestEntry expected, RowData actual) {
-        Assert.assertEquals(
-                expected.id, actual.isNullAt(0) ? null : Integer.valueOf(actual.getInt(0)));
-        Assert.assertEquals(
-                expected.title, actual.isNullAt(1) ? null : actual.getString(1).toString());
-        Assert.assertEquals(
-                expected.author, actual.isNullAt(2) ? null : actual.getString(2).toString());
-        Assert.assertEquals(
-                expected.price, actual.isNullAt(3) ? null : Double.valueOf(actual.getDouble(3)));
-        Assert.assertEquals(
-                expected.qty, actual.isNullAt(4) ? null : Integer.valueOf(actual.getInt(4)));
+        assertThat(actual.isNullAt(0) ? null : Integer.valueOf(actual.getInt(0)))
+                .isEqualTo(expected.id);
+        assertThat(actual.isNullAt(1) ? null : actual.getString(1).toString())
+                .isEqualTo(expected.title);
+        assertThat(actual.isNullAt(2) ? null : actual.getString(2).toString())
+                .isEqualTo(expected.author);
+        assertThat(actual.isNullAt(3) ? null : Double.valueOf(actual.getDouble(3)))
+                .isEqualTo(expected.price);
+        assertThat(actual.isNullAt(4) ? null : Integer.valueOf(actual.getInt(4)))
+                .isEqualTo(expected.qty);
     }
 }

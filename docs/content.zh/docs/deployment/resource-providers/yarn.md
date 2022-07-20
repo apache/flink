@@ -40,10 +40,10 @@ Flink can dynamically allocate and de-allocate TaskManager resources depending o
 
 ### Preparation
 
-This *Getting Started* section assumes a functional YARN environment, starting from version 2.4.1. YARN environments are provided most conveniently through services such as Amazon EMR, Google Cloud DataProc or products like Cloudera. [Manually setting up a YARN environment locally](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/SingleCluster.html) or [on a cluster](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/ClusterSetup.html) is not recommended for following through this *Getting Started* tutorial. 
+This *Getting Started* section assumes a functional YARN environment, starting from version 2.8.5. YARN environments are provided most conveniently through services such as Amazon EMR, Google Cloud DataProc or products like Cloudera. [Manually setting up a YARN environment locally](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/SingleCluster.html) or [on a cluster](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/ClusterSetup.html) is not recommended for following through this *Getting Started* tutorial. 
 
 - Make sure your YARN cluster is ready for accepting Flink applications by running `yarn top`. It should show no error messages.
-- Download a recent Flink distribution from the [download page]({{ site.download_url }}) and unpack it.
+- Download a recent Flink distribution from the [download page]({{< downloads >}}) and unpack it.
 - **Important** Make sure that the `HADOOP_CLASSPATH` environment variable is set up (it can be checked by running `echo $HADOOP_CLASSPATH`). If not, set it up using 
 
 ```bash
@@ -152,7 +152,7 @@ The Session Mode has two operation modes:
 
 The session mode will create a hidden YARN properties file in `/tmp/.yarn-properties-<username>`, which will be picked up for cluster discovery by the command line interface when submitting a job.
 
-You can also **manually specifiy the target YARN cluster** in the command line interface when submitting a Flink job. Here's an example:
+You can also **manually specify the target YARN cluster** in the command line interface when submitting a Flink job. Here's an example:
 
 ```bash 
 ./bin/flink run -t yarn-session \
@@ -219,13 +219,13 @@ Hadoop YARN 2.4.0 has a major bug (fixed in 2.5.0) preventing container restarts
 
 ### Supported Hadoop versions.
 
-Flink on YARN is compiled against Hadoop 2.4.1, and all Hadoop versions `>= 2.4.1` are supported, including Hadoop 3.x.
+Flink on YARN is compiled against Hadoop 2.8.5, and all Hadoop versions `>= 2.8.5` are supported, including Hadoop 3.x.
 
 For providing Flink with the required Hadoop dependencies, we recommend setting the `HADOOP_CLASSPATH` environment variable already introduced in the [Getting Started / Preparation](#preparation) section. 
 
 If that is not possible, the dependencies can also be put into the `lib/` folder of Flink. 
 
-Flink also offers pre-bundled Hadoop fat jars for placing them in the `lib/` folder, on the [Downloads / Additional Components]({{site.download_url}}#additional-components) section of the website. These pre-bundled fat jars are shaded to avoid dependency conflicts with common libraries. The Flink community is not testing the YARN integration against these pre-bundled jars. 
+Flink also offers pre-bundled Hadoop fat jars for placing them in the `lib/` folder, on the [Downloads / Additional Components]({{< downloads >}}#additional-components) section of the website. These pre-bundled fat jars are shaded to avoid dependency conflicts with common libraries. The Flink community is not testing the YARN integration against these pre-bundled jars. 
 
 ### Running Flink on YARN behind Firewalls
 
@@ -237,7 +237,14 @@ The configuration parameter for specifying the REST endpoint port is [rest.bind-
 
 ### User jars & Classpath
 
-By default Flink will include the user jars into the system classpath when running a single job. This behavior can be controlled with the [yarn.per-job-cluster.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-per-job-cluster-include-user-jar) parameter.
+**Session Mode**
+
+When deploying Flink with Session Mode on Yarn, only the JAR file specified in startup command will be recognized as user-jars and included into user classpath.
+
+**PerJob Mode & Application Mode**
+
+When deploying Flink with PerJob/Application Mode on Yarn, the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder will be recognized as user-jars.
+By default Flink will include the user-jars into the system classpath. This behavior can be controlled with the [yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar) parameter.
 
 When setting this to `DISABLED` Flink will include the jar in the user classpath instead.
 
@@ -246,5 +253,7 @@ The user-jars position in the classpath can be controlled by setting the paramet
 - `ORDER`: (default) Adds the jar to the system classpath based on the lexicographic order.
 - `FIRST`: Adds the jar to the beginning of the system classpath.
 - `LAST`: Adds the jar to the end of the system classpath.
+
+Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/debugging_classloading" >}}#overview-of-classloading-in-flink) for details.
 
 {{< top >}}

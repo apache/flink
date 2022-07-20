@@ -37,8 +37,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * RegisteredRpcConnection} implements registration and get target gateway.
  *
  * <p>The registration gives access to a future that is completed upon successful registration. The
- * RPC connection can be closed, for example when the target where it tries to register at looses
- * leader status.
+ * RPC connection can be closed, for example when the target where it tries to register loses leader
+ * status.
  *
  * @param <F> The type of the fencing token
  * @param <G> The type of the gateway to connect to.

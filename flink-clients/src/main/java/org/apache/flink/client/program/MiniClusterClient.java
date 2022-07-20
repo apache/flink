@@ -23,8 +23,8 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -35,6 +35,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,20 +86,24 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
 
     @Override
     public CompletableFuture<String> cancelWithSavepoint(
-            JobID jobId, @Nullable String savepointDirectory) {
-        return miniCluster.triggerSavepoint(jobId, savepointDirectory, true);
+            JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
+        return miniCluster.triggerSavepoint(jobId, savepointDirectory, true, formatType);
     }
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            JobID jobId, boolean advanceToEndOfEventTime, @Nullable String savepointDirector) {
-        return miniCluster.stopWithSavepoint(jobId, savepointDirector, advanceToEndOfEventTime);
+            JobID jobId,
+            boolean advanceToEndOfEventTime,
+            @Nullable String savepointDirectory,
+            SavepointFormatType formatType) {
+        return miniCluster.stopWithSavepoint(
+                jobId, savepointDirectory, advanceToEndOfEventTime, formatType);
     }
 
     @Override
     public CompletableFuture<String> triggerSavepoint(
-            JobID jobId, @Nullable String savepointDirectory) {
-        return miniCluster.triggerSavepoint(jobId, savepointDirectory, false);
+            JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
+        return miniCluster.triggerSavepoint(jobId, savepointDirectory, false, formatType);
     }
 
     @Override

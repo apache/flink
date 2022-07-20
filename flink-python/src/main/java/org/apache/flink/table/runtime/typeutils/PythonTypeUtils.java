@@ -24,25 +24,18 @@ import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
-import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.typeutils.serializers.python.ArrayDataSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.DecimalDataSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.MapDataSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.RowDataSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -65,16 +58,12 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
+import org.apache.flink.table.types.utils.TypeConversions;
 
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-
-import java.lang.reflect.Array;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Date;
 import java.sql.Time;
-import java.sql.Timestamp;
-import java.util.TimeZone;
 
 /**
  * Utilities for converting Flink logical types, such as convert it to the related TypeSerializer or
@@ -85,40 +74,16 @@ public final class PythonTypeUtils {
 
     private static final String EMPTY_STRING = "";
 
-    /** The local time zone. */
-    private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
-
-    /** The number of milliseconds in a day. */
-    private static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
-
-    public static RunnerApi.Coder getRowCoderProto(
-            RowType rowType, String coderUrn, FlinkFnApi.CoderParam.OutputMode outputMode) {
-        FlinkFnApi.Schema rowSchema = toProtoType(rowType).getRowSchema();
-        FlinkFnApi.CoderParam.Builder coderParamBuilder = FlinkFnApi.CoderParam.newBuilder();
-        coderParamBuilder.setSchema(rowSchema);
-        coderParamBuilder.setOutputMode(outputMode);
-        return RunnerApi.Coder.newBuilder()
-                .setSpec(
-                        RunnerApi.FunctionSpec.newBuilder()
-                                .setUrn(coderUrn)
-                                .setPayload(
-                                        org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf
-                                                .ByteString.copyFrom(
-                                                coderParamBuilder.build().toByteArray()))
-                                .build())
-                .build();
-    }
-
     public static FlinkFnApi.Schema.FieldType toProtoType(LogicalType logicalType) {
         return logicalType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
     }
 
-    public static TypeSerializer toFlinkTypeSerializer(LogicalType logicalType) {
-        return logicalType.accept(new LogicalTypeToTypeSerializerConverter());
+    public static TypeSerializer toInternalSerializer(LogicalType logicalType) {
+        return logicalType.accept(new LogicalTypetoInternalSerializerConverter());
     }
 
-    public static TypeSerializer toBlinkTypeSerializer(LogicalType logicalType) {
-        return logicalType.accept(new LogicalTypeToBlinkTypeSerializerConverter());
+    public static DataConverter toDataConverter(LogicalType logicalType) {
+        return logicalType.accept(new LogicalTypeToDataConverter());
     }
 
     /**
@@ -139,87 +104,7 @@ public final class PythonTypeUtils {
         return bigDecimal;
     }
 
-    /**
-     * Converts the internal representation of a SQL DATE (int) to the Java type used for UDF
-     * parameters ({@link java.sql.Date}).
-     *
-     * <p>Note: The implementation refers to {@link SqlDateTimeUtils#internalToDate}.
-     */
-    public static java.sql.Date internalToDate(int v) {
-        // note that, in this case, can't handle Daylight Saving Time
-        final long t = v * MILLIS_PER_DAY;
-        return new java.sql.Date(t - LOCAL_TZ.getOffset(t));
-    }
-
-    /**
-     * Converts the Java type used for UDF parameters of SQL DATE type ({@link java.sql.Date}) to
-     * internal representation (int).
-     *
-     * <p>Note: The implementation refers to {@link SqlDateTimeUtils#dateToInternal}.
-     */
-    public static int dateToInternal(java.sql.Date date) {
-        long ts = date.getTime() + LOCAL_TZ.getOffset(date.getTime());
-        return (int) (ts / MILLIS_PER_DAY);
-    }
-
-    /**
-     * Converts the internal representation of a SQL TIMESTAMP (long) to the Java type used for UDF
-     * parameters ({@link java.sql.Timestamp}).
-     *
-     * <p>Note: The implementation refers to {@link SqlDateTimeUtils#internalToTimestamp}.
-     */
-    public static java.sql.Timestamp internalToTimestamp(long v) {
-        return new java.sql.Timestamp(v - LOCAL_TZ.getOffset(v));
-    }
-
-    /**
-     * Converts the Java type used for UDF parameters of SQL TIMESTAMP type ({@link
-     * java.sql.Timestamp}) to internal representation (long).
-     *
-     * <p>Note: The implementation refers to {@link SqlDateTimeUtils#timestampToInternal}.
-     */
-    public static long timestampToInternal(java.sql.Timestamp ts) {
-        long time = ts.getTime();
-        return time + LOCAL_TZ.getOffset(time);
-    }
-
-    /** Convert LogicalType to conversion class for flink planner. */
-    public static class LogicalTypeToConversionClassConverter
-            extends LogicalTypeDefaultVisitor<Class> {
-
-        public static final LogicalTypeToConversionClassConverter INSTANCE =
-                new LogicalTypeToConversionClassConverter();
-
-        private LogicalTypeToConversionClassConverter() {}
-
-        @Override
-        public Class visit(DateType dateType) {
-            return Date.class;
-        }
-
-        @Override
-        public Class visit(TimeType timeType) {
-            return Time.class;
-        }
-
-        @Override
-        public Class visit(TimestampType timestampType) {
-            return Timestamp.class;
-        }
-
-        @Override
-        public Class visit(ArrayType arrayType) {
-            Class elementClass = arrayType.getElementType().accept(this);
-            return Array.newInstance(elementClass, 0).getClass();
-        }
-
-        @Override
-        protected Class defaultMethod(LogicalType logicalType) {
-            return logicalType.getDefaultConversion();
-        }
-    }
-
-    private static class LogicalTypeToTypeSerializerConverter
+    private static class LogicalTypetoInternalSerializerConverter
             extends LogicalTypeDefaultVisitor<TypeSerializer> {
         @Override
         public TypeSerializer visit(BooleanType booleanType) {
@@ -265,78 +150,6 @@ public final class PythonTypeUtils {
         public TypeSerializer visit(VarBinaryType varBinaryType) {
             return BytePrimitiveArraySerializer.INSTANCE;
         }
-
-        @Override
-        public TypeSerializer visit(VarCharType varCharType) {
-            return StringSerializer.INSTANCE;
-        }
-
-        @Override
-        public TypeSerializer visit(CharType charType) {
-            return StringSerializer.INSTANCE;
-        }
-
-        @Override
-        public TypeSerializer visit(DateType dateType) {
-            return DateSerializer.INSTANCE;
-        }
-
-        @Override
-        public TypeSerializer visit(TimeType timeType) {
-            return TimeSerializer.INSTANCE;
-        }
-
-        @Override
-        public TypeSerializer visit(TimestampType timestampType) {
-            return new TimestampSerializer(timestampType.getPrecision());
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public TypeSerializer visit(ArrayType arrayType) {
-            LogicalType elementType = arrayType.getElementType();
-            TypeSerializer<?> elementTypeSerializer = elementType.accept(this);
-            Class<?> elementClass =
-                    elementType.accept(LogicalTypeToConversionClassConverter.INSTANCE);
-            return new GenericArraySerializer(elementClass, elementTypeSerializer);
-        }
-
-        @Override
-        public TypeSerializer visit(MapType mapType) {
-            TypeSerializer<?> keyTypeSerializer = mapType.getKeyType().accept(this);
-            TypeSerializer<?> valueTypeSerializer = mapType.getValueType().accept(this);
-            return new MapSerializer<>(keyTypeSerializer, valueTypeSerializer);
-        }
-
-        @Override
-        public TypeSerializer visit(RowType rowType) {
-            final TypeSerializer[] fieldTypeSerializers =
-                    rowType.getFields().stream()
-                            .map(f -> f.getType().accept(this))
-                            .toArray(TypeSerializer[]::new);
-            return new RowSerializer(fieldTypeSerializers);
-        }
-
-        @Override
-        protected TypeSerializer defaultMethod(LogicalType logicalType) {
-            if (logicalType instanceof LegacyTypeInformationType) {
-                Class<?> typeClass =
-                        ((LegacyTypeInformationType) logicalType)
-                                .getTypeInformation()
-                                .getTypeClass();
-                if (typeClass == BigDecimal.class) {
-                    return BigDecSerializer.INSTANCE;
-                }
-            }
-            throw new UnsupportedOperationException(
-                    String.format(
-                            "Python UDF doesn't support logical type %s currently.",
-                            logicalType.asSummaryString()));
-        }
-    }
-
-    private static class LogicalTypeToBlinkTypeSerializerConverter
-            extends LogicalTypeToTypeSerializerConverter {
 
         @Override
         public TypeSerializer visit(RowType rowType) {
@@ -397,6 +210,14 @@ public final class PythonTypeUtils {
         @Override
         public TypeSerializer visit(DecimalType decimalType) {
             return new DecimalDataSerializer(decimalType.getPrecision(), decimalType.getScale());
+        }
+
+        @Override
+        protected TypeSerializer defaultMethod(LogicalType logicalType) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Python UDF doesn't support logical type %s currently.",
+                            logicalType.asSummaryString()));
         }
     }
 
@@ -637,6 +458,269 @@ public final class PythonTypeUtils {
                     String.format(
                             "Python UDF doesn't support logical type %s currently.",
                             logicalType.asSummaryString()));
+        }
+    }
+
+    /** Data Converter that converts the data to the java format data which can be used in PemJa. */
+    public abstract static class DataConverter<IN, INTER, OUT> implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        private final DataFormatConverters.DataFormatConverter<IN, INTER> dataFormatConverter;
+
+        public DataConverter(
+                DataFormatConverters.DataFormatConverter<IN, INTER> dataFormatConverter) {
+            this.dataFormatConverter = dataFormatConverter;
+        }
+
+        public final IN toInternal(OUT value) {
+            return dataFormatConverter.toInternal(toInternalImpl(value));
+        }
+
+        public final OUT toExternal(RowData row, int column) {
+            return toExternalImpl(dataFormatConverter.toExternal(row, column));
+        }
+
+        abstract INTER toInternalImpl(OUT value);
+
+        abstract OUT toExternalImpl(INTER value);
+    }
+
+    /** Identity data converter. */
+    public static final class IdentityDataConverter<IN, OUT> extends DataConverter<IN, OUT, OUT> {
+        IdentityDataConverter(
+                DataFormatConverters.DataFormatConverter<IN, OUT> dataFormatConverter) {
+            super(dataFormatConverter);
+        }
+
+        @Override
+        OUT toInternalImpl(OUT value) {
+            return value;
+        }
+
+        @Override
+        OUT toExternalImpl(OUT value) {
+            return value;
+        }
+    }
+
+    /**
+     * Python Long will be converted to Long in PemJa, so we need ByteDataConverter to convert Java
+     * Long to internal Byte.
+     */
+    public static final class ByteDataConverter extends DataConverter<Byte, Byte, Long> {
+
+        public static final ByteDataConverter INSTANCE = new ByteDataConverter();
+
+        private ByteDataConverter() {
+            super(DataFormatConverters.ByteConverter.INSTANCE);
+        }
+
+        @Override
+        Byte toInternalImpl(Long value) {
+            return value.byteValue();
+        }
+
+        @Override
+        Long toExternalImpl(Byte value) {
+            return value.longValue();
+        }
+    }
+
+    /**
+     * Python Long will be converted to Long in PemJa, so we need ShortDataConverter to convert Java
+     * Long to internal Short.
+     */
+    public static final class ShortDataConverter extends DataConverter<Short, Short, Long> {
+
+        public static final ShortDataConverter INSTANCE = new ShortDataConverter();
+
+        private ShortDataConverter() {
+            super(DataFormatConverters.ShortConverter.INSTANCE);
+        }
+
+        @Override
+        Short toInternalImpl(Long value) {
+            return value.shortValue();
+        }
+
+        @Override
+        Long toExternalImpl(Short value) {
+            return value.longValue();
+        }
+    }
+
+    /**
+     * Python Long will be converted to Long in PemJa, so we need IntDataConverter to convert Java
+     * Long to internal Integer.
+     */
+    public static final class IntDataConverter extends DataConverter<Integer, Integer, Long> {
+
+        public static final IntDataConverter INSTANCE = new IntDataConverter();
+
+        private IntDataConverter() {
+            super(DataFormatConverters.IntConverter.INSTANCE);
+        }
+
+        @Override
+        Integer toInternalImpl(Long value) {
+            return value.intValue();
+        }
+
+        @Override
+        Long toExternalImpl(Integer value) {
+            return value.longValue();
+        }
+    }
+
+    /**
+     * Python Float will be converted to Double in PemJa, so we need FloatDataConverter to convert
+     * Java Double to internal Float.
+     */
+    public static final class FloatDataConverter extends DataConverter<Float, Float, Double> {
+
+        public static final FloatDataConverter INSTANCE = new FloatDataConverter();
+
+        private FloatDataConverter() {
+            super(DataFormatConverters.FloatConverter.INSTANCE);
+        }
+
+        @Override
+        Float toInternalImpl(Double value) {
+            return value.floatValue();
+        }
+
+        @Override
+        Double toExternalImpl(Float value) {
+            return value.doubleValue();
+        }
+    }
+
+    /**
+     * Python datetime.time will be converted to Time in PemJa, so we need TimeDataConverter to
+     * convert Java Double to internal Integer.
+     */
+    public static final class TimeDataConverter extends DataConverter<Integer, Integer, Time> {
+
+        public static final TimeDataConverter INSTANCE = new TimeDataConverter();
+
+        private TimeDataConverter() {
+            super(DataFormatConverters.IntConverter.INSTANCE);
+        }
+
+        @Override
+        Integer toInternalImpl(Time value) {
+            return (int) value.getTime();
+        }
+
+        @Override
+        Time toExternalImpl(Integer value) {
+            return new Time(value);
+        }
+    }
+
+    private static final class LogicalTypeToDataConverter
+            extends LogicalTypeDefaultVisitor<DataConverter> {
+
+        @Override
+        public DataConverter visit(BooleanType booleanType) {
+            return defaultConverter(booleanType);
+        }
+
+        @Override
+        public DataConverter visit(TinyIntType tinyIntType) {
+            return ByteDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(SmallIntType smallIntType) {
+            return ShortDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(IntType intType) {
+            return IntDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(BigIntType bigIntType) {
+            return defaultConverter(bigIntType);
+        }
+
+        @Override
+        public DataConverter visit(FloatType floatType) {
+            return FloatDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(DoubleType doubleType) {
+            return defaultConverter(doubleType);
+        }
+
+        @Override
+        public DataConverter visit(DecimalType decimalType) {
+            return defaultConverter(decimalType);
+        }
+
+        @Override
+        public DataConverter visit(VarCharType varCharType) {
+            return defaultConverter(varCharType);
+        }
+
+        @Override
+        public DataConverter visit(CharType charType) {
+            return defaultConverter(charType);
+        }
+
+        @Override
+        public DataConverter visit(VarBinaryType varBinaryType) {
+            return defaultConverter(varBinaryType);
+        }
+
+        @Override
+        public DataConverter visit(BinaryType binaryType) {
+            return defaultConverter(binaryType);
+        }
+
+        @Override
+        public DataConverter visit(DateType dateType) {
+            return new IdentityDataConverter<>(DataFormatConverters.DateConverter.INSTANCE);
+        }
+
+        @Override
+        public DataConverter visit(TimeType timeType) {
+            return TimeDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(TimestampType timestampType) {
+            return new IdentityDataConverter<>(
+                    new DataFormatConverters.TimestampConverter(timestampType.getPrecision()));
+        }
+
+        @Override
+        public DataConverter visit(ArrayType arrayType) {
+            return defaultConverter(arrayType);
+        }
+
+        @Override
+        public DataConverter visit(MapType mapType) {
+            return defaultConverter(mapType);
+        }
+
+        @Override
+        protected DataConverter defaultMethod(LogicalType logicalType) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Currently, Python UDF doesn't support logical type %s in Thread Mode.",
+                            logicalType.asSummaryString()));
+        }
+
+        @SuppressWarnings("unchecked")
+        private DataConverter defaultConverter(LogicalType logicalType) {
+            return new IdentityDataConverter<>(
+                    DataFormatConverters.getConverterForDataType(
+                            TypeConversions.fromLogicalToDataType(logicalType)));
         }
     }
 }

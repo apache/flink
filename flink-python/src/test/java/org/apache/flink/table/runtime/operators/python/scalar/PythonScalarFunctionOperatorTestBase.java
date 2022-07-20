@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonOptions;
@@ -42,8 +43,7 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -52,6 +52,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Base class for Python scalar function operator test. These test that:
@@ -69,7 +70,7 @@ import static org.apache.flink.table.api.Expressions.call;
 public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 
     @Test
-    public void testRetractionFieldKept() throws Exception {
+    void testRetractionFieldKept() throws Exception {
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
                 getTestHarness(new Configuration());
         long initialTime = 0L;
@@ -218,9 +219,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         StreamTableEnvironment tEnv = createTableEnvironment(env);
-        tEnv.getConfig()
-                .getConfiguration()
-                .setString(TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(), "80mb");
+        tEnv.getConfig().set(TaskManagerOptions.TASK_OFF_HEAP_MEMORY, MemorySize.parse("80mb"));
         tEnv.registerFunction("pyFunc", new PythonScalarFunction("pyFunc"));
         DataStream<Tuple2<Integer, Integer>> ds = env.fromElements(new Tuple2<>(1, 2));
         Table t = tEnv.fromDataStream(ds, $("a"), $("b")).select(call("pyFunc", $("a"), $("b")));
@@ -228,7 +227,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
         tEnv.toAppendStream(t, BasicTypeInfo.INT_TYPE_INFO);
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
         List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
-        Assert.assertEquals(1, vertices.size());
+        assertThat(vertices).hasSize(1);
     }
 
     private OneInputStreamOperatorTestHarness<IN, OUT> getTestHarness(Configuration config)
@@ -239,7 +238,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
                                 new RowType.RowField("f1", new VarCharType()),
                                 new RowType.RowField("f2", new VarCharType()),
                                 new RowType.RowField("f3", new BigIntType())));
-        AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN> operator =
+        AbstractPythonScalarFunctionOperator operator =
                 getTestOperator(
                         config,
                         new PythonFunctionInfo[] {
@@ -251,7 +250,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
                         new int[] {0, 1});
 
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
-                new OneInputStreamOperatorTestHarness<>(operator);
+                new OneInputStreamOperatorTestHarness(operator);
         testHarness
                 .getStreamConfig()
                 .setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.PYTHON, 0.5);
@@ -259,7 +258,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
         return testHarness;
     }
 
-    public abstract AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN> getTestOperator(
+    public abstract AbstractPythonScalarFunctionOperator getTestOperator(
             Configuration config,
             PythonFunctionInfo[] scalarFunctions,
             RowType inputType,

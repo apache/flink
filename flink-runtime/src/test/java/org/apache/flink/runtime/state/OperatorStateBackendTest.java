@@ -34,16 +34,18 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.File;
@@ -72,6 +74,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class OperatorStateBackendTest {
+
+    @ClassRule
+    public static final TestExecutorResource<ExecutorService> EXECUTOR_RESOURCE =
+            new TestExecutorResource<>(() -> Executors.newFixedThreadPool(1));
 
     private final ClassLoader classLoader = getClass().getClassLoader();
     private final Collection<OperatorStateHandle> emptyStateHandles = Collections.emptyList();
@@ -759,7 +765,7 @@ public class OperatorStateBackendTest {
                 operatorStateBackend.snapshot(
                         1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-        ExecutorService executorService = Executors.newFixedThreadPool(1);
+        ExecutorService executorService = EXECUTOR_RESOURCE.getExecutor();
 
         executorService.submit(runnableFuture);
 
@@ -913,9 +919,7 @@ public class OperatorStateBackendTest {
                 operatorStateBackend.snapshot(
                         1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-        ExecutorService executorService = Executors.newFixedThreadPool(1);
-
-        executorService.submit(runnableFuture);
+        EXECUTOR_RESOURCE.getExecutor().submit(runnableFuture);
 
         // wait until the async checkpoint is in the write code, then continue
         waiterLatch.await();
@@ -963,9 +967,7 @@ public class OperatorStateBackendTest {
                 operatorStateBackend.snapshot(
                         1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-        ExecutorService executorService = Executors.newFixedThreadPool(1);
-
-        executorService.submit(runnableFuture);
+        EXECUTOR_RESOURCE.getExecutor().submit(runnableFuture);
 
         // wait until the async checkpoint is in the stream's write code, then continue
         waiterLatch.await();

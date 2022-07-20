@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
@@ -42,6 +43,9 @@ public interface NetworkSequenceViewReader {
     @Nullable
     BufferAndAvailability getNextBuffer() throws IOException;
 
+    /** Returns true if the producer backlog need to be announced to the consumer. */
+    boolean needAnnounceBacklog();
+
     /**
      * The credits from consumer are added in incremental way.
      *
@@ -52,12 +56,15 @@ public interface NetworkSequenceViewReader {
     /** Resumes data consumption after an exactly once checkpoint. */
     void resumeConsumption();
 
+    /** Acknowledges all the user records are processed. */
+    void acknowledgeAllRecordsProcessed();
+
     /**
-     * Checks whether this reader is available or not.
+     * Checks whether this reader is available or not and returns the backlog at the same time.
      *
-     * @return True if the reader is available.
+     * @return A boolean flag indicating whether the reader is available together with the backlog.
      */
-    boolean isAvailable();
+    ResultSubpartitionView.AvailabilityWithBacklog getAvailabilityAndBacklog();
 
     boolean isRegisteredAsAvailable();
 
@@ -75,4 +82,6 @@ public interface NetworkSequenceViewReader {
     Throwable getFailureCause();
 
     InputChannelID getReceiverId();
+
+    void notifyNewBufferSize(int newBufferSize);
 }

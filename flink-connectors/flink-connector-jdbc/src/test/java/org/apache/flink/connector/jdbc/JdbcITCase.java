@@ -18,11 +18,13 @@
 package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.junit.Test;
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -32,14 +34,17 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
 import static org.apache.flink.connector.jdbc.JdbcConnectionOptions.JdbcConnectionOptionsBuilder;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.DERBY_EBOOKSHOP_DB;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.INPUT_TABLE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.INSERT_TEMPLATE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Smoke tests for the {@link JdbcSink} and the underlying classes. */
 public class JdbcITCase extends JdbcTestBase {
@@ -73,7 +78,68 @@ public class JdbcITCase extends JdbcTestBase {
                                         .build()));
         env.execute();
 
-        assertEquals(Arrays.asList(TEST_DATA), selectBooks());
+        assertThat(selectBooks()).isEqualTo(Arrays.asList(TEST_DATA));
+    }
+
+    @Test
+    public void testObjectReuse() throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.set(OBJECT_REUSE, true);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
+        env.setParallelism(1);
+
+        AtomicInteger counter = new AtomicInteger(0);
+        String[] words = {"a", "and", "b", "were", "sitting in the buffer"};
+        StringHolder reused = new StringHolder();
+        env.fromElements(words)
+                .map(
+                        word -> {
+                            reused.setContent(word);
+                            return reused;
+                        })
+                .addSink(
+                        JdbcSink.sink(
+                                JdbcTestFixture.INSERT_INTO_WORDS_TEMPLATE,
+                                (ps, e) -> {
+                                    ps.setInt(1, counter.getAndIncrement());
+                                    ps.setString(2, e.content);
+                                },
+                                new JdbcConnectionOptionsBuilder()
+                                        .withUrl(getDbMetadata().getUrl())
+                                        .withDriverName(getDbMetadata().getDriverClass())
+                                        .build()));
+        env.execute();
+
+        assertThat(selectWords()).isEqualTo(Arrays.asList(words));
+    }
+
+    private List<String> selectWords() throws SQLException {
+        ArrayList<String> strings = new ArrayList<>();
+        try (Connection connection = DriverManager.getConnection(getDbMetadata().getUrl())) {
+            try (Statement st = connection.createStatement()) {
+                try (ResultSet rs = st.executeQuery("select word from words")) {
+                    while (rs.next()) {
+                        strings.add(rs.getString(1));
+                    }
+                }
+            }
+        }
+        return strings;
+    }
+
+    private static class StringHolder implements Serializable {
+        private static final long serialVersionUID = 1L;
+        private String content;
+
+        public String getContent() {
+            return checkNotNull(content);
+        }
+
+        public void setContent(String payload) {
+            this.content = checkNotNull(payload);
+        }
     }
 
     private List<TestEntry> selectBooks() throws SQLException {

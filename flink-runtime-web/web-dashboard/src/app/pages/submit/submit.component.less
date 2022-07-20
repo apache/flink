@@ -16,24 +16,23 @@
  * limitations under the License.
  */
 
-
 .input-file {
+  position: absolute;
+  z-index: -1;
+  overflow: hidden;
   width: 0.1px;
   height: 0.1px;
   opacity: 0;
-  overflow: hidden;
-  position: absolute;
-  z-index: -1;
 }
 
 .extra {
   position: absolute;
-  right: 24px;
   top: 18px;
+  right: 24px;
 
   nz-progress {
-    width: 150px;
     display: block;
+    width: 150px;
   }
 
   .upload {
@@ -53,9 +52,13 @@
 flink-dagre {
   position: absolute;
   top: 60px;
-  bottom: 0;
   right: 0;
+  bottom: 0;
   left: 0;
+}
+
+::ng-deep .ant-form-inline .ant-form-item {
+  margin-bottom: 8px;
 }
 
 nz-form-item {

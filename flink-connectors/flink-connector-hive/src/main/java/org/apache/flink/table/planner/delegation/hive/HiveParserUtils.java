@@ -27,7 +27,7 @@ import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.hive.HiveGenericUDAF;
-import org.apache.flink.table.functions.hive.HiveGenericUDTF;
+import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseDriver;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
@@ -42,15 +42,12 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunction
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeCheckCtx;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeConverter;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserUnparseTranslator;
-import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateViewDesc;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
-import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
-import org.apache.flink.table.planner.functions.utils.HiveTableSqlFunction;
-import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import org.antlr.runtime.CommonToken;
@@ -59,11 +56,13 @@ import org.antlr.runtime.tree.Tree;
 import org.antlr.runtime.tree.TreeVisitor;
 import org.antlr.runtime.tree.TreeVisitorAction;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -90,6 +89,7 @@ import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlNameMatchers;
 import org.apache.calcite.sql.validate.SqlUserDefinedTableFunction;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
@@ -98,7 +98,7 @@ import org.apache.calcite.util.ConversionUtil;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
-import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -161,6 +161,13 @@ public class HiveParserUtils {
             HiveReflectionUtils.tryGetClass(
                     "org.apache.flink.calcite.shaded.com.google.common.collect.ImmutableList");
     private static final boolean useShadedImmutableList = shadedImmutableListClz != null;
+
+    private static final Class immutableSetClz =
+            HiveReflectionUtils.tryGetClass("com.google.common.collect.ImmutableSet");
+    private static final Class shadedImmutableSetClz =
+            HiveReflectionUtils.tryGetClass(
+                    "org.apache.flink.calcite.shaded.com.google.common.collect.ImmutableSet");
+    private static final boolean useShadedImmutableSet = shadedImmutableSetClz != null;
 
     private HiveParserUtils() {}
 
@@ -317,6 +324,17 @@ public class HiveParserUtils {
         }
     }
 
+    // converts a collection to guava ImmutableSet
+    private static Object toImmutableSet(Collection collection) {
+        try {
+            Class clz = useShadedImmutableSet ? shadedImmutableSetClz : immutableSetClz;
+            return HiveReflectionUtils.invokeMethod(
+                    clz, null, "copyOf", new Class[] {Collection.class}, new Object[] {collection});
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            throw new FlinkHiveException("Failed to create immutable set", e);
+        }
+    }
+
     // creates LogicalValues node
     public static RelNode genValuesRelNode(
             RelOptCluster cluster, RelDataType rowType, List<List<RexLiteral>> rows) {
@@ -336,6 +354,24 @@ public class HiveParserUtils {
                             null, cluster, rowType, HiveParserUtils.toImmutableList(immutableRows));
         } catch (IllegalAccessException | InvocationTargetException e) {
             throw new FlinkHiveException("Failed to create LogicalValues", e);
+        }
+    }
+
+    // creates LogicFilter node
+    public static RelNode genFilterRelNode(
+            RelNode relNode, RexNode rexNode, Collection<CorrelationId> variables) {
+        Class[] argTypes =
+                new Class[] {
+                    RelNode.class,
+                    RexNode.class,
+                    useShadedImmutableSet ? shadedImmutableSetClz : immutableSetClz
+                };
+        Method method = HiveReflectionUtils.tryGetMethod(LogicalFilter.class, "create", argTypes);
+        Preconditions.checkState(method != null, "Cannot get the method to create a LogicalFilter");
+        try {
+            return (LogicalFilter) method.invoke(null, relNode, rexNode, toImmutableSet(variables));
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new FlinkHiveException("Failed to create LogicalFilter", e);
         }
     }
 
@@ -585,11 +621,11 @@ public class HiveParserUtils {
             // this happens for temp functions
             SqlOperator sqlOperator =
                     getSqlOperator(aggName, opTable, SqlFunctionCategory.USER_DEFINED_FUNCTION);
-            if (sqlOperator instanceof HiveAggSqlFunction) {
+            if (sqlOperator instanceof BridgingSqlAggFunction
+                    && ((BridgingSqlAggFunction) sqlOperator).getDefinition()
+                            instanceof HiveGenericUDAF) {
                 HiveGenericUDAF hiveGenericUDAF =
-                        (HiveGenericUDAF)
-                                ((HiveAggSqlFunction) sqlOperator)
-                                        .makeFunction(new Object[0], new LogicalType[0]);
+                        (HiveGenericUDAF) ((BridgingSqlAggFunction) sqlOperator).getDefinition();
                 result =
                         hiveGenericUDAF.createEvaluator(
                                 originalParameterTypeInfos.toArray(new ObjectInspector[0]));
@@ -710,10 +746,8 @@ public class HiveParserUtils {
     public static HiveParserASTNode rewriteGroupingFunctionAST(
             final List<HiveParserASTNode> grpByAstExprs,
             HiveParserASTNode targetNode,
-            final boolean noneSet)
-            throws SemanticException {
-        final MutableBoolean visited = new MutableBoolean(false);
-        final MutableBoolean found = new MutableBoolean(false);
+            final boolean noneSet) {
+        final boolean legacyGrouping = legacyGrouping();
 
         TreeVisitorAction action =
                 new TreeVisitorAction() {
@@ -725,70 +759,139 @@ public class HiveParserUtils {
 
                     @Override
                     public Object post(Object t) {
-                        HiveParserASTNode root = (HiveParserASTNode) t;
-                        if (root.getType() == HiveASTParser.TOK_FUNCTION
-                                && root.getChildCount() == 2) {
-                            HiveParserASTNode func =
-                                    (HiveParserASTNode)
-                                            HiveASTParseDriver.ADAPTOR.getChild(root, 0);
-                            if (func.getText().equals("grouping")) {
-                                HiveParserASTNode c =
-                                        (HiveParserASTNode)
-                                                HiveASTParseDriver.ADAPTOR.getChild(root, 1);
-                                visited.setValue(true);
-                                for (int i = 0; i < grpByAstExprs.size(); i++) {
-                                    HiveParserASTNode grpByExpr = grpByAstExprs.get(i);
-                                    if (grpByExpr.toStringTree().equals(c.toStringTree())) {
-                                        HiveParserASTNode child1;
-                                        if (noneSet) {
-                                            // Query does not contain CUBE, ROLLUP, or GROUPING
-                                            // SETS, and thus, grouping should return 0
-                                            child1 =
-                                                    (HiveParserASTNode)
-                                                            HiveASTParseDriver.ADAPTOR.create(
-                                                                    HiveASTParser.IntegralLiteral,
-                                                                    String.valueOf(0));
-                                        } else {
-                                            // We refer to grouping_id column
-                                            child1 =
-                                                    (HiveParserASTNode)
-                                                            HiveASTParseDriver.ADAPTOR.create(
-                                                                    HiveASTParser.TOK_TABLE_OR_COL,
-                                                                    "TOK_TABLE_OR_COL");
-                                            HiveASTParseDriver.ADAPTOR.addChild(
-                                                    child1,
-                                                    HiveASTParseDriver.ADAPTOR.create(
-                                                            HiveASTParser.Identifier,
-                                                            VirtualColumn.GROUPINGID.getName()));
-                                        }
-                                        HiveParserASTNode child2 =
-                                                (HiveParserASTNode)
-                                                        HiveASTParseDriver.ADAPTOR.create(
-                                                                HiveASTParser.IntegralLiteral,
-                                                                String.valueOf(
-                                                                        com.google.common.math
-                                                                                .IntMath.mod(
-                                                                                -i - 1,
-                                                                                grpByAstExprs
-                                                                                        .size())));
-                                        root.setChild(1, child1);
-                                        root.addChild(child2);
-                                        found.setValue(true);
-                                        break;
-                                    }
-                                }
+                        HiveParserASTNode current = (HiveParserASTNode) t;
+                        // rewrite grouping function
+                        if (current.getType() == HiveASTParser.TOK_FUNCTION) {
+                            HiveParserASTNode func = (HiveParserASTNode) current.getChild(0);
+                            if (func.getText().equals("grouping") && func.getChildCount() == 0) {
+                                convertGrouping(current, grpByAstExprs, noneSet, legacyGrouping);
+                            }
+                        } else if (legacyGrouping
+                                && current.getType() == HiveASTParser.TOK_TABLE_OR_COL
+                                && current.getChildCount() == 1) {
+                            // rewrite grouping__id
+                            HiveParserASTNode child = (HiveParserASTNode) current.getChild(0);
+                            if (child.getText()
+                                    .equalsIgnoreCase(VirtualColumn.GROUPINGID.getName())) {
+                                return convertToLegacyGroupingId(current, grpByAstExprs.size());
                             }
                         }
                         return t;
                     }
                 };
-        HiveParserASTNode newTargetNode =
+        return (HiveParserASTNode)
+                new TreeVisitor(HiveASTParseDriver.ADAPTOR).visit(targetNode, action);
+    }
+
+    private static HiveParserASTNode convertToLegacyGroupingId(
+            HiveParserASTNode groupingId, int numGBExprs) {
+        HiveParserASTNode converterFunc =
                 (HiveParserASTNode)
-                        new TreeVisitor(HiveASTParseDriver.ADAPTOR).visit(targetNode, action);
-        if (visited.booleanValue() && !found.booleanValue()) {
-            throw new SemanticException("Expression in GROUPING function not present in GROUP BY");
+                        HiveASTParseDriver.ADAPTOR.create(
+                                HiveASTParser.TOK_FUNCTION, "TOK_FUNCTION");
+        // function name
+        converterFunc.addChild(
+                (Tree)
+                        HiveASTParseDriver.ADAPTOR.create(
+                                HiveASTParser.StringLiteral, GenericUDFLegacyGroupingID.NAME));
+        // origin grouping__id
+        converterFunc.addChild(groupingId);
+        // num of group by expressions
+        converterFunc.addChild(
+                (Tree)
+                        HiveASTParseDriver.ADAPTOR.create(
+                                HiveASTParser.IntegralLiteral, String.valueOf(numGBExprs)));
+        return converterFunc;
+    }
+
+    private static void convertGrouping(
+            HiveParserASTNode root,
+            List<HiveParserASTNode> grpByAstExprs,
+            boolean noneSet,
+            boolean legacyGrouping) {
+        int numberOperands = root.getChildCount();
+        // We implement this logic using replaceChildren instead of replacing
+        // the root node itself because windowing logic stores multiple
+        // pointers to the AST, and replacing root might lead to some pointers
+        // leading to non-rewritten version
+        HiveParserASTNode newRoot = new HiveParserASTNode();
+        // Rewritten grouping function
+        HiveParserASTNode groupingFunc =
+                (HiveParserASTNode)
+                        HiveASTParseDriver.ADAPTOR.create(HiveASTParser.Identifier, "grouping");
+        HiveASTParseDriver.ADAPTOR.addChild(
+                groupingFunc,
+                HiveASTParseDriver.ADAPTOR.create(HiveASTParser.Identifier, "rewritten"));
+        newRoot.addChild(groupingFunc);
+        // Grouping ID reference
+        HiveParserASTNode childGroupingID;
+        if (noneSet) {
+            // Query does not contain CUBE, ROLLUP, or GROUPING
+            // SETS, and thus, grouping should return 0
+            childGroupingID =
+                    (HiveParserASTNode)
+                            HiveASTParseDriver.ADAPTOR.create(
+                                    HiveASTParser.IntegralLiteral, String.valueOf(0));
+        } else {
+            // We refer to grouping_id column
+            childGroupingID =
+                    (HiveParserASTNode)
+                            HiveASTParseDriver.ADAPTOR.create(
+                                    HiveASTParser.TOK_TABLE_OR_COL, "TOK_TABLE_OR_COL");
+            HiveASTParseDriver.ADAPTOR.addChild(
+                    childGroupingID,
+                    HiveASTParseDriver.ADAPTOR.create(
+                            HiveASTParser.Identifier, VirtualColumn.GROUPINGID.getName()));
+            if (legacyGrouping) {
+                childGroupingID = convertToLegacyGroupingId(childGroupingID, grpByAstExprs.size());
+            }
         }
-        return newTargetNode;
+        newRoot.addChild(childGroupingID);
+
+        // Indices
+        for (int i = 1; i < numberOperands; i++) {
+            HiveParserASTNode c = (HiveParserASTNode) root.getChild(i);
+            for (int j = 0; j < grpByAstExprs.size(); j++) {
+                HiveParserASTNode grpByExpr = grpByAstExprs.get(j);
+                if (grpByExpr.toStringTree().equals(c.toStringTree())) {
+                    // Create and add AST node with position of grouping function input
+                    // in group by clause
+                    HiveParserASTNode childN =
+                            (HiveParserASTNode)
+                                    HiveASTParseDriver.ADAPTOR.create(
+                                            HiveASTParser.IntegralLiteral,
+                                            String.valueOf(
+                                                    nonNegativeMod(
+                                                            legacyGrouping ? j : -j - 1,
+                                                            grpByAstExprs.size())));
+                    newRoot.addChild(childN);
+                    break;
+                }
+            }
+        }
+
+        if (numberOperands + 1 != HiveASTParseDriver.ADAPTOR.getChildCount(newRoot)) {
+            throw new FlinkHiveException("Expression in GROUPING function not present in GROUP BY");
+        }
+        // Replace expression
+        root.replaceChildren(0, numberOperands - 1, newRoot);
+    }
+
+    public static boolean legacyGrouping(Configuration conf) {
+        String hiveVersion = conf.get(HiveCatalogFactoryOptions.HIVE_VERSION.key());
+        return hiveVersion != null && hiveVersion.compareTo("2.3.0") < 0;
+    }
+
+    private static boolean legacyGrouping() {
+        return legacyGrouping(SessionState.get().getConf());
+    }
+
+    private static int nonNegativeMod(int x, int m) {
+        if (m <= 0) {
+            throw new ArithmeticException("Modulus " + m + " must be > 0");
+        }
+        int result = x % m;
+        return (result >= 0) ? result : result + m;
     }
 
     public static SqlOperator getAnySqlOperator(String funcName, SqlOperatorTable opTable) {
@@ -833,21 +936,9 @@ public class HiveParserUtils {
         HiveParserOperatorBinding operatorBinding =
                 new HiveParserOperatorBinding(dataTypeFactory, sqlOperator, types, operands);
         if (sqlOperator instanceof BridgingSqlFunction
-                || sqlOperator instanceof HiveAggSqlFunction) {
+                || sqlOperator instanceof BridgingSqlAggFunction) {
             SqlReturnTypeInference returnTypeInference = sqlOperator.getReturnTypeInference();
             return returnTypeInference.inferReturnType(operatorBinding);
-        } else if (sqlOperator instanceof HiveTableSqlFunction) {
-            HiveGenericUDTF hiveGenericUDTF =
-                    (HiveGenericUDTF)
-                            ((HiveTableSqlFunction) sqlOperator)
-                                    .makeFunction(new Object[0], new LogicalType[0]);
-            DataType dataType =
-                    hiveGenericUDTF.getHiveResultType(
-                            operatorBinding.getConstantOperands(),
-                            types.stream()
-                                    .map(HiveParserUtils::toDataType)
-                                    .toArray(DataType[]::new));
-            return toRelDataType(dataType, dataTypeFactory);
         } else {
             throw new FlinkHiveException(
                     "Unsupported SqlOperator class " + sqlOperator.getClass().getName());
@@ -861,14 +952,6 @@ public class HiveParserUtils {
                 operands.stream().map(RexNode::getType).collect(Collectors.toList()),
                 operands,
                 dataTypeFactory);
-    }
-
-    public static RelDataType toRelDataType(DataType dataType, RelDataTypeFactory dtFactory) {
-        try {
-            return toRelDataType(HiveTypeUtil.toHiveTypeInfo(dataType, false), dtFactory);
-        } catch (SemanticException e) {
-            throw new FlinkHiveException(e);
-        }
     }
 
     public static DataType toDataType(RelDataType relDataType) {
@@ -1208,7 +1291,7 @@ public class HiveParserUtils {
 
     public static void saveViewDefinition(
             List<FieldSchema> resultSchema,
-            HiveParserCreateViewDesc desc,
+            HiveParserCreateViewInfo createViewInfo,
             TokenRewriteStream tokenRewriteStream,
             HiveParserUnparseTranslator unparseTranslator,
             HiveConf conf)
@@ -1218,23 +1301,24 @@ public class HiveParserUtils {
         List<FieldSchema> derivedSchema = new ArrayList<>(resultSchema);
         ParseUtils.validateColumnNameUniqueness(derivedSchema);
 
-        List<FieldSchema> imposedSchema = desc.getSchema();
+        List<FieldSchema> imposedSchema = createViewInfo.getSchema();
         if (imposedSchema != null) {
             int explicitColCount = imposedSchema.size();
             int derivedColCount = derivedSchema.size();
             if (explicitColCount != derivedColCount) {
                 throw new SemanticException(
-                        generateErrorMessage(desc.getQuery(), ErrorMsg.VIEW_COL_MISMATCH.getMsg()));
+                        generateErrorMessage(
+                                createViewInfo.getQuery(), ErrorMsg.VIEW_COL_MISMATCH.getMsg()));
             }
         }
 
         // Preserve the original view definition as specified by the user.
-        if (desc.getOriginalText() == null) {
+        if (createViewInfo.getOriginalText() == null) {
             String originalText =
                     tokenRewriteStream.toString(
-                            desc.getQuery().getTokenStartIndex(),
-                            desc.getQuery().getTokenStopIndex());
-            desc.setOriginalText(originalText);
+                            createViewInfo.getQuery().getTokenStartIndex(),
+                            createViewInfo.getQuery().getTokenStopIndex());
+            createViewInfo.setOriginalText(originalText);
         }
 
         // Now expand the view definition with extras such as explicit column
@@ -1243,7 +1327,8 @@ public class HiveParserUtils {
         unparseTranslator.applyTranslations(tokenRewriteStream);
         String expandedText =
                 tokenRewriteStream.toString(
-                        desc.getQuery().getTokenStartIndex(), desc.getQuery().getTokenStopIndex());
+                        createViewInfo.getQuery().getTokenStartIndex(),
+                        createViewInfo.getQuery().getTokenStopIndex());
 
         if (imposedSchema != null) {
             // Merge the names from the imposed schema into the types
@@ -1277,15 +1362,15 @@ public class HiveParserUtils {
             sb.append(" FROM (");
             sb.append(expandedText);
             sb.append(") ");
-            sb.append(HiveUtils.unparseIdentifier(desc.getCompoundName(), conf));
+            sb.append(HiveUtils.unparseIdentifier(createViewInfo.getCompoundName(), conf));
             expandedText = sb.toString();
         }
 
-        desc.setSchema(derivedSchema);
-        if (!desc.isMaterialized()) {
+        createViewInfo.setSchema(derivedSchema);
+        if (!createViewInfo.isMaterialized()) {
             // materialized views don't store the expanded text as they won't be rewritten at query
             // time.
-            desc.setExpandedText(expandedText);
+            createViewInfo.setExpandedText(expandedText);
         }
     }
 
@@ -1461,11 +1546,40 @@ public class HiveParserUtils {
                     res[i] =
                             getOperandLiteralValue(
                                     i,
-                                    ClassLogicalTypeConverter.getDefaultExternalClassForType(
-                                            FlinkTypeFactory.toLogicalType(getOperandType(i))));
+                                    FlinkTypeFactory.toLogicalType(getOperandType(i))
+                                            .getDefaultConversion());
                 }
             }
             return res;
+        }
+    }
+
+    /** A bit both of HiveParserOperatorBinding and AggCallBinding . */
+    private static class HiveParserAggOperatorBinding extends HiveParserOperatorBinding {
+
+        private final int groupCount;
+        private final boolean filter;
+
+        protected HiveParserAggOperatorBinding(
+                RelDataTypeFactory typeFactory,
+                SqlOperator operator,
+                List<RelDataType> types,
+                List<RexNode> operands,
+                int groupCount,
+                boolean filter) {
+            super(typeFactory, operator, types, operands);
+            this.groupCount = groupCount;
+            this.filter = filter;
+        }
+
+        @Override
+        public int getGroupCount() {
+            return groupCount;
+        }
+
+        @Override
+        public boolean hasFilter() {
+            return filter;
         }
     }
 
@@ -1488,11 +1602,12 @@ public class HiveParserUtils {
         List<Integer> argIndices = new ArrayList<>();
         RelDataTypeFactory typeFactory = cluster.getTypeFactory();
         List<RelDataType> calciteArgTypes = new ArrayList<>();
+        List<RexNode> operands = new ArrayList<>();
         for (ExprNodeDesc expr : aggInfo.getAggParams()) {
             RexNode paramRex = converter.convert(expr).accept(funcConverter);
             Integer argIndex = Preconditions.checkNotNull(rexNodeToPos.get(paramRex.toString()));
             argIndices.add(argIndex);
-
+            operands.add(paramRex);
             // TODO: does arg need type cast?
             calciteArgTypes.add(HiveParserUtils.toRelDataType(expr.getTypeInfo(), typeFactory));
         }
@@ -1509,7 +1624,7 @@ public class HiveParserUtils {
         if (aggInfo.isAllColumns() && argIndices.isEmpty()) {
             type = aggFnRetType;
         }
-        return AggregateCall.create(
+        return createAggregateCall(
                 (SqlAggFunction) funcConverter.convertOperator(aggFunc),
                 aggInfo.isDistinct(),
                 false,
@@ -1520,7 +1635,8 @@ public class HiveParserUtils {
                 groupCount,
                 input,
                 type,
-                aggInfo.getAlias());
+                aggInfo.getAlias(),
+                operands);
     }
 
     private static String getText(HiveParserASTNode tree) {
@@ -1528,5 +1644,43 @@ public class HiveParserUtils {
             return tree.getText();
         }
         return getText((HiveParserASTNode) tree.getChild(tree.getChildCount() - 1));
+    }
+
+    /**
+     * Counterpart of org.apache.calcite.rel.core.AggregateCall#create. It uses
+     * HiveParserOperatorBinding as SqlOperatorBinding to create AggregateCall instead, which
+     * enables to get literal value for operand.
+     */
+    private static AggregateCall createAggregateCall(
+            SqlAggFunction aggFunction,
+            boolean distinct,
+            boolean approximate,
+            boolean ignoreNulls,
+            List<Integer> argList,
+            int filterArg,
+            RelCollation collation,
+            int groupCount,
+            RelNode input,
+            RelDataType type,
+            String name,
+            List<RexNode> operands) {
+        if (type == null) {
+            final RelDataTypeFactory typeFactory = input.getCluster().getTypeFactory();
+            final List<RelDataType> types = SqlTypeUtil.projectTypes(input.getRowType(), argList);
+            final HiveParserOperatorBinding callBinding =
+                    new HiveParserAggOperatorBinding(
+                            typeFactory, aggFunction, types, operands, groupCount, filterArg >= 0);
+            type = aggFunction.inferReturnType(callBinding);
+        }
+        return AggregateCall.create(
+                aggFunction,
+                distinct,
+                approximate,
+                ignoreNulls,
+                argList,
+                filterArg,
+                collation,
+                type,
+                name);
     }
 }

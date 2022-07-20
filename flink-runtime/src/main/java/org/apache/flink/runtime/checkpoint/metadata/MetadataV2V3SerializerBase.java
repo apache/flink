@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
@@ -37,12 +39,23 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
+import org.apache.flink.runtime.state.changelog.SequenceNumber;
+import org.apache.flink.runtime.state.changelog.StateChange;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryChangelogStateHandle;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.BiFunctionWithException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -59,6 +72,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import static org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle.UNKNOWN_CHECKPOINTED_SIZE;
 
 /**
  * Base (De)serializer for checkpoint metadata format version 2 and 3.
@@ -81,6 +96,7 @@ import java.util.UUID;
  */
 @Internal
 public abstract class MetadataV2V3SerializerBase {
+    private static final Logger LOG = LoggerFactory.getLogger(MetadataV2V3SerializerBase.class);
 
     /** Random magic number for consistency checks. */
     private static final int MASTER_STATE_MAGIC_NUMBER = 0xc96b1696;
@@ -93,6 +109,18 @@ public abstract class MetadataV2V3SerializerBase {
     private static final byte INCREMENTAL_KEY_GROUPS_HANDLE = 5;
     private static final byte RELATIVE_STREAM_STATE_HANDLE = 6;
     private static final byte SAVEPOINT_KEY_GROUPS_HANDLE = 7;
+    private static final byte CHANGELOG_HANDLE = 8;
+    private static final byte CHANGELOG_BYTE_INCREMENT_HANDLE = 9;
+    private static final byte CHANGELOG_FILE_INCREMENT_HANDLE = 10;
+    // INCREMENTAL_KEY_GROUPS_HANDLE_V2 is introduced to add field of checkpointedSize and
+    // stateHandleId.
+    private static final byte INCREMENTAL_KEY_GROUPS_HANDLE_V2 = 11;
+    // KEY_GROUPS_HANDLE_V2 is introduced to add new field of stateHandleId.
+    private static final byte KEY_GROUPS_HANDLE_V2 = 12;
+    // CHANGELOG_FILE_INCREMENT_HANDLE_V2 is introduced to add new field of storageIdentifier.
+    private static final byte CHANGELOG_FILE_INCREMENT_HANDLE_V2 = 13;
+    // CHANGELOG_HANDLE_V2 is introduced to add new field of checkpointId.
+    private static final byte CHANGELOG_HANDLE_V2 = 14;
 
     // ------------------------------------------------------------------------
     //  (De)serialization entry points
@@ -275,7 +303,8 @@ public abstract class MetadataV2V3SerializerBase {
     //  keyed state
     // ------------------------------------------------------------------------
 
-    void serializeKeyedStateHandle(KeyedStateHandle stateHandle, DataOutputStream dos)
+    @VisibleForTesting
+    static void serializeKeyedStateHandle(KeyedStateHandle stateHandle, DataOutputStream dos)
             throws IOException {
         if (stateHandle == null) {
             dos.writeByte(NULL_HANDLE);
@@ -285,7 +314,7 @@ public abstract class MetadataV2V3SerializerBase {
             if (stateHandle instanceof KeyGroupsSavepointStateHandle) {
                 dos.writeByte(SAVEPOINT_KEY_GROUPS_HANDLE);
             } else {
-                dos.writeByte(KEY_GROUPS_HANDLE);
+                dos.writeByte(KEY_GROUPS_HANDLE_V2);
             }
             dos.writeInt(keyGroupsStateHandle.getKeyGroupRange().getStartKeyGroup());
             dos.writeInt(keyGroupsStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
@@ -293,36 +322,104 @@ public abstract class MetadataV2V3SerializerBase {
                 dos.writeLong(keyGroupsStateHandle.getOffsetForKeyGroup(keyGroup));
             }
             serializeStreamStateHandle(keyGroupsStateHandle.getDelegateStateHandle(), dos);
+
+            // savepoint state handle would not need to persist state handle id out.
+            if (!(stateHandle instanceof KeyGroupsSavepointStateHandle)) {
+                writeStateHandleId(stateHandle, dos);
+            }
         } else if (stateHandle instanceof IncrementalRemoteKeyedStateHandle) {
             IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
                     (IncrementalRemoteKeyedStateHandle) stateHandle;
 
-            dos.writeByte(INCREMENTAL_KEY_GROUPS_HANDLE);
+            dos.writeByte(INCREMENTAL_KEY_GROUPS_HANDLE_V2);
 
             dos.writeLong(incrementalKeyedStateHandle.getCheckpointId());
             dos.writeUTF(String.valueOf(incrementalKeyedStateHandle.getBackendIdentifier()));
             dos.writeInt(incrementalKeyedStateHandle.getKeyGroupRange().getStartKeyGroup());
             dos.writeInt(incrementalKeyedStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
+            dos.writeLong(incrementalKeyedStateHandle.getCheckpointedSize());
 
             serializeStreamStateHandle(incrementalKeyedStateHandle.getMetaStateHandle(), dos);
 
             serializeStreamStateHandleMap(incrementalKeyedStateHandle.getSharedState(), dos);
             serializeStreamStateHandleMap(incrementalKeyedStateHandle.getPrivateState(), dos);
+
+            writeStateHandleId(incrementalKeyedStateHandle, dos);
+        } else if (stateHandle instanceof ChangelogStateBackendHandle) {
+            ChangelogStateBackendHandle handle = (ChangelogStateBackendHandle) stateHandle;
+
+            dos.writeByte(CHANGELOG_HANDLE_V2);
+            dos.writeInt(handle.getKeyGroupRange().getStartKeyGroup());
+            dos.writeInt(handle.getKeyGroupRange().getNumberOfKeyGroups());
+
+            dos.writeLong(handle.getCheckpointedSize());
+
+            dos.writeInt(handle.getMaterializedStateHandles().size());
+            for (KeyedStateHandle keyedStateHandle : handle.getMaterializedStateHandles()) {
+                serializeKeyedStateHandle(keyedStateHandle, dos);
+            }
+
+            dos.writeInt(handle.getNonMaterializedStateHandles().size());
+            for (KeyedStateHandle k : handle.getNonMaterializedStateHandles()) {
+                serializeKeyedStateHandle(k, dos);
+            }
+
+            dos.writeLong(handle.getMaterializationID());
+            dos.writeLong(handle.getCheckpointId());
+            writeStateHandleId(handle, dos);
+
+        } else if (stateHandle instanceof InMemoryChangelogStateHandle) {
+            InMemoryChangelogStateHandle handle = (InMemoryChangelogStateHandle) stateHandle;
+            dos.writeByte(CHANGELOG_BYTE_INCREMENT_HANDLE);
+            dos.writeInt(handle.getKeyGroupRange().getStartKeyGroup());
+            dos.writeInt(handle.getKeyGroupRange().getNumberOfKeyGroups());
+            dos.writeLong(handle.getFrom());
+            dos.writeLong(handle.getTo());
+            dos.writeInt(handle.getChanges().size());
+            for (StateChange change : handle.getChanges()) {
+                dos.writeInt(change.getKeyGroup());
+                dos.writeInt(change.getChange().length);
+                dos.write(change.getChange());
+            }
+            writeStateHandleId(handle, dos);
+        } else if (stateHandle instanceof ChangelogStateHandleStreamImpl) {
+            ChangelogStateHandleStreamImpl handle = (ChangelogStateHandleStreamImpl) stateHandle;
+            dos.writeByte(CHANGELOG_FILE_INCREMENT_HANDLE_V2);
+            dos.writeInt(handle.getKeyGroupRange().getStartKeyGroup());
+            dos.writeInt(handle.getKeyGroupRange().getNumberOfKeyGroups());
+            dos.writeInt(handle.getHandlesAndOffsets().size());
+            for (Tuple2<StreamStateHandle, Long> streamHandleAndOffset :
+                    handle.getHandlesAndOffsets()) {
+                dos.writeLong(streamHandleAndOffset.f1);
+                serializeStreamStateHandle(streamHandleAndOffset.f0, dos);
+            }
+            dos.writeLong(handle.getStateSize());
+            dos.writeLong(handle.getCheckpointedSize());
+            writeStateHandleId(handle, dos);
+            dos.writeUTF(handle.getStorageIdentifier());
         } else {
             throw new IllegalStateException(
                     "Unknown KeyedStateHandle type: " + stateHandle.getClass());
         }
     }
 
+    private static void writeStateHandleId(KeyedStateHandle keyedStateHandle, DataOutputStream dos)
+            throws IOException {
+        dos.writeUTF(keyedStateHandle.getStateHandleId().getKeyString());
+    }
+
+    @VisibleForTesting
     @Nullable
-    KeyedStateHandle deserializeKeyedStateHandle(
+    static KeyedStateHandle deserializeKeyedStateHandle(
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
 
         final int type = dis.readByte();
         if (NULL_HANDLE == type) {
 
             return null;
-        } else if (KEY_GROUPS_HANDLE == type || SAVEPOINT_KEY_GROUPS_HANDLE == type) {
+        } else if (KEY_GROUPS_HANDLE == type
+                || KEY_GROUPS_HANDLE_V2 == type
+                || SAVEPOINT_KEY_GROUPS_HANDLE == type) {
             int startKeyGroup = dis.readInt();
             int numKeyGroups = dis.readInt();
             KeyGroupRange keyGroupRange =
@@ -337,42 +434,145 @@ public abstract class MetadataV2V3SerializerBase {
             if (SAVEPOINT_KEY_GROUPS_HANDLE == type) {
                 return new KeyGroupsSavepointStateHandle(keyGroupRangeOffsets, stateHandle);
             } else {
-                return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
+                StateHandleID stateHandleID =
+                        KEY_GROUPS_HANDLE_V2 == type
+                                ? new StateHandleID(dis.readUTF())
+                                : StateHandleID.randomStateHandleId();
+                return KeyGroupsStateHandle.restore(
+                        keyGroupRangeOffsets, stateHandle, stateHandleID);
             }
-        } else if (INCREMENTAL_KEY_GROUPS_HANDLE == type) {
+        } else if (INCREMENTAL_KEY_GROUPS_HANDLE == type
+                || INCREMENTAL_KEY_GROUPS_HANDLE_V2 == type) {
+            return deserializeIncrementalStateHandle(dis, context, type);
+        } else if (CHANGELOG_HANDLE == type || CHANGELOG_HANDLE_V2 == type) {
 
-            long checkpointId = dis.readLong();
-            String backendId = dis.readUTF();
             int startKeyGroup = dis.readInt();
             int numKeyGroups = dis.readInt();
             KeyGroupRange keyGroupRange =
                     KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
+            long checkpointedSize = dis.readLong();
 
-            StreamStateHandle metaDataStateHandle = deserializeStreamStateHandle(dis, context);
-            Map<StateHandleID, StreamStateHandle> sharedStates =
-                    deserializeStreamStateHandleMap(dis, context);
-            Map<StateHandleID, StreamStateHandle> privateStates =
-                    deserializeStreamStateHandleMap(dis, context);
-
-            UUID uuid;
-
-            try {
-                uuid = UUID.fromString(backendId);
-            } catch (Exception ex) {
-                // compatibility with old format pre FLINK-6964:
-                uuid = UUID.nameUUIDFromBytes(backendId.getBytes(StandardCharsets.UTF_8));
+            int baseSize = dis.readInt();
+            List<KeyedStateHandle> base = new ArrayList<>(baseSize);
+            for (int i = 0; i < baseSize; i++) {
+                KeyedStateHandle handle = deserializeKeyedStateHandle(dis, context);
+                if (handle != null) {
+                    base.add(handle);
+                } else {
+                    LOG.warn(
+                            "Unexpected null keyed state handle of materialized part when deserializing changelog state-backend handle");
+                }
+            }
+            int deltaSize = dis.readInt();
+            List<ChangelogStateHandle> delta = new ArrayList<>(deltaSize);
+            for (int i = 0; i < deltaSize; i++) {
+                delta.add((ChangelogStateHandle) deserializeKeyedStateHandle(dis, context));
             }
 
-            return new IncrementalRemoteKeyedStateHandle(
-                    uuid,
+            long materializationID = dis.readLong();
+            long checkpointId = CHANGELOG_HANDLE_V2 == type ? dis.readLong() : materializationID;
+            StateHandleID stateHandleId = new StateHandleID(dis.readUTF());
+            return ChangelogStateBackendHandleImpl.restore(
+                    base,
+                    delta,
                     keyGroupRange,
                     checkpointId,
-                    sharedStates,
-                    privateStates,
-                    metaDataStateHandle);
+                    materializationID,
+                    checkpointedSize,
+                    stateHandleId);
+
+        } else if (CHANGELOG_BYTE_INCREMENT_HANDLE == type) {
+            int start = dis.readInt();
+            int numKeyGroups = dis.readInt();
+            KeyGroupRange keyGroupRange = KeyGroupRange.of(start, start + numKeyGroups - 1);
+            long from = dis.readLong();
+            long to = dis.readLong();
+            int size = dis.readInt();
+            List<StateChange> changes = new ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                int keyGroup = dis.readInt();
+                int bytesSize = dis.readInt();
+                byte[] bytes = new byte[bytesSize];
+                IOUtils.readFully(dis, bytes, 0, bytesSize);
+                changes.add(new StateChange(keyGroup, bytes));
+            }
+            StateHandleID stateHandleId = new StateHandleID(dis.readUTF());
+            return InMemoryChangelogStateHandle.restore(
+                    changes,
+                    SequenceNumber.of(from),
+                    SequenceNumber.of(to),
+                    keyGroupRange,
+                    stateHandleId);
+
+        } else if (CHANGELOG_FILE_INCREMENT_HANDLE == type
+                || CHANGELOG_FILE_INCREMENT_HANDLE_V2 == type) {
+            int start = dis.readInt();
+            int numKeyGroups = dis.readInt();
+            KeyGroupRange keyGroupRange = KeyGroupRange.of(start, start + numKeyGroups - 1);
+            int numHandles = dis.readInt();
+            List<Tuple2<StreamStateHandle, Long>> streamHandleAndOffset =
+                    new ArrayList<>(numHandles);
+            for (int i = 0; i < numHandles; i++) {
+                long o = dis.readLong();
+                StreamStateHandle h = deserializeStreamStateHandle(dis, context);
+                streamHandleAndOffset.add(Tuple2.of(h, o));
+            }
+            long size = dis.readLong();
+            long checkpointedSize = dis.readLong();
+            StateHandleID stateHandleId = new StateHandleID(dis.readUTF());
+            String storageIdentifier =
+                    CHANGELOG_FILE_INCREMENT_HANDLE_V2 == type ? dis.readUTF() : "filesystem";
+            return ChangelogStateHandleStreamImpl.restore(
+                    streamHandleAndOffset,
+                    keyGroupRange,
+                    size,
+                    checkpointedSize,
+                    storageIdentifier,
+                    stateHandleId);
         } else {
             throw new IllegalStateException("Reading invalid KeyedStateHandle, type: " + type);
         }
+    }
+
+    private static IncrementalRemoteKeyedStateHandle deserializeIncrementalStateHandle(
+            DataInputStream dis, @Nullable DeserializationContext context, int stateHandleType)
+            throws IOException {
+        boolean isV2Format = INCREMENTAL_KEY_GROUPS_HANDLE_V2 == stateHandleType;
+        long checkpointId = dis.readLong();
+        String backendId = dis.readUTF();
+        int startKeyGroup = dis.readInt();
+        int numKeyGroups = dis.readInt();
+        long checkpointedSize = isV2Format ? dis.readLong() : UNKNOWN_CHECKPOINTED_SIZE;
+
+        KeyGroupRange keyGroupRange =
+                KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
+
+        StreamStateHandle metaDataStateHandle = deserializeStreamStateHandle(dis, context);
+        Map<StateHandleID, StreamStateHandle> sharedStates =
+                deserializeStreamStateHandleMap(dis, context);
+        Map<StateHandleID, StreamStateHandle> privateStates =
+                deserializeStreamStateHandleMap(dis, context);
+
+        UUID uuid;
+
+        try {
+            uuid = UUID.fromString(backendId);
+        } catch (Exception ex) {
+            // compatibility with old format pre FLINK-6964:
+            uuid = UUID.nameUUIDFromBytes(backendId.getBytes(StandardCharsets.UTF_8));
+        }
+
+        StateHandleID stateHandleId =
+                isV2Format ? new StateHandleID(dis.readUTF()) : StateHandleID.randomStateHandleId();
+        return IncrementalRemoteKeyedStateHandle.restore(
+                uuid,
+                keyGroupRange,
+                checkpointId,
+                sharedStates,
+                privateStates,
+                metaDataStateHandle,
+                checkpointedSize,
+                stateHandleId);
     }
 
     void serializeOperatorStateHandle(OperatorStateHandle stateHandle, DataOutputStream dos)

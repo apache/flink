@@ -18,17 +18,16 @@
 package org.apache.flink.streaming.connectors.kinesis.util;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType;
 import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 
-import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 
 import java.text.ParseException;
@@ -102,7 +101,7 @@ public class KinesisConfigUtil {
         }
 
         if (!(config.containsKey(AWSConfigConstants.AWS_REGION)
-                || config.containsKey(ConsumerConfigConstants.AWS_ENDPOINT))) {
+                || config.containsKey(AWSConfigConstants.AWS_ENDPOINT))) {
             // per validation in AwsClientBuilder
             throw new IllegalArgumentException(
                     String.format(
@@ -433,7 +432,7 @@ public class KinesisConfigUtil {
     }
 
     /**
-     * A set of configuration paremeters associated with the describeStreams API may be used if: 1)
+     * A set of configuration parameters associated with the describeStreams API may be used if: 1)
      * an legacy client wants to consume from Kinesis 2) a current client wants to consumer from
      * DynamoDB streams
      *
@@ -513,51 +512,7 @@ public class KinesisConfigUtil {
 
     /** Validate configuration properties related to Amazon AWS service. */
     public static void validateAwsConfiguration(Properties config) {
-        if (config.containsKey(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER)) {
-            String credentialsProviderType =
-                    config.getProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER);
-
-            // value specified for AWSConfigConstants.AWS_CREDENTIALS_PROVIDER needs to be
-            // recognizable
-            CredentialProvider providerType;
-            try {
-                providerType = CredentialProvider.valueOf(credentialsProviderType);
-            } catch (IllegalArgumentException e) {
-                StringBuilder sb = new StringBuilder();
-                for (CredentialProvider type : CredentialProvider.values()) {
-                    sb.append(type.toString()).append(", ");
-                }
-                throw new IllegalArgumentException(
-                        "Invalid AWS Credential Provider Type set in config. Valid values are: "
-                                + sb.toString());
-            }
-
-            // if BASIC type is used, also check that the Access Key ID and Secret Key is supplied
-            if (providerType == CredentialProvider.BASIC) {
-                if (!config.containsKey(AWSConfigConstants.AWS_ACCESS_KEY_ID)
-                        || !config.containsKey(AWSConfigConstants.AWS_SECRET_ACCESS_KEY)) {
-                    throw new IllegalArgumentException(
-                            "Please set values for AWS Access Key ID ('"
-                                    + AWSConfigConstants.AWS_ACCESS_KEY_ID
-                                    + "') "
-                                    + "and Secret Key ('"
-                                    + AWSConfigConstants.AWS_SECRET_ACCESS_KEY
-                                    + "') when using the BASIC AWS credential provider type.");
-                }
-            }
-        }
-
-        if (config.containsKey(AWSConfigConstants.AWS_REGION)) {
-            // specified AWS Region name must be recognizable
-            if (!AWSUtil.isValidRegion(config.getProperty(AWSConfigConstants.AWS_REGION))) {
-                StringBuilder sb = new StringBuilder();
-                for (Regions region : Regions.values()) {
-                    sb.append(region.getName()).append(", ");
-                }
-                throw new IllegalArgumentException(
-                        "Invalid AWS region set in config. Valid values are: " + sb.toString());
-            }
-        }
+        AWSGeneralUtil.validateAwsConfiguration(config);
     }
 
     /**

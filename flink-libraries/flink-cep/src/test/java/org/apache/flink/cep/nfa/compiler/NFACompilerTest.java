@@ -28,11 +28,12 @@ import org.apache.flink.cep.nfa.StateTransitionAction;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.WithinType;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -100,7 +101,7 @@ public class NFACompilerTest extends TestLogger {
         // adjust the rule
         expectedException.expect(MalformedPatternException.class);
         expectedException.expectMessage(
-                "NotFollowedBy is not supported as a last part of a Pattern!");
+                "NotFollowedBy is not supported without windowTime as a last part of a Pattern!");
 
         Pattern<Event, ?> invalidPattern =
                 Pattern.<Event>begin("start")
@@ -175,6 +176,59 @@ public class NFACompilerTest extends TestLogger {
                 Sets.newHashSet(
                         Tuple2.of(NFACompiler.ENDING_STATE_NAME, StateTransitionAction.TAKE)),
                 endTransitions);
+
+        assertTrue(stateMap.containsKey(NFACompiler.ENDING_STATE_NAME));
+        State<Event> endingState = stateMap.get(NFACompiler.ENDING_STATE_NAME);
+        assertTrue(endingState.isFinal());
+        assertEquals(0, endingState.getStateTransitions().size());
+    }
+
+    @Test
+    public void testNFACompilerPatternNotFollowedByWithIn() {
+        Pattern<Event, Event> pattern =
+                Pattern.<Event>begin("start")
+                        .where(startFilter)
+                        .notFollowedBy("middle")
+                        .where(endFilter)
+                        .within(Time.milliseconds(1));
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        Collection<State<Event>> states = nfa.getStates();
+        assertEquals(4, states.size());
+
+        Map<String, State<Event>> stateMap = new HashMap<>();
+        for (State<Event> state : states) {
+            stateMap.put(state.getName(), state);
+        }
+
+        assertTrue(stateMap.containsKey("start"));
+        State<Event> startState = stateMap.get("start");
+        assertTrue(startState.isStart());
+        final Set<Tuple2<String, StateTransitionAction>> startTransitions =
+                unfoldTransitions(startState);
+        assertEquals(
+                Sets.newHashSet(Tuple2.of("middle", StateTransitionAction.TAKE)), startTransitions);
+
+        assertTrue(stateMap.containsKey("middle"));
+        State<Event> middleState = stateMap.get("middle");
+        assertTrue(middleState.isPending());
+        final Set<Tuple2<String, StateTransitionAction>> middleTransitions =
+                unfoldTransitions(middleState);
+        assertEquals(
+                Sets.newHashSet(
+                        Tuple2.of("middle", StateTransitionAction.IGNORE),
+                        Tuple2.of("middle:0", StateTransitionAction.PROCEED)),
+                middleTransitions);
+
+        assertTrue(stateMap.containsKey("middle:0"));
+        State<Event> middle0State = stateMap.get("middle:0");
+        assertTrue(middle0State.isStop());
+        final Set<Tuple2<String, StateTransitionAction>> middle0Transitions =
+                unfoldTransitions(middle0State);
+        assertEquals(
+                Sets.newHashSet(Tuple2.of("middle:0", StateTransitionAction.TAKE)),
+                middle0Transitions);
 
         assertTrue(stateMap.containsKey(NFACompiler.ENDING_STATE_NAME));
         State<Event> endingState = stateMap.get(NFACompiler.ENDING_STATE_NAME);
@@ -294,6 +348,26 @@ public class NFACompilerTest extends TestLogger {
     }
 
     @Test
+    public void testWindowTimesCorrectlySet() {
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .followedBy("middle")
+                        .within(Time.seconds(10), WithinType.PREVIOUS_AND_CURRENT)
+                        .followedBy("then")
+                        .within(Time.seconds(20), WithinType.PREVIOUS_AND_CURRENT)
+                        .followedBy("end");
+
+        NFACompiler.NFAFactoryCompiler<Event> factory =
+                new NFACompiler.NFAFactoryCompiler<>(pattern);
+        factory.compileFactory();
+
+        Map<String, Long> expectedWindowTimes = new HashMap<>();
+        expectedWindowTimes.put("middle", Time.seconds(10).toMilliseconds());
+        expectedWindowTimes.put("then", Time.seconds(20).toMilliseconds());
+        assertEquals(expectedWindowTimes, factory.getWindowTimes());
+    }
+
+    @Test
     public void testMultipleWindowTimeWithZeroLength() {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
@@ -307,5 +381,25 @@ public class NFACompilerTest extends TestLogger {
                 new NFACompiler.NFAFactoryCompiler<>(pattern);
         factory.compileFactory();
         assertEquals(0, factory.getWindowTime());
+    }
+
+    @Test
+    public void testCheckPatternWindowTimes() {
+        expectedException.expect(MalformedPatternException.class);
+        expectedException.expectMessage(
+                "The window length between the previous and current event cannot be larger than the window length between the first and last event for a Pattern.");
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .followedBy("middle")
+                        .within(Time.seconds(3), WithinType.PREVIOUS_AND_CURRENT)
+                        .followedBy("then")
+                        .within(Time.seconds(1), WithinType.PREVIOUS_AND_CURRENT)
+                        .followedBy("end")
+                        .within(Time.milliseconds(2));
+
+        NFACompiler.NFAFactoryCompiler<Event> factory =
+                new NFACompiler.NFAFactoryCompiler<>(pattern);
+        factory.compileFactory();
     }
 }

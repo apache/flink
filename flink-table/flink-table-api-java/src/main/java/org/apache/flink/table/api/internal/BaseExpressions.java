@@ -21,8 +21,15 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Expressions;
+import org.apache.flink.table.api.JsonExistsOnError;
+import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
+import org.apache.flink.table.api.JsonQueryWrapper;
+import org.apache.flink.table.api.JsonType;
+import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
@@ -46,7 +53,9 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ABS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ACOS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASCII;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ATAN;
@@ -57,17 +66,21 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CARDIN
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CEIL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CHAR_LENGTH;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CHR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COLLECT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COSH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COUNT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DECODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DEGREES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DIVIDE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ENCODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXTRACT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FIRST_VALUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FLATTEN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FLOOR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FROM_BASE64;
@@ -79,16 +92,24 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INIT_CAP;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INSTR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_FALSE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_JSON;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_FALSE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_EXISTS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUERY;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_VALUE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LAST_VALUE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LEFT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LIKE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LN;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOCATE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOG10;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOG2;
@@ -100,6 +121,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MD5;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MINUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MOD;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT_BETWEEN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT_EQUALS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OR;
@@ -107,15 +129,19 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_DESC;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVERLAY;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PARSE_URL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PLUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.POSITION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.POWER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PROCTIME;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RADIANS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_EXTRACT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_REPLACE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPEAT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPLACE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REVERSE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RIGHT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ROUND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ROWTIME;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RPAD;
@@ -130,9 +156,12 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SIGN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SIMILAR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SINH;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SPLIT_INDEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SQRT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STDDEV_POP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STDDEV_SAMP;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STR_TO_MAP;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUBSTR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUBSTRING;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUM0;
@@ -142,6 +171,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIMES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TO_BASE64;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRUNCATE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_POP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_SAMP;
@@ -202,6 +232,26 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType or(InType other) {
         return toApiSpecificExpression(unresolvedCall(OR, toExpr(), objectToExpression(other)));
+    }
+
+    /**
+     * Inverts a given boolean expression.
+     *
+     * <p>This method supports a three-valued logic by preserving {@code NULL}. This means if the
+     * input expression is {@code NULL}, the result will also be {@code NULL}.
+     *
+     * <p>The resulting type is nullable if and only if the input type is nullable.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit(true).not() // false
+     * lit(false).not() // true
+     * lit(null, DataTypes.BOOLEAN()).not() // null
+     * }</pre>
+     */
+    public OutType not() {
+        return toApiSpecificExpression(unresolvedCall(NOT, toExpr()));
     }
 
     /** Greater than. */
@@ -411,6 +461,16 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(unresolvedCall(AVG, toExpr()));
     }
 
+    /** Returns the first value of field across all input values. */
+    public OutType firstValue() {
+        return toApiSpecificExpression(unresolvedCall(FIRST_VALUE, toExpr()));
+    }
+
+    /** Returns the last value of field across all input values. */
+    public OutType lastValue() {
+        return toApiSpecificExpression(unresolvedCall(LAST_VALUE, toExpr()));
+    }
+
     /** Returns the population standard deviation of an expression (the square root of varPop()). */
     public OutType stddevPop() {
         return toApiSpecificExpression(unresolvedCall(STDDEV_POP, toExpr()));
@@ -437,12 +497,32 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Converts a value to a given data type.
+     * Returns a new value being cast to {@code toType}. A cast error throws an exception and fails
+     * the job. When performing a cast operation that may fail, like {@link DataTypes#STRING()} to
+     * {@link DataTypes#INT()}, one should rather use {@link #tryCast(DataType)}, in order to handle
+     * errors. If {@link ExecutionConfigOptions#TABLE_EXEC_LEGACY_CAST_BEHAVIOUR} is enabled, this
+     * function behaves like {@link #tryCast(DataType)}.
      *
-     * <p>e.g. "42".cast(DataTypes.INT()) leads to 42.
+     * <p>E.g. {@code "42".cast(DataTypes.INT())} returns {@code 42}; {@code
+     * null.cast(DataTypes.STRING())} returns {@code null} of type {@link DataTypes#STRING()};
+     * {@code "non-number".cast(DataTypes.INT())} throws an exception and fails the job.
      */
     public OutType cast(DataType toType) {
         return toApiSpecificExpression(unresolvedCall(CAST, toExpr(), typeLiteral(toType)));
+    }
+
+    /**
+     * Like {@link #cast(DataType)}, but in case of error, returns {@code null} rather than failing
+     * the job.
+     *
+     * <p>E.g. {@code "42".tryCast(DataTypes.INT())} returns {@code 42}; {@code
+     * null.tryCast(DataTypes.STRING())} returns {@code null} of type {@link DataTypes#STRING()};
+     * {@code "non-number".tryCast(DataTypes.INT())} returns {@code null} of type {@link
+     * DataTypes#INT()}; {@code coalesce("non-number".tryCast(DataTypes.INT()), 0)} returns {@code
+     * 0} of type {@link DataTypes#INT()}.
+     */
+    public OutType tryCast(DataType toType) {
+        return toApiSpecificExpression(unresolvedCall(TRY_CAST, toExpr(), typeLiteral(toType)));
     }
 
     /**
@@ -702,6 +782,31 @@ public abstract class BaseExpressions<InType, OutType> {
                 unresolvedCall(SUBSTRING, toExpr(), objectToExpression(beginIndex)));
     }
 
+    /**
+     * Creates a substring of the given string at given index for a given length.
+     *
+     * @param beginIndex first character of the substring (starting at 1, inclusive)
+     * @param length number of characters of the substring
+     */
+    public OutType substr(InType beginIndex, InType length) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        SUBSTR,
+                        toExpr(),
+                        objectToExpression(beginIndex),
+                        objectToExpression(length)));
+    }
+
+    /**
+     * Creates a substring of the given string beginning at the given index to the end.
+     *
+     * @param beginIndex first character of the substring (starting at 1, inclusive)
+     */
+    public OutType substr(InType beginIndex) {
+        return toApiSpecificExpression(
+                unresolvedCall(SUBSTR, toExpr(), objectToExpression(beginIndex)));
+    }
+
     /** Removes leading space characters from the given string. */
     public OutType trimLeading() {
         return toApiSpecificExpression(
@@ -916,6 +1021,14 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
+     * Returns TRUE if any (possibly empty) substring matches the Java regular expression, otherwise
+     * FALSE. Returns NULL if any of arguments is NULL.
+     */
+    public OutType regexp(InType regex) {
+        return toApiSpecificExpression(unresolvedCall(REGEXP, toExpr(), objectToExpression(regex)));
+    }
+
+    /**
      * Returns a string with all substrings that match the regular expression consecutively being
      * replaced.
      */
@@ -956,6 +1069,74 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(unresolvedCall(TO_BASE64, toExpr()));
     }
 
+    /** Returns the numeric value of the first character of the input string. */
+    public OutType ascii() {
+        return toApiSpecificExpression(unresolvedCall(ASCII, toExpr()));
+    }
+
+    /** Returns the ASCII character result of the input integer. */
+    public OutType chr() {
+        return toApiSpecificExpression(unresolvedCall(CHR, toExpr()));
+    }
+
+    /** Decodes the first argument into a String using the provided character set. */
+    public OutType decode(InType charset) {
+        return toApiSpecificExpression(
+                unresolvedCall(DECODE, toExpr(), objectToExpression(charset)));
+    }
+
+    /** Encodes the string into a BINARY using the provided character set. */
+    public OutType encode(InType charset) {
+        return toApiSpecificExpression(
+                unresolvedCall(ENCODE, toExpr(), objectToExpression(charset)));
+    }
+
+    /** Returns the leftmost integer characters from the input string. */
+    public OutType left(InType len) {
+        return toApiSpecificExpression(unresolvedCall(LEFT, toExpr(), objectToExpression(len)));
+    }
+
+    /** Returns the rightmost integer characters from the input string. */
+    public OutType right(InType len) {
+        return toApiSpecificExpression(unresolvedCall(RIGHT, toExpr(), objectToExpression(len)));
+    }
+
+    /** Returns the position of the first occurrence of the input string. */
+    public OutType instr(InType str) {
+        return toApiSpecificExpression(unresolvedCall(INSTR, toExpr(), objectToExpression(str)));
+    }
+
+    /** Returns the position of the first occurrence in the input string. */
+    public OutType locate(InType str) {
+        return toApiSpecificExpression(unresolvedCall(LOCATE, toExpr(), objectToExpression(str)));
+    }
+
+    /** Returns the position of the first occurrence in the input string after position integer. */
+    public OutType locate(InType str, InType pos) {
+        return toApiSpecificExpression(
+                unresolvedCall(LOCATE, toExpr(), objectToExpression(str), objectToExpression(pos)));
+    }
+
+    /**
+     * Parse url and return various parameter of the URL. If accept any null arguments, return null.
+     */
+    public OutType parseUrl(InType partToExtract) {
+        return toApiSpecificExpression(
+                unresolvedCall(PARSE_URL, toExpr(), objectToExpression(partToExtract)));
+    }
+
+    /**
+     * Parse url and return various parameter of the URL. If accept any null arguments, return null.
+     */
+    public OutType parseUrl(InType partToExtract, InType key) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        PARSE_URL,
+                        toExpr(),
+                        objectToExpression(partToExtract),
+                        objectToExpression(key)));
+    }
+
     /** Returns a string that removes the left whitespaces from the given string. */
     public OutType ltrim() {
         return toApiSpecificExpression(unresolvedCall(LTRIM, toExpr()));
@@ -969,6 +1150,61 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns a string that repeats the base string n times. */
     public OutType repeat(InType n) {
         return toApiSpecificExpression(unresolvedCall(REPEAT, toExpr(), objectToExpression(n)));
+    }
+
+    /**
+     * Reverse each character in current string.
+     *
+     * @return a new string which character order is reverse to current string.
+     */
+    public OutType reverse() {
+        return toApiSpecificExpression(unresolvedCall(REVERSE, toExpr()));
+    }
+
+    /**
+     * Split target string with custom separator and pick the index-th(start with 0) result.
+     *
+     * @param separator custom separator.
+     * @param index index of the result which you want.
+     * @return the string at the index of split results.
+     */
+    public OutType splitIndex(InType separator, InType index) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        SPLIT_INDEX,
+                        toExpr(),
+                        objectToExpression(separator),
+                        objectToExpression(index)));
+    }
+
+    /**
+     * Creates a map by parsing text. Split text into key-value pairs using two delimiters. The
+     * first delimiter separates pairs, and the second delimiter separates key and value. If only
+     * one parameter is given, default delimiters are used: ',' as delimiter1 and '=' as delimiter2.
+     * Both delimiters are treated as regular expressions.
+     *
+     * @return the map
+     */
+    public OutType strToMap() {
+        return toApiSpecificExpression(unresolvedCall(STR_TO_MAP, toExpr()));
+    }
+
+    /**
+     * Creates a map by parsing text. Split text into key-value pairs using two delimiters. The
+     * first delimiter separates pairs, and the second delimiter separates key and value. Both
+     * {@code listDelimiter} and {@code keyValueDelimiter} are treated as regular expressions.
+     *
+     * @param listDelimiter the delimiter to separates pairs
+     * @param keyValueDelimiter the delimiter to separates key and value
+     * @return the map
+     */
+    public OutType strToMap(InType listDelimiter, InType keyValueDelimiter) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        STR_TO_MAP,
+                        toExpr(),
+                        objectToExpression(listDelimiter),
+                        objectToExpression(keyValueDelimiter)));
     }
 
     // Temporal operations
@@ -1080,6 +1316,18 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType element() {
         return toApiSpecificExpression(unresolvedCall(ARRAY_ELEMENT, toExpr()));
+    }
+
+    /**
+     * Returns whether the given element exists in an array.
+     *
+     * <p>Checking for null elements in the array is supported. If the array itself is null, the
+     * function will return null. The given element is cast implicitly to the array's element type
+     * if necessary.
+     */
+    public OutType arrayContains(InType needle) {
+        return toApiSpecificExpression(
+                unresolvedCall(ARRAY_CONTAINS, toExpr(), objectToExpression(needle)));
     }
 
     // Time definition
@@ -1260,5 +1508,349 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType sha2(InType hashLength) {
         return toApiSpecificExpression(
                 unresolvedCall(SHA2, toExpr(), objectToExpression(hashLength)));
+    }
+
+    // JSON functions
+
+    /**
+     * Determine whether a given string is valid JSON.
+     *
+     * <p>Specifying the optional {@param type} argument puts a constraint on which type of JSON
+     * object is allowed. If the string is valid JSON, but not that type, {@code false} is returned.
+     * The default is {@link JsonType#VALUE}.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit("1").isJson() // true
+     * lit("[]").isJson() // true
+     * lit("{}").isJson() // true
+     *
+     * lit("\"abc\"").isJson() // true
+     * lit("abc").isJson() // false
+     * nullOf(DataTypes.STRING()).isJson() // false
+     *
+     * lit("1").isJson(JsonType.SCALAR) // true
+     * lit("1").isJson(JsonType.ARRAY) // false
+     * lit("1").isJson(JsonType.OBJECT) // false
+     *
+     * lit("{}").isJson(JsonType.SCALAR) // false
+     * lit("{}").isJson(JsonType.ARRAY) // false
+     * lit("{}").isJson(JsonType.OBJECT) // true
+     * }</pre>
+     *
+     * @param type The type of JSON object to validate against.
+     * @return {@code true} if the string is a valid JSON of the given {@param type}, {@code false}
+     *     otherwise.
+     */
+    public OutType isJson(JsonType type) {
+        return toApiSpecificExpression(unresolvedCall(IS_JSON, toExpr(), valueLiteral(type)));
+    }
+
+    /**
+     * Determine whether a given string is valid JSON.
+     *
+     * <p>This is a shortcut for {@code isJson(JsonType.VALUE)}. See {@link #isJson(JsonType)}.
+     *
+     * @return {@code true} if the string is a valid JSON value, {@code false} otherwise.
+     */
+    public OutType isJson() {
+        return toApiSpecificExpression(unresolvedCall(IS_JSON, toExpr()));
+    }
+
+    /**
+     * Returns whether a JSON string satisfies a given search criterion.
+     *
+     * <p>This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // true
+     * lit("{\"a\": true}").jsonExists("$.a")
+     * // false
+     * lit("{\"a\": true}").jsonExists("$.b")
+     * // true
+     * lit("{\"a\": [{ \"b\": 1 }]}").jsonExists("$.a[0].b")
+     *
+     * // true
+     * lit("{\"a\": true}").jsonExists("strict $.b", JsonExistsOnError.TRUE)
+     * // false
+     * lit("{\"a\": true}").jsonExists("strict $.b", JsonExistsOnError.FALSE)
+     * }</pre>
+     *
+     * @param path JSON path to search for.
+     * @param onError Behavior in case of an error.
+     * @return {@code true} if the JSON string satisfies the search criterion.
+     */
+    public OutType jsonExists(String path, JsonExistsOnError onError) {
+        return toApiSpecificExpression(
+                unresolvedCall(JSON_EXISTS, toExpr(), valueLiteral(path), valueLiteral(onError)));
+    }
+
+    /**
+     * Determines whether a JSON string satisfies a given search criterion.
+     *
+     * <p>This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // true
+     * lit("{\"a\": true}").jsonExists("$.a")
+     * // false
+     * lit("{\"a\": true}").jsonExists("$.b")
+     * // true
+     * lit("{\"a\": [{ \"b\": 1 }]}").jsonExists("$.a[0].b")
+     *
+     * // true
+     * lit("{\"a\": true}").jsonExists("strict $.b", JsonExistsOnError.TRUE)
+     * // false
+     * lit("{\"a\": true}").jsonExists("strict $.b", JsonExistsOnError.FALSE)
+     * }</pre>
+     *
+     * @param path JSON path to search for.
+     * @return {@code true} if the JSON string satisfies the search criterion.
+     */
+    public OutType jsonExists(String path) {
+        return toApiSpecificExpression(unresolvedCall(JSON_EXISTS, toExpr(), valueLiteral(path)));
+    }
+
+    /**
+     * Extracts a scalar from a JSON string.
+     *
+     * <p>This method searches a JSON string for a given path expression and returns the value if
+     * the value at that path is scalar. Non-scalar values cannot be returned. By default, the value
+     * is returned as {@link DataTypes#STRING()}. Using {@param returningType} a different type can
+     * be chosen, with the following types being supported:
+     *
+     * <ul>
+     *   <li>{@link DataTypes#STRING()}
+     *   <li>{@link DataTypes#BOOLEAN()}
+     *   <li>{@link DataTypes#INT()}
+     *   <li>{@link DataTypes#DOUBLE()}
+     * </ul>
+     *
+     * <p>For empty path expressions or errors a behavior can be defined to either return {@code
+     * null}, raise an error or return a defined default value instead.
+     *
+     * <p>See {@link #jsonQuery(String, JsonQueryWrapper, JsonQueryOnEmptyOrError,
+     * JsonQueryOnEmptyOrError)} for extracting non-scalar values from a JSON string.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // STRING: "true"
+     * lit("{\"a\": true}").jsonValue("$.a")
+     *
+     * // DOUBLE: 0.998
+     * lit("{\"a.b\": [0.998,0.996]}").jsonValue("$.['a.b'][0]", DataTypes.DOUBLE())
+     *
+     * // BOOLEAN: true
+     * lit("{\"a\": true}").jsonValue("$.a", DataTypes.BOOLEAN())
+     *
+     * // BOOLEAN: "false"
+     * lit("{\"a\": true}").jsonValue("lax $.b",
+     *     JsonValueOnEmptyOrError.DEFAULT, false, JsonValueOnEmptyOrError.NULL, null)
+     *
+     * // BOOLEAN: "false"
+     * lit("{\"a\": true}").jsonValue("strict $.b",
+     *     JsonValueOnEmptyOrError.NULL, null, JsonValueOnEmptyOrError.DEFAULT, false)
+     * }</pre>
+     *
+     * @param path JSON path to extract.
+     * @param returningType Type to convert the extracted scalar to, otherwise defaults to {@link
+     *     DataTypes#STRING()}.
+     * @param onEmpty Behavior in case the path expression is empty.
+     * @param defaultOnEmpty Default value to return if the path expression is empty and {@param
+     *     onEmpty} is set to {@link JsonValueOnEmptyOrError#DEFAULT}.
+     * @param onError Behavior in case of an error.
+     * @param defaultOnError Default value to return if there is an error and {@param onError} is
+     *     set to {@link JsonValueOnEmptyOrError#DEFAULT}.
+     * @return The extracted scalar value.
+     */
+    public OutType jsonValue(
+            String path,
+            DataType returningType,
+            JsonValueOnEmptyOrError onEmpty,
+            InType defaultOnEmpty,
+            JsonValueOnEmptyOrError onError,
+            InType defaultOnError) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        JSON_VALUE,
+                        toExpr(),
+                        valueLiteral(path),
+                        typeLiteral(returningType),
+                        valueLiteral(onEmpty),
+                        objectToExpression(defaultOnEmpty),
+                        valueLiteral(onError),
+                        objectToExpression(defaultOnError)));
+    }
+
+    /**
+     * Extracts a scalar from a JSON string.
+     *
+     * <p>This method searches a JSON string for a given path expression and returns the value if
+     * the value at that path is scalar. Non-scalar values cannot be returned. By default, the value
+     * is returned as {@link DataTypes#STRING()}.
+     *
+     * <p>See also {@link #jsonValue(String, DataType, JsonValueOnEmptyOrError, Object,
+     * JsonValueOnEmptyOrError, Object)}.
+     *
+     * @param path JSON path to extract.
+     * @param returningType Type to convert the extracted scalar to, otherwise defaults to {@link
+     *     DataTypes#STRING()}.
+     * @return The extracted scalar value.
+     */
+    public OutType jsonValue(String path, DataType returningType) {
+        return jsonValue(
+                path,
+                returningType,
+                JsonValueOnEmptyOrError.NULL,
+                null,
+                JsonValueOnEmptyOrError.NULL,
+                null);
+    }
+
+    /**
+     * Extracts a scalar from a JSON string.
+     *
+     * <p>This method searches a JSON string for a given path expression and returns the value if
+     * the value at that path is scalar. Non-scalar values cannot be returned. By default, the value
+     * is returned as {@link DataTypes#STRING()}.
+     *
+     * <p>See also {@link #jsonValue(String, DataType, JsonValueOnEmptyOrError, Object,
+     * JsonValueOnEmptyOrError, Object)}.
+     *
+     * <p>This is a convenience method using {@link JsonValueOnEmptyOrError#DEFAULT} for both empty
+     * and error cases with the same default value.
+     *
+     * @param path JSON path to extract.
+     * @param returningType Type to convert the extracted scalar to, otherwise defaults to {@link
+     *     DataTypes#STRING()}.
+     * @return The extracted scalar value.
+     */
+    public OutType jsonValue(String path, DataType returningType, InType defaultOnEmptyOrError) {
+        return jsonValue(
+                path,
+                returningType,
+                JsonValueOnEmptyOrError.DEFAULT,
+                defaultOnEmptyOrError,
+                JsonValueOnEmptyOrError.DEFAULT,
+                defaultOnEmptyOrError);
+    }
+
+    /**
+     * Extracts a scalar from a JSON string.
+     *
+     * <p>This method searches a JSON string for a given path expression and returns the value if
+     * the value at that path is scalar. Non-scalar values cannot be returned. By default, the value
+     * is returned as {@link DataTypes#STRING()}.
+     *
+     * <p>See also {@link #jsonValue(String, DataType, JsonValueOnEmptyOrError, Object,
+     * JsonValueOnEmptyOrError, Object)}.
+     *
+     * @param path JSON path to extract.
+     * @return The extracted scalar value.
+     */
+    public OutType jsonValue(String path) {
+        return jsonValue(path, DataTypes.STRING());
+    }
+
+    /**
+     * Extracts JSON values from a JSON string.
+     *
+     * <p>This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL. The result is
+     * always returned as a {@link DataTypes#STRING()}.
+     *
+     * <p>The {@param wrappingBehavior} determines whether the extracted value should be wrapped
+     * into an array, and whether to do so unconditionally or only if the value itself isn't an
+     * array already.
+     *
+     * <p>{@param onEmpty} and {@param onError} determine the behavior in case the path expression
+     * is empty, or in case an error was raised, respectively. By default, in both cases {@code
+     * null} is returned. Other choices are to use an empty array, an empty object, or to raise an
+     * error.
+     *
+     * <p>See {@link #jsonValue(String, DataType, JsonValueOnEmptyOrError, Object,
+     * JsonValueOnEmptyOrError, Object)} for extracting scalars from a JSON string.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit("{ \"a\": { \"b\": 1 } }").jsonQuery("$.a") // "{ \"b\": 1 }"
+     * lit("[1, 2]").jsonQuery("$") // "[1, 2]"
+     * nullOf(DataTypes.STRING()).jsonQuery("$") // null
+     *
+     * // Wrap result into an array
+     * lit("{}").jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[{}]"
+     * lit("[1, 2]").jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[1, 2]"
+     * lit("[1, 2]").jsonQuery("$", JsonQueryWrapper.UNCONDITIONAL_ARRAY) // "[[1, 2]]"
+     *
+     * // Scalars must be wrapped to be returned
+     * lit(1).jsonQuery("$") // null
+     * lit(1).jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[1]"
+     *
+     * // Behavior if path expression is empty / there is an error
+     * // "{}"
+     * lit("{}").jsonQuery("lax $.invalid", JsonQueryWrapper.WITHOUT_ARRAY,
+     *     JsonQueryOnEmptyOrError.EMPTY_OBJECT, JsonQueryOnEmptyOrError.NULL)
+     * // "[]"
+     * lit("{}").jsonQuery("strict $.invalid", JsonQueryWrapper.WITHOUT_ARRAY,
+     *     JsonQueryOnEmptyOrError.NULL, JsonQueryOnEmptyOrError.EMPTY_ARRAY)
+     * }</pre>
+     *
+     * @param path JSON path to search for.
+     * @param wrappingBehavior Determine if and when to wrap the resulting value into an array.
+     * @param onEmpty Behavior in case the path expression is empty.
+     * @param onError Behavior in case of an error.
+     * @return The extracted JSON value.
+     */
+    public OutType jsonQuery(
+            String path,
+            JsonQueryWrapper wrappingBehavior,
+            JsonQueryOnEmptyOrError onEmpty,
+            JsonQueryOnEmptyOrError onError) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        JSON_QUERY,
+                        toExpr(),
+                        valueLiteral(path),
+                        valueLiteral(wrappingBehavior),
+                        valueLiteral(onEmpty),
+                        valueLiteral(onError)));
+    }
+
+    /**
+     * Extracts JSON values from a JSON string.
+     *
+     * <p>The {@param wrappingBehavior} determines whether the extracted value should be wrapped
+     * into an array, and whether to do so unconditionally or only if the value itself isn't an
+     * array already.
+     *
+     * <p>See also {@link #jsonQuery(String, JsonQueryWrapper, JsonQueryOnEmptyOrError,
+     * JsonQueryOnEmptyOrError)}.
+     *
+     * @param path JSON path to search for.
+     * @param wrappingBehavior Determine if and when to wrap the resulting value into an array.
+     * @return The extracted JSON value.
+     */
+    public OutType jsonQuery(String path, JsonQueryWrapper wrappingBehavior) {
+        return jsonQuery(
+                path, wrappingBehavior, JsonQueryOnEmptyOrError.NULL, JsonQueryOnEmptyOrError.NULL);
+    }
+
+    /**
+     * Extracts JSON values from a JSON string.
+     *
+     * <p>See also {@link #jsonQuery(String, JsonQueryWrapper, JsonQueryOnEmptyOrError,
+     * JsonQueryOnEmptyOrError)}.
+     *
+     * @param path JSON path to search for.
+     * @return The extracted JSON value.
+     */
+    public OutType jsonQuery(String path) {
+        return jsonQuery(path, JsonQueryWrapper.WITHOUT_ARRAY);
     }
 }

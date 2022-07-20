@@ -30,6 +30,15 @@ public class FunctionDefinitionMock implements FunctionDefinition {
 
     public TypeInference typeInference;
 
+    public FunctionDefinitionMock(FunctionKind functionKind, TypeInference typeInference) {
+        this.functionKind = functionKind;
+        this.typeInference = typeInference;
+    }
+
+    public FunctionDefinitionMock() {
+        this(null, null);
+    }
+
     @Override
     public FunctionKind getKind() {
         return functionKind;

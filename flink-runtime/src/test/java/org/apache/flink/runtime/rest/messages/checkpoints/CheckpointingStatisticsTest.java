@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.rest.messages.checkpoints;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics.RestAPICheckpointType;
@@ -44,11 +46,12 @@ public class CheckpointingStatisticsTest
                 new CheckpointingStatistics.Counts(1, 2, 3, 4, 5);
         final CheckpointingStatistics.Summary summary =
                 new CheckpointingStatistics.Summary(
-                        new MinMaxAvgStatistics(1L, 1L, 1L),
-                        new MinMaxAvgStatistics(2L, 2L, 2L),
-                        new MinMaxAvgStatistics(3L, 3L, 3L),
-                        new MinMaxAvgStatistics(4L, 4L, 4L),
-                        new MinMaxAvgStatistics(5L, 5L, 5L));
+                        new StatsSummaryDto(1L, 1L, 1L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(1L, 1L, 1L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(2L, 2L, 2L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(3L, 3L, 3L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(4L, 4L, 4L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(5L, 5L, 5L, 0, 0, 0, 0, 0));
 
         final Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask =
                 new HashMap<>(2);
@@ -56,12 +59,12 @@ public class CheckpointingStatisticsTest
         checkpointStatisticsPerTask.put(
                 new JobVertexID(),
                 new TaskCheckpointStatistics(
-                        1L, CheckpointStatsStatus.COMPLETED, 1L, 2L, 3L, 4L, 7, 8, 5, 6));
+                        1L, CheckpointStatsStatus.COMPLETED, 1L, 2L, 2L, 3L, 4L, 7, 8, 5, 6));
 
         checkpointStatisticsPerTask.put(
                 new JobVertexID(),
                 new TaskCheckpointStatistics(
-                        1L, CheckpointStatsStatus.COMPLETED, 2L, 3L, 4L, 5L, 8, 9, 6, 7));
+                        1L, CheckpointStatsStatus.COMPLETED, 2L, 3L, 3L, 4L, 5L, 8, 9, 6, 7));
 
         final CheckpointStatistics.CompletedCheckpointStatistics completed =
                 new CheckpointStatistics.CompletedCheckpointStatistics(
@@ -70,6 +73,7 @@ public class CheckpointingStatisticsTest
                         false,
                         42L,
                         41L,
+                        1337L,
                         1337L,
                         1L,
                         0L,
@@ -90,13 +94,15 @@ public class CheckpointingStatisticsTest
                         11L,
                         10L,
                         43L,
+                        43L,
                         1L,
                         0L,
                         31337L,
                         4244L,
                         9,
                         9,
-                        RestAPICheckpointType.valueOf(CheckpointType.SAVEPOINT),
+                        RestAPICheckpointType.valueOf(
+                                SavepointType.savepoint(SavepointFormatType.CANONICAL)),
                         checkpointStatisticsPerTask,
                         "externalPath",
                         false);
@@ -108,6 +114,7 @@ public class CheckpointingStatisticsTest
                         false,
                         5L,
                         10L,
+                        4L,
                         4L,
                         2L,
                         0L,
@@ -130,6 +137,7 @@ public class CheckpointingStatisticsTest
                         false,
                         42L,
                         41L,
+                        1337L,
                         1337L,
                         1L,
                         0L,

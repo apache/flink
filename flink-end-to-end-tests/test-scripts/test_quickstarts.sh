@@ -25,7 +25,7 @@ source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/elasticsearch-common.sh
 
 TEST_TYPE=$1
-TEST_CLASS_NAME=Elasticsearch5SinkExample
+TEST_CLASS_NAME=Elasticsearch7SinkExample
 TEST_FILE_PATH=flink-quickstart-test/src/main/${TEST_TYPE}/org/apache/flink/quickstarts/test/${TEST_CLASS_NAME}.${TEST_TYPE}
 QUICKSTARTS_FILE_PATH=${TEST_DATA_DIR}/flink-quickstart-${TEST_TYPE}/src/main/${TEST_TYPE}/org/apache/flink/quickstart/${TEST_CLASS_NAME}.${TEST_TYPE}
 ES_INDEX=index_${TEST_TYPE}
@@ -66,16 +66,10 @@ position=$(awk '/<dependencies>/ {print NR}' pom.xml | head -1)
 sed -i -e ''$(($position + 1))'i\
 '${ES_DEPENDENCY}'' pom.xml
 
-sed -i -e "s/org.apache.flink.quickstart.StreamingJob/org.apache.flink.quickstart.$TEST_CLASS_NAME/" pom.xml
+sed -i -e "s/org.apache.flink.quickstart.DataStreamJob/org.apache.flink.quickstart.$TEST_CLASS_NAME/" pom.xml
 
 case $PROFILE in
 *"scala-2.12"*)
-  echo "Changing scala version"
-  sed -i -e "s/scala.binary.version>2.11<\/scala.binary/scala.binary.version>2.12<\/scala.binary/" pom.xml
-  # for flink-quickstart-scala, also change scala version
-  sed -i -e "s/scala.version>2.11.12<\/scala.ver/scala.version>2.12.7<\/scala.ver/" pom.xml
-  ;;
-*"scala-2.11"*)
   # all good
   ;;
 *"scala-"*)
@@ -100,17 +94,17 @@ else
     exit 1
 fi
 
-if [[ `grep -c "org/apache/flink/quickstart/StreamingJob.class" contentsInJar.txt` -eq '0' && \
-      `grep -c "org/apache/flink/quickstart/Elasticsearch5SinkExample.class" contentsInJar.txt` -eq '0' && \
-      `grep -c "org/apache/flink/streaming/connectors/elasticsearch5" contentsInJar.txt` -eq '0' ]]; then
+if [[ `grep -c "org/apache/flink/quickstart/DataStreamJob.class" contentsInJar.txt` -eq '0' && \
+      `grep -c "org/apache/flink/quickstart/Elasticsearch7SinkExample.class" contentsInJar.txt` -eq '0' && \
+      `grep -c "org/apache/flink/connector/elasticsearch" contentsInJar.txt` -eq '0' ]]; then
 
-    echo "Failure: Since Elasticsearch5SinkExample.class and other user classes are not included in the jar. "
+    echo "Failure: Since Elasticsearch7SinkExample.class and other user classes are not included in the jar. "
     exit 1
 else
-    echo "Success: Elasticsearch5SinkExample.class and other user classes are included in the jar."
+    echo "Success: Elasticsearch7SinkExample.class and other user classes are included in the jar."
 fi
 
-setup_elasticsearch "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.3.3.tar.gz" 5
+setup_elasticsearch "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.10.2-linux-x86_64.tar.gz" 7
 wait_elasticsearch_working
 
 function shutdownAndCleanup {
@@ -122,7 +116,7 @@ TEST_PROGRAM_JAR=${TEST_DATA_DIR}/${ARTIFACT_ID}/target/${ARTIFACT_ID}-${ARTIFAC
 
 start_cluster
 
-${FLINK_DIR}/bin/flink run -c org.apache.flink.quickstart.Elasticsearch5SinkExample "$TEST_PROGRAM_JAR" \
+${FLINK_DIR}/bin/flink run -c org.apache.flink.quickstart.Elasticsearch7SinkExample "$TEST_PROGRAM_JAR" \
   --numRecords 20 \
   --index "${ES_INDEX}" \
   --type type

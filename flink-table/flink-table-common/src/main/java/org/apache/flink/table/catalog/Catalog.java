@@ -311,6 +311,15 @@ public interface Catalog {
     void alterTable(ObjectPath tablePath, CatalogBaseTable newTable, boolean ignoreIfNotExists)
             throws TableNotExistException, CatalogException;
 
+    /**
+     * If true, tables which do not specify a connector will be translated to managed tables.
+     *
+     * @see CatalogBaseTable.TableKind#MANAGED
+     */
+    default boolean supportsManagedTable() {
+        return false;
+    }
+
     // ------ partitions ------
 
     /**

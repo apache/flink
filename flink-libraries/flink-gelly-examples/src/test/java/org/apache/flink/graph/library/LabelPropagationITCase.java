@@ -31,6 +31,8 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
+
 /** Tests for {@link LabelPropagation}. */
 @RunWith(Parameterized.class)
 public class LabelPropagationITCase extends MultipleProgramsTestBase {

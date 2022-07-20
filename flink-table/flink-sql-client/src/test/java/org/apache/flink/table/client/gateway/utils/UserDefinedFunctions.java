@@ -29,27 +29,26 @@ import org.apache.flink.types.Row;
 /** A bunch of UDFs for testing the SQL Client. */
 public class UserDefinedFunctions {
 
+    public static final String GENERATED_UDF_CLASS = "LowerUDF";
+
+    public static final String GENERATED_UDF_CODE =
+            "public class "
+                    + GENERATED_UDF_CLASS
+                    + " extends org.apache.flink.table.functions.ScalarFunction {\n"
+                    + "  public String eval(String str) {\n"
+                    + "    return str.toLowerCase();\n"
+                    + "  }\n"
+                    + "}\n";
+
     /** The scalar function for SQL Client test. */
     public static class ScalarUDF extends ScalarFunction {
-
-        private int offset;
-
-        public ScalarUDF(Integer offset) {
-            this.offset = offset;
-        }
-
-        public String eval(Integer i) {
+        public String eval(Integer i, Integer offset) {
             return String.valueOf(i + offset);
         }
     }
 
     /** The aggregate function for SQL Client test. */
     public static class AggregateUDF extends AggregateFunction<Long, Long> {
-
-        public AggregateUDF(String name, Boolean flag, Integer value) {
-            // do nothing
-        }
-
         @Override
         public Long createAccumulator() {
             return 0L;
@@ -72,13 +71,7 @@ public class UserDefinedFunctions {
 
     /** The table function for SQL Client test. */
     public static class TableUDF extends TableFunction<Row> {
-        private long extra;
-
-        public TableUDF(Long extra) {
-            this.extra = extra;
-        }
-
-        public void eval(String str) {
+        public void eval(String str, Long extra) {
             for (String s : str.split(" ")) {
                 Row r = new Row(2);
                 r.setField(0, s);

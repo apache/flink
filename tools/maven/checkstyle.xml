@@ -31,11 +31,6 @@ This file is based on the checkstyle file of Apache Beam.
 
 <module name="Checker">
 
-	<module name="NewlineAtEndOfFile">
-		<!-- windows can use \r\n vs \n, so enforce the most used one ie UNIx style -->
-		<property name="lineSeparator" value="lf"/>
-	</module>
-
 	<module name="RegexpSingleline">
 		<!-- Checks that TODOs don't have stuff in parenthesis, e.g., username. -->
 		<property name="format" value="((//.*)|(\*.*))TODO\("/>
@@ -55,17 +50,9 @@ This file is based on the checkstyle file of Apache Beam.
 		<property name="severity" value="error"/>
 	</module>
 
-	<!-- Prevent *Tests.java as tools may not pick them up -->
-	<!--<module name="RegexpOnFilename">-->
-	<!--<property name="fileNamePattern" value=".*Tests\.java$" />-->
-	<!--</module>-->
-
 	<module name="SuppressionFilter">
 		<property name="file" value="${checkstyle.suppressions.file}" default="suppressions.xml"/>
 	</module>
-
-	<!-- Check that every module has a package-info.java -->
-	<!--<module name="JavadocPackage"/>-->
 
 	<!--
 
@@ -169,6 +156,11 @@ This file is based on the checkstyle file of Apache Beam.
 			<property name="illegalPattern" value="true"/>
 			<property name="message" value="Use com.fasterxml.jackson instead of jettison."/>
 		</module>
+		<module name="Regexp">
+			<property name="format" value="org\.testcontainers\.shaded"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="Use utilities from appropriate library instead of org.testcontainers."/>
+		</module>
 
 		<!-- Enforce Java-style array declarations -->
 		<module name="ArrayTypeStyle"/>
@@ -183,26 +175,6 @@ This file is based on the checkstyle file of Apache Beam.
 		IMPORT CHECKS
 
 		-->
-
-		<module name="RedundantImport">
-			<!-- Checks for redundant import statements. -->
-			<property name="severity" value="error"/>
-			<message key="import.redundancy"
-					 value="Redundant import {0}."/>
-		</module>
-
-		<module name="ImportOrder">
-			<!-- Checks for out of order import statements. -->
-			<property name="severity" value="error"/>
-			<property name="groups"
-					  value="org.apache.flink,org.apache.flink.shaded,*,javax,java,scala"/>
-			<property name="separated" value="true"/>
-			<property name="sortStaticImportsAlphabetically" value="true"/>
-			<property name="option" value="bottom"/>
-			<property name="tokens" value="STATIC_IMPORT, IMPORT"/>
-			<message key="import.ordering"
-					 value="Import {0} appears after other imports that it should precede"/>
-		</module>
 
 		<module name="AvoidStarImport">
 			<property name="severity" value="error"/>
@@ -243,9 +215,6 @@ This file is based on the checkstyle file of Apache Beam.
 			IllegalImport cannot blacklist classes, and c.g.api.client.util is used for some shaded
 			code and some useful code. So we need to fall back to Regexp.
 		-->
-		<!--<module name="RegexpSinglelineJava">-->
-		<!--<property name="format" value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>-->
-		<!--</module>-->
 
 		<!--
 			 Require static importing from Preconditions.
@@ -253,13 +222,6 @@ This file is based on the checkstyle file of Apache Beam.
 		<module name="RegexpSinglelineJava">
 			<property name="format" value="^import com.google.common.base.Preconditions;$"/>
 			<property name="message" value="Static import functions from Guava Preconditions"/>
-		</module>
-
-		<module name="UnusedImports">
-			<property name="severity" value="error"/>
-			<property name="processJavadoc" value="true"/>
-			<message key="import.unused"
-					 value="Unused import: {0}."/>
 		</module>
 
 		<!--
@@ -384,44 +346,11 @@ This file is based on the checkstyle file of Apache Beam.
 			<property name="severity" value="error"/>
 		</module>
 
-		<!-- Type parameters must be either one of the four blessed letters
-		T, K, V, W, X or else be capital-case terminated with a T,
-		such as MyGenericParameterT -->
-		<!--<module name="ClassTypeParameterName">-->
-		<!--<property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>-->
-		<!--<property name="severity" value="error"/>-->
-		<!--</module>-->
-
-		<!--<module name="MethodTypeParameterName">-->
-		<!--<property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>-->
-		<!--<property name="severity" value="error"/>-->
-		<!--</module>-->
-
-		<!--<module name="InterfaceTypeParameterName">-->
-		<!--<property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>-->
-		<!--<property name="severity" value="error"/>-->
-		<!--</module>-->
-
 		<!--
 
 		LENGTH and CODING CHECKS
 
 		-->
-
-		<!--<module name="LineLength">-->
-		<!--&lt;!&ndash; Checks if a line is too long. &ndash;&gt;-->
-		<!--<property name="max" value="100"/>-->
-		<!--<property name="severity" value="error"/>-->
-
-		<!--&lt;!&ndash;-->
-		<!--The default ignore pattern exempts the following elements:-->
-		<!-- - import statements-->
-		<!-- - long URLs inside comments-->
-		<!--&ndash;&gt;-->
-
-		<!--<property name="ignorePattern"-->
-		<!--value="^(package .*;\s*)|(import .*;\s*)|( *\* .*https?://.*)$"/>-->
-		<!--</module>-->
 
 		<!-- Checks for braces around if and else blocks -->
 		<module name="NeedBraces">
@@ -459,21 +388,6 @@ This file is based on the checkstyle file of Apache Beam.
 			<property name="ignoreComments" value="true"/>
 		</module>
 
-		<!--
-
-		MODIFIERS CHECKS
-
-		-->
-
-		<module name="ModifierOrder">
-			<!-- Warn if modifier order is inconsistent with JLS3 8.1.1, 8.3.1, and
-				 8.4.3.  The prescribed order is:
-				 public, protected, private, abstract, static, final, transient, volatile,
-				 synchronized, native, strictfp
-			  -->
-			<property name="severity" value="error"/>
-		</module>
-
 
 		<!--
 
@@ -492,71 +406,6 @@ This file is based on the checkstyle file of Apache Beam.
         INTERFACE_DEF, ENUM_DEF, STATIC_INIT, INSTANCE_INIT, METHOD_DEF,
         CTOR_DEF"/>
 		</module>
-
-		<module name="WhitespaceAround">
-			<!-- Checks that various tokens are surrounded by whitespace.
-				 This includes most binary operators and keywords followed
-				 by regular or curly braces.
-			-->
-			<property name="tokens" value="ASSIGN, BAND, BAND_ASSIGN, BOR,
-        BOR_ASSIGN, BSR, BSR_ASSIGN, BXOR, BXOR_ASSIGN, COLON, DIV, DIV_ASSIGN,
-        EQUAL, GE, GT, LAMBDA, LAND, LE, LITERAL_CATCH, LITERAL_DO, LITERAL_ELSE,
-        LITERAL_FINALLY, LITERAL_FOR, LITERAL_IF, LITERAL_RETURN,
-        LITERAL_SYNCHRONIZED, LITERAL_TRY, LITERAL_WHILE, LOR, LT, MINUS,
-        MINUS_ASSIGN, MOD, MOD_ASSIGN, NOT_EQUAL, PLUS, PLUS_ASSIGN, QUESTION,
-        SL, SL_ASSIGN, SR_ASSIGN, STAR, STAR_ASSIGN, TYPE_EXTENSION_AND"/>
-			<property name="severity" value="error"/>
-		</module>
-
-		<module name="WhitespaceAfter">
-			<!-- Checks that commas, semicolons and typecasts are followed by
-				 whitespace.
-			-->
-			<property name="tokens" value="COMMA, SEMI, TYPECAST"/>
-		</module>
-
-		<module name="NoWhitespaceAfter">
-			<!-- Checks that there is no whitespace after various unary operators.
-				 Linebreaks are allowed.
-			-->
-			<property name="tokens" value="BNOT, DEC, DOT, INC, LNOT, UNARY_MINUS,
-        UNARY_PLUS"/>
-			<property name="allowLineBreaks" value="true"/>
-			<property name="severity" value="error"/>
-		</module>
-
-		<module name="NoWhitespaceBefore">
-			<!-- Checks that there is no whitespace before various unary operators.
-				 Linebreaks are allowed.
-			-->
-			<property name="tokens" value="SEMI, DOT, POST_DEC, POST_INC"/>
-			<property name="allowLineBreaks" value="true"/>
-			<property name="severity" value="error"/>
-		</module>
-
-		<!--<module name="OperatorWrap">-->
-		<!--&lt;!&ndash; Checks that operators like + and ? appear at newlines rather than-->
-		<!--at the end of the previous line.-->
-		<!--&ndash;&gt;-->
-		<!--<property name="option" value="NL"/>-->
-		<!--<property name="tokens" value="BAND, BOR, BSR, BXOR, DIV, EQUAL,-->
-		<!--GE, GT, LAND, LE, LITERAL_INSTANCEOF, LOR, LT, MINUS, MOD,-->
-		<!--NOT_EQUAL, PLUS, QUESTION, SL, SR, STAR "/>-->
-		<!--</module>-->
-
-		<module name="OperatorWrap">
-			<!-- Checks that assignment operators are at the end of the line. -->
-			<property name="option" value="eol"/>
-			<property name="tokens" value="ASSIGN"/>
-		</module>
-
-		<module name="ParenPad">
-			<!-- Checks that there is no whitespace before close parens or after
-				 open parens.
-			-->
-			<property name="severity" value="error"/>
-		</module>
-
 	</module>
 </module>
 

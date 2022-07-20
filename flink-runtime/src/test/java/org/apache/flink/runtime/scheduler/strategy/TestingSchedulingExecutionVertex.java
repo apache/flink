@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.IterableUtils;
@@ -90,8 +91,16 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
     }
 
     void addConsumedPartition(TestingSchedulingResultPartition consumedPartition) {
-        this.consumedPartitionGroups.add(
-                ConsumedPartitionGroup.fromSinglePartition(consumedPartition.getId()));
+        final ConsumedPartitionGroup consumedPartitionGroup =
+                ConsumedPartitionGroup.fromSinglePartition(
+                        consumedPartition.getId(), consumedPartition.getResultType());
+
+        consumedPartition.registerConsumedPartitionGroup(consumedPartitionGroup);
+        if (consumedPartition.getState() == ResultPartitionState.CONSUMABLE) {
+            consumedPartitionGroup.partitionFinished();
+        }
+
+        this.consumedPartitionGroups.add(consumedPartitionGroup);
         this.resultPartitionsById.putIfAbsent(consumedPartition.getId(), consumedPartition);
     }
 
@@ -136,6 +145,8 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
                 Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
                         resultPartitionsById) {
             this.resultPartitionsById.putAll(resultPartitionsById);
+            final ResultPartitionType resultType =
+                    resultPartitionsById.values().iterator().next().getResultType();
 
             for (ConsumedPartitionGroup partitionGroup : consumedPartitionGroups) {
                 List<IntermediateResultPartitionID> partitionIds =
@@ -144,7 +155,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
                     partitionIds.add(partitionId);
                 }
                 this.consumedPartitionGroups.add(
-                        ConsumedPartitionGroup.fromMultiplePartitions(partitionIds));
+                        ConsumedPartitionGroup.fromMultiplePartitions(partitionIds, resultType));
             }
             return this;
         }

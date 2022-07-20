@@ -39,19 +39,20 @@ library makes when [dealing with lateness](#handling-lateness-in-event-time) in 
 
 ## Getting Started
 
-If you want to jump right in, [set up a Flink program]({{< ref "docs/dev/datastream/project-configuration" >}}) and
+If you want to jump right in, [set up a Flink program]({{< ref "docs/dev/configuration/overview" >}}) and
 add the FlinkCEP dependency to the `pom.xml` of your project.
 
 {{< tabs "3b3e4675-dd86-4b2d-8487-9c8711f234b3" >}}
 {{< tab "Java" >}}
-{{< artifact flink-cep withScalaVersion >}}
+{{< artifact flink-cep >}}
 {{< /tab >}}
 {{< tab "Scala" >}}
 {{< artifact flink-cep-scala withScalaVersion >}}
 {{< /tab >}}
 {{< /tabs >}}
 
-FlinkCEP is not part of the binary distribution. See how to link with it for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
+FlinkCEP is not part of the binary distribution. See how to link with it for cluster execution 
+[here]({{< ref "docs/dev/configuration/overview" >}}).
 
 Now you can start writing your first CEP program using the Pattern API.
 
@@ -64,7 +65,7 @@ because FlinkCEP uses them for comparing and matching events.
 {{< tabs "8951ef0a-cdd4-40d1-bda8-dec1299aaf41" >}}
 {{< tab "Java" >}}
 ```java
-DataStream<Event> input = ...
+DataStream<Event> input = ...;
 
 Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(
         new SimpleCondition<Event>() {
@@ -340,7 +341,7 @@ via the `pattern.subtype(subClass)` method.
 start.subtype(SubEvent.class).where(new SimpleCondition<SubEvent>() {
     @Override
     public boolean filter(SubEvent value) {
-        return ... // some condition
+        return ...; // some condition
     }
 });
 ```
@@ -360,12 +361,12 @@ start.subtype(classOf[SubEvent]).where(subEvent => ... /* some condition */)
 pattern.where(new SimpleCondition<Event>() {
     @Override
     public boolean filter(Event value) {
-        return ... // some condition
+        return ...; // some condition
     }
 }).or(new SimpleCondition<Event>() {
     @Override
     public boolean filter(Event value) {
-        return ... // or condition
+        return ...; // or condition
     }
 });
 ```
@@ -402,7 +403,7 @@ Multiple consecutive where() clauses lead to their conditions being `AND`ed.
 pattern.where(new IterativeCondition<Event>() {
     @Override
     public boolean filter(Event value, Context ctx) throws Exception {
-        return ... // some condition
+        return ...; // some condition
     }
 });
 ```
@@ -424,12 +425,12 @@ Adds a new condition which is `OR`ed with an existing one. An event can match th
 pattern.where(new IterativeCondition<Event>() {
     @Override
     public boolean filter(Event value, Context ctx) throws Exception {
-        return ... // some condition
+        return ...; // some condition
     }
 }).or(new IterativeCondition<Event>() {
     @Override
     public boolean filter(Event value, Context ctx) throws Exception {
-        return ... // alternative condition
+        return ...; // alternative condition
     }
 });
 ```
@@ -454,7 +455,7 @@ events will be accepted into the pattern. Applicable only in conjunction with `o
 pattern.oneOrMore().until(new IterativeCondition<Event>() {
     @Override
     public boolean filter(Event value, Context ctx) throws Exception {
-        return ... // alternative condition
+        return ...; // alternative condition
     }
 });
 ```
@@ -635,7 +636,7 @@ or
 2. `notFollowedBy()`, if you do not want an event type to be anywhere between two other event types.
 
 {{< hint warning >}}
-A pattern sequence cannot end in `notFollowedBy()`.
+A pattern sequence cannot end with `notFollowedBy()` if the time interval is not defined via `withIn()`.
 {{< /hint >}}
 
 {{< hint warning >}}
@@ -713,6 +714,35 @@ next.within(Time.seconds(10));
 {{< tab "Scala" >}}
 ```scala
 next.within(Time.seconds(10))
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+Notice that a pattern sequence can end with `notFollowedBy()` with temporal constraint
+E.g. a pattern like:
+
+{{< tabs "df27eb6d-c532-430a-b56f-98ad4082e6d5" >}}
+{{< tab "Java" >}}
+```java
+Pattern.<Event>begin("start")
+    .next("middle").where(new SimpleCondition<Event>() {
+    @Override
+    public boolean filter(Event value) throws Exception {
+        return value.getName().equals("a");
+    }
+}).notFollowedBy("end").where(new SimpleCondition<Event>() {
+    @Override
+    public boolean filter(Event value) throws Exception {
+        return value.getName().equals("b");
+    }
+}).within(Time.seconds(10));
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+Pattern.begin("start").where(_.getName().equals("a"))
+.notFollowedBy("end").where(_.getName == "b")
+.within(Time.seconds(10))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1247,7 +1277,7 @@ Then apply the skip strategy to a pattern by calling:
 {{< tabs "64a34dcc-47f8-443d-b31a-515f7fd17243" >}}
 {{< tab "Java" >}}
 ```java
-AfterMatchSkipStrategy skipStrategy = ...
+AfterMatchSkipStrategy skipStrategy = ...;
 Pattern.begin("patternName", skipStrategy);
 ```
 {{< /tab >}}
@@ -1268,7 +1298,7 @@ One can enable this option by:
 {{< tabs "59e07b27-61d3-4348-ab60-c8a805500c87" >}}
 {{< tab "Java" >}}
 ```java
-AfterMatchSkipStrategy.skipToFirst(patternName).throwExceptionOnMiss()
+AfterMatchSkipStrategy.skipToFirst(patternName).throwExceptionOnMiss();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -1287,9 +1317,9 @@ Given an input stream `input`, a pattern `pattern` and an optional comparator `c
 {{< tabs "79719c8a-f503-4f3e-9717-75540e637481" >}}
 {{< tab "Java" >}}
 ```java
-DataStream<Event> input = ...
-Pattern<Event, ?> pattern = ...
-EventComparator<Event> comparator = ... // optional
+DataStream<Event> input = ...;
+Pattern<Event, ?> pattern = ...;
+EventComparator<Event> comparator = ...; // optional
 
 PatternStream<Event> patternStream = CEP.pattern(input, pattern, comparator);
 ```
@@ -1508,6 +1538,16 @@ Call to `TimeContext#currentProcessingTime` always gives you the value of curren
 In case of `TimeContext#timestamp()` the returned value is equal to assigned timestamp in case of `EventTime`. In `ProcessingTime` this will equal to the point of time when said event entered
 cep operator (or when the match was generated in case of `PatternProcessFunction`). This means that the value will be consistent across multiple calls to that method.
 
+## Optional Configuration
+
+Options to configure the cache capacity of Flink CEP `SharedBuffer`.
+It could accelerate the CEP operate process speed and limit the number of elements of cache in pure memory. 
+
+<span class="label label-info">Note</span> It's only effective to limit usage of memory when `state.backend` was set as `rocksdb`, which would transport the elements exceeded the number of the cache into the rocksdb state storage instead of memory state storage.
+The configuration items are helpful for memory limitation when the `state.backend` is set as rocksdb. By contrast，when the `state.backend` is set as not `rocksdb`, the cache would cause performance decreased. Compared with old cache implemented with `Map`, the state part will contain more elements swapped out from new guava-cache, which would make it heavier to `copy on write` for state.
+
+{{< generated/cep_cache_configuration >}}
+
 ## Examples
 
 The following example detects the pattern `start, middle(name = "error") -> end(name = "critical")` on a keyed data
@@ -1517,9 +1557,9 @@ The whole processing is done with event time.
 {{< tabs "573ac3c5-e8b9-4ffa-b7b6-e2db19611ff5" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = ...
+StreamExecutionEnvironment env = ...;
 
-DataStream<Event> input = ...
+DataStream<Event> input = ...;
 
 DataStream<Event> partitionedInput = input.keyBy(new KeySelector<Event, Integer>() {
 	@Override

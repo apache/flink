@@ -17,20 +17,8 @@
  */
 @import "theme";
 
-.content {
-  margin-top: 24px;
-  font-size: 14px;
-  line-height: 1.5;
-  box-sizing: border-box;
-  padding: 0;
-  list-style: none;
-  background: @component-background;
-  border-radius: 2px;
-  position: relative;
-  border: 1px solid @border-color-split;
-}
-
-.router {
+:host {
+  display: flex;
+  flex-flow: column nowrap;
   height: 100%;
-  width: 100%;
 }

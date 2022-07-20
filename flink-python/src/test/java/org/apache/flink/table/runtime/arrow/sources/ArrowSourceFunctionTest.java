@@ -35,7 +35,7 @@ import org.apache.flink.testutils.DeeplyEqualsChecker;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,7 +44,7 @@ import java.util.List;
 import java.util.Objects;
 
 /** Tests for {@link ArrowSourceFunction}. */
-public class ArrowSourceFunctionTest extends ArrowSourceFunctionTestBase<RowData> {
+class ArrowSourceFunctionTest extends ArrowSourceFunctionTestBase {
 
     private static List<LogicalType> fieldTypes = new ArrayList<>();
     private static RowType rowType;
@@ -82,8 +82,8 @@ public class ArrowSourceFunctionTest extends ArrowSourceFunctionTestBase<RowData
         return Objects.equals(row1, row2);
     }
 
-    @BeforeClass
-    public static void init() {
+    @BeforeAll
+    static void init() {
         fieldTypes.add(new VarCharType());
         List<RowType.RowField> rowFields = new ArrayList<>();
         for (int i = 0; i < fieldTypes.size(); i++) {
@@ -113,7 +113,7 @@ public class ArrowSourceFunctionTest extends ArrowSourceFunctionTestBase<RowData
     }
 
     @Override
-    public AbstractArrowSourceFunction<RowData> createArrowSourceFunction(byte[][] arrowData) {
+    public ArrowSourceFunction createArrowSourceFunction(byte[][] arrowData) {
         return new ArrowSourceFunction(dataType, arrowData);
     }
 }

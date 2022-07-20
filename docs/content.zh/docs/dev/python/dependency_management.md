@@ -38,6 +38,11 @@ the local Python environment, download the machine learning model to local, etc.
 However, this approach doesn't work well when users want to submit the PyFlink jobs to remote clusters.
 In the following sections, we will introduce the options provided in PyFlink for these requirements.
 
+<span class="label label-info">Note</span> Both Python DataStream API and Python Table API have provided
+APIs for each kind of dependency. If you are mixing use of Python DataStream API and Python Table API
+in a single job, you should specify the dependencies via Python DataStream API to make them work for
+both the Python DataStream API and Python Table API.
+
 ## JAR Dependencies
 
 If third-party JARs are used, you can specify the JARs in the Python Table API as following:
@@ -46,12 +51,15 @@ If third-party JARs are used, you can specify the JARs in the Python Table API a
 # Specify a list of jar URLs via "pipeline.jars". The jars are separated by ";"
 # and will be uploaded to the cluster.
 # NOTE: Only local file URLs (start with "file://") are supported.
-table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
+table_env.get_config().set("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
+
+# It looks like the following on Windows:
+table_env.get_config().set("pipeline.jars", "file:///E:/my/jar/path/connector.jar;file:///E:/my/jar/path/udf.jar")
 
 # Specify a list of URLs via "pipeline.classpaths". The URLs are separated by ";" 
 # and will be added to the classpath during job execution.
 # NOTE: The paths must specify a protocol (e.g. file://) and users should ensure that the URLs are accessible on both the client and the cluster.
-table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
+table_env.get_config().set("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 ```
 
 or in the Python DataStream API as following:
@@ -60,6 +68,9 @@ or in the Python DataStream API as following:
 # Use the add_jars() to add local jars and the jars will be uploaded to the cluster.
 # NOTE: Only local file URLs (start with "file://") are supported.
 stream_execution_environment.add_jars("file:///my/jar/path/connector1.jar", "file:///my/jar/path/connector2.jar")
+
+# It looks like the following on Windows:
+stream_execution_environment.add_jars("file:///E:/my/jar/path/connector1.jar", "file:///E:/my/jar/path/connector2.jar")
 
 # Use the add_classpaths() to add the dependent jars URLs into the classpath.
 # The URLs will also be added to the classpath of both the client and the cluster.
@@ -164,7 +175,7 @@ or via [command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyf
 `-pyreq` or `--pyRequirements` when submitting the job.
 
 <span class="label label-info">Note</span> It will install the packages specified in the
-`requirements.txt` file using pip, so please make sure that pip (version >= 7.1.0)
+`requirements.txt` file using pip, so please make sure that pip (version >= 20.3)
 and setuptools (version >= 37.0.0) are available.
 
 ### Archives
@@ -228,7 +239,8 @@ or via [command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyf
 <span class="label label-info">Note</span> If the archive file contains a Python virtual environment,
 please make sure that the Python virtual environment matches the platform that the cluster is running on.
 
-<span class="label label-info">Note</span> Currently, only zip-format is supported, i.e. zip, jar, whl, egg, etc.
+<span class="label label-info">Note</span> Currently, only zip files (i.e., zip, jar, whl, egg, etc)
+and tar files (i.e., tar, tar.gz, tgz) are supported.
 
 ### Python interpreter
 
@@ -279,8 +291,9 @@ source my_env/bin/activate
 ```
 
 or specify it using configuration
-[`python.client.executable`]({{< ref "docs/dev/python/python_config" >}}#python-client-executable)
-or environment variable [PYFLINK_CLIENT_EXECUTABLE]({{< ref "docs/dev/python/environment_variables" >}})
+[`python.client.executable`]({{< ref "docs/dev/python/python_config" >}}#python-client-executable),
+[command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyflink-jobs) `-pyclientexec` or `--pyClientExecutable`,
+environment variable [PYFLINK_CLIENT_EXECUTABLE]({{< ref "docs/dev/python/environment_variables" >}})
 
 ## How to specify Python Dependencies in Java/Scala Program
 
@@ -294,8 +307,8 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 
 TableEnvironment tEnv = TableEnvironment.create(
-    EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build());
-tEnv.getConfig().getConfiguration().set(CoreOptions.DEFAULT_PARALLELISM, 1);
+    EnvironmentSettings.inBatchMode());
+tEnv.getConfig().set(CoreOptions.DEFAULT_PARALLELISM, 1);
 
 // register the Python UDF
 tEnv.executeSql("create temporary system function add_one as 'add_one.add_one' language python");

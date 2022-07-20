@@ -59,6 +59,7 @@ class TestContext {
                                 Collections.emptyList(),
                                 options),
                         schema),
+                Collections.emptyMap(),
                 new Configuration(),
                 TestContext.class.getClassLoader(),
                 false);

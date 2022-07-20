@@ -18,22 +18,27 @@
 
 package org.apache.flink.runtime.minicluster;
 
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
+
 import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
 
 /** Configuration object for the {@link MiniCluster}. */
 public class MiniClusterConfiguration {
+
+    static final int DEFAULT_IO_POOL_SIZE = 4;
 
     private final UnmodifiableConfiguration configuration;
 
@@ -66,6 +71,23 @@ public class MiniClusterConfiguration {
         final Configuration modifiedConfig = new Configuration(configuration);
 
         TaskExecutorResourceUtils.adjustForLocalExecution(modifiedConfig);
+
+        // reduce the default number of network buffers used by sort-shuffle to avoid the
+        // "Insufficient number of network buffers" error.
+        if (!modifiedConfig.contains(
+                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS)) {
+            modifiedConfig.set(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 16);
+        }
+
+        // set default io pool size.
+        if (!modifiedConfig.contains(ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE)) {
+            modifiedConfig.set(ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE, DEFAULT_IO_POOL_SIZE);
+        }
+
+        // increase the akka.ask.timeout if not set in order to harden tests on slow CI
+        if (!modifiedConfig.contains(AkkaOptions.ASK_TIMEOUT_DURATION)) {
+            modifiedConfig.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(5L));
+        }
 
         return new UnmodifiableConfiguration(modifiedConfig);
     }
@@ -114,10 +136,6 @@ public class MiniClusterConfiguration {
                 : configuration.getString(TaskManagerOptions.BIND_HOST, "localhost");
     }
 
-    public Time getRpcTimeout() {
-        return AkkaUtils.getTimeoutAsTime(configuration);
-    }
-
     public UnmodifiableConfiguration getConfiguration() {
         return configuration;
     }
@@ -157,6 +175,7 @@ public class MiniClusterConfiguration {
         private RpcServiceSharing rpcServiceSharing = SHARED;
         @Nullable private String commonBindAddress = null;
         private MiniCluster.HaServices haServices = MiniCluster.HaServices.CONFIGURED;
+        private boolean useRandomPorts = false;
 
         public Builder setConfiguration(Configuration configuration1) {
             this.configuration = Preconditions.checkNotNull(configuration1);
@@ -188,6 +207,11 @@ public class MiniClusterConfiguration {
             return this;
         }
 
+        public Builder withRandomPorts() {
+            this.useRandomPorts = true;
+            return this;
+        }
+
         public MiniClusterConfiguration build() {
             final Configuration modifiedConfiguration = new Configuration(configuration);
             modifiedConfiguration.setInteger(
@@ -195,6 +219,15 @@ public class MiniClusterConfiguration {
             modifiedConfiguration.setString(
                     RestOptions.ADDRESS,
                     modifiedConfiguration.getString(RestOptions.ADDRESS, "localhost"));
+
+            if (useRandomPorts) {
+                if (!configuration.contains(JobManagerOptions.PORT)) {
+                    modifiedConfiguration.set(JobManagerOptions.PORT, 0);
+                }
+                if (!configuration.contains(RestOptions.BIND_PORT)) {
+                    modifiedConfiguration.setString(RestOptions.BIND_PORT, "0");
+                }
+            }
 
             return new MiniClusterConfiguration(
                     modifiedConfiguration,

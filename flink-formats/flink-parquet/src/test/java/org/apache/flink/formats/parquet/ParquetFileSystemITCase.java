@@ -18,12 +18,15 @@
 
 package org.apache.flink.formats.parquet;
 
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
-import org.junit.Assert;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -34,9 +37,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.parquet.format.converter.ParquetMetadataConverter.range;
 import static org.apache.parquet.hadoop.ParquetFileReader.readFooter;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** ITCase for {@link ParquetFileFormatFactory}. */
 @RunWith(Parameterized.class)
@@ -51,6 +56,23 @@ public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
 
     public ParquetFileSystemITCase(boolean configure) {
         this.configure = configure;
+    }
+
+    @Override
+    public void before() {
+        super.before();
+        super.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create table parquetLimitTable ("
+                                        + "x string,"
+                                        + "y int,"
+                                        + "a int"
+                                        + ") with ("
+                                        + "'connector' = 'filesystem',"
+                                        + "'path' = '%s',"
+                                        + "%s)",
+                                super.resultPath(), String.join(",\n", formatProperties())));
     }
 
     @Override
@@ -72,23 +94,39 @@ public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
         File directory = new File(URI.create(resultPath()).getPath());
         File[] files =
                 directory.listFiles((dir, name) -> !name.startsWith(".") && !name.startsWith("_"));
-        Assert.assertNotNull(files);
+        assertThat(files).isNotNull();
         Path path = new Path(URI.create(files[0].getAbsolutePath()));
 
         try {
             ParquetMetadata footer =
                     readFooter(new Configuration(), path, range(0, Long.MAX_VALUE));
             if (configure) {
-                Assert.assertEquals(
-                        "GZIP",
-                        footer.getBlocks().get(0).getColumns().get(0).getCodec().toString());
+                assertThat(footer.getBlocks().get(0).getColumns().get(0).getCodec().toString())
+                        .isEqualTo("GZIP");
             } else {
-                Assert.assertEquals(
-                        "UNCOMPRESSED",
-                        footer.getBlocks().get(0).getColumns().get(0).getCodec().toString());
+                assertThat(footer.getBlocks().get(0).getColumns().get(0).getCodec().toString())
+                        .isEqualTo("SNAPPY");
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Test
+    public void testLimitableBulkFormat() throws ExecutionException, InterruptedException {
+        super.tableEnv()
+                .executeSql(
+                        "insert into parquetLimitTable select x, y, "
+                                + "1 as a "
+                                + "from originalT")
+                .await();
+        TableResult tableResult1 =
+                super.tableEnv().executeSql("SELECT * FROM parquetLimitTable limit 5");
+        List<Row> rows1 = CollectionUtil.iteratorToList(tableResult1.collect());
+        assertThat(rows1).hasSize(5);
+
+        check(
+                "select a from parquetLimitTable limit 5",
+                Arrays.asList(Row.of(1), Row.of(1), Row.of(1), Row.of(1), Row.of(1)));
     }
 }

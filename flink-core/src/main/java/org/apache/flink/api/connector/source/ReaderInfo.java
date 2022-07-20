@@ -18,13 +18,13 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 
 import java.io.Serializable;
 import java.util.Objects;
 
 /** A container class hosting the information of a {@link SourceReader}. */
-@PublicEvolving
+@Public
 public final class ReaderInfo implements Serializable {
 
     private static final long serialVersionUID = 1L;

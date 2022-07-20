@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connectors.hive.read.HiveCompactReaderFactory;
 import org.apache.flink.connectors.hive.write.HiveWriterFactory;
 import org.apache.flink.table.api.DataTypes;
@@ -25,6 +26,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -39,7 +41,7 @@ import org.junit.runners.Parameterized;
 import java.util.Collections;
 import java.util.Properties;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -73,22 +75,21 @@ public class HiveDeserializeExceptionTest {
                         RowType.of(DataTypes.INT().getLogicalType()),
                         false);
 
-        HiveSource hiveSource =
-                new HiveSource.HiveSourceBuilder(
-                                new JobConf(),
-                                new ObjectPath("default", "foo"),
-                                new CatalogTableImpl(
-                                        TableSchema.builder().field("i", DataTypes.INT()).build(),
-                                        Collections.emptyMap(),
-                                        null),
-                                Collections.singletonList(
-                                        new HiveTablePartition(
-                                                new StorageDescriptor(), new Properties())),
-                                null,
-                                HiveShimLoader.getHiveVersion(),
-                                false,
-                                RowType.of(DataTypes.INT().getLogicalType()))
-                        .build();
+        HiveSourceBuilder builder =
+                new HiveSourceBuilder(
+                        new JobConf(),
+                        new Configuration(),
+                        new ObjectPath("default", "foo"),
+                        HiveShimLoader.getHiveVersion(),
+                        new CatalogTableImpl(
+                                TableSchema.builder().field("i", DataTypes.INT()).build(),
+                                Collections.emptyMap(),
+                                null));
+        builder.setPartitions(
+                Collections.singletonList(
+                        new HiveTablePartition(new StorageDescriptor(), new Properties())));
+
+        HiveSource<RowData> hiveSource = builder.buildWithDefaultBulkFormat();
 
         return new Object[][] {
             new Object[] {writerFactory, writerFactory.getClass().getSimpleName()},
@@ -107,11 +108,7 @@ public class HiveDeserializeExceptionTest {
         ClassLoader parentLoader = object.getClass().getClassLoader().getParent();
         assumeTrue(parentLoader != null);
         byte[] bytes = InstantiationUtil.serializeObject(object);
-        try {
-            InstantiationUtil.deserializeObject(bytes, parentLoader);
-            fail("Exception not thrown");
-        } catch (ClassNotFoundException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> InstantiationUtil.deserializeObject(bytes, parentLoader))
+                .isInstanceOf(ClassNotFoundException.class);
     }
 }

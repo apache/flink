@@ -17,6 +17,8 @@
 ################################################################################
 from pyflink.java_gateway import get_gateway
 
+__all__ = ['Duration', 'Instant', 'Time']
+
 
 class Duration(object):
     """
@@ -51,3 +53,72 @@ class Duration(object):
 
     def __eq__(self, other):
         return isinstance(other, Duration) and self._j_duration.equals(other._j_duration)
+
+
+class Instant(object):
+    """
+    An instantaneous point on the time-line. Similar to Java.time.Instant.
+    """
+
+    def __init__(self, seconds, nanos):
+        self.seconds = seconds
+        self.nanos = nanos
+
+    def to_epoch_milli(self):
+        if self.seconds < 0 < self.nanos:
+            return (self.seconds + 1) * 1000 + self.nanos // 1000_1000 - 1000
+        else:
+            return self.seconds * 1000 + self.nanos // 1000_000
+
+    @staticmethod
+    def of_epoch_milli(epoch_milli: int) -> 'Instant':
+        secs = epoch_milli // 1000
+        mos = epoch_milli % 1000
+        return Instant(secs, mos * 1000_000)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__ and
+                self.seconds == other.seconds and
+                self.nanos == other.nanos)
+
+    def __repr__(self):
+        return 'Instant<{}, {}>'.format(self.seconds, self.nanos)
+
+
+class Time(object):
+    """
+    The definition of a time interval.
+    """
+
+    def __init__(self, milliseconds: int):
+        self._milliseconds = milliseconds
+
+    def to_milliseconds(self) -> int:
+        return self._milliseconds
+
+    @staticmethod
+    def milliseconds(milliseconds: int):
+        return Time(milliseconds)
+
+    @staticmethod
+    def seconds(seconds: int):
+        return Time.milliseconds(seconds * 1000)
+
+    @staticmethod
+    def minutes(minutes: int):
+        return Time.seconds(minutes * 60)
+
+    @staticmethod
+    def hours(hours: int):
+        return Time.minutes(hours * 60)
+
+    @staticmethod
+    def days(days: int):
+        return Time.hours(days * 24)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__ and
+                self._milliseconds == other._milliseconds)
+
+    def __str__(self):
+        return "{} ms".format(self._milliseconds)

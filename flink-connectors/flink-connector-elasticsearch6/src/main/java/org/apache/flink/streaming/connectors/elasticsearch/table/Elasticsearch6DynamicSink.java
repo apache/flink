@@ -24,6 +24,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink;
 import org.apache.flink.streaming.connectors.elasticsearch6.RestClientFactory;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -45,6 +46,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 
 import javax.annotation.Nullable;
 
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 
@@ -60,12 +62,15 @@ final class Elasticsearch6DynamicSink implements DynamicTableSink {
     private final EncodingFormat<SerializationSchema<RowData>> format;
     private final TableSchema schema;
     private final Elasticsearch6Configuration config;
+    private final ZoneId localTimeZoneId;
+    private final boolean isDynamicIndexWithSystemTime;
 
     public Elasticsearch6DynamicSink(
             EncodingFormat<SerializationSchema<RowData>> format,
             Elasticsearch6Configuration config,
-            TableSchema schema) {
-        this(format, config, schema, (ElasticsearchSink.Builder::new));
+            TableSchema schema,
+            ZoneId localTimeZoneId) {
+        this(format, config, schema, localTimeZoneId, (ElasticsearchSink.Builder::new));
     }
 
     // --------------------------------------------------------------
@@ -90,16 +95,24 @@ final class Elasticsearch6DynamicSink implements DynamicTableSink {
             EncodingFormat<SerializationSchema<RowData>> format,
             Elasticsearch6Configuration config,
             TableSchema schema,
+            ZoneId localTimeZoneId,
             ElasticSearchBuilderProvider builderProvider) {
         this.format = format;
         this.schema = schema;
         this.config = config;
+        this.localTimeZoneId = localTimeZoneId;
+        this.isDynamicIndexWithSystemTime = isDynamicIndexWithSystemTime();
         this.builderProvider = builderProvider;
     }
 
     // --------------------------------------------------------------
     // End of hack to make configuration testing possible
     // --------------------------------------------------------------
+
+    public boolean isDynamicIndexWithSystemTime() {
+        IndexGeneratorFactory.IndexHelper indexHelper = new IndexGeneratorFactory.IndexHelper();
+        return indexHelper.checkIsDynamicIndexWithSystemTimeFormat(config.getIndex());
+    }
 
     @Override
     public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
@@ -108,6 +121,10 @@ final class Elasticsearch6DynamicSink implements DynamicTableSink {
             if (kind != RowKind.UPDATE_BEFORE) {
                 builder.addContainedKind(kind);
             }
+        }
+        if (isDynamicIndexWithSystemTime && !requestedMode.containsOnly(RowKind.INSERT)) {
+            throw new ValidationException(
+                    "Dynamic indexing based on system time only works on append only stream.");
         }
         return builder.build();
     }
@@ -120,7 +137,8 @@ final class Elasticsearch6DynamicSink implements DynamicTableSink {
 
             final RowElasticsearchSinkFunction upsertFunction =
                     new RowElasticsearchSinkFunction(
-                            IndexGeneratorFactory.createIndexGenerator(config.getIndex(), schema),
+                            IndexGeneratorFactory.createIndexGenerator(
+                                    config.getIndex(), schema, localTimeZoneId),
                             config.getDocumentType(),
                             format,
                             XContentType.JSON,

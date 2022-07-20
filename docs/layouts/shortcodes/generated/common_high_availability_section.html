@@ -12,13 +12,13 @@
             <td><h5>high-availability</h5></td>
             <td style="word-wrap: break-word;">"NONE"</td>
             <td>String</td>
-            <td>Defines high-availability mode used for the cluster execution. To enable high-availability, set this mode to "ZOOKEEPER" or specify FQN of factory class.</td>
+            <td>Defines high-availability mode used for cluster execution. To enable high-availability, set this mode to "ZOOKEEPER", "KUBERNETES", or specify the fully qualified name of the factory class.</td>
         </tr>
         <tr>
             <td><h5>high-availability.cluster-id</h5></td>
             <td style="word-wrap: break-word;">"/default"</td>
             <td>String</td>
-            <td>The ID of the Flink cluster, used to separate multiple Flink clusters from each other. Needs to be set for standalone clusters but is automatically inferred in YARN and Mesos.</td>
+            <td>The ID of the Flink cluster, used to separate multiple Flink clusters from each other. Needs to be set for standalone clusters but is automatically inferred in YARN.</td>
         </tr>
         <tr>
             <td><h5>high-availability.storageDir</h5></td>

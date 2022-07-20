@@ -20,8 +20,11 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
 
+import java.util.concurrent.CompletableFuture;
+
 /** A checkpoint ID counter. */
 public interface CheckpointIDCounter {
+    int INITIAL_CHECKPOINT_ID = 1;
 
     /** Starts the {@link CheckpointIDCounter} service down. */
     void start() throws Exception;
@@ -33,8 +36,9 @@ public interface CheckpointIDCounter {
      * or kept.
      *
      * @param jobStatus Job state on shut down
+     * @return The {@code CompletableFuture} holding the result of the shutdown operation.
      */
-    void shutdown(JobStatus jobStatus) throws Exception;
+    CompletableFuture<Void> shutdown(JobStatus jobStatus);
 
     /**
      * Atomically increments the current checkpoint ID.

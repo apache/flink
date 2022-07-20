@@ -38,7 +38,13 @@ public class ExecutionGraphInfo implements Serializable {
     private final Iterable<RootExceptionHistoryEntry> exceptionHistory;
 
     public ExecutionGraphInfo(ArchivedExecutionGraph executionGraph) {
-        this(executionGraph, Collections.emptyList());
+        this(
+                executionGraph,
+                executionGraph.getFailureInfo() != null
+                        ? Collections.singleton(
+                                RootExceptionHistoryEntry.fromGlobalFailure(
+                                        executionGraph.getFailureInfo()))
+                        : Collections.emptyList());
     }
 
     public ExecutionGraphInfo(

@@ -17,10 +17,12 @@
  */
 
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
-import { JobsItemInterface } from 'interfaces';
+import { Router } from '@angular/router';
 import { Observable, Subject } from 'rxjs';
-import { flatMap, share, takeUntil } from 'rxjs/operators';
-import { StatusService, JobService } from 'services';
+import { mergeMap, share, takeUntil } from 'rxjs/operators';
+
+import { JobsItem } from '@flink-runtime-web/interfaces';
+import { JobService, StatusService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-overview',
@@ -29,21 +31,30 @@ import { StatusService, JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OverviewComponent implements OnInit, OnDestroy {
-  jobData$: Observable<JobsItemInterface[]>;
-  destroy$ = new Subject();
+  public jobData$: Observable<JobsItem[]>;
 
-  constructor(private statusService: StatusService, private jobService: JobService) {}
+  private readonly destroy$ = new Subject<void>();
 
-  ngOnInit() {
+  constructor(
+    private readonly statusService: StatusService,
+    private readonly jobService: JobService,
+    private router: Router
+  ) {}
+
+  public ngOnInit(): void {
     this.jobData$ = this.statusService.refresh$.pipe(
       takeUntil(this.destroy$),
-      flatMap(() => this.jobService.loadJobs()),
+      mergeMap(() => this.jobService.loadJobs()),
       share()
     );
   }
 
-  ngOnDestroy() {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  public navigateToJob(commands: string[]): void {
+    this.router.navigate(commands).then();
   }
 }

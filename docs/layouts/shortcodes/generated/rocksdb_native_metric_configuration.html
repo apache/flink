@@ -27,6 +27,18 @@
             <td>Monitor block cache capacity.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.metrics.block-cache-hit</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the total count of block cache hit in RocksDB (BLOCK_CACHE_HIT == BLOCK_CACHE_INDEX_HIT + BLOCK_CACHE_FILTER_HIT + BLOCK_CACHE_DATA_HIT).</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.block-cache-miss</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the total count of block cache misses in RocksDB (BLOCK_CACHE_MISS == BLOCK_CACHE_INDEX_MISS + BLOCK_CACHE_FILTER_MISS + BLOCK_CACHE_DATA_MISS).</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.metrics.block-cache-pinned-usage</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
@@ -39,16 +51,40 @@
             <td>Monitor the memory size for the entries residing in block cache.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.metrics.bytes-read</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the number of uncompressed bytes read (from memtables/cache/sst) from Get() operation in RocksDB.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.bytes-written</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the number of uncompressed bytes written by DB::{Put(), Delete(), Merge(), Write()} operations, which does not include the compaction written bytes, in RocksDB.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.metrics.column-family-as-variable</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Whether to expose the column family as a variable.</td>
+            <td>Whether to expose the column family as a variable for RocksDB property based metrics.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.metrics.compaction-pending</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Track pending compactions in RocksDB. Returns 1 if a compaction is pending, 0 otherwise.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.compaction-read-bytes</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the bytes read during compaction in RocksDB.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.compaction-write-bytes</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the bytes written during compaction in RocksDB.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.metrics.cur-size-active-mem-table</h5></td>
@@ -66,7 +102,7 @@
             <td><h5>state.backend.rocksdb.metrics.estimate-live-data-size</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Estimate of the amount of live data in bytes.</td>
+            <td>Estimate of the amount of live data in bytes (usually smaller than sst files size due to space amplification).</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.metrics.estimate-num-keys</h5></td>
@@ -91,6 +127,18 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Track whether write has been stopped in RocksDB. Returns 1 if write has been stopped, 0 otherwise.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.iter-bytes-read</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the number of uncompressed bytes read (from memtables/cache/sst) from an iterator operation in RocksDB.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.live-sst-files-size</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the total size (bytes) of all SST files belonging to the latest version.WARNING: may slow down online queries if there are too many files.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.metrics.mem-table-flush-pending</h5></td>
@@ -159,10 +207,16 @@
             <td>Monitor the approximate size of the active, unflushed immutable, and pinned immutable memtables in bytes.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.metrics.stall-micros</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the duration of writer requiring to wait for compaction or flush to finish in RocksDB.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.metrics.total-sst-files-size</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Monitor the total size (bytes) of all SST files.WARNING: may slow down online queries if there are too many files.</td>
+            <td>Monitor the total size (bytes) of all SST files of all versions.WARNING: may slow down online queries if there are too many files.</td>
         </tr>
     </tbody>
 </table>
