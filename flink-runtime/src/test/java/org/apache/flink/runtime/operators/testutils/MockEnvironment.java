@@ -57,7 +57,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.concurrent.Executors;
 
-import com.sun.istack.NotNull;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
 import java.util.LinkedList;
