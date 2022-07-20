@@ -403,6 +403,42 @@ class SpeculativeSchedulerTest {
         assertThat(scheduler.getNumSlowExecutionVertices()).isZero();
     }
 
+    @Test
+    void testEffectiveSpeculativeExecutionsMetric() {
+        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
+        final Execution attempt1 = ev.getCurrentExecutionAttempt();
+
+        notifySlowTask(scheduler, attempt1);
+
+        // numEffectiveSpeculativeExecutions will increase if a speculative execution attempt
+        // finishes first
+        final Execution attempt2 = getExecution(ev, 1);
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(attempt2.getAttemptId(), ExecutionState.FINISHED));
+        assertThat(scheduler.getNumEffectiveSpeculativeExecutions()).isEqualTo(1);
+
+        // complete cancellation
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(attempt1.getAttemptId(), ExecutionState.CANCELED));
+
+        // trigger a global failure to reset the vertex.
+        // after that, no speculative execution finishes before its original execution and the
+        // numEffectiveSpeculativeExecutions will be decreased accordingly.
+        scheduler.handleGlobalFailure(new Exception());
+        taskRestartExecutor.triggerScheduledTasks();
+        assertThat(scheduler.getNumEffectiveSpeculativeExecutions()).isZero();
+
+        final Execution attempt3 = getExecution(ev, 2);
+        notifySlowTask(scheduler, attempt3);
+
+        // numEffectiveSpeculativeExecutions will not increase if an original execution attempt
+        // finishes first
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(attempt3.getAttemptId(), ExecutionState.FINISHED));
+        assertThat(scheduler.getNumEffectiveSpeculativeExecutions()).isZero();
+    }
+
     private static Execution getExecution(ExecutionVertex executionVertex, int attemptNumber) {
         return executionVertex.getCurrentExecutions().stream()
                 .filter(e -> e.getAttemptNumber() == attemptNumber)

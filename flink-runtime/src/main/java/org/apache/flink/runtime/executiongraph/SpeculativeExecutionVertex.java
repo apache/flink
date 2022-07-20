@@ -44,6 +44,8 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
 
     private final Map<ExecutionAttemptID, Execution> currentExecutions;
 
+    private int originalAttemptNumber;
+
     public SpeculativeExecutionVertex(
             ExecutionJobVertex jobVertex,
             int subTaskIndex,
@@ -63,6 +65,7 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
 
         this.currentExecutions = new LinkedHashMap<>();
         this.currentExecutions.put(currentExecution.getAttemptId(), currentExecution);
+        this.originalAttemptNumber = currentExecution.getAttemptNumber();
     }
 
     public boolean containsSources() {
@@ -78,6 +81,14 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
         getExecutionGraphAccessor().registerExecution(newExecution);
         currentExecutions.put(newExecution.getAttemptId(), newExecution);
         return newExecution;
+    }
+
+    /**
+     * Returns whether the given attempt is the original execution attempt of the execution vertex,
+     * i.e. it is created along with the creation of resetting of the execution vertex.
+     */
+    public boolean isOriginalAttempt(int attemptNumber) {
+        return attemptNumber == originalAttemptNumber;
     }
 
     @Override
@@ -138,6 +149,7 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
 
         currentExecutions.clear();
         currentExecutions.put(currentExecution.getAttemptId(), currentExecution);
+        originalAttemptNumber = currentExecution.getAttemptNumber();
     }
 
     @Override

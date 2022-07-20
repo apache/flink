@@ -380,9 +380,11 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     }
 
     protected void resetForNewExecutions(final Collection<ExecutionVertexID> vertices) {
-        vertices.stream()
-                .map(this::getExecutionVertex)
-                .forEach(ExecutionVertex::resetForNewExecution);
+        vertices.stream().forEach(this::resetForNewExecution);
+    }
+
+    protected void resetForNewExecution(final ExecutionVertexID executionVertexId) {
+        getExecutionVertex(executionVertexId).resetForNewExecution();
     }
 
     protected void restoreState(

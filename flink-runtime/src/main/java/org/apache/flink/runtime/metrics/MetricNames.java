@@ -112,4 +112,6 @@ public class MetricNames {
 
     // speculative execution
     public static final String NUM_SLOW_EXECUTION_VERTICES = "numSlowExecutionVertices";
+    public static final String NUM_EFFECTIVE_SPECULATIVE_EXECUTIONS =
+            "numEffectiveSpeculativeExecutions";
 }
