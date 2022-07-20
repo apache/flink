@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * A interface of a split enumerator responsible for the followings: 1. discover the splits for the
+ * An interface of a split enumerator responsible for the followings: 1. discover the splits for the
  * {@link SourceReader} to read. 2. assign the splits to the source reader.
  */
 @Public
