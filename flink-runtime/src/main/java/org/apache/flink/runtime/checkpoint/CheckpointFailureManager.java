@@ -238,8 +238,8 @@ public class CheckpointFailureManager {
             case TASK_FAILURE:
             case TASK_CHECKPOINT_FAILURE:
             case UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE:
+                // there are some edge cases shouldn't be counted as a failure, e.g. shutdown
             case TRIGGER_CHECKPOINT_FAILURE:
-            case FINALIZE_CHECKPOINT_FAILURE:
                 // ignore
                 break;
 
@@ -247,6 +247,7 @@ public class CheckpointFailureManager {
             case CHECKPOINT_ASYNC_EXCEPTION:
             case CHECKPOINT_DECLINED:
             case CHECKPOINT_EXPIRED:
+            case FINALIZE_CHECKPOINT_FAILURE:
                 // we should make sure one checkpoint only be counted once
                 if (checkpointId == UNKNOWN_CHECKPOINT_ID
                         || countedCheckpointIds.add(checkpointId)) {

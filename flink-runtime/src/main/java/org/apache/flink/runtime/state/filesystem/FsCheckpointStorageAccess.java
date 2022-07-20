@@ -113,8 +113,14 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
 
     @Override
     public void initializeBaseLocationsForCheckpoint() throws IOException {
-        fileSystem.mkdirs(sharedStateDirectory);
-        fileSystem.mkdirs(taskOwnedStateDirectory);
+        if (!fileSystem.mkdirs(sharedStateDirectory)) {
+            throw new IOException(
+                    "Failed to create directory for shared state: " + sharedStateDirectory);
+        }
+        if (!fileSystem.mkdirs(taskOwnedStateDirectory)) {
+            throw new IOException(
+                    "Failed to create directory for task owned state: " + taskOwnedStateDirectory);
+        }
     }
 
     @Override
