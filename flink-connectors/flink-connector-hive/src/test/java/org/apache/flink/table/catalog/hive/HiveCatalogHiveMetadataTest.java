@@ -298,11 +298,11 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
                         .collect(Collectors.toList());
 
         final List<CatalogTableStatistics> partitionStatistics =
-                catalog.getTableStatistics(path1, catalogPartitionSpecList);
+                catalog.bulkGetPartitionStatistics(path1, catalogPartitionSpecList);
         assertThat(partitionStatistics.size()).isEqualTo(partitionSpecs.size());
 
         final List<CatalogColumnStatistics> tableColumnStatistics =
-                catalog.getTableColumnStatistics(path1, catalogPartitionSpecList);
+                catalog.bulkGetPartitionColumnStatistics(path1, catalogPartitionSpecList);
 
         assertThat(tableColumnStatistics.size()).isEqualTo(catalogPartitionSpecList.size() + 1);
 

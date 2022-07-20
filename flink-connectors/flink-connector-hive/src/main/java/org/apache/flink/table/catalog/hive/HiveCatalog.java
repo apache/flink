@@ -1742,7 +1742,7 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     @Override
-    public List<CatalogTableStatistics> getTableStatistics(
+    public List<CatalogTableStatistics> bulkGetPartitionStatistics(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException, CatalogException {
 
@@ -1751,9 +1751,7 @@ public class HiveCatalog extends AbstractCatalog {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * @return Partitions and names of partitions
-     */
+    /** @return Partitions and names of partitions. */
     private Tuple3<Table, List<Partition>, List<String>> getTableAndPartitions(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException, CatalogException {
@@ -1780,9 +1778,7 @@ public class HiveCatalog extends AbstractCatalog {
         return Tuple3.of(partitionsNamesTuple2.f0, partitions, partitionsNamesTuple2.f1);
     }
 
-    /**
-     * @return Table and names of partitions.
-     */
+    /** @return Table and names of partitions. */
     private Tuple2<Table, List<String>> getTableAndPartitionsNames(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException {
@@ -1844,7 +1840,7 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     @Override
-    public List<CatalogColumnStatistics> getTableColumnStatistics(
+    public List<CatalogColumnStatistics> bulkGetPartitionColumnStatistics(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException, CatalogException {
 
