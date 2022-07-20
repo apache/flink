@@ -19,9 +19,11 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -37,6 +39,7 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingRes
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionOperations;
@@ -85,6 +88,8 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
     private final BlocklistOperations blocklistOperations;
 
     private final SlowTaskDetector slowTaskDetector;
+
+    private long numSlowExecutionVertices;
 
     public SpeculativeScheduler(
             final Logger log,
@@ -157,8 +162,14 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
 
     @Override
     protected void startSchedulingInternal() {
+        registerMetrics(jobManagerJobMetricGroup);
+
         super.startSchedulingInternal();
         slowTaskDetector.start(getExecutionGraph(), this, getMainThreadExecutor());
+    }
+
+    private void registerMetrics(MetricGroup metricGroup) {
+        metricGroup.gauge(MetricNames.NUM_SLOW_EXECUTION_VERTICES, () -> numSlowExecutionVertices);
     }
 
     @Override
@@ -272,6 +283,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
 
     @Override
     public void notifySlowTasks(Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks) {
+        numSlowExecutionVertices = slowTasks.size();
 
         // add slow nodes to blocklist before scheduling new speculative executions
         blockSlowNodes(slowTasks);
@@ -343,5 +355,10 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                         })
                 .map(TaskManagerLocation::getNodeId)
                 .collect(Collectors.toSet());
+    }
+
+    @VisibleForTesting
+    long getNumSlowExecutionVertices() {
+        return numSlowExecutionVertices;
     }
 }

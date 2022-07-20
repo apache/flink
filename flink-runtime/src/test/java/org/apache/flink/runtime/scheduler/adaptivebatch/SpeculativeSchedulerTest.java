@@ -338,7 +338,7 @@ class SpeculativeSchedulerTest {
     }
 
     @Test
-    public void testSpeculativeExecutionCombinedWithAdaptiveScheduling() throws Exception {
+    void testSpeculativeExecutionCombinedWithAdaptiveScheduling() throws Exception {
         final JobVertex source = createNoOpVertex("source", 1);
         final JobVertex sink = createNoOpVertex("sink", -1);
         sink.connectNewDataSetAsInput(
@@ -383,6 +383,24 @@ class SpeculativeSchedulerTest {
         final Execution sinkAttempt1 = sinkExecutionVertex.getCurrentExecutionAttempt();
         notifySlowTask(scheduler, sinkAttempt1);
         assertThat(sinkExecutionVertex.getCurrentExecutions()).hasSize(2);
+    }
+
+    @Test
+    void testNumSlowExecutionVerticesMetric() {
+        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
+        final Execution attempt1 = ev.getCurrentExecutionAttempt();
+
+        notifySlowTask(scheduler, attempt1);
+        assertThat(scheduler.getNumSlowExecutionVertices()).isEqualTo(1);
+
+        // notify a slow vertex twice
+        notifySlowTask(scheduler, attempt1);
+        assertThat(scheduler.getNumSlowExecutionVertices()).isEqualTo(1);
+
+        // vertex no longer slow
+        scheduler.notifySlowTasks(Collections.emptyMap());
+        assertThat(scheduler.getNumSlowExecutionVertices()).isZero();
     }
 
     private static Execution getExecution(ExecutionVertex executionVertex, int attemptNumber) {
