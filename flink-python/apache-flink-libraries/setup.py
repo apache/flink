@@ -98,7 +98,7 @@ try:
                   file=sys.stderr)
             sys.exit(-1)
         flink_version = VERSION.replace(".dev0", "-SNAPSHOT")
-        flink_version = VERSION.replace("+", "-")
+        flink_version = flink_version.replace("+", "-")
 
         FLINK_HOME = os.path.abspath(
             "../../flink-dist/target/flink-%s-bin/flink-%s" % (flink_version, flink_version))
