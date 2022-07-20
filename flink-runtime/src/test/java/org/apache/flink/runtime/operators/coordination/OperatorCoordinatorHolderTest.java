@@ -27,6 +27,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.EventReceivingTasks.EventWithSubtask;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -458,6 +459,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
                 createCoordinatorHolder(tasks, coordinatorProvider);
 
         assertNotNull(globalFailure);
+        assertTrue(globalFailure instanceof FlinkException);
         globalFailure = null;
     }
 
