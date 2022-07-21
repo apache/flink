@@ -169,35 +169,39 @@ public class Elasticsearch6DynamicSinkITCase extends TestLogger {
 
         String index = "table-api";
         String myType = "MyType";
-        tableEnvironment.executeSql(
-                "CREATE TABLE esTable ("
-                        + "a BIGINT NOT NULL,\n"
-                        + "b TIME,\n"
-                        + "c STRING NOT NULL,\n"
-                        + "d FLOAT,\n"
-                        + "e TINYINT NOT NULL,\n"
-                        + "f DATE,\n"
-                        + "g TIMESTAMP NOT NULL,\n"
-                        + "h as a + 2,\n"
-                        + "PRIMARY KEY (a, g) NOT ENFORCED\n"
-                        + ")\n"
-                        + "WITH (\n"
-                        + String.format("'%s'='%s',\n", "connector", "elasticsearch-6")
-                        + String.format(
-                                "'%s'='%s',\n",
-                                ElasticsearchConnectorOptions.INDEX_OPTION.key(), index)
-                        + String.format(
-                                "'%s'='%s',\n",
-                                ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), myType)
-                        + String.format(
-                                "'%s'='%s',\n",
-                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
-                                elasticsearchContainer.getHttpHostAddress())
-                        + String.format(
-                                "'%s'='%s'\n",
-                                ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION.key(),
-                                "false")
-                        + ")");
+        tableEnvironment
+                .executeSql(
+                        "CREATE TABLE esTable ("
+                                + "a BIGINT NOT NULL,\n"
+                                + "b TIME,\n"
+                                + "c STRING NOT NULL,\n"
+                                + "d FLOAT,\n"
+                                + "e TINYINT NOT NULL,\n"
+                                + "f DATE,\n"
+                                + "g TIMESTAMP NOT NULL,\n"
+                                + "h as a + 2,\n"
+                                + "PRIMARY KEY (a, g) NOT ENFORCED\n"
+                                + ")\n"
+                                + "WITH (\n"
+                                + String.format("'%s'='%s',\n", "connector", "elasticsearch-6")
+                                + String.format(
+                                        "'%s'='%s',\n",
+                                        ElasticsearchConnectorOptions.INDEX_OPTION.key(), index)
+                                + String.format(
+                                        "'%s'='%s',\n",
+                                        ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(),
+                                        myType)
+                                + String.format(
+                                        "'%s'='%s',\n",
+                                        ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                        elasticsearchContainer.getHttpHostAddress())
+                                + String.format(
+                                        "'%s'='%s'\n",
+                                        ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION
+                                                .key(),
+                                        "false")
+                                + ")")
+                .await();
 
         tableEnvironment
                 .fromValues(
@@ -236,33 +240,37 @@ public class Elasticsearch6DynamicSinkITCase extends TestLogger {
 
         String index = "no-primary-key";
         String myType = "MyType";
-        tableEnvironment.executeSql(
-                "CREATE TABLE esTable ("
-                        + "a BIGINT NOT NULL,\n"
-                        + "b TIME,\n"
-                        + "c STRING NOT NULL,\n"
-                        + "d FLOAT,\n"
-                        + "e TINYINT NOT NULL,\n"
-                        + "f DATE,\n"
-                        + "g TIMESTAMP NOT NULL\n"
-                        + ")\n"
-                        + "WITH (\n"
-                        + String.format("'%s'='%s',\n", "connector", "elasticsearch-6")
-                        + String.format(
-                                "'%s'='%s',\n",
-                                ElasticsearchConnectorOptions.INDEX_OPTION.key(), index)
-                        + String.format(
-                                "'%s'='%s',\n",
-                                ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), myType)
-                        + String.format(
-                                "'%s'='%s',\n",
-                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
-                                elasticsearchContainer.getHttpHostAddress())
-                        + String.format(
-                                "'%s'='%s'\n",
-                                ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION.key(),
-                                "false")
-                        + ")");
+        tableEnvironment
+                .executeSql(
+                        "CREATE TABLE esTable ("
+                                + "a BIGINT NOT NULL,\n"
+                                + "b TIME,\n"
+                                + "c STRING NOT NULL,\n"
+                                + "d FLOAT,\n"
+                                + "e TINYINT NOT NULL,\n"
+                                + "f DATE,\n"
+                                + "g TIMESTAMP NOT NULL\n"
+                                + ")\n"
+                                + "WITH (\n"
+                                + String.format("'%s'='%s',\n", "connector", "elasticsearch-6")
+                                + String.format(
+                                        "'%s'='%s',\n",
+                                        ElasticsearchConnectorOptions.INDEX_OPTION.key(), index)
+                                + String.format(
+                                        "'%s'='%s',\n",
+                                        ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(),
+                                        myType)
+                                + String.format(
+                                        "'%s'='%s',\n",
+                                        ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                        elasticsearchContainer.getHttpHostAddress())
+                                + String.format(
+                                        "'%s'='%s'\n",
+                                        ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION
+                                                .key(),
+                                        "false")
+                                + ")")
+                .await();
 
         tableEnvironment
                 .fromValues(
@@ -334,29 +342,33 @@ public class Elasticsearch6DynamicSinkITCase extends TestLogger {
 
         String index = "dynamic-index-{b|yyyy-MM-dd}";
         String myType = "MyType";
-        tableEnvironment.executeSql(
-                "CREATE TABLE esTable ("
-                        + "a BIGINT NOT NULL,\n"
-                        + "b TIMESTAMP NOT NULL,\n"
-                        + "PRIMARY KEY (a) NOT ENFORCED\n"
-                        + ")\n"
-                        + "WITH (\n"
-                        + String.format("'%s'='%s',\n", "connector", "elasticsearch-6")
-                        + String.format(
-                                "'%s'='%s',\n",
-                                ElasticsearchConnectorOptions.INDEX_OPTION.key(), index)
-                        + String.format(
-                                "'%s'='%s',\n",
-                                ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), myType)
-                        + String.format(
-                                "'%s'='%s',\n",
-                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
-                                elasticsearchContainer.getHttpHostAddress())
-                        + String.format(
-                                "'%s'='%s'\n",
-                                ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION.key(),
-                                "false")
-                        + ")");
+        tableEnvironment
+                .executeSql(
+                        "CREATE TABLE esTable ("
+                                + "a BIGINT NOT NULL,\n"
+                                + "b TIMESTAMP NOT NULL,\n"
+                                + "PRIMARY KEY (a) NOT ENFORCED\n"
+                                + ")\n"
+                                + "WITH (\n"
+                                + String.format("'%s'='%s',\n", "connector", "elasticsearch-6")
+                                + String.format(
+                                        "'%s'='%s',\n",
+                                        ElasticsearchConnectorOptions.INDEX_OPTION.key(), index)
+                                + String.format(
+                                        "'%s'='%s',\n",
+                                        ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(),
+                                        myType)
+                                + String.format(
+                                        "'%s'='%s',\n",
+                                        ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                        elasticsearchContainer.getHttpHostAddress())
+                                + String.format(
+                                        "'%s'='%s'\n",
+                                        ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION
+                                                .key(),
+                                        "false")
+                                + ")")
+                .await();
 
         tableEnvironment
                 .fromValues(row(1L, LocalDateTime.parse("2012-12-12T12:12:12")))
