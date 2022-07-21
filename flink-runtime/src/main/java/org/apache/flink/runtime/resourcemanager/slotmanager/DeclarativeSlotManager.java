@@ -566,24 +566,25 @@ public class DeclarativeSlotManager implements SlotManager {
     private int internalTryAllocateSlots(
             JobID jobId, String targetAddress, ResourceRequirement resourceRequirement) {
         final ResourceProfile requiredResource = resourceRequirement.getResourceProfile();
-        Set<TaskManagerSlotInformation> availableSlots =
-                slotTracker.getFreeSlots().stream()
-                        .filter(
-                                slotInfo ->
-                                        !isBlockedTaskManager(
-                                                slotInfo.getTaskManagerConnection()
-                                                        .getResourceID()))
-                        .collect(Collectors.toSet());
+        // Use LinkedHashMap to guarantee order
+        final Map<SlotID, TaskManagerSlotInformation> availableSlots = new LinkedHashMap<>();
+        for (TaskManagerSlotInformation freeSlot : slotTracker.getFreeSlots()) {
+            if (!isBlockedTaskManager(freeSlot.getTaskManagerConnection().getResourceID())) {
+                availableSlots.put(freeSlot.getSlotId(), freeSlot);
+            }
+        }
 
         int numUnfulfilled = 0;
         for (int x = 0; x < resourceRequirement.getNumberOfRequiredSlots(); x++) {
 
             final Optional<TaskManagerSlotInformation> reservedSlot =
                     slotMatchingStrategy.findMatchingSlot(
-                            requiredResource, availableSlots, this::getNumberRegisteredSlotsOf);
+                            requiredResource,
+                            availableSlots.values(),
+                            this::getNumberRegisteredSlotsOf);
             if (reservedSlot.isPresent()) {
                 allocateSlot(reservedSlot.get(), jobId, targetAddress, requiredResource);
-                availableSlots.remove(reservedSlot.get());
+                availableSlots.remove(reservedSlot.get().getSlotId());
             } else {
                 // exit loop early; we won't find a matching slot for this requirement
                 int numRemaining = resourceRequirement.getNumberOfRequiredSlots() - x;
