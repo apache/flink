@@ -29,4 +29,7 @@ public interface SqlGatewayEndpoint {
 
     /** Terminate the endpoint. */
     void stop() throws Exception;
+
+    /** Waits for the server to become terminated. */
+    void awaitTermination() throws Exception;
 }

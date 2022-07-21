@@ -19,7 +19,6 @@
 package org.apache.flink.table.gateway;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
@@ -38,23 +37,19 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.CountDownLatch;
 
 /** Main entry point for the SQL Gateway. */
 public class SqlGateway {
 
     private static final Logger LOG = LoggerFactory.getLogger(SqlGateway.class);
 
-    private final CountDownLatch latch;
-
-    private SessionManager sessionManager;
     private final List<SqlGatewayEndpoint> endpoints;
     private final Properties dynamicConfig;
 
-    public SqlGateway(Properties dynamicConfig) {
-        endpoints = new ArrayList<>();
-        this.latch = new CountDownLatch(1);
+    private SessionManager sessionManager;
 
+    public SqlGateway(Properties dynamicConfig) {
+        this.endpoints = new ArrayList<>();
         this.dynamicConfig = dynamicConfig;
     }
 
@@ -66,9 +61,9 @@ public class SqlGateway {
         sessionManager.start();
         SqlGatewayService sqlGatewayService = new SqlGatewayServiceImpl(sessionManager);
 
-        Configuration conf = context.getFlinkConfig();
         endpoints.addAll(
-                SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint(sqlGatewayService, context.getFlinkConfig()));
+                SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint(
+                        sqlGatewayService, context.getFlinkConfig()));
 
         for (SqlGatewayEndpoint endpoint : endpoints) {
             try {
@@ -82,7 +77,6 @@ public class SqlGateway {
     }
 
     public void stop() {
-        latch.countDown();
         for (SqlGatewayEndpoint endpoint : endpoints) {
             stopEndpointSilently(endpoint);
         }
@@ -96,7 +90,7 @@ public class SqlGateway {
     }
 
     @VisibleForTesting
-   static void startSqlGateway(PrintStream stream, String[] args) {
+    static void startSqlGateway(PrintStream stream, String[] args) {
         SqlGatewayOptions cliOptions = SqlGatewayOptionsParser.parseSqlGatewayOptions(args);
 
         if (cliOptions.isPrintHelp()) {
@@ -108,7 +102,7 @@ public class SqlGateway {
         try {
             Runtime.getRuntime().addShutdownHook(new ShutdownThread(gateway));
             gateway.start();
-            gateway.waitUntilStop();
+            gateway.awaitTermination();
         } catch (Throwable t) {
             // make space in terminal
             stream.println();
@@ -121,8 +115,28 @@ public class SqlGateway {
         }
     }
 
-    private void waitUntilStop() throws Exception {
-        latch.await();
+    /**
+     * Wait all endpoints terminate. In some cases, any of the endpoints get unrecoverable exception
+     * terminate all the running endpoints. If the error is related to the endpoint itself, the
+     * Gateway process should not exit and continue running.
+     *
+     * <p>The current implementation is simplified. If uncaught error happens, terminate the
+     * Gateway.
+     */
+    private void awaitTermination() throws Exception {
+        for (SqlGatewayEndpoint endpoint : endpoints) {
+            try {
+                endpoint.awaitTermination();
+            } catch (Throwable t) {
+                // User uses ctrl + c to cancel the Gateway manually
+                if (t instanceof InterruptedException) {
+                    LOG.info("Caught " + t.getClass().getSimpleName() + ". Shutting down.");
+                    return;
+                } else {
+                    throw t;
+                }
+            }
+        }
     }
 
     private void stopEndpointSilently(SqlGatewayEndpoint endpoint) {

@@ -20,22 +20,25 @@ package org.apache.flink.table.gateway.api.utils;
 
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 
 /** Mocked {@link SqlGatewayEndpoint}. */
 public class MockedSqlGatewayEndpoint implements SqlGatewayEndpoint {
 
-    private static final Map<String, Boolean> RUNNING_ENDPOINTS = new HashMap<>();
+    private static final Set<String> RUNNING_ENDPOINTS = new HashSet<>();
 
     private final String id;
     private final String host;
     private final int port;
     private final String description;
 
+    private final CountDownLatch latch;
+
     public static boolean isRunning(String id) {
-        return RUNNING_ENDPOINTS.getOrDefault(id, false);
+        return RUNNING_ENDPOINTS.contains(id);
     }
 
     public MockedSqlGatewayEndpoint(String id, String host, int port, String description) {
@@ -43,22 +46,28 @@ public class MockedSqlGatewayEndpoint implements SqlGatewayEndpoint {
         this.host = host;
         this.port = port;
         this.description = description;
+        this.latch = new CountDownLatch(1);
 
-        if (RUNNING_ENDPOINTS.getOrDefault(id, false)) {
+        if (RUNNING_ENDPOINTS.contains(id)) {
             throw new IllegalArgumentException(
                     "There are endpoints with the same id is running. Please specify an unique identifier.");
         }
-        RUNNING_ENDPOINTS.put(id, false);
     }
 
     @Override
     public void start() throws Exception {
-        RUNNING_ENDPOINTS.put(id, true);
+        RUNNING_ENDPOINTS.add(id);
     }
 
     @Override
     public void stop() throws Exception {
-        RUNNING_ENDPOINTS.put(id, false);
+        latch.countDown();
+        RUNNING_ENDPOINTS.remove(id);
+    }
+
+    @Override
+    public void awaitTermination() throws Exception {
+        latch.await();
     }
 
     @Override

@@ -20,7 +20,6 @@ package org.apache.flink.table.gateway;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.gateway.api.utils.MockedSqlGatewayEndpoint;
-import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.junit.jupiter.api.AfterEach;
@@ -36,16 +35,12 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ThreadFactory;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Tests for the {@link SqlGateway}. */
 public class SqlGatewayTest {
-
-    private final ThreadFactory threadFactory =
-            new ExecutorThreadFactory("SqlGateway-thread-pool", IgnoreExceptionHandler.INSTANCE);
 
     private Map<String, String> originalEnv;
     private ByteArrayOutputStream output;
@@ -80,15 +75,14 @@ public class SqlGatewayTest {
         String[] args = new String[] {"--help"};
         SqlGateway.startSqlGateway(new PrintStream(output), args);
 
-        assertEquals(
-                "\n"
-                        + "Start the Flink SQL Gateway as a daemon to submit Flink SQL.\n"
-                        + "\n"
-                        + "  Syntax: start [OPTIONS]\n"
-                        + "     -D <property=value>   use value for given property\n"
-                        + "     -h,--help             Show the help message with descriptions of all\n"
-                        + "                           options.\n\n",
-                output.toString());
+        assertThat(output.toString())
+                .contains(
+                        "Start the Flink SQL Gateway as a daemon to submit Flink SQL.\n"
+                                + "\n"
+                                + "  Syntax: start [OPTIONS]\n"
+                                + "     -D <property=value>   use value for given property\n"
+                                + "     -h,--help             Show the help message with descriptions of all\n"
+                                + "                           options.\n\n");
     }
 
     @Test
@@ -101,9 +95,12 @@ public class SqlGatewayTest {
                     "-Dsql-gateway.endpoint.mocked.host=localhost",
                     "-Dsql-gateway.endpoint.mocked.port=9999"
                 };
+        PrintStream stream = new PrintStream(output);
         Thread thread =
-                threadFactory.newThread(
-                        () -> SqlGateway.startSqlGateway(new PrintStream(output), args));
+                new ExecutorThreadFactory(
+                                "SqlGateway-thread-pool",
+                                (t, exception) -> exception.printStackTrace(stream))
+                        .newThread(() -> SqlGateway.startSqlGateway(stream, args));
         thread.start();
 
         CommonTestUtils.waitUtil(
@@ -112,5 +109,12 @@ public class SqlGatewayTest {
                 "Failed to get the endpoint starts.");
 
         thread.interrupt();
+        CommonTestUtils.waitUtil(
+                () -> !thread.isAlive(),
+                Duration.ofSeconds(10),
+                "Failed to get the endpoint starts.");
+        assertThat(output.toString())
+                .doesNotContain(
+                        "Unexpected exception. This is a bug. Please consider filing an issue.");
     }
 }

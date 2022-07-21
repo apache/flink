@@ -32,4 +32,7 @@ public class FakeSqlGatewayEndpoint implements SqlGatewayEndpoint {
 
     @Override
     public void stop() throws Exception {}
+
+    @Override
+    public void awaitTermination() throws Exception {}
 }
