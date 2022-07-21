@@ -23,6 +23,8 @@ import org.apache.kafka.clients.admin.TopicDescription;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /** The base implementations of {@link KafkaSubscriber}. */
 class KafkaSubscriberUtils {
@@ -32,6 +34,27 @@ class KafkaSubscriberUtils {
     static Map<String, TopicDescription> getAllTopicMetadata(AdminClient adminClient) {
         try {
             Set<String> allTopicNames = adminClient.listTopics().names().get();
+            return getTopicMetadata(adminClient, allTopicNames);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to get metadata for all topics.", e);
+        }
+    }
+
+    /**
+     * The difference between this method and the getAllTopicMetadata method is that it filters out
+     * topics that meet regular matches.
+     *
+     * @param adminClient admin clients
+     * @param topicPattern Pattern
+     * @return Map containing the topic name TopicDescription key-value pairs
+     */
+    static Map<String, TopicDescription> getAllPatternTopicMetadata(
+            AdminClient adminClient, Pattern topicPattern) {
+        try {
+            Set<String> allTopicNames =
+                    adminClient.listTopics().names().get().stream()
+                            .filter(topicName -> topicPattern.matcher(topicName).matches())
+                            .collect(Collectors.toSet());
             return getTopicMetadata(adminClient, allTopicNames);
         } catch (Exception e) {
             throw new RuntimeException("Failed to get metadata for all topics.", e);
