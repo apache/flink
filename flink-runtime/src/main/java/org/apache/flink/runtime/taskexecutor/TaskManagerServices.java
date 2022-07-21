@@ -414,6 +414,8 @@ public class TaskManagerServices {
                         taskManagerServicesConfiguration.getNetworkMemorySize(),
                         taskManagerServicesConfiguration.isLocalCommunicationOnly(),
                         taskManagerServicesConfiguration.getBindAddress(),
+                        taskManagerServicesConfiguration.getNumberOfSlots(),
+                        taskManagerServicesConfiguration.getTmpDirPaths(),
                         taskEventDispatcher,
                         taskManagerMetricGroup,
                         ioExecutor);
