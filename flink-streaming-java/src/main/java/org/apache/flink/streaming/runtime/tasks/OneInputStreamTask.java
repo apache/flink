@@ -53,6 +53,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.apache.flink.streaming.api.graph.StreamConfig.requiresSorting;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -91,6 +92,11 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         super(env, timeProvider);
     }
 
+    @VisibleForTesting
+    public WatermarkGauge getInputWatermarkGauge() {
+        return inputWatermarkGauge;
+    }
+
     @Override
     public void init() throws Exception {
         StreamConfig configuration = getConfiguration();
@@ -99,7 +105,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         if (numberOfInputs > 0) {
             CheckpointedInputGate inputGate = createCheckpointedInputGate();
             Counter numRecordsIn = setupNumRecordsInCounter(mainOperator);
-            DataOutput<IN> output = createDataOutput(numRecordsIn);
+            DataOutput<IN> output = createDataOutput(numRecordsIn, configuration.getVertexID());
             StreamTaskInput<IN> input = createTaskInput(inputGate);
 
             StreamConfig.InputConfig[] inputConfigs =
@@ -178,11 +184,12 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         return Iterables.getOnlyElement(Arrays.asList(checkpointedInputGates));
     }
 
-    private DataOutput<IN> createDataOutput(Counter numRecordsIn) {
+    private DataOutput<IN> createDataOutput(Counter numRecordsIn, Integer jobVertexID) {
         return new StreamTaskNetworkOutput<>(
                 operatorChain.getFinishedOnRestoreInputOrDefault(mainOperator),
                 inputWatermarkGauge,
-                numRecordsIn);
+                numRecordsIn,
+                jobVertexID);
     }
 
     private StreamTaskInput<IN> createTaskInput(CheckpointedInputGate inputGate) {
@@ -207,6 +214,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                 getEnvironment().getTaskInfo());
     }
 
+    private static final List<StreamTaskNetworkOutput> outputList = new CopyOnWriteArrayList<>();
+
     /**
      * The network data output implementation used for processing stream elements from {@link
      * StreamTaskNetworkInput} in one input processor.
@@ -218,12 +227,20 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         private final WatermarkGauge watermarkGauge;
         private final Counter numRecordsIn;
 
+        private final Integer jobVertexID;
+
         private StreamTaskNetworkOutput(
-                Input<IN> operator, WatermarkGauge watermarkGauge, Counter numRecordsIn) {
+                Input<IN> operator,
+                WatermarkGauge watermarkGauge,
+                Counter numRecordsIn,
+                Integer jobVertexID) {
 
             this.operator = checkNotNull(operator);
             this.watermarkGauge = checkNotNull(watermarkGauge);
             this.numRecordsIn = checkNotNull(numRecordsIn);
+            this.jobVertexID = checkNotNull(jobVertexID);
+
+            outputList.add(this);
         }
 
         @Override
@@ -235,7 +252,12 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
         @Override
         public void emitWatermark(Watermark watermark) throws Exception {
-            watermarkGauge.setCurrentWatermark(watermark.getTimestamp());
+            outputList.stream()
+                    .filter(output -> output.jobVertexID.equals(jobVertexID))
+                    .forEach(
+                            output ->
+                                    output.watermarkGauge.setCurrentWatermark(
+                                            watermark.getTimestamp()));
             operator.processWatermark(watermark);
         }
 

@@ -147,6 +147,73 @@ public class OneInputStreamTaskTest extends TestLogger {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
     }
 
+    /** This test verifies that across multiple OneInputStreams update watermark. */
+    @Test
+    public void testWatermarkForwardingAcrossStatusWatermarkValve() throws Exception {
+        // OneInputStreamTaskTestHarness 1
+        final OneInputStreamTaskTestHarness<String, String> testHarness =
+                new OneInputStreamTaskTestHarness<>(
+                        OneInputStreamTask::new,
+                        2,
+                        2,
+                        BasicTypeInfo.STRING_TYPE_INFO,
+                        BasicTypeInfo.STRING_TYPE_INFO);
+        testHarness.setupOutputForSingletonOperatorChain();
+
+        StreamConfig streamConfig = testHarness.getStreamConfig();
+        StreamMap<String, String> mapOperator = new StreamMap<>(new IdentityMap());
+        streamConfig.setStreamOperator(mapOperator);
+        streamConfig.setOperatorID(new OperatorID());
+
+        testHarness.invoke();
+        testHarness.waitForTaskRunning();
+
+        // OneInputStreamTaskTestHarness 2
+        final OneInputStreamTaskTestHarness<String, String> testHarness2 =
+                new OneInputStreamTaskTestHarness<>(
+                        OneInputStreamTask::new,
+                        2,
+                        2,
+                        BasicTypeInfo.STRING_TYPE_INFO,
+                        BasicTypeInfo.STRING_TYPE_INFO);
+        testHarness2.setupOutputForSingletonOperatorChain();
+
+        StreamConfig streamConfig2 = testHarness2.getStreamConfig();
+        StreamMap<String, String> mapOperator2 = new StreamMap<>(new IdentityMap());
+        streamConfig2.setStreamOperator(mapOperator2);
+        streamConfig2.setOperatorID(new OperatorID());
+
+        testHarness2.invoke();
+        testHarness.waitForTaskRunning();
+
+        long initialTime = 0L;
+
+        testHarness.processElement(new Watermark(initialTime), 0, 0);
+        testHarness.processElement(new Watermark(initialTime + 1), 0, 1);
+        testHarness.processElement(new Watermark(initialTime), 1, 0);
+        testHarness.processElement(WatermarkStatus.IDLE, 1, 1);
+
+        testHarness.waitForInputProcessing();
+        testHarness2.waitForInputProcessing();
+        Assert.assertEquals(
+                0L, testHarness.getTask().getInputWatermarkGauge().getValue().longValue());
+        Assert.assertEquals(
+                0L, testHarness2.getTask().getInputWatermarkGauge().getValue().longValue());
+
+        testHarness2.processElement(new Watermark(initialTime + 3), 0, 1);
+        testHarness2.processElement(new Watermark(initialTime + 4), 0, 0);
+        testHarness2.processElement(WatermarkStatus.IDLE, 1, 0);
+        testHarness2.processElement(WatermarkStatus.IDLE, 1, 1);
+
+        testHarness.waitForInputProcessing();
+        testHarness2.waitForInputProcessing();
+
+        Assert.assertEquals(
+                3L, testHarness.getTask().getInputWatermarkGauge().getValue().longValue());
+        Assert.assertEquals(
+                3L, testHarness2.getTask().getInputWatermarkGauge().getValue().longValue());
+    }
+
     /**
      * This test verifies that watermarks and watermark statuses are correctly forwarded. This also
      * checks whether watermarks are forwarded only when we have received watermarks from all

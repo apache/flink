@@ -26,7 +26,9 @@ public class WatermarkGauge implements Gauge<Long> {
     private volatile long currentWatermark = Long.MIN_VALUE;
 
     public void setCurrentWatermark(long watermark) {
-        currentWatermark = watermark;
+        if (watermark > currentWatermark) {
+            currentWatermark = watermark;
+        }
     }
 
     @Override
