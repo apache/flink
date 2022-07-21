@@ -399,6 +399,23 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                                     SqlTypeFamily.INTEGER)),
                     SqlFunctionCategory.STRING);
 
+    public static final SqlFunction SUBSTRING_INDEX =
+            new SqlFunction(
+                    "SUBSTRING_INDEX",
+                    SqlKind.OTHER_FUNCTION,
+                    VARCHAR_FORCE_NULLABLE,
+                    null,
+                    OperandTypes.or(
+                            OperandTypes.family(
+                                    SqlTypeFamily.STRING,
+                                    SqlTypeFamily.INTEGER,
+                                    SqlTypeFamily.INTEGER),
+                            OperandTypes.family(
+                                    SqlTypeFamily.STRING,
+                                    SqlTypeFamily.STRING,
+                                    SqlTypeFamily.INTEGER)),
+                    SqlFunctionCategory.STRING);
+
     public static final SqlFunction REGEXP_REPLACE =
             new SqlFunction(
                     "REGEXP_REPLACE",

@@ -662,6 +662,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     }
   }
 
+
+
   @Test
   def testLPad(): Unit = {
     testSqlApi("lpad(f33,1,'??')", "NULL")
@@ -873,6 +875,19 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("split_index(CAST(null as VARCHAR), 'e', 1)", "NULL")
     testSqlApi("split_index('test', CAST(null as VARCHAR), 1)", "NULL")
     testSqlApi("split_index('test', 'e', -1)", "NULL")
+  }
+
+  @Test
+  def testSubstringIndex(): Unit = {
+    testSqlApi("substring_index('www.apache.org', '2' , -4)", "www.apache.org")
+    testSqlApi("substring_index('www.apache.org', '.' , -3)", "www.apache.org")
+    testSqlApi("substring_index('www.apache.org', '.' , -2)", "apache.org")
+    testSqlApi("substring_index('www.apache.org', '.' , -1)", "org")
+    testSqlApi("substring_index('www.apache.org', '.' , 0)", "")
+    testSqlApi("substring_index('www.apache.org', '.' , 1)", "www")
+    testSqlApi("substring_index('www.apache.org', '.' , 2)", "www.apache")
+    testSqlApi("substring_index('www.apache.org', '.' , 3)", "www.apache.org")
+    testSqlApi("substring_index('www.apache.org', '.' , 4)", "www.apache.org")
   }
 
   @Test

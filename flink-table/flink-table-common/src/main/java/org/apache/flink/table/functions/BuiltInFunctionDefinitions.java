@@ -930,6 +930,18 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
                     .build();
 
+    public static final BuiltInFunctionDefinition SUBSTRING_INDEX =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("substringIndex")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                    logical(LogicalTypeRoot.INTEGER)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .build();
+
     public static final BuiltInFunctionDefinition STR_TO_MAP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("strToMap")

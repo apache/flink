@@ -163,6 +163,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STDDEV
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STR_TO_MAP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUBSTR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUBSTRING;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUBSTRING_INDEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUM0;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TAN;
@@ -1172,6 +1173,22 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(
                 unresolvedCall(
                         SPLIT_INDEX,
+                        toExpr(),
+                        objectToExpression(separator),
+                        objectToExpression(index)));
+    }
+
+    /**
+     * Returns the substring of expr before count occurrences of the delimiter delim.
+     *
+     * @param separator An expression matching the type of expr specifying the delimiter.
+     * @param index index of the result which you want.
+     * @return The result matches the type of expr.
+     */
+    public OutType substringIndex(InType separator, InType index) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        SUBSTRING_INDEX,
                         toExpr(),
                         objectToExpression(separator),
                         objectToExpression(index)));

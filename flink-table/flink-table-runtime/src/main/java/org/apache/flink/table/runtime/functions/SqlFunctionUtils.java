@@ -417,6 +417,37 @@ public class SqlFunctionUtils {
     }
 
     /**
+     * Returns the substring of expr before count occurrences of the delimiter delim.
+     *
+     * @param str target string.
+     * @param delim An expression matching the type of expr specifying the delimiter.
+     * @param index An INTEGER expression to count the delimiters.
+     * @return
+     * The result matches the type of expr.
+     * If count is positive, everything to the left of the final delimiter (counting from the left) is returned.
+     * If count is negative, everything to the right of the final delimiter (counting from the right) is returned.
+     */
+    public static String substringIndex(String str, String delim, int index) {
+        String[] values = StringUtils.splitByWholeSeparatorPreserveAllTokens(str, delim);
+
+        int startIndex = 0;
+        int endIndex = 0;
+
+        if (Math.abs(index) > values.length) {
+            startIndex = 0;
+            endIndex = values.length;
+        } else if (index > 0) {
+            startIndex = 0;
+            endIndex = index;
+        } else if (index < 0) {
+            startIndex = values.length + index;
+            endIndex = values.length;
+        }
+
+        return StringUtils.join(values, delim, startIndex, endIndex);
+    }
+
+    /**
      * Returns a string resulting from replacing all substrings that match the regular expression
      * with replacement.
      */

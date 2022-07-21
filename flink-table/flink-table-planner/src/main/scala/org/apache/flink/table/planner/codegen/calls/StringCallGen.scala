@@ -112,6 +112,8 @@ object StringCallGen {
 
       case SPLIT_INDEX => generateSplitIndex(ctx, operands, returnType)
 
+      case SUBSTRING_INDEX => generateSubstringIndex(ctx, operands, returnType)
+
       case HASH_CODE if isCharacterString(operands.head.resultType) =>
         generateHashCode(ctx, operands, returnType)
 
@@ -556,6 +558,16 @@ object StringCallGen {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
       terms => s"$className.splitIndex(${toStringTerms(terms, operands)})"
+    }
+  }
+
+  def generateSubstringIndex(
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
+    val className = classOf[SqlFunctionUtils].getCanonicalName
+    generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
+      terms => s"$className.substringIndex(${toStringTerms(terms, operands)})"
     }
   }
 
