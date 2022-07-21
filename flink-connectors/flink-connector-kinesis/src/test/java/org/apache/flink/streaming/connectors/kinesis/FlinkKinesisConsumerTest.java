@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
@@ -25,9 +24,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -58,6 +55,7 @@ import org.apache.flink.streaming.connectors.kinesis.util.RecordEmitter;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.CollectingSourceContext;
+import org.apache.flink.types.PojoTestUtils;
 import org.apache.flink.util.TestLogger;
 
 import com.amazonaws.services.kinesis.model.HashKeyRange;
@@ -633,10 +631,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 
     @Test
     public void testStreamShardMetadataSerializedUsingPojoSerializer() {
-        TypeInformation<StreamShardMetadata> typeInformation =
-                TypeInformation.of(StreamShardMetadata.class);
-        assertThat(typeInformation.createSerializer(new ExecutionConfig()))
-                .isInstanceOf(PojoSerializer.class);
+        PojoTestUtils.assertSerializedAsPojo(StreamShardMetadata.class);
     }
 
     /**
