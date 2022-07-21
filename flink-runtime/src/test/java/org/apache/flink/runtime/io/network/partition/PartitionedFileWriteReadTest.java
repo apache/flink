@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.CompositeBuffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.util.IOUtils;
@@ -36,14 +37,13 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for writing and reading {@link PartitionedFile} with {@link PartitionedFileWriter} and
@@ -112,20 +112,49 @@ public class PartitionedFileWriteReadTest {
                     new PartitionedFileReader(
                             partitionedFile, subpartition, dataFileChannel, indexFileChannel);
             while (fileReader.hasRemaining()) {
-                MemorySegment readBuffer = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
-                Buffer buffer = fileReader.readCurrentRegion(readBuffer, (buf) -> {});
-                buffersRead[subpartition].add(buffer);
+                final int subIndex = subpartition;
+                fileReader.readCurrentRegion(
+                        allocateBuffers(bufferSize),
+                        FreeingBufferRecycler.INSTANCE,
+                        buffer -> addReadBuffer(buffer, buffersRead[subIndex]));
             }
         }
         IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
 
         for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
-            assertEquals(buffersWritten[subpartition].size(), buffersRead[subpartition].size());
+            assertThat(buffersWritten[subpartition].size())
+                    .isEqualTo(buffersRead[subpartition].size());
             for (int i = 0; i < buffersWritten[subpartition].size(); ++i) {
                 assertBufferEquals(
                         buffersWritten[subpartition].get(i), buffersRead[subpartition].get(i));
             }
         }
+    }
+
+    private void addReadBuffer(Buffer buffer, List<Buffer> buffersRead) {
+        int numBytes = buffer.readableBytes();
+        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(numBytes);
+        Buffer fullBuffer =
+                ((CompositeBuffer) buffer)
+                        .getFullBufferData(MemorySegmentFactory.allocateUnpooledSegment(numBytes));
+        segment.put(0, fullBuffer.getNioBufferReadable(), fullBuffer.readableBytes());
+        buffersRead.add(
+                new NetworkBuffer(
+                        segment,
+                        ignore -> {},
+                        fullBuffer.getDataType(),
+                        fullBuffer.isCompressed(),
+                        fullBuffer.readableBytes()));
+        fullBuffer.recycleBuffer();
+    }
+
+    private static Queue<MemorySegment> allocateBuffers(int bufferSize) {
+        int numBuffers = 2;
+        Queue<MemorySegment> readBuffers = new LinkedList<>();
+        while (numBuffers-- > 0) {
+            readBuffers.add(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
+        }
+        return readBuffers;
     }
 
     @Test
@@ -136,8 +165,10 @@ public class PartitionedFileWriteReadTest {
         Random random = new Random(1111);
 
         Queue<Buffer>[] subpartitionBuffers = new ArrayDeque[numSubpartitions];
+        List<Buffer>[] buffersRead = new List[numSubpartitions];
         for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
             subpartitionBuffers[subpartition] = new ArrayDeque<>();
+            buffersRead[subpartition] = new ArrayList<>();
         }
 
         PartitionedFileWriter fileWriter = createPartitionedFileWriter(numSubpartitions);
@@ -159,19 +190,24 @@ public class PartitionedFileWriteReadTest {
             PartitionedFileReader fileReader =
                     new PartitionedFileReader(
                             partitionedFile, subpartition, dataFileChannel, indexFileChannel);
+            int bufferIndex = 0;
             while (fileReader.hasRemaining()) {
-                MemorySegment readBuffer = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
-                Buffer buffer = checkNotNull(fileReader.readCurrentRegion(readBuffer, (buf) -> {}));
+                final int subIndex = subpartition;
+                fileReader.readCurrentRegion(
+                        allocateBuffers(bufferSize),
+                        FreeingBufferRecycler.INSTANCE,
+                        buffer -> addReadBuffer(buffer, buffersRead[subIndex]));
+                Buffer buffer = buffersRead[subIndex].get(bufferIndex++);
                 assertBufferEquals(checkNotNull(subpartitionBuffers[subpartition].poll()), buffer);
             }
-            assertTrue(subpartitionBuffers[subpartition].isEmpty());
+            assertThat(subpartitionBuffers[subpartition]).isEmpty();
         }
         IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
     }
 
     private void assertBufferEquals(Buffer expected, Buffer actual) {
-        assertEquals(expected.getDataType(), actual.getDataType());
-        assertEquals(expected.getNioBufferReadable(), actual.getNioBufferReadable());
+        assertThat(expected.getDataType()).isEqualTo(actual.getDataType());
+        assertThat(expected.getNioBufferReadable()).isEqualTo(actual.getNioBufferReadable());
     }
 
     private Buffer createBuffer(Random random, int bufferSize) {
@@ -221,15 +257,27 @@ public class PartitionedFileWriteReadTest {
 
     @Test
     public void testReadEmptyPartitionedFile() throws Exception {
+        int bufferSize = 1024;
+        int numSubpartitions = 2;
+        int targetSubpartition = 1;
         PartitionedFile partitionedFile = createPartitionedFile();
+
+        List<Buffer>[] buffersRead = new List[numSubpartitions];
+        for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
+            buffersRead[subpartition] = new ArrayList<>();
+        }
 
         FileChannel dataFileChannel = openFileChannel(partitionedFile.getDataFilePath());
         FileChannel indexFileChannel = openFileChannel(partitionedFile.getIndexFilePath());
         PartitionedFileReader partitionedFileReader =
-                new PartitionedFileReader(partitionedFile, 1, dataFileChannel, indexFileChannel);
-        MemorySegment target = MemorySegmentFactory.allocateUnpooledSegment(1024);
+                new PartitionedFileReader(
+                        partitionedFile, targetSubpartition, dataFileChannel, indexFileChannel);
 
-        assertNull(partitionedFileReader.readCurrentRegion(target, FreeingBufferRecycler.INSTANCE));
+        partitionedFileReader.readCurrentRegion(
+                allocateBuffers(bufferSize),
+                FreeingBufferRecycler.INSTANCE,
+                buffer -> addReadBuffer(buffer, buffersRead[targetSubpartition]));
+        assertThat(buffersRead[targetSubpartition]).isEmpty();
         IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
     }
 
