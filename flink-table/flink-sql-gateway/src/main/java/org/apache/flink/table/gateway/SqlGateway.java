@@ -53,7 +53,7 @@ public class SqlGateway {
 
     public SqlGateway(Properties dynamicConfig) {
         endpoints = new ArrayList<>();
-        latch = new CountDownLatch(1);
+        this.latch = new CountDownLatch(1);
 
         this.dynamicConfig = dynamicConfig;
     }
@@ -68,7 +68,7 @@ public class SqlGateway {
 
         Configuration conf = context.getFlinkConfig();
         endpoints.addAll(
-                SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint(sqlGatewayService, conf));
+                SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint(sqlGatewayService, context.getFlinkConfig()));
 
         for (SqlGatewayEndpoint endpoint : endpoints) {
             try {
@@ -96,7 +96,7 @@ public class SqlGateway {
     }
 
     @VisibleForTesting
-    public static void startSqlGateway(PrintStream stream, String[] args) {
+   static void startSqlGateway(PrintStream stream, String[] args) {
         SqlGatewayOptions cliOptions = SqlGatewayOptionsParser.parseSqlGatewayOptions(args);
 
         if (cliOptions.isPrintHelp()) {
@@ -156,8 +156,8 @@ public class SqlGateway {
                 System.out.println("Failed to shut down the Flink SqlGateway: " + e.getMessage());
             }
 
-            LOG.info("Flink SqlServer has been shutdown.");
-            System.out.println("Flink SqlServer has been shutdown.");
+            LOG.info("Flink SqlGateway has been shutdown.");
+            System.out.println("Flink SqlGateway has been shutdown.");
         }
     }
 }
