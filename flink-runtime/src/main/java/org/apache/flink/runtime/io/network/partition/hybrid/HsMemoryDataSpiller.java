@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.network.partition.hybrid;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndex.SpilledBuffer;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FatalExitExceptionHandler;
 
 import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -41,7 +43,15 @@ public class HsMemoryDataSpiller implements AutoCloseable {
     /** One thread to perform spill operation. */
     private final ExecutorService ioExecutor =
             Executors.newSingleThreadScheduledExecutor(
-                    new ThreadFactoryBuilder().setNameFormat("hybrid spiller thread").build());
+                    new ThreadFactoryBuilder()
+                            .setNameFormat("hybrid spiller thread")
+                            // It is more appropriate to use task fail over than exit JVM here,
+                            // but the task thread will bring some extra overhead to check the
+                            // exception information set by other thread. As the spiller thread will
+                            // not encounter exceptions in most cases, we temporarily choose the
+                            // form of fatal error to deal except thrown by spiller thread.
+                            .setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE)
+                            .build());
 
     /** File channel to write data. */
     private final FileChannel dataFileChannel;
@@ -81,8 +91,9 @@ public class HsMemoryDataSpiller implements AutoCloseable {
             // which controls data's life cycle.
             // TODO update file data index and handle buffers release in future ticket.
             spilledFuture.complete(spilledBuffers);
-        } catch (Throwable t) {
-            spilledFuture.completeExceptionally(t);
+        } catch (IOException exception) {
+            // if spilling is failed, throw exception directly to uncaughtExceptionHandler.
+            ExceptionUtils.rethrow(exception);
         }
     }
 
