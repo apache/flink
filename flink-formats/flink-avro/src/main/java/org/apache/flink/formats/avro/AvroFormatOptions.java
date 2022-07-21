@@ -32,5 +32,12 @@ public class AvroFormatOptions {
                     .noDefaultValue()
                     .withDescription("The compression codec for avro");
 
+    public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS =
+            ConfigOptions.key("ignore-parse-errors")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Optional flag to skip rows with parse errors instead of failing; false by default.");
+
     private AvroFormatOptions() {}
 }

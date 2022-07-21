@@ -57,6 +57,9 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
     /** Runtime instance that performs the actual work. */
     private final AvroToRowDataConverters.AvroToRowDataConverter runtimeConverter;
 
+    /** Flag indicating whether to ignore invalid rows (default: throw an exception). */
+    private boolean ignoreParseErrors = false;
+
     /**
      * Creates a Avro deserialization schema for the given logical type.
      *
@@ -69,6 +72,21 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
                 AvroDeserializationSchema.forGeneric(AvroSchemaConverter.convertToSchema(rowType)),
                 AvroToRowDataConverters.createRowConverter(rowType),
                 typeInfo);
+    }
+
+    /**
+     * Creates a Avro deserialization schema for the given logical type.
+     *
+     * @param rowType The logical type used to deserialize the data.
+     * @param typeInfo The TypeInformation to be used by {@link
+     *     AvroRowDataDeserializationSchema#getProducedType()}.
+     */
+    public AvroRowDataDeserializationSchema(RowType rowType, TypeInformation<RowData> typeInfo, boolean ignoreParseErrors) {
+        this(
+                AvroDeserializationSchema.forGeneric(AvroSchemaConverter.convertToSchema(rowType)),
+                AvroToRowDataConverters.createRowConverter(rowType),
+                typeInfo);
+        this.ignoreParseErrors = ignoreParseErrors;
     }
 
     /**
@@ -103,6 +121,9 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
             GenericRecord deserialize = nestedSchema.deserialize(message);
             return (RowData) runtimeConverter.convert(deserialize);
         } catch (Exception e) {
+            if (ignoreParseErrors) {
+                return null;
+            }
             throw new IOException("Failed to deserialize Avro record.", e);
         }
     }

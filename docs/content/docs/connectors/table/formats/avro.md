@@ -85,6 +85,13 @@ Format Options
       <td>String</td>
       <td>For <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a> only, the compression codec for avro. No compression as default. The valid enumerations are: deflate, snappy, bzip2, xz.</td>
     </tr>
+    <tr>
+      <td><h5>avro.ignore-parse-errors</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Skip rows with parse errors instead of failing.</td>
+    </tr>
     </tbody>
 </table>
 
