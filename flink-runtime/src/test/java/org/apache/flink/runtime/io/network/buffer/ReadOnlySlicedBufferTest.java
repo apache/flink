@@ -26,12 +26,12 @@ import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ReadOnlyBufferException;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -66,14 +66,20 @@ public class ReadOnlySlicedBufferTest {
         assertEquals(eventBuffer.isBuffer(), eventBuffer.readOnlySlice(1, 2).isBuffer());
     }
 
-    @Test(expected = ReadOnlyBufferException.class)
-    public void testSetDataTypeThrows1() {
-        buffer.readOnlySlice().setDataType(Buffer.DataType.EVENT_BUFFER);
+    @Test
+    public void testSetDataType1() {
+        ReadOnlySlicedNetworkBuffer readOnlyBuffer = buffer.readOnlySlice();
+        readOnlyBuffer.setDataType(Buffer.DataType.EVENT_BUFFER);
+        Assertions.assertThat(readOnlyBuffer.getDataType()).isEqualTo(Buffer.DataType.EVENT_BUFFER);
     }
 
-    @Test(expected = ReadOnlyBufferException.class)
-    public void testSetDataTypeThrows2() {
-        buffer.readOnlySlice(1, 2).setDataType(Buffer.DataType.EVENT_BUFFER);
+    @Test
+    public void testSetDataType2() {
+        ReadOnlySlicedNetworkBuffer readOnlyBuffer = buffer.readOnlySlice(1, 2);
+        readOnlyBuffer.setDataType(Buffer.DataType.EVENT_BUFFER);
+        Assertions.assertThat(readOnlyBuffer.getDataType()).isEqualTo(Buffer.DataType.EVENT_BUFFER);
+        Assertions.assertThat(buffer.readOnlySlice(1, 2).getDataType())
+                .isNotEqualTo(Buffer.DataType.EVENT_BUFFER);
     }
 
     @Test

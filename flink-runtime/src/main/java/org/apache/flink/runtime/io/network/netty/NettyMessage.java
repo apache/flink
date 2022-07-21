@@ -23,6 +23,7 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FileRegionBuffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
@@ -345,7 +346,11 @@ public abstract class NettyMessage {
 
                 headerBuf = fillHeader(allocator);
                 out.write(headerBuf);
-                out.write(buffer, promise);
+                if (buffer instanceof FileRegionBuffer) {
+                    out.write(buffer, promise);
+                } else {
+                    out.write(buffer.asByteBuf(), promise);
+                }
             } catch (Throwable t) {
                 handleException(headerBuf, buffer, t);
             }
