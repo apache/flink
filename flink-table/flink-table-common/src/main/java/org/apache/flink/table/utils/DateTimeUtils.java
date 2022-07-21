@@ -1646,6 +1646,15 @@ public class DateTimeUtils {
         return ymdToUnixDate(y0, m0, d0);
     }
 
+    /**
+     * Adds a given number of months to a dateStr, represented as the date since the epoch.
+     */
+    public static String addMonths(String dateStr, int m) {
+        int date1 = DateTimeUtils.parseDate(dateStr, DATE_FORMAT_STRING);
+        int date2 = DateTimeUtils.addMonths(date1, m);
+        return formatDate(date2);
+    }
+
     private static int lastDay(int y, int m) {
         switch (m) {
             case 2:

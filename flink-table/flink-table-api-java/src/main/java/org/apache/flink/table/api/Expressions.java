@@ -370,6 +370,24 @@ public final class Expressions {
     }
 
     /**
+     * Returns the date that is numMonths after startDate.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * > SELECT add_months('2016-08-31', 1);
+     * 2016-09-30
+     * }</pre>
+     *
+     * @param startDate A DATE expression.
+     * @param numDays An INTEGER expression.
+     * @return A DATE.
+     */
+    public static ApiExpression addMonths(Object startDate, Object numDays) {
+        return apiCall(BuiltInFunctionDefinitions.ADD_MONTHS, startDate, numDays);
+    }
+
+    /**
      * Returns the (signed) number of {@link TimePointUnit} between timePoint1 and timePoint2.
      *
      * <p>For example, {@code timestampDiff(TimePointUnit.DAY, lit("2016-06-15").toDate(),

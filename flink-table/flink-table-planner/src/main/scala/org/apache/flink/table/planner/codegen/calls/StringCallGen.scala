@@ -25,9 +25,8 @@ import org.apache.flink.table.planner.codegen.GenerateUtils.{generateCallIfArgsN
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
-import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp, isTimestampWithLocalZone}
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isInteger, isTimestamp, isTimestampWithLocalZone}
 import org.apache.flink.table.types.logical._
-
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlTrimFunction.Flag.{BOTH, LEADING, TRAILING}
 
@@ -225,6 +224,12 @@ object StringCallGen {
             isCharacterString(operands.head.resultType) &&
             isCharacterString(operands(1).resultType) =>
         methodGen(BuiltInMethods.FORMAT_TIMESTAMP_STRING_FORMAT_STRING_STRING)
+
+      case ADD_MONTHS
+        if operands.size == 2 &&
+          isCharacterString(operands.head.resultType) &&
+          isInteger(operands(1).resultType) =>
+        methodGen(BuiltInMethods.ADD_MONTHS_STRING_INT)
 
       case CONVERT_TZ
           if operands.size == 3 &&

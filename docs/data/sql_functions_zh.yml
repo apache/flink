@@ -598,6 +598,11 @@ temporal:
   - sql: DATE_FORMAT(timestamp, string)
     description: |
       将时间戳 timestamp 转换为日期格式字符串 string 指定格式的字符串值。格式字符串与 Java 的 SimpleDateFormat 兼容。
+  - sql: ADD_MONTHS(string, integer)
+    table: addMonths(string, integer)
+    description: |
+      返回 startDate 之后 numMonths的日期。
+      一个日期。如果结果超过该月的天数，则将结果向下舍入到月末。如果结果超出日期的支持范围，则会报告溢出错误。
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)

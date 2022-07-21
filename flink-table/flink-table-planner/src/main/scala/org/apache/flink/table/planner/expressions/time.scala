@@ -226,6 +226,15 @@ case class DateFormat(timestamp: PlannerExpression, format: PlannerExpression)
   override private[flink] def resultType = STRING_TYPE_INFO
 }
 
+case class AddMonths(startDate: PlannerExpression, numMonths: PlannerExpression)
+  extends PlannerExpression {
+  override private[flink] def children = startDate :: numMonths :: Nil
+
+  override def toString: String = s"$startDate.addMonths($numMonths)"
+
+  override private[flink] def resultType = STRING_TYPE_INFO
+}
+
 case class TimestampDiff(
     timePointUnit: PlannerExpression,
     timePoint1: PlannerExpression,

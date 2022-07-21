@@ -208,6 +208,8 @@ public class DirectConvertRule implements CallExpressionConvertRule {
         DEFINITION_OPERATOR_MAP.put(
                 BuiltInFunctionDefinitions.FROM_UNIXTIME, FlinkSqlOperatorTable.FROM_UNIXTIME);
         DEFINITION_OPERATOR_MAP.put(
+                BuiltInFunctionDefinitions.ADD_MONTHS, FlinkSqlOperatorTable.ADD_MONTHS);
+        DEFINITION_OPERATOR_MAP.put(
                 BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ,
                 FlinkSqlOperatorTable.TO_TIMESTAMP_LTZ);
 

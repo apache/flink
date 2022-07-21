@@ -1507,6 +1507,17 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(STRING())))
                     .build();
 
+    public static final BuiltInFunctionDefinition ADD_MONTHS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("addMonths")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(STRING())))
+                    .build();
+
     public static final BuiltInFunctionDefinition TIMESTAMP_DIFF =
             BuiltInFunctionDefinition.newBuilder()
                     .name("timestampDiff")

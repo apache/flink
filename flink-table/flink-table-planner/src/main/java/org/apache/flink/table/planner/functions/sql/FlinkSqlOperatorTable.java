@@ -526,6 +526,15 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                             OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
                     SqlFunctionCategory.TIMEDATE);
 
+    public static final SqlFunction ADD_MONTHS =
+            new SqlFunction(
+                    "ADD_MONTHS",
+                    SqlKind.OTHER_FUNCTION,
+                    VARCHAR_FORCE_NULLABLE,
+                    InferTypes.RETURN_TYPE,
+                    OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
+                    SqlFunctionCategory.TIMEDATE);
+
     public static final SqlFunction REGEXP =
             new SqlFunction(
                     "REGEXP",

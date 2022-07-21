@@ -179,6 +179,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size == 2)
             DateFormat(args.head, args.last)
 
+          case ADD_MONTHS =>
+            assert(args.size == 2)
+            AddMonths(args.head, args.last)
+
           case TIMESTAMP_DIFF =>
             assert(args.size == 3)
             TimestampDiff(args.head, args(1), args.last)
