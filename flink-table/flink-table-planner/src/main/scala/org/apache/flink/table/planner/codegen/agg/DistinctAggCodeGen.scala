@@ -366,8 +366,7 @@ class DistinctAggCodeGen(
       needRetract: Boolean,
       needMerge: Boolean,
       needReset: Boolean,
-      needEmitValue: Boolean,
-      needWindowSize: Boolean = false): Unit = {
+      needEmitValue: Boolean): Unit = {
     if (needMerge) {
       // see merge method for more information
       innerAggCodeGens

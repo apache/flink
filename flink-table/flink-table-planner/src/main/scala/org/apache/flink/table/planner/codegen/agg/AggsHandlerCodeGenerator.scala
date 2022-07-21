@@ -326,7 +326,7 @@ class AggsHandlerCodeGenerator(
     initialAggregateInformation(aggInfoList)
 
     // generates all methods body first to add necessary reuse code to context
-    val setWindowSizeCode = if (isWindowSizeNeeded) genSetWindowSize() else ""
+    val setWindowSizeCode = genSetWindowSize()
     val createAccumulatorsCode = genCreateAccumulators()
     val getAccumulatorsCode = genGetAccumulators()
     val setAccumulatorsCode = genSetAccumulators()
@@ -340,8 +340,7 @@ class AggsHandlerCodeGenerator(
 
     val functionCode =
       j"""
-        public final class $functionName implements $AGGS_HANDLER_FUNCTION
-        ${if (isWindowSizeNeeded) s",$AGGS_WINDOWSIZE_FUNCTION" else ""}  {
+        public final class $functionName implements $AGGS_HANDLER_FUNCTION {
 
           ${ctx.reuseMemberCode()}
 
@@ -361,13 +360,10 @@ class AggsHandlerCodeGenerator(
             ${ctx.reuseOpenCode()}
           }
 
-          ${if (isWindowSizeNeeded) {
-          s"""
-             |@Override
-             |public void setWindowSize(int $WINDOWS_SIZE) {
-             |   $setWindowSizeCode
-            }""".stripMargin
-        } else ""}
+          @Override
+          public void setWindowSize(int $WINDOWS_SIZE) {
+            $setWindowSizeCode
+          }
 
           @Override
           public void accumulate($ROW_DATA $ACCUMULATE_INPUT_TERM) throws Exception {
@@ -864,23 +860,32 @@ class AggsHandlerCodeGenerator(
   }
 
   private def genSetWindowSize(): String = {
-    val methodName = "setWindowSize"
-    ctx.startNewLocalVariableStatement(methodName)
+    // The generated method 'setWindowSize' in OverWindowFrame#prepare will always be called
+    // no matter window size is needed or not. If window size is not needed,
+    // the method 'setWindowSize' will do nothing.
+    // So, please make sure to set the variable 'isWindowSizeNeeded' = true
+    // if window size is needed.
+    if (isWindowSizeNeeded) {
+      val methodName = "setWindowSize"
+      ctx.startNewLocalVariableStatement(methodName)
 
-    val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
-      .bindInput(DataTypes.INT().getLogicalType, WINDOWS_SIZE)
-    val body = aggBufferCodeGens
-      // ignore distinct agg codegen
-      .filter(agg => !agg.isInstanceOf[DistinctAggCodeGen])
-      .map(_.setWindowSize(exprGenerator))
-      .mkString("\n")
+      val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
+        .bindInput(DataTypes.INT().getLogicalType, WINDOWS_SIZE)
+      val body = aggBufferCodeGens
+        // ignore distinct agg codegen
+        .filter(agg => !agg.isInstanceOf[DistinctAggCodeGen])
+        .map(_.setWindowSize(exprGenerator))
+        .mkString("\n")
 
-    s"""
-       |${ctx.reuseLocalVariableCode(methodName)}
-       |${ctx.reuseInputUnboxingCode(WINDOWS_SIZE)}
-       |${ctx.reusePerRecordCode()}
-       |$body
-       |""".stripMargin
+      s"""
+         |${ctx.reuseLocalVariableCode(methodName)}
+         |${ctx.reuseInputUnboxingCode(WINDOWS_SIZE)}
+         |${ctx.reusePerRecordCode()}
+         |$body
+         |""".stripMargin
+    } else {
+      ""
+    }
   }
 
   private def genCreateAccumulators(): String = {
@@ -1224,17 +1229,10 @@ class AggsHandlerCodeGenerator(
       needRetract: Boolean = false,
       needMerge: Boolean = false,
       needReset: Boolean = false,
-      needEmitValue: Boolean = false,
-      needWindowSize: Boolean = false): Unit = {
+      needEmitValue: Boolean = false): Unit = {
     // check and validate the needed methods
     aggBufferCodeGens.foreach(
-      _.checkNeededMethods(
-        needAccumulate,
-        needRetract,
-        needMerge,
-        needReset,
-        needEmitValue,
-        needWindowSize))
+      _.checkNeededMethods(needAccumulate, needRetract, needMerge, needReset, needEmitValue))
   }
 
   private def genThrowException(msg: String): String = {

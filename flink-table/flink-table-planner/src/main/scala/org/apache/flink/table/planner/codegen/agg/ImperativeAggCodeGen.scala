@@ -451,8 +451,7 @@ class ImperativeAggCodeGen(
       needRetract: Boolean = false,
       needMerge: Boolean = false,
       needReset: Boolean = false,
-      needEmitValue: Boolean = false,
-      needWindowSize: Boolean = false): Unit = {
+      needEmitValue: Boolean = false): Unit = {
 
     val functionName = String.valueOf(aggInfo.agg.getAggregation)
     val argumentClasses = aggInfo.externalArgTypes.map(_.getConversionClass)
@@ -506,7 +505,7 @@ class ImperativeAggCodeGen(
 
   override def setWindowSize(generator: ExprCodeGenerator): String = {
     // currently, we don't support set window size for ImperativeAggregateFunction,
-    // so then empty string directly
+    // so return empty string directly
     ""
   }
 }

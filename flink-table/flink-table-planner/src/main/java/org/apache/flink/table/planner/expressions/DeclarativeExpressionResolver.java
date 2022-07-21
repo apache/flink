@@ -27,7 +27,6 @@ import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexDistinctKeyVariable;
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.SizeBasedWindowFunction;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -59,10 +58,6 @@ public abstract class DeclarativeExpressionResolver
         if (expression instanceof UnresolvedReferenceExpression) {
             UnresolvedReferenceExpression expr = (UnresolvedReferenceExpression) expression;
             String name = expr.getName();
-            if (function instanceof SizeBasedWindowFunction
-                    && ((SizeBasedWindowFunction) function).windowSize() == expr) {
-                return toWindowSizeExpr(name);
-            }
             int localIndex = ArrayUtils.indexOf(function.aggBufferAttributes(), expr);
             if (localIndex == -1) {
                 // We always use UnresolvedFieldReference to represent reference of input field.
@@ -100,9 +95,6 @@ public abstract class DeclarativeExpressionResolver
 
     /** For aggregate buffer. */
     public abstract ResolvedExpression toAggBufferExpr(String name, int localIndex);
-
-    /** For window size. */
-    public abstract ResolvedExpression toWindowSizeExpr(String name);
 
     public static ResolvedExpression toRexInputRef(RelBuilder builder, int i, LogicalType t) {
         RelDataType tp =

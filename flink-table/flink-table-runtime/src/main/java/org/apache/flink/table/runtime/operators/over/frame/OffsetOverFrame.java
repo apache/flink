@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.over.frame;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
-import org.apache.flink.table.runtime.generated.AggsFunctionWithWindowSize;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
@@ -75,10 +74,7 @@ public class OffsetOverFrame implements OverWindowFrame {
 
     @Override
     public void prepare(ResettableExternalBuffer rows) throws Exception {
-        // set the window size if it's a function with window size
-        if (processor instanceof AggsFunctionWithWindowSize) {
-            ((AggsFunctionWithWindowSize) processor).setWindowSize(rows.size());
-        }
+        processor.setWindowSize(rows.size());
         // reset the accumulator value
         processor.setAccumulators(processor.createAccumulators());
         currentBufferLength = rows.size();

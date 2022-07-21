@@ -36,16 +36,10 @@ public class CumeDistAggFunction extends DeclarativeAggregateFunction
         implements SizeBasedWindowFunction {
 
     private final UnresolvedReferenceExpression sequence = unresolvedRef("seq");
-    private final UnresolvedReferenceExpression windowSize = unresolvedRef("windowSize");
 
     @Override
     public int operandCount() {
         return 0;
-    }
-
-    @Override
-    public UnresolvedReferenceExpression windowSize() {
-        return windowSize;
     }
 
     @Override
@@ -87,6 +81,6 @@ public class CumeDistAggFunction extends DeclarativeAggregateFunction
     public Expression getValueExpression() {
         return div(
                 cast(sequence, typeLiteral(DataTypes.DOUBLE())),
-                cast(windowSize, typeLiteral(DataTypes.DOUBLE())));
+                cast(windowSizeAttribute(), typeLiteral(DataTypes.DOUBLE())));
     }
 }

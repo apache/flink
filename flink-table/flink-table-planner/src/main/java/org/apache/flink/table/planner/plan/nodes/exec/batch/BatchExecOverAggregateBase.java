@@ -124,6 +124,10 @@ public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
         } else {
             if (aggCall.getAggregation() instanceof SqlLeadLagAggFunction) {
                 return OverWindowMode.OFFSET;
+            } else if (aggCall.getAggregation().getKind() == CUME_DIST) {
+                // CUME_DIST is range mode (RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW),
+                // because equal values in window partition should return same result.
+                return OverWindowMode.RANGE;
             } else {
                 return OverWindowMode.INSENSITIVE;
             }
@@ -143,7 +147,7 @@ public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
         OFFSET,
         /**
          * The INSENSITIVE mode does not care the window framing without LEAD/LAG agg function, for
-         * example RANK/DENSE_RANK/PERCENT_RANK/CUME_DIST/ROW_NUMBER.
+         * example RANK/DENSE_RANK/PERCENT_RANK/ROW_NUMBER.
          */
         INSENSITIVE
     }

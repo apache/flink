@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.expressions.LocalReferenceExpression;
+
+import static org.apache.flink.table.expressions.ApiExpressionUtils.localRef;
 
 /**
  * Some functions like CUME_DIST/PERCENT_RANK/NTILE need the size of current window for calculation.
@@ -29,5 +32,7 @@ import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 public interface SizeBasedWindowFunction {
 
     /** The field for the window size. */
-    UnresolvedReferenceExpression windowSize();
+    default LocalReferenceExpression windowSizeAttribute() {
+        return localRef("window_size", DataTypes.INT());
+    }
 }

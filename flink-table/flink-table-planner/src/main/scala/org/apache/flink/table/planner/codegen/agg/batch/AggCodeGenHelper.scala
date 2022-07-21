@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.runtime.util.SingleElementIterator
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.ApiExpressionUtils.localRef
@@ -280,11 +279,6 @@ object AggCodeGenHelper {
     override def toAggBufferExpr(name: String, localIndex: Int): ResolvedExpression = {
       val variableName = s"agg${aggIndex}_$name"
       newLocalReference(variableName, aggBufferTypes(aggIndex)(localIndex))
-    }
-
-    override def toWindowSizeExpr(name: String): ResolvedExpression = {
-      val variableName = s"agg${aggIndex}_$name"
-      newLocalReference(variableName, DataTypes.INT().getLogicalType)
     }
   }
 

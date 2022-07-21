@@ -48,6 +48,5 @@ trait AggCodeGen {
       needRetract: Boolean = false,
       needMerge: Boolean = false,
       needReset: Boolean = false,
-      needEmitValue: Boolean = false,
-      needWindowSize: Boolean = false): Unit
+      needEmitValue: Boolean = false): Unit
 }
