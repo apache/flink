@@ -324,7 +324,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
             final SpeculativeExecutionVertex executionVertex =
                     getExecutionVertex(executionVertexId);
 
-            if (executionVertex.containsSources() || executionVertex.containsSinks()) {
+            if (executionVertex.containsSinks()) {
                 continue;
             }
 
