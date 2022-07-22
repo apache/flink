@@ -30,6 +30,9 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 
+import static org.apache.hadoop.hive.ql.exec.SerializationUtilities.borrowKryo;
+import static org.apache.hadoop.hive.ql.exec.SerializationUtilities.releaseKryo;
+
 /**
  * A wrapper of Hive functions that instantiate function instances and ser/de function instance
  * cross process boundary.
@@ -50,6 +53,7 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
 
     private transient UDFType instance = null;
 
+    @SuppressWarnings("unchecked")
     public HiveFunctionWrapper(Class<?> functionClz) {
         this.functionClz = (Class<UDFType>) functionClz;
     }
@@ -73,6 +77,38 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
         // we need to use the SerializationUtilities#serializeObject to serialize UDF for the UDF
         // may not be serialized by Java serializer
         this.udfSerializedBytes = serializeObjectToKryo((Serializable) serializableInstance);
+    }
+
+    private static byte[] serializeObjectToKryo(Serializable object) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Output output = new Output(baos);
+        Kryo kryo = borrowKryo();
+        try {
+            kryo.writeObject(output, object);
+        } finally {
+            releaseKryo(kryo);
+        }
+        output.close();
+        return baos.toByteArray();
+    }
+
+    private static <T extends Serializable> T deserializeObjectFromKryo(
+            byte[] bytes, Class<T> clazz) {
+        Input inp = new Input(new ByteArrayInputStream(bytes));
+        Kryo kryo = borrowKryo();
+        ClassLoader oldClassLoader = kryo.getClassLoader();
+        kryo.setClassLoader(clazz.getClassLoader());
+        T func;
+
+        try {
+            func = kryo.readObject(inp, clazz);
+        } finally {
+            kryo.setClassLoader(oldClassLoader);
+            releaseKryo(kryo);
+        }
+
+        inp.close();
+        return func;
     }
 
     /**
@@ -124,27 +160,9 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
      *
      * @return the UDF deserialized
      */
+    @SuppressWarnings("unchecked")
     private UDFType deserializeUDF() {
         return (UDFType)
                 deserializeObjectFromKryo(udfSerializedBytes, (Class<Serializable>) getUDFClass());
-    }
-
-    private static byte[] serializeObjectToKryo(Serializable object) {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        Output output = new Output(baos);
-        Kryo kryo = new Kryo();
-        kryo.writeObject(output, object);
-        output.close();
-        return baos.toByteArray();
-    }
-
-    private static <T extends Serializable> T deserializeObjectFromKryo(
-            byte[] bytes, Class<T> clazz) {
-        Input inp = new Input(new ByteArrayInputStream(bytes));
-        Kryo kryo = new Kryo();
-        kryo.setClassLoader(clazz.getClassLoader());
-        T func = kryo.readObject(inp, clazz);
-        inp.close();
-        return func;
     }
 }
