@@ -255,10 +255,8 @@ of the old job will not be deleted by Flink
 
 2. [Native](#savepoint-format) format supports incremental RocksDB savepoints. For those savepoints Flink puts all
 SST files inside the savepoints directory. This means such savepoints are self-contained and relocatable.
-However, when restored in CLAIM mode, subsequent checkpoints might reuse some SST files, which
-in turn might block deleting the savepoints directory at the time the savepoint is subsumed. Later
-on Flink will delete the reused shared SST files, but it won't retry deleting the savepoints directory.
-Therefore, it is possible Flink leaves an empty savepoints directory if it was restored in CLAIM mode.    
+Please note that, when restored in CLAIM mode, subsequent checkpoints might reuse some SST files, which
+might delay the deletion the savepoints directory.
 {{< /hint >}}
 
 **LEGACY**
