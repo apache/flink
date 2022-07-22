@@ -22,8 +22,6 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.ListAccumulator;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -39,14 +37,14 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
@@ -55,8 +53,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -84,7 +81,9 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -144,28 +143,13 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
     private static final String OPERATOR_1_NAME = "operator-1";
     private static final String OPERATOR_2_NAME = "operator-2";
 
-    private static MiniCluster miniCluster;
-
-    @BeforeClass
-    public static void startMiniCluster() throws Exception {
-        final Configuration config = new Configuration();
-        config.setString(RestOptions.BIND_PORT, "0");
-
-        final MiniClusterConfiguration clusterCfg =
-                new MiniClusterConfiguration.Builder()
-                        .setNumTaskManagers(2)
-                        .setNumSlotsPerTaskManager(1)
-                        .setConfiguration(config)
-                        .build();
-
-        miniCluster = new MiniCluster(clusterCfg);
-        miniCluster.start();
-    }
-
-    @AfterClass
-    public static void shutdownMiniCluster() throws Exception {
-        miniCluster.close();
-    }
+    @ClassRule
+    public static final MiniClusterResource MINI_CLUSTER =
+            new MiniClusterResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(2)
+                            .setNumberSlotsPerTaskManager(1)
+                            .build());
 
     // ------------------------------------------------------------------------
 
@@ -189,7 +173,8 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
                         .setJobCheckpointingSettings(createCheckpointSettings())
                         .build();
 
-        final JobExecutionResult result = miniCluster.executeJobBlocking(jobGraph);
+        final JobExecutionResult result =
+                MINI_CLUSTER.getMiniCluster().executeJobBlocking(jobGraph);
 
         checkListContainsSequence(result.getAccumulatorResult(OPERATOR_1_NAME), numEvents1);
         checkListContainsSequence(result.getAccumulatorResult(OPERATOR_2_NAME), numEvents2);
@@ -280,6 +265,22 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         }
     }
 
+    private static final class IntegerRequest implements CoordinationRequest {
+        final int value;
+
+        private IntegerRequest(int value) {
+            this.value = value;
+        }
+    }
+
+    private static final class IntegerResponse implements CoordinationResponse {
+        final int value;
+
+        private IntegerResponse(int value) {
+            this.value = value;
+        }
+    }
+
     // ------------------------------------------------------------------------
 
     /**
@@ -292,7 +293,8 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
      * concurrency against the scheduler thread that calls this coordinator implements a simple
      * mailbox that moves the method handling into a separate thread, but keeps the order.
      */
-    private static final class EventSendingCoordinator implements OperatorCoordinator {
+    private static final class EventSendingCoordinator
+            implements OperatorCoordinator, CoordinationRequestHandler {
 
         private final Context context;
 
@@ -532,6 +534,17 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
                 context.failJob(new Exception("test failure"));
             }
         }
+
+        @Override
+        public CompletableFuture<CoordinationResponse> handleCoordinationRequest(
+                CoordinationRequest request) {
+            if (request instanceof IntegerRequest) {
+                int value = ((IntegerRequest) request).value;
+                return CompletableFuture.completedFuture(new IntegerResponse(value + 1));
+            } else {
+                throw new UnsupportedOperationException("Unsupported request type: " + request);
+            }
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -565,6 +578,17 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
                     .getOperatorCoordinatorEventGateway()
                     .sendOperatorEventToCoordinator(
                             operatorID, new SerializedValue<>(new StartEvent()));
+
+            // verify the request & response communication
+            CoordinationResponse response =
+                    getEnvironment()
+                            .getOperatorCoordinatorEventGateway()
+                            .sendRequestToCoordinator(
+                                    operatorID, new SerializedValue<>(new IntegerRequest(100)))
+                            .get();
+
+            assertThat(response, instanceOf(IntegerResponse.class));
+            assertEquals(101, ((IntegerResponse) response).value);
 
             // poor-man's mailbox
             Object next;

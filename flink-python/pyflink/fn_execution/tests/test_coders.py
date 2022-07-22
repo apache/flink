@@ -168,6 +168,10 @@ class CodersTest(PyFlinkTestCase):
         v.set_row_kind(RowKind.DELETE)
         self.check_coder(coder, v)
 
+        coder = RowCoder([BigIntCoder(), CharCoder()], ['f1', 'f0'])
+        v = Row(f0="flink", f1=11)
+        self.check_coder(coder, v)
+
     def test_basic_decimal_coder(self):
         basic_dec_coder = BigDecimalCoder()
         value = decimal.Decimal(1.200)

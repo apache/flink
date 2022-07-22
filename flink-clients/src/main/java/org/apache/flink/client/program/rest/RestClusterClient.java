@@ -29,6 +29,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
 import org.apache.flink.client.program.rest.retry.WaitStrategy;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.webmonitor.JobStatusInfo;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.FileUpload;
@@ -67,6 +69,7 @@ import org.apache.flink.runtime.rest.messages.cluster.ShutdownHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
+import org.apache.flink.runtime.rest.messages.job.JobStatusInfoHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
@@ -95,6 +98,7 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FixedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.CheckedSupplier;
@@ -114,6 +118,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -357,7 +362,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                                                         artifactFilePath.getName()));
                                         filesToUpload.add(
                                                 new FileUpload(
-                                                        Paths.get(artifacts.getValue().filePath),
+                                                        Paths.get(artifactFilePath.getPath()),
                                                         RestConstants.CONTENT_TYPE_BINARY));
                                     }
                                 } catch (IOException e) {
@@ -450,7 +455,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     public CompletableFuture<String> stopWithSavepoint(
             final JobID jobId,
             final boolean advanceToEndOfTime,
-            @Nullable final String savepointDirectory) {
+            @Nullable final String savepointDirectory,
+            final SavepointFormatType formatType) {
 
         final StopWithSavepointTriggerHeaders stopWithSavepointTriggerHeaders =
                 StopWithSavepointTriggerHeaders.getInstance();
@@ -464,7 +470,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                         stopWithSavepointTriggerHeaders,
                         stopWithSavepointTriggerMessageParameters,
                         new StopWithSavepointRequestBody(
-                                savepointDirectory, advanceToEndOfTime, null));
+                                savepointDirectory, advanceToEndOfTime, formatType, null));
 
         return responseFuture
                 .thenCompose(
@@ -484,14 +490,16 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
     @Override
     public CompletableFuture<String> cancelWithSavepoint(
-            JobID jobId, @Nullable String savepointDirectory) {
-        return triggerSavepoint(jobId, savepointDirectory, true);
+            JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
+        return triggerSavepoint(jobId, savepointDirectory, true, formatType);
     }
 
     @Override
     public CompletableFuture<String> triggerSavepoint(
-            final JobID jobId, final @Nullable String savepointDirectory) {
-        return triggerSavepoint(jobId, savepointDirectory, false);
+            final JobID jobId,
+            final @Nullable String savepointDirectory,
+            final SavepointFormatType formatType) {
+        return triggerSavepoint(jobId, savepointDirectory, false, formatType);
     }
 
     @Override
@@ -526,7 +534,10 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     }
 
     private CompletableFuture<String> triggerSavepoint(
-            final JobID jobId, final @Nullable String savepointDirectory, final boolean cancelJob) {
+            final JobID jobId,
+            final @Nullable String savepointDirectory,
+            final boolean cancelJob,
+            final SavepointFormatType formatType) {
         final SavepointTriggerHeaders savepointTriggerHeaders =
                 SavepointTriggerHeaders.getInstance();
         final SavepointTriggerMessageParameters savepointTriggerMessageParameters =
@@ -537,7 +548,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                 sendRequest(
                         savepointTriggerHeaders,
                         savepointTriggerMessageParameters,
-                        new SavepointTriggerRequestBody(savepointDirectory, cancelJob, null));
+                        new SavepointTriggerRequestBody(
+                                savepointDirectory, cancelJob, formatType, null));
 
         return responseFuture
                 .thenCompose(
@@ -736,8 +748,12 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     // -------------------------------------------------------------------------
 
     private CompletableFuture<JobStatus> requestJobStatus(JobID jobId) {
-        return getJobDetails(jobId)
-                .thenApply(JobDetailsInfo::getJobStatus)
+        final JobStatusInfoHeaders jobStatusInfoHeaders = JobStatusInfoHeaders.getInstance();
+        final JobMessageParameters params = new JobMessageParameters();
+        params.jobPathParameter.resolve(jobId);
+
+        return sendRequest(jobStatusInfoHeaders, params)
+                .thenApply(JobStatusInfo::getJobStatus)
                 .thenApply(
                         jobStatus -> {
                             if (jobStatus == JobStatus.SUSPENDED) {
@@ -877,8 +893,9 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             CheckedSupplier<CompletableFuture<C>> operation, Predicate<Throwable> retryPredicate) {
         return FutureUtils.retryWithDelay(
                 CheckedSupplier.unchecked(operation),
-                restClusterClientConfiguration.getRetryMaxAttempts(),
-                Time.milliseconds(restClusterClientConfiguration.getRetryDelay()),
+                new FixedRetryStrategy(
+                        restClusterClientConfiguration.getRetryMaxAttempts(),
+                        Duration.ofMillis(restClusterClientConfiguration.getRetryDelay())),
                 retryPredicate,
                 new ScheduledExecutorServiceAdapter(retryExecutorService));
     }

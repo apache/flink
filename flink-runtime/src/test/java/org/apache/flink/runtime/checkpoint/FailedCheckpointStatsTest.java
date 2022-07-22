@@ -56,6 +56,7 @@ public class FailedCheckpointStatsTest {
                         0,
                         0,
                         0,
+                        0,
                         failureTimestamp,
                         null,
                         null);
@@ -82,6 +83,7 @@ public class FailedCheckpointStatsTest {
                         1337,
                         taskStats,
                         3,
+                        190890123,
                         190890123,
                         4242,
                         4444,

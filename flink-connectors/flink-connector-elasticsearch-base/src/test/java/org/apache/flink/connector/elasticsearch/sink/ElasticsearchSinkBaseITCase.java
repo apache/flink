@@ -22,10 +22,10 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
@@ -53,9 +53,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.BiFunction;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ElasticsearchSink}. */
 @ExtendWith(TestLoggerExtension.class)
@@ -114,9 +112,9 @@ abstract class ElasticsearchSinkBaseITCase {
             runTest(index, false, TestEmitter::jsonEmitter, deliveryGuarantee, null);
         } catch (IllegalStateException e) {
             failure = true;
-            assertSame(deliveryGuarantee, DeliveryGuarantee.EXACTLY_ONCE);
+            assertThat(deliveryGuarantee).isSameAs(DeliveryGuarantee.EXACTLY_ONCE);
         } finally {
-            assertEquals(failure, deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE);
+            assertThat(failure).isEqualTo(deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE);
         }
     }
 
@@ -134,7 +132,7 @@ abstract class ElasticsearchSinkBaseITCase {
     void testRecovery() throws Exception {
         final String index = "test-recovery-elasticsearch-sink";
         runTest(index, true, TestEmitter::jsonEmitter, new FailingMapper());
-        assertTrue(failed);
+        assertThat(failed).isTrue();
     }
 
     private void runTest(

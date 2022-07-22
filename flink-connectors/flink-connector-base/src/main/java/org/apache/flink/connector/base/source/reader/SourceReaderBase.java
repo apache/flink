@@ -324,6 +324,9 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
         SourceOutput<T> getOrCreateSplitOutput(ReaderOutput<T> mainOutput) {
             if (sourceOutput == null) {
+                // The split output should have been created when AddSplitsEvent was processed in
+                // SourceOperator. Here we just use this method to get the previously created
+                // output.
                 sourceOutput = mainOutput.createOutputForSplit(splitId);
             }
             return sourceOutput;

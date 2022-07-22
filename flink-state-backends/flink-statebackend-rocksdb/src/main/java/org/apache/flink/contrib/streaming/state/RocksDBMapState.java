@@ -278,31 +278,29 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
 
     @Override
     public void clear() {
-        try {
-            try (RocksIteratorWrapper iterator =
-                            RocksDBOperationUtils.getRocksIterator(
-                                    backend.db, columnFamily, backend.getReadOptions());
-                    RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper =
-                            new RocksDBWriteBatchWrapper(
-                                    backend.db,
-                                    backend.getWriteOptions(),
-                                    backend.getWriteBatchSize())) {
+        try (RocksIteratorWrapper iterator =
+                        RocksDBOperationUtils.getRocksIterator(
+                                backend.db, columnFamily, backend.getReadOptions());
+                RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper =
+                        new RocksDBWriteBatchWrapper(
+                                backend.db,
+                                backend.getWriteOptions(),
+                                backend.getWriteBatchSize())) {
 
-                final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
-                iterator.seek(keyPrefixBytes);
+            final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
+            iterator.seek(keyPrefixBytes);
 
-                while (iterator.isValid()) {
-                    byte[] keyBytes = iterator.key();
-                    if (startWithKeyPrefix(keyPrefixBytes, keyBytes)) {
-                        rocksDBWriteBatchWrapper.remove(columnFamily, keyBytes);
-                    } else {
-                        break;
-                    }
-                    iterator.next();
+            while (iterator.isValid()) {
+                byte[] keyBytes = iterator.key();
+                if (startWithKeyPrefix(keyPrefixBytes, keyBytes)) {
+                    rocksDBWriteBatchWrapper.remove(columnFamily, keyBytes);
+                } else {
+                    break;
                 }
+                iterator.next();
             }
-        } catch (Exception e) {
-            LOG.warn("Error while cleaning the state.", e);
+        } catch (RocksDBException e) {
+            throw new FlinkRuntimeException("Error while cleaning the state in RocksDB.", e);
         }
     }
 

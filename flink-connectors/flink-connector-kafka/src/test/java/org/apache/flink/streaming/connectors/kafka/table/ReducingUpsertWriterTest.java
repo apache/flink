@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -45,12 +45,12 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledFuture;
 
 import static org.apache.flink.types.RowKind.DELETE;
 import static org.apache.flink.types.RowKind.INSERT;
 import static org.apache.flink.types.RowKind.UPDATE_AFTER;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ReducingUpsertWriter}. */
 @RunWith(Parameterized.class)
@@ -154,7 +154,7 @@ public class ReducingUpsertWriterTest {
 
         // write 4 records which doesn't trigger batch size
         writeData(bufferedWriter, new ReusableIterator(0, 4));
-        assertTrue(writer.rowDataCollectors.isEmpty());
+        assertThat(writer.rowDataCollectors).isEmpty();
 
         // write one more record, and should flush the buffer
         writeData(bufferedWriter, new ReusableIterator(7, 1));
@@ -211,7 +211,7 @@ public class ReducingUpsertWriterTest {
         writer.rowDataCollectors.clear();
         // write remaining data, and they are still buffered
         writeData(bufferedWriter, new ReusableIterator(4, 3));
-        assertTrue(writer.rowDataCollectors.isEmpty());
+        assertThat(writer.rowDataCollectors).isEmpty();
     }
 
     @Test
@@ -221,7 +221,7 @@ public class ReducingUpsertWriterTest {
         // write all data, there should be 3 records are still buffered
         writeData(bufferedWriter, new ReusableIterator(0, 4));
         // snapshot should flush the buffer
-        bufferedWriter.prepareCommit(true);
+        bufferedWriter.flush(true);
 
         HashMap<Integer, List<RowData>> expected = new HashMap<>();
         expected.put(
@@ -270,9 +270,9 @@ public class ReducingUpsertWriterTest {
             actualMap.computeIfAbsent(id, key -> new ArrayList<>()).add(rowData);
         }
 
-        assertEquals(expected.size(), actualMap.size());
+        assertThat(actualMap).hasSameSizeAs(expected);
         for (Integer id : expected.keySet()) {
-            assertEquals(expected.get(id), actualMap.get(id));
+            assertThat(actualMap.get(id)).isEqualTo(expected.get(id));
         }
     }
 
@@ -283,7 +283,7 @@ public class ReducingUpsertWriterTest {
             long rowtime = next.getTimestamp(TIMESTAMP_INDICES, 3).getMillisecond();
             writer.write(
                     next,
-                    new SinkWriter.Context() {
+                    new org.apache.flink.api.connector.sink2.SinkWriter.Context() {
                         @Override
                         public long currentWatermark() {
                             throw new UnsupportedOperationException("Not implemented.");
@@ -308,22 +308,25 @@ public class ReducingUpsertWriterTest {
                 SCHEMA.toPhysicalRowDataType(),
                 new int[] {keyIndices},
                 BUFFER_FLUSH_MODE,
-                new Sink.ProcessingTimeService() {
+                new ProcessingTimeService() {
                     @Override
                     public long getCurrentProcessingTime() {
                         return 0;
                     }
 
                     @Override
-                    public void registerProcessingTimer(
-                            long time, ProcessingTimeCallback processingTimerCallback) {}
+                    public ScheduledFuture<?> registerTimer(
+                            long timestamp, ProcessingTimeCallback target) {
+                        return null;
+                    }
                 },
                 enableObjectReuse
                         ? typeInformation.createSerializer(new ExecutionConfig())::copy
                         : r -> r);
     }
 
-    private static class MockedSinkWriter implements SinkWriter<RowData, Void, Void> {
+    private static class MockedSinkWriter
+            implements StatefulSink.StatefulSinkWriter<RowData, Void> {
 
         transient List<RowData> rowDataCollectors;
 
@@ -334,24 +337,21 @@ public class ReducingUpsertWriterTest {
         @Override
         public void write(RowData element, Context context)
                 throws IOException, InterruptedException {
-            assertEquals(
-                    element.getTimestamp(TIMESTAMP_INDICES, 3).toInstant(),
-                    Instant.ofEpochMilli(context.timestamp()));
+            assertThat(Instant.ofEpochMilli(context.timestamp()))
+                    .isEqualTo(element.getTimestamp(TIMESTAMP_INDICES, 3).toInstant());
             rowDataCollectors.add(element);
         }
 
         @Override
-        public List<Void> prepareCommit(boolean flush) throws IOException, InterruptedException {
-            return null;
-        }
-
-        @Override
-        public List<Void> snapshotState() throws IOException {
-            return null;
-        }
+        public void flush(boolean endOfInput) throws IOException, InterruptedException {}
 
         @Override
         public void close() throws Exception {}
+
+        @Override
+        public List<Void> snapshotState(long checkpointId) throws IOException {
+            return null;
+        }
     }
 
     private class ReusableIterator implements Iterator<RowData> {

@@ -63,6 +63,7 @@ abstract class AbstractAlternatingAlignedBarrierHandlerState implements BarrierH
         }
 
         if (controller.allBarriersReceived()) {
+            controller.initInputsCheckpoint(checkpointBarrier);
             controller.triggerGlobalCheckpoint(checkpointBarrier);
             return finishCheckpoint();
         } else if (controller.isTimedOut(checkpointBarrier)) {

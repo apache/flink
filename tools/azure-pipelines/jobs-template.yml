@@ -90,14 +90,12 @@ jobs:
         module: core
       python:
         module: python
-      libraries:
-        module: libraries
       table:
         module: table
-      connectors:
-        module: connectors
-      kafka_gelly:
-        module: kafka/gelly
+      connect_1:
+        module: connect_1
+      connect_2:
+        module: connect_2
       tests:
         module: tests
       misc:

@@ -341,7 +341,7 @@ The `WatermarkStrategy` is passed to the Source during creation in the DataStrea
 environment.fromSource(
     Source<OUT, ?, ?> source,
     WatermarkStrategy<OUT> timestampsAndWatermarks,
-    String sourceName)
+    String sourceName);
 ```
 
 The `TimestampAssigner` and `WatermarkGenerator` run transparently as part of the `ReaderOutput`(or `SourceOutput`) so source implementors do not have to implement any timestamp extraction and watermark generation code.

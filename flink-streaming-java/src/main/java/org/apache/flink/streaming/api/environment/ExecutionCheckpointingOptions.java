@@ -85,7 +85,10 @@ public class ExecutionCheckpointingOptions {
                     .noDefaultValue()
                     .withDescription(
                             "The tolerable checkpoint consecutive failure number. If set to 0, that means "
-                                    + "we do not tolerance any checkpoint failure.");
+                                    + "we do not tolerance any checkpoint failure. This only applies to the following failure reasons: IOException on the "
+                                    + "Job Manager, failures in the async phase on the Task Managers and checkpoint expiration due to a timeout. Failures "
+                                    + "originating from the sync phase on the Task Managers are always forcing failover of an affected task. Other types of "
+                                    + "checkpoint failures (such as checkpoint being subsumed) are being ignored.");
 
     public static final ConfigOption<CheckpointConfig.ExternalizedCheckpointCleanup>
             EXTERNALIZED_CHECKPOINT =

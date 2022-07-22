@@ -21,7 +21,8 @@ package org.apache.flink.streaming.connectors.cassandra;
 import scala.Product;
 
 /**
- * Sink to write scala tuples and case classes into a Cassandra cluster.
+ * Sink to write scala tuples and case classes into a Cassandra cluster. Please read the
+ * recommendations in {@linkplain CassandraSinkBase}.
  *
  * @param <IN> Type of the elements emitted by this sink, it must extend {@link Product}
  */

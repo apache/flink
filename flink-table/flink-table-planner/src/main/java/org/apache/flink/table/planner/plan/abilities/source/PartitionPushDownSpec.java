@@ -29,6 +29,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -38,7 +39,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * to/from JSON, but also can push the partitions into a {@link SupportsPartitionPushDown}.
  */
 @JsonTypeName("PartitionPushDown")
-public class PartitionPushDownSpec extends SourceAbilitySpecBase {
+public final class PartitionPushDownSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_PARTITIONS = "partitions";
 
     @JsonProperty(FIELD_NAME_PARTITIONS)
@@ -62,10 +63,34 @@ public class PartitionPushDownSpec extends SourceAbilitySpecBase {
         }
     }
 
+    public List<Map<String, String>> getPartitions() {
+        return partitions;
+    }
+
     @Override
     public String getDigests(SourceAbilityContext context) {
         return "partitions=["
                 + this.partitions.stream().map(Object::toString).collect(Collectors.joining(", "))
                 + "]";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        PartitionPushDownSpec that = (PartitionPushDownSpec) o;
+        return Objects.equals(partitions, that.partitions);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), partitions);
     }
 }

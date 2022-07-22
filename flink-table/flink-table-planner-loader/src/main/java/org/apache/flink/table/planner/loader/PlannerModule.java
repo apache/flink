@@ -25,7 +25,6 @@ import org.apache.flink.core.classloading.ComponentClassLoader;
 import org.apache.flink.core.classloading.SubmoduleClassLoader;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.delegation.ExecutorFactory;
-import org.apache.flink.table.delegation.ExpressionParserFactory;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.IOUtils;
@@ -69,8 +68,7 @@ class PlannerModule {
                                     "org.codehaus.janino",
                                     "org.codehaus.commons",
                                     "org.apache.commons.lang3",
-                                    // Used by org.reflections
-                                    "javassist"))
+                                    "org.apache.commons.math3"))
                     .toArray(String[]::new);
 
     private static final String[] COMPONENT_CLASSPATH = new String[] {"org.apache.flink"};
@@ -149,12 +147,5 @@ class PlannerModule {
     public PlannerFactory loadPlannerFactory() {
         return FactoryUtil.discoverFactory(
                 this.submoduleClassLoader, PlannerFactory.class, PlannerFactory.DEFAULT_IDENTIFIER);
-    }
-
-    public ExpressionParserFactory loadExpressionParserFactory() {
-        return FactoryUtil.discoverFactory(
-                this.submoduleClassLoader,
-                ExpressionParserFactory.class,
-                ExpressionParserFactory.DEFAULT_IDENTIFIER);
     }
 }

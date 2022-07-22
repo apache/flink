@@ -89,7 +89,8 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
     // ------------------------------------------------------------------------
 
     @Override
-    public ReaderOutput<T> createMainOutput(PushingAsyncDataInput.DataOutput<T> output) {
+    public ReaderOutput<T> createMainOutput(
+            PushingAsyncDataInput.DataOutput<T> output, WatermarkUpdateListener watermarkEmitted) {
         // At the moment, we assume only one output is ever created!
         // This assumption is strict, currently, because many of the classes in this implementation
         // do not
@@ -98,7 +99,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
                 currentMainOutput == null && currentPerSplitOutputs == null,
                 "already created a main output");
 
-        final WatermarkOutput watermarkOutput = new WatermarkToDataOutput(output);
+        final WatermarkOutput watermarkOutput = new WatermarkToDataOutput(output, watermarkEmitted);
         final WatermarkGenerator<T> watermarkGenerator =
                 watermarksFactory.createWatermarkGenerator(watermarksContext);
 

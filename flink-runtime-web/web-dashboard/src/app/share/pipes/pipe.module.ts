@@ -19,8 +19,8 @@
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 
-import { HumanizeBytesPipe } from 'share/pipes/humanize-bytes.pipe';
-import { HumanizeWatermarkPipe } from 'share/pipes/humanize-watermark.pipe';
+import { HumanizeBytesPipe } from '@flink-runtime-web/share/pipes/humanize-bytes.pipe';
+import { HumanizeWatermarkPipe } from '@flink-runtime-web/share/pipes/humanize-watermark.pipe';
 
 import { HumanizeChartNumericPipe } from './humanize-chart-numeric.pipe';
 import { HumanizeDatePipe } from './humanize-date.pipe';

@@ -57,6 +57,8 @@ public class ProgramOptions extends CommandLineOptions {
 
     private final String[] programArgs;
 
+    private final boolean hasParallelismOpt;
+
     private final int parallelism;
 
     private final boolean detachedMode;
@@ -93,10 +95,11 @@ public class ProgramOptions extends CommandLineOptions {
         this.classpaths = classpaths;
 
         if (line.hasOption(PARALLELISM_OPTION.getOpt())) {
+            hasParallelismOpt = true;
             String parString = line.getOptionValue(PARALLELISM_OPTION.getOpt());
             try {
                 parallelism = Integer.parseInt(parString);
-                if (parallelism <= 0) {
+                if (parallelism <= 0 && parallelism != ExecutionConfig.PARALLELISM_DEFAULT) {
                     throw new NumberFormatException();
                 }
             } catch (NumberFormatException e) {
@@ -104,6 +107,7 @@ public class ProgramOptions extends CommandLineOptions {
                         "The parallelism must be a positive number: " + parString);
             }
         } else {
+            hasParallelismOpt = false;
             parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
         }
 
@@ -169,7 +173,7 @@ public class ProgramOptions extends CommandLineOptions {
     }
 
     public void applyToConfiguration(Configuration configuration) {
-        if (getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT) {
+        if (hasParallelismOpt) {
             configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, getParallelism());
         }
 

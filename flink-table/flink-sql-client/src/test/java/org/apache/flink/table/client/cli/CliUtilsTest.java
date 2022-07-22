@@ -27,7 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test {@link CliUtils}. */
 public class CliUtilsTest {
@@ -40,7 +40,7 @@ public class CliUtilsTest {
     public void testCreateFileRealDir() {
         Path realDirHistoryFile = Paths.get(realFolder.getRoot().toString(), "history.file");
         CliUtils.createFile(realDirHistoryFile);
-        assertTrue(Files.exists(realDirHistoryFile));
+        assertThat(Files.exists(realDirHistoryFile)).isTrue();
     }
 
     @Test
@@ -50,8 +50,8 @@ public class CliUtilsTest {
         Path linkDirHistoryFile = Paths.get(link.toAbsolutePath().toString(), "history.file");
         Path realLinkDirHistoryFile = Paths.get(realFolder.getRoot().toString(), "history.file");
         CliUtils.createFile(linkDirHistoryFile);
-        assertTrue(Files.exists(linkDirHistoryFile));
-        assertTrue(Files.exists(realLinkDirHistoryFile));
+        assertThat(Files.exists(linkDirHistoryFile)).isTrue();
+        assertThat(Files.exists(realLinkDirHistoryFile)).isTrue();
     }
 
     @Test
@@ -59,6 +59,6 @@ public class CliUtilsTest {
         Path subDirHistoryFile =
                 Paths.get(realFolder.getRoot().toString(), "subdir", "history.file");
         CliUtils.createFile(subDirHistoryFile);
-        assertTrue(Files.exists(subDirHistoryFile));
+        assertThat(Files.exists(subDirHistoryFile)).isTrue();
     }
 }

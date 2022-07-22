@@ -23,11 +23,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.connector.pulsar.common.config.PulsarConfigBuilder;
 import org.apache.flink.connector.pulsar.common.config.PulsarOptions;
+import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.FullRangeGenerator;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator;
@@ -40,23 +42,22 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.Properties;
 import java.util.regex.Pattern;
 
 import static java.lang.Boolean.FALSE;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ENABLE_TRANSACTION;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_CONSUMER_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_READ_TRANSACTION_TIMEOUT;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_TYPE;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_TRANSACTION_TIMEOUT_MILLIS;
-import static org.apache.flink.connector.pulsar.source.config.PulsarSourceConfigUtils.checkConfigurations;
+import static org.apache.flink.connector.pulsar.source.config.PulsarSourceConfigUtils.SOURCE_CONFIG_VALIDATOR;
 import static org.apache.flink.util.InstantiationUtil.isSerializable;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -86,11 +87,17 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>To specify the starting position of PulsarSource, one can call {@link
  * #setStartCursor(StartCursor)}.
  *
- * <p>By default the PulsarSource runs in an {@link Boundedness#CONTINUOUS_UNBOUNDED} mode and never
- * stop until the Flink job is canceled or fails. To let the PulsarSource run in {@link
+ * <p>By default, the PulsarSource runs in an {@link Boundedness#CONTINUOUS_UNBOUNDED} mode and
+ * never stop until the Flink job is canceled or fails. To let the PulsarSource run in {@link
  * Boundedness#CONTINUOUS_UNBOUNDED} but stops at some given offsets, one can call {@link
- * #setUnboundedStopCursor(StopCursor)}. For example the following PulsarSource stops after it
- * consumes up to a event time when the Flink started.
+ * #setUnboundedStopCursor(StopCursor)} and disable auto partition discovery as described below. For
+ * example the following PulsarSource stops after it consumes up to a event time when the Flink
+ * started.
+ *
+ * <p>To stop the connector user has to disable the auto partition discovery. As auto partition
+ * discovery always expected new splits to come and not exiting. To disable auto partition
+ * discovery, use builder.setConfig({@link
+ * PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS}, -1).
  *
  * <pre>{@code
  * PulsarSource<String> source = PulsarSource
@@ -100,7 +107,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *     .setSubscriptionName("flink-source-1")
  *     .setTopics(Arrays.asList(TOPIC1, TOPIC2))
  *     .setDeserializationSchema(PulsarDeserializationSchema.flinkSchema(new SimpleStringSchema()))
- *     .setUnbounded(StopCursor.atEventTime(System.currentTimeMillis()))
+ *     .setUnboundedStopCursor(StopCursor.atEventTime(System.currentTimeMillis()))
  *     .build();
  * }</pre>
  *
@@ -110,7 +117,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 public final class PulsarSourceBuilder<OUT> {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarSourceBuilder.class);
 
-    private final Configuration configuration;
+    private final PulsarConfigBuilder configBuilder;
+
     private PulsarSubscriber subscriber;
     private RangeGenerator rangeGenerator;
     private StartCursor startCursor;
@@ -120,9 +128,10 @@ public final class PulsarSourceBuilder<OUT> {
 
     // private builder constructor.
     PulsarSourceBuilder() {
-        this.configuration = new Configuration();
+        this.configBuilder = new PulsarConfigBuilder();
         this.startCursor = StartCursor.defaultStartCursor();
         this.stopCursor = StopCursor.defaultStopCursor();
+        this.boundedness = Boundedness.CONTINUOUS_UNBOUNDED;
     }
 
     /**
@@ -166,17 +175,7 @@ public final class PulsarSourceBuilder<OUT> {
      *     Subscriptions</a>
      */
     public PulsarSourceBuilder<OUT> setSubscriptionType(SubscriptionType subscriptionType) {
-        if (configuration.contains(PULSAR_SUBSCRIPTION_TYPE)) {
-            SubscriptionType existedType = configuration.get(PULSAR_SUBSCRIPTION_TYPE);
-            checkArgument(
-                    existedType == subscriptionType,
-                    "Can't override the subscription type %s with a new type %s",
-                    existedType,
-                    subscriptionType);
-        } else {
-            configuration.set(PULSAR_SUBSCRIPTION_TYPE, subscriptionType);
-        }
-        return this;
+        return setConfig(PULSAR_SUBSCRIPTION_TYPE, subscriptionType);
     }
 
     /**
@@ -203,7 +202,8 @@ public final class PulsarSourceBuilder<OUT> {
      */
     public PulsarSourceBuilder<OUT> setTopics(List<String> topics) {
         ensureSubscriberIsNull("topics");
-        this.subscriber = PulsarSubscriber.getTopicListSubscriber(topics);
+        List<String> distinctTopics = TopicNameUtils.distinctTopics(topics);
+        this.subscriber = PulsarSubscriber.getTopicListSubscriber(distinctTopics);
         return this;
     }
 
@@ -266,6 +266,14 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
+     * The consumer name is informative and it can be used to identify a particular consumer
+     * instance from the topic stats.
+     */
+    public PulsarSourceBuilder<OUT> setConsumerName(String consumerName) {
+        return setConfig(PULSAR_CONSUMER_NAME, consumerName);
+    }
+
+    /**
      * Set a topic range generator for Key_Shared subscription.
      *
      * @param rangeGenerator A generator which would generate a set of {@link TopicRange} for given
@@ -273,8 +281,8 @@ public final class PulsarSourceBuilder<OUT> {
      * @return this PulsarSourceBuilder.
      */
     public PulsarSourceBuilder<OUT> setRangeGenerator(RangeGenerator rangeGenerator) {
-        if (configuration.contains(PULSAR_SUBSCRIPTION_TYPE)) {
-            SubscriptionType subscriptionType = configuration.get(PULSAR_SUBSCRIPTION_TYPE);
+        if (configBuilder.contains(PULSAR_SUBSCRIPTION_TYPE)) {
+            SubscriptionType subscriptionType = configBuilder.get(PULSAR_SUBSCRIPTION_TYPE);
             checkArgument(
                     subscriptionType == SubscriptionType.Key_Shared,
                     "Key_Shared subscription should be used for custom rangeGenerator instead of %s",
@@ -300,16 +308,20 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
-     * By default the PulsarSource is set to run in {@link Boundedness#CONTINUOUS_UNBOUNDED} manner
-     * and thus never stops until the Flink job fails or is canceled. To let the PulsarSource run as
-     * a streaming source but still stops at some point, one can set an {@link StopCursor} to
-     * specify the stopping offsets for each partition. When all the partitions have reached their
-     * stopping offsets, the PulsarSource will then exit.
+     * By default, the PulsarSource runs in an {@link Boundedness#CONTINUOUS_UNBOUNDED} mode and
+     * never stop until the Flink job is canceled or fails. To let the PulsarSource run in {@link
+     * Boundedness#CONTINUOUS_UNBOUNDED} but stops at some given offsets, one can call {@link
+     * #setUnboundedStopCursor(StopCursor)} and disable auto partition discovery as described below.
      *
      * <p>This method is different from {@link #setBoundedStopCursor(StopCursor)} that after setting
      * the stopping offsets with this method, {@link PulsarSource#getBoundedness()} will still
      * return {@link Boundedness#CONTINUOUS_UNBOUNDED} even though it will stop at the stopping
      * offsets specified by the stopping offsets {@link StopCursor}.
+     *
+     * <p>To stop the connector user has to disable the auto partition discovery. As auto partition
+     * discovery always expected new splits to come and not exiting. To disable auto partition
+     * discovery, use builder.setConfig({@link
+     * PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS}, -1).
      *
      * @param stopCursor The {@link StopCursor} to specify the stopping offset.
      * @return this PulsarSourceBuilder.
@@ -358,7 +370,7 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
-     * Set an arbitrary property for the PulsarSource and PulsarConsumer. The valid keys can be
+     * Set an arbitrary property for the PulsarSource and Pulsar Consumer. The valid keys can be
      * found in {@link PulsarSourceOptions} and {@link PulsarOptions}.
      *
      * <p>Make sure the option could be set only once or with same value.
@@ -368,43 +380,33 @@ public final class PulsarSourceBuilder<OUT> {
      * @return this PulsarSourceBuilder.
      */
     public <T> PulsarSourceBuilder<OUT> setConfig(ConfigOption<T> key, T value) {
-        checkNotNull(key);
-        checkNotNull(value);
-        if (configuration.contains(key)) {
-            T oldValue = configuration.get(key);
-            checkArgument(
-                    Objects.equals(oldValue, value),
-                    "This option %s has been already set to value %s.",
-                    key.key(),
-                    oldValue);
-        } else {
-            configuration.set(key, value);
-        }
+        configBuilder.set(key, value);
         return this;
     }
 
     /**
-     * Set arbitrary properties for the PulsarSource and PulsarConsumer. The valid keys can be found
-     * in {@link PulsarSourceOptions} and {@link PulsarOptions}.
+     * Set arbitrary properties for the PulsarSource and Pulsar Consumer. The valid keys can be
+     * found in {@link PulsarSourceOptions} and {@link PulsarOptions}.
      *
      * @param config the config to set for the PulsarSource.
      * @return this PulsarSourceBuilder.
      */
     public PulsarSourceBuilder<OUT> setConfig(Configuration config) {
-        Map<String, String> existedConfigs = configuration.toMap();
-        List<String> duplicatedKeys = new ArrayList<>();
-        for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
-            String key = entry.getKey();
-            String value2 = existedConfigs.get(key);
-            if (value2 != null && !value2.equals(entry.getValue())) {
-                duplicatedKeys.add(key);
-            }
-        }
-        checkArgument(
-                duplicatedKeys.isEmpty(),
-                "Invalid configuration, these keys %s are already exist with different config value.",
-                duplicatedKeys);
-        configuration.addAll(config);
+        configBuilder.set(config);
+        return this;
+    }
+
+    /**
+     * Set arbitrary properties for the PulsarSource and Pulsar Consumer. The valid keys can be
+     * found in {@link PulsarSourceOptions} and {@link PulsarOptions}.
+     *
+     * <p>This method is mainly used for future flink SQL binding.
+     *
+     * @param properties the config properties to set for the PulsarSource.
+     * @return this PulsarSourceBuilder.
+     */
+    public PulsarSourceBuilder<OUT> setProperties(Properties properties) {
+        configBuilder.set(properties);
         return this;
     }
 
@@ -415,13 +417,11 @@ public final class PulsarSourceBuilder<OUT> {
      */
     @SuppressWarnings("java:S3776")
     public PulsarSource<OUT> build() {
-        // Check builder configuration.
-        checkConfigurations(configuration);
 
         // Ensure the topic subscriber for pulsar.
         checkNotNull(subscriber, "No topic names or topic pattern are provided.");
 
-        SubscriptionType subscriptionType = configuration.get(PULSAR_SUBSCRIPTION_TYPE);
+        SubscriptionType subscriptionType = configBuilder.get(PULSAR_SUBSCRIPTION_TYPE);
         if (subscriptionType == SubscriptionType.Key_Shared) {
             if (rangeGenerator == null) {
                 LOG.warn(
@@ -439,30 +439,30 @@ public final class PulsarSourceBuilder<OUT> {
             this.boundedness = Boundedness.CONTINUOUS_UNBOUNDED;
         }
         if (boundedness == Boundedness.BOUNDED
-                && configuration.get(PULSAR_PARTITION_DISCOVERY_INTERVAL_MS) >= 0) {
+                && configBuilder.get(PULSAR_PARTITION_DISCOVERY_INTERVAL_MS) >= 0) {
             LOG.warn(
                     "{} property is overridden to -1 because the source is bounded.",
                     PULSAR_PARTITION_DISCOVERY_INTERVAL_MS);
-            configuration.set(PULSAR_PARTITION_DISCOVERY_INTERVAL_MS, -1L);
+            configBuilder.override(PULSAR_PARTITION_DISCOVERY_INTERVAL_MS, -1L);
         }
 
         checkNotNull(deserializationSchema, "deserializationSchema should be set.");
 
         // Enable transaction if the cursor auto commit is disabled for Key_Shared & Shared.
-        if (FALSE.equals(configuration.get(PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE))
+        if (FALSE.equals(configBuilder.get(PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE))
                 && (subscriptionType == SubscriptionType.Key_Shared
                         || subscriptionType == SubscriptionType.Shared)) {
             LOG.info(
                     "Pulsar cursor auto commit is disabled, make sure checkpoint is enabled "
                             + "and your pulsar cluster is support the transaction.");
-            configuration.set(PULSAR_ENABLE_TRANSACTION, true);
+            configBuilder.override(PULSAR_ENABLE_TRANSACTION, true);
 
-            if (!configuration.contains(PULSAR_TRANSACTION_TIMEOUT_MILLIS)) {
+            if (!configBuilder.contains(PULSAR_READ_TRANSACTION_TIMEOUT)) {
                 LOG.warn(
                         "The default pulsar transaction timeout is 3 hours, "
                                 + "make sure it was greater than your checkpoint interval.");
             } else {
-                Long timeout = configuration.get(PULSAR_TRANSACTION_TIMEOUT_MILLIS);
+                Long timeout = configBuilder.get(PULSAR_READ_TRANSACTION_TIMEOUT);
                 LOG.warn(
                         "The configured transaction timeout is {} mille seconds, "
                                 + "make sure it was greater than your checkpoint interval.",
@@ -470,16 +470,27 @@ public final class PulsarSourceBuilder<OUT> {
             }
         }
 
-        // Since these implementation could be a lambda, make sure they are serializable.
+        if (!configBuilder.contains(PULSAR_CONSUMER_NAME)) {
+            LOG.warn(
+                    "We recommend set a readable consumer name through setConsumerName(String) in production mode.");
+        } else {
+            String consumerName = configBuilder.get(PULSAR_CONSUMER_NAME);
+            if (!consumerName.contains("%s")) {
+                configBuilder.override(PULSAR_CONSUMER_NAME, consumerName + " - %s");
+            }
+        }
+
+        // Since these implementations could be a lambda, make sure they are serializable.
         checkState(isSerializable(startCursor), "StartCursor isn't serializable");
         checkState(isSerializable(stopCursor), "StopCursor isn't serializable");
         checkState(isSerializable(rangeGenerator), "RangeGenerator isn't serializable");
 
-        // Make the configuration unmodifiable.
-        UnmodifiableConfiguration config = new UnmodifiableConfiguration(configuration);
+        // Check builder configuration.
+        SourceConfiguration sourceConfiguration =
+                configBuilder.build(SOURCE_CONFIG_VALIDATOR, SourceConfiguration::new);
 
         return new PulsarSource<>(
-                config,
+                sourceConfiguration,
                 subscriber,
                 rangeGenerator,
                 startCursor,

@@ -18,7 +18,9 @@
 
 package org.apache.flink.tools.ci.licensecheck;
 
-import com.google.common.base.Preconditions;
+import org.apache.flink.tools.ci.utils.dependency.DependencyParser;
+import org.apache.flink.tools.ci.utils.shared.Dependency;
+
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
@@ -29,9 +31,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -56,13 +62,6 @@ public class NoticeFileChecker {
     private static final Pattern SHADE_INCLUDE_MODULE_PATTERN =
             Pattern.compile(".*Including ([^:]+):([^:]+):jar:([^ ]+) in the shaded jar");
 
-    // pattern for maven-dependency-plugin copyied dependencies
-    private static final Pattern DEPENDENCY_COPY_NEXT_MODULE_PATTERN =
-            Pattern.compile(
-                    ".*maven-dependency-plugin:[^:]+:copy \\([^)]+\\) @ ([^ _]+)(_[0-9.]+)? --.*");
-    private static final Pattern DEPENDENCY_COPY_INCLUDE_MODULE_PATTERN =
-            Pattern.compile(".*Configured Artifact: ([^:]+):([^:]+):([^:]+):jar.*");
-
     // Examples:
     // "- org.apache.htrace:htrace-core:3.1.0-incubating"
     // or
@@ -74,11 +73,14 @@ public class NoticeFileChecker {
     static int run(File buildResult, Path root) throws IOException {
         int severeIssueCount = 0;
         // parse included dependencies from build output
-        Multimap<String, IncludedDependency> modulesWithBundledDependencies =
-                parseModulesFromBuildResult(buildResult);
+        final Multimap<String, Dependency> modulesWithBundledDependencies =
+                combine(
+                        parseModulesFromBuildResult(buildResult),
+                        DependencyParser.parseDependencyCopyOutput(buildResult.toPath()));
+
         LOG.info(
                 "Extracted "
-                        + modulesWithBundledDependencies.asMap().keySet().size()
+                        + modulesWithBundledDependencies.keySet().size()
                         + " modules with a total of "
                         + modulesWithBundledDependencies.values().size()
                         + " dependencies");
@@ -98,9 +100,24 @@ public class NoticeFileChecker {
         return severeIssueCount;
     }
 
+    private static Multimap<String, Dependency> combine(
+            Multimap<String, Dependency> modulesWithBundledDependencies,
+            Map<String, Set<Dependency>> modulesWithCopiedDependencies) {
+        modulesWithCopiedDependencies.forEach(
+                (module, copiedDependencies) -> {
+                    copiedDependencies.stream()
+                            .filter(
+                                    dependency ->
+                                            !dependency.getGroupId().contains("org.apache.flink"))
+                            .forEach(
+                                    dependency ->
+                                            modulesWithBundledDependencies.put(module, dependency));
+                });
+        return modulesWithBundledDependencies;
+    }
+
     private static int ensureRequiredNoticeFiles(
-            Multimap<String, IncludedDependency> modulesWithShadedDependencies,
-            List<Path> noticeFiles) {
+            Multimap<String, Dependency> modulesWithShadedDependencies, List<Path> noticeFiles) {
         int severeIssueCount = 0;
         Set<String> shadingModules = new HashSet<>(modulesWithShadedDependencies.keys());
         shadingModules.removeAll(
@@ -131,29 +148,31 @@ public class NoticeFileChecker {
     }
 
     private static int checkNoticeFile(
-            Multimap<String, IncludedDependency> modulesWithShadedDependencies, Path noticeFile)
+            Multimap<String, Dependency> modulesWithShadedDependencies, Path noticeFile)
             throws IOException {
-        int severeIssueCount = 0;
         String moduleName = getModuleFromNoticeFile(noticeFile);
 
         // 1st line contains module name
         List<String> noticeContents = Files.readAllLines(noticeFile);
 
+        final Map<Severity, List<String>> problemsBySeverity = new HashMap<>();
+
         if (noticeContents.isEmpty()) {
-            LOG.error("Notice file empty {}", noticeFile);
-            severeIssueCount++;
+            addProblem(problemsBySeverity, Severity.CRITICAL, "The NOTICE file was empty.");
         }
 
         // first line must be the module name.
         if (!noticeContents.get(0).equals(moduleName)) {
-            LOG.warn(
-                    "Expected first file of notice file to start with module name. moduleName={}, firstLine={}",
-                    moduleName,
-                    noticeContents.get(0));
+            addProblem(
+                    problemsBySeverity,
+                    Severity.TOLERATED,
+                    String.format(
+                            "First line does not start with module name. firstLine=%s",
+                            noticeContents.get(0)));
         }
 
         // collect all declared dependencies from NOTICE file
-        Set<IncludedDependency> declaredDependencies = new HashSet<>();
+        Set<Dependency> declaredDependencies = new HashSet<>();
         for (String line : noticeContents) {
             Matcher noticeDependencyMatcher = NOTICE_DEPENDENCY_PATTERN.matcher(line);
             if (noticeDependencyMatcher.find()) {
@@ -165,50 +184,87 @@ public class NoticeFileChecker {
                     artifactId = noticeDependencyMatcher.group(6);
                     version = noticeDependencyMatcher.group(7);
                 }
-                IncludedDependency toAdd = IncludedDependency.create(groupId, artifactId, version);
+                Dependency toAdd = Dependency.create(groupId, artifactId, version);
                 if (!declaredDependencies.add(toAdd)) {
-                    LOG.error(
-                            "Dependency {} has been declared twice in module {}",
-                            toAdd,
-                            moduleName);
-                    severeIssueCount++;
+                    addProblem(
+                            problemsBySeverity,
+                            Severity.CRITICAL,
+                            String.format("Dependency %s is declared twice.", toAdd));
                 }
             }
         }
-        // print all dependencies missing from NOTICE file
-        Collection<IncludedDependency> expectedDependencies =
-                modulesWithShadedDependencies.get(moduleName);
-        for (IncludedDependency expectedDependency : expectedDependencies) {
+        // find all dependencies missing from NOTICE file
+        Collection<Dependency> expectedDependencies = modulesWithShadedDependencies.get(moduleName);
+        for (Dependency expectedDependency : expectedDependencies) {
             if (!declaredDependencies.contains(expectedDependency)) {
-                LOG.error(
-                        "Could not find dependency {} in NOTICE file {}",
-                        expectedDependency,
-                        noticeFile);
-                severeIssueCount++;
+                addProblem(
+                        problemsBySeverity,
+                        Severity.CRITICAL,
+                        String.format("Dependency %s is not listed.", expectedDependency));
             }
         }
 
         boolean moduleDefinesExcessDependencies =
                 MODULES_DEFINING_EXCESS_DEPENDENCIES.contains(moduleName);
 
-        // print all dependencies defined in NOTICE file, which were not expected
-        for (IncludedDependency declaredDependency : declaredDependencies) {
+        // find all dependencies defined in NOTICE file, which were not expected
+        for (Dependency declaredDependency : declaredDependencies) {
             if (!expectedDependencies.contains(declaredDependency)) {
-                if (moduleDefinesExcessDependencies) {
-                    LOG.debug(
-                            "Dependency {} is mentioned in NOTICE file {}, but was not mentioned by the build output as a bundled dependency",
-                            declaredDependency,
-                            noticeFile);
-                } else {
-                    LOG.warn(
-                            "Dependency {} is mentioned in NOTICE file {}, but is not expected there",
-                            declaredDependency,
-                            noticeFile);
-                }
+                final Severity severity =
+                        moduleDefinesExcessDependencies ? Severity.SUPPRESSED : Severity.TOLERATED;
+                addProblem(
+                        problemsBySeverity,
+                        severity,
+                        String.format(
+                                "Dependency %s is not bundled, but listed.", declaredDependency));
             }
         }
 
-        return severeIssueCount;
+        final List<String> severeProblems =
+                problemsBySeverity.getOrDefault(Severity.CRITICAL, Collections.emptyList());
+
+        if (!problemsBySeverity.isEmpty()) {
+            final List<String> toleratedProblems =
+                    problemsBySeverity.getOrDefault(Severity.TOLERATED, Collections.emptyList());
+            final List<String> expectedProblems =
+                    problemsBySeverity.getOrDefault(Severity.SUPPRESSED, Collections.emptyList());
+
+            LOG.info(
+                    "Problems were detected for a NOTICE file.\n" + "\t{}:\n" + "{}{}{}",
+                    moduleName,
+                    convertProblemsToIndentedString(
+                            severeProblems,
+                            "These issue are legally problematic and MUST be fixed:"),
+                    convertProblemsToIndentedString(
+                            toleratedProblems,
+                            "These issues are mistakes that aren't legally problematic. They SHOULD be fixed at some point, but we don't have to:"),
+                    convertProblemsToIndentedString(
+                            expectedProblems, "These issues are assumed to be false-positives:"));
+        }
+
+        return severeProblems.size();
+    }
+
+    private static void addProblem(
+            Map<Severity, List<String>> problemsBySeverity, Severity severity, String problem) {
+        problemsBySeverity.computeIfAbsent(severity, ignored -> new ArrayList<>()).add(problem);
+    }
+
+    private enum Severity {
+        /** Issues that a legally problematic which must be fixed. */
+        CRITICAL,
+        /** Issues that affect the correctness but aren't legally problematic. */
+        TOLERATED,
+        /** Issues where we intentionally break the rules. */
+        SUPPRESSED
+    }
+
+    private static String convertProblemsToIndentedString(List<String> problems, String header) {
+        return problems.isEmpty()
+                ? ""
+                : problems.stream()
+                        .map(s -> "\t\t\t" + s)
+                        .collect(Collectors.joining("\n", "\t\t " + header + " \n", "\n"));
     }
 
     private static List<Path> findNoticeFiles(Path root) throws IOException {
@@ -223,24 +279,17 @@ public class NoticeFileChecker {
                 .collect(Collectors.toList());
     }
 
-    private static Multimap<String, IncludedDependency> parseModulesFromBuildResult(
-            File buildResult) throws IOException {
-        Multimap<String, IncludedDependency> result = ArrayListMultimap.create();
+    private static Multimap<String, Dependency> parseModulesFromBuildResult(File buildResult)
+            throws IOException {
+        Multimap<String, Dependency> result = ArrayListMultimap.create();
 
         try (Stream<String> lines = Files.lines(buildResult.toPath())) {
             // String line;
             String currentShadeModule = null;
-            String currentDependencyCopyModule = null;
             for (String line : (Iterable<String>) lines::iterator) {
                 Matcher nextShadeModuleMatcher = SHADE_NEXT_MODULE_PATTERN.matcher(line);
                 if (nextShadeModuleMatcher.find()) {
                     currentShadeModule = nextShadeModuleMatcher.group(2);
-                }
-
-                Matcher nextDependencyCopyModuleMatcher =
-                        DEPENDENCY_COPY_NEXT_MODULE_PATTERN.matcher(line);
-                if (nextDependencyCopyModuleMatcher.find()) {
-                    currentDependencyCopyModule = nextDependencyCopyModuleMatcher.group(1);
                 }
 
                 if (currentShadeModule != null) {
@@ -252,29 +301,12 @@ public class NoticeFileChecker {
                         if (!"org.apache.flink".equals(groupId)) {
                             result.put(
                                     currentShadeModule,
-                                    IncludedDependency.create(groupId, artifactId, version));
-                        }
-                    }
-                }
-
-                if (currentDependencyCopyModule != null) {
-                    Matcher copyMatcher = DEPENDENCY_COPY_INCLUDE_MODULE_PATTERN.matcher(line);
-                    if (copyMatcher.find()) {
-                        String groupId = copyMatcher.group(1);
-                        String artifactId = copyMatcher.group(2);
-                        String version = copyMatcher.group(3);
-                        if (!"org.apache.flink".equals(groupId)) {
-                            result.put(
-                                    currentDependencyCopyModule,
-                                    IncludedDependency.create(groupId, artifactId, version));
+                                    Dependency.create(groupId, artifactId, version));
                         }
                     }
                 }
                 if (line.contains("Replacing original artifact with shaded artifact")) {
                     currentShadeModule = null;
-                }
-                if (line.contains("Copying")) {
-                    currentDependencyCopyModule = null;
                 }
             }
         }
@@ -293,56 +325,6 @@ public class NoticeFileChecker {
         } catch (Throwable e) {
             // wrap anything in a RuntimeException to be callable from the static initializer
             throw new RuntimeException("Error while loading resource", e);
-        }
-    }
-
-    private static final class IncludedDependency {
-
-        private final String groupId;
-        private final String artifactId;
-        private final String version;
-
-        private IncludedDependency(String groupId, String artifactId, String version) {
-            this.groupId = Preconditions.checkNotNull(groupId);
-            this.artifactId = Preconditions.checkNotNull(artifactId);
-            this.version = Preconditions.checkNotNull(version);
-        }
-
-        public static IncludedDependency create(String groupId, String artifactId, String version) {
-            return new IncludedDependency(groupId, artifactId, version);
-        }
-
-        @Override
-        public String toString() {
-            return groupId + ":" + artifactId + ":" + version;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-
-            IncludedDependency that = (IncludedDependency) o;
-
-            if (!groupId.equals(that.groupId)) {
-                return false;
-            }
-            if (!artifactId.equals(that.artifactId)) {
-                return false;
-            }
-            return version.equals(that.version);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = groupId.hashCode();
-            result = 31 * result + artifactId.hashCode();
-            result = 31 * result + version.hashCode();
-            return result;
         }
     }
 }

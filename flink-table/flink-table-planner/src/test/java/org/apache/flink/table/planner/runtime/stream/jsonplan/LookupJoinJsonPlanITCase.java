@@ -67,12 +67,11 @@ public class LookupJoinJsonPlanITCase extends JsonPlanTestBase {
     /** test join temporal table. * */
     @Test
     public void testJoinLookupTable() throws Exception {
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink "
                                 + "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table \n"
-                                + "for system_time as of T.proctime AS D ON T.id = D.id \n");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "for system_time as of T.proctime AS D ON T.id = D.id \n")
+                .await();
         List<String> expected =
                 Arrays.asList(
                         "+I[1, 12, Julian, Julian]",
@@ -83,12 +82,11 @@ public class LookupJoinJsonPlanITCase extends JsonPlanTestBase {
 
     @Test
     public void testJoinLookupTableWithPushDown() throws Exception {
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink \n"
                                 + "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table \n "
-                                + "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20")
+                .await();
         List<String> expected =
                 Arrays.asList("+I[2, 15, Hello, Jark]", "+I[3, 15, Fabian, Fabian]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));

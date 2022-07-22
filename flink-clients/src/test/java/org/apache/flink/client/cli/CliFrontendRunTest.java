@@ -18,10 +18,12 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
@@ -133,50 +135,37 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
     @Test
     public void testClaimRestoreModeParsing() throws Exception {
-        // test configure savepoint with claim mode
-        String[] parameters = {
-            "-s", "expectedSavepointPath", "-n", "-restoreMode", "claim", getTestJarPath()
-        };
-
-        CommandLine commandLine =
-                CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
-        ProgramOptions programOptions = ProgramOptions.create(commandLine);
-        ExecutionConfigAccessor executionOptions =
-                ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
-
-        SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
-        assertTrue(savepointSettings.restoreSavepoint());
-        assertEquals(RestoreMode.CLAIM, savepointSettings.getRestoreMode());
-        assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
-        assertTrue(savepointSettings.allowNonRestoredState());
+        testRestoreMode("-rm", "claim", RestoreMode.CLAIM);
     }
 
     @Test
     public void testLegacyRestoreModeParsing() throws Exception {
-        // test configure savepoint with claim mode
-        String[] parameters = {
-            "-s", "expectedSavepointPath", "-n", "-restoreMode", "legacy", getTestJarPath()
-        };
-
-        CommandLine commandLine =
-                CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
-        ProgramOptions programOptions = ProgramOptions.create(commandLine);
-        ExecutionConfigAccessor executionOptions =
-                ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
-
-        SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
-        assertTrue(savepointSettings.restoreSavepoint());
-        assertEquals(RestoreMode.LEGACY, savepointSettings.getRestoreMode());
-        assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
-        assertTrue(savepointSettings.allowNonRestoredState());
+        testRestoreMode("-rm", "legacy", RestoreMode.LEGACY);
     }
 
     @Test
     public void testNoClaimRestoreModeParsing() throws Exception {
-        // test configure savepoint with claim mode
-        String[] parameters = {
-            "-s", "expectedSavepointPath", "-n", "-restoreMode", "no_claim", getTestJarPath()
-        };
+        testRestoreMode("-rm", "no_claim", RestoreMode.NO_CLAIM);
+    }
+
+    @Test
+    public void testClaimRestoreModeParsingLongOption() throws Exception {
+        testRestoreMode("--restoreMode", "claim", RestoreMode.CLAIM);
+    }
+
+    @Test
+    public void testLegacyRestoreModeParsingLongOption() throws Exception {
+        testRestoreMode("--restoreMode", "legacy", RestoreMode.LEGACY);
+    }
+
+    @Test
+    public void testNoClaimRestoreModeParsingLongOption() throws Exception {
+        testRestoreMode("--restoreMode", "no_claim", RestoreMode.NO_CLAIM);
+    }
+
+    private void testRestoreMode(String flag, String arg, RestoreMode expectedMode)
+            throws Exception {
+        String[] parameters = {"-s", "expectedSavepointPath", "-n", flag, arg, getTestJarPath()};
 
         CommandLine commandLine =
                 CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
@@ -186,7 +175,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
         SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
         assertTrue(savepointSettings.restoreSavepoint());
-        assertEquals(RestoreMode.NO_CLAIM, savepointSettings.getRestoreMode());
+        assertEquals(expectedMode, savepointSettings.getRestoreMode());
         assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
         assertTrue(savepointSettings.allowNonRestoredState());
     }
@@ -219,6 +208,37 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.run(parameters);
+    }
+
+    @Test(expected = CliArgsException.class)
+    public void testInvalidNegativeParallelismOption() throws Exception {
+        String[] parameters = {"-p", "-2", getTestJarPath()};
+        Configuration configuration = new Configuration();
+        CliFrontend testFrontend =
+                new CliFrontend(configuration, Collections.singletonList(getCli()));
+        testFrontend.run(parameters);
+    }
+
+    @Test
+    public void testDefaultParallelismOption() throws Exception {
+        final Configuration configuration = getConfiguration();
+        String[] parameters = {
+            "-p", String.valueOf(ExecutionConfig.PARALLELISM_DEFAULT), getTestJarPath()
+        };
+        verifyCliFrontend(
+                configuration, getCli(), parameters, ExecutionConfig.PARALLELISM_DEFAULT, false);
+    }
+
+    @Test
+    public void testDefaultParallelismOptionOverridesConfiguration() throws Exception {
+        // The parallelism should be the same with Cli param -1 instead of config 1.
+        final Configuration configuration = getConfiguration();
+        configuration.set(CoreOptions.DEFAULT_PARALLELISM, 1);
+        String[] parameters = {
+            "-p", String.valueOf(ExecutionConfig.PARALLELISM_DEFAULT), getTestJarPath()
+        };
+        verifyCliFrontend(
+                configuration, getCli(), parameters, ExecutionConfig.PARALLELISM_DEFAULT, false);
     }
 
     // --------------------------------------------------------------------------------------------

@@ -25,9 +25,7 @@ import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 import scala.util.{Failure, Success, Try}
 
-/**
- * Serializer for [[scala.util.Try]].
- */
+/** Serializer for [[scala.util.Try]]. */
 @Internal
 @SerialVersionUID(-3052182891252564491L)
 class TrySerializer[A](
@@ -35,8 +33,9 @@ class TrySerializer[A](
     private val throwableSerializer: TypeSerializer[Throwable])
   extends TypeSerializer[Try[A]] {
 
-  private[typeutils] def this(elemSerializer: TypeSerializer[A],
-                              executionConfig: ExecutionConfig) = {
+  private[typeutils] def this(
+      elemSerializer: TypeSerializer[A],
+      executionConfig: ExecutionConfig) = {
     this(
       elemSerializer,
       new KryoSerializer[Throwable](classOf[Throwable], executionConfig)
@@ -120,19 +119,17 @@ class TrySerializer[A](
 object TrySerializer {
 
   /**
-    * We need to keep this to be compatible with snapshots taken in Flink 1.3.0.
-    * Once Flink 1.3.x is no longer supported, this can be removed.
-    */
+   * We need to keep this to be compatible with snapshots taken in Flink 1.3.0. Once Flink 1.3.x is
+   * no longer supported, this can be removed.
+   */
   @Deprecated
-  class TrySerializerConfigSnapshot[A]()
-      extends CompositeTypeSerializerConfigSnapshot[Try[A]]() {
+  class TrySerializerConfigSnapshot[A]() extends CompositeTypeSerializerConfigSnapshot[Try[A]]() {
 
     override def getVersion: Int = TrySerializerConfigSnapshot.VERSION
 
     override def resolveSchemaCompatibility(
-      newSerializer: TypeSerializer[Try[A]]
+        newSerializer: TypeSerializer[Try[A]]
     ): TypeSerializerSchemaCompatibility[Try[A]] =
-
       CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
         newSerializer,
         new ScalaTrySerializerSnapshot[A](),

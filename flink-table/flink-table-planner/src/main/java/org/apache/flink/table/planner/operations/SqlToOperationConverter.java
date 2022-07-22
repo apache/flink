@@ -35,6 +35,7 @@ import org.apache.flink.sql.parser.ddl.SqlAlterViewAs;
 import org.apache.flink.sql.parser.ddl.SqlAlterViewProperties;
 import org.apache.flink.sql.parser.ddl.SqlAlterViewRename;
 import org.apache.flink.sql.parser.ddl.SqlChangeColumn;
+import org.apache.flink.sql.parser.ddl.SqlCompilePlan;
 import org.apache.flink.sql.parser.ddl.SqlCreateCatalog;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateFunction;
@@ -54,10 +55,14 @@ import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.ddl.SqlUseModules;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
+import org.apache.flink.sql.parser.ddl.resource.SqlResource;
+import org.apache.flink.sql.parser.ddl.resource.SqlResourceType;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dml.SqlBeginStatementSet;
+import org.apache.flink.sql.parser.dml.SqlCompileAndExecutePlan;
 import org.apache.flink.sql.parser.dml.SqlEndStatementSet;
 import org.apache.flink.sql.parser.dml.SqlExecute;
+import org.apache.flink.sql.parser.dml.SqlExecutePlan;
 import org.apache.flink.sql.parser.dml.SqlStatementSet;
 import org.apache.flink.sql.parser.dql.SqlLoadModule;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
@@ -103,12 +108,14 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
+import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowColumnsOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
@@ -123,12 +130,14 @@ import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
+import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
@@ -138,13 +147,13 @@ import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
-import org.apache.flink.table.operations.ddl.AlterTableCompactOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
 import org.apache.flink.table.operations.ddl.AlterViewPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
+import org.apache.flink.table.operations.ddl.CompilePlanOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
@@ -161,6 +170,8 @@ import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.utils.Expander;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
+import org.apache.flink.table.resource.ResourceType;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.util.StringUtils;
 
@@ -327,11 +338,28 @@ public class SqlToOperationConverter {
         } else if (validated instanceof SqlExecute) {
             return convertValidatedSqlNode(
                     flinkPlanner, catalogManager, ((SqlExecute) validated).getStatement());
+        } else if (validated instanceof SqlExecutePlan) {
+            return Optional.of(converter.convertExecutePlan((SqlExecutePlan) validated));
+        } else if (validated instanceof SqlCompilePlan) {
+            return Optional.of(converter.convertCompilePlan((SqlCompilePlan) validated));
+        } else if (validated instanceof SqlCompileAndExecutePlan) {
+            return Optional.of(
+                    converter.convertCompileAndExecutePlan((SqlCompileAndExecutePlan) validated));
         } else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
             return Optional.of(converter.convertSqlQuery(validated));
         } else {
             return Optional.empty();
         }
+    }
+
+    private static Operation convertValidatedSqlNodeOrFail(
+            FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager, SqlNode validated) {
+        return convertValidatedSqlNode(flinkPlanner, catalogManager, validated)
+                .orElseThrow(
+                        () ->
+                                new TableException(
+                                        "Unsupported node type "
+                                                + validated.getClass().getSimpleName()));
     }
 
     // ~ Tools ------------------------------------------------------------------
@@ -507,10 +535,10 @@ public class SqlToOperationConverter {
             }
             return new DropPartitionsOperation(tableIdentifier, dropPartitions.ifExists(), specs);
         } else if (sqlAlterTable instanceof SqlAlterTableCompact) {
-            ResolvedCatalogTable resolvedCatalogTable =
-                    optionalCatalogTable.get().getResolvedTable();
             return convertAlterTableCompact(
-                    tableIdentifier, resolvedCatalogTable, (SqlAlterTableCompact) sqlAlterTable);
+                    tableIdentifier,
+                    optionalCatalogTable.get(),
+                    (SqlAlterTableCompact) sqlAlterTable);
         } else {
             throw new ValidationException(
                     String.format(
@@ -572,23 +600,29 @@ public class SqlToOperationConverter {
         return new AlterTableOptionsOperation(tableIdentifier, oldTable.copy(newOptions));
     }
 
-    private Operation convertAlterTableCompact(
+    /**
+     * Convert `ALTER TABLE ... COMPACT` operation to {@link ModifyOperation} for Flink's managed
+     * table to trigger a compaction batch job.
+     */
+    private ModifyOperation convertAlterTableCompact(
             ObjectIdentifier tableIdentifier,
-            ResolvedCatalogTable resolvedCatalogTable,
+            ContextResolvedTable contextResolvedTable,
             SqlAlterTableCompact alterTableCompact) {
         Catalog catalog = catalogManager.getCatalog(tableIdentifier.getCatalogName()).orElse(null);
+        ResolvedCatalogTable resolvedCatalogTable = contextResolvedTable.getResolvedTable();
+
         if (ManagedTableListener.isManagedTable(catalog, resolvedCatalogTable)) {
-            LinkedHashMap<String, String> partitionKVs = alterTableCompact.getPartitionKVs();
-            CatalogPartitionSpec partitionSpec = null;
+            Map<String, String> partitionKVs = alterTableCompact.getPartitionKVs();
+            CatalogPartitionSpec partitionSpec = new CatalogPartitionSpec(Collections.emptyMap());
             if (partitionKVs != null) {
-                List<String> orderedPartitionKeys = resolvedCatalogTable.getPartitionKeys();
-                Set<String> validPartitionKeySet = new HashSet<>(orderedPartitionKeys);
+                List<String> partitionKeys = resolvedCatalogTable.getPartitionKeys();
+                Set<String> validPartitionKeySet = new HashSet<>(partitionKeys);
                 String exMsg =
-                        orderedPartitionKeys.isEmpty()
+                        partitionKeys.isEmpty()
                                 ? String.format("Table %s is not partitioned.", tableIdentifier)
                                 : String.format(
                                         "Available ordered partition columns: [%s]",
-                                        orderedPartitionKeys.stream()
+                                        partitionKeys.stream()
                                                 .collect(Collectors.joining("', '", "'", "'")));
                 partitionKVs.forEach(
                         (partitionKey, partitionValue) -> {
@@ -601,7 +635,16 @@ public class SqlToOperationConverter {
                         });
                 partitionSpec = new CatalogPartitionSpec(partitionKVs);
             }
-            return new AlterTableCompactOperation(tableIdentifier, partitionSpec);
+            Map<String, String> compactOptions =
+                    catalogManager.resolveCompactManagedTableOptions(
+                            resolvedCatalogTable, tableIdentifier, partitionSpec);
+            QueryOperation child = new SourceQueryOperation(contextResolvedTable, compactOptions);
+            return new SinkModifyOperation(
+                    contextResolvedTable,
+                    child,
+                    partitionSpec.getPartitionSpec(),
+                    false,
+                    compactOptions);
         }
         throw new ValidationException(
                 String.format(
@@ -613,19 +656,21 @@ public class SqlToOperationConverter {
     private Operation convertCreateFunction(SqlCreateFunction sqlCreateFunction) {
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlCreateFunction.getFunctionIdentifier());
-
+        List<ResourceUri> resourceUris = getFunctionResources(sqlCreateFunction.getResourceInfos());
         if (sqlCreateFunction.isSystemFunction()) {
             return new CreateTempSystemFunctionOperation(
                     unresolvedIdentifier.getObjectName(),
                     sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
                     sqlCreateFunction.isIfNotExists(),
-                    parseLanguage(sqlCreateFunction.getFunctionLanguage()));
+                    parseLanguage(sqlCreateFunction.getFunctionLanguage()),
+                    resourceUris);
         } else {
             FunctionLanguage language = parseLanguage(sqlCreateFunction.getFunctionLanguage());
             CatalogFunction catalogFunction =
                     new CatalogFunctionImpl(
                             sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
-                            language);
+                            language,
+                            resourceUris);
             ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
             return new CreateCatalogFunctionOperation(
@@ -634,6 +679,38 @@ public class SqlToOperationConverter {
                     sqlCreateFunction.isIfNotExists(),
                     sqlCreateFunction.isTemporary());
         }
+    }
+
+    private List<ResourceUri> getFunctionResources(List<SqlNode> sqlResources) {
+        return sqlResources.stream()
+                .map(SqlResource.class::cast)
+                .map(
+                        sqlResource -> {
+                            // get resource type
+                            SqlResourceType sqlResourceType =
+                                    sqlResource.getResourceType().getValueAs(SqlResourceType.class);
+                            ResourceType resourceType;
+                            switch (sqlResourceType) {
+                                case FILE:
+                                    resourceType = ResourceType.FILE;
+                                    break;
+                                case JAR:
+                                    resourceType = ResourceType.JAR;
+                                    break;
+                                case ARCHIVE:
+                                    resourceType = ResourceType.ARCHIVE;
+                                    break;
+                                default:
+                                    throw new ValidationException(
+                                            String.format(
+                                                    "Unsupported resource type: .",
+                                                    sqlResourceType));
+                            }
+                            // get resource path
+                            String path = sqlResource.getResourcePath().getValueAs(String.class);
+                            return new ResourceUri(resourceType, path);
+                        })
+                .collect(Collectors.toList());
     }
 
     /** Convert ALTER FUNCTION statement. */
@@ -721,14 +798,8 @@ public class SqlToOperationConverter {
 
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
-                        convertValidatedSqlNode(flinkPlanner, catalogManager, insert.getSource())
-                                .orElseThrow(
-                                        () ->
-                                                new TableException(
-                                                        "Unsupported node type "
-                                                                + insert.getSource()
-                                                                        .getClass()
-                                                                        .getSimpleName()));
+                        convertValidatedSqlNodeOrFail(
+                                flinkPlanner, catalogManager, insert.getSource());
 
         return new SinkModifyOperation(
                 contextResolvedTable,
@@ -906,7 +977,32 @@ public class SqlToOperationConverter {
 
     /** Convert SHOW TABLES statement. */
     private Operation convertShowTables(SqlShowTables sqlShowTables) {
-        return new ShowTablesOperation();
+        if (sqlShowTables.getPreposition() == null) {
+            return new ShowTablesOperation(
+                    sqlShowTables.getLikeSqlPattern(),
+                    sqlShowTables.isWithLike(),
+                    sqlShowTables.isNotLike());
+        }
+        String[] fullDatabaseName = sqlShowTables.fullDatabaseName();
+        if (fullDatabaseName.length > 2) {
+            throw new ValidationException(
+                    String.format(
+                            "show tables from/in identifier [ %s ] format error",
+                            String.join(".", fullDatabaseName)));
+        }
+        String catalogName =
+                (fullDatabaseName.length == 1)
+                        ? catalogManager.getCurrentCatalog()
+                        : fullDatabaseName[0];
+        String databaseName =
+                (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
+        return new ShowTablesOperation(
+                catalogName,
+                databaseName,
+                sqlShowTables.getLikeSqlPattern(),
+                sqlShowTables.isWithLike(),
+                sqlShowTables.isNotLike(),
+                sqlShowTables.getPreposition());
     }
 
     /** Convert SHOW COLUMNS statement. */
@@ -1128,6 +1224,27 @@ public class SqlToOperationConverter {
     /** Fallback method for sql query. */
     private Operation convertSqlQuery(SqlNode node) {
         return toQueryOperation(flinkPlanner, node);
+    }
+
+    private Operation convertExecutePlan(SqlExecutePlan sqlExecutePlan) {
+        return new ExecutePlanOperation(sqlExecutePlan.getPlanFile());
+    }
+
+    private Operation convertCompilePlan(SqlCompilePlan compilePlan) {
+        return new CompilePlanOperation(
+                compilePlan.getPlanFile(),
+                compilePlan.isIfNotExists(),
+                convertValidatedSqlNodeOrFail(
+                        flinkPlanner, catalogManager, compilePlan.getOperandList().get(0)));
+    }
+
+    private Operation convertCompileAndExecutePlan(SqlCompileAndExecutePlan compileAndExecutePlan) {
+        return new CompileAndExecutePlanOperation(
+                compileAndExecutePlan.getPlanFile(),
+                convertValidatedSqlNodeOrFail(
+                        flinkPlanner,
+                        catalogManager,
+                        compileAndExecutePlan.getOperandList().get(0)));
     }
 
     private void validateTableConstraint(SqlTableConstraint constraint) {

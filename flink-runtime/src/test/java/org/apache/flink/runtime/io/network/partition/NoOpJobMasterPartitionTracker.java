@@ -19,9 +19,13 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 /** No-op implementation of {@link JobMasterPartitionTracker}. */
 public enum NoOpJobMasterPartitionTracker implements JobMasterPartitionTracker {
@@ -50,6 +54,15 @@ public enum NoOpJobMasterPartitionTracker implements JobMasterPartitionTracker {
 
     @Override
     public Collection<ResultPartitionDeploymentDescriptor> getAllTrackedPartitions() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public void connectToResourceManager(ResourceManagerGateway resourceManagerGateway) {}
+
+    @Override
+    public List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+            IntermediateDataSetID intermediateDataSetID) {
         return Collections.emptyList();
     }
 

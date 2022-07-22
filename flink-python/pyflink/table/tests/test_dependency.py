@@ -21,6 +21,8 @@ import sys
 import unittest
 import uuid
 
+import pytest
+
 from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
 from pyflink.table import expressions as expr
 from pyflink.table.udf import udf
@@ -54,14 +56,51 @@ class DependencyTests(object):
 
         self.t_env.create_temporary_system_function(
             "add_two", udf(plus_two, DataTypes.BIGINT(), DataTypes.BIGINT()))
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
-        self.t_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+        CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
         t.select(expr.call("add_two", t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[3, 1]", "+I[4, 2]", "+I[5, 3]"])
+
+    def test_add_python_archive(self):
+        tmp_dir = self.tempdir
+        archive_dir_path = os.path.join(tmp_dir, "archive_" + str(uuid.uuid4()))
+        os.mkdir(archive_dir_path)
+        with open(os.path.join(archive_dir_path, "data.txt"), 'w') as f:
+            f.write("2")
+        archive_file_path = \
+            shutil.make_archive(os.path.dirname(archive_dir_path), 'zip', archive_dir_path)
+        self.t_env.add_python_archive(archive_file_path, "data")
+
+        def add_from_file(i):
+            with open("data/data.txt", 'r') as f:
+                return i + int(f.read())
+
+        self.t_env.create_temporary_system_function("add_from_file",
+                                                    udf(add_from_file, DataTypes.BIGINT(),
+                                                        DataTypes.BIGINT()))
+
+        sink_table_ddl = """
+        CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
+
+        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
+        t.select(expr.call('add_from_file', t.a), t.a).execute_insert("Results").wait()
+
+        actual = source_sink_utils.results()
+        self.assert_equals(actual, ["+I[3, 1]", "+I[4, 2]", "+I[5, 3]"])
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
+class EmbeddedThreadDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
+    def setUp(self):
+        super(EmbeddedThreadDependencyTests, self).setUp()
+        self.t_env.get_config().set("python.execution-mode", "thread")
 
 
 class BatchDependencyTests(DependencyTests, PyFlinkBatchTableTestCase):
@@ -84,7 +123,7 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
     def test_set_requirements_without_cached_directory(self):
         requirements_txt_path = os.path.join(self.tempdir, str(uuid.uuid4()))
         with open(requirements_txt_path, 'w') as f:
-            f.write("cloudpickle==1.2.2")
+            f.write("cloudpickle==2.1.0")
         self.st_env.set_python_requirements(requirements_txt_path)
 
         def check_requirements(i):
@@ -95,9 +134,11 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
         self.st_env.create_temporary_system_function(
             "check_requirements",
             udf(check_requirements, DataTypes.BIGINT(), DataTypes.BIGINT()))
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
-        self.st_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+                CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+                """
+        self.st_env.execute_sql(sink_table_ddl)
+
         t = self.st_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
         t.select(expr.call('check_requirements', t.a), t.a).execute_insert("Results").wait()
 
@@ -141,40 +182,15 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
         self.st_env.create_temporary_system_function(
             "add_one",
             udf(add_one, DataTypes.BIGINT(), DataTypes.BIGINT()))
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
-        self.st_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+        CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+        """
+        self.st_env.execute_sql(sink_table_ddl)
         t = self.st_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
         t.select(expr.call('add_one', t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[2, 1]", "+I[3, 2]", "+I[4, 3]"])
-
-    def test_add_python_archive(self):
-        tmp_dir = self.tempdir
-        archive_dir_path = os.path.join(tmp_dir, "archive_" + str(uuid.uuid4()))
-        os.mkdir(archive_dir_path)
-        with open(os.path.join(archive_dir_path, "data.txt"), 'w') as f:
-            f.write("2")
-        archive_file_path = \
-            shutil.make_archive(os.path.dirname(archive_dir_path), 'zip', archive_dir_path)
-        self.t_env.add_python_archive(archive_file_path, "data")
-
-        def add_from_file(i):
-            with open("data/data.txt", 'r') as f:
-                return i + int(f.read())
-
-        self.t_env.create_temporary_system_function("add_from_file",
-                                                    udf(add_from_file, DataTypes.BIGINT(),
-                                                        DataTypes.BIGINT()))
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
-        self.t_env.register_table_sink("Results", table_sink)
-        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select(expr.call('add_from_file', t.a), t.a).execute_insert("Results").wait()
-
-        actual = source_sink_utils.results()
-        self.assert_equals(actual, ["+I[3, 1]", "+I[4, 2]", "+I[5, 3]"])
 
     def test_set_environment(self):
         python_exec_link_path = sys.executable
@@ -199,9 +215,10 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
             udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(),
                 DataTypes.BIGINT()))
 
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
-        self.st_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+        CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+        """
+        self.st_env.execute_sql(sink_table_ddl)
         t = self.st_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
         t.select(
             expr.call('check_python_exec', t.a),

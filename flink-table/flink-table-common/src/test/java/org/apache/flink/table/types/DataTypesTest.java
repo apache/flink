@@ -52,11 +52,8 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
@@ -66,6 +63,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -105,12 +103,10 @@ import static org.apache.flink.table.types.utils.DataTypeFactoryMock.dummyRaw;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DataTypes} and {@link LogicalTypeDataTypeConverter}. */
-@RunWith(Parameterized.class)
-public class DataTypesTest {
+class DataTypesTest {
 
-    @Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        return Arrays.asList(
+    private static Stream<TestSpec> testData() {
+        return Stream.of(
                 TestSpec.forDataType(CHAR(2))
                         .expectLogicalType(new CharType(2))
                         .expectConversionClass(String.class),
@@ -294,10 +290,9 @@ public class DataTypesTest {
                         .expectResolvedDataType(dummyRaw(DayOfWeek.class)));
     }
 
-    @Parameter public TestSpec testSpec;
-
-    @Test
-    public void testLogicalType() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testLogicalType(TestSpec testSpec) {
         if (testSpec.expectedLogicalType != null) {
             final DataType dataType =
                     testSpec.typeFactory.createDataType(testSpec.abstractDataType);
@@ -309,16 +304,18 @@ public class DataTypesTest {
         }
     }
 
-    @Test
-    public void testConversionClass() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testConversionClass(TestSpec testSpec) {
         if (testSpec.expectedConversionClass != null) {
             assertThat(testSpec.typeFactory.createDataType(testSpec.abstractDataType))
                     .hasConversionClass(testSpec.expectedConversionClass);
         }
     }
 
-    @Test
-    public void testChildren() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testChildren(TestSpec testSpec) {
         if (testSpec.expectedChildren != null) {
             assertThat(testSpec.typeFactory.createDataType(testSpec.abstractDataType))
                     .getChildren()
@@ -326,16 +323,18 @@ public class DataTypesTest {
         }
     }
 
-    @Test
-    public void testUnresolvedString() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testUnresolvedString(TestSpec testSpec) {
         if (testSpec.expectedUnresolvedString != null) {
             assertThat(testSpec.abstractDataType.toString())
                     .isEqualTo(testSpec.expectedUnresolvedString);
         }
     }
 
-    @Test
-    public void testResolvedDataType() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testResolvedDataType(TestSpec testSpec) {
         if (testSpec.expectedResolvedDataType != null) {
             assertThat(testSpec.typeFactory.createDataType(testSpec.abstractDataType))
                     .isEqualTo(testSpec.expectedResolvedDataType);

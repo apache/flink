@@ -38,8 +38,8 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 
 {{< artifact flink-connector-kafka >}}
 
-Flink's streaming connectors are not currently part of the binary distribution.
-See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
+Flink's streaming connectors are not part of the binary distribution.
+See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
 ## Kafka Source
 {{< hint info >}}
@@ -73,19 +73,19 @@ The following properties are **required** for building a KafkaSource:
 Kafka source provide 3 ways of topic-partition subscription:
 - Topic list, subscribing messages from all partitions in a list of topics. For example:
   ```java
-  KafkaSource.builder().setTopics("topic-a", "topic-b")
+  KafkaSource.builder().setTopics("topic-a", "topic-b");
   ```
 - Topic pattern, subscribing messages from all topics whose name matches the provided regular
   expression. For example:
   ```java
-  KafkaSource.builder().setTopicPattern("topic.*")
+  KafkaSource.builder().setTopicPattern("topic.*");
   ```
 - Partition set, subscribing partitions in the provided partition set. For example:
   ```java
   final HashSet<TopicPartition> partitionSet = new HashSet<>(Arrays.asList(
           new TopicPartition("topic-a", 0),    // Partition 0 of topic "topic-a"
           new TopicPartition("topic-b", 5)));  // Partition 5 of topic "topic-b"
-  KafkaSource.builder().setPartitions(partitionSet)
+  KafkaSource.builder().setPartitions(partitionSet);
   ```
 ### Deserializer
 A deserializer is required for parsing Kafka messages. Deserializer (Deserialization schema) can be
@@ -103,7 +103,7 @@ Kafka message value as string:
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 KafkaSource.<String>builder()
-        .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringSerializer.class));
+        .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class));
 ```
 
 ### Starting Offset
@@ -116,12 +116,12 @@ KafkaSource.builder()
     .setStartingOffsets(OffsetsInitializer.committedOffsets())
     // Start from committed offset, also use EARLIEST as reset strategy if committed offset doesn't exist
     .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
-    // Start from the first record whose timestamp is greater than or equals a timestamp
-    .setStartingOffsets(OffsetsInitializer.timestamp(1592323200L))
+    // Start from the first record whose timestamp is greater than or equals a timestamp (milliseconds)
+    .setStartingOffsets(OffsetsInitializer.timestamp(1657256176000L))
     // Start from earliest offset
     .setStartingOffsets(OffsetsInitializer.earliest())
     // Start from latest offset
-    .setStartingOffsets(OffsetsInitializer.latest())
+    .setStartingOffsets(OffsetsInitializer.latest());
 ```
 
 You can also implement a custom offsets initializer if built-in initializers above cannot fulfill
@@ -165,14 +165,6 @@ it is configured:
 - ```partition.discovery.interval.ms``` is overridden to -1 when
   ```setBounded(OffsetsInitializer)``` has been invoked
 
-The code snippet below shows configuring KafkaConsumer to use "PLAIN" as SASL mechanism and provide
-JAAS configuration:
-```java
-KafkaSource.builder()
-    .setProperty("sasl.mechanism", "PLAIN")
-    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";")
-```
-
 ### Dynamic Partition Discovery
 In order to handle scenarios like topic scaling-out or topic creation without restarting the Flink
 job, Kafka source can be configured to periodically discover new partitions under provided 
@@ -180,7 +172,7 @@ topic-partition subscribing pattern. To enable partition discovery, set a non-ne
 property ```partition.discovery.interval.ms```:
 ```java
 KafkaSource.builder()
-    .setProperty("partition.discovery.interval.ms", "10000") // discover new partitions per 10 seconds
+    .setProperty("partition.discovery.interval.ms", "10000"); // discover new partitions per 10 seconds
 ```
 {{< hint warning >}}
 Partition discovery is **disabled** by default. You need to explicitly set the partition discovery
@@ -192,10 +184,19 @@ By default, the record will use the timestamp embedded in Kafka ```ConsumerRecor
 time. You can define your own ```WatermarkStrategy``` for extract event time from the record itself,
 and emit watermark downstream:
 ```java
-env.fromSource(kafkaSource, new CustomWatermarkStrategy(), "Kafka Source With Custom Watermark Strategy")
+env.fromSource(kafkaSource, new CustomWatermarkStrategy(), "Kafka Source With Custom Watermark Strategy");
 ```
 [This documentation]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}}) describes
 details about how to define a ```WatermarkStrategy```.
+
+### Idleness
+The Kafka Source does not go automatically in an idle state if the parallelism is higher than the
+number of partitions. You will either need to lower the parallelism or add an idle timeout to the 
+watermark strategy. If no records flow in a partition of a stream for that amount of time, then that 
+partition is considered "idle" and will not hold back the progress of watermarks in downstream operators.
+
+[This documentation]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}}#dealing-with-idle-sources) 
+describes details about how to define a ```WatermarkStrategy#withIdleness```.
 
 ### Consumer Offset Committing
 Kafka source commits the current consuming offset when checkpoints are **completed**, for 
@@ -298,6 +299,49 @@ For metrics of Kafka consumer, you can refer to
 <a href="http://kafka.apache.org/documentation/#consumer_monitoring">Apache Kafka Documentation</a>
 for more details.
 
+In case you experience a warning with a stack trace containing
+`javax.management.InstanceAlreadyExistsException: kafka.consumer:[...]`, you are probably trying to
+register multiple ```KafkaConsumers``` with the same client.id. The warning indicates that not all
+available metrics are correctly forwarded to the metrics system. You must ensure that a different
+```client.id.prefix``` for every ```KafkaSource``` is configured and that no other
+```KafkaConsumer``` in your job uses the same ```client.id```.
+
+### Security
+In order to enable security configurations including encryption and authentication, you just need to setup security
+configurations as additional properties to the Kafka source. The code snippet below shows configuring Kafka source to
+use PLAIN as SASL mechanism and provide JAAS configuration:
+
+```java
+KafkaSource.builder()
+    .setProperty("security.protocol", "SASL_PLAINTEXT")
+    .setProperty("sasl.mechanism", "PLAIN")
+    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";");
+```
+
+For a more complex example, use SASL_SSL as the security protocol and use SCRAM-SHA-256 as SASL mechanism:
+```java
+KafkaSource.builder()
+    .setProperty("security.protocol", "SASL_SSL")
+    // SSL configurations
+    // Configure the path of truststore (CA) provided by the server
+    .setProperty("ssl.truststore.location", "/path/to/kafka.client.truststore.jks")
+    .setProperty("ssl.truststore.password", "test1234")
+    // Configure the path of keystore (private key) if client authentication is required
+    .setProperty("ssl.keystore.location", "/path/to/kafka.client.keystore.jks")
+    .setProperty("ssl.keystore.password", "test1234")
+    // SASL configurations
+    // Set SASL mechanism as SCRAM-SHA-256
+    .setProperty("sasl.mechanism", "SCRAM-SHA-256")
+    // Set JAAS configurations
+    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"username\" password=\"password\";");
+```
+
+Please note that the class path of the login module in `sasl.jaas.config` might be different if you relocate Kafka
+client dependencies in the job JAR, so you may need to rewrite it with the actual class path of the module in the JAR.
+
+For detailed explanations of security configurations, please refer to
+<a href="https://kafka.apache.org/documentation/#security">the "Security" section in Apache Kafka documentation</a>.
+
 ### Behind the Scene
 {{< hint info >}}
 If you are interested in how Kafka source works under the design of new data source API, you may
@@ -352,7 +396,7 @@ Kafka sink provides a builder class to construct an instance of a KafkaSink. The
 shows how to write String records to a Kafka topic with a delivery guarantee of at least once.
 
 ```java
-DataStream<String> stream = ...
+DataStream<String> stream = ...;
         
 KafkaSink<String> sink = KafkaSink.<String>builder()
         .setBootstrapServers(brokers)
@@ -361,7 +405,7 @@ KafkaSink<String> sink = KafkaSink.<String>builder()
             .setValueSerializationSchema(new SimpleStringSchema())
             .build()
         )
-        .setDeliverGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+        .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
         .build();
         
 stream.sinkTo(sink);

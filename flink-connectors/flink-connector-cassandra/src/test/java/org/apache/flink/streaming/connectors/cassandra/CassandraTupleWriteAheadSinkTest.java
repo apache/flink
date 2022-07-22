@@ -38,7 +38,7 @@ import java.util.Collections;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.powermock.api.mockito.PowerMockito.doAnswer;
@@ -140,7 +140,7 @@ public class CassandraTupleWriteAheadSinkTest {
         sink.open();
 
         // we should leave the loop and return false since we've seen an exception
-        assertFalse(sink.sendValues(Collections.singleton(new Tuple0()), 1L, 0L));
+        assertThat(sink.sendValues(Collections.singleton(new Tuple0()), 1L, 0L)).isFalse();
 
         sink.close();
     }

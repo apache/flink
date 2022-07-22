@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.DataTypes
@@ -37,12 +36,17 @@ import scala.collection.JavaConverters._
 
 abstract class RexNodeTestBase {
 
-  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(
+    Thread.currentThread().getContextClassLoader)
 
   val allFieldNames: java.util.List[String] = List("name", "id", "amount", "price", "flag").asJava
 
-  val allFieldTypes: java.util.List[RelDataType] = List(DataTypes.VARCHAR(100),
-    DataTypes.BIGINT(), DataTypes.INT(), DataTypes.DOUBLE(), DataTypes.BOOLEAN())
+  val allFieldTypes: java.util.List[RelDataType] = List(
+    DataTypes.VARCHAR(100),
+    DataTypes.BIGINT(),
+    DataTypes.INT(),
+    DataTypes.DOUBLE(),
+    DataTypes.BOOLEAN())
     .map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
     .map(typeFactory.createFieldTypeFromLogicalType)
     .asJava
@@ -138,7 +142,8 @@ abstract class RexNodeTestBase {
       .build
 
     val mapType = inputOf(typeFactory)
-      .nestedField("deep_map",
+      .nestedField(
+        "deep_map",
         typeFactory.createMapType(typeFactory.createSqlType(INTEGER), valueInnerType))
       .build
 
@@ -152,10 +157,12 @@ abstract class RexNodeTestBase {
       .build
 
     val rowType = typeFactory.createStructType(
+      Seq(personRow, paymentRow, fieldRowType, deepItems),
       Seq(
-      personRow, paymentRow, fieldRowType, deepItems),
-      Seq(
-        "persons", "payments", "field", "items"
+        "persons",
+        "payments",
+        "field",
+        "items"
       )
     )
 
@@ -209,8 +216,7 @@ abstract class RexNodeTestBase {
     val items$inner$deep_array$deep_map =
       rexBuilder.makeCall(
         SqlStdOperatorTable.ITEM,
-        rexBuilder.makeFieldAccess(items$inner$deep_array, "deep_map",
-          false),
+        rexBuilder.makeFieldAccess(items$inner$deep_array, "deep_map", false),
         t5)
 
     // Program
@@ -222,9 +228,15 @@ abstract class RexNodeTestBase {
     //   field.with.deeper.entry
     //   persons
     // )
-    (List(multiplyAmount, person$pass$stat, field$with$deep$entry,
-      field$with$deeper$entry$inside$entry, field$with$deeper$entry, t0,
-      items$inner$deep_array$deep_map).asJava,
+    (
+      List(
+        multiplyAmount,
+        person$pass$stat,
+        field$with$deep$entry,
+        field$with$deeper$entry$inside$entry,
+        field$with$deeper$entry,
+        t0,
+        items$inner$deep_array$deep_map).asJava,
       rowType)
   }
 
@@ -239,9 +251,7 @@ abstract class RexNodeTestBase {
       .field("amount", INTEGER)
       .build
 
-    val rowType = typeFactory.createStructType(
-      Seq(personRow, paymentRow),
-      Seq("person", "payment"))
+    val rowType = typeFactory.createStructType(Seq(personRow, paymentRow), Seq("person", "payment"))
 
     val types = List(personRow, paymentRow).asJava
 

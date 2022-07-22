@@ -20,7 +20,6 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
@@ -32,20 +31,21 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.utils.JobResultUtils;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerServiceImpl;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.time.Duration;
-import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -61,11 +61,13 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
     private static final int NUM_TMS = 2;
     public static final int PARALLELISM = SLOTS_PER_TM * NUM_TMS;
 
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
     private static TestingMiniCluster miniCluster;
 
     private static EmbeddedHaServicesWithLeadershipControl highAvailabilityServices;
-
-    private static Properties sysProps;
 
     private JobGraph jobGraph;
 
@@ -73,11 +75,9 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
     @BeforeClass
     public static void setupClass() throws Exception {
-        sysProps = System.getProperties();
-        System.setProperty(ResourceManagerServiceImpl.ENABLE_MULTI_LEADER_SESSION_PROPERTY, "");
 
         highAvailabilityServices =
-                new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor());
+                new EmbeddedHaServicesWithLeadershipControl(EXECUTOR_RESOURCE.getExecutor());
 
         miniCluster =
                 TestingMiniCluster.newBuilder(
@@ -102,8 +102,6 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
         if (miniCluster != null) {
             miniCluster.close();
         }
-
-        System.setProperties(sysProps);
     }
 
     @Test
@@ -163,8 +161,7 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
     @Test
     public void testTaskExecutorsReconnectToClusterWithLeadershipChange() throws Exception {
-        final Deadline deadline = Deadline.fromNow(TESTING_TIMEOUT);
-        waitUntilTaskExecutorsHaveConnected(NUM_TMS, deadline);
+        waitUntilTaskExecutorsHaveConnected(NUM_TMS);
         highAvailabilityServices.revokeResourceManagerLeadership().get();
         highAvailabilityServices.grantResourceManagerLeadership();
 
@@ -176,16 +173,14 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
                         .getLeaderSessionId(),
                 is(notNullValue()));
 
-        waitUntilTaskExecutorsHaveConnected(NUM_TMS, deadline);
+        waitUntilTaskExecutorsHaveConnected(NUM_TMS);
     }
 
-    private void waitUntilTaskExecutorsHaveConnected(int numTaskExecutors, Deadline deadline)
-            throws Exception {
+    private void waitUntilTaskExecutorsHaveConnected(int numTaskExecutors) throws Exception {
         CommonTestUtils.waitUntilCondition(
                 () ->
                         miniCluster.requestClusterOverview().get().getNumTaskManagersConnected()
                                 == numTaskExecutors,
-                deadline,
                 10L);
     }
 

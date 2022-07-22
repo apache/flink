@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.StopMode;
@@ -162,6 +164,7 @@ public class SourceStreamTask<
                 .gauge(
                         MetricNames.CHECKPOINT_START_DELAY_TIME,
                         this::getAsyncCheckpointStartDelayNanos);
+        recordWriter.setMaxOverdraftBuffersPerGate(0);
     }
 
     @Override
@@ -253,12 +256,12 @@ public class SourceStreamTask<
     public CompletableFuture<Boolean> triggerCheckpointAsync(
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         if (!externallyInducedCheckpoints) {
-            if (checkpointOptions.getCheckpointType().isSynchronous()) {
+            if (isSynchronousSavepoint(checkpointOptions.getCheckpointType())) {
                 return triggerStopWithSavepointAsync(checkpointMetaData, checkpointOptions);
             } else {
                 return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
             }
-        } else if (checkpointOptions.getCheckpointType() == CheckpointType.FULL_CHECKPOINT) {
+        } else if (checkpointOptions.getCheckpointType().equals(CheckpointType.FULL_CHECKPOINT)) {
             // see FLINK-25256
             throw new IllegalStateException(
                     "Using externally induced sources, we can not enforce taking a full checkpoint."
@@ -272,13 +275,18 @@ public class SourceStreamTask<
         }
     }
 
+    private boolean isSynchronousSavepoint(SnapshotType snapshotType) {
+        return snapshotType.isSavepoint() && ((SavepointType) snapshotType).isSynchronous();
+    }
+
     private CompletableFuture<Boolean> triggerStopWithSavepointAsync(
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         mainMailboxExecutor.execute(
                 () ->
                         stopOperatorForStopWithSavepoint(
                                 checkpointMetaData.getCheckpointId(),
-                                checkpointOptions.getCheckpointType().shouldDrain()),
+                                ((SavepointType) checkpointOptions.getCheckpointType())
+                                        .shouldDrain()),
                 "stop legacy source for stop-with-savepoint --drain");
         return sourceThread
                 .getCompletionFuture()

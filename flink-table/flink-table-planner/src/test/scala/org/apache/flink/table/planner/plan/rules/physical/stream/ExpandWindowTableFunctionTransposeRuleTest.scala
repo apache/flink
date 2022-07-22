@@ -15,23 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.tools.RuleSets
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram.PHYSICAL
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkHepRuleSetProgramBuilder, FlinkVolcanoProgramBuilder, HEP_RULES_EXECUTION_TYPE}
+import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram.PHYSICAL
 import org.apache.flink.table.planner.plan.rules.logical.FlinkCalcMergeRule
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
+
+import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
-/**
- * Tests for [[ExpandWindowTableFunctionTransposeRule]].
- */
+/** Tests for [[ExpandWindowTableFunctionTransposeRule]]. */
 class ExpandWindowTableFunctionTransposeRuleTest extends TableTestBase {
   private val util: StreamTableTestUtil = streamTestUtil()
 
@@ -43,48 +41,50 @@ class ExpandWindowTableFunctionTransposeRuleTest extends TableTestBase {
     chainedProgram.addLast(
       PHYSICAL,
       FlinkVolcanoProgramBuilder.newBuilder
-        .add(
-          RuleSets.ofList(
-            FlinkExpandConversionRule.STREAM_INSTANCE,
-            StreamPhysicalWindowTableFunctionRule.INSTANCE,
-            StreamPhysicalWindowAggregateRule.INSTANCE,
-            StreamPhysicalCalcRule.INSTANCE,
-            StreamPhysicalExpandRule.INSTANCE,
-            StreamPhysicalTableSourceScanRule.INSTANCE,
-            StreamPhysicalWatermarkAssignerRule.INSTANCE))
+        .add(RuleSets.ofList(
+          FlinkExpandConversionRule.STREAM_INSTANCE,
+          StreamPhysicalWindowTableFunctionRule.INSTANCE,
+          StreamPhysicalWindowAggregateRule.INSTANCE,
+          StreamPhysicalCalcRule.INSTANCE,
+          StreamPhysicalExpandRule.INSTANCE,
+          StreamPhysicalTableSourceScanRule.INSTANCE,
+          StreamPhysicalWatermarkAssignerRule.INSTANCE
+        ))
         .setRequiredOutputTraits(Array(FlinkConventions.STREAM_PHYSICAL))
-        .build())
+        .build()
+    )
     // add test rule
     chainedProgram.addLast(
       "test_rule",
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(
-          FlinkCalcMergeRule.STREAM_PHYSICAL_INSTANCE,
-          ExpandWindowTableFunctionTransposeRule.INSTANCE))
-        .build())
+        .add(
+          RuleSets.ofList(
+            FlinkCalcMergeRule.STREAM_PHYSICAL_INSTANCE,
+            ExpandWindowTableFunctionTransposeRule.INSTANCE))
+        .build()
+    )
 
     util.replaceStreamProgram(chainedProgram)
 
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE MyTable (
-         |  a INT,
-         |  b BIGINT,
-         |  c STRING NOT NULL,
-         |  d DECIMAL(10, 3),
-         |  e BIGINT,
-         |  rowtime TIMESTAMP(3),
-         |  proctime as PROCTIME(),
-         |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
-         |) with (
-         |  'connector' = 'values'
-         |)
-         |""".stripMargin)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MyTable (
+                                |  a INT,
+                                |  b BIGINT,
+                                |  c STRING NOT NULL,
+                                |  d DECIMAL(10, 3),
+                                |  e BIGINT,
+                                |  rowtime TIMESTAMP(3),
+                                |  proctime as PROCTIME(),
+                                |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
+                                |) with (
+                                |  'connector' = 'values'
+                                |)
+                                |""".stripMargin)
 
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
   }
 
   @Test

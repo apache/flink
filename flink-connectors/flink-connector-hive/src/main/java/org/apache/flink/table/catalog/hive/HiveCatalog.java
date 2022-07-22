@@ -45,6 +45,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogViewImpl;
 import org.apache.flink.table.catalog.FunctionLanguage;
+import org.apache.flink.table.catalog.ManagedTableListener;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
@@ -75,6 +76,7 @@ import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
+import org.apache.flink.table.factories.ManagedTableFactory;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.util.Preconditions;
 
@@ -459,7 +461,7 @@ public class HiveCatalog extends AbstractCatalog {
         checkNotNull(tablePath, "tablePath cannot be null");
 
         Table hiveTable = getHiveTable(tablePath);
-        return instantiateCatalogTable(hiveTable, hiveConf);
+        return instantiateCatalogTable(hiveTable);
     }
 
     @Override
@@ -472,7 +474,9 @@ public class HiveCatalog extends AbstractCatalog {
             throw new DatabaseNotExistException(getName(), tablePath.getDatabaseName());
         }
 
-        Table hiveTable = HiveTableUtil.instantiateHiveTable(tablePath, table, hiveConf);
+        boolean managedTable = ManagedTableListener.isManagedTable(this, table);
+        Table hiveTable =
+                HiveTableUtil.instantiateHiveTable(tablePath, table, hiveConf, managedTable);
 
         UniqueConstraint pkConstraint = null;
         List<String> notNullCols = new ArrayList<>();
@@ -581,7 +585,7 @@ public class HiveCatalog extends AbstractCatalog {
             return;
         }
 
-        CatalogBaseTable existingTable = instantiateCatalogTable(hiveTable, hiveConf);
+        CatalogBaseTable existingTable = instantiateCatalogTable(hiveTable);
 
         if (existingTable.getTableKind() != newCatalogTable.getTableKind()) {
             throw new CatalogException(
@@ -590,6 +594,8 @@ public class HiveCatalog extends AbstractCatalog {
                             existingTable.getTableKind(), newCatalogTable.getTableKind()));
         }
 
+        disallowChangeCatalogTableType(existingTable.getOptions(), newCatalogTable.getOptions());
+
         boolean isHiveTable = isHiveTable(hiveTable.getParameters());
         if (isHiveTable) {
             AlterTableOp op = HiveTableUtil.extractAlterTableOp(newCatalogTable.getOptions());
@@ -597,7 +603,7 @@ public class HiveCatalog extends AbstractCatalog {
                 // the alter operation isn't encoded as properties
                 hiveTable =
                         HiveTableUtil.alterTableViaCatalogBaseTable(
-                                tablePath, newCatalogTable, hiveTable, hiveConf);
+                                tablePath, newCatalogTable, hiveTable, hiveConf, false);
             } else {
                 alterTableViaProperties(
                         op,
@@ -610,10 +616,12 @@ public class HiveCatalog extends AbstractCatalog {
         } else {
             hiveTable =
                     HiveTableUtil.alterTableViaCatalogBaseTable(
-                            tablePath, newCatalogTable, hiveTable, hiveConf);
+                            tablePath,
+                            newCatalogTable,
+                            hiveTable,
+                            hiveConf,
+                            ManagedTableListener.isManagedTable(this, newCatalogTable));
         }
-
-        disallowChangeIsHiveTable(isHiveTable, isHiveTable(hiveTable.getParameters()));
         if (isHiveTable) {
             hiveTable.getParameters().remove(CONNECTOR.key());
         }
@@ -728,7 +736,8 @@ public class HiveCatalog extends AbstractCatalog {
         }
     }
 
-    private CatalogBaseTable instantiateCatalogTable(Table hiveTable, HiveConf hiveConf) {
+    @VisibleForTesting
+    CatalogBaseTable instantiateCatalogTable(Table hiveTable) {
         boolean isView = TableType.valueOf(hiveTable.getTableType()) == TableType.VIRTUAL_VIEW;
 
         // Table properties
@@ -749,6 +758,13 @@ public class HiveCatalog extends AbstractCatalog {
             }
         } else {
             properties = retrieveFlinkProperties(properties);
+
+            if (ManagedTableFactory.DEFAULT_IDENTIFIER.equalsIgnoreCase(
+                    properties.get(CONNECTOR.key()))) {
+                // for Flink's managed table, we remove the connector option
+                properties.remove(CONNECTOR.key());
+            }
+
             DescriptorProperties tableSchemaProps = new DescriptorProperties(true);
             tableSchemaProps.putProperties(properties);
             // try to get table schema with both new and old (1.10) key, in order to support tables
@@ -1657,14 +1673,35 @@ public class HiveCatalog extends AbstractCatalog {
         }
     }
 
+    @Override
+    public boolean supportsManagedTable() {
+        return true;
+    }
+
     @Internal
     public static boolean isHiveTable(Map<String, String> properties) {
         return IDENTIFIER.equalsIgnoreCase(properties.get(CONNECTOR.key()));
     }
 
-    private static void disallowChangeIsHiveTable(boolean oldIsHive, boolean newIsHive) {
+    private static void disallowChangeCatalogTableType(
+            Map<String, String> existingTableOptions, Map<String, String> newTableOptions) {
+        CatalogTableType existingTableType = getCatalogTableType(existingTableOptions);
+        CatalogTableType newTableType = getCatalogTableType(newTableOptions);
         checkArgument(
-                oldIsHive == newIsHive, "Changing whether a table is Hive table is not allowed");
+                existingTableType == newTableType,
+                String.format(
+                        "Changing catalog table type is not allowed. "
+                                + "Existing table type is '%s', but new table type is '%s'",
+                        existingTableType, newTableType));
+    }
+
+    private static CatalogTableType getCatalogTableType(Map<String, String> options) {
+        if (isHiveTable(options)) {
+            return CatalogTableType.HIVE_TABLE;
+        } else if (options.containsKey(CONNECTOR.key()) || options.containsKey(CONNECTOR_TYPE)) {
+            return CatalogTableType.FLINK_NON_MANAGED_TABLE;
+        }
+        return CatalogTableType.FLINK_MANAGED_TABLE;
     }
 
     private void alterTableViaProperties(
@@ -1766,5 +1803,11 @@ public class HiveCatalog extends AbstractCatalog {
             hiveDB.getParameters().remove(CatalogPropertiesUtil.IS_GENERIC);
         }
         return hiveDB;
+    }
+
+    enum CatalogTableType {
+        HIVE_TABLE,
+        FLINK_MANAGED_TABLE,
+        FLINK_NON_MANAGED_TABLE
     }
 }

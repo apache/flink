@@ -31,7 +31,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit Tests for {@link OrcFileFormatFactory}. */
 public class OrcFileSystemFilterTest {
@@ -49,28 +49,30 @@ public class OrcFileSystemFilterTest {
         args.add(valueLiteralExpression);
 
         CallExpression equalExpression =
-                new CallExpression(BuiltInFunctionDefinitions.EQUALS, args, DataTypes.BOOLEAN());
+                CallExpression.permanent(
+                        BuiltInFunctionDefinitions.EQUALS, args, DataTypes.BOOLEAN());
         OrcFilters.Predicate predicate1 = OrcFilters.toOrcPredicate(equalExpression);
         OrcFilters.Predicate predicate2 =
                 new OrcFilters.Equals("long1", PredicateLeaf.Type.LONG, 10);
-        assertTrue(predicate1.toString().equals(predicate2.toString()));
+        assertThat(predicate1.toString()).isEqualTo(predicate2.toString());
 
         // greater than
         CallExpression greaterExpression =
-                new CallExpression(
+                CallExpression.permanent(
                         BuiltInFunctionDefinitions.GREATER_THAN, args, DataTypes.BOOLEAN());
         OrcFilters.Predicate predicate3 = OrcFilters.toOrcPredicate(greaterExpression);
         OrcFilters.Predicate predicate4 =
                 new OrcFilters.Not(
                         new OrcFilters.LessThanEquals("long1", PredicateLeaf.Type.LONG, 10));
-        assertTrue(predicate3.toString().equals(predicate4.toString()));
+        assertThat(predicate3.toString()).isEqualTo(predicate4.toString());
 
         // less than
         CallExpression lessExpression =
-                new CallExpression(BuiltInFunctionDefinitions.LESS_THAN, args, DataTypes.BOOLEAN());
+                CallExpression.permanent(
+                        BuiltInFunctionDefinitions.LESS_THAN, args, DataTypes.BOOLEAN());
         OrcFilters.Predicate predicate5 = OrcFilters.toOrcPredicate(lessExpression);
         OrcFilters.Predicate predicate6 =
                 new OrcFilters.LessThan("long1", PredicateLeaf.Type.LONG, 10);
-        assertTrue(predicate5.toString().equals(predicate6.toString()));
+        assertThat(predicate5.toString()).isEqualTo(predicate6.toString());
     }
 }

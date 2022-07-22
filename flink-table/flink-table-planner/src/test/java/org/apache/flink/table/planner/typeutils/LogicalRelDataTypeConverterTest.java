@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.typeutils;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.DataTypeJsonSerdeTest;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -53,10 +53,8 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.runners.Parameterized.Parameters;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -67,13 +65,15 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.test.TableAssertions.assertThat;
 
 /** Tests for {@link LogicalRelDataTypeConverter}. */
-@Disabled // temporarily disabled see FLINK-25659
 public class LogicalRelDataTypeConverterTest {
 
     @ParameterizedTest
     @MethodSource("testConversion")
     public void testConversion(LogicalType logicalType) throws IOException {
-        final RelDataTypeFactory typeFactory = FlinkTypeFactory.INSTANCE();
+        final RelDataTypeFactory typeFactory =
+                new FlinkTypeFactory(
+                        LogicalRelDataTypeConverterTest.class.getClassLoader(),
+                        FlinkTypeSystem.INSTANCE);
         final DataTypeFactoryMock dataTypeFactory = new DataTypeFactoryMock();
         final RelDataType relDataType =
                 LogicalRelDataTypeConverter.toRelDataType(logicalType, typeFactory);
@@ -85,7 +85,6 @@ public class LogicalRelDataTypeConverterTest {
     // Test data
     // --------------------------------------------------------------------------------------------
 
-    @Parameters(name = "{0}")
     private static Stream<LogicalType> testConversion() {
         return Stream.of(
                 new BooleanType(),
@@ -169,9 +168,32 @@ public class LogicalRelDataTypeConverterTest {
                         BinaryType.ofEmptyLiteral(),
                         VarBinaryType.ofEmptyLiteral()),
                 // registered structured type
+                PojoClass.TYPE_WITH_IDENTIFIER,
+                // unregistered structured type
+                StructuredType.newBuilder(PojoClass.class)
+                        .attributes(
+                                Arrays.asList(
+                                        new StructuredType.StructuredAttribute(
+                                                "f0", new IntType(true)),
+                                        new StructuredType.StructuredAttribute(
+                                                "f1", new BigIntType(true)),
+                                        new StructuredType.StructuredAttribute(
+                                                "f2", new VarCharType(200), "desc")))
+                        .build(),
+                // custom RawType
+                new RawType<>(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE));
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Shared utilities
+    // --------------------------------------------------------------------------------------------
+
+    /** Testing class. */
+    public static class PojoClass {
+
+        public static final LogicalType TYPE_WITH_IDENTIFIER =
                 StructuredType.newBuilder(
-                                ObjectIdentifier.of("cat", "db", "structuredType"),
-                                DataTypeJsonSerdeTest.PojoClass.class)
+                                ObjectIdentifier.of("cat", "db", "structuredType"), PojoClass.class)
                         .attributes(
                                 Arrays.asList(
                                         new StructuredType.StructuredAttribute(
@@ -192,24 +214,8 @@ public class LogicalRelDataTypeConverterTest {
                                                                 "f0", new BigIntType(false))))
                                         .build())
                         .description("description for StructuredType")
-                        .build(),
-                // unregistered structured type
-                StructuredType.newBuilder(PojoClass.class)
-                        .attributes(
-                                Arrays.asList(
-                                        new StructuredType.StructuredAttribute(
-                                                "f0", new IntType(true)),
-                                        new StructuredType.StructuredAttribute(
-                                                "f1", new BigIntType(true)),
-                                        new StructuredType.StructuredAttribute(
-                                                "f2", new VarCharType(200), "desc")))
-                        .build(),
-                // custom RawType
-                new RawType<>(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE));
-    }
+                        .build();
 
-    /** Testing class. */
-    public static class PojoClass {
         public int f0;
         public long f1;
         public String f2;

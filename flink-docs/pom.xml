@@ -25,14 +25,24 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.15-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.16-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-docs</artifactId>
 	<name>Flink : Docs</name>
 
+	<properties>
+		<generated.docs.dir>./docs/layouts/shortcodes/generated</generated.docs.dir>
+		<generated.static.dir>./docs/static/generated</generated.static.dir>
+	</properties>
+
 	<dependencies>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-swagger</artifactId>
+			<version>15.0</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-annotations</artifactId>
@@ -116,7 +126,7 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-python_${scala.binary.version}</artifactId>
+			<artifactId>flink-python</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -157,7 +167,13 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-dstl-dfs</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
 			<!-- Used for parsing HTML -->
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
@@ -239,6 +255,10 @@ under the License.
 										<java classname="org.apache.flink.docs.rest.RestAPIDocGenerator" fork="true" failonerror="true">
 											<classpath refid="maven.compile.classpath"/>
 											<arg value="${rootDir}/${generated.docs.dir}/"/>
+										</java>
+										<java classname="org.apache.flink.docs.rest.OpenApiSpecGenerator" fork="true" failonerror="true">
+											<classpath refid="maven.compile.classpath"/>
+											<arg value="${rootDir}/${generated.static.dir}/"/>
 										</java>
 									</target>
 								</configuration>

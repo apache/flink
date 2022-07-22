@@ -216,8 +216,7 @@ public class KeyGroupRangeOffsets implements Iterable<Tuple2<Integer, Long>>, Se
         return "KeyGroupRangeOffsets{"
                 + "keyGroupRange="
                 + keyGroupRange
-                + ", offsets="
-                + Arrays.toString(offsets)
+                + (offsets.length > 10 ? "" : ", offsets=" + Arrays.toString(offsets))
                 + '}';
     }
 }

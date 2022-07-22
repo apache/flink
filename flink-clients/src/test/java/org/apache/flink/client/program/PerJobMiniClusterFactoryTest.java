@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -36,6 +37,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
+import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -81,7 +83,9 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
                         .get();
 
         assertThat(jobClient.getJobID(), is(cancellableJobGraph.getJobID()));
-        assertThat(jobClient.getJobStatus().get(), is(JobStatus.RUNNING));
+        assertThat(
+                jobClient.getJobStatus().get(),
+                anyOf(is(JobStatus.CREATED), is(JobStatus.RUNNING)));
 
         jobClient.cancel().get();
 
@@ -101,15 +105,19 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
                         .submitJob(getCancellableJobGraph(), ClassLoader.getSystemClassLoader())
                         .get();
 
-        assertThrows(
-                "is not a streaming job.",
-                ExecutionException.class,
-                () -> jobClient.triggerSavepoint(null).get());
+        while (jobClient.getJobStatus().get() != JobStatus.RUNNING) {
+            Thread.sleep(50);
+        }
 
         assertThrows(
                 "is not a streaming job.",
                 ExecutionException.class,
-                () -> jobClient.stopWithSavepoint(true, null).get());
+                () -> jobClient.triggerSavepoint(null, SavepointFormatType.DEFAULT).get());
+
+        assertThrows(
+                "is not a streaming job.",
+                ExecutionException.class,
+                () -> jobClient.stopWithSavepoint(true, null, SavepointFormatType.DEFAULT).get());
     }
 
     @Test

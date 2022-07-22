@@ -20,10 +20,12 @@ package org.apache.flink.table.planner.parse;
 
 import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
+import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.api.SqlParserException;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
@@ -47,12 +49,36 @@ public class CalciteParser {
      * @param sql a sql string to parse
      * @return a parsed sql node
      * @throws SqlParserException if an exception is thrown when parsing the statement
+     * @throws SqlParserEOFException if the statement is incomplete
      */
     public SqlNode parse(String sql) {
         try {
             SqlParser parser = SqlParser.create(sql, config);
             return parser.parseStmt();
         } catch (SqlParseException e) {
+            if (e.getMessage().contains("Encountered \"<EOF>\"")) {
+                throw new SqlParserEOFException(e.getMessage(), e);
+            }
+            throw new SqlParserException("SQL parse failed. " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Parses a SQL string into a {@link SqlNodeList}. The {@link SqlNodeList} is not yet validated.
+     *
+     * @param sql a sql string to parse
+     * @return a parsed sql node list
+     * @throws SqlParserException if an exception is thrown when parsing the statement
+     * @throws SqlParserEOFException if the statement is incomplete
+     */
+    public SqlNodeList parseSqlList(String sql) {
+        try {
+            SqlParser parser = SqlParser.create(sql, config);
+            return parser.parseStmtList();
+        } catch (SqlParseException e) {
+            if (e.getMessage().contains("Encountered \"<EOF>\"")) {
+                throw new SqlParserEOFException(e.getMessage(), e);
+            }
             throw new SqlParserException("SQL parse failed. " + e.getMessage(), e);
         }
     }
@@ -64,7 +90,7 @@ public class CalciteParser {
      * @return a parsed SQL node
      * @throws SqlParserException if an exception is thrown when parsing the statement
      */
-    public SqlNode parseExpression(String sqlExpression) {
+    public SqlNode parseExpression(String sqlExpression) throws SqlParserException {
         try {
             final SqlParser parser = SqlParser.create(sqlExpression, config);
             return parser.parseExpression();
@@ -80,7 +106,7 @@ public class CalciteParser {
      * @return a parsed sql node
      * @throws SqlParserException if an exception is thrown when parsing the identifier
      */
-    public SqlIdentifier parseIdentifier(String identifier) {
+    public SqlIdentifier parseIdentifier(String identifier) throws SqlParserException {
         try {
             SqlAbstractParserImpl flinkParser = createFlinkParser(identifier);
             if (flinkParser instanceof FlinkSqlParserImpl) {

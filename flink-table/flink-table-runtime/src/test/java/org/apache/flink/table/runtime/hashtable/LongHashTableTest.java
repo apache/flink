@@ -33,13 +33,13 @@ import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -48,11 +48,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Fail.fail;
 
 /** Test for {@link LongHashPartition}. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class LongHashTableTest {
 
     private static final int PAGE_SIZE = 32 * 1024;
@@ -69,12 +69,12 @@ public class LongHashTableTest {
         this.useCompress = useCompress;
     }
 
-    @Parameterized.Parameters(name = "useCompress-{0}")
+    @Parameters(name = "useCompress-{0}")
     public static List<Boolean> getVarSeg() {
         return Arrays.asList(true, false);
     }
 
-    @Before
+    @BeforeEach
     public void init() {
         TypeInformation[] types = new TypeInformation[] {Types.INT, Types.INT};
         this.buildSideSerializer = new BinaryRowDataSerializer(types.length);
@@ -116,8 +116,8 @@ public class LongHashTableTest {
         }
     }
 
-    @Test
-    public void testInMemory() throws IOException {
+    @TestTemplate
+    void testInMemory() throws IOException {
         final int numKeys = 100000;
         final int buildValsPerKey = 3;
         final int probeValsPerKey = 10;
@@ -133,18 +133,18 @@ public class LongHashTableTest {
         final MyHashTable table = new MyHashTable(500 * PAGE_SIZE);
 
         int numRecordsInJoinResult = join(table, buildInput, probeInput);
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                numKeys * buildValsPerKey * probeValsPerKey,
-                numRecordsInJoinResult);
+
+        assertThat(numRecordsInJoinResult)
+                .as("Wrong number of records in join result.")
+                .isEqualTo(numKeys * buildValsPerKey * probeValsPerKey);
 
         table.close();
 
         table.free();
     }
 
-    @Test
-    public void testSpillingHashJoinOneRecursion() throws IOException {
+    @TestTemplate
+    void testSpillingHashJoinOneRecursion() throws IOException {
         final int numKeys = 100000;
         final int buildValsPerKey = 3;
         final int probeValsPerKey = 10;
@@ -161,10 +161,9 @@ public class LongHashTableTest {
 
         int numRecordsInJoinResult = join(table, buildInput, probeInput);
 
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                numKeys * buildValsPerKey * probeValsPerKey,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .as("Wrong number of records in join result.")
+                .isEqualTo(numKeys * buildValsPerKey * probeValsPerKey);
 
         table.close();
 
@@ -174,8 +173,8 @@ public class LongHashTableTest {
     }
 
     /** Non partition in memory in level 0. */
-    @Test
-    public void testSpillingHashJoinOneRecursionPerformance() throws IOException {
+    @TestTemplate
+    void testSpillingHashJoinOneRecursionPerformance() throws IOException {
         final int numKeys = 1000000;
         final int buildValsPerKey = 3;
         final int probeValsPerKey = 10;
@@ -192,10 +191,9 @@ public class LongHashTableTest {
 
         int numRecordsInJoinResult = join(table, buildInput, probeInput);
 
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                numKeys * buildValsPerKey * probeValsPerKey,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .as("Wrong number of records in join result.")
+                .isEqualTo(numKeys * buildValsPerKey * probeValsPerKey);
 
         table.close();
 
@@ -204,8 +202,8 @@ public class LongHashTableTest {
         table.free();
     }
 
-    @Test
-    public void testSpillingHashJoinOneRecursionValidity() throws IOException {
+    @TestTemplate
+    void testSpillingHashJoinOneRecursionValidity() throws IOException {
         final int numKeys = 1000000;
         final int buildValsPerKey = 3;
         final int probeValsPerKey = 10;
@@ -243,15 +241,14 @@ public class LongHashTableTest {
 
         table.close();
 
-        Assert.assertEquals("Wrong number of keys", numKeys, map.size());
+        assertThat(map).as("Wrong number of keys").hasSize(numKeys);
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
 
-            Assert.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
-                    probeValsPerKey * buildValsPerKey,
-                    val);
+            assertThat(val)
+                    .as("Wrong number of values in per-key cross product for key " + key)
+                    .isEqualTo(probeValsPerKey * buildValsPerKey);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -259,8 +256,8 @@ public class LongHashTableTest {
         table.free();
     }
 
-    @Test
-    public void testSpillingHashJoinWithMassiveCollisions() throws IOException {
+    @TestTemplate
+    void testSpillingHashJoinWithMassiveCollisions() throws IOException {
         // the following two values are known to have a hash-code collision on the initial level.
         // we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
@@ -325,18 +322,18 @@ public class LongHashTableTest {
 
         table.close();
 
-        Assert.assertEquals("Wrong number of keys", numKeys, map.size());
+        assertThat(map).as("Wrong number of keys").hasSize(numKeys);
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
 
-            Assert.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
-                    (key == repeatedValue1 || key == repeatedValue2)
-                            ? (probeValsPerKey + repeatedValueCountProbe)
-                                    * (buildValsPerKey + repeatedValueCountBuild)
-                            : probeValsPerKey * buildValsPerKey,
-                    val);
+            assertThat(val)
+                    .as("Wrong number of values in per-key cross product for key " + key)
+                    .isEqualTo(
+                            (key == repeatedValue1 || key == repeatedValue2)
+                                    ? (probeValsPerKey + repeatedValueCountProbe)
+                                            * (buildValsPerKey + repeatedValueCountBuild)
+                                    : probeValsPerKey * buildValsPerKey);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -344,8 +341,8 @@ public class LongHashTableTest {
         table.free();
     }
 
-    @Test
-    public void testSpillingHashJoinWithTwoRecursions() throws IOException {
+    @TestTemplate
+    void testSpillingHashJoinWithTwoRecursions() throws IOException {
         // the following two values are known to have a hash-code collision on the first recursion
         // level.
         // we use them to make sure one partition grows over-proportionally large
@@ -411,18 +408,18 @@ public class LongHashTableTest {
 
         table.close();
 
-        Assert.assertEquals("Wrong number of keys", numKeys, map.size());
+        assertThat(map).as("Wrong number of keys").hasSize(numKeys);
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
 
-            Assert.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
-                    (key == repeatedValue1 || key == repeatedValue2)
-                            ? (probeValsPerKey + repeatedValueCountProbe)
-                                    * (buildValsPerKey + repeatedValueCountBuild)
-                            : probeValsPerKey * buildValsPerKey,
-                    val);
+            assertThat(val)
+                    .as("Wrong number of values in per-key cross product for key " + key)
+                    .isEqualTo(
+                            (key == repeatedValue1 || key == repeatedValue2)
+                                    ? (probeValsPerKey + repeatedValueCountProbe)
+                                            * (buildValsPerKey + repeatedValueCountBuild)
+                                    : probeValsPerKey * buildValsPerKey);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -435,8 +432,8 @@ public class LongHashTableTest {
      * of repeated values (causing bucket collisions) are large enough to make sure that their target partition no longer
      * fits into memory by itself and needs to be repartitioned in the recursion again.
      */
-    @Test
-    public void testFailingHashJoinTooManyRecursions() throws IOException {
+    @TestTemplate
+    void testFailingHashJoinTooManyRecursions() throws IOException {
         // the following two values are known to have a hash-code collision on the first recursion
         // level.
         // we use them to make sure one partition grows over-proportionally large
@@ -494,8 +491,8 @@ public class LongHashTableTest {
         table.free();
     }
 
-    @Test
-    public void testSparseProbeSpilling() throws IOException, MemoryAllocationException {
+    @TestTemplate
+    void testSparseProbeSpilling() throws IOException, MemoryAllocationException {
         final int numBuildKeys = 1000000;
         final int numBuildVals = 1;
         final int numProbeKeys = 20;
@@ -514,18 +511,17 @@ public class LongHashTableTest {
                         buildInput,
                         new UniformBinaryRowGenerator(numProbeKeys, numProbeVals, true));
 
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                expectedNumResults,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .as("Wrong number of records in join result.")
+                .isEqualTo(expectedNumResults);
 
         table.close();
 
         table.free();
     }
 
-    @Test
-    public void validateSpillingDuringInsertion() throws IOException, MemoryAllocationException {
+    @TestTemplate
+    void validateSpillingDuringInsertion() throws IOException, MemoryAllocationException {
         final int numBuildKeys = 500000;
         final int numBuildVals = 1;
         final int numProbeKeys = 10;
@@ -544,18 +540,17 @@ public class LongHashTableTest {
                         buildInput,
                         new UniformBinaryRowGenerator(numProbeKeys, numProbeVals, true));
 
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                expectedNumResults,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .as("Wrong number of records in join result.")
+                .isEqualTo(expectedNumResults);
 
         table.close();
 
         table.free();
     }
 
-    @Test
-    public void testBucketsNotFulfillSegment() throws Exception {
+    @TestTemplate
+    void testBucketsNotFulfillSegment() throws Exception {
         final int numKeys = 10000;
         final int buildValsPerKey = 3;
         final int probeValsPerKey = 10;
@@ -574,10 +569,9 @@ public class LongHashTableTest {
 
         int numRecordsInJoinResult = join(table, buildInput, probeInput);
 
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                numKeys * buildValsPerKey * probeValsPerKey,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .as("Wrong number of records in join result.")
+                .isEqualTo(numKeys * buildValsPerKey * probeValsPerKey);
 
         table.close();
         table.free();
@@ -594,16 +588,18 @@ public class LongHashTableTest {
         if (buildSide.advanceNext()) {
             numBuildValues = 1;
             record = buildSide.getRow();
-            assertEquals(
-                    "Probe-side key was different than build-side key.", key, record.getInt(0));
+            assertThat(record.getInt(0))
+                    .as("Probe-side key was different than build-side key.")
+                    .isEqualTo(key);
         } else {
             fail("No build side values found for a probe key.");
         }
         while (buildSide.advanceNext()) {
             numBuildValues++;
             record = buildSide.getRow();
-            assertEquals(
-                    "Probe-side key was different than build-side key.", key, record.getInt(0));
+            assertThat(record.getInt(0))
+                    .as("Probe-side key was different than build-side key.")
+                    .isEqualTo(key);
         }
 
         Long contained = map.get(key);

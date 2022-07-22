@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.NullValue;
 
 /** A test for the {@link NullValueArraySerializer}. */
-public class NullValueArraySerializerTest extends ValueArraySerializerTestBase<NullValueArray> {
+class NullValueArraySerializerTest extends ValueArraySerializerTestBase<NullValueArray> {
 
     @Override
     protected TypeSerializer<NullValueArray> createSerializer() {

@@ -18,47 +18,49 @@
 
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { EMPTY, Observable, of, ReplaySubject } from 'rxjs';
+import { EMPTY, Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
-import { BASE_URL } from 'config';
 import {
+  JobMetric,
+  MetricMap,
   TaskManagerDetail,
   TaskManagerList,
   TaskManagerLogItem,
-  TaskmanagersItem,
+  TaskManagerLogDetail,
+  TaskManagersItem,
   TaskManagerThreadDump
-} from 'interfaces';
+} from '@flink-runtime-web/interfaces';
+
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TaskManagerService {
-  public readonly taskManagerDetail$ = new ReplaySubject<TaskManagerDetail>(1);
+  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
 
-  constructor(private readonly httpClient: HttpClient) {}
-
-  public loadManagers(): Observable<TaskmanagersItem[]> {
-    return this.httpClient.get<TaskManagerList>(`${BASE_URL}/taskmanagers`).pipe(
+  loadManagers(): Observable<TaskManagersItem[]> {
+    return this.httpClient.get<TaskManagerList>(`${this.configService.BASE_URL}/taskmanagers`).pipe(
       map(data => data.taskmanagers || []),
       catchError(() => of([]))
     );
   }
 
-  public loadManager(taskManagerId: string): Observable<TaskManagerDetail> {
+  loadManager(taskManagerId: string): Observable<TaskManagerDetail> {
     return this.httpClient
-      .get<TaskManagerDetail>(`${BASE_URL}/taskmanagers/${taskManagerId}`)
+      .get<TaskManagerDetail>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}`)
       .pipe(catchError(() => EMPTY));
   }
 
-  public loadLogList(taskManagerId: string): Observable<TaskManagerLogItem[]> {
+  loadLogList(taskManagerId: string): Observable<TaskManagerLogItem[]> {
     return this.httpClient
-      .get<{ logs: TaskManagerLogItem[] }>(`${BASE_URL}/taskmanagers/${taskManagerId}/logs`)
+      .get<{ logs: TaskManagerLogItem[] }>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/logs`)
       .pipe(map(data => data.logs));
   }
 
-  public loadLog(taskManagerId: string, logName: string): Observable<{ data: string; url: string }> {
-    const url = `${BASE_URL}/taskmanagers/${taskManagerId}/logs/${logName}`;
+  loadLog(taskManagerId: string, logName: string): Observable<TaskManagerLogDetail> {
+    const url = `${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/logs/${logName}`;
     return this.httpClient
       .get(url, { responseType: 'text', headers: new HttpHeaders().append('Cache-Control', 'no-cache') })
       .pipe(
@@ -71,40 +73,48 @@ export class TaskManagerService {
       );
   }
 
-  public loadThreadDump(taskManagerId: string): Observable<string> {
-    return this.httpClient.get<TaskManagerThreadDump>(`${BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`).pipe(
-      map(taskManagerThreadDump => {
-        return taskManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
-      })
-    );
+  loadThreadDump(taskManagerId: string): Observable<string> {
+    return this.httpClient
+      .get<TaskManagerThreadDump>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`)
+      .pipe(
+        map(taskManagerThreadDump => {
+          return taskManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
+        })
+      );
   }
 
-  public loadLogs(taskManagerId: string): Observable<string> {
-    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/log`, {
+  loadLogs(taskManagerId: string): Observable<string> {
+    return this.httpClient.get(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/log`, {
       responseType: 'text',
       headers: new HttpHeaders().append('Cache-Control', 'no-cache')
     });
   }
 
-  public loadStdout(taskManagerId: string): Observable<string> {
-    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/stdout`, {
+  loadStdout(taskManagerId: string): Observable<string> {
+    return this.httpClient.get(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/stdout`, {
       responseType: 'text',
       headers: new HttpHeaders().append('Cache-Control', 'no-cache')
     });
   }
 
-  public getMetrics(taskManagerId: string, listOfMetricName: string[]): Observable<{ [p: string]: number }> {
+  loadMetrics(taskManagerId: string, listOfMetricName: string[]): Observable<MetricMap> {
     const metricName = listOfMetricName.join(',');
     return this.httpClient
-      .get<Array<{ id: string; value: string }>>(`${BASE_URL}/taskmanagers/${taskManagerId}/metrics?get=${metricName}`)
+      .get<JobMetric[]>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/metrics?get=${metricName}`)
       .pipe(
         map(arr => {
-          const result: { [id: string]: number } = {};
+          const result: MetricMap = {};
           arr.forEach(item => {
             result[item.id] = parseInt(item.value, 10);
           });
           return result;
         })
       );
+  }
+
+  loadHistoryServerTaskManagerLogUrl(jobId: string, taskManagerId: string): Observable<string> {
+    return this.httpClient
+      .get<{ url: string }>(`${this.configService.BASE_URL}/jobs/${jobId}/taskmanagers/${taskManagerId}/log-url`)
+      .pipe(map(data => data.url));
   }
 }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
@@ -58,15 +57,11 @@ class ScalarQueryITCase extends BatchTestBase {
 
   @Test
   def testScalarSubQuery(): Unit = {
-    checkResult(
-      "SELECT * FROM l WHERE a = (SELECT c FROM r where c = 3)",
-      Seq(row(3, 3.0)))
+    checkResult("SELECT * FROM l WHERE a = (SELECT c FROM r where c = 3)", Seq(row(3, 3.0)))
   }
 
   @Test(expected = classOf[RuntimeException])
   def testScalarSubQueryException(): Unit = {
-    checkResult(
-      "SELECT * FROM l WHERE a = (SELECT c FROM r)",
-      Seq(row(3, 3.0)))
+    checkResult("SELECT * FROM l WHERE a = (SELECT c FROM r)", Seq(row(3, 3.0)))
   }
 }

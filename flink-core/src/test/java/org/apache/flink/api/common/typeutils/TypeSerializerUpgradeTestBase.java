@@ -36,6 +36,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.not;
@@ -51,10 +52,10 @@ import static org.junit.Assume.assumeThat;
 public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedElementT>
         extends TestLogger {
 
-    public static final FlinkVersion[] MIGRATION_VERSIONS =
-            FlinkVersion.v1_11.orHigher().toArray(new FlinkVersion[0]);
+    public static final FlinkVersion CURRENT_VERSION = FlinkVersion.v1_15;
 
-    public static final FlinkVersion CURRENT_VERSION = FlinkVersion.v1_14;
+    public static final Set<FlinkVersion> MIGRATION_VERSIONS =
+            FlinkVersion.rangeOf(FlinkVersion.v1_11, CURRENT_VERSION);
 
     private final TestSpecification<PreviousElementT, UpgradedElementT> testSpecification;
 
@@ -421,7 +422,13 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                 readAndThenWriteData(dataInput, serializer, serializer, testDataMatcher);
         TypeSerializerSnapshot<T> snapshot = writeAndThenReadSerializerSnapshot(serializer);
         TypeSerializer<T> restoreSerializer = snapshot.restoreSerializer();
-        readAndThenWriteData(serializedData, restoreSerializer, restoreSerializer, testDataMatcher);
+        serializedData =
+                readAndThenWriteData(
+                        serializedData, restoreSerializer, restoreSerializer, testDataMatcher);
+
+        TypeSerializer<T> duplicateSerializer = snapshot.restoreSerializer().duplicate();
+        readAndThenWriteData(
+                serializedData, duplicateSerializer, duplicateSerializer, testDataMatcher);
     }
 
     // ------------------------------------------------------------------------------

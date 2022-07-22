@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -53,7 +53,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -87,12 +87,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
-import static org.apache.flink.core.testutils.FlinkAssertions.containsCause;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.AVRO_CONFLUENT;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.DEBEZIUM_AVRO_CONFLUENT;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.PROPERTIES_PREFIX;
@@ -143,12 +144,6 @@ public class KafkaDynamicTableFactoryTest {
         KAFKA_SINK_PROPERTIES.setProperty("bootstrap.servers", "dummy");
 
         KAFKA_FINAL_SINK_PROPERTIES.putAll(KAFKA_SINK_PROPERTIES);
-        KAFKA_FINAL_SINK_PROPERTIES.setProperty(
-                "value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-        KAFKA_FINAL_SINK_PROPERTIES.setProperty(
-                "key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-        KAFKA_FINAL_SINK_PROPERTIES.put("transaction.timeout.ms", 3600000);
-
         KAFKA_FINAL_SOURCE_PROPERTIES.putAll(KAFKA_SOURCE_PROPERTIES);
     }
 
@@ -464,9 +459,9 @@ public class KafkaDynamicTableFactoryTest {
         final KafkaDynamicSink actualKafkaSink = (KafkaDynamicSink) actualSink;
         DynamicTableSink.SinkRuntimeProvider provider =
                 actualKafkaSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        assertThat(provider).isInstanceOf(SinkProvider.class);
-        final SinkProvider sinkProvider = (SinkProvider) provider;
-        final Sink<RowData, ?, ?, ?> sinkFunction = sinkProvider.createSink();
+        assertThat(provider).isInstanceOf(SinkV2Provider.class);
+        final SinkV2Provider sinkProvider = (SinkV2Provider) provider;
+        final Sink<RowData> sinkFunction = sinkProvider.createSink();
         assertThat(sinkFunction).isInstanceOf(KafkaSink.class);
     }
 
@@ -573,8 +568,8 @@ public class KafkaDynamicTableFactoryTest {
 
         final DynamicTableSink.SinkRuntimeProvider provider =
                 actualSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        assertThat(provider).isInstanceOf(SinkProvider.class);
-        final SinkProvider sinkProvider = (SinkProvider) provider;
+        assertThat(provider).isInstanceOf(SinkV2Provider.class);
+        final SinkV2Provider sinkProvider = (SinkV2Provider) provider;
         assertThat(sinkProvider.getParallelism().isPresent()).isTrue();
         assertThat((long) sinkProvider.getParallelism().get()).isEqualTo(100);
     }
@@ -695,7 +690,7 @@ public class KafkaDynamicTableFactoryTest {
         }
 
         if (avroFormats.contains(keyFormat)) {
-            assert sink.keyEncodingFormat != null;
+            assertThat(sink.keyEncodingFormat).isNotNull();
             SerializationSchema<RowData> actualKeyEncoder =
                     sink.keyEncodingFormat.createRuntimeEncoder(
                             new SinkRuntimeProviderContext(false), SCHEMA_DATA_TYPE);
@@ -743,9 +738,9 @@ public class KafkaDynamicTableFactoryTest {
                         })
                 .isInstanceOf(ValidationException.class)
                 .satisfies(
-                        containsCause(
-                                new ValidationException(
-                                        "Option 'topic' and 'topic-pattern' shouldn't be set together.")));
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Option 'topic' and 'topic-pattern' shouldn't be set together."));
     }
 
     @Test
@@ -762,10 +757,10 @@ public class KafkaDynamicTableFactoryTest {
                         })
                 .isInstanceOf(ValidationException.class)
                 .satisfies(
-                        containsCause(
-                                new ValidationException(
-                                        "'scan.startup.timestamp-millis' "
-                                                + "is required in 'timestamp' startup mode but missing.")));
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "'scan.startup.timestamp-millis' "
+                                        + "is required in 'timestamp' startup mode but missing."));
     }
 
     @Test
@@ -783,10 +778,10 @@ public class KafkaDynamicTableFactoryTest {
                         })
                 .isInstanceOf(ValidationException.class)
                 .satisfies(
-                        containsCause(
-                                new ValidationException(
-                                        "'scan.startup.specific-offsets' "
-                                                + "is required in 'specific-offsets' startup mode but missing.")));
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "'scan.startup.specific-offsets' "
+                                        + "is required in 'specific-offsets' startup mode but missing."));
     }
 
     @Test
@@ -802,10 +797,9 @@ public class KafkaDynamicTableFactoryTest {
                         })
                 .isInstanceOf(ValidationException.class)
                 .satisfies(
-                        containsCause(
-                                new ValidationException(
-                                        "Could not find and instantiate partitioner "
-                                                + "class 'abc'")));
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Could not find and instantiate partitioner " + "class 'abc'"));
     }
 
     @Test
@@ -822,10 +816,10 @@ public class KafkaDynamicTableFactoryTest {
                         })
                 .isInstanceOf(ValidationException.class)
                 .satisfies(
-                        containsCause(
-                                new ValidationException(
-                                        "Currently 'round-robin' partitioner only works "
-                                                + "when option 'key.fields' is not specified.")));
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Currently 'round-robin' partitioner only works "
+                                        + "when option 'key.fields' is not specified."));
     }
 
     @Test
@@ -849,9 +843,9 @@ public class KafkaDynamicTableFactoryTest {
                         })
                 .isInstanceOf(ValidationException.class)
                 .satisfies(
-                        containsCause(
-                                new ValidationException(
-                                        "sink.transactional-id-prefix must be specified when using DeliveryGuarantee.EXACTLY_ONCE.")));
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "sink.transactional-id-prefix must be specified when using DeliveryGuarantee.EXACTLY_ONCE."));
     }
 
     @Test
@@ -1107,7 +1101,9 @@ public class KafkaDynamicTableFactoryTest {
         final DataStreamScanProvider dataStreamScanProvider = (DataStreamScanProvider) provider;
         final Transformation<RowData> transformation =
                 dataStreamScanProvider
-                        .produceDataStream(StreamExecutionEnvironment.createLocalEnvironment())
+                        .produceDataStream(
+                                n -> Optional.empty(),
+                                StreamExecutionEnvironment.createLocalEnvironment())
                         .getTransformation();
         assertThat(transformation).isInstanceOf(SourceTransformation.class);
         SourceTransformation<RowData, KafkaPartitionSplit, KafkaSourceEnumState>

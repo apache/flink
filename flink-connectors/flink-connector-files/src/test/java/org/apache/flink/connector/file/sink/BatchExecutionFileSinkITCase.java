@@ -27,25 +27,22 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamSource;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 /** Tests the functionality of the {@link FileSink} in BATCH mode. */
-@RunWith(Parameterized.class)
-public class BatchExecutionFileSinkITCase extends FileSinkITBase {
+class BatchExecutionFileSinkITCase extends FileSinkITBase {
 
     /**
      * Creating the testing job graph in batch mode. The graph created is [Source] -> [Failover Map
      * -> File Sink]. The Failover Map is introduced to ensure the failover would always restart the
      * file writer so the data would be re-written.
      */
-    protected JobGraph createJobGraph(String path) {
+    protected JobGraph createJobGraph(boolean triggerFailover, String path) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         Configuration config = new Configuration();
         config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
@@ -69,16 +66,20 @@ public class BatchExecutionFileSinkITCase extends FileSinkITBase {
                         "Source",
                         Boundedness.BOUNDED);
 
-        source.setParallelism(NUM_SOURCES)
-                .rebalance()
-                .map(new BatchExecutionOnceFailingMap(NUM_RECORDS, triggerFailover))
-                .setParallelism(NUM_SINKS)
-                .sinkTo(createFileSink(path))
-                .setParallelism(NUM_SINKS);
+        DataStreamSink<Integer> sink =
+                source.setParallelism(NUM_SOURCES)
+                        .rebalance()
+                        .map(new BatchExecutionOnceFailingMap(NUM_RECORDS, triggerFailover))
+                        .setParallelism(NUM_SINKS)
+                        .sinkTo(createFileSink(path))
+                        .setParallelism(NUM_SINKS);
+        configureSink(sink);
 
         StreamGraph streamGraph = env.getStreamGraph();
         return streamGraph.getJobGraph();
     }
+
+    protected void configureSink(DataStreamSink<Integer> sink) {}
 
     // ------------------------ Blocking mode user functions ----------------------------------
 

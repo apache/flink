@@ -20,7 +20,6 @@ package org.apache.flink.test.scheduling;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -39,8 +38,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 
 /** Tests for Reactive Mode (FLIP-159). */
@@ -49,6 +48,8 @@ public class ReactiveModeITCase extends TestLogger {
     private static final int INITIAL_NUMBER_TASK_MANAGERS = 1;
 
     private static final Configuration configuration = getReactiveModeConfiguration();
+
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Rule
     public final MiniClusterWithClientResource miniClusterResource =
@@ -136,6 +137,25 @@ public class ReactiveModeITCase extends TestLogger {
                 NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_SLOTS_PER_TASK_MANAGER);
     }
 
+    /** Test for FLINK-28274. */
+    @Test
+    public void testContinuousFileMonitoringFunctionWithReactiveMode() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final DataStream<String> input = env.readTextFile(tempFolder.getRoot().getPath());
+        input.addSink(new DiscardingSink<>());
+
+        final JobClient jobClient = env.executeAsync();
+
+        waitUntilParallelismForVertexReached(
+                miniClusterResource.getRestClusterClient(), jobClient.getJobID(), 1);
+
+        // scale up to 2 TaskManagers:
+        miniClusterResource.getMiniCluster().startTaskManager();
+
+        waitUntilParallelismForVertexReached(
+                miniClusterResource.getRestClusterClient(), jobClient.getJobID(), 1);
+    }
+
     private int getNumberOfConnectedTaskManagers() throws ExecutionException, InterruptedException {
         return miniClusterResource
                 .getMiniCluster()
@@ -146,9 +166,7 @@ public class ReactiveModeITCase extends TestLogger {
 
     private void startAdditionalTaskManager() throws Exception {
         miniClusterResource.getMiniCluster().startTaskManager();
-        CommonTestUtils.waitUntilCondition(
-                () -> getNumberOfConnectedTaskManagers() == 2,
-                Deadline.fromNow(Duration.ofMillis(10_000L)));
+        CommonTestUtils.waitUntilCondition(() -> getNumberOfConnectedTaskManagers() == 2);
     }
 
     private static class DummySource implements SourceFunction<String> {
@@ -213,7 +231,6 @@ public class ReactiveModeITCase extends TestLogger {
                         }
                     }
                     return false;
-                },
-                Deadline.fromNow(Duration.ofSeconds(10)));
+                });
     }
 }

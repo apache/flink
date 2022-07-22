@@ -45,7 +45,7 @@ To use this connector, add one or more of the following dependencies to your pro
     </tr>
     <tr>
         <td>Sink</td>
-        <td>{{< artifact flink-connector-aws-kinesis-data-streams >}}</td>
+        <td>{{< artifact flink-connector-aws-kinesis-streams >}}</td>
     </tr>
   </tbody>
 </table>
@@ -110,6 +110,20 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment
 
 val kinesis = env.addSource(new FlinkKinesisConsumer[String](
     "kinesis_stream_name", new SimpleStringSchema, consumerConfig))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+consumer_config = {
+    'aws.region': 'us-east-1',
+    'aws.credentials.provider.basic.accesskeyid': 'aws_access_key_id',
+    'aws.credentials.provider.basic.secretkey': 'aws_secret_access_key',
+    'flink.stream.initpos': 'LATEST'
+}
+
+env = StreamExecutionEnvironment.get_execution_environment()
+
+kinesis = env.add_source(FlinkKinesisConsumer("stream-1", SimpleStringSchema(), consumer_config))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -226,6 +240,12 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.enableCheckpointing(5000) // checkpoint every 5000 msecs
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.enable_checkpointing(5000) # checkpoint every 5000 msecs
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Also note that Flink can only restart the topology if enough processing slots are available to restart the topology.
@@ -281,6 +301,21 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 
 val kinesis = env.addSource(new FlinkKinesisConsumer[String](
     "kinesis_stream_name", new SimpleStringSchema, consumerConfig))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+consumer_config = {
+    'aws.region': 'us-east-1',
+    'flink.stream.initpos': 'LATEST',
+    'flink.stream.recordpublisher':  'EFO',
+    'flink.stream.efo.consumername': 'my-flink-efo-consumer'
+}
+
+env = StreamExecutionEnvironment.get_execution_environment()
+
+kinesis = env.add_source(FlinkKinesisConsumer(
+    "kinesis_stream_name", SimpleStringSchema(), consumer_config))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -358,6 +393,22 @@ val kinesis = env.addSource(new FlinkKinesisConsumer[String](
     "kinesis_stream_name", new SimpleStringSchema, consumerConfig))
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+consumer_config = {
+    'aws.region': 'us-east-1',
+    'flink.stream.initpos': 'LATEST',
+    'flink.stream.recordpublisher':  'EFO',
+    'flink.stream.efo.consumername': 'my-flink-efo-consumer',
+    'flink.stream.efo.registration': 'EAGER'
+}
+
+env = StreamExecutionEnvironment.get_execution_environment()
+
+kinesis = env.add_source(FlinkKinesisConsumer(
+    "kinesis_stream_name", SimpleStringSchema(), consumer_config))
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Below is an example configuration to use the `NONE` registration strategy:
@@ -405,6 +456,23 @@ val kinesis = env.addSource(new FlinkKinesisConsumer[String](
     "kinesis_stream_name", new SimpleStringSchema, consumerConfig))
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+consumer_config = {
+    'aws.region': 'us-east-1',
+    'flink.stream.initpos': 'LATEST',
+    'flink.stream.recordpublisher':  'EFO',
+    'flink.stream.efo.consumername': 'my-flink-efo-consumer',
+    'flink.stream.efo.consumerarn.stream-name':
+        'arn:aws:kinesis:<region>:<account>>:stream/<stream-name>/consumer/<consumer-name>:<create-timestamp>'
+}
+
+env = StreamExecutionEnvironment.get_execution_environment()
+
+kinesis = env.add_source(FlinkKinesisConsumer(
+    "kinesis_stream_name", SimpleStringSchema(), consumer_config))
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ### Event Time for Consumed Records
@@ -444,6 +512,15 @@ val stream = env
 	.print();
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+consumer = FlinkKinesisConsumer(
+    "kinesis_stream_name",
+    SimpleStringSchema(),
+    consumer_config)
+stream = env.add_source(consumer).print()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Internally, an instance of the assigner is executed per shard / consumer thread (see threading model below).
@@ -464,11 +541,21 @@ to avoid the event time skew related problems described in [Event time synchroni
 
 To enable synchronization, set the watermark tracker on the consumer:
 
+{{< tabs "8fbaf5cb-3b76-4c62-a74e-db51b60f6601" >}}
+{{< tab "Java" >}}
 ```java
 JobManagerWatermarkTracker watermarkTracker =
     new JobManagerWatermarkTracker("myKinesisSource");
 consumer.setWatermarkTracker(watermarkTracker);
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+watermark_tracker = WatermarkTracker.job_manager_watermark_tracker("myKinesisSource")
+consumer.set_watermark_tracker(watermark_tracker)
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 The `JobManagerWatermarkTracker` will use a global aggregate to synchronize the per subtask watermarks. Each subtask
 uses a per shard queue to control the rate at which records are emitted downstream based on how far ahead of the global
@@ -578,9 +665,9 @@ Retry and backoff parameters can be configured using the `ConsumerConfigConstant
 this is called once per stream during stream consumer deregistration, unless the `NONE` or `EAGER` registration strategy is configured.
 Retry and backoff parameters can be configured using the `ConsumerConfigConstants.DEREGISTER_STREAM_*` keys.  
 
-## Kinesis Data Streams Sink
+## Kinesis Streams Sink
 
-The Kinesis Data Streams sink (hereafter "Kinesis sink") uses the [AWS v2 SDK for Java](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/home.html) to write data from a Flink stream into a Kinesis stream.
+The Kinesis Streams sink (hereafter "Kinesis sink") uses the [AWS v2 SDK for Java](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/home.html) to write data from a Flink stream into a Kinesis stream.
 
 To write data into a Kinesis stream, make sure the stream is marked as "ACTIVE" in the Amazon Kinesis Data Stream console.
 
@@ -589,12 +676,6 @@ For the monitoring to work, the user accessing the stream needs access to the Cl
 {{< tabs "6df3b696-c2ca-4f44-bea0-96cf8275d61c" >}}
 {{< tab "Java" >}}
 ```java
-ElementConverter<String, PutRecordsRequestEntry> elementConverter =
-    KinesisDataStreamsSinkElementConverter.<String>builder()
-        .setSerializationSchema(new SimpleStringSchema())
-        .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))
-        .build();
-
 Properties sinkProperties = new Properties();
 // Required
 sinkProperties.put(AWSConfigConstants.AWS_REGION, "us-east-1");
@@ -603,18 +684,19 @@ sinkProperties.put(AWSConfigConstants.AWS_REGION, "us-east-1");
 sinkProperties.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
 sinkProperties.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
 
-KinesisDataStreamsSink<String> kdsSink =
-    KinesisDataStreamsSink.<String>builder()
-        .setKinesisClientProperties(sinkProperties)    // Required
-        .setElementConverter(elementConverter)         // Required
-        .setStreamName("your-stream-name")             // Required
-        .setFailOnError(false)                         // Optional
-        .setMaxBatchSize(500)                          // Optional
-        .setMaxInFlightRequests(16)                    // Optional
-        .setMaxBufferedRequests(10_000)                // Optional
-        .setMaxBatchSizeInBytes(5 * 1024 * 1024)       // Optional
-        .setMaxTimeInBufferMS(5000)                    // Optional
-        .setMaxRecordSizeInBytes(1 * 1024 * 1024)      // Optional
+KinesisStreamsSink<String> kdsSink =
+    KinesisStreamsSink.<String>builder()
+        .setKinesisClientProperties(sinkProperties)                               // Required
+        .setSerializationSchema(new SimpleStringSchema())                         // Required
+        .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))  // Required
+        .setStreamName("your-stream-name")                                        // Required
+        .setFailOnError(false)                                                    // Optional
+        .setMaxBatchSize(500)                                                     // Optional
+        .setMaxInFlightRequests(50)                                               // Optional
+        .setMaxBufferedRequests(10_000)                                           // Optional
+        .setMaxBatchSizeInBytes(5 * 1024 * 1024)                                  // Optional
+        .setMaxTimeInBufferMS(5000)                                               // Optional
+        .setMaxRecordSizeInBytes(1 * 1024 * 1024)                                 // Optional
         .build();
 
 DataStream<String> simpleStringStream = ...;
@@ -623,12 +705,6 @@ simpleStringStream.sinkTo(kdsSink);
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val elementConverter =
-    KinesisDataStreamsSinkElementConverter.<String>builder()
-        .setSerializationSchema(new SimpleStringSchema())
-        .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))
-        .build()
-
 val sinkProperties = new Properties()
 // Required
 sinkProperties.put(AWSConfigConstants.AWS_REGION, "us-east-1")
@@ -637,28 +713,59 @@ sinkProperties.put(AWSConfigConstants.AWS_REGION, "us-east-1")
 sinkProperties.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
 sinkProperties.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
 
-val kdsSink = KinesisDataStreamsSink.<String>builder()
-    .setKinesisClientProperties(sinkProperties)  // Required
-    .setElementConverter(elementConverter)       // Required
-    .setStreamName("your-stream-name")           // Required
-    .setFailOnError(false)                       // Optional
-    .setMaxBatchSize(500)                        // Optional
-    .setMaxInFlightRequests(16)                  // Optional
-    .setMaxBufferedRequests(10000)               // Optional
-    .setMaxBatchSizeInBytes(5 * 1024 * 1024)     // Optional
-    .setMaxTimeInBufferMS(5000)                  // Optional
-    .setMaxRecordSizeInBytes(1 * 1024 * 1024)    // Optional
+val kdsSink = KinesisStreamsSink.<String>builder()
+    .setKinesisClientProperties(sinkProperties)                               // Required
+    .setSerializationSchema(new SimpleStringSchema())                         // Required
+    .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))  // Required
+    .setStreamName("your-stream-name")                                        // Required
+    .setFailOnError(false)                                                    // Optional
+    .setMaxBatchSize(500)                                                     // Optional
+    .setMaxInFlightRequests(50)                                               // Optional
+    .setMaxBufferedRequests(10000)                                            // Optional
+    .setMaxBatchSizeInBytes(5 * 1024 * 1024)                                  // Optional
+    .setMaxTimeInBufferMS(5000)                                               // Optional
+    .setMaxRecordSizeInBytes(1 * 1024 * 1024)                                 // Optional
     .build()
 
 val simpleStringStream = ...
 simpleStringStream.sinkTo(kdsSink)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+# Required
+sink_properties = {
+    # Required
+    'aws.region': 'us-east-1',
+    # Optional, provide via alternative routes e.g. environment variables
+    'aws.credentials.provider.basic.accesskeyid': 'aws_access_key_id',
+    'aws.credentials.provider.basic.secretkey': 'aws_secret_access_key',
+    'aws.endpoint': 'http://localhost:4567'
+}
+
+kds_sink = KinesisStreamsSink.builder() \
+    .set_kinesis_client_properties(sink_properties) \                      # Required
+    .set_serialization_schema(SimpleStringSchema()) \                      # Required
+    .set_partition_key_generator(PartitionKeyGenerator.fixed()) \          # Required
+    .set_stream_name("your-stream-name") \                                 # Required
+    .set_fail_on_error(False) \                                            # Optional
+    .set_max_batch_size(500) \                                             # Optional
+    .set_max_in_flight_requests(50) \                                      # Optional
+    .set_max_buffered_requests(10000) \                                    # Optional
+    .set_max_batch_size_in_bytes(5 * 1024 * 1024) \                        # Optional
+    .set_max_time_in_buffer_ms(5000) \                                     # Optional
+    .set_max_record_size_in_bytes(1 * 1024 * 1024) \                       # Optional
+    .build()
+
+simple_string_stream = ...
+simple_string_stream.sink_to(kds_sink)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 The above is a simple example of using the Kinesis sink. Begin by creating a `java.util.Properties` instance with the `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` configured. You can then construct the sink with the builder. The default values for the optional configurations are shown above. Some of these values have been set as a result of [configuration on KDS](https://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html). 
 
-You will always need to supply a `KinesisDataStreamsSinkElementConverter` during sink creation. This is where you specify your serialization schema and logic for generating a [partition key](https://docs.aws.amazon.com/streams/latest/dev/key-concepts.html#partition-key) from a record.
+You will always need to specify your serialization schema and logic for generating a [partition key](https://docs.aws.amazon.com/streams/latest/dev/key-concepts.html#partition-key) from a record.
 
 Some or all of the records in a request may fail to be persisted by Kinesis Data Streams for a number of reasons. If `failOnError` is on, then a runtime exception will be raised. Otherwise those records will be requeued in the buffer for retry.
 
@@ -679,18 +786,30 @@ begins to exhibit blocking behaviour. More information on the rate restrictions 
 found at [Quotas and Limits](https://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html).
 
 You generally reduce backpressure by increasing the size of the internal queue:
-```
-KinesisDataStreamsSink<String> kdsSink =
-    KinesisDataStreamsSink.<String>builder()
+
+{{< tabs "6df3b696-c2ca-4f44-bea0-96cf8275d61d" >}}
+{{< tab "Java" >}}
+```java
+KinesisStreamsSink<String> kdsSink =
+    KinesisStreamsSink.<String>builder()
         ...
         .setMaxBufferedRequests(10_000)
         ...
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+kds_sink = KinesisStreamsSink.builder() \
+    .set_max_buffered_requests(10000) \
+    .build()
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ## Kinesis Producer
 
 {{< hint warning >}}
-The old Kinesis sink `org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer` is deprecated and may be removed with a future release of Flink, please use [Kinesis Sink]({{<ref "docs/connectors/datastream/kinesis#kinesis-data-streams-sink">}}) instead.
+The old Kinesis sink `org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer` is deprecated and may be removed with a future release of Flink, please use [Kinesis Sink]({{<ref "docs/connectors/datastream/kinesis#kinesis-streams-sink">}}) instead.
 {{< /hint >}}
 
 The new sink uses the [AWS v2 SDK for Java](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/home.html) whereas the old sink uses the Kinesis Producer Library. Because of this, the new Kinesis sink does not support [aggregation](https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-concepts.html#kinesis-kpl-concepts-aggretation).
@@ -721,6 +840,16 @@ config.put(AWSConfigConstants.AWS_REGION, "us-east-1")
 config.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
 config.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
 config.put(AWSConfigConstants.AWS_ENDPOINT, "http://localhost:4567")
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+config = {
+    'aws.region': 'us-east-1',
+    'aws.credentials.provider.basic.accesskeyid': 'aws_access_key_id',
+    'aws.credentials.provider.basic.secretkey': 'aws_secret_access_key',
+    'aws.endpoint': 'http://localhost:4567'
+}
 ```
 {{< /tab >}}
 {{< /tabs >}}

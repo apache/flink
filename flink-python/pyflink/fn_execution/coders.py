@@ -19,14 +19,12 @@
 import os
 from abc import ABC, abstractmethod
 
-import pyarrow as pa
 import pytz
 
 from pyflink.common.typeinfo import TypeInformation, BasicTypeInfo, BasicType, DateTypeInfo, \
     TimeTypeInfo, TimestampTypeInfo, PrimitiveArrayTypeInfo, BasicArrayTypeInfo, TupleTypeInfo, \
     MapTypeInfo, ListTypeInfo, RowTypeInfo, PickledBytesTypeInfo, ObjectArrayTypeInfo, \
     ExternalTypeInfo
-from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
     FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
     LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType, ArrayType
@@ -59,6 +57,8 @@ class LengthPrefixBaseCoder(ABC):
 
     @classmethod
     def from_coder_info_descriptor_proto(cls, coder_info_descriptor_proto):
+        from pyflink.fn_execution import flink_fn_execution_pb2
+
         field_coder = cls._to_field_coder(coder_info_descriptor_proto)
         mode = coder_info_descriptor_proto.mode
         separated_with_end_message = coder_info_descriptor_proto.separated_with_end_message
@@ -79,12 +79,12 @@ class LengthPrefixBaseCoder(ABC):
             field_names = [f.name for f in schema_proto.fields]
             return RowCoder(field_coders, field_names)
         elif coder_info_descriptor_proto.HasField('arrow_type'):
-            timezone = pytz.timezone(os.environ['table.exec.timezone'])
+            timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
             schema_proto = coder_info_descriptor_proto.arrow_type.schema
             row_type = cls._to_row_type(schema_proto)
             return ArrowCoder(cls._to_arrow_schema(row_type), row_type, timezone)
         elif coder_info_descriptor_proto.HasField('over_window_arrow_type'):
-            timezone = pytz.timezone(os.environ['table.exec.timezone'])
+            timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
             schema_proto = coder_info_descriptor_proto.over_window_arrow_type.schema
             row_type = cls._to_row_type(schema_proto)
             return OverWindowArrowCoder(
@@ -98,11 +98,15 @@ class LengthPrefixBaseCoder(ABC):
 
     @classmethod
     def _to_arrow_schema(cls, row_type):
+        import pyarrow as pa
+
         return pa.schema([pa.field(n, to_arrow_type(t), t._nullable)
                           for n, t in zip(row_type.field_names(), row_type.field_types())])
 
     @classmethod
     def _to_data_type(cls, field_type):
+        from pyflink.fn_execution import flink_fn_execution_pb2
+
         if field_type.type_name == flink_fn_execution_pb2.Schema.TINYINT:
             return TinyIntType(field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.SMALLINT:
@@ -581,6 +585,15 @@ class CountWindowCoder(FieldCoder):
         return coder_impl.CountWindowCoderImpl()
 
 
+class GlobalWindowCoder(FieldCoder):
+    """
+    Coder for GlobalWindow.
+    """
+
+    def get_impl(self):
+        return coder_impl.GlobalWindowCoderImpl()
+
+
 class DataViewFilterCoder(FieldCoder):
     """
     Coder for data view filter.
@@ -593,22 +606,13 @@ class DataViewFilterCoder(FieldCoder):
         return coder_impl.DataViewFilterCoderImpl(self._udf_data_view_specs)
 
 
-type_name = flink_fn_execution_pb2.Schema
-_type_name_mappings = {
-    type_name.TINYINT: TinyIntCoder(),
-    type_name.SMALLINT: SmallIntCoder(),
-    type_name.INT: IntCoder(),
-    type_name.BIGINT: BigIntCoder(),
-    type_name.BOOLEAN: BooleanCoder(),
-    type_name.FLOAT: FloatCoder(),
-    type_name.DOUBLE: DoubleCoder(),
-    type_name.BINARY: BinaryCoder(),
-    type_name.VARBINARY: BinaryCoder(),
-    type_name.CHAR: CharCoder(),
-    type_name.VARCHAR: CharCoder(),
-    type_name.DATE: DateCoder(),
-    type_name.TIME: TimeCoder(),
-}
+class AvroCoder(FieldCoder):
+
+    def __init__(self, schema_string: str):
+        self._schema_string = schema_string
+
+    def get_impl(self):
+        return coder_impl.AvroCoderImpl(self._schema_string)
 
 
 def from_proto(field_type):
@@ -618,6 +622,25 @@ def from_proto(field_type):
     :param field_type: the protocol representation of the field type
     :return: :class:`Coder`
     """
+    from pyflink.fn_execution import flink_fn_execution_pb2
+
+    type_name = flink_fn_execution_pb2.Schema
+    _type_name_mappings = {
+        type_name.TINYINT: TinyIntCoder(),
+        type_name.SMALLINT: SmallIntCoder(),
+        type_name.INT: IntCoder(),
+        type_name.BIGINT: BigIntCoder(),
+        type_name.BOOLEAN: BooleanCoder(),
+        type_name.FLOAT: FloatCoder(),
+        type_name.DOUBLE: DoubleCoder(),
+        type_name.BINARY: BinaryCoder(),
+        type_name.VARBINARY: BinaryCoder(),
+        type_name.CHAR: CharCoder(),
+        type_name.VARCHAR: CharCoder(),
+        type_name.DATE: DateCoder(),
+        type_name.TIME: TimeCoder(),
+    }
+
     field_type_name = field_type.type_name
     coder = _type_name_mappings.get(field_type_name)
     if coder is not None:
@@ -628,7 +651,7 @@ def from_proto(field_type):
     if field_type_name == type_name.TIMESTAMP:
         return TimestampCoder(field_type.timestamp_info.precision)
     if field_type_name == type_name.LOCAL_ZONED_TIMESTAMP:
-        timezone = pytz.timezone(os.environ['table.exec.timezone'])
+        timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
         return LocalZonedTimestampCoder(field_type.local_zoned_timestamp_info.precision, timezone)
     elif field_type_name == type_name.BASIC_ARRAY:
         return GenericArrayCoder(from_proto(field_type.collection_element_type))
@@ -642,29 +665,30 @@ def from_proto(field_type):
         raise ValueError("field_type %s is not supported." % field_type)
 
 
-# for data stream type information.
-type_info_name = flink_fn_execution_pb2.TypeInfo
-_type_info_name_mappings = {
-    type_info_name.STRING: CharCoder(),
-    type_info_name.BYTE: TinyIntCoder(),
-    type_info_name.BOOLEAN: BooleanCoder(),
-    type_info_name.SHORT: SmallIntCoder(),
-    type_info_name.INT: IntCoder(),
-    type_info_name.LONG: BigIntCoder(),
-    type_info_name.FLOAT: FloatCoder(),
-    type_info_name.DOUBLE: DoubleCoder(),
-    type_info_name.CHAR: CharCoder(),
-    type_info_name.BIG_INT: BigIntCoder(),
-    type_info_name.BIG_DEC: BigDecimalCoder(),
-    type_info_name.SQL_DATE: DateCoder(),
-    type_info_name.SQL_TIME: TimeCoder(),
-    type_info_name.SQL_TIMESTAMP: TimestampCoder(3),
-    type_info_name.PICKLED_BYTES: CloudPickleCoder(),
-    type_info_name.INSTANT: InstantCoder()
-}
-
-
 def from_type_info_proto(type_info):
+    # for data stream type information.
+    from pyflink.fn_execution import flink_fn_execution_pb2
+
+    type_info_name = flink_fn_execution_pb2.TypeInfo
+    _type_info_name_mappings = {
+        type_info_name.STRING: CharCoder(),
+        type_info_name.BYTE: TinyIntCoder(),
+        type_info_name.BOOLEAN: BooleanCoder(),
+        type_info_name.SHORT: SmallIntCoder(),
+        type_info_name.INT: IntCoder(),
+        type_info_name.LONG: BigIntCoder(),
+        type_info_name.FLOAT: FloatCoder(),
+        type_info_name.DOUBLE: DoubleCoder(),
+        type_info_name.CHAR: CharCoder(),
+        type_info_name.BIG_INT: BigIntCoder(),
+        type_info_name.BIG_DEC: BigDecimalCoder(),
+        type_info_name.SQL_DATE: DateCoder(),
+        type_info_name.SQL_TIME: TimeCoder(),
+        type_info_name.SQL_TIMESTAMP: TimestampCoder(3),
+        type_info_name.PICKLED_BYTES: CloudPickleCoder(),
+        type_info_name.INSTANT: InstantCoder()
+    }
+
     field_type_name = type_info.type_name
     try:
         return _type_info_name_mappings[field_type_name]
@@ -687,6 +711,8 @@ def from_type_info_proto(type_info):
         elif field_type_name == type_info_name.MAP:
             return MapCoder(from_type_info_proto(type_info.map_type_info.key_type),
                             from_type_info_proto(type_info.map_type_info.value_type))
+        elif field_type_name == type_info_name.AVRO:
+            return AvroCoder(type_info.avro_type_info.schema)
         else:
             raise ValueError("Unsupported type_info %s." % type_info)
 

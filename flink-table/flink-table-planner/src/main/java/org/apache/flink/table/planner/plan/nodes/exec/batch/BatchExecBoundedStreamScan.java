@@ -19,13 +19,15 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -47,13 +49,20 @@ public class BatchExecBoundedStreamScan extends ExecNodeBase<RowData>
     private final List<String> qualifiedName;
 
     public BatchExecBoundedStreamScan(
+            ReadableConfig tableConfig,
             DataStream<?> dataStream,
             DataType sourceType,
             int[] fieldIndexes,
             List<String> qualifiedName,
             RowType outputType,
             String description) {
-        super(Collections.emptyList(), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecBoundedStreamScan.class),
+                ExecNodeContext.newPersistedConfig(BatchExecBoundedStreamScan.class, tableConfig),
+                Collections.emptyList(),
+                outputType,
+                description);
         this.dataStream = dataStream;
         this.sourceType = sourceType;
         this.fieldIndexes = fieldIndexes;
@@ -62,20 +71,20 @@ public class BatchExecBoundedStreamScan extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final Transformation<?> sourceTransform = dataStream.getTransformation();
-        final Configuration config = planner.getTableConfig().getConfiguration();
         if (needInternalConversion()) {
             return ScanUtil.convertToInternalRow(
-                    new CodeGeneratorContext(planner.getTableConfig()),
+                    new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader()),
                     (Transformation<Object>) sourceTransform,
                     fieldIndexes,
                     sourceType,
                     (RowType) getOutputType(),
                     qualifiedName,
                     (detailName, simplifyName) ->
-                            getFormattedOperatorName(detailName, simplifyName, config),
-                    (description) -> getFormattedOperatorDescription(description, config),
+                            createFormattedTransformationName(detailName, simplifyName, config),
+                    (description) -> createFormattedTransformationDescription(description, config),
                     JavaScalaConversionUtil.toScala(Optional.empty()),
                     "",
                     "");

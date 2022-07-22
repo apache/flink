@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
@@ -30,9 +29,9 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 
 /**
-  * Rule that converts [[FlinkLogicalRank]] with fetch to [[StreamPhysicalRank]].
-  * NOTES: the rank can not be converted to [[StreamPhysicalDeduplicate]].
-  */
+ * Rule that converts [[FlinkLogicalRank]] with fetch to [[StreamPhysicalRank]]. NOTES: the rank can
+ * not be converted to [[StreamPhysicalDeduplicate]].
+ */
 class StreamPhysicalRankRule
   extends ConverterRule(
     classOf[FlinkLogicalRank],

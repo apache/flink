@@ -57,11 +57,6 @@ under the License.
             <td></td>
         </tr>
         <tr>
-            <td>Twitter Streaming API</td>
-            <td>至多一次</td>
-            <td></td>
-        </tr>
-        <tr>
             <td>Google PubSub</td>
             <td>至少一次</td>
             <td></td>

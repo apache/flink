@@ -27,14 +27,13 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.client.AdminClient;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.ClusterAdminClient;
-import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.common.unit.TimeValue;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** A resource that starts an embedded elasticsearch cluster. */
 public class ElasticsearchResource extends ExternalResource {
@@ -82,8 +81,8 @@ public class ElasticsearchResource extends ExternalResource {
 
         ClusterHealthResponse health = healthFuture.actionGet(TimeValue.timeValueSeconds(120));
 
-        assertThat(health.getNumberOfNodes(), greaterThanOrEqualTo(1));
-        assertThat(health.getNumberOfDataNodes(), greaterThanOrEqualTo(1));
+        assertThat(health.getNumberOfNodes()).isGreaterThanOrEqualTo(1);
+        assertThat(health.getNumberOfDataNodes()).isGreaterThanOrEqualTo(1);
     }
 
     @Override

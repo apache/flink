@@ -21,7 +21,6 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -36,6 +35,7 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
+import org.apache.flink.table.utils.DateTimeUtils;
 
 import org.jline.reader.MaskingCallback;
 import org.jline.terminal.Terminal;
@@ -54,7 +54,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Contains basic tests for the {@link CliResultView}. */
 public class CliResultViewTest {
@@ -108,7 +108,11 @@ public class CliResultViewTest {
                         schema,
                         false,
                         testConfig,
-                        new RowDataToStringConverterImpl(schema.toPhysicalRowDataType()));
+                        new RowDataToStringConverterImpl(
+                                schema.toPhysicalRowDataType(),
+                                DateTimeUtils.UTC_ZONE.toZoneId(),
+                                Thread.currentThread().getContextClassLoader(),
+                                false));
 
         try (CliClient cli =
                 new TestingCliClient(
@@ -130,17 +134,16 @@ public class CliResultViewTest {
             }
         }
 
-        assertTrue(
-                "Invalid number of cancellations.",
-                cancellationCounterLatch.await(10, TimeUnit.SECONDS));
+        assertThat(cancellationCounterLatch.await(10, TimeUnit.SECONDS))
+                .as("Invalid number of cancellations.")
+                .isTrue();
     }
 
     private static final class MockExecutor implements Executor {
 
         private final TypedResult<?> typedResult;
         private final CountDownLatch cancellationCounter;
-        private static final Configuration defaultConfig =
-                TableConfig.getDefault().getConfiguration();
+        private static final Configuration defaultConfig = new Configuration();
 
         public MockExecutor(TypedResult<?> typedResult, CountDownLatch cancellationCounter) {
             this.typedResult = typedResult;

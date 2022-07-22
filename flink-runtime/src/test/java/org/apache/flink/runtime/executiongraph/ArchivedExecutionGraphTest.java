@@ -41,11 +41,14 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -54,6 +57,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
 import static java.util.Arrays.asList;
@@ -67,6 +71,10 @@ import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link ArchivedExecutionGraph}. */
 public class ArchivedExecutionGraphTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static ExecutionGraph runtimeGraph;
 
@@ -118,7 +126,9 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 
         SchedulerBase scheduler =
                 SchedulerTestingUtils.createScheduler(
-                        jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread());
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        EXECUTOR_RESOURCE.getExecutor());
 
         runtimeGraph = scheduler.getExecutionGraph();
 
@@ -152,7 +162,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
     @Test
     public void testCreateFromInitializingJobForSuspendedJob() {
         final ArchivedExecutionGraph suspendedExecutionGraph =
-                ArchivedExecutionGraph.createFromInitializingJob(
+                ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                         new JobID(),
                         "TestJob",
                         JobStatus.SUSPENDED,
@@ -170,7 +180,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                 CheckpointCoordinatorConfiguration.builder().build();
 
         final ArchivedExecutionGraph archivedGraph =
-                ArchivedExecutionGraph.createFromInitializingJob(
+                ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                         new JobID(),
                         "TestJob",
                         JobStatus.INITIALIZING,
@@ -425,6 +435,9 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         assertEquals(runtimeExecution.getAttemptNumber(), archivedExecution.getAttemptNumber());
         assertArrayEquals(
                 runtimeExecution.getStateTimestamps(), archivedExecution.getStateTimestamps());
+        assertArrayEquals(
+                runtimeExecution.getStateEndTimestamps(),
+                archivedExecution.getStateEndTimestamps());
         assertEquals(runtimeExecution.getState(), archivedExecution.getState());
         assertEquals(
                 runtimeExecution.getAssignedResourceLocation(),
@@ -462,6 +475,33 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         assertEquals(
                 runtimeExecution.getStateTimestamp(ExecutionState.FAILED),
                 archivedExecution.getStateTimestamp(ExecutionState.FAILED));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.CREATED),
+                archivedExecution.getStateEndTimestamp(ExecutionState.CREATED));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.SCHEDULED),
+                archivedExecution.getStateEndTimestamp(ExecutionState.SCHEDULED));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.DEPLOYING),
+                archivedExecution.getStateEndTimestamp(ExecutionState.DEPLOYING));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.INITIALIZING),
+                archivedExecution.getStateEndTimestamp(ExecutionState.INITIALIZING));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.RUNNING),
+                archivedExecution.getStateEndTimestamp(ExecutionState.RUNNING));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.FINISHED),
+                archivedExecution.getStateEndTimestamp(ExecutionState.FINISHED));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.CANCELING),
+                archivedExecution.getStateEndTimestamp(ExecutionState.CANCELING));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.CANCELED),
+                archivedExecution.getStateEndTimestamp(ExecutionState.CANCELED));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.FAILED),
+                archivedExecution.getStateEndTimestamp(ExecutionState.FAILED));
         compareStringifiedAccumulators(
                 runtimeExecution.getUserAccumulatorsStringified(),
                 archivedExecution.getUserAccumulatorsStringified());

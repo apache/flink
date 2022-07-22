@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.StopMode;
@@ -52,6 +53,9 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 
     int getNumTargetKeyGroups();
 
+    /** Sets the max overdraft buffer size of per gate. */
+    void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate);
+
     /** Writes the given serialized record to the target subpartition. */
     void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException;
 
@@ -66,6 +70,12 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 
     /** Writes the given {@link AbstractEvent} to all channels. */
     void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException;
+
+    /** Timeout the aligned barrier to unaligned barrier. */
+    void alignedBarrierTimeout(long checkpointId) throws IOException;
+
+    /** Abort the checkpoint. */
+    void abortCheckpoint(long checkpointId, CheckpointException cause);
 
     /**
      * Notifies the downstream tasks that this {@code ResultPartitionWriter} have emitted all the

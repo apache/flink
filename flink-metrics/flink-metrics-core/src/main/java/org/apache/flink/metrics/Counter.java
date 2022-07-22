@@ -50,4 +50,9 @@ public interface Counter extends Metric {
      * @return current count
      */
     long getCount();
+
+    @Override
+    default MetricType getMetricType() {
+        return MetricType.COUNTER;
+    }
 }

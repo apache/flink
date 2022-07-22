@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
-import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
@@ -37,13 +37,14 @@ public class KeySelectorUtil {
      * Create a RowDataKeySelector to extract keys from DataStream which type is {@link
      * InternalTypeInfo} of {@link RowData}.
      *
+     * @param classLoader user ClassLoader
      * @param keyFields key fields
      * @param rowType type of DataStream to extract keys
      * @return the RowDataKeySelector to extract keys from DataStream which type is {@link
      *     InternalTypeInfo} of {@link RowData}.
      */
     public static RowDataKeySelector getRowDataSelector(
-            int[] keyFields, InternalTypeInfo<RowData> rowType) {
+            ClassLoader classLoader, int[] keyFields, InternalTypeInfo<RowData> rowType) {
         if (keyFields.length > 0) {
             LogicalType[] inputFieldTypes = rowType.toRowFieldTypes();
             LogicalType[] keyFieldTypes = new LogicalType[keyFields.length];
@@ -56,7 +57,7 @@ public class KeySelectorUtil {
             RowType inputType = rowType.toRowType();
             GeneratedProjection generatedProjection =
                     ProjectionCodeGenerator.generateProjection(
-                            CodeGeneratorContext.apply(new TableConfig()),
+                            new CodeGeneratorContext(new Configuration(), classLoader),
                             "KeyProjection",
                             inputType,
                             returnType,

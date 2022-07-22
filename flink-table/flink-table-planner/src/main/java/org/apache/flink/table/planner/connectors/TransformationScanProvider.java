@@ -19,15 +19,14 @@
 package org.apache.flink.table.planner.connectors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.streaming.api.transformations.WithBoundedness;
+import org.apache.flink.table.api.CompiledPlan;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.util.Preconditions;
 
 /**
  * Provider that produces a {@link Transformation} as a runtime implementation for {@link
@@ -40,30 +39,16 @@ import org.apache.flink.util.Preconditions;
 @Internal
 public interface TransformationScanProvider extends ScanTableSource.ScanRuntimeProvider {
 
-    /** Helper method for creating a static provider. The boundedness is derived automatically. */
-    static TransformationScanProvider of(Transformation<RowData> transformation) {
-        Preconditions.checkNotNull(transformation, "Transformation must not be null.");
-        return new TransformationScanProvider() {
-            @Override
-            public Transformation<RowData> createTransformation() {
-                return transformation;
-            }
-
-            @Override
-            public boolean isBounded() {
-                return !isUnboundedSource(transformation)
-                        && transformation.getTransitivePredecessors().stream()
-                                .noneMatch(this::isUnboundedSource);
-            }
-
-            private boolean isUnboundedSource(Transformation<?> transformation) {
-                return transformation instanceof WithBoundedness
-                        && ((WithBoundedness) transformation).getBoundedness()
-                                != Boundedness.BOUNDED;
-            }
-        };
-    }
-
-    /** Creates a {@link Transformation} instance. */
-    Transformation<RowData> createTransformation();
+    /**
+     * Creates a {@link Transformation} instance.
+     *
+     * <p>Note: If the {@link CompiledPlan} feature should be supported, this method MUST set a
+     * unique identifier for each transformation/operator in the data stream. This enables stateful
+     * Flink version upgrades for streaming jobs. The identifier is used to map state back from a
+     * savepoint to an actual operator in the topology. The framework can generate topology-wide
+     * unique identifiers with {@link ProviderContext#generateUid(String)}.
+     *
+     * @see Transformation#setUid(String)
+     */
+    Transformation<RowData> createTransformation(ProviderContext providerContext);
 }

@@ -47,6 +47,8 @@ import org.apache.flink.util.Preconditions;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
+import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createRowTypeCoderInfoDescriptorProto;
 import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoType;
 
@@ -156,7 +158,6 @@ public abstract class AbstractPythonStreamAggregateOperator
                 PythonTypeUtils.toInternalSerializer(userDefinedFunctionOutputType);
         rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
         super.open();
-        configJobOptions();
     }
 
     @Override
@@ -175,7 +176,6 @@ public abstract class AbstractPythonStreamAggregateOperator
                 createPythonEnvironmentManager(),
                 getFunctionUrn(),
                 getUserDefinedFunctionsProto(),
-                jobOptions,
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 getKeySerializer(),
@@ -235,8 +235,8 @@ public abstract class AbstractPythonStreamAggregateOperator
     protected FlinkFnApi.UserDefinedAggregateFunctions getUserDefinedFunctionsProto() {
         FlinkFnApi.UserDefinedAggregateFunctions.Builder builder =
                 FlinkFnApi.UserDefinedAggregateFunctions.newBuilder();
-        builder.setMetricEnabled(pythonConfig.isMetricEnabled());
-        builder.setProfileEnabled(pythonConfig.isProfileEnabled());
+        builder.setMetricEnabled(config.get(PYTHON_METRIC_ENABLED));
+        builder.setProfileEnabled(config.get(PYTHON_PROFILE_ENABLED));
         builder.addAllGrouping(Arrays.stream(grouping).boxed().collect(Collectors.toList()));
         builder.setGenerateUpdateBefore(generateUpdateBefore);
         builder.setIndexOfCountStar(indexOfCountStar);
@@ -262,15 +262,6 @@ public abstract class AbstractPythonStreamAggregateOperator
     public abstract RowType createUserDefinedFunctionInputType();
 
     public abstract RowType createUserDefinedFunctionOutputType();
-
-    private void configJobOptions() {
-        jobOptions.put(
-                PythonOptions.STATE_CACHE_SIZE.key(),
-                String.valueOf(config.get(PythonOptions.STATE_CACHE_SIZE)));
-        jobOptions.put(
-                PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.key(),
-                String.valueOf(config.get(PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE)));
-    }
 
     public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
         return createRowTypeCoderInfoDescriptorProto(

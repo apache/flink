@@ -42,6 +42,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -80,11 +81,8 @@ public abstract class KubernetesSharedInformer<T extends HasMetadata, R>
     }
 
     @Override
-    public Watch watch(
-            String name,
-            WatchCallbackHandler<R> handler,
-            @Nullable ExecutorService executorService) {
-        return aggregatedEventHandler.watch(name, new WatchCallback<>(handler, executorService));
+    public Watch watch(String name, WatchCallbackHandler<R> handler, @Nullable Executor executor) {
+        return aggregatedEventHandler.watch(name, new WatchCallback<>(handler, executor));
     }
 
     @Override
@@ -226,22 +224,21 @@ public abstract class KubernetesSharedInformer<T extends HasMetadata, R>
                 new LinkedBlockingQueue<>();
 
         private final WatchCallbackHandler<T> handler;
-        private final ExecutorService executorService;
+        private final Executor executor;
 
-        private WatchCallback(
-                WatchCallbackHandler<T> handler, @Nullable ExecutorService executorService) {
+        private WatchCallback(WatchCallbackHandler<T> handler, @Nullable Executor executor) {
             this.handler = handler;
-            this.executorService = executorService;
+            this.executor = executor;
         }
 
         private void run(Consumer<WatchCallbackHandler<T>> handlerConsumer) {
-            if (executorService == null) {
+            if (executor == null) {
                 handlerConsumer.accept(handler);
                 return;
             }
             Preconditions.checkState(
                     callbackQueue.add(handlerConsumer), "Unable to put callback into a queue.");
-            executorService.execute(
+            executor.execute(
                     () -> {
                         synchronized (callbackLock) {
                             Preconditions.checkNotNull(

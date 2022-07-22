@@ -19,7 +19,6 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.gateway.Executor;
@@ -40,7 +39,7 @@ import java.util.Map;
 /** A customizable {@link Executor} for testing purposes. */
 class TestingExecutor implements Executor {
 
-    private static final Configuration defaultConfig = TableConfig.getDefault().getConfiguration();
+    private static final Configuration defaultConfig = new Configuration();
     private int numCancelCalls = 0;
 
     private int numRetrieveResultChancesCalls = 0;

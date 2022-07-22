@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -31,10 +30,7 @@ import org.junit.{Before, Test}
 
 import scala.collection.JavaConversions._
 
-
-/**
-  * Test for [[JoinDeriveNullFilterRule]].
-  */
+/** Test for [[JoinDeriveNullFilterRule]]. */
 class JoinDeriveNullFilterRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
@@ -52,24 +48,40 @@ class JoinDeriveNullFilterRuleTest extends TableTestBase {
         .build()
     )
 
-    util.tableEnv.getConfig.getConfiguration.setLong(
-      JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, 2000000)
-    util.addTableSource("MyTable1",
+    util.tableEnv.getConfig
+      .set(JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, Long.box(2000000))
+    util.addTableSource(
+      "MyTable1",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING, Types.INT, Types.LONG),
       Array("a1", "b1", "c1", "d1", "e1"),
-      FlinkStatistic.builder().tableStats(new TableStats(1000000000, Map(
-        "a1" -> new ColumnStats(null, 10000000L, 4.0, 4, null, null),
-        "c1" -> new ColumnStats(null, 5000000L, 10.2, 16, null, null),
-        "e1" -> new ColumnStats(null, 500000L, 8.0, 8, null, null)
-      ))).build())
-    util.addTableSource("MyTable2",
+      FlinkStatistic
+        .builder()
+        .tableStats(
+          new TableStats(
+            1000000000,
+            Map(
+              "a1" -> new ColumnStats(null, 10000000L, 4.0, 4, null, null),
+              "c1" -> new ColumnStats(null, 5000000L, 10.2, 16, null, null),
+              "e1" -> new ColumnStats(null, 500000L, 8.0, 8, null, null)
+            )))
+        .build()
+    )
+    util.addTableSource(
+      "MyTable2",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING, Types.INT, Types.LONG),
       Array("a2", "b2", "c2", "d2", "e2"),
-      FlinkStatistic.builder().tableStats(new TableStats(2000000000, Map(
-        "b2" -> new ColumnStats(null, 10000000L, 8.0, 8, null, null),
-        "c2" -> new ColumnStats(null, 3000000L, 18.6, 32, null, null),
-        "e2" -> new ColumnStats(null, 1500000L, 8.0, 8, null, null)
-      ))).build())
+      FlinkStatistic
+        .builder()
+        .tableStats(
+          new TableStats(
+            2000000000,
+            Map(
+              "b2" -> new ColumnStats(null, 10000000L, 8.0, 8, null, null),
+              "c2" -> new ColumnStats(null, 3000000L, 18.6, 32, null, null),
+              "e2" -> new ColumnStats(null, 1500000L, 8.0, 8, null, null)
+            )))
+        .build()
+    )
   }
 
   @Test

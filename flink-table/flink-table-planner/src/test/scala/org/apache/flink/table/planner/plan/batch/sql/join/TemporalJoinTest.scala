@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.plan.batch.sql.join
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
+
 import org.junit.{Before, Test}
 
 /**
@@ -32,57 +33,53 @@ class TemporalJoinTest extends TableTestBase {
 
   @Before
   def before(): Unit = {
-    util.addTable(
-      """
-        |CREATE TABLE Orders (
-        | o_amount INT,
-        | o_currency STRING,
-        | o_rowtime TIMESTAMP(3),
-        | o_proctime as PROCTIME(),
-        | WATERMARK FOR o_rowtime AS o_rowtime
-        |) WITH (
-        | 'connector' = 'values',
-        | 'bounded' = 'true'
-        |)
+    util.addTable("""
+                    |CREATE TABLE Orders (
+                    | o_amount INT,
+                    | o_currency STRING,
+                    | o_rowtime TIMESTAMP(3),
+                    | o_proctime as PROCTIME(),
+                    | WATERMARK FOR o_rowtime AS o_rowtime
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'bounded' = 'true'
+                    |)
       """.stripMargin)
 
-    util.addTable(
-      """
-        |CREATE TABLE RatesHistory (
-        | currency STRING,
-        | rate INT,
-        | rowtime TIMESTAMP(3),
-        | WATERMARK FOR rowtime AS rowtime
-        |) WITH (
-        | 'connector' = 'values',
-        | 'bounded' = 'true'
-        |)
+    util.addTable("""
+                    |CREATE TABLE RatesHistory (
+                    | currency STRING,
+                    | rate INT,
+                    | rowtime TIMESTAMP(3),
+                    | WATERMARK FOR rowtime AS rowtime
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'bounded' = 'true'
+                    |)
       """.stripMargin)
 
-    util.addTable(
-      """
-        |CREATE TABLE RatesHistoryWithPK (
-        | currency STRING,
-        | rate INT,
-        | rowtime TIMESTAMP(3),
-        | WATERMARK FOR rowtime AS rowtime,
-        | PRIMARY KEY(currency) NOT ENFORCED
-        |) WITH (
-        | 'connector' = 'values',
-        | 'bounded' = 'true'
-        |)
+    util.addTable("""
+                    |CREATE TABLE RatesHistoryWithPK (
+                    | currency STRING,
+                    | rate INT,
+                    | rowtime TIMESTAMP(3),
+                    | WATERMARK FOR rowtime AS rowtime,
+                    | PRIMARY KEY(currency) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'bounded' = 'true'
+                    |)
       """.stripMargin)
 
-    util.addTable(
-      """
-        |CREATE TABLE RatesOnly (
-        | currency STRING,
-        | rate INT,
-        | proctime AS PROCTIME()
-        |) WITH (
-        | 'connector' = 'values',
-        | 'bounded' = 'true'
-        |)
+    util.addTable("""
+                    |CREATE TABLE RatesOnly (
+                    | currency STRING,
+                    | rate INT,
+                    | proctime AS PROCTIME()
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'bounded' = 'true'
+                    |)
       """.stripMargin)
 
     util.addTable(
@@ -101,9 +98,10 @@ class TemporalJoinTest extends TableTestBase {
         "  ) T" +
         "  WHERE rowNum = 1")
 
-    util.addTable("CREATE VIEW rates_last_value AS SELECT currency, LAST_VALUE(rate) AS rate " +
-      "FROM RatesHistory " +
-      "GROUP BY currency ")
+    util.addTable(
+      "CREATE VIEW rates_last_value AS SELECT currency, LAST_VALUE(rate) AS rate " +
+        "FROM RatesHistory " +
+        "GROUP BY currency ")
   }
 
   @Test(expected = classOf[TableException])

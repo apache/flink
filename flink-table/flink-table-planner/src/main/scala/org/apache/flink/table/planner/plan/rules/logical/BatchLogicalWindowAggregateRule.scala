@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.{TableException, ValidationException}
@@ -24,18 +23,16 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 
+import _root_.java.math.{BigDecimal => JBigDecimal}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
 
-import _root_.java.math.{BigDecimal => JBigDecimal}
-
 /**
-  * Planner rule that transforms simple [[LogicalAggregate]] on a [[LogicalProject]]
-  * with windowing expression to
- * [[org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate]]
- * for batch.
-  */
+ * Planner rule that transforms simple [[LogicalAggregate]] on a [[LogicalProject]] with windowing
+ * expression to [[org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate]] for
+ * batch.
+ */
 class BatchLogicalWindowAggregateRule
   extends LogicalWindowAggregateRuleBase("BatchLogicalWindowAggregateRule") {
 
@@ -44,13 +41,14 @@ class BatchLogicalWindowAggregateRule
       rexBuilder: RexBuilder,
       windowExpression: RexCall): RexNode = windowExpression.getOperands.get(0)
 
-  private[table] override def getTimeFieldReference(
+  override private[table] def getTimeFieldReference(
       operand: RexNode,
       timeAttributeIndex: Int,
       rowType: RelDataType): FieldReferenceExpression = {
     if (FlinkTypeFactory.isProctimeIndicatorType(operand.getType)) {
-      throw new ValidationException("Window can not be defined over "
-        + "a proctime attribute column for batch mode")
+      throw new ValidationException(
+        "Window can not be defined over "
+          + "a proctime attribute column for batch mode")
     }
 
     val fieldName = rowType.getFieldList.get(timeAttributeIndex).getName

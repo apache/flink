@@ -21,6 +21,12 @@
             <td>The size of the IO executor pool used by the Kubernetes client to execute blocking IO operations (e.g. start/stop TaskManager pods, update leader related ConfigMaps, etc.). Increasing the pool size allows to run more IO operations concurrently.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.client.user-agent</h5></td>
+            <td style="word-wrap: break-word;">"flink"</td>
+            <td>String</td>
+            <td>The user agent to be used for contacting with Kubernetes APIServer.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.cluster-id</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -85,6 +91,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Specify the name of an existing ConfigMap that contains custom Hadoop configuration to be mounted on the JobManager(s) and TaskManagers.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.hostnetwork.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable HostNetwork mode. The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.annotations</h5></td>
@@ -186,7 +198,7 @@
             <td><h5>kubernetes.rest-service.exposed.type</h5></td>
             <td style="word-wrap: break-word;">ClusterIP</td>
             <td><p>Enum</p></td>
-            <td>The exposed type of the rest service. The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.<br /><br />Possible values:<ul><li>"ClusterIP"</li><li>"NodePort"</li><li>"LoadBalancer"</li></ul></td>
+            <td>The exposed type of the rest service. The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.<br /><br />Possible values:<ul><li>"ClusterIP"</li><li>"NodePort"</li><li>"LoadBalancer"</li><li>"Headless_ClusterIP"</li></ul></td>
         </tr>
         <tr>
             <td><h5>kubernetes.secrets</h5></td>

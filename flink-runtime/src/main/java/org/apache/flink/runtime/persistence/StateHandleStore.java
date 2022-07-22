@@ -106,7 +106,8 @@ public interface StateHandleStore<T extends Serializable, R extends ResourceVers
     List<Tuple2<RetrievableStateHandle<T>, String>> getAllAndLock() throws Exception;
 
     /**
-     * Return a list of all valid name for state handles.
+     * Return a list of all valid name for state handles. The result might contain nodes that are
+     * marked for deletion.
      *
      * @return List of valid state handle name. The name is key name in ConfigMap or child path name
      *     in ZooKeeper.
@@ -116,11 +117,11 @@ public interface StateHandleStore<T extends Serializable, R extends ResourceVers
 
     /**
      * Releases the lock for the given state handle and tries to remove the state handle if it is no
-     * longer locked. It returns the {@link RetrievableStateHandle} stored under the given state
-     * node if any. Also the state on the external storage will be discarded.
+     * longer locked. Also the state on the external storage will be discarded.
      *
      * @param name Key name in ConfigMap or child path name in ZooKeeper
-     * @return True if the state handle could be removed.
+     * @return {@code true} if the state handle is removed (also if it didn't exist in the first
+     *     place); otherwise {@code false}.
      * @throws Exception if releasing, removing the handles or discarding the state failed
      */
     boolean releaseAndTryRemove(String name) throws Exception;
@@ -128,9 +129,13 @@ public interface StateHandleStore<T extends Serializable, R extends ResourceVers
     /**
      * Releases and removes all the states. Not only the state handles in the distributed
      * coordination system will be removed, but also the real state data on the distributed storage
-     * will be discarded.
+     * will be discarded. This method should be implemented in a idempotent manner, i.e. failing
+     * calls should be able to be repeated.
      *
-     * @throws Exception if releasing, removing the handles or discarding the state failed
+     * @throws Exception if releasing, removing the handles or discarding the state failed. The
+     *     removal of the states should happen independently from each other, i.e. the method call
+     *     fails if at least one removal failed. But the removal of any other state should still be
+     *     performed.
      */
     void releaseAndTryRemoveAll() throws Exception;
 

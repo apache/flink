@@ -21,12 +21,9 @@ package org.apache.flink.streaming.api.operators.async;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -41,14 +38,13 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -59,6 +55,8 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
+import org.apache.flink.streaming.util.retryable.RetryPredicates;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.ExceptionUtils;
@@ -106,6 +104,7 @@ import static org.junit.Assert.assertTrue;
  * <ul>
  *   <li>Process StreamRecords and Watermarks in ORDERED mode
  *   <li>Process StreamRecords and Watermarks in UNORDERED mode
+ *   <li>Process StreamRecords with retry
  *   <li>AsyncWaitOperator in operator chain
  *   <li>Snapshot state and restore state
  * </ul>
@@ -115,6 +114,16 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
     @Rule public Timeout timeoutRule = new Timeout(100, TimeUnit.SECONDS);
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+
+    private static AsyncRetryStrategy emptyResultFixedDelayRetryStrategy =
+            new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(2, 10L)
+                    .ifResult(RetryPredicates.EMPTY_RESULT_PREDICATE)
+                    .build();
+
+    private static AsyncRetryStrategy exceptionRetryStrategy =
+            new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(2, 10L)
+                    .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
+                    .build();
 
     private abstract static class MyAbstractAsyncFunction<IN>
             extends RichAsyncFunction<IN, Integer> {
@@ -272,6 +281,60 @@ public class AsyncWaitOperatorTest extends TestLogger {
         @Override
         public void timeout(Integer input, ResultFuture<Integer> resultFuture) {
             TIMED_OUT.set(true);
+        }
+    }
+
+    private static class OddInputEmptyResultAsyncFunction extends MyAbstractAsyncFunction<Integer> {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture)
+                throws Exception {
+            executorService.submit(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                Thread.sleep(3);
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
+                            if (input % 2 == 1) {
+                                resultFuture.complete(Collections.EMPTY_LIST);
+                            } else {
+                                resultFuture.complete(Collections.singletonList(input * 2));
+                            }
+                        }
+                    });
+        }
+    }
+
+    private static class IllWrittenOddInputEmptyResultAsyncFunction
+            extends MyAbstractAsyncFunction<Integer> {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture)
+                throws Exception {
+            executorService.submit(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                Thread.sleep(3);
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
+                            if (input % 2 == 1) {
+                                // repeated calling complete
+                                for (int i = 0; i < 10; i++) {
+                                    resultFuture.complete(Collections.EMPTY_LIST);
+                                }
+                            } else {
+                                resultFuture.complete(Collections.singletonList(input * 2));
+                            }
+                        }
+                    });
         }
     }
 
@@ -488,8 +551,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
         DataStream<Integer> input = chainEnv.fromElements(1, 2, 3);
 
         input =
-                addAsyncOperatorLegacyChained(
-                        input, firstFunction, TIMEOUT, 6, AsyncDataStream.OutputMode.ORDERED);
+                AsyncDataStream.orderedWait(
+                        input, firstFunction, TIMEOUT, TimeUnit.MILLISECONDS, 6);
 
         // the map function is designed to chain after async function. we place an Integer object in
         // it and
@@ -517,8 +580,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
                         });
 
         input =
-                addAsyncOperatorLegacyChained(
-                        input, secondFunction, TIMEOUT, 3, AsyncDataStream.OutputMode.UNORDERED);
+                AsyncDataStream.unorderedWait(
+                        input, secondFunction, TIMEOUT, TimeUnit.MILLISECONDS, 3);
 
         input.map(
                         new MapFunction<Integer, Integer>() {
@@ -656,7 +719,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
     @SuppressWarnings("rawtypes")
     @Test
-    public void testStateSnapshotAndRestoreWithObjectReused() throws Exception {
+    public void testObjectReused() throws Exception {
         TypeSerializer[] fieldSerializers = new TypeSerializer[] {IntSerializer.INSTANCE};
         TupleSerializer<Tuple1> inputSerializer =
                 new TupleSerializer<>(Tuple1.class, fieldSerializers);
@@ -864,7 +927,13 @@ public class AsyncWaitOperatorTest extends TestLogger {
      */
     @Test
     public void testOrderedWaitUserExceptionHandling() throws Exception {
-        testUserExceptionHandling(AsyncDataStream.OutputMode.ORDERED);
+        testUserExceptionHandling(
+                AsyncDataStream.OutputMode.ORDERED, AsyncRetryStrategies.NO_RETRY_STRATEGY);
+    }
+
+    @Test
+    public void testOrderedWaitUserExceptionHandlingWithRetry() throws Exception {
+        testUserExceptionHandling(AsyncDataStream.OutputMode.ORDERED, exceptionRetryStrategy);
     }
 
     /**
@@ -876,12 +945,25 @@ public class AsyncWaitOperatorTest extends TestLogger {
      */
     @Test
     public void testUnorderedWaitUserExceptionHandling() throws Exception {
-        testUserExceptionHandling(AsyncDataStream.OutputMode.UNORDERED);
+        testUserExceptionHandling(
+                AsyncDataStream.OutputMode.UNORDERED, AsyncRetryStrategies.NO_RETRY_STRATEGY);
     }
 
-    private void testUserExceptionHandling(AsyncDataStream.OutputMode outputMode) throws Exception {
+    @Test
+    public void testUnorderedWaitUserExceptionHandlingWithRetry() throws Exception {
+        testUserExceptionHandling(AsyncDataStream.OutputMode.UNORDERED, exceptionRetryStrategy);
+    }
+
+    private void testUserExceptionHandling(
+            AsyncDataStream.OutputMode outputMode, AsyncRetryStrategy asyncRetryStrategy)
+            throws Exception {
         OneInputStreamOperatorTestHarness<Integer, Integer> harness =
-                createTestHarness(new UserExceptionAsyncFunction(), TIMEOUT, 2, outputMode);
+                createTestHarnessWithRetry(
+                        new UserExceptionAsyncFunction(),
+                        TIMEOUT,
+                        2,
+                        outputMode,
+                        asyncRetryStrategy);
 
         harness.getEnvironment().setExpectedExternalFailureCause(Throwable.class);
         harness.open();
@@ -891,6 +973,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
         }
 
         synchronized (harness.getCheckpointLock()) {
+            harness.endInput();
             harness.close();
         }
 
@@ -917,7 +1000,14 @@ public class AsyncWaitOperatorTest extends TestLogger {
      */
     @Test
     public void testOrderedWaitTimeoutHandling() throws Exception {
-        testTimeoutExceptionHandling(AsyncDataStream.OutputMode.ORDERED);
+        testTimeoutExceptionHandling(
+                AsyncDataStream.OutputMode.ORDERED, AsyncRetryStrategies.NO_RETRY_STRATEGY);
+    }
+
+    @Test
+    public void testOrderedWaitTimeoutHandlingWithRetry() throws Exception {
+        testTimeoutExceptionHandling(
+                AsyncDataStream.OutputMode.ORDERED, emptyResultFixedDelayRetryStrategy);
     }
 
     /**
@@ -928,13 +1018,22 @@ public class AsyncWaitOperatorTest extends TestLogger {
      */
     @Test
     public void testUnorderedWaitTimeoutHandling() throws Exception {
-        testTimeoutExceptionHandling(AsyncDataStream.OutputMode.UNORDERED);
+        testTimeoutExceptionHandling(
+                AsyncDataStream.OutputMode.UNORDERED, AsyncRetryStrategies.NO_RETRY_STRATEGY);
     }
 
-    private void testTimeoutExceptionHandling(AsyncDataStream.OutputMode outputMode)
+    @Test
+    public void testUnorderedWaitTimeoutHandlingWithRetry() throws Exception {
+        testTimeoutExceptionHandling(
+                AsyncDataStream.OutputMode.UNORDERED, emptyResultFixedDelayRetryStrategy);
+    }
+
+    private void testTimeoutExceptionHandling(
+            AsyncDataStream.OutputMode outputMode, AsyncRetryStrategy asyncRetryStrategy)
             throws Exception {
         OneInputStreamOperatorTestHarness<Integer, Integer> harness =
-                createTestHarness(new NoOpAsyncFunction<>(), 10L, 2, outputMode);
+                createTestHarnessWithRetry(
+                        new NoOpAsyncFunction<>(), 10L, 2, outputMode, asyncRetryStrategy);
 
         harness.getEnvironment().setExpectedExternalFailureCause(Throwable.class);
         harness.open();
@@ -1029,6 +1128,16 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
     @Test
     public void testIgnoreAsyncOperatorRecordsOnDrain() throws Exception {
+        testIgnoreAsyncOperatorRecordsOnDrain(AsyncRetryStrategies.NO_RETRY_STRATEGY);
+    }
+
+    @Test
+    public void testIgnoreAsyncOperatorRecordsOnDrainWithRetry() throws Exception {
+        testIgnoreAsyncOperatorRecordsOnDrain(emptyResultFixedDelayRetryStrategy);
+    }
+
+    private void testIgnoreAsyncOperatorRecordsOnDrain(AsyncRetryStrategy asyncRetryStrategy)
+            throws Exception {
         // given: Async wait operator which are able to collect result futures.
         StreamTaskMailboxTestHarnessBuilder<Integer> builder =
                 new StreamTaskMailboxTestHarnessBuilder<>(
@@ -1041,7 +1150,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
                                         new CollectableFuturesAsyncFunction<>(resultFutures),
                                         TIMEOUT,
                                         5,
-                                        AsyncDataStream.OutputMode.ORDERED))
+                                        AsyncDataStream.OutputMode.ORDERED,
+                                        asyncRetryStrategy))
                         .build()) {
             // when: Processing at least two elements in reverse order to keep completed queue not
             // empty.
@@ -1056,6 +1166,99 @@ public class AsyncWaitOperatorTest extends TestLogger {
             // be processed on recovery.
             harness.finishProcessing();
             assertTrue(harness.getOutput().isEmpty());
+        }
+    }
+
+    /** Test the AsyncWaitOperator with ordered mode and processing time. */
+    @Test
+    public void testProcessingTimeOrderedWithRetry() throws Exception {
+        testProcessingTimeWithRetry(
+                AsyncDataStream.OutputMode.ORDERED, new OddInputEmptyResultAsyncFunction());
+    }
+
+    /** Test the AsyncWaitOperator with unordered mode and processing time. */
+    @Test
+    public void testProcessingTimeUnorderedWithRetry() throws Exception {
+        testProcessingTimeWithRetry(
+                AsyncDataStream.OutputMode.UNORDERED, new OddInputEmptyResultAsyncFunction());
+    }
+
+    /**
+     * Test the AsyncWaitOperator with an ill-written async function under unordered mode and
+     * processing time.
+     */
+    @Test
+    public void testProcessingTimeRepeatedCompleteUnorderedWithRetry() throws Exception {
+        testProcessingTimeWithRetry(
+                AsyncDataStream.OutputMode.UNORDERED,
+                new IllWrittenOddInputEmptyResultAsyncFunction());
+    }
+
+    /**
+     * Test the AsyncWaitOperator with an ill-written async function under ordered mode and
+     * processing time.
+     */
+    @Test
+    public void testProcessingTimeRepeatedCompleteOrderedWithRetry() throws Exception {
+        testProcessingTimeWithRetry(
+                AsyncDataStream.OutputMode.ORDERED,
+                new IllWrittenOddInputEmptyResultAsyncFunction());
+    }
+
+    private void testProcessingTimeWithRetry(
+            AsyncDataStream.OutputMode mode, RichAsyncFunction asyncFunction) throws Exception {
+
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new AsyncWaitOperatorFactory<>(
+                                        asyncFunction,
+                                        TIMEOUT,
+                                        6,
+                                        mode,
+                                        emptyResultFixedDelayRetryStrategy))
+                        .build()) {
+
+            final long initialTime = 0L;
+            final Queue<Object> expectedOutput = new ArrayDeque<>();
+
+            testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
+            testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
+            testHarness.processElement(new StreamRecord<>(3, initialTime + 3));
+            testHarness.processElement(new StreamRecord<>(4, initialTime + 4));
+            testHarness.processElement(new StreamRecord<>(5, initialTime + 5));
+            testHarness.processElement(new StreamRecord<>(6, initialTime + 6));
+
+            ScheduledFuture<?> testTimer =
+                    testHarness
+                            .getTimerService()
+                            .registerTimer(
+                                    testHarness.getTimerService().getCurrentProcessingTime()
+                                            + TIMEOUT,
+                                    ts -> {});
+
+            expectedOutput.add(new StreamRecord<>(4, initialTime + 2));
+            expectedOutput.add(new StreamRecord<>(8, initialTime + 4));
+            expectedOutput.add(new StreamRecord<>(12, initialTime + 6));
+
+            // wait until all timers have been processed
+            testTimer.get();
+
+            testHarness.processAll();
+            if (mode == AsyncDataStream.OutputMode.ORDERED) {
+                TestHarnessUtil.assertOutputEquals(
+                        "ORDERED Output was not correct.", expectedOutput, testHarness.getOutput());
+            } else {
+                TestHarnessUtil.assertOutputEqualsSorted(
+                        "UNORDERED Output was not correct.",
+                        expectedOutput,
+                        testHarness.getOutput(),
+                        new StreamRecordComparator());
+            }
         }
     }
 
@@ -1101,39 +1304,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
         }
     }
 
-    /**
-     * This helper function is needed to check that the temporary fix for FLINK-13063 can be
-     * backwards compatible with the old chaining behavior by setting the ChainingStrategy manually.
-     * TODO: remove after a proper fix for FLINK-13063 is in place that allows chaining.
-     */
-    private <IN, OUT> SingleOutputStreamOperator<OUT> addAsyncOperatorLegacyChained(
-            DataStream<IN> in,
-            AsyncFunction<IN, OUT> func,
-            long timeout,
-            int bufSize,
-            AsyncDataStream.OutputMode mode) {
-
-        TypeInformation<OUT> outTypeInfo =
-                TypeExtractor.getUnaryOperatorReturnType(
-                        func,
-                        AsyncFunction.class,
-                        0,
-                        1,
-                        new int[] {1, 0},
-                        in.getType(),
-                        Utils.getCallLocationName(),
-                        true);
-
-        // create transform
-        AsyncWaitOperatorFactory<IN, OUT> factory =
-                new AsyncWaitOperatorFactory<>(
-                        in.getExecutionEnvironment().clean(func), timeout, bufSize, mode);
-
-        factory.setChainingStrategy(ChainingStrategy.ALWAYS);
-
-        return in.transform("async wait operator", outTypeInfo, factory);
-    }
-
     private static <OUT> OneInputStreamOperatorTestHarness<Integer, OUT> createTestHarness(
             AsyncFunction<Integer, OUT> function,
             long timeout,
@@ -1143,6 +1313,20 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
         return new OneInputStreamOperatorTestHarness<>(
                 new AsyncWaitOperatorFactory<>(function, timeout, capacity, outputMode),
+                IntSerializer.INSTANCE);
+    }
+
+    private static <OUT> OneInputStreamOperatorTestHarness<Integer, OUT> createTestHarnessWithRetry(
+            AsyncFunction<Integer, OUT> function,
+            long timeout,
+            int capacity,
+            AsyncDataStream.OutputMode outputMode,
+            AsyncRetryStrategy<OUT> asyncRetryStrategy)
+            throws Exception {
+
+        return new OneInputStreamOperatorTestHarness<>(
+                new AsyncWaitOperatorFactory<>(
+                        function, timeout, capacity, outputMode, asyncRetryStrategy),
                 IntSerializer.INSTANCE);
     }
 }

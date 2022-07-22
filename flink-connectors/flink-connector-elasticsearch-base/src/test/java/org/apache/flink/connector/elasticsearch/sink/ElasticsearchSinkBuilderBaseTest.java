@@ -18,7 +18,7 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.http.HttpHost;
 import org.junit.jupiter.api.DynamicTest;
@@ -29,8 +29,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ElasticsearchSinkBuilderBase}. */
 @ExtendWith(TestLoggerExtension.class)
@@ -53,41 +54,49 @@ abstract class ElasticsearchSinkBuilderBaseTest<B extends ElasticsearchSinkBuild
         return DynamicTest.stream(
                 validBuilders,
                 ElasticsearchSinkBuilderBase::toString,
-                builder -> assertDoesNotThrow(builder::build));
+                builder -> assertThatCode(builder::build).doesNotThrowAnyException());
+    }
+
+    @Test
+    void testDefaultDeliveryGuarantee() {
+        assertThat(createMinimalBuilder().build().getDeliveryGuarantee())
+                .isEqualTo(DeliveryGuarantee.AT_LEAST_ONCE);
     }
 
     @Test
     void testThrowIfExactlyOnceConfigured() {
-        assertThrows(
-                IllegalStateException.class,
-                () -> createMinimalBuilder().setDeliveryGuarantee(DeliveryGuarantee.EXACTLY_ONCE));
+        assertThatThrownBy(
+                        () ->
+                                createMinimalBuilder()
+                                        .setDeliveryGuarantee(DeliveryGuarantee.EXACTLY_ONCE))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void testThrowIfHostsNotSet() {
-        assertThrows(
-                NullPointerException.class,
-                () -> createEmptyBuilder().setEmitter((element, indexer, context) -> {}).build());
+        assertThatThrownBy(
+                        () ->
+                                createEmptyBuilder()
+                                        .setEmitter((element, indexer, context) -> {})
+                                        .build())
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void testThrowIfEmitterNotSet() {
-        assertThrows(
-                NullPointerException.class,
-                () -> createEmptyBuilder().setHosts(new HttpHost("localhost:3000")).build());
+        assertThatThrownBy(
+                        () -> createEmptyBuilder().setHosts(new HttpHost("localhost:3000")).build())
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void testThrowIfSetInvalidTimeouts() {
-        assertThrows(
-                IllegalStateException.class,
-                () -> createEmptyBuilder().setConnectionRequestTimeout(-1).build());
-        assertThrows(
-                IllegalStateException.class,
-                () -> createEmptyBuilder().setConnectionTimeout(-1).build());
-        assertThrows(
-                IllegalStateException.class,
-                () -> createEmptyBuilder().setSocketTimeout(-1).build());
+        assertThatThrownBy(() -> createEmptyBuilder().setConnectionRequestTimeout(-1).build())
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> createEmptyBuilder().setConnectionTimeout(-1).build())
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> createEmptyBuilder().setSocketTimeout(-1).build())
+                .isInstanceOf(IllegalStateException.class);
     }
 
     abstract B createEmptyBuilder();

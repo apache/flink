@@ -15,18 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.utils
 
-
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
-import org.apache.flink.table.runtime.functions.table.ReplicateRowsFunction
 
 import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{JoinRelType, SetOp}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
@@ -36,15 +33,13 @@ import org.apache.calcite.util.Util
 import java.util
 import java.util.Collections
 
-/**
-  * Util class that rewrite [[SetOp]].
-  */
+/** Util class that rewrite [[SetOp]]. */
 object SetOpRewriteUtil {
 
   /**
-    * Generate equals condition by keys (The index on both sides is the same) to
-    * join left relNode and right relNode.
-    */
+   * Generate equals condition by keys (The index on both sides is the same) to join left relNode
+   * and right relNode.
+   */
   def generateEqualsCondition(
       relBuilder: RelBuilder,
       left: RelNode,
@@ -53,41 +48,44 @@ object SetOpRewriteUtil {
     val rexBuilder = relBuilder.getRexBuilder
     val leftTypes = RelOptUtil.getFieldTypeList(left.getRowType)
     val rightTypes = RelOptUtil.getFieldTypeList(right.getRowType)
-    val conditions = keys.map { key =>
-      val leftRex = rexBuilder.makeInputRef(leftTypes.get(key), key)
-      val rightRex = rexBuilder.makeInputRef(rightTypes.get(key), leftTypes.size + key)
-      val equalCond = rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, leftRex, rightRex)
-      relBuilder.or(
-        equalCond,
-        relBuilder.and(relBuilder.isNull(leftRex), relBuilder.isNull(rightRex)))
+    val conditions = keys.map {
+      key =>
+        val leftRex = rexBuilder.makeInputRef(leftTypes.get(key), key)
+        val rightRex = rexBuilder.makeInputRef(rightTypes.get(key), leftTypes.size + key)
+        val equalCond = rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, leftRex, rightRex)
+        relBuilder.or(
+          equalCond,
+          relBuilder.and(relBuilder.isNull(leftRex), relBuilder.isNull(rightRex)))
     }
     conditions
   }
 
   /**
-    * Use table function to replicate the row N times. First field is long type,
-    * and the rest are the row fields.
-    */
+   * Use table function to replicate the row N times. First field is long type, and the rest are the
+   * row fields.
+   */
   def replicateRows(
       relBuilder: RelBuilder,
       outputRelDataType: RelDataType,
       fields: util.List[Integer]): RelNode = {
     val cluster = relBuilder.getCluster
 
-    val sqlFunction = BridgingSqlFunction.of(
-      relBuilder.getCluster,
-      BuiltInFunctionDefinitions.INTERNAL_REPLICATE_ROWS)
+    val sqlFunction =
+      BridgingSqlFunction.of(cluster, BuiltInFunctionDefinitions.INTERNAL_REPLICATE_ROWS)
 
-    relBuilder
-      .functionScan(sqlFunction, 0, relBuilder.fields(Util.range(fields.size() + 1)))
-      .rename(outputRelDataType.getFieldNames)
+    FlinkRelBuilder.pushFunctionScan(
+      relBuilder,
+      sqlFunction,
+      0,
+      relBuilder.fields(Util.range(fields.size() + 1)),
+      outputRelDataType.getFieldNames)
 
     // correlated join
     val corSet = Collections.singleton(cluster.createCorrel())
     val output = relBuilder
-        .join(JoinRelType.INNER, relBuilder.literal(true), corSet)
-        .project(relBuilder.fields(Util.range(fields.size() + 1, fields.size() * 2 + 1)))
-        .build()
+      .join(JoinRelType.INNER, relBuilder.literal(true), corSet)
+      .project(relBuilder.fields(Util.range(fields.size() + 1, fields.size() * 2 + 1)))
+      .build()
     output
   }
 }

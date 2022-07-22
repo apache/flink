@@ -33,7 +33,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
@@ -106,10 +105,7 @@ public final class FlinkMetricContainer {
         MetricName metricName = metricResult.getKey().metricName();
         if (metricName instanceof MonitoringInfoMetricName) {
             String urn = ((MonitoringInfoMetricName) metricName).getUrn();
-            return urn.contains(MonitoringInfoConstants.Urns.USER_SUM_INT64)
-                    || urn.contains(MonitoringInfoConstants.Urns.USER_SUM_DOUBLE)
-                    || urn.contains(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_DOUBLE)
-                    || urn.contains(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64);
+            return urn.startsWith("beam:metric:user");
         }
         return false;
     }

@@ -33,74 +33,11 @@ Table API 和 SQL 两种 API 是紧密集成的，以及 DataStream API。你可
 
 ## Table 程序依赖
 
-取决于你使用的编程语言，选择 Java 或者 Scala API 来构建你的 Table API 和 SQL 程序：
+您需要将 Table API 作为依赖项添加到项目中，以便用 Table API 和 SQL 定义数据管道。
 
-{{< tabs "94f8aceb-507f-4c8f-977e-df00fe903203" >}}
-{{< tab "Java" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-api-java-bridge{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-api-scala-bridge{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-{{< stable >}}
-```bash
-$ python -m pip install apache-flink {{< version >}}
-```
-{{< /stable >}}
-{{< unstable >}}
-```bash
-$ python -m pip install apache-flink
-```
-{{< /unstable >}}
-{{< /tab >}}
-{{< /tabs >}}
+有关如何为 Java 和 Scala 配置这些依赖项的更多细节，请查阅[项目配置]({{< ref "docs/dev/configuration/overview" >}})小节。
 
-除此之外，如果你想在 IDE 本地运行你的程序，你需要添加下面的模块，具体用哪个取决于你使用哪个 Planner：
-
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-planner{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-streaming-scala{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
-
-### 扩展依赖
-
-如果你想实现[自定义格式或连接器]({{< ref "docs/dev/table/sourcesSinks" >}}) 用于（反）序列化行或一组[用户定义的函数]({{< ref "docs/dev/table/functions/udfs" >}})，下面的依赖就足够了，编译出来的 jar 文件可以直接给 SQL Client 使用：
-
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-common</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
-
-{{< top >}}
+如果您使用 Python，请查阅 [Python API]({{< ref "docs/dev/python/overview" >}}) 文档。
 
 接下来？
 -----------------

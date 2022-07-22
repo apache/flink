@@ -3,9 +3,9 @@ title: "概览"
 weight: 1
 type: docs
 aliases:
-  - /dev/table/sql/queries.html
-  - /dev/table/queries/
-  - /dev/table/sql.html
+  - /zh/dev/table/sql/queries.html
+  - /zh/dev/table/queries/
+  - /zh/dev/table/sql.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -205,10 +205,10 @@ tableResult2.print();
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val tableEnv = StreamTableEnvironment.create(env, settings)
 // enable checkpointing
-tableEnv.getConfig.getConfiguration.set(
-  ExecutionCheckpointingOptions.CHECKPOINTING_MODE, CheckpointingMode.EXACTLY_ONCE)
-tableEnv.getConfig.getConfiguration.set(
-  ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(10))
+tableEnv.getConfig
+  .set(ExecutionCheckpointingOptions.CHECKPOINTING_MODE, CheckpointingMode.EXACTLY_ONCE)
+tableEnv.getConfig
+  .set(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(10))
 
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 
@@ -232,8 +232,8 @@ tableResult2.print()
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env, settings)
 # enable checkpointing
-table_env.get_config().get_configuration().set_string("execution.checkpointing.mode", "EXACTLY_ONCE")
-table_env.get_config().get_configuration().set_string("execution.checkpointing.interval", "10s")
+table_env.get_config().set("execution.checkpointing.mode", "EXACTLY_ONCE")
+table_env.get_config().set("execution.checkpointing.interval", "10s")
 
 table_env.execute_sql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 

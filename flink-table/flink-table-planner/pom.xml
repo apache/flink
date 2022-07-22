@@ -23,8 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.15-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.16-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
@@ -183,30 +182,6 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<dependency>
-			<!-- For legacy string expressions in Table API -->
-			<groupId>org.scala-lang.modules</groupId>
-			<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<!-- Utility to scan classpaths -->
-			<groupId>org.reflections</groupId>
-			<artifactId>reflections</artifactId>
-			<version>0.9.10</version>
-			<scope>compile</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>com.google.code.findbugs</groupId>
-					<artifactId>annotations</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
 		<!-- Test dependencies -->
 
 		<dependency>
@@ -234,15 +209,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<!-- SuccessException used in TestValuesTableFactory -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -298,6 +264,22 @@ under the License.
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<configuration>
+					<scala>
+						<scalafmt>
+							<version>${spotless.scalafmt.version}</version>
+							<file>${project.basedir}/../../.scalafmt.conf</file>
+						</scalafmt>
+						<licenseHeader>
+							<content>${spotless.license.header}</content>
+							<delimiter>${spotless.delimiter}</delimiter>
+						</licenseHeader>
+					</scala>
+				</configuration>
+			</plugin>
 			<!-- Scala Compiler -->
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
@@ -369,12 +351,6 @@ under the License.
 							<!-- flink-table-planner dependencies -->
 							<include>org.apache.flink:flink-sql-parser</include>
 							<include>org.apache.flink:flink-sql-parser-hive</include>
-
-							<!-- For legacy string expressions in Table API -->
-							<include>org.scala-lang.modules:scala-parser-combinators_${scala.binary.version}</include>
-
-							<!-- ReflectionsUtil -->
-							<include>org.reflections:reflections</include>
 						</includes>
 					</artifactSet>
 					<relocations>
@@ -410,65 +386,12 @@ under the License.
 							<shadedPattern>org.apache.flink.table.shaded.com.jayway</shadedPattern>
 						</relocation>
 
-						<!-- Other table dependencies -->
-						<relocation>
-							<pattern>org.reflections</pattern>
-							<shadedPattern>org.apache.flink.table.shaded.org.reflections</shadedPattern>
-						</relocation>
 						<relocation>
 							<!-- icu4j's dependencies -->
 							<pattern>com.ibm.icu</pattern>
 							<shadedPattern>org.apache.flink.table.shaded.com.ibm.icu</shadedPattern>
 						</relocation>
 					</relocations>
-				</configuration>
-				<executions>
-					<!-- The order on these executions matters, as the shade-flink-distribution overwrites the original jar -->
-					<execution>
-						<id>shade-flink</id>
-						<!-- Disabled to enforce shade-loader-bundle to run first -->
-						<phase>none</phase>
-					</execution>
-					<execution>
-						<!-- This configuration is essentially the same as shade-distribution,
-						but it writes another jar to a separate file and it includes scala.
-						This jar is used by flink-table-planner-loader -->
-						<id>shade-loader-bundle</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadedArtifactAttached>true</shadedArtifactAttached>
-							<shadedClassifierName>loader-bundle</shadedClassifierName>
-							<artifactSet>
-								<includes combine.children="append">
-									<!-- flink-table-planner scala dependencies -->
-									<include>org.scala-lang:*</include>
-									<include>org.apache.flink:flink-scala_${scala.binary.version}</include>
-								</includes>
-							</artifactSet>
-						</configuration>
-					</execution>
-					<execution>
-						<id>shade-distribution</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadedArtifactAttached>false</shadedArtifactAttached>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
 				</configuration>
 			</plugin>
 
@@ -500,6 +423,32 @@ under the License.
 							</includes>
 							<!-- override reuseForks to true to reduce testing time -->
 							<reuseForks>true</reuseForks>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- deploy value connector's source code when user uses it. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>attach-test-sources</id>
+						<goals>
+							<goal>test-jar-no-fork</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<!-- Globally exclude maven metadata, because it may accidentally bundle files we don't intend to -->
+								<addMavenDescriptor>false</addMavenDescriptor>
+							</archive>
+							<includes>
+								<!-- Only include factories sources, because this is where the value connector is stored. -->
+								<include>**/factories/**</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
+							</includes>
 						</configuration>
 					</execution>
 				</executions>

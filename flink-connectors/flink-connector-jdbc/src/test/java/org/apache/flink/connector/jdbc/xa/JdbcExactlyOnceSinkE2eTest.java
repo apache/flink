@@ -41,6 +41,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.DockerImageVersions;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.LogLevelRule;
 import org.apache.flink.util.function.SerializableSupplier;
@@ -90,7 +91,7 @@ import static org.apache.flink.connector.jdbc.xa.JdbcXaFacadeTestHelper.getInser
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.slf4j.event.Level.TRACE;
 
 /** A simple end-to-end test for {@link JdbcXaSinkFunction}. */
@@ -214,7 +215,7 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                         JdbcSink.exactlyOnceSink(
                                 String.format(INSERT_TEMPLATE, INPUT_TABLE),
                                 JdbcITCase.TEST_ENTRY_JDBC_STATEMENT_BUILDER,
-                                JdbcExecutionOptions.builder().build(),
+                                JdbcExecutionOptions.builder().withMaxRetries(0).build(),
                                 JdbcExactlyOnceOptions.builder()
                                         .withTransactionPerConnection(true)
                                         .build(),
@@ -232,9 +233,9 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                 IntStream.range(0, elementsPerSource * dbEnv.getParallelism())
                         .boxed()
                         .collect(Collectors.toList());
-        assertTrue(
-                insertedIds.toString(),
-                insertedIds.size() == expectedIds.size() && expectedIds.containsAll(insertedIds));
+        assertThat(insertedIds)
+                .as(insertedIds.toString())
+                .containsExactlyInAnyOrderElementsOf(expectedIds);
         LOG.info(
                 "Test insert for {} finished in {} ms.",
                 dbEnv,
@@ -754,7 +755,7 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
         /** {@link PostgreSQLContainer} with XA enabled (by setting max_prepared_transactions). */
         private static final class PgXaDb extends PostgreSQLContainer<PgXaDb> {
-            private static final String IMAGE_NAME = "postgres:9.6.12";
+            private static final String IMAGE_NAME = DockerImageVersions.POSTGRES;
             private static final int SUPERUSER_RESERVED_CONNECTIONS = 1;
 
             @Override

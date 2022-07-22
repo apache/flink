@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
@@ -29,8 +28,8 @@ import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.TestBaseUtils
 
 import org.hamcrest.CoreMatchers.equalTo
-import org.junit.Assert.assertThat
 import org.junit._
+import org.junit.Assert.assertThat
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -69,9 +68,7 @@ class SetOperatorsITCase extends BatchTestBase {
     val unionTable = table1.unionAll(table2)
 
     val schema = unionTable.getResolvedSchema.getColumnDataTypes
-    assertThat(
-      schema.get(0),
-      equalTo(DataTypes.DECIMAL(13, 3).notNull()))
+    assertThat(schema.get(0), equalTo(DataTypes.DECIMAL(13, 3).notNull()))
     assertThat(schema.get(1), equalTo(DataTypes.VARCHAR(3).notNull()))
 
     val results = executeQuery(unionTable)
@@ -124,8 +121,11 @@ class SetOperatorsITCase extends BatchTestBase {
     val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv)
     val ds2 = BatchTableEnvUtil.fromElements(tEnv, (1, 1L, "Hi"))
 
-    val minusDs = ds1.unionAll(ds1).unionAll(ds1)
-      .minusAll(ds2.unionAll(ds2)).select('_3)
+    val minusDs = ds1
+      .unionAll(ds1)
+      .unionAll(ds1)
+      .minusAll(ds2.unionAll(ds2))
+      .select('_3)
 
     val results = executeQuery(minusDs)
     val expected = "Hi\n" +
@@ -140,8 +140,11 @@ class SetOperatorsITCase extends BatchTestBase {
     val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
     val ds2 = BatchTableEnvUtil.fromElements(tEnv, (1, 1L, "Hi"))
 
-    val minusDs = ds1.unionAll(ds1).unionAll(ds1)
-      .minus(ds2.unionAll(ds2)).select('c)
+    val minusDs = ds1
+      .unionAll(ds1)
+      .unionAll(ds1)
+      .minus(ds2.unionAll(ds2))
+      .select('c)
 
     val results = executeQuery(minusDs)
     val expected = "Hello\n" + "Hello world\n"
@@ -153,8 +156,11 @@ class SetOperatorsITCase extends BatchTestBase {
     val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
     val ds2 = BatchTableEnvUtil.fromElements(tEnv, (1, 1L, "Hi"))
 
-    val minusDs = ds1.unionAll(ds1).unionAll(ds1)
-      .minus(ds2.unionAll(ds2)).select('c)
+    val minusDs = ds1
+      .unionAll(ds1)
+      .unionAll(ds1)
+      .minus(ds2.unionAll(ds2))
+      .select('c)
 
     val results = executeQuery(minusDs)
     val expected = "Hello\n" + "Hello world\n"
@@ -209,9 +215,11 @@ class SetOperatorsITCase extends BatchTestBase {
 
   @Test
   def testIntersectWithScalarExpression(): Unit = {
-    val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
+    val ds1 = CollectionBatchExecTable
+      .getSmall3TupleDataSet(tEnv, "a, b, c")
       .select('a + 1, 'b, 'c)
-    val ds2 = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
+    val ds2 = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv, "a, b, c")
       .select('a + 1, 'b, 'c)
 
     val intersectDs = ds1.intersect(ds2)

@@ -46,6 +46,7 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -239,6 +240,43 @@ public class DeclarativeSlotPoolBridgeTest extends TestLogger {
                     Collections.singleton(new SlotOffer(allocationId, 0, ResourceProfile.ANY)));
 
             assertThat(slotFuture.join().getAllocationId(), is(allocationId));
+        }
+    }
+
+    @Test
+    public void testIfJobIsRestartingAllOfferedSlotsWillBeRegistered() throws Exception {
+        final CompletableFuture<Void> registerSlotsCalledFuture = new CompletableFuture<>();
+        final TestingDeclarativeSlotPoolFactory declarativeSlotPoolFactory =
+                new TestingDeclarativeSlotPoolFactory(
+                        TestingDeclarativeSlotPool.builder()
+                                .setRegisterSlotsFunction(
+                                        (slotOffers,
+                                                taskManagerLocation,
+                                                taskManagerGateway,
+                                                aLong) -> {
+                                            registerSlotsCalledFuture.complete(null);
+                                            return new ArrayList<>(slotOffers);
+                                        }));
+
+        try (DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
+                createDeclarativeSlotPoolBridge(
+                        declarativeSlotPoolFactory, requestSlotMatchingStrategy)) {
+            declarativeSlotPoolBridge.start(jobMasterId, "localhost", mainThreadExecutor);
+
+            declarativeSlotPoolBridge.setIsJobRestarting(true);
+
+            final LocalTaskManagerLocation localTaskManagerLocation =
+                    new LocalTaskManagerLocation();
+            declarativeSlotPoolBridge.registerTaskManager(localTaskManagerLocation.getResourceID());
+
+            declarativeSlotPoolBridge.offerSlots(
+                    localTaskManagerLocation,
+                    new SimpleAckingTaskManagerGateway(),
+                    Collections.singleton(
+                            new SlotOffer(new AllocationID(), 0, ResourceProfile.ANY)));
+
+            // make sure that the register slots method is called
+            registerSlotsCalledFuture.join();
         }
     }
 

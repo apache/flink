@@ -19,10 +19,12 @@ package org.apache.flink.streaming.connectors.kinesis.util;
 
 import org.junit.Test;
 import software.amazon.awssdk.http.SdkHttpConfigurationOption;
+import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 import software.amazon.awssdk.utils.AttributeMap;
 
 import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.EAGER;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.LAZY;
@@ -33,9 +35,7 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.POLLING;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AwsV2Util}. */
 public class AwsV2UtilTest {
@@ -48,9 +48,8 @@ public class AwsV2UtilTest {
 
         AttributeMap convertedProperties = AwsV2Util.convertProperties(properties);
 
-        assertEquals(
-                maxConcurrency,
-                convertedProperties.get(SdkHttpConfigurationOption.MAX_CONNECTIONS));
+        assertThat(convertedProperties.get(SdkHttpConfigurationOption.MAX_CONNECTIONS))
+                .isEqualTo(maxConcurrency);
     }
 
     @Test
@@ -63,7 +62,8 @@ public class AwsV2UtilTest {
 
         AttributeMap convertedProperties = AwsV2Util.convertProperties(properties);
 
-        assertEquals(readTimeout, convertedProperties.get(SdkHttpConfigurationOption.READ_TIMEOUT));
+        assertThat(convertedProperties.get(SdkHttpConfigurationOption.READ_TIMEOUT))
+                .isEqualTo(readTimeout);
     }
 
     @Test
@@ -72,63 +72,96 @@ public class AwsV2UtilTest {
 
         AttributeMap convertedProperties = AwsV2Util.convertProperties(properties);
 
-        assertEquals(AttributeMap.empty(), convertedProperties);
+        assertThat(convertedProperties).isEqualTo(AttributeMap.empty());
     }
 
     @Test
     public void testIsUsingEfoRecordPublisher() {
         Properties prop = new Properties();
-        assertFalse(AwsV2Util.isUsingEfoRecordPublisher(prop));
+        assertThat(AwsV2Util.isUsingEfoRecordPublisher(prop)).isFalse();
 
         prop.setProperty(RECORD_PUBLISHER_TYPE, EFO.name());
-        assertTrue(AwsV2Util.isUsingEfoRecordPublisher(prop));
+        assertThat(AwsV2Util.isUsingEfoRecordPublisher(prop)).isTrue();
 
         prop.setProperty(RECORD_PUBLISHER_TYPE, POLLING.name());
-        assertFalse(AwsV2Util.isUsingEfoRecordPublisher(prop));
+        assertThat(AwsV2Util.isUsingEfoRecordPublisher(prop)).isFalse();
     }
 
     @Test
     public void testIsEagerEfoRegistrationType() {
         Properties prop = new Properties();
-        assertFalse(AwsV2Util.isEagerEfoRegistrationType(prop));
+        assertThat(AwsV2Util.isEagerEfoRegistrationType(prop)).isFalse();
 
         prop.setProperty(EFO_REGISTRATION_TYPE, EAGER.name());
-        assertTrue(AwsV2Util.isEagerEfoRegistrationType(prop));
+        assertThat(AwsV2Util.isEagerEfoRegistrationType(prop)).isTrue();
 
         prop.setProperty(EFO_REGISTRATION_TYPE, LAZY.name());
-        assertFalse(AwsV2Util.isEagerEfoRegistrationType(prop));
+        assertThat(AwsV2Util.isEagerEfoRegistrationType(prop)).isFalse();
 
         prop.setProperty(EFO_REGISTRATION_TYPE, NONE.name());
-        assertFalse(AwsV2Util.isEagerEfoRegistrationType(prop));
+        assertThat(AwsV2Util.isEagerEfoRegistrationType(prop)).isFalse();
     }
 
     @Test
     public void testIsLazyEfoRegistrationType() {
         Properties prop = new Properties();
-        assertTrue(AwsV2Util.isLazyEfoRegistrationType(prop));
+        assertThat(AwsV2Util.isLazyEfoRegistrationType(prop)).isTrue();
 
         prop.setProperty(EFO_REGISTRATION_TYPE, EAGER.name());
-        assertFalse(AwsV2Util.isLazyEfoRegistrationType(prop));
+        assertThat(AwsV2Util.isLazyEfoRegistrationType(prop)).isFalse();
 
         prop.setProperty(EFO_REGISTRATION_TYPE, LAZY.name());
-        assertTrue(AwsV2Util.isLazyEfoRegistrationType(prop));
+        assertThat(AwsV2Util.isLazyEfoRegistrationType(prop)).isTrue();
 
         prop.setProperty(EFO_REGISTRATION_TYPE, NONE.name());
-        assertFalse(AwsV2Util.isLazyEfoRegistrationType(prop));
+        assertThat(AwsV2Util.isLazyEfoRegistrationType(prop)).isFalse();
     }
 
     @Test
     public void testIsNoneEfoRegistrationType() {
         Properties prop = new Properties();
-        assertFalse(AwsV2Util.isNoneEfoRegistrationType(prop));
+        assertThat(AwsV2Util.isNoneEfoRegistrationType(prop)).isFalse();
 
         prop.setProperty(EFO_REGISTRATION_TYPE, EAGER.name());
-        assertFalse(AwsV2Util.isNoneEfoRegistrationType(prop));
+        assertThat(AwsV2Util.isNoneEfoRegistrationType(prop)).isFalse();
 
         prop.setProperty(EFO_REGISTRATION_TYPE, LAZY.name());
-        assertFalse(AwsV2Util.isNoneEfoRegistrationType(prop));
+        assertThat(AwsV2Util.isNoneEfoRegistrationType(prop)).isFalse();
 
         prop.setProperty(EFO_REGISTRATION_TYPE, NONE.name());
-        assertTrue(AwsV2Util.isNoneEfoRegistrationType(prop));
+        assertThat(AwsV2Util.isNoneEfoRegistrationType(prop)).isTrue();
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForRecoverable() {
+        Exception recoverable = LimitExceededException.builder().build();
+        assertThat(AwsV2Util.isRecoverableException(new ExecutionException(recoverable))).isTrue();
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForNonRecoverable() {
+        Exception nonRecoverable = new IllegalArgumentException("abc");
+        assertThat(AwsV2Util.isRecoverableException(new ExecutionException(nonRecoverable)))
+                .isFalse();
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForRuntimeExceptionWrappingRecoverable() {
+        Exception recoverable = LimitExceededException.builder().build();
+        Exception runtime = new RuntimeException("abc", recoverable);
+        assertThat(AwsV2Util.isRecoverableException(runtime)).isTrue();
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForRuntimeExceptionWrappingNonRecoverable() {
+        Exception nonRecoverable = new IllegalArgumentException("abc");
+        Exception runtime = new RuntimeException("abc", nonRecoverable);
+        assertThat(AwsV2Util.isRecoverableException(runtime)).isFalse();
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForNullCause() {
+        Exception nonRecoverable = new IllegalArgumentException("abc");
+        assertThat(AwsV2Util.isRecoverableException(nonRecoverable)).isFalse();
     }
 }

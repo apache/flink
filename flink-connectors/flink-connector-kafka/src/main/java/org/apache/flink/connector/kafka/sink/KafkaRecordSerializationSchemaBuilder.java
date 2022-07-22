@@ -17,11 +17,11 @@
 
 package org.apache.flink.connector.kafka.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.Configurable;
 import org.apache.kafka.common.serialization.Serializer;
 
 import javax.annotation.Nullable;
@@ -77,6 +77,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @param <IN> type of records to be serialized
  * @see KafkaRecordSerializationSchema#builder()
  */
+@PublicEvolving
 public class KafkaRecordSerializationSchemaBuilder<IN> {
 
     @Nullable private Function<? super IN, String> topicSelector;
@@ -150,7 +151,8 @@ public class KafkaRecordSerializationSchemaBuilder<IN> {
             Class<? extends Serializer<? super T>> keySerializer) {
         checkKeySerializerNotSet();
         KafkaRecordSerializationSchemaBuilder<T> self = self();
-        self.keySerializationSchema = new KafkaSerializerWrapper<>(keySerializer, topicSelector);
+        self.keySerializationSchema =
+                new KafkaSerializerWrapper<>(keySerializer, true, topicSelector);
         return self;
     }
 
@@ -158,19 +160,18 @@ public class KafkaRecordSerializationSchemaBuilder<IN> {
      * Sets a configurable Kafka {@link Serializer} and pass a configuration to serialize incoming
      * elements to the key of the {@link ProducerRecord}.
      *
-     * @param keySerializerWithConfiguration
+     * @param keySerializer
      * @param configuration
      * @param <S> type of the used serializer class
      * @return {@code this}
      */
-    public <T extends IN, S extends Configurable & Serializer<? super T>>
+    public <T extends IN, S extends Serializer<? super T>>
             KafkaRecordSerializationSchemaBuilder<T> setKafkaKeySerializer(
-                    Class<S> keySerializerWithConfiguration, Map<String, String> configuration) {
+                    Class<S> keySerializer, Map<String, String> configuration) {
         checkKeySerializerNotSet();
         KafkaRecordSerializationSchemaBuilder<T> self = self();
         self.keySerializationSchema =
-                new KafkaSerializerWrapper<>(
-                        keySerializerWithConfiguration, configuration, topicSelector);
+                new KafkaSerializerWrapper<>(keySerializer, true, configuration, topicSelector);
         return self;
     }
 
@@ -206,7 +207,7 @@ public class KafkaRecordSerializationSchemaBuilder<IN> {
         checkValueSerializerNotSet();
         KafkaRecordSerializationSchemaBuilder<T> self = self();
         self.valueSerializationSchema =
-                new KafkaSerializerWrapper<>(valueSerializer, topicSelector);
+                new KafkaSerializerWrapper<>(valueSerializer, false, topicSelector);
         return self;
     }
 
@@ -214,19 +215,18 @@ public class KafkaRecordSerializationSchemaBuilder<IN> {
      * Sets a configurable Kafka {@link Serializer} and pass a configuration to serialize incoming
      * elements to the value of the {@link ProducerRecord}.
      *
-     * @param valueSerializerWithConfiguration
+     * @param valueSerializer
      * @param configuration
      * @param <S> type of the used serializer class
      * @return {@code this}
      */
-    public <T extends IN, S extends Configurable & Serializer<? super T>>
+    public <T extends IN, S extends Serializer<? super T>>
             KafkaRecordSerializationSchemaBuilder<T> setKafkaValueSerializer(
-                    Class<S> valueSerializerWithConfiguration, Map<String, String> configuration) {
+                    Class<S> valueSerializer, Map<String, String> configuration) {
         checkValueSerializerNotSet();
         KafkaRecordSerializationSchemaBuilder<T> self = self();
         self.valueSerializationSchema =
-                new KafkaSerializerWrapper<>(
-                        valueSerializerWithConfiguration, configuration, topicSelector);
+                new KafkaSerializerWrapper<>(valueSerializer, false, configuration, topicSelector);
         return self;
     }
 

@@ -34,10 +34,11 @@ import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import java.lang.reflect.Method;
-import java.net.URLClassLoader;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.client.gateway.context.SessionContext.SessionState;
@@ -53,16 +54,17 @@ public class ExecutionContext {
     // Members that should be reused in the same session.
     private final Configuration flinkConfig;
     private final SessionState sessionState;
-    private final URLClassLoader classLoader;
+    private final MutableURLClassLoader classLoader;
 
     private final StreamTableEnvironment tableEnv;
 
     public ExecutionContext(
-            Configuration flinkConfig, URLClassLoader classLoader, SessionState sessionState) {
+            Configuration flinkConfig,
+            MutableURLClassLoader classLoader,
+            SessionState sessionState) {
         this.flinkConfig = flinkConfig;
         this.sessionState = sessionState;
         this.classLoader = classLoader;
-
         this.tableEnv = createTableEnvironment();
     }
 
@@ -98,46 +100,48 @@ public class ExecutionContext {
     // ------------------------------------------------------------------------------------------------------------------
 
     private StreamTableEnvironment createTableEnvironment() {
-        // checks the value of RUNTIME_MODE
-        EnvironmentSettings settings = EnvironmentSettings.fromConfiguration(flinkConfig);
+        EnvironmentSettings settings =
+                EnvironmentSettings.newInstance().withConfiguration(flinkConfig).build();
 
-        if (!settings.isBlinkPlanner()) {
-            throw new TableException(
-                    "The old planner is not supported anymore. Please update to new default planner.");
-        }
+        // We need not different StreamExecutionEnvironments to build and submit flink job,
+        // instead we just use StreamExecutionEnvironment#executeAsync(StreamGraph) method
+        // to execute existing StreamGraph.
+        // This requires StreamExecutionEnvironment to have a full flink configuration.
+        StreamExecutionEnvironment streamExecEnv =
+                new StreamExecutionEnvironment(new Configuration(flinkConfig), classLoader);
 
-        TableConfig config = new TableConfig();
-        config.addConfiguration(flinkConfig);
+        final Executor executor = lookupExecutor(streamExecEnv, classLoader);
 
-        StreamExecutionEnvironment streamExecEnv = createStreamExecutionEnvironment();
-
-        final Executor executor = lookupExecutor(settings.getExecutor(), streamExecEnv);
         return createStreamTableEnvironment(
                 streamExecEnv,
                 settings,
-                config,
                 executor,
                 sessionState.catalogManager,
                 sessionState.moduleManager,
+                sessionState.resourceManager,
                 sessionState.functionCatalog,
                 classLoader);
     }
 
-    private StreamTableEnvironment createStreamTableEnvironment(
+    private static StreamTableEnvironment createStreamTableEnvironment(
             StreamExecutionEnvironment env,
             EnvironmentSettings settings,
-            TableConfig config,
             Executor executor,
             CatalogManager catalogManager,
             ModuleManager moduleManager,
+            ResourceManager resourceManager,
             FunctionCatalog functionCatalog,
             ClassLoader userClassLoader) {
 
+        TableConfig tableConfig = TableConfig.getDefault();
+        tableConfig.setRootConfiguration(executor.getConfiguration());
+        tableConfig.addConfiguration(settings.getConfiguration());
+
         final Planner planner =
                 PlannerFactoryUtil.createPlanner(
-                        settings.getPlanner(),
                         executor,
-                        config,
+                        tableConfig,
+                        userClassLoader,
                         moduleManager,
                         catalogManager,
                         functionCatalog);
@@ -145,21 +149,23 @@ public class ExecutionContext {
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
+                resourceManager,
                 functionCatalog,
-                config,
+                tableConfig,
                 env,
                 planner,
                 executor,
-                settings.isStreamingMode(),
-                userClassLoader);
+                settings.isStreamingMode());
     }
 
-    private Executor lookupExecutor(
-            String executorIdentifier, StreamExecutionEnvironment executionEnvironment) {
+    private static Executor lookupExecutor(
+            StreamExecutionEnvironment executionEnvironment, ClassLoader userClassLoader) {
         try {
             final ExecutorFactory executorFactory =
                     FactoryUtil.discoverFactory(
-                            classLoader, ExecutorFactory.class, executorIdentifier);
+                            userClassLoader,
+                            ExecutorFactory.class,
+                            ExecutorFactory.DEFAULT_IDENTIFIER);
             final Method createMethod =
                     executorFactory
                             .getClass()
@@ -171,13 +177,5 @@ public class ExecutionContext {
                     "Could not instantiate the executor. Make sure a planner module is on the classpath",
                     e);
         }
-    }
-
-    private StreamExecutionEnvironment createStreamExecutionEnvironment() {
-        // We need not different StreamExecutionEnvironments to build and submit flink job,
-        // instead we just use StreamExecutionEnvironment#executeAsync(StreamGraph) method
-        // to execute existing StreamGraph.
-        // This requires StreamExecutionEnvironment to have a full flink configuration.
-        return new StreamExecutionEnvironment(new Configuration(flinkConfig), classLoader);
     }
 }

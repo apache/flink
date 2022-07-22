@@ -19,29 +19,31 @@
 package org.apache.flink.connector.elasticsearch.table;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.http.HttpHost;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHits;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -50,6 +52,8 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -57,6 +61,7 @@ import java.util.HashSet;
 import java.util.Map;
 
 import static org.apache.flink.table.api.Expressions.row;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT tests for {@link ElasticsearchDynamicSink}. */
 @ExtendWith(TestLoggerExtension.class)
@@ -117,8 +122,8 @@ abstract class ElasticsearchDynamicSinkBaseITCase {
                                 getPrefilledTestContext(index).withSchema(schema).build())
                         .getSinkRuntimeProvider(new ElasticsearchUtil.MockContext());
 
-        final SinkProvider sinkProvider = (SinkProvider) runtimeProvider;
-        final Sink<RowData, ?, ?, ?> sink = sinkProvider.createSink();
+        final SinkV2Provider sinkProvider = (SinkV2Provider) runtimeProvider;
+        final Sink<RowData> sink = sinkProvider.createSink();
         StreamExecutionEnvironment environment =
                 StreamExecutionEnvironment.getExecutionEnvironment();
         environment.setParallelism(4);
@@ -137,7 +142,7 @@ abstract class ElasticsearchDynamicSinkBaseITCase {
         expectedMap.put("e", 2);
         expectedMap.put("f", "2003-10-20");
         expectedMap.put("g", "2012-12-12 12:12:12");
-        Assertions.assertEquals(response, expectedMap);
+        assertThat(response).isEqualTo(expectedMap);
     }
 
     @Test
@@ -185,7 +190,7 @@ abstract class ElasticsearchDynamicSinkBaseITCase {
         expectedMap.put("e", 2);
         expectedMap.put("f", "2003-10-20");
         expectedMap.put("g", "2012-12-12 12:12:12");
-        Assertions.assertEquals(response, expectedMap);
+        assertThat(response).isEqualTo(expectedMap);
     }
 
     @Test
@@ -268,7 +273,7 @@ abstract class ElasticsearchDynamicSinkBaseITCase {
         HashSet<Map<Object, Object>> expectedSet = new HashSet<>();
         expectedSet.add(expectedMap1);
         expectedSet.add(expectedMap2);
-        Assertions.assertEquals(resultSet, expectedSet);
+        assertThat(resultSet).isEqualTo(expectedSet);
     }
 
     @Test
@@ -297,6 +302,57 @@ abstract class ElasticsearchDynamicSinkBaseITCase {
         Map<Object, Object> expectedMap = new HashMap<>();
         expectedMap.put("a", 1);
         expectedMap.put("b", "2012-12-12 12:12:12");
-        Assertions.assertEquals(response, expectedMap);
+        assertThat(response).isEqualTo(expectedMap);
+    }
+
+    @Test
+    public void testWritingDocumentsWithDynamicIndexFromSystemTime() throws Exception {
+        TableEnvironment tableEnvironment =
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        tableEnvironment.getConfig().set(TableConfigOptions.LOCAL_TIME_ZONE, "Asia/Shanghai");
+
+        String dynamicIndex1 =
+                "dynamic-index-"
+                        + dateTimeFormatter.format(LocalDateTime.now(ZoneId.of("Asia/Shanghai")))
+                        + "_index";
+        String index = "dynamic-index-{now()|yyyy-MM-dd}_index";
+        tableEnvironment.executeSql(
+                "CREATE TABLE esTable ("
+                        + "a BIGINT NOT NULL,\n"
+                        + "b TIMESTAMP NOT NULL,\n"
+                        + "PRIMARY KEY (a) NOT ENFORCED\n"
+                        + ")\n"
+                        + "WITH (\n"
+                        + getConnectorSql(index)
+                        + ")");
+        String dynamicIndex2 =
+                "dynamic-index-"
+                        + dateTimeFormatter.format(LocalDateTime.now(ZoneId.of("Asia/Shanghai")))
+                        + "_index";
+
+        tableEnvironment
+                .fromValues(row(1L, LocalDateTime.parse("2012-12-12T12:12:12")))
+                .executeInsert("esTable")
+                .await();
+
+        RestHighLevelClient client = getClient();
+
+        Map<String, Object> response;
+        try {
+            response = makeGetRequest(client, dynamicIndex1, "1");
+        } catch (ElasticsearchStatusException e) {
+            if (e.status() == RestStatus.NOT_FOUND) {
+                response = makeGetRequest(client, dynamicIndex2, "1");
+            } else {
+                throw e;
+            }
+        }
+
+        Map<Object, Object> expectedMap = new HashMap<>();
+        expectedMap.put("a", 1);
+        expectedMap.put("b", "2012-12-12 12:12:12");
+        assertThat(response).isEqualTo(expectedMap);
     }
 }

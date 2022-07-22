@@ -56,6 +56,8 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
@@ -66,9 +68,11 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.NoOpIntMap;
+import org.apache.flink.streaming.util.TestExpandingSink;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
+import org.assertj.core.api.Assertions;
 import org.hamcrest.Description;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
@@ -82,6 +86,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -823,6 +828,56 @@ public class StreamGraphGeneratorTest extends TestLogger {
         assertThatThrownBy(generator::generate)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Unknown transformation: FailingTransformation");
+    }
+
+    @Test
+    public void testResetBatchExchangeModeInStreamingExecution() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        PartitionTransformation<Integer> transformation =
+                new PartitionTransformation<>(
+                        sourceDataStream.getTransformation(),
+                        new RebalancePartitioner<>(),
+                        StreamExchangeMode.BATCH);
+        DataStream<Integer> partitionStream = new DataStream<>(env, transformation);
+        partitionStream.map(value -> value).print();
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+
+        final List<Integer> nodeIds =
+                streamGraph.getStreamNodes().stream()
+                        .map(StreamNode::getId)
+                        .sorted(Integer::compare)
+                        .collect(Collectors.toList());
+        Assertions.assertThat(streamGraph.getStreamEdges(nodeIds.get(0), nodeIds.get(1)))
+                .hasSize(1)
+                .satisfies(
+                        e ->
+                                Assertions.assertThat(e.get(0).getExchangeMode())
+                                        .isEqualTo(StreamExchangeMode.UNDEFINED));
+    }
+
+    @Test
+    public void testAutoParallelismForExpandedTransformations() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        env.setParallelism(2);
+
+        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        // Parallelism is set to -1 (default parallelism identifier) to imitate the behavior of
+        // the table planner. Parallelism should be set automatically after translating.
+        sourceDataStream.sinkTo(new TestExpandingSink()).setParallelism(-1);
+
+        StreamGraph graph = env.getStreamGraph();
+
+        graph.getStreamNodes()
+                .forEach(
+                        node -> {
+                            if (!node.getOperatorName().startsWith("Source")) {
+                                assertEquals(2, node.getParallelism());
+                            }
+                        });
     }
 
     private static class FailingTransformation extends Transformation<String> {

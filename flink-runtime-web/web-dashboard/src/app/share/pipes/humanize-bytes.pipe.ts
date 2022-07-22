@@ -18,7 +18,7 @@
 
 import { Pipe, PipeTransform } from '@angular/core';
 
-import { isNil } from 'utils';
+import { isNil } from '@flink-runtime-web/utils';
 
 @Pipe({
   name: 'humanizeBytes'
@@ -26,7 +26,7 @@ import { isNil } from 'utils';
 export class HumanizeBytesPipe implements PipeTransform {
   public transform(value: number): string {
     if (isNil(value) || isNaN(value) || value < 0) {
-      return '–';
+      return '-';
     }
 
     const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];

@@ -17,12 +17,10 @@
  */
 package org.apache.flink.table.planner.runtime.harness
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.configuration.{CheckpointingOptions, Configuration}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
 import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.runtime.state.memory.MemoryStateBackend
@@ -61,22 +59,17 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
       operator: OneInputStreamOperator[IN, OUT],
       keySelector: KeySelector[IN, KEY],
       keyType: TypeInformation[KEY]): KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT] = {
-    val harness = new KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT](
-      operator,
-      keySelector,
-      keyType)
+    val harness =
+      new KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT](operator, keySelector, keyType)
     harness.setStateBackend(getStateBackend)
     harness
   }
 
-  def createHarnessTester(
-      ds: DataStream[_],
-      operatorNameIdentifier: String)
-  : KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData] = {
+  def createHarnessTester(ds: DataStream[_], operatorNameIdentifier: String)
+      : KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData] = {
 
-    val transformation = extractExpectedTransformation(
-      ds.javaStream.getTransformation,
-      operatorNameIdentifier)
+    val transformation =
+      extractExpectedTransformation(ds.javaStream.getTransformation, operatorNameIdentifier)
     val processOperator = transformation.getOperator
       .asInstanceOf[OneInputStreamOperator[Any, Any]]
     val keySelector = transformation.getStateKeySelector.asInstanceOf[KeySelector[Any, Any]]
@@ -88,15 +81,13 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
 
   def createHarnessTesterForNoState(
       ds: DataStream[_],
-      operatorNameIdentifier: String)
-  : OneInputStreamOperatorTestHarness[RowData, RowData] = {
-    val transformation = extractExpectedTransformation(
-      ds.javaStream.getTransformation,
-      operatorNameIdentifier)
+      operatorNameIdentifier: String): OneInputStreamOperatorTestHarness[RowData, RowData] = {
+    val transformation =
+      extractExpectedTransformation(ds.javaStream.getTransformation, operatorNameIdentifier)
     val processOperator = transformation.getOperator
-        .asInstanceOf[OneInputStreamOperator[Any, Any]]
+      .asInstanceOf[OneInputStreamOperator[Any, Any]]
     new OneInputStreamOperatorTestHarness(processOperator)
-        .asInstanceOf[OneInputStreamOperatorTestHarness[RowData, RowData]]
+      .asInstanceOf[OneInputStreamOperatorTestHarness[RowData, RowData]]
   }
 
   private def extractExpectedTransformation(
@@ -104,37 +95,22 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
       prefixOperatorName: String): OneInputTransformation[_, _] = {
     t match {
       case one: OneInputTransformation[_, _] =>
-        if (one.getName.contains(prefixOperatorName)
-            || one.getDescription.contains(prefixOperatorName)) {
+        if (
+          one.getName.contains(prefixOperatorName)
+          || one.getDescription.contains(prefixOperatorName)
+        ) {
           one
         } else {
           extractExpectedTransformation(one.getInputs.get(0), prefixOperatorName)
         }
       case p: PartitionTransformation[_] =>
         extractExpectedTransformation(p.getInputs.get(0), prefixOperatorName)
-      case _ => throw new Exception(
-        s"Can not find the expected $prefixOperatorName transformation")
+      case _ => throw new Exception(s"Can not find the expected $prefixOperatorName transformation")
     }
   }
 
   def dropWatermarks(elements: Array[AnyRef]): util.Collection[AnyRef] = {
     elements.filter(e => !e.isInstanceOf[Watermark]).toList
-  }
-
-  class TestTableConfig extends TableConfig {
-
-    private var minIdleStateRetentionTime = 0L
-
-    private var maxIdleStateRetentionTime = 0L
-
-    override def getMinIdleStateRetentionTime: Long = minIdleStateRetentionTime
-
-    override def getMaxIdleStateRetentionTime: Long = maxIdleStateRetentionTime
-
-    override def setIdleStateRetentionTime(minTime: Time, maxTime: Time): Unit = {
-      minIdleStateRetentionTime = minTime.toMilliseconds
-      maxIdleStateRetentionTime = maxTime.toMilliseconds
-    }
   }
 }
 
@@ -145,8 +121,8 @@ object HarnessTestBase {
     Seq[Array[AnyRef]](Array(HEAP_BACKEND), Array(ROCKSDB_BACKEND))
   }
 
-  class TestingRowDataKeySelector(
-    private val selectorField: Int) extends KeySelector[RowData, JLong] {
+  class TestingRowDataKeySelector(private val selectorField: Int)
+    extends KeySelector[RowData, JLong] {
 
     override def getKey(value: RowData): JLong = {
       value.getLong(selectorField)

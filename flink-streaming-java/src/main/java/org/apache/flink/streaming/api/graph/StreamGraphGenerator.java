@@ -349,6 +349,8 @@ public class StreamGraphGenerator {
         graph.setUserArtifacts(userArtifacts);
         graph.setTimeCharacteristic(timeCharacteristic);
         graph.setVertexDescriptionMode(configuration.get(PipelineOptions.VERTEX_DESCRIPTION_MODE));
+        graph.setVertexNameIncludeIndexPrefix(
+                configuration.get(PipelineOptions.VERTEX_NAME_INCLUDE_INDEX_PREFIX));
 
         if (shouldExecuteInBatchMode) {
             configureStreamGraphBatch(graph);
@@ -395,6 +397,8 @@ public class StreamGraphGenerator {
                 return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;
             case ALL_EXCHANGES_BLOCKING:
                 return GlobalStreamExchangeMode.ALL_EDGES_BLOCKING;
+            case WIP_ALL_EXCHANGES_HYBRID:
+                return GlobalStreamExchangeMode.ALL_EDGES_HYBRID;
             default:
                 throw new IllegalArgumentException(
                         String.format(
@@ -924,6 +928,11 @@ public class StreamGraphGenerator {
         @Override
         public ReadableConfig getGraphGeneratorConfig() {
             return config;
+        }
+
+        @Override
+        public Collection<Integer> transform(Transformation<?> transformation) {
+            return streamGraphGenerator.transform(transformation);
         }
     }
 }

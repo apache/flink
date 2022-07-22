@@ -85,6 +85,11 @@ public class SavepointWriterITCase extends AbstractTestBase {
     @Rule public StreamCollector collector = new StreamCollector();
 
     @Test
+    public void testDefaultStateBackend() throws Exception {
+        testStateBootstrapAndModification(null);
+    }
+
+    @Test
     public void testHashMapStateBackend() throws Exception {
         testStateBootstrapAndModification(new HashMapStateBackend());
     }
@@ -121,8 +126,12 @@ public class SavepointWriterITCase extends AbstractTestBase {
                 OperatorTransformation.bootstrapWith(env.fromCollection(currencyRates))
                         .transform(new CurrencyBootstrapFunction());
 
-        SavepointWriter.newSavepoint(backend, 128)
-                .withOperator(ACCOUNT_UID, transformation)
+        SavepointWriter writer =
+                backend == null
+                        ? SavepointWriter.newSavepoint(128)
+                        : SavepointWriter.newSavepoint(backend, 128);
+
+        writer.withOperator(ACCOUNT_UID, transformation)
                 .withOperator(CURRENCY_UID, broadcastTransformation)
                 .write(savepointPath);
 
@@ -131,7 +140,10 @@ public class SavepointWriterITCase extends AbstractTestBase {
 
     private void validateBootstrap(StateBackend backend, String savepointPath) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(backend);
+
+        if (backend != null) {
+            env.setStateBackend(backend);
+        }
 
         DataStream<Account> stream =
                 env.fromCollection(accounts)
@@ -151,7 +163,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
         jobGraph.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(savepointPath, false));
 
-        ClusterClient<?> client = miniClusterResource.getClusterClient();
+        ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
         Optional<SerializedThrowable> serializedThrowable =
                 client.submitJob(jobGraph)
                         .thenCompose(client::requestJobResult)
@@ -174,8 +186,12 @@ public class SavepointWriterITCase extends AbstractTestBase {
                 OperatorTransformation.bootstrapWith(env.fromElements(1, 2, 3))
                         .transform(new ModifyProcessFunction());
 
-        SavepointWriter.fromExistingSavepoint(savepointPath, backend)
-                .removeOperator(CURRENCY_UID)
+        SavepointWriter writer =
+                backend == null
+                        ? SavepointWriter.fromExistingSavepoint(savepointPath)
+                        : SavepointWriter.fromExistingSavepoint(savepointPath, backend);
+
+        writer.removeOperator(CURRENCY_UID)
                 .withOperator(MODIFY_UID, transformation)
                 .write(modifyPath);
 
@@ -184,7 +200,9 @@ public class SavepointWriterITCase extends AbstractTestBase {
 
     private void validateModification(StateBackend backend, String savepointPath) throws Exception {
         StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-        sEnv.setStateBackend(backend);
+        if (backend != null) {
+            sEnv.setStateBackend(backend);
+        }
 
         DataStream<Account> stream =
                 sEnv.fromCollection(accounts)
@@ -203,7 +221,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
         jobGraph.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(savepointPath, false));
 
-        ClusterClient<?> client = miniClusterResource.getClusterClient();
+        ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
         Optional<SerializedThrowable> serializedThrowable =
                 client.submitJob(jobGraph)
                         .thenCompose(client::requestJobResult)

@@ -73,7 +73,7 @@ of new files in the folder and read new files incrementally.
         <td style="word-wrap: break-word;">None</td>
         <td>Duration</td>
         <td>Time interval for consecutively monitoring partition/file.
-            Notes: The default interval for hive streaming reading is '1 m', the default interval for hive streaming temporal join is '60 m', this is because there's one framework limitation that every TM will visit the Hive metaStore in current hive streaming temporal join implementation which may produce pressure to metaStore, this will improve in the future.</td>
+            Notes: The default interval for hive streaming reading is '1 min', the default interval for hive streaming temporal join is '60 min', this is because there's one framework limitation that every TM will visit the Hive metaStore in current hive streaming temporal join implementation which may produce pressure to metaStore, this will improve in the future.</td>
     </tr>
     <tr>
         <td><h5>streaming-source.partition-order</h5></td>
@@ -169,6 +169,32 @@ following parameters in `TableConfig` (note that these parameters affect all sou
 ### Load Partition Splits
 
 Multi-thread is used to split hive's partitions. You can use `table.exec.hive.load-partition-splits.thread-num` to configure the thread number. The default value is 3 and the configured value should be bigger than 0.
+
+### Read Partition With Subdirectory
+
+In some case, you may create an external table referring another table, but the partition columns is a subset of the referred table.
+For example, you have a partitioned table `fact_tz` with partition `day` and `hour`:
+
+```sql
+CREATE TABLE fact_tz(x int) PARTITIONED BY (day STRING, hour STRING);
+```
+
+And you have an external table `fact_daily` referring to table `fact_tz` with a coarse-grained partition `day`:
+
+```sql
+CREATE EXTERNAL TABLE fact_daily(x int) PARTITIONED BY (ds STRING) LOCATION '/path/to/fact_tz';
+```
+
+Then when reading the external table `fact_daily`, there will be sub-directories (`hour=1` to `hour=24`) in the partition directory of the table.
+
+By default, you can add partition with sub-directories to the external table. Flink SQL can recursively scan all sub-directories and fetch all the data from all sub-directories.
+
+```sql
+ALTER TABLE fact_daily ADD PARTITION (ds='2022-07-07') location '/path/to/fact_tz/ds=2022-07-07';
+```
+
+You can set job configuration `table.exec.hive.read-partition-with-subdirectory.enabled` (`true` by default) to `false` to disallow Flink to read the sub-directories.
+If the configuration is `false` and the directory does not contain files, rather consists of sub directories Flink blows up with the exception: `java.io.IOException: Not a file: /path/to/data/*`.
 
 ## Temporal Table Join
 

@@ -23,7 +23,6 @@ import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
-import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
@@ -31,7 +30,10 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.types.utils.DataTypeUtils.isInternal;
 
 /**
  * JSON serializer for {@link DataType}.
@@ -39,51 +41,64 @@ import java.util.stream.Collectors;
  * @see DataTypeJsonDeserializer for the reverse operation
  */
 @Internal
-public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
+final class DataTypeJsonSerializer extends StdSerializer<DataType> {
     private static final long serialVersionUID = 1L;
 
     /*
-    Example generated JSON for a data type with external conversion classes:
+    Example generated JSON for a data type with custom conversion classes:
 
         DataTypes.ROW(
             DataTypes.STRING().toInternal(),
-            DataTypes.TIMESTAMP_LTZ().bridgedTo(Long.class))
+            DataTypes.TIMESTAMP_LTZ().bridgedTo(Long.class),
+            DataTypes.STRING())
 
         {
-           "logicalType":"ROW<`f0` VARCHAR(2147483647), `f1` TIMESTAMP(6) WITH LOCAL TIME ZONE>",
-           "conversionClass":"org.apache.flink.types.Row",
-           "fields":[
-              {
-                 "name":"f1",
-                 "conversionClass":"java.lang.Long"
-              }
-           ]
-         }
+          "logicalType": "ROW<`f0` VARCHAR(2147483647), `f1` TIMESTAMP(6) WITH LOCAL TIME ZONE, `f2` VARCHAR(2147483647)>",
+          "fields": [
+            {
+              "name": "f0",
+              "conversionClass": "org.apache.flink.table.data.StringData"
+            },
+            {
+              "name": "f1",
+              "conversionClass": "java.lang.Long"
+            }
+          ]
+        }
+
+     Example generated JSON for a data type with only default conversion classes:
+
+        DataTypes.ROW(DataTypes.STRING(), DataTypes.TIMESTAMP_LTZ())
+
+        "ROW<`f0` VARCHAR(2147483647), `f1` TIMESTAMP(6) WITH LOCAL TIME ZONE>"
 
      Example generated JSON for a data type with only internal conversion classes:
 
         DataTypes.ROW(DataTypes.STRING(), DataTypes.TIMESTAMP_LTZ()).toInternal()
 
-        "ROW<`f0` VARCHAR(2147483647), `f1` TIMESTAMP(6) WITH LOCAL TIME ZONE>"
+        {
+          "logicalType": "ROW<`f0` VARCHAR(2147483647), `f1` TIMESTAMP(6) WITH LOCAL TIME ZONE>",
+          "conversionClass": "org.apache.flink.table.data.RowData"
+        }
      */
 
     // Common fields
-    public static final String FIELD_NAME_TYPE = "logicalType";
-    public static final String FIELD_NAME_CONVERSION_CLASS = "conversionClass";
+    static final String FIELD_NAME_TYPE = "logicalType";
+    static final String FIELD_NAME_CONVERSION_CLASS = "conversionClass";
 
     // ARRAY, MULTISET
-    public static final String FIELD_NAME_ELEMENT_CLASS = "elementClass";
+    static final String FIELD_NAME_ELEMENT_CLASS = "elementClass";
 
     // MAP
-    public static final String FIELD_NAME_KEY_CLASS = "keyClass";
-    public static final String FIELD_NAME_VALUE_CLASS = "valueClass";
+    static final String FIELD_NAME_KEY_CLASS = "keyClass";
+    static final String FIELD_NAME_VALUE_CLASS = "valueClass";
 
     // ROW, STRUCTURED_TYPE, DISTINCT_TYPE
-    public static final String FIELD_NAME_FIELDS = "fields";
-    public static final String FIELD_NAME_FIELD_NAME = "name";
-    public static final String FIELD_NAME_FIELD_CLASS = "fieldClass";
+    static final String FIELD_NAME_FIELDS = "fields";
+    static final String FIELD_NAME_FIELD_NAME = "name";
+    static final String FIELD_NAME_FIELD_CLASS = "fieldClass";
 
-    public DataTypeJsonSerializer() {
+    DataTypeJsonSerializer() {
         super(DataType.class);
     }
 
@@ -91,7 +106,7 @@ public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
     public void serialize(
             DataType dataType, JsonGenerator jsonGenerator, SerializerProvider serializerProvider)
             throws IOException {
-        if (DataTypeUtils.isInternal(dataType, false)) {
+        if (isDefaultClassNested(dataType)) {
             serializerProvider.defaultSerializeValue(dataType.getLogicalType(), jsonGenerator);
         } else {
             jsonGenerator.writeStartObject();
@@ -104,53 +119,55 @@ public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
 
     private static void serializeClass(DataType dataType, JsonGenerator jsonGenerator)
             throws IOException {
-        jsonGenerator.writeStringField(
-                FIELD_NAME_CONVERSION_CLASS, dataType.getConversionClass().getName());
+        // skip the conversion class if only nested types contain custom conversion classes
+        if (!isDefaultClass(dataType)) {
+            jsonGenerator.writeStringField(
+                    FIELD_NAME_CONVERSION_CLASS, dataType.getConversionClass().getName());
+        }
+        // internal classes only contain nested internal classes
+        if (isInternal(dataType, false)) {
+            return;
+        }
 
         switch (dataType.getLogicalType().getTypeRoot()) {
             case ARRAY:
             case MULTISET:
                 final CollectionDataType collectionDataType = (CollectionDataType) dataType;
-                serializeFieldIfNotInternal(
+                serializeFieldIfNotDefaultClass(
                         collectionDataType.getElementDataType(),
                         FIELD_NAME_ELEMENT_CLASS,
                         jsonGenerator);
                 break;
             case MAP:
                 final KeyValueDataType keyValueDataType = (KeyValueDataType) dataType;
-                serializeFieldIfNotInternal(
+                serializeFieldIfNotDefaultClass(
                         keyValueDataType.getKeyDataType(), FIELD_NAME_KEY_CLASS, jsonGenerator);
-                serializeFieldIfNotInternal(
+                serializeFieldIfNotDefaultClass(
                         keyValueDataType.getValueDataType(), FIELD_NAME_VALUE_CLASS, jsonGenerator);
                 break;
             case ROW:
             case STRUCTURED_TYPE:
-                final List<Field> externalFields =
+                final List<Field> nonDefaultFields =
                         DataType.getFields(dataType).stream()
-                                .filter(
-                                        field ->
-                                                !DataTypeUtils.isInternal(
-                                                        field.getDataType(), false))
+                                .filter(field -> !isDefaultClassNested(field.getDataType()))
                                 .collect(Collectors.toList());
-                if (externalFields.isEmpty()) {
+                if (nonDefaultFields.isEmpty()) {
                     break;
                 }
                 jsonGenerator.writeFieldName(FIELD_NAME_FIELDS);
                 jsonGenerator.writeStartArray();
-                for (Field externalField : externalFields) {
-                    if (!DataTypeUtils.isInternal(externalField.getDataType(), false)) {
-                        jsonGenerator.writeStartObject();
-                        jsonGenerator.writeStringField(
-                                FIELD_NAME_FIELD_NAME, externalField.getName());
-                        serializeClass(externalField.getDataType(), jsonGenerator);
-                        jsonGenerator.writeEndObject();
-                    }
+                for (Field nonDefaultField : nonDefaultFields) {
+                    jsonGenerator.writeStartObject();
+                    jsonGenerator.writeStringField(
+                            FIELD_NAME_FIELD_NAME, nonDefaultField.getName());
+                    serializeClass(nonDefaultField.getDataType(), jsonGenerator);
+                    jsonGenerator.writeEndObject();
                 }
                 jsonGenerator.writeEndArray();
                 break;
             case DISTINCT_TYPE:
                 final DataType sourceDataType = dataType.getChildren().get(0);
-                if (!DataTypeUtils.isInternal(sourceDataType, false)) {
+                if (!isDefaultClassNested(sourceDataType)) {
                     serializeClass(sourceDataType, jsonGenerator);
                 }
                 break;
@@ -159,13 +176,24 @@ public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
         }
     }
 
-    private static void serializeFieldIfNotInternal(
+    private static void serializeFieldIfNotDefaultClass(
             DataType dataType, String fieldName, JsonGenerator jsonGenerator) throws IOException {
-        if (!DataTypeUtils.isInternal(dataType, false)) {
+        if (!isDefaultClassNested(dataType)) {
             jsonGenerator.writeFieldName(fieldName);
             jsonGenerator.writeStartObject();
             serializeClass(dataType, jsonGenerator);
             jsonGenerator.writeEndObject();
         }
+    }
+
+    private static boolean isDefaultClassNested(DataType dataType) {
+        return isDefaultClass(dataType)
+                && dataType.getChildren().stream()
+                        .allMatch(DataTypeJsonSerializer::isDefaultClassNested);
+    }
+
+    private static boolean isDefaultClass(DataType dataType) {
+        return Objects.equals(
+                dataType.getConversionClass(), dataType.getLogicalType().getDefaultConversion());
     }
 }

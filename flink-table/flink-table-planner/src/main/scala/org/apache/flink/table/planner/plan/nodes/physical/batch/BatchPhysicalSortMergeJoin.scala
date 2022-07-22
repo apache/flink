@@ -15,28 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortMergeJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortMergeJoin
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinTypeUtil, JoinUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 
 import org.apache.calcite.plan._
+import org.apache.calcite.rel.{RelCollationTraitDef, RelNode, RelWriter}
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelCollationTraitDef, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 
 import scala.collection.JavaConversions._
 
-/**
-  * Batch physical RelNode for sort-merge [[Join]].
-  */
+/** Batch physical RelNode for sort-merge [[Join]]. */
 class BatchPhysicalSortMergeJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -52,9 +50,9 @@ class BatchPhysicalSortMergeJoin(
 
   protected def isMergeJoinSupportedType(joinRelType: FlinkJoinType): Boolean = {
     joinRelType == FlinkJoinType.INNER ||
-      joinRelType == FlinkJoinType.LEFT ||
-      joinRelType == FlinkJoinType.RIGHT ||
-      joinRelType == FlinkJoinType.FULL
+    joinRelType == FlinkJoinType.LEFT ||
+    joinRelType == FlinkJoinType.RIGHT ||
+    joinRelType == FlinkJoinType.FULL
   }
 
   override def copy(
@@ -76,7 +74,8 @@ class BatchPhysicalSortMergeJoin(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter =
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .itemIf("leftSorted", leftSorted, leftSorted)
       .itemIf("rightSorted", rightSorted, rightSorted)
 
@@ -106,7 +105,7 @@ class BatchPhysicalSortMergeJoin(
     val cpuCost = leftSortCpuCost + rightSortCpuCost + joinConditionCpuCost
     val costFactory = planner.getCostFactory.asInstanceOf[FlinkCostFactory]
     // assume memory is big enough, so sort process and mergeJoin process will not spill to disk.
-    var sortMemCost = 0D
+    var sortMemCost = 0d
     if (!leftSorted) {
       sortMemCost += FlinkRelMdUtil.computeSortMemory(mq, getLeft)
     }
@@ -143,20 +142,24 @@ class BatchPhysicalSortMergeJoin(
       val leftKeys = leftRequiredDistribution.getKeys
       val leftFieldCnt = getLeft.getRowType.getFieldCount
       val rightKeys = rightRequiredDistribution.getKeys.map(_ + leftFieldCnt)
-      requiredFieldCollations.zipWithIndex.forall { case (collation, index) =>
-        val idxOfCollation = collation.getFieldIndex
-        // Full outer join is handled before, so does not need care about it
-        if (idxOfCollation < leftFieldCnt && joinType != JoinRelType.RIGHT) {
-          val fieldCollationOnLeftSortKey = FlinkRelOptUtil.ofRelFieldCollation(leftKeys.get(index))
-          collation == fieldCollationOnLeftSortKey
-        } else if (idxOfCollation >= leftFieldCnt &&
-          (joinType == JoinRelType.RIGHT || joinType == JoinRelType.INNER)) {
-          val fieldCollationOnRightSortKey =
-            FlinkRelOptUtil.ofRelFieldCollation(rightKeys.get(index))
-          collation == fieldCollationOnRightSortKey
-        } else {
-          false
-        }
+      requiredFieldCollations.zipWithIndex.forall {
+        case (collation, index) =>
+          val idxOfCollation = collation.getFieldIndex
+          // Full outer join is handled before, so does not need care about it
+          if (idxOfCollation < leftFieldCnt && joinType != JoinRelType.RIGHT) {
+            val fieldCollationOnLeftSortKey =
+              FlinkRelOptUtil.ofRelFieldCollation(leftKeys.get(index))
+            collation == fieldCollationOnLeftSortKey
+          } else if (
+            idxOfCollation >= leftFieldCnt &&
+            (joinType == JoinRelType.RIGHT || joinType == JoinRelType.INNER)
+          ) {
+            val fieldCollationOnRightSortKey =
+              FlinkRelOptUtil.ofRelFieldCollation(rightKeys.get(index))
+            collation == fieldCollationOnRightSortKey
+          } else {
+            false
+          }
       }
     }
     var newProvidedTraitSet = getTraitSet.replace(requiredDistribution)
@@ -173,17 +176,25 @@ class BatchPhysicalSortMergeJoin(
       FlinkTypeFactory.toLogicalRowType(right.getRowType))
 
     new BatchExecSortMergeJoin(
+      unwrapTableConfig(this),
       JoinTypeUtil.getFlinkJoinType(joinType),
       joinSpec.getLeftKeys,
       joinSpec.getRightKeys,
       joinSpec.getFilterNulls,
       condition,
       estimateOutputSize(getLeft) < estimateOutputSize(getRight),
-      InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build(),
-      InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build(),
+      InputProperty
+        .builder()
+        .requiredDistribution(InputProperty.hashDistribution(joinSpec.getLeftKeys))
+        .damBehavior(InputProperty.DamBehavior.END_INPUT)
+        .build(),
+      InputProperty
+        .builder()
+        .requiredDistribution(InputProperty.hashDistribution(joinSpec.getRightKeys))
+        .damBehavior(InputProperty.DamBehavior.END_INPUT)
+        .build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 
   private def estimateOutputSize(relNode: RelNode): Double = {

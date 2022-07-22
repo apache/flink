@@ -42,7 +42,6 @@ import org.apache.flink.state.api.output.partitioner.KeyGroupRangePartitioner;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.util.TernaryBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -142,7 +141,7 @@ public class BootstrapTransformation<T> {
      */
     DataSet<OperatorState> writeOperatorState(
             OperatorID operatorID,
-            StateBackend stateBackend,
+            @Nullable StateBackend stateBackend,
             Configuration config,
             int globalMaxParallelism,
             Path savepointPath) {
@@ -157,7 +156,7 @@ public class BootstrapTransformation<T> {
     @VisibleForTesting
     MapPartitionOperator<T, TaggedOperatorSubtaskState> writeOperatorSubtaskStates(
             OperatorID operatorID,
-            StateBackend stateBackend,
+            @Nullable StateBackend stateBackend,
             Path savepointPath,
             int localMaxParallelism) {
         return writeOperatorSubtaskStates(
@@ -166,7 +165,7 @@ public class BootstrapTransformation<T> {
 
     private MapPartitionOperator<T, TaggedOperatorSubtaskState> writeOperatorSubtaskStates(
             OperatorID operatorID,
-            StateBackend stateBackend,
+            @Nullable StateBackend stateBackend,
             Configuration additionalConfig,
             Path savepointPath,
             int localMaxParallelism) {
@@ -205,7 +204,7 @@ public class BootstrapTransformation<T> {
     @VisibleForTesting
     StreamConfig getConfig(
             OperatorID operatorID,
-            StateBackend stateBackend,
+            @Nullable StateBackend stateBackend,
             Configuration additionalConfig,
             StreamOperator<TaggedOperatorSubtaskState> operator) {
         // Eagerly perform a deep copy of the configuration, otherwise it will result in undefined
@@ -232,9 +231,8 @@ public class BootstrapTransformation<T> {
         config.setOperatorName(operatorID.toHexString());
         config.setOperatorID(operatorID);
         config.setStateBackend(stateBackend);
-        // This means leaving this stateBackend unwrapped.
-        config.setChangelogStateBackendEnabled(TernaryBoolean.FALSE);
         config.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.STATE_BACKEND, 1.0);
+        config.serializeAllConfigs();
         return config;
     }
 

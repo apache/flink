@@ -197,8 +197,18 @@ public class HiveShimV100 implements HiveShim {
     }
 
     @Override
+    public Class<?> getDateWritableClass() {
+        return DateWritable.class;
+    }
+
+    @Override
     public Class<?> getTimestampDataTypeClass() {
         return java.sql.Timestamp.class;
+    }
+
+    @Override
+    public Class<?> getTimestampWritableClass() {
+        return TimestampWritable.class;
     }
 
     @Override

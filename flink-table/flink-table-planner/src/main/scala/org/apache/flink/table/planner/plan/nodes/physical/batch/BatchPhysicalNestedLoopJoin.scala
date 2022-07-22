@@ -15,25 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNestedLoopJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNestedLoopJoin
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
 
 import org.apache.calcite.plan._
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 
-/**
-  * Batch physical RelNode for nested-loop [[Join]].
-  */
+/** Batch physical RelNode for nested-loop [[Join]]. */
 class BatchPhysicalNestedLoopJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -66,7 +64,8 @@ class BatchPhysicalNestedLoopJoin(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("build", if (leftIsBuild) "left" else "right")
       .itemIf("singleRowJoin", singleRowJoin, singleRowJoin)
   }
@@ -101,7 +100,8 @@ class BatchPhysicalNestedLoopJoin(
       1
     } else {
       val probeRowSize = mq.getAverageRowSize(probeRel)
-      Math.max(1,
+      Math.max(
+        1,
         (rowCount * probeRowSize / FlinkCost.SQL_DEFAULT_PARALLELISM_WORKER_PROCESS_SIZE).toInt)
     }
   }
@@ -114,6 +114,7 @@ class BatchPhysicalNestedLoopJoin(
   override def translateToExecNode(): ExecNode[_] = {
     val (leftInputProperty, rightInputProperty) = getInputProperties
     new BatchExecNestedLoopJoin(
+      unwrapTableConfig(this),
       JoinTypeUtil.getFlinkJoinType(joinType),
       condition,
       leftIsBuild,
@@ -121,8 +122,7 @@ class BatchPhysicalNestedLoopJoin(
       leftInputProperty,
       rightInputProperty,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 
   def getInputProperties: (InputProperty, InputProperty) = {
@@ -132,12 +132,14 @@ class BatchPhysicalNestedLoopJoin(
     } else {
       (InputProperty.BROADCAST_DISTRIBUTION, InputProperty.ANY_DISTRIBUTION)
     }
-    val buildInputProperty = InputProperty.builder()
+    val buildInputProperty = InputProperty
+      .builder()
       .requiredDistribution(buildRequiredDistribution)
       .damBehavior(InputProperty.DamBehavior.BLOCKING)
       .priority(0)
       .build()
-    val probeInputProperty = InputProperty.builder()
+    val probeInputProperty = InputProperty
+      .builder()
       .requiredDistribution(probeRequiredDistribution)
       .damBehavior(InputProperty.DamBehavior.PIPELINED)
       .priority(1)

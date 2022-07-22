@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -303,6 +304,13 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                 };
 
         this.taskMailbox = new TaskMailboxImpl();
+
+        // TODO remove this once we introduce AbstractStreamOperatorTestHarnessBuilder.
+        try {
+            this.checkpointStorageAccess = environment.getCheckpointStorageAccess();
+        } catch (NullPointerException | UnsupportedOperationException e) {
+            // cannot get checkpoint storage from environment, use default one.
+        }
 
         mockTask =
                 new MockStreamTaskBuilder(env)
@@ -693,7 +701,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
      * org.apache.flink.runtime.state.CheckpointStreamFactory)}.
      */
     public OperatorSnapshotFinalizer snapshotWithLocalState(
-            long checkpointId, long timestamp, CheckpointType checkpointType) throws Exception {
+            long checkpointId, long timestamp, SnapshotType checkpointType) throws Exception {
 
         CheckpointStorageLocationReference locationReference =
                 CheckpointStorageLocationReference.getDefault();

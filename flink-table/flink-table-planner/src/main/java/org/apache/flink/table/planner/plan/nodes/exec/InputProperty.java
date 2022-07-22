@@ -20,15 +20,10 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Input;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.RequiredDistributionJsonDeserializer;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.RequiredDistributionJsonSerializer;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -83,8 +78,6 @@ public class InputProperty {
      * corresponding input.
      */
     @JsonProperty(FIELD_NAME_REQUIRED_DISTRIBUTION)
-    @JsonSerialize(using = RequiredDistributionJsonSerializer.class)
-    @JsonDeserialize(using = RequiredDistributionJsonDeserializer.class)
     private final RequiredDistribution requiredDistribution;
 
     /** How does the input record trigger the output behavior of the target {@link ExecNode}. */
@@ -111,17 +104,14 @@ public class InputProperty {
         this.priority = priority;
     }
 
-    @JsonIgnore
     public RequiredDistribution getRequiredDistribution() {
         return requiredDistribution;
     }
 
-    @JsonIgnore
     public DamBehavior getDamBehavior() {
         return damBehavior;
     }
 
-    @JsonIgnore
     public int getPriority() {
         return priority;
     }
@@ -274,12 +264,77 @@ public class InputProperty {
     }
 
     /**
+     * A special distribution which indicators the data distribution is the same as its input. '
+     *
+     * <p>TODO This class can be removed once FLINK-21224 is finished.
+     */
+    public static class KeepInputAsIsDistribution extends RequiredDistribution {
+        private final RequiredDistribution inputDistribution;
+        /** whether the input distribution is strictly guaranteed. */
+        private final boolean strict;
+
+        private KeepInputAsIsDistribution(RequiredDistribution inputDistribution, boolean strict) {
+            super(DistributionType.KEEP_INPUT_AS_IS);
+            this.inputDistribution = checkNotNull(inputDistribution);
+            this.strict = strict;
+        }
+
+        public RequiredDistribution getInputDistribution() {
+            return inputDistribution;
+        }
+
+        public boolean isStrict() {
+            return strict;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            if (!super.equals(o)) {
+                return false;
+            }
+            KeepInputAsIsDistribution that = (KeepInputAsIsDistribution) o;
+            return strict == that.strict && inputDistribution.equals(that.inputDistribution);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(super.hashCode(), strict, inputDistribution);
+        }
+
+        @Override
+        public String toString() {
+            if (strict) {
+                return "KEEP_INPUT_AS_IS(strict, " + inputDistribution + ")";
+            } else {
+                return "KEEP_INPUT_AS_IS(" + inputDistribution + ")";
+            }
+        }
+    }
+
+    /**
      * The input will read the records whose keys hash to a particular hash value.
      *
      * @param keys hash keys
      */
     public static HashDistribution hashDistribution(int[] keys) {
         return new HashDistribution(keys);
+    }
+
+    /**
+     * A special distribution which indicators the data distribution is the same as its input.
+     *
+     * @param inputDistribution the input distribution
+     * @param strict whether the input distribution is strictly guaranteed
+     */
+    public static KeepInputAsIsDistribution keepInputAsIsDistribution(
+            RequiredDistribution inputDistribution, boolean strict) {
+        return new KeepInputAsIsDistribution(inputDistribution, strict);
     }
 
     /** Enumeration which describes the type of the input data distribution. */
@@ -302,6 +357,12 @@ public class InputProperty {
 
         /** The input will read all records, and the parallelism of the target node must be 1. */
         SINGLETON,
+
+        /**
+         * A special distribution type which indicators the data distribution is the same as its
+         * input.
+         */
+        KEEP_INPUT_AS_IS,
 
         /** Unknown distribution type, will be filled out in the future. */
         UNKNOWN

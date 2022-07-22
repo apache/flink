@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
@@ -36,30 +37,30 @@ public class PerJobCheckpointRecoveryTest extends TestLogger {
     @Test
     public void testFactoryWithoutCheckpointStoreRecovery() throws Exception {
         final TestingCompletedCheckpointStore store =
-                new TestingCompletedCheckpointStore(new CompletableFuture<>());
+                TestingCompletedCheckpointStore
+                        .createStoreWithShutdownCheckAndNoCompletedCheckpoints(
+                                new CompletableFuture<>());
         final CheckpointRecoveryFactory factory =
                 PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
                         maxCheckpoints -> store);
-        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-
         final JobID firstJobId = new JobID();
         assertSame(
                 store,
                 factory.createRecoveredCompletedCheckpointStore(
                         firstJobId,
                         1,
-                        classLoader,
                         SharedStateRegistry.DEFAULT_FACTORY,
-                        Executors.directExecutor()));
+                        Executors.directExecutor(),
+                        RestoreMode.DEFAULT));
         assertThrows(
                 UnsupportedOperationException.class,
                 () ->
                         factory.createRecoveredCompletedCheckpointStore(
                                 firstJobId,
                                 1,
-                                classLoader,
                                 SharedStateRegistry.DEFAULT_FACTORY,
-                                Executors.directExecutor()));
+                                Executors.directExecutor(),
+                                RestoreMode.DEFAULT));
 
         final JobID secondJobId = new JobID();
         assertSame(
@@ -67,17 +68,17 @@ public class PerJobCheckpointRecoveryTest extends TestLogger {
                 factory.createRecoveredCompletedCheckpointStore(
                         secondJobId,
                         1,
-                        classLoader,
                         SharedStateRegistry.DEFAULT_FACTORY,
-                        Executors.directExecutor()));
+                        Executors.directExecutor(),
+                        RestoreMode.DEFAULT));
         assertThrows(
                 UnsupportedOperationException.class,
                 () ->
                         factory.createRecoveredCompletedCheckpointStore(
                                 secondJobId,
                                 1,
-                                classLoader,
                                 SharedStateRegistry.DEFAULT_FACTORY,
-                                Executors.directExecutor()));
+                                Executors.directExecutor(),
+                                RestoreMode.DEFAULT));
     }
 }

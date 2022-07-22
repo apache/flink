@@ -21,17 +21,19 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
-import { BASE_URL, LONG_MIN_VALUE } from 'config';
+import { MetricMap, JobMetric, Watermarks, MetricMapWithTimestamp } from '@flink-runtime-web/interfaces';
+
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class MetricsService {
-  constructor(private readonly httpClient: HttpClient) {}
+  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
 
-  public getAllAvailableMetrics(jobId: string, vertexId: string): Observable<Array<{ id: string; value: string }>> {
+  public loadAllAvailableMetrics(jobId: string, vertexId: string): Observable<JobMetric[]> {
     return this.httpClient
-      .get<Array<{ id: string; value: string }>>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/metrics`)
+      .get<JobMetric[]>(`${this.configService.BASE_URL}/jobs/${jobId}/vertices/${vertexId}/metrics`)
       .pipe(
         map(item =>
           item.sort((pre, next) => {
@@ -49,19 +51,13 @@ export class MetricsService {
       );
   }
 
-  public getMetrics(
-    jobId: string,
-    vertexId: string,
-    listOfMetricName: string[]
-  ): Observable<{ timestamp: number; values: { [p: string]: number } }> {
+  public loadMetrics(jobId: string, vertexId: string, listOfMetricName: string[]): Observable<MetricMapWithTimestamp> {
     const metricName = listOfMetricName.join(',');
     return this.httpClient
-      .get<Array<{ id: string; value: string }>>(
-        `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/metrics?get=${metricName}`
-      )
+      .get<JobMetric[]>(`${this.configService.BASE_URL}/jobs/${jobId}/vertices/${vertexId}/metrics?get=${metricName}`)
       .pipe(
         map(arr => {
-          const result: { [id: string]: number } = {};
+          const result: MetricMap = {};
           arr.forEach(item => {
             result[item.id] = parseInt(item.value, 10);
           });
@@ -74,20 +70,20 @@ export class MetricsService {
   }
 
   /** Get aggregated metric data from all subtasks of the given vertexId. */
-  public getAggregatedMetrics(
+  public loadAggregatedMetrics(
     jobId: string,
     vertexId: string,
     listOfMetricName: string[],
     aggregate: string = 'max'
-  ): Observable<{ [p: string]: number }> {
+  ): Observable<MetricMap> {
     const metricName = listOfMetricName.join(',');
     return this.httpClient
       .get<Array<{ id: string; min: number; max: number; avg: number; sum: number }>>(
-        `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/subtasks/metrics?get=${metricName}`
+        `${this.configService.BASE_URL}/jobs/${jobId}/vertices/${vertexId}/subtasks/metrics?get=${metricName}`
       )
       .pipe(
         map(arr => {
-          const result: { [id: string]: number } = {};
+          const result: MetricMap = {};
           arr.forEach(item => {
             switch (aggregate) {
               case 'min':
@@ -111,17 +107,14 @@ export class MetricsService {
       );
   }
 
-  public getWatermarks(
-    jobId: string,
-    vertexId: string
-  ): Observable<{ lowWatermark: number; watermarks: { [p: string]: number } }> {
+  public loadWatermarks(jobId: string, vertexId: string): Observable<Watermarks> {
     return this.httpClient
-      .get<Array<{ id: string; value: string }>>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/watermarks`)
+      .get<JobMetric[]>(`${this.configService.BASE_URL}/jobs/${jobId}/vertices/${vertexId}/watermarks`)
       .pipe(
         map(arr => {
           let minValue = NaN;
           let lowWatermark: number;
-          const watermarks: { [id: string]: number } = {};
+          const watermarks: MetricMap = {};
           arr.forEach(item => {
             const value = parseInt(item.value, 10);
             const subTaskIndex = item.id.replace('.currentInputWatermark', '');
@@ -130,7 +123,7 @@ export class MetricsService {
               minValue = value;
             }
           });
-          if (!isNaN(minValue) && minValue > LONG_MIN_VALUE) {
+          if (!isNaN(minValue) && minValue > this.configService.LONG_MIN_VALUE) {
             lowWatermark = minValue;
           } else {
             lowWatermark = NaN;

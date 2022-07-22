@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
@@ -29,10 +28,10 @@ import org.apache.calcite.util.ImmutableBitSet
 import java.util
 
 /**
-  * Sub-class of [[WindowTableAggregate]] that is a relational expression which performs window
-  * aggregations but outputs 0 or more records for a group. This class corresponds to Calcite
-  * logical rel.
-  */
+ * Sub-class of [[WindowTableAggregate]] that is a relational expression which performs window
+ * aggregations but outputs 0 or more records for a group. This class corresponds to Calcite logical
+ * rel.
+ */
 class LogicalWindowTableAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -41,7 +40,7 @@ class LogicalWindowTableAggregate(
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty])
+    namedProperties: util.List[NamedWindowProperty])
   extends WindowTableAggregate(
     cluster,
     traitSet,
@@ -68,9 +67,9 @@ class LogicalWindowTableAggregate(
 object LogicalWindowTableAggregate {
 
   def create(
-    window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty],
-    aggregate: Aggregate): LogicalWindowTableAggregate = {
+      window: LogicalWindow,
+      namedProperties: util.List[NamedWindowProperty],
+      aggregate: Aggregate): LogicalWindowTableAggregate = {
 
     val cluster: RelOptCluster = aggregate.getCluster
     val traitSet: RelTraitSet = cluster.traitSetOf(Convention.NONE)
@@ -99,4 +98,3 @@ object LogicalWindowTableAggregate {
       logicalWindowAggregate.getNamedProperties)
   }
 }
-

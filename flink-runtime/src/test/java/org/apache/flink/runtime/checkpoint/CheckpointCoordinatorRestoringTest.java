@@ -20,17 +20,16 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
-import org.apache.flink.runtime.checkpoint.VertexFinishedStateChecker.VertexFinishedState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.ChainedStateHandle;
@@ -40,9 +39,10 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
-import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.types.BooleanValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -51,11 +51,12 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -67,6 +68,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -93,6 +96,10 @@ import static org.mockito.Mockito.verify;
 /** Tests for restoring checkpoint. */
 @SuppressWarnings("checkstyle:EmptyLineSeparator")
 public class CheckpointCoordinatorRestoringTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
 
@@ -138,7 +145,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
             builder.addJobVertex(
                     vertex.getId(), vertex.getParallelism(), vertex.getMaxParallelism());
         }
-        return builder.build();
+        return builder.build(EXECUTOR_RESOURCE.getExecutor());
     }
 
     private static class TestingVertex {
@@ -170,8 +177,6 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
     @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
     @Before
     public void setUp() throws Exception {
         manuallyTriggeredScheduledExecutor = new ManuallyTriggeredScheduledExecutor();
@@ -201,10 +206,9 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         // set up the coordinator and validate the initial state
         final CheckpointCoordinator coordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setExecutionGraph(executionGraph)
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .setCompletedCheckpointStore(store)
-                        .build();
+                        .build(executionGraph);
 
         // trigger the checkpoint
         coordinator.triggerCheckpoint(false);
@@ -238,15 +242,14 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         final ExecutionGraph executionGraph = createExecutionGraph(vertices);
         final EmbeddedCompletedCheckpointStore store =
                 new EmbeddedCompletedCheckpointStore(
-                        completedCheckpoints.size(), completedCheckpoints);
+                        completedCheckpoints.size(), completedCheckpoints, RestoreMode.DEFAULT);
 
         // set up the coordinator and validate the initial state
         final CheckpointCoordinator coordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setExecutionGraph(executionGraph)
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .setCompletedCheckpointStore(store)
-                        .build();
+                        .build(executionGraph);
 
         final Set<ExecutionJobVertex> executionVertices =
                 vertices.stream()
@@ -305,7 +308,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(jobVertexID1, parallelism1, maxParallelism1)
                         .addJobVertex(jobVertexID2, parallelism2, maxParallelism2)
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
 
         final ExecutionJobVertex jobVertex1 = graph.getJobVertex(jobVertexID1);
         final ExecutionJobVertex jobVertex2 = graph.getJobVertex(jobVertexID2);
@@ -313,10 +316,9 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         // set up the coordinator and validate the initial state
         CheckpointCoordinator coord =
                 new CheckpointCoordinatorBuilder()
-                        .setExecutionGraph(graph)
                         .setCompletedCheckpointStore(completedCheckpointStore)
                         .setTimer(manuallyTriggeredScheduledExecutor)
-                        .build();
+                        .build(graph);
 
         // trigger the checkpoint
         coord.triggerCheckpoint(false);
@@ -419,7 +421,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(jobVertexID1, parallelism1, maxParallelism1)
                         .addJobVertex(jobVertexID2, newParallelism2, maxParallelism2)
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
 
         final ExecutionJobVertex newJobVertex1 = newGraph.getJobVertex(jobVertexID1);
         final ExecutionJobVertex newJobVertex2 = newGraph.getJobVertex(jobVertexID2);
@@ -427,10 +429,9 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         // set up the coordinator and validate the initial state
         CheckpointCoordinator newCoord =
                 new CheckpointCoordinatorBuilder()
-                        .setExecutionGraph(newGraph)
                         .setCompletedCheckpointStore(completedCheckpointStore)
                         .setTimer(manuallyTriggeredScheduledExecutor)
-                        .build();
+                        .build(newGraph);
 
         Set<ExecutionJobVertex> tasks = new HashSet<>();
         tasks.add(newJobVertex1);
@@ -510,17 +511,16 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(jobVertexID1, parallelism1, maxParallelism1)
                         .addJobVertex(jobVertexID2, parallelism2, maxParallelism2)
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         ExecutionJobVertex jobVertex1 = graph.getJobVertex(jobVertexID1);
         ExecutionJobVertex jobVertex2 = graph.getJobVertex(jobVertexID2);
 
         // set up the coordinator and validate the initial state
         CheckpointCoordinator coord =
                 new CheckpointCoordinatorBuilder()
-                        .setExecutionGraph(graph)
                         .setCompletedCheckpointStore(completedCheckpointStore)
                         .setTimer(manuallyTriggeredScheduledExecutor)
-                        .build();
+                        .build(graph);
 
         // trigger the checkpoint
         coord.triggerCheckpoint(false);
@@ -589,7 +589,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(jobVertexID1, parallelism1, newMaxParallelism1)
                         .addJobVertex(jobVertexID2, parallelism2, newMaxParallelism2)
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
 
         ExecutionJobVertex newJobVertex1 = newGraph.getJobVertex(jobVertexID1);
         ExecutionJobVertex newJobVertex2 = newGraph.getJobVertex(jobVertexID2);
@@ -597,10 +597,9 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         // set up the coordinator and validate the initial state
         CheckpointCoordinator newCoord =
                 new CheckpointCoordinatorBuilder()
-                        .setExecutionGraph(newGraph)
                         .setCompletedCheckpointStore(completedCheckpointStore)
                         .setTimer(manuallyTriggeredScheduledExecutor)
-                        .build();
+                        .build(newGraph);
 
         Set<ExecutionJobVertex> tasks = new HashSet<>();
         tasks.add(newJobVertex1);
@@ -757,7 +756,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                                         .map(OperatorIDPair::generatedIDOnly)
                                         .collect(Collectors.toList()),
                                 true)
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
 
         ExecutionJobVertex newJobVertex1 = newGraph.getJobVertex(id5.f0);
         ExecutionJobVertex newJobVertex2 = newGraph.getJobVertex(id3.f0);
@@ -777,18 +776,19 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                         Collections.<MasterState>emptyList(),
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-                        new TestCompletedCheckpointStorageLocation());
+                        new TestCompletedCheckpointStorageLocation(),
+                        null);
 
         // set up the coordinator and validate the initial state
         SharedStateRegistry sharedStateRegistry =
-                SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor(), emptyList());
+                SharedStateRegistry.DEFAULT_FACTORY.create(
+                        Executors.directExecutor(), emptyList(), RestoreMode.DEFAULT);
         CheckpointCoordinator coord =
                 new CheckpointCoordinatorBuilder()
-                        .setExecutionGraph(newGraph)
                         .setCompletedCheckpointStore(
                                 storeFor(sharedStateRegistry, () -> {}, completedCheckpoint))
                         .setTimer(manuallyTriggeredScheduledExecutor)
-                        .build();
+                        .build(newGraph);
 
         coord.restoreLatestCheckpointedStateToAll(tasks, true);
 
@@ -970,21 +970,20 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         final ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(jobVertexID, parallelism1, maxParallelism1)
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
 
         final ExecutionJobVertex jobVertex = graph.getJobVertex(jobVertexID);
 
         // set up the coordinator and validate the initial state
         CheckpointCoordinator coord =
                 new CheckpointCoordinatorBuilder()
-                        .setExecutionGraph(graph)
                         .setCompletedCheckpointStore(completedCheckpointStore)
                         .setCheckpointCoordinatorConfiguration(
                                 new CheckpointCoordinatorConfigurationBuilder()
                                         .setCheckpointIdOfIgnoredInFlightData(1)
                                         .build())
                         .setTimer(manuallyTriggeredScheduledExecutor)
-                        .build();
+                        .build(graph);
 
         // trigger the checkpoint
         coord.triggerCheckpoint(false);
@@ -1076,7 +1075,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(jobVertexID, 1, 1, singletonList(op1), true)
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
 
         CompletedCheckpointStore completedCheckpointStore = new EmbeddedCompletedCheckpointStore();
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
@@ -1093,19 +1092,19 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                         Collections.emptyList(),
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-                        new TestCompletedCheckpointStorageLocation());
+                        new TestCompletedCheckpointStorageLocation(),
+                        null);
         completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                 completedCheckpoint, new CheckpointsCleaner(), () -> {});
 
         CheckpointCoordinator coord =
                 new CheckpointCoordinatorBuilder()
-                        .setExecutionGraph(graph)
                         .setCheckpointCoordinatorConfiguration(
                                 new CheckpointCoordinatorConfigurationBuilder()
                                         .setCheckpointIdOfIgnoredInFlightData(2)
                                         .build())
                         .setCompletedCheckpointStore(completedCheckpointStore)
-                        .build();
+                        .build(graph);
 
         ExecutionJobVertex vertex = graph.getJobVertex(jobVertexID);
         coord.restoreInitialCheckpointIfPresent(Collections.singleton(vertex));
@@ -1118,298 +1117,95 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
     }
 
     @Test
-    public void testRestoringPartiallyFinishedChainsFailsWithoutUidHash() throws Exception {
-        // If useUidHash is set to false, the operator states would still be keyed with the
-        // generated ID, which simulates the case of restoring a checkpoint taken after jobs
-        // started. The checker should still be able to access the stored state correctly, otherwise
-        // it would mark op1 as running and pass the check wrongly.
-        testRestoringPartiallyFinishedChainsFails(false);
-    }
-
-    @Test
-    public void testRestoringPartiallyFinishedChainsFailsWithUidHash() throws Exception {
-        testRestoringPartiallyFinishedChainsFails(true);
-    }
-
-    private void testRestoringPartiallyFinishedChainsFails(boolean useUidHash) throws Exception {
-        final JobVertexID jobVertexID1 = new JobVertexID();
-        final JobVertexID jobVertexID2 = new JobVertexID();
-        // The op1 has uidHash set.
-        OperatorIDPair op1 = OperatorIDPair.of(new OperatorID(), new OperatorID());
-        OperatorIDPair op2 = OperatorIDPair.generatedIDOnly(new OperatorID());
-        OperatorIDPair op3 = OperatorIDPair.generatedIDOnly(new OperatorID());
-
-        final ExecutionGraph graph =
+    public void testJobGraphModificationsAreCheckedForInitialCheckpoint() throws Exception {
+        final JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
-                        .addJobVertex(jobVertexID2, 1, 1, singletonList(op3), true)
-                        .addJobVertex(jobVertexID1, 1, 1, Arrays.asList(op1, op2), true)
-                        .build();
-
-        Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
-        operatorStates.put(
-                useUidHash ? op1.getUserDefinedOperatorID().get() : op1.getGeneratedOperatorID(),
-                new FullyFinishedOperatorState(op1.getGeneratedOperatorID(), 1, 1));
-        operatorStates.put(
-                op2.getGeneratedOperatorID(),
-                new OperatorState(op2.getGeneratedOperatorID(), 1, 1));
-        CompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore();
-        store.addCheckpointAndSubsumeOldestOne(
+                        .addJobVertex(jobVertexID, 1, 1)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+        CompletedCheckpointStore completedCheckpointStore = new EmbeddedCompletedCheckpointStore();
+        CompletedCheckpoint completedCheckpoint =
                 new CompletedCheckpoint(
                         graph.getJobID(),
                         2,
                         System.currentTimeMillis(),
                         System.currentTimeMillis() + 3000,
-                        operatorStates,
+                        Collections.emptyMap(),
                         Collections.emptyList(),
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-                        new TestCompletedCheckpointStorageLocation()),
-                new CheckpointsCleaner(),
-                () -> {});
+                        new TestCompletedCheckpointStorageLocation(),
+                        null);
+        completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
+                completedCheckpoint, new CheckpointsCleaner(), () -> {});
 
-        // set up the coordinator and validate the initial state
-        CheckpointCoordinator coord =
+        BooleanValue checked = new BooleanValue(false);
+        CheckpointCoordinator restoreCoordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setExecutionGraph(graph)
-                        .setCompletedCheckpointStore(store)
-                        .setTimer(manuallyTriggeredScheduledExecutor)
-                        .build();
-
-        Set<ExecutionJobVertex> vertices = new HashSet<>();
-        vertices.add(graph.getJobVertex(jobVertexID1));
-
-        thrown.expect(FlinkRuntimeException.class);
-        thrown.expectMessage(
-                "Can not restore vertex "
-                        + "anon("
-                        + jobVertexID1
-                        + ")"
-                        + " which contain mixed operator finished state: [ALL_RUNNING, FULLY_FINISHED]");
-        coord.restoreInitialCheckpointIfPresent(vertices);
+                        .setCompletedCheckpointStore(completedCheckpointStore)
+                        .setVertexFinishedStateCheckerFactory(
+                                (vertices, states) ->
+                                        new VertexFinishedStateChecker(vertices, states) {
+                                            @Override
+                                            public void validateOperatorsFinishedState() {
+                                                checked.set(true);
+                                            }
+                                        })
+                        .build(graph);
+        restoreCoordinator.restoreInitialCheckpointIfPresent(
+                new HashSet<>(graph.getAllVertices().values()));
+        assertTrue(
+                "The finished states should be checked when job is restored on startup",
+                checked.get());
     }
 
     @Test
-    public void testAddingRunningOperatorBeforeFinishedOneFails() throws Exception {
-        JobVertexID jobVertexID2 = new JobVertexID();
-
-        testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
-                new JobVertexID(),
-                "vert1",
-                VertexFinishedState.ALL_RUNNING,
-                jobVertexID2,
-                "vert2",
-                VertexFinishedState.FULLY_FINISHED,
-                new DistributionPattern[] {DistributionPattern.ALL_TO_ALL},
-                FlinkRuntimeException.class,
-                "Illegal JobGraph modification. Cannot run a program with fully finished vertices"
-                        + " predeceased with the ones not fully finished. Task vertex vert2"
-                        + "("
-                        + jobVertexID2
-                        + ")"
-                        + " has a predecessor not fully finished");
-    }
-
-    @Test
-    public void testAddingPartiallyFinishedOperatorBeforeFinishedOneFails() throws Exception {
-        JobVertexID jobVertexID2 = new JobVertexID();
-
-        testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
-                new JobVertexID(),
-                "vert1",
-                VertexFinishedState.PARTIALLY_FINISHED,
-                jobVertexID2,
-                "vert2",
-                VertexFinishedState.FULLY_FINISHED,
-                new DistributionPattern[] {DistributionPattern.ALL_TO_ALL},
-                FlinkRuntimeException.class,
-                "Illegal JobGraph modification. Cannot run a program with fully finished vertices"
-                        + " predeceased with the ones not fully finished. Task vertex vert2"
-                        + "("
-                        + jobVertexID2
-                        + ")"
-                        + " has a predecessor not fully finished");
-    }
-
-    @Test
-    public void testAddingAllRunningOperatorBeforePartiallyFinishedOneWithAllToAllFails()
-            throws Exception {
-        JobVertexID jobVertexID2 = new JobVertexID();
-
-        testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
-                new JobVertexID(),
-                "vert1",
-                VertexFinishedState.ALL_RUNNING,
-                jobVertexID2,
-                "vert2",
-                VertexFinishedState.PARTIALLY_FINISHED,
-                new DistributionPattern[] {DistributionPattern.ALL_TO_ALL},
-                FlinkRuntimeException.class,
-                "Illegal JobGraph modification. Cannot run a program with partially finished vertices"
-                        + " predeceased with running or partially finished ones and connected via the ALL_TO_ALL edges. "
-                        + "Task vertex vert2"
-                        + "("
-                        + jobVertexID2
-                        + ")"
-                        + " has a all running predecessor");
-    }
-
-    @Test
-    public void testAddingPartiallyFinishedOperatorBeforePartiallyFinishedOneWithAllToAllFails()
-            throws Exception {
-        JobVertexID jobVertexID2 = new JobVertexID();
-
-        testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
-                new JobVertexID(),
-                "vert1",
-                VertexFinishedState.PARTIALLY_FINISHED,
-                jobVertexID2,
-                "vert2",
-                VertexFinishedState.PARTIALLY_FINISHED,
-                new DistributionPattern[] {DistributionPattern.ALL_TO_ALL},
-                FlinkRuntimeException.class,
-                "Illegal JobGraph modification. Cannot run a program with partially finished vertices"
-                        + " predeceased with running or partially finished ones and connected via the ALL_TO_ALL edges. "
-                        + "Task vertex vert2"
-                        + "("
-                        + jobVertexID2
-                        + ")"
-                        + " has a partially finished predecessor");
-    }
-
-    @Test
-    public void
-            testAddingPartiallyFinishedOperatorBeforePartiallyFinishedOneWithPointwiseAndAllToAllFails()
-                    throws Exception {
-        JobVertexID jobVertexID2 = new JobVertexID();
-
-        testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
-                new JobVertexID(),
-                "vert1",
-                VertexFinishedState.PARTIALLY_FINISHED,
-                jobVertexID2,
-                "vert2",
-                VertexFinishedState.PARTIALLY_FINISHED,
-                new DistributionPattern[] {
-                    DistributionPattern.POINTWISE, DistributionPattern.ALL_TO_ALL
-                },
-                FlinkRuntimeException.class,
-                "Illegal JobGraph modification. Cannot run a program with partially finished vertices"
-                        + " predeceased with running or partially finished ones and connected via the ALL_TO_ALL edges. "
-                        + "Task vertex vert2"
-                        + "("
-                        + jobVertexID2
-                        + ")"
-                        + " has a partially finished predecessor");
-    }
-
-    @Test
-    public void testAddingAllRunningOperatorBeforePartiallyFinishedOneFails() throws Exception {
-        JobVertexID jobVertexID2 = new JobVertexID();
-
-        testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
-                new JobVertexID(),
-                "vert1",
-                VertexFinishedState.ALL_RUNNING,
-                jobVertexID2,
-                "vert2",
-                VertexFinishedState.PARTIALLY_FINISHED,
-                new DistributionPattern[] {DistributionPattern.POINTWISE},
-                FlinkRuntimeException.class,
-                "Illegal JobGraph modification. Cannot run a program with partially finished vertices"
-                        + " predeceased with all running ones. "
-                        + "Task vertex vert2"
-                        + "("
-                        + jobVertexID2
-                        + ")"
-                        + " has a all running predecessor");
-    }
-
-    private void testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
-            JobVertexID firstVertexId,
-            String firstVertexName,
-            VertexFinishedState firstOperatorFinishedState,
-            JobVertexID secondVertexId,
-            String secondVertexName,
-            VertexFinishedState secondOperatorFinishedState,
-            DistributionPattern[] distributionPatterns,
-            Class<? extends Throwable> expectedExceptionalClass,
-            String expectedMessage)
-            throws Exception {
-        OperatorIDPair op1 = OperatorIDPair.generatedIDOnly(new OperatorID());
-        OperatorIDPair op2 = OperatorIDPair.generatedIDOnly(new OperatorID());
-        JobVertex vertex1 = new JobVertex(firstVertexName, firstVertexId, singletonList(op1));
-        JobVertex vertex2 = new JobVertex(secondVertexName, secondVertexId, singletonList(op2));
-        vertex1.setInvokableClass(NoOpInvokable.class);
-        vertex2.setInvokableClass(NoOpInvokable.class);
-
-        final ExecutionGraph graph =
+    public void testJobGraphModificationsAreCheckedForSavepoint() throws Exception {
+        final JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
-                        .addJobVertex(vertex1, true)
-                        .addJobVertex(vertex2, false)
-                        .setDistributionPattern(distributionPatterns[0])
-                        .build();
-
-        // Adds the additional edges
-        for (int i = 1; i < distributionPatterns.length; ++i) {
-            vertex2.connectNewDataSetAsInput(
-                    vertex1, distributionPatterns[i], ResultPartitionType.PIPELINED);
-        }
-
-        Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
-        operatorStates.put(
-                op1.getGeneratedOperatorID(),
-                createOperatorState(op1.getGeneratedOperatorID(), firstOperatorFinishedState));
-        operatorStates.put(
-                op2.getGeneratedOperatorID(),
-                createOperatorState(op2.getGeneratedOperatorID(), secondOperatorFinishedState));
-
-        CompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore();
-        store.addCheckpointAndSubsumeOldestOne(
-                new CompletedCheckpoint(
-                        graph.getJobID(),
-                        2,
-                        System.currentTimeMillis(),
-                        System.currentTimeMillis() + 3000,
-                        operatorStates,
-                        Collections.emptyList(),
-                        CheckpointProperties.forCheckpoint(
-                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-                        new TestCompletedCheckpointStorageLocation()),
-                new CheckpointsCleaner(),
-                () -> {});
-
-        // set up the coordinator and validate the initial state
-        CheckpointCoordinator coord =
+                        .addJobVertex(jobVertexID, 1, 1)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+        CheckpointCoordinator coordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setExecutionGraph(graph)
-                        .setCompletedCheckpointStore(store)
                         .setTimer(manuallyTriggeredScheduledExecutor)
-                        .build();
+                        .build(graph);
+        File savepointPath = tmpFolder.newFolder();
+        CompletableFuture<CompletedCheckpoint> savepointFuture =
+                coordinator.triggerSavepoint(
+                        "file://" + savepointPath.getAbsolutePath(), SavepointFormatType.CANONICAL);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        long pendingSavepointId =
+                coordinator.getPendingCheckpoints().keySet().stream().findFirst().get();
+        coordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(
+                        graph.getJobID(),
+                        graph.getJobVertex(jobVertexID)
+                                .getTaskVertices()[0]
+                                .getCurrentExecutionAttempt()
+                                .getAttemptId(),
+                        pendingSavepointId),
+                "localhost");
+        assertTrue(savepointFuture.isDone());
 
-        Set<ExecutionJobVertex> vertices = new HashSet<>();
-        vertices.add(graph.getJobVertex(vertex1.getID()));
-        vertices.add(graph.getJobVertex(vertex2.getID()));
-
-        thrown.expect(expectedExceptionalClass);
-        thrown.expectMessage(expectedMessage);
-
-        coord.restoreInitialCheckpointIfPresent(vertices);
-    }
-
-    private OperatorState createOperatorState(
-            OperatorID operatorId, VertexFinishedState finishedState) {
-        switch (finishedState) {
-            case ALL_RUNNING:
-                return new OperatorState(operatorId, 2, 2);
-            case PARTIALLY_FINISHED:
-                OperatorState operatorState = new OperatorState(operatorId, 2, 2);
-                operatorState.putState(0, FinishedOperatorSubtaskState.INSTANCE);
-                return operatorState;
-            case FULLY_FINISHED:
-                return new FullyFinishedOperatorState(operatorId, 2, 2);
-            default:
-                throw new UnsupportedOperationException(
-                        "Not supported finished state: " + finishedState);
-        }
+        BooleanValue checked = new BooleanValue(false);
+        CheckpointCoordinator restoreCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setVertexFinishedStateCheckerFactory(
+                                (vertices, states) ->
+                                        new VertexFinishedStateChecker(vertices, states) {
+                                            @Override
+                                            public void validateOperatorsFinishedState() {
+                                                checked.set(true);
+                                            }
+                                        })
+                        .build(graph);
+        restoreCoordinator.restoreSavepoint(
+                SavepointRestoreSettings.forPath(savepointFuture.get().getExternalPointer()),
+                graph.getAllVertices(),
+                getClass().getClassLoader());
+        assertTrue(
+                "The finished states should be checked when job is restored on startup",
+                checked.get());
     }
 }

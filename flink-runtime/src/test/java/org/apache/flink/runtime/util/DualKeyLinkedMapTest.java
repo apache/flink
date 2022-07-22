@@ -39,17 +39,15 @@ public class DualKeyLinkedMapTest extends TestLogger {
     @Test
     public void testKeySets() {
         final Random random = new Random();
-        final int capacity = 10;
-        final Set<Tuple2<Integer, Integer>> keys = new HashSet<>(capacity);
+        final Set<Tuple2<Integer, Integer>> keys = new HashSet<>();
 
-        for (int i = 0; i < capacity; i++) {
+        for (int i = 0; i < 10; i++) {
             int keyA = random.nextInt();
             int keyB = random.nextInt();
             keys.add(Tuple2.of(keyA, keyB));
         }
 
-        final DualKeyLinkedMap<Integer, Integer, String> dualKeyMap =
-                new DualKeyLinkedMap<>(capacity);
+        final DualKeyLinkedMap<Integer, Integer, String> dualKeyMap = new DualKeyLinkedMap<>();
 
         for (Tuple2<Integer, Integer> key : keys) {
             dualKeyMap.put(key.f0, key.f1, "foobar");
@@ -65,7 +63,7 @@ public class DualKeyLinkedMapTest extends TestLogger {
 
     @Test
     public void ensuresOneToOneMappingBetweenKeysSamePrimaryKey() {
-        final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
+        final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>();
 
         final String secondValue = "barfoo";
         map.put(1, 1, "foobar");
@@ -78,7 +76,7 @@ public class DualKeyLinkedMapTest extends TestLogger {
 
     @Test
     public void ensuresOneToOneMappingBetweenKeysSameSecondaryKey() {
-        final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
+        final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>();
 
         final String secondValue = "barfoo";
         map.put(1, 1, "foobar");
@@ -91,7 +89,7 @@ public class DualKeyLinkedMapTest extends TestLogger {
 
     @Test
     public void testPrimaryKeyOrderIsNotAffectedIfReInsertedWithSameSecondaryKey() {
-        final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
+        final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>();
 
         final String value1 = "1";
         map.put(1, 1, value1);
@@ -106,7 +104,7 @@ public class DualKeyLinkedMapTest extends TestLogger {
 
     @Test
     public void testPrimaryKeyOrderIsNotAffectedIfReInsertedWithDifferentSecondaryKey() {
-        final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
+        final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>();
 
         final String value1 = "1";
         map.put(1, 1, value1);

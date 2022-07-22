@@ -17,11 +17,12 @@
  */
 
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { Observable, Subject } from 'rxjs';
 import { mergeMap, share, takeUntil } from 'rxjs/operators';
 
-import { JobsItem } from 'interfaces';
-import { JobService, StatusService } from 'services';
+import { JobsItem } from '@flink-runtime-web/interfaces';
+import { JobService, StatusService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-overview',
@@ -34,7 +35,11 @@ export class OverviewComponent implements OnInit, OnDestroy {
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly statusService: StatusService, private readonly jobService: JobService) {}
+  constructor(
+    private readonly statusService: StatusService,
+    private readonly jobService: JobService,
+    private router: Router
+  ) {}
 
   public ngOnInit(): void {
     this.jobData$ = this.statusService.refresh$.pipe(
@@ -47,5 +52,9 @@ export class OverviewComponent implements OnInit, OnDestroy {
   public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  public navigateToJob(commands: string[]): void {
+    this.router.navigate(commands).then();
   }
 }

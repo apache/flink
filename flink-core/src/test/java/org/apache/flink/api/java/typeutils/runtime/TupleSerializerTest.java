@@ -35,7 +35,6 @@ import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest.SimpleTypes;
 import org.apache.flink.util.StringUtils;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -315,23 +314,17 @@ public class TupleSerializerTest {
     }
 
     private <T extends Tuple> void runTests(int length, T... instances) {
-        try {
-            TupleTypeInfo<T> tupleTypeInfo =
-                    (TupleTypeInfo<T>) TypeExtractor.getForObject(instances[0]);
-            TypeSerializer<T> serializer = tupleTypeInfo.createSerializer(new ExecutionConfig());
+        TupleTypeInfo<T> tupleTypeInfo =
+                (TupleTypeInfo<T>) TypeExtractor.getForObject(instances[0]);
+        TypeSerializer<T> serializer = tupleTypeInfo.createSerializer(new ExecutionConfig());
 
-            Class<T> tupleClass = tupleTypeInfo.getTypeClass();
+        Class<T> tupleClass = tupleTypeInfo.getTypeClass();
 
-            if (tupleClass == Tuple0.class) {
-                length = 1;
-            }
-            SerializerTestInstance<T> test =
-                    new SerializerTestInstance<>(serializer, tupleClass, length, instances);
-            test.testAll();
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            Assert.fail(e.getMessage());
+        if (tupleClass == Tuple0.class) {
+            length = 1;
         }
+        SerializerTestInstance<T> test =
+                new SerializerTestInstance<T>(serializer, tupleClass, length, instances) {};
+        test.testAll();
     }
 }

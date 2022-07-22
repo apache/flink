@@ -18,13 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.planner.calcite.FlinkContextImpl;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
-import org.apache.flink.table.utils.CatalogManagerMocks;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
@@ -35,57 +28,48 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test json serialization/deserialization for {@link RexWindowBound}. */
 public class RexWindowBoundSerdeTest {
 
     @Test
     public void testSerde() throws IOException {
-        SerdeContext serdeCtx =
-                new SerdeContext(
-                        new FlinkContextImpl(
-                                false,
-                                TableConfig.getDefault(),
-                                new ModuleManager(),
-                                null,
-                                CatalogManagerMocks.createEmptyCatalogManager(),
-                                null),
-                        Thread.currentThread().getContextClassLoader(),
-                        FlinkTypeFactory.INSTANCE(),
-                        FlinkSqlOperatorTable.instance());
+        SerdeContext serdeCtx = JsonSerdeTestUtil.configuredSerdeContext();
         ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
         ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
-        assertEquals(
-                RexWindowBounds.CURRENT_ROW,
-                objectReader.readValue(
-                        objectWriter.writeValueAsString(RexWindowBounds.CURRENT_ROW),
-                        RexWindowBound.class));
+        assertThat(
+                        objectReader.readValue(
+                                objectWriter.writeValueAsString(RexWindowBounds.CURRENT_ROW),
+                                RexWindowBound.class))
+                .isEqualTo(RexWindowBounds.CURRENT_ROW);
 
-        assertEquals(
-                RexWindowBounds.UNBOUNDED_FOLLOWING,
-                objectReader.readValue(
-                        objectWriter.writeValueAsString(RexWindowBounds.UNBOUNDED_FOLLOWING),
-                        RexWindowBound.class));
+        assertThat(
+                        objectReader.readValue(
+                                objectWriter.writeValueAsString(
+                                        RexWindowBounds.UNBOUNDED_FOLLOWING),
+                                RexWindowBound.class))
+                .isEqualTo(RexWindowBounds.UNBOUNDED_FOLLOWING);
 
-        assertEquals(
-                RexWindowBounds.UNBOUNDED_PRECEDING,
-                objectReader.readValue(
-                        objectWriter.writeValueAsString(RexWindowBounds.UNBOUNDED_PRECEDING),
-                        RexWindowBound.class));
+        assertThat(
+                        objectReader.readValue(
+                                objectWriter.writeValueAsString(
+                                        RexWindowBounds.UNBOUNDED_PRECEDING),
+                                RexWindowBound.class))
+                .isEqualTo(RexWindowBounds.UNBOUNDED_PRECEDING);
 
-        RexBuilder builder = new RexBuilder(FlinkTypeFactory.INSTANCE());
+        RexBuilder builder = new RexBuilder(serdeCtx.getTypeFactory());
         RexWindowBound windowBound = RexWindowBounds.following(builder.makeLiteral("test"));
-        assertEquals(
-                windowBound,
-                objectReader.readValue(
-                        objectWriter.writeValueAsString(windowBound), RexWindowBound.class));
+        assertThat(
+                        objectReader.readValue(
+                                objectWriter.writeValueAsString(windowBound), RexWindowBound.class))
+                .isEqualTo(windowBound);
 
         windowBound = RexWindowBounds.preceding(builder.makeLiteral("test"));
-        assertEquals(
-                windowBound,
-                objectReader.readValue(
-                        objectWriter.writeValueAsString(windowBound), RexWindowBound.class));
+        assertThat(
+                        objectReader.readValue(
+                                objectWriter.writeValueAsString(windowBound), RexWindowBound.class))
+                .isEqualTo(windowBound);
     }
 }

@@ -21,16 +21,17 @@ import { Injectable } from '@angular/core';
 import { EMPTY, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
-import { BASE_URL } from 'config';
-import { Overview } from 'interfaces';
+import { Overview } from '@flink-runtime-web/interfaces';
+
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class OverviewService {
-  constructor(private readonly httpClient: HttpClient) {}
+  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
 
   public loadOverview(): Observable<Overview> {
-    return this.httpClient.get<Overview>(`${BASE_URL}/overview`).pipe(catchError(() => EMPTY));
+    return this.httpClient.get<Overview>(`${this.configService.BASE_URL}/overview`).pipe(catchError(() => EMPTY));
   }
 }

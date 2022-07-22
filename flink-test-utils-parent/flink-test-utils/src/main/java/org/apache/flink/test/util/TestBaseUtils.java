@@ -18,30 +18,17 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -50,9 +37,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -62,32 +46,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Utility class containing various methods for testing purposes. */
-public class TestBaseUtils extends TestLogger {
-
-    private static final Logger LOG = LoggerFactory.getLogger(TestBaseUtils.class);
-
-    protected static final int MINIMUM_HEAP_SIZE_MB = 192;
-
-    public static final Time DEFAULT_HTTP_TIMEOUT = Time.seconds(10L);
-
-    // ------------------------------------------------------------------------
-
-    protected static File logDir;
-
-    protected TestBaseUtils() {
-        verifyJvmOptions();
-    }
-
-    private static void verifyJvmOptions() {
-        long heap = Runtime.getRuntime().maxMemory() >> 20;
-        Assert.assertTrue(
-                "Insufficient java heap space "
-                        + heap
-                        + "mb - set JVM option: -Xmx"
-                        + MINIMUM_HEAP_SIZE_MB
-                        + "m",
-                heap > MINIMUM_HEAP_SIZE_MB - 50);
-    }
+public class TestBaseUtils {
 
     // --------------------------------------------------------------------------------------------
     //  Result Checking
@@ -97,7 +56,7 @@ public class TestBaseUtils extends TestLogger {
         return getResultReader(resultPath, new String[] {}, false);
     }
 
-    public static BufferedReader[] getResultReader(
+    private static BufferedReader[] getResultReader(
             String resultPath, String[] excludePrefixes, boolean inOrderOfFiles)
             throws IOException {
 
@@ -139,16 +98,10 @@ public class TestBaseUtils extends TestLogger {
 
     public static void readAllResultLines(List<String> target, String resultPath)
             throws IOException {
-        readAllResultLines(target, resultPath, new String[] {});
+        readAllResultLines(target, resultPath, new String[] {}, false);
     }
 
-    public static void readAllResultLines(
-            List<String> target, String resultPath, String[] excludePrefixes) throws IOException {
-
-        readAllResultLines(target, resultPath, excludePrefixes, false);
-    }
-
-    public static void readAllResultLines(
+    private static void readAllResultLines(
             List<String> target,
             String resultPath,
             String[] excludePrefixes,
@@ -208,15 +161,8 @@ public class TestBaseUtils extends TestLogger {
 
     public static void compareResultsByLinesInMemoryWithStrictOrder(
             String expectedResultStr, String resultPath) throws Exception {
-        compareResultsByLinesInMemoryWithStrictOrder(
-                expectedResultStr, resultPath, new String[] {});
-    }
-
-    public static void compareResultsByLinesInMemoryWithStrictOrder(
-            String expectedResultStr, String resultPath, String[] excludePrefixes)
-            throws Exception {
         ArrayList<String> list = new ArrayList<>();
-        readAllResultLines(list, resultPath, excludePrefixes, true);
+        readAllResultLines(list, resultPath, new String[] {}, true);
 
         String[] result = list.toArray(new String[list.size()]);
 
@@ -252,19 +198,8 @@ public class TestBaseUtils extends TestLogger {
     public static void compareKeyValuePairsWithDelta(
             String expectedLines, String resultPath, String delimiter, double maxDelta)
             throws Exception {
-        compareKeyValuePairsWithDelta(
-                expectedLines, resultPath, new String[] {}, delimiter, maxDelta);
-    }
-
-    public static void compareKeyValuePairsWithDelta(
-            String expectedLines,
-            String resultPath,
-            String[] excludePrefixes,
-            String delimiter,
-            double maxDelta)
-            throws Exception {
         ArrayList<String> list = new ArrayList<>();
-        readAllResultLines(list, resultPath, excludePrefixes, false);
+        readAllResultLines(list, resultPath, new String[] {}, false);
 
         String[] result = list.toArray(new String[list.size()]);
         String[] expected = expectedLines.isEmpty() ? new String[0] : expectedLines.split("\n");
@@ -328,7 +263,7 @@ public class TestBaseUtils extends TestLogger {
         }
     }
 
-    protected static File asFile(String path) {
+    public static File asFile(String path) {
         try {
             URI uri = new URI(path);
             if (uri.getScheme().equals("file")) {
@@ -432,83 +367,6 @@ public class TestBaseUtils extends TestLogger {
         for (String element : resultStrings) {
             assertTrue(expectedStringList.contains(element));
         }
-    }
-
-    // --------------------------------------------------------------------------------------------
-    //  Miscellaneous helper methods
-    // --------------------------------------------------------------------------------------------
-
-    public static void setEnv(Map<String, String> newenv) {
-        CommonTestUtils.setEnv(newenv);
-    }
-    // --------------------------------------------------------------------------------------------
-    //  File helper methods
-    // --------------------------------------------------------------------------------------------
-
-    protected static void deleteRecursively(File f) throws IOException {
-        if (f.isDirectory()) {
-            FileUtils.deleteDirectory(f);
-        } else if (!f.delete()) {
-            System.err.println("Failed to delete file " + f.getAbsolutePath());
-        }
-    }
-
-    public static String constructTestPath(Class<?> forClass, String folder) {
-        // we create test path that depends on class to prevent name clashes when two tests
-        // create temp files with the same name
-        String path = System.getProperty("java.io.tmpdir");
-        if (!(path.endsWith("/") || path.endsWith("\\"))) {
-            path += System.getProperty("file.separator");
-        }
-        path += (forClass.getName() + "-" + folder);
-        return path;
-    }
-
-    // ---------------------------------------------------------------------------------------------
-    // Web utils
-    // ---------------------------------------------------------------------------------------------
-
-    public static String getFromHTTP(String url) throws Exception {
-        return getFromHTTP(url, DEFAULT_HTTP_TIMEOUT);
-    }
-
-    public static String getFromHTTP(String url, Time timeout) throws Exception {
-        final URL u = new URL(url);
-        LOG.info("Accessing URL " + url + " as URL: " + u);
-
-        final long deadline = timeout.toMilliseconds() + System.currentTimeMillis();
-
-        while (System.currentTimeMillis() <= deadline) {
-            HttpURLConnection connection = (HttpURLConnection) u.openConnection();
-            connection.setConnectTimeout(100000);
-            connection.connect();
-
-            if (Objects.equals(
-                    HttpResponseStatus.SERVICE_UNAVAILABLE,
-                    HttpResponseStatus.valueOf(connection.getResponseCode()))) {
-                // service not available --> Sleep and retry
-                LOG.debug("Web service currently not available. Retrying the request in a bit.");
-                Thread.sleep(100L);
-            } else {
-                InputStream is;
-
-                if (connection.getResponseCode() >= 400) {
-                    // error!
-                    LOG.warn(
-                            "HTTP Response code when connecting to {} was {}",
-                            url,
-                            connection.getResponseCode());
-                    is = connection.getErrorStream();
-                } else {
-                    is = connection.getInputStream();
-                }
-
-                return IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
-            }
-        }
-
-        throw new TimeoutException(
-                "Could not get HTTP response in time since the service is still unavailable.");
     }
 
     /**

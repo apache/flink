@@ -42,6 +42,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -120,6 +121,8 @@ public class HivePartitionUtils {
                 return Float.valueOf(valStr);
             case DOUBLE:
                 return Double.valueOf(valStr);
+            case DECIMAL:
+                return new BigDecimal(valStr);
             case DATE:
                 return HiveInspectors.toFlinkObject(
                         HiveInspectors.getObjectInspector(partitionType),

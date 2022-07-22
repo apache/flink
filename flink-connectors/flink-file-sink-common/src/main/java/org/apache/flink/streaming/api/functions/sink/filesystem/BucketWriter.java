@@ -40,6 +40,32 @@ public interface BucketWriter<IN, BucketID> {
             final BucketID bucketID, final Path path, final long creationTime) throws IOException;
 
     /**
+     * Used to create a new {@link CompactingFileWriter} of the requesting type. Requesting a writer
+     * of an unsupported type will result in UnsupportedOperationException. By default, only
+     * RECORD_WISE type is supported, for which a {@link InProgressFileWriter} will be created.
+     *
+     * @param type the type of this writer.
+     * @param bucketID the id of the bucket this writer is writing to.
+     * @param path the path this writer will write to.
+     * @param creationTime the creation time of the file.
+     * @return the new {@link InProgressFileWriter}
+     * @throws IOException Thrown if creating a writer fails.
+     * @throws UnsupportedOperationException Thrown if the bucket writer doesn't support the
+     *     requesting type.
+     */
+    default CompactingFileWriter openNewCompactingFile(
+            final CompactingFileWriter.Type type,
+            final BucketID bucketID,
+            final Path path,
+            final long creationTime)
+            throws IOException {
+        if (type == CompactingFileWriter.Type.RECORD_WISE) {
+            return openNewInProgressFile(bucketID, path, creationTime);
+        }
+        throw new UnsupportedOperationException();
+    }
+
+    /**
      * Used to resume a {@link InProgressFileWriter} from a {@link
      * InProgressFileWriter.InProgressFileRecoverable}.
      *

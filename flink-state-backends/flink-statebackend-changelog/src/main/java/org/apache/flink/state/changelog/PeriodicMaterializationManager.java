@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
+import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -70,8 +72,12 @@ class PeriodicMaterializationManager implements Closeable {
 
     private final ChangelogKeyedStateBackend<?> keyedStateBackend;
 
+    private final ChangelogMaterializationMetricGroup metrics;
+
     /** Whether PeriodicMaterializationManager is started. */
     private boolean started = false;
+
+    private final long initialDelay;
 
     PeriodicMaterializationManager(
             MailboxExecutor mailboxExecutor,
@@ -79,12 +85,15 @@ class PeriodicMaterializationManager implements Closeable {
             String subtaskName,
             AsyncExceptionHandler asyncExceptionHandler,
             ChangelogKeyedStateBackend<?> keyedStateBackend,
+            ChangelogMaterializationMetricGroup metricGroup,
             long periodicMaterializeDelay,
-            int allowedNumberOfFailures) {
+            int allowedNumberOfFailures,
+            String operatorSubtaskId) {
         this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.asyncOperationsThreadPool = checkNotNull(asyncOperationsThreadPool);
         this.subtaskName = checkNotNull(subtaskName);
         this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
+        this.metrics = metricGroup;
         this.keyedStateBackend = checkNotNull(keyedStateBackend);
 
         this.periodicMaterializeDelay = periodicMaterializeDelay;
@@ -95,16 +104,21 @@ class PeriodicMaterializationManager implements Closeable {
                 Executors.newSingleThreadScheduledExecutor(
                         new ExecutorThreadFactory(
                                 "periodic-materialization-scheduler-" + subtaskName));
+
+        this.initialDelay =
+                // randomize initial delay to avoid thundering herd problem
+                MathUtils.murmurHash(operatorSubtaskId.hashCode()) % periodicMaterializeDelay;
     }
 
     public void start() {
-        if (!started) {
+        // disable periodic materialization when periodicMaterializeDelay is negative
+        if (!started && periodicMaterializeDelay >= 0) {
 
             started = true;
 
             LOG.info("Task {} starts periodic materialization", subtaskName);
 
-            scheduleNextMaterialization();
+            scheduleNextMaterialization(initialDelay);
         }
     }
 
@@ -122,8 +136,14 @@ class PeriodicMaterializationManager implements Closeable {
     public void triggerMaterialization() {
         mailboxExecutor.execute(
                 () -> {
-                    Optional<MaterializationRunnable> materializationRunnableOptional =
-                            keyedStateBackend.initMaterialization();
+                    metrics.reportStartedMaterialization();
+                    Optional<MaterializationRunnable> materializationRunnableOptional;
+                    try {
+                        materializationRunnableOptional = keyedStateBackend.initMaterialization();
+                    } catch (Exception ex) {
+                        metrics.reportFailedMaterialization();
+                        throw ex;
+                    }
 
                     if (materializationRunnableOptional.isPresent()) {
                         MaterializationRunnable runnable = materializationRunnableOptional.get();
@@ -131,8 +151,10 @@ class PeriodicMaterializationManager implements Closeable {
                                 () ->
                                         asyncMaterializationPhase(
                                                 runnable.getMaterializationRunnable(),
+                                                runnable.getMaterializationID(),
                                                 runnable.getMaterializedTo()));
                     } else {
+                        metrics.reportCompletedMaterialization();
                         scheduleNextMaterialization();
 
                         LOG.info(
@@ -147,6 +169,7 @@ class PeriodicMaterializationManager implements Closeable {
 
     private void asyncMaterializationPhase(
             RunnableFuture<SnapshotResult<KeyedStateHandle>> materializedRunnableFuture,
+            long materializationID,
             SequenceNumber upTo) {
 
         uploadSnapshot(materializedRunnableFuture)
@@ -157,16 +180,27 @@ class PeriodicMaterializationManager implements Closeable {
                                 numberOfConsecutiveFailures.set(0);
 
                                 mailboxExecutor.execute(
-                                        () ->
+                                        () -> {
+                                            try {
                                                 keyedStateBackend.updateChangelogSnapshotState(
-                                                        snapshotResult, upTo),
+                                                        snapshotResult, materializationID, upTo);
+                                                metrics.reportCompletedMaterialization();
+                                            } catch (Exception ex) {
+                                                metrics.reportFailedMaterialization();
+                                            }
+                                        },
                                         "Task {} update materializedSnapshot up to changelog sequence number: {}",
                                         subtaskName,
                                         upTo);
 
                                 scheduleNextMaterialization();
+                            } else if (throwable instanceof CancellationException) {
+                                // can happen e.g. due to task cancellation
+                                LOG.info("materialization cancelled", throwable);
+                                scheduleNextMaterialization();
                             } else {
                                 // if failed
+                                metrics.reportFailedMaterialization();
                                 int retryTime = numberOfConsecutiveFailures.incrementAndGet();
 
                                 if (retryTime <= allowedNumberOfFailures) {
@@ -238,8 +272,12 @@ class PeriodicMaterializationManager implements Closeable {
         }
     }
 
+    private void scheduleNextMaterialization() {
+        scheduleNextMaterialization(0);
+    }
+
     // task thread and asyncOperationsThreadPool can access this method
-    private synchronized void scheduleNextMaterialization() {
+    private synchronized void scheduleNextMaterialization(long offset) {
         if (started && !periodicExecutor.isShutdown()) {
 
             LOG.info(
@@ -248,12 +286,16 @@ class PeriodicMaterializationManager implements Closeable {
                     periodicMaterializeDelay / 1000);
 
             periodicExecutor.schedule(
-                    this::triggerMaterialization, periodicMaterializeDelay, TimeUnit.MILLISECONDS);
+                    this::triggerMaterialization,
+                    periodicMaterializeDelay + offset,
+                    TimeUnit.MILLISECONDS);
         }
     }
 
     static class MaterializationRunnable {
         private final RunnableFuture<SnapshotResult<KeyedStateHandle>> materializationRunnable;
+
+        private final long materializationID;
 
         /**
          * The {@link SequenceNumber} up to which the state is materialized, exclusive. This
@@ -263,9 +305,11 @@ class PeriodicMaterializationManager implements Closeable {
 
         public MaterializationRunnable(
                 RunnableFuture<SnapshotResult<KeyedStateHandle>> materializationRunnable,
+                long materializationID,
                 SequenceNumber materializedTo) {
             this.materializationRunnable = materializationRunnable;
             this.materializedTo = materializedTo;
+            this.materializationID = materializationID;
         }
 
         RunnableFuture<SnapshotResult<KeyedStateHandle>> getMaterializationRunnable() {
@@ -274,6 +318,10 @@ class PeriodicMaterializationManager implements Closeable {
 
         SequenceNumber getMaterializedTo() {
             return materializedTo;
+        }
+
+        public long getMaterializationID() {
+            return materializationID;
         }
     }
 }

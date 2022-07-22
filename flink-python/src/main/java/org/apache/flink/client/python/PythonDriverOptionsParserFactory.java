@@ -54,6 +54,12 @@ final class PythonDriverOptionsParserFactory implements ParserResultFactory<Pyth
             throw new FlinkParseException("Cannot use options -py and -pym simultaneously.");
         } else if (commandLine.hasOption(PY_OPTION.getOpt())) {
             entryPointScript = commandLine.getOptionValue(PY_OPTION.getOpt());
+            if (!entryPointScript.endsWith(".py")) {
+                throw new FlinkParseException(
+                        String.format(
+                                "It only accepts Python file which ends with '.py' for option '-py', got '%s'.",
+                                entryPointScript));
+            }
         } else if (commandLine.hasOption(PYMODULE_OPTION.getOpt())) {
             entryPointModule = commandLine.getOptionValue(PYMODULE_OPTION.getOpt());
         } else {

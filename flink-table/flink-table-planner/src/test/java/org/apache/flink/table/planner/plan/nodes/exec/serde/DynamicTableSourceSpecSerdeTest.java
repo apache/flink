@@ -18,21 +18,27 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.file.table.FileSystemTableFactory;
+import org.apache.flink.formats.testcsv.TestCsvFormatFactory;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation;
+import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanRestore;
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.planner.calcite.FlinkContextImpl;
+import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.TestDynamicTableFactory;
+import org.apache.flink.table.factories.TestFormatFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
+import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.LimitPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.PartitionPushDownSpec;
@@ -41,88 +47,55 @@ import org.apache.flink.table.planner.plan.abilities.source.ReadingMetadataSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceWatermarkSpec;
 import org.apache.flink.table.planner.plan.abilities.source.WatermarkPushDownSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
+import org.apache.flink.table.planner.utils.PlannerMocks;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.utils.CatalogManagerMocks;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS;
+import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS;
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
+import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
+import static org.apache.flink.table.factories.TestDynamicTableFactory.PASSWORD;
+import static org.apache.flink.table.factories.TestDynamicTableFactory.TARGET;
+import static org.apache.flink.table.factories.TestFormatFactory.DELIMITER;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.configuredSerdeContext;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toJson;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toObject;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link DynamicTableSourceSpec} serialization and deserialization. */
-@RunWith(Parameterized.class)
+@Execution(CONCURRENT)
 public class DynamicTableSourceSpecSerdeTest {
 
-    @Parameterized.Parameter public DynamicTableSourceSpec spec;
-
-    @Test
-    public void testDynamicTableSourceSpecSerde() throws IOException {
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        SerdeContext serdeCtx =
-                new SerdeContext(
-                        new FlinkContextImpl(
-                                false,
-                                TableConfig.getDefault(),
-                                new ModuleManager(),
-                                null,
-                                CatalogManagerMocks.createEmptyCatalogManager(),
-                                null),
-                        classLoader,
-                        FlinkTypeFactory.INSTANCE(),
-                        FlinkSqlOperatorTable.instance());
-        ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
-        ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
-
-        String json = objectWriter.writeValueAsString(spec);
-        DynamicTableSourceSpec actual = objectReader.readValue(json, DynamicTableSourceSpec.class);
-        assertEquals(spec, actual);
-        assertNull(actual.getClassLoader());
-        actual.setClassLoader(classLoader);
-        assertNull(actual.getReadableConfig());
-        actual.setReadableConfig(serdeCtx.getConfiguration());
-        TableEnvironmentImpl tableEnv =
-                (TableEnvironmentImpl)
-                        TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        assertNotNull(
-                actual.getScanTableSource(((PlannerBase) tableEnv.getPlanner()).getFlinkContext()));
-    }
-
-    @Parameterized.Parameters(name = "{0}")
-    public static List<DynamicTableSourceSpec> testData() {
-        Map<String, String> properties1 = new HashMap<>();
-        properties1.put("connector", "filesystem");
-        properties1.put("format", "testcsv");
-        properties1.put("path", "/tmp");
-        properties1.put("schema.0.name", "a");
-        properties1.put("schema.0.data-type", "BIGINT");
-
-        final CatalogTable catalogTable1 = CatalogTable.fromProperties(properties1);
+    public static Stream<DynamicTableSourceSpec> testDynamicTableSinkSpecSerde() {
+        Map<String, String> options1 = new HashMap<>();
+        options1.put("connector", FileSystemTableFactory.IDENTIFIER);
+        options1.put("format", TestCsvFormatFactory.IDENTIFIER);
+        options1.put("path", "/tmp");
 
         final ResolvedSchema resolvedSchema1 =
                 new ResolvedSchema(
@@ -130,35 +103,30 @@ public class DynamicTableSourceSpecSerdeTest {
                         Collections.emptyList(),
                         null);
 
+        final CatalogTable catalogTable1 =
+                CatalogTable.of(
+                        Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build(),
+                        null,
+                        Collections.emptyList(),
+                        options1);
+
         DynamicTableSourceSpec spec1 =
                 new DynamicTableSourceSpec(
-                        ObjectIdentifier.of("default_catalog", "default_db", "MyTable"),
-                        new ResolvedCatalogTable(catalogTable1, resolvedSchema1),
-                        Collections.emptyList());
+                        ContextResolvedTable.temporary(
+                                ObjectIdentifier.of(
+                                        TableConfigOptions.TABLE_CATALOG_NAME.defaultValue(),
+                                        TableConfigOptions.TABLE_DATABASE_NAME.defaultValue(),
+                                        "MyTable"),
+                                new ResolvedCatalogTable(catalogTable1, resolvedSchema1)),
+                        null);
 
-        Map<String, String> properties2 = new HashMap<>();
-        properties2.put("connector", "values");
-        properties2.put("disable-lookup", "true");
-        properties2.put("enable-watermark-push-down", "true");
-        properties2.put("filterable-fields", "b");
-        properties2.put("bounded", "false");
-        properties2.put("schema.0.name", "a");
-        properties2.put("schema.0.data-type", "BIGINT");
-        properties2.put("schema.1.name", "b");
-        properties2.put("schema.1.data-type", "INT");
-        properties2.put("schema.2.name", "c");
-        properties2.put("schema.2.data-type", "STRING");
-        properties2.put("schema.3.name", "p");
-        properties2.put("schema.3.data-type", "STRING");
-        properties2.put("schema.4.name", "m1");
-        properties2.put("schema.4.data-type", "INT");
-        properties2.put("schema.5.name", "m2");
-        properties2.put("schema.5.data-type", "STRING");
-        properties2.put("schema.6.name", "ts");
-        properties2.put("schema.6.data-type", "TIMESTAMP(3)");
-        properties2.put("readable-metadata", "m1:INT, m2:STRING");
-
-        final CatalogTable catalogTable2 = CatalogTable.fromProperties(properties2);
+        Map<String, String> options2 = new HashMap<>();
+        options2.put("connector", TestValuesTableFactory.IDENTIFIER);
+        options2.put("disable-lookup", "true");
+        options2.put("enable-watermark-push-down", "true");
+        options2.put("filterable-fields", "b");
+        options2.put("bounded", "false");
+        options2.put("readable-metadata", "m1:INT, m2:STRING");
 
         final ResolvedSchema resolvedSchema2 =
                 new ResolvedSchema(
@@ -167,18 +135,31 @@ public class DynamicTableSourceSpecSerdeTest {
                                 Column.physical("b", DataTypes.INT()),
                                 Column.physical("c", DataTypes.STRING()),
                                 Column.physical("p", DataTypes.STRING()),
-                                Column.physical("m1", DataTypes.INT()),
-                                Column.physical("m2", DataTypes.STRING()),
+                                Column.metadata("m1", DataTypes.INT(), null, false),
+                                Column.metadata("m2", DataTypes.STRING(), null, false),
                                 Column.physical("ts", DataTypes.TIMESTAMP(3))),
                         Collections.emptyList(),
                         null);
 
-        FlinkTypeFactory factory = FlinkTypeFactory.INSTANCE();
+        final CatalogTable catalogTable2 =
+                CatalogTable.of(
+                        Schema.newBuilder().fromResolvedSchema(resolvedSchema2).build(),
+                        null,
+                        Collections.emptyList(),
+                        options2);
+
+        FlinkTypeFactory factory =
+                new FlinkTypeFactory(
+                        Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
         RexBuilder rexBuilder = new RexBuilder(factory);
         DynamicTableSourceSpec spec2 =
                 new DynamicTableSourceSpec(
-                        ObjectIdentifier.of("default_catalog", "default_db", "MyTable"),
-                        new ResolvedCatalogTable(catalogTable2, resolvedSchema2),
+                        ContextResolvedTable.temporary(
+                                ObjectIdentifier.of(
+                                        TableConfigOptions.TABLE_CATALOG_NAME.defaultValue(),
+                                        TableConfigOptions.TABLE_DATABASE_NAME.defaultValue(),
+                                        "MyTable"),
+                                new ResolvedCatalogTable(catalogTable2, resolvedSchema2)),
                         Arrays.asList(
                                 new ProjectPushDownSpec(
                                         new int[][] {{0}, {1}, {4}, {6}},
@@ -222,9 +203,9 @@ public class DynamicTableSourceSpecSerdeTest {
                                                         BigDecimal.valueOf(1000),
                                                         new SqlIntervalQualifier(
                                                                 TimeUnit.SECOND,
-                                                                RelDataType.PRECISION_NOT_SPECIFIED,
+                                                                2,
                                                                 TimeUnit.SECOND,
-                                                                3,
+                                                                6,
                                                                 SqlParserPos.ZERO))),
                                         5000,
                                         RowType.of(
@@ -254,6 +235,133 @@ public class DynamicTableSourceSpecSerdeTest {
                                                         put("p", "B");
                                                     }
                                                 }))));
-        return Arrays.asList(spec1, spec2);
+        return Stream.of(spec1, spec2);
+    }
+
+    @ParameterizedTest
+    @MethodSource("testDynamicTableSinkSpecSerde")
+    void testDynamicTableSourceSpecSerde(DynamicTableSourceSpec spec) throws IOException {
+        PlannerMocks plannerMocks = PlannerMocks.create();
+
+        CatalogManager catalogManager = plannerMocks.getCatalogManager();
+        catalogManager.createTable(
+                spec.getContextResolvedTable().getResolvedTable(),
+                spec.getContextResolvedTable().getIdentifier(),
+                false);
+
+        SerdeContext serdeCtx =
+                configuredSerdeContext(catalogManager, plannerMocks.getTableConfig());
+
+        // Re-init the spec to be permanent with correct catalog
+        spec =
+                new DynamicTableSourceSpec(
+                        ContextResolvedTable.permanent(
+                                spec.getContextResolvedTable().getIdentifier(),
+                                catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get(),
+                                spec.getContextResolvedTable().getResolvedTable()),
+                        spec.getSourceAbilities());
+
+        String actualJson = toJson(serdeCtx, spec);
+        DynamicTableSourceSpec actual =
+                toObject(serdeCtx, actualJson, DynamicTableSourceSpec.class);
+
+        assertThat(actual.getContextResolvedTable()).isEqualTo(spec.getContextResolvedTable());
+        assertThat(actual.getSourceAbilities()).isEqualTo(spec.getSourceAbilities());
+
+        assertThat(
+                        actual.getScanTableSource(
+                                plannerMocks.getPlannerContext().getFlinkContext(),
+                                serdeCtx.getTypeFactory()))
+                .isNotNull();
+    }
+
+    @Test
+    void testDynamicTableSourceSpecSerdeWithEnrichmentOptions() throws Exception {
+        // Test model
+        ObjectIdentifier identifier =
+                ObjectIdentifier.of(
+                        TableConfigOptions.TABLE_CATALOG_NAME.defaultValue(),
+                        TableConfigOptions.TABLE_DATABASE_NAME.defaultValue(),
+                        "my_table");
+
+        String formatPrefix = FactoryUtil.getFormatPrefix(FORMAT, TestFormatFactory.IDENTIFIER);
+
+        Map<String, String> planOptions = new HashMap<>();
+        planOptions.put(CONNECTOR.key(), TestDynamicTableFactory.IDENTIFIER);
+        planOptions.put(TARGET.key(), "abc");
+        planOptions.put(PASSWORD.key(), "abc");
+        planOptions.put(FORMAT.key(), TestFormatFactory.IDENTIFIER);
+        planOptions.put(formatPrefix + DELIMITER.key(), "|");
+
+        Map<String, String> catalogOptions = new HashMap<>();
+        catalogOptions.put(CONNECTOR.key(), TestDynamicTableFactory.IDENTIFIER);
+        catalogOptions.put(TARGET.key(), "abc");
+        catalogOptions.put(PASSWORD.key(), "xyz");
+        catalogOptions.put(FORMAT.key(), TestFormatFactory.IDENTIFIER);
+        catalogOptions.put(formatPrefix + DELIMITER.key(), ",");
+
+        ResolvedCatalogTable planResolvedCatalogTable = tableWithOnlyPhysicalColumns(planOptions);
+        ResolvedCatalogTable catalogResolvedCatalogTable =
+                tableWithOnlyPhysicalColumns(catalogOptions);
+
+        // Create planner mocks
+        PlannerMocks plannerMocks =
+                PlannerMocks.create(
+                        new Configuration()
+                                .set(PLAN_RESTORE_CATALOG_OBJECTS, CatalogPlanRestore.ALL)
+                                .set(PLAN_COMPILE_CATALOG_OBJECTS, CatalogPlanCompilation.ALL));
+
+        CatalogManager catalogManager = plannerMocks.getCatalogManager();
+        catalogManager.createTable(catalogResolvedCatalogTable, identifier, false);
+
+        // Mock the context
+        SerdeContext serdeCtx =
+                configuredSerdeContext(catalogManager, plannerMocks.getTableConfig());
+
+        DynamicTableSourceSpec planSpec =
+                new DynamicTableSourceSpec(
+                        ContextResolvedTable.permanent(
+                                identifier,
+                                catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get(),
+                                planResolvedCatalogTable),
+                        Collections.emptyList());
+
+        String actualJson = toJson(serdeCtx, planSpec);
+        DynamicTableSourceSpec actual =
+                toObject(serdeCtx, actualJson, DynamicTableSourceSpec.class);
+
+        assertThat(actual.getContextResolvedTable()).isEqualTo(planSpec.getContextResolvedTable());
+        assertThat(actual.getSourceAbilities()).isNull();
+
+        TestDynamicTableFactory.DynamicTableSourceMock dynamicTableSource =
+                (TestDynamicTableFactory.DynamicTableSourceMock)
+                        actual.getScanTableSource(
+                                plannerMocks.getPlannerContext().getFlinkContext(),
+                                serdeCtx.getTypeFactory());
+
+        assertThat(dynamicTableSource.password).isEqualTo("xyz");
+        assertThat(
+                        ((TestFormatFactory.DecodingFormatMock) dynamicTableSource.valueFormat)
+                                .delimiter)
+                .isEqualTo(",");
+    }
+
+    static ResolvedCatalogTable tableWithOnlyPhysicalColumns(Map<String, String> options) {
+        ResolvedSchema resolvedSchema =
+                new ResolvedSchema(
+                        Arrays.asList(
+                                Column.physical("a", DataTypes.STRING()),
+                                Column.physical("b", DataTypes.INT()),
+                                Column.physical("c", DataTypes.BOOLEAN())),
+                        Collections.emptyList(),
+                        null);
+
+        return new ResolvedCatalogTable(
+                CatalogTable.of(
+                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                        null,
+                        Collections.emptyList(),
+                        options),
+                resolvedSchema);
     }
 }

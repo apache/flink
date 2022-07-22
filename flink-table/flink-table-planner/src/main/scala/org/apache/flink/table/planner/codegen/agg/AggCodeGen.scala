@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.codegen.agg
 import org.apache.flink.table.planner.codegen.{ExprCodeGenerator, GeneratedExpression}
 
 /**
-  * The base trait for code generating aggregate operations, such as accumulate and retract.
-  * The implementation including declarative and imperative.
-  */
+ * The base trait for code generating aggregate operations, such as accumulate and retract. The
+ * implementation including declarative and imperative.
+ */
 trait AggCodeGen {
 
   def createAccumulator(generator: ExprCodeGenerator): Seq[GeneratedExpression]
@@ -42,9 +42,9 @@ trait AggCodeGen {
   def getValue(generator: ExprCodeGenerator): GeneratedExpression
 
   def checkNeededMethods(
-    needAccumulate: Boolean = false,
-    needRetract: Boolean = false,
-    needMerge: Boolean = false,
-    needReset: Boolean = false,
-    needEmitValue: Boolean = false): Unit
+      needAccumulate: Boolean = false,
+      needRetract: Boolean = false,
+      needMerge: Boolean = false,
+      needReset: Boolean = false,
+      needEmitValue: Boolean = false): Unit
 }

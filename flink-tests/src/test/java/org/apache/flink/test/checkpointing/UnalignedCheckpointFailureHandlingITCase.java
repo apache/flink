@@ -35,6 +35,7 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.MockSnapshotSupplier;
 import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -62,7 +63,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.Collections.singletonList;
 import static org.apache.flink.api.common.JobStatus.RUNNING;
-import static org.apache.flink.api.common.time.Deadline.fromNow;
 import static org.apache.flink.core.fs.Path.fromLocalFile;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForJobStatus;
@@ -104,7 +104,7 @@ public class UnalignedCheckpointFailureHandlingITCase {
         JobID jobID = jobClient.getJobID();
         MiniCluster miniCluster = miniClusterResource.getMiniCluster();
 
-        waitForJobStatus(jobClient, singletonList(RUNNING), fromNow(Duration.ofSeconds(30)));
+        waitForJobStatus(jobClient, singletonList(RUNNING));
         waitForAllTaskRunning(miniCluster, jobID, false);
 
         triggerFailingCheckpoint(jobID, TestException.class, miniCluster);
@@ -120,7 +120,7 @@ public class UnalignedCheckpointFailureHandlingITCase {
 
         // use non-snapshotting backend to test channel state persistence integration with
         // checkpoint storage
-        env.setStateBackend(new MockStateBackend(true));
+        env.setStateBackend(new MockStateBackend(MockSnapshotSupplier.EMPTY));
 
         env.getCheckpointConfig().enableUnalignedCheckpoints();
 

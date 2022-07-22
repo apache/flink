@@ -1,6 +1,6 @@
 ---
 title: Parquet
-weight: 8
+weight: 9
 type: docs
 aliases:
   - /dev/table/connectors/formats/parquet.html

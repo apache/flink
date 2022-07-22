@@ -33,10 +33,9 @@ This page covers how to build Flink {{< version >}} from sources.
 
 In order to build Flink you need the source code. Either [download the source of a release]({{< downloads >}}) or [clone the git repository]({{< github_repo >}}).
 
-In addition you need **Maven 3** and a **JDK** (Java Development Kit). Flink requires **at least Java 8** to build.
+In addition you need **Maven 3** and a **JDK** (Java Development Kit). Flink requires **at least Java 11** to build.
 
-*NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.2.5 creates the libraries properly.
-To build unit tests use Java 8u51 or above to prevent failures in unit tests that use the PowerMock runner.*
+*NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.2.5 creates the libraries properly.*
 
 To clone from git, enter:
 
@@ -75,11 +74,11 @@ The `fast` and `skip-webui-build` profiles have a significant impact on the buil
 
     If you want to build a PyFlink package that can be used for pip installation, you need to build the Flink project first, as described in [Build Flink](#build-flink).
 
-2. Python version(3.6, 3.7 or 3.8) is required
+2. Python version(3.6, 3.7, 3.8 or 3.9) is required
 
     ```shell
     $ python --version
-    # the version printed here must be 3.6, 3.7 or 3.8
+    # the version printed here must be 3.6, 3.7, 3.8 or 3.9
     ```
 
 3. Build PyFlink with Cython extension support (optional)

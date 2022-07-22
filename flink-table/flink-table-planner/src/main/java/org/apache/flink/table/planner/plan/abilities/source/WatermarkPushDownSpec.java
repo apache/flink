@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.abilities.source;
 
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
@@ -39,6 +38,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 import org.apache.calcite.rex.RexNode;
 
 import java.time.Duration;
+import java.util.Objects;
 
 import scala.Option;
 
@@ -49,7 +49,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * to/from JSON, but also can push the watermark into a {@link SupportsWatermarkPushDown}.
  */
 @JsonTypeName("WatermarkPushDown")
-public class WatermarkPushDownSpec extends SourceAbilitySpecBase {
+public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_WATERMARK_EXPR = "watermarkExpr";
     public static final String FIELD_NAME_IDLE_TIMEOUT_MILLIS = "idleTimeoutMillis";
 
@@ -75,14 +75,13 @@ public class WatermarkPushDownSpec extends SourceAbilitySpecBase {
             GeneratedWatermarkGenerator generatedWatermarkGenerator =
                     WatermarkGeneratorCodeGenerator.generateWatermarkGenerator(
                             context.getTableConfig(),
+                            context.getClassLoader(),
                             context.getSourceRowType(),
                             watermarkExpr,
                             Option.apply("context"));
-            Configuration configuration = context.getTableConfig().getConfiguration();
 
             WatermarkGeneratorSupplier<RowData> supplier =
-                    new GeneratedWatermarkGeneratorSupplier(
-                            configuration, generatedWatermarkGenerator);
+                    new GeneratedWatermarkGeneratorSupplier(generatedWatermarkGenerator);
 
             WatermarkStrategy<RowData> watermarkStrategy = WatermarkStrategy.forGenerator(supplier);
             if (idleTimeoutMillis > 0) {
@@ -110,5 +109,26 @@ public class WatermarkPushDownSpec extends SourceAbilitySpecBase {
                     "watermark=[%s], idletimeout=[%d]", expressionStr, idleTimeoutMillis);
         }
         return String.format("watermark=[%s]", expressionStr);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        WatermarkPushDownSpec that = (WatermarkPushDownSpec) o;
+        return idleTimeoutMillis == that.idleTimeoutMillis
+                && Objects.equals(watermarkExpr, that.watermarkExpr);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), watermarkExpr, idleTimeoutMillis);
     }
 }

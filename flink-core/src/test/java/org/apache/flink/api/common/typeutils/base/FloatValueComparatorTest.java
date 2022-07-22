@@ -25,7 +25,7 @@ import org.apache.flink.types.FloatValue;
 
 import java.util.Random;
 
-public class FloatValueComparatorTest extends ComparatorTestBase<FloatValue> {
+class FloatValueComparatorTest extends ComparatorTestBase<FloatValue> {
 
     @Override
     protected TypeComparator<FloatValue> createComparator(boolean ascending) {

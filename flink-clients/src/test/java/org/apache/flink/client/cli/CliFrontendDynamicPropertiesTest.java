@@ -21,8 +21,8 @@ package org.apache.flink.client.cli;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders.ParentFirstClassLoader;
 import org.apache.flink.util.ChildFirstClassLoader;
+import org.apache.flink.util.FlinkUserCodeClassLoaders.ParentFirstClassLoader;
 
 import org.apache.commons.cli.Options;
 import org.junit.AfterClass;

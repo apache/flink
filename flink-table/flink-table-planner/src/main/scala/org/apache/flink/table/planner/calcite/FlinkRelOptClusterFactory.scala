@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.calcite
 
+import org.apache.flink.table.planner.hint.FlinkHintStrategies
 import org.apache.flink.table.planner.plan.metadata.{FlinkDefaultRelMetadataProvider, FlinkRelMetadataQuery}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner}
@@ -27,9 +27,9 @@ import org.apache.calcite.rex.RexBuilder
 import java.util.function.Supplier
 
 /**
-  * The utility class is to create special [[RelOptCluster]] instance which use
-  * [[FlinkDefaultRelMetadataProvider]] instead of [[DefaultRelMetadataProvider]].
-  */
+ * The utility class is to create special [[RelOptCluster]] instance which use
+ * [[FlinkDefaultRelMetadataProvider]] instead of [[DefaultRelMetadataProvider]].
+ */
 object FlinkRelOptClusterFactory {
 
   def create(planner: RelOptPlanner, rexBuilder: RexBuilder): RelOptCluster = {
@@ -38,6 +38,7 @@ object FlinkRelOptClusterFactory {
     cluster.setMetadataQuerySupplier(new Supplier[RelMetadataQuery]() {
       def get: FlinkRelMetadataQuery = FlinkRelMetadataQuery.instance()
     })
+    cluster.setHintStrategies(FlinkHintStrategies.createHintStrategyTable())
     cluster
   }
 

@@ -24,7 +24,8 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 
 import java.io.IOException;
 
-class IntegerSerializer implements SimpleVersionedSerializer<Integer> {
+/** Simple serializer for int values. */
+public class IntegerSerializer implements SimpleVersionedSerializer<Integer> {
     @Override
     public int getVersion() {
         return 0;

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler.job.savepoints;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.dispatcher.UnknownOperationKeyException;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.RestMatchers;
@@ -136,7 +137,8 @@ public class SavepointHandlersTest extends TestLogger {
                 new TestingRestfulGateway.Builder()
                         .setTriggerSavepointFunction(
                                 (AsynchronousJobOperationKey operationKey,
-                                        String targetDirectory) -> {
+                                        String targetDirectory,
+                                        SavepointFormatType formatType) -> {
                                     targetDirectoryFuture.complete(targetDirectory);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
@@ -159,7 +161,9 @@ public class SavepointHandlersTest extends TestLogger {
         TestingRestfulGateway testingRestfulGateway =
                 new TestingRestfulGateway.Builder()
                         .setTriggerSavepointFunction(
-                                (AsynchronousJobOperationKey operationKey, String directory) ->
+                                (AsynchronousJobOperationKey operationKey,
+                                        String directory,
+                                        SavepointFormatType formatType) ->
                                         CompletableFuture.completedFuture(Acknowledge.get()))
                         .build();
 
@@ -233,6 +237,7 @@ public class SavepointHandlersTest extends TestLogger {
                         .handleRequest(
                                 triggerSavepointRequest(
                                         DEFAULT_REQUESTED_SAVEPOINT_TARGET_DIRECTORY,
+                                        SavepointFormatType.CANONICAL,
                                         providedTriggerId),
                                 testingRestfulGateway)
                         .get()
@@ -274,19 +279,21 @@ public class SavepointHandlersTest extends TestLogger {
 
     private static HandlerRequest<SavepointTriggerRequestBody> triggerSavepointRequest()
             throws HandlerRequestException {
-        return triggerSavepointRequest(DEFAULT_REQUESTED_SAVEPOINT_TARGET_DIRECTORY, null);
+        return triggerSavepointRequest(DEFAULT_REQUESTED_SAVEPOINT_TARGET_DIRECTORY, null, null);
     }
 
     private static HandlerRequest<SavepointTriggerRequestBody>
             triggerSavepointRequestWithDefaultDirectory() throws HandlerRequestException {
-        return triggerSavepointRequest(null, null);
+        return triggerSavepointRequest(null, null, null);
     }
 
     private static HandlerRequest<SavepointTriggerRequestBody> triggerSavepointRequest(
-            @Nullable final String targetDirectory, @Nullable TriggerId triggerId)
+            @Nullable final String targetDirectory,
+            @Nullable SavepointFormatType formatType,
+            @Nullable TriggerId triggerId)
             throws HandlerRequestException {
         return HandlerRequest.resolveParametersAndCreate(
-                new SavepointTriggerRequestBody(targetDirectory, false, triggerId),
+                new SavepointTriggerRequestBody(targetDirectory, false, formatType, triggerId),
                 new SavepointTriggerMessageParameters(),
                 Collections.singletonMap(JobIDPathParameter.KEY, JOB_ID.toString()),
                 Collections.emptyMap(),

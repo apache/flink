@@ -39,6 +39,9 @@ public class NFAState {
     /** Flag indicating whether the matching status of the state machine has changed. */
     private boolean stateChanged;
 
+    /** Flag indicating whether the current matching status is new partial matched. */
+    private boolean isNewStartPartialMatch;
+
     public static final Comparator<ComputationState> COMPUTATION_STATE_COMPARATOR =
             Comparator.<ComputationState>comparingLong(
                             c ->
@@ -95,6 +98,18 @@ public class NFAState {
 
     public void setNewPartialMatches(PriorityQueue<ComputationState> newPartialMatches) {
         this.partialMatches = newPartialMatches;
+    }
+
+    public boolean isNewStartPartialMatch() {
+        return isNewStartPartialMatch;
+    }
+
+    public void resetNewStartPartialMatch() {
+        this.isNewStartPartialMatch = false;
+    }
+
+    public void setNewStartPartiailMatch() {
+        this.isNewStartPartialMatch = true;
     }
 
     @Override

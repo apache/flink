@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
@@ -29,7 +30,7 @@ import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-import org.apache.flink.streaming.runtime.tasks.ExceptionallyDoneFuture;
+import org.apache.flink.runtime.testutils.ExceptionallyDoneFuture;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -63,7 +64,8 @@ public class OperatorSnapshotFuturesTest extends TestLogger {
                         ExceptionallyDoneFuture.of(new RuntimeException()),
                         ExceptionallyDoneFuture.of(new RuntimeException()),
                         ExceptionallyDoneFuture.of(new RuntimeException()));
-        assertEquals(s1.getStateSize() + s2.getStateSize(), futures.cancel());
+        long stateSize = s1.getStateSize() + s2.getStateSize();
+        assertEquals(Tuple2.of(stateSize, stateSize), futures.cancel());
     }
 
     /**

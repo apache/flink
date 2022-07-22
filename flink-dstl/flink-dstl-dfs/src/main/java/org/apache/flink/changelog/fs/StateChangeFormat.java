@@ -91,7 +91,7 @@ public class StateChangeFormat
             throws IOException {
         FSDataInputStream stream = handle.openInputStream();
         DataInputViewStreamWrapper input = wrap(stream);
-        if (stream.getPos() != offset) {
+        if (offset != 0) {
             LOG.debug("seek from {} to {}", stream.getPos(), offset);
             input.skipBytesToRead((int) offset);
         }

@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
+
+import java.util.Set;
 
 /**
  * This registry manages state that is shared across (incremental) checkpoints, and is responsible
@@ -32,11 +35,11 @@ public interface SharedStateRegistry extends AutoCloseable {
 
     /** A singleton object for the default implementation of a {@link SharedStateRegistryFactory} */
     SharedStateRegistryFactory DEFAULT_FACTORY =
-            (deleteExecutor, checkpoints) -> {
+            (deleteExecutor, checkpoints, restoreMode) -> {
                 SharedStateRegistry sharedStateRegistry =
                         new SharedStateRegistryImpl(deleteExecutor);
                 for (CompletedCheckpoint checkpoint : checkpoints) {
-                    checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
+                    checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry, restoreMode);
                 }
                 return sharedStateRegistry;
             };
@@ -56,20 +59,37 @@ public interface SharedStateRegistry extends AutoCloseable {
      */
     StreamStateHandle registerReference(
             SharedStateRegistryKey registrationKey, StreamStateHandle state, long checkpointID);
+
     /**
      * Unregister state that is not referenced by the given checkpoint ID or any newer.
      *
-     * @param lowestCheckpointID which is still valid
+     * @param lowestCheckpointID which is still valid.
+     * @return a set of checkpointID which is still in use.
      */
-    void unregisterUnusedState(long lowestCheckpointID);
+    Set<Long> unregisterUnusedState(long lowestCheckpointID);
 
     /**
      * Register given shared states in the registry.
+     *
+     * <p>NOTE: For state from checkpoints from other jobs or runs (i.e. after recovery), please use
+     * {@link #registerAllAfterRestored(CompletedCheckpoint, RestoreMode)}
      *
      * @param stateHandles The shared states to register.
      * @param checkpointID which uses the states.
      */
     void registerAll(Iterable<? extends CompositeStateHandle> stateHandles, long checkpointID);
+
+    /**
+     * Set the lowest checkpoint ID below which no state is discarded, inclusive.
+     *
+     * <p>After recovery from an incremental checkpoint, its state should NOT be discarded, even if
+     * {@link #unregisterUnusedState(long) not used} anymore (unless recovering in {@link
+     * RestoreMode#CLAIM CLAIM} mode).
+     *
+     * <p>This should hold for both cases: when recovering from that initial checkpoint; and from
+     * any subsequent checkpoint derived from it.
+     */
+    void registerAllAfterRestored(CompletedCheckpoint checkpoint, RestoreMode mode);
 
     void checkpointCompleted(long checkpointId);
 }

@@ -25,6 +25,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema.Initializ
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.connector.pulsar.common.schema.PulsarSchema;
+import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.util.Collector;
 
 import org.apache.pulsar.client.api.Message;
@@ -50,7 +51,15 @@ public interface PulsarDeserializationSchema<T> extends Serializable, ResultType
      * as e.g. registering user metrics.
      *
      * @param context Contextual information that can be used during initialization.
+     * @param configuration The Pulsar related source configuration.
      */
+    default void open(InitializationContext context, SourceConfiguration configuration)
+            throws Exception {
+        open(context);
+    }
+
+    /** @deprecated Use {{@link #open(InitializationContext, SourceConfiguration)}} instead. */
+    @Deprecated
     default void open(InitializationContext context) throws Exception {
         // Nothing to do here for the default implementation.
     }

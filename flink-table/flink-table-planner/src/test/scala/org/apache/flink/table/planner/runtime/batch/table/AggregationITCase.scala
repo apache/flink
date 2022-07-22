@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
@@ -58,7 +57,8 @@ class AggregationITCase extends BatchTestBase {
   @Test
   def testAggregationTypes(): Unit = {
 
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, null)
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv, null)
       .select('_1.sum, '_1.sum0, '_1.min, '_1.max, '_1.count, '_1.avg)
 
     val results = executeQuery(t)
@@ -69,9 +69,11 @@ class AggregationITCase extends BatchTestBase {
   @Test
   def testWorkingAggregationDataTypes(): Unit = {
 
-    val t = BatchTableEnvUtil.fromElements(tEnv,
-      (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
-      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao"))
+    val t = BatchTableEnvUtil
+      .fromElements(
+        tEnv,
+        (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
+        (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao"))
       .select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count)
 
     val expected = "1,1,1,1,1.5,1.5,2"
@@ -81,9 +83,8 @@ class AggregationITCase extends BatchTestBase {
 
   @Test
   def testProjection(): Unit = {
-    val t = BatchTableEnvUtil.fromElements(tEnv,
-      (1: Byte, 1: Short),
-      (2: Byte, 2: Short))
+    val t = BatchTableEnvUtil
+      .fromElements(tEnv, (1: Byte, 1: Short), (2: Byte, 2: Short))
       .select('_1.avg, '_1.sum, '_1.count, '_2.avg, '_2.sum)
 
     val expected = "1,3,2,1,3"
@@ -93,7 +94,8 @@ class AggregationITCase extends BatchTestBase {
 
   @Test
   def testAggregationWithArithmetic(): Unit = {
-    val t = BatchTableEnvUtil.fromElements(tEnv, (1f, "Hello"), (2f, "Ciao"))
+    val t = BatchTableEnvUtil
+      .fromElements(tEnv, (1f, "Hello"), (2f, "Ciao"))
       .select(('_1 + 2).avg + 2, '_2.count + 5)
 
     val expected = "5.5,7"
@@ -103,7 +105,8 @@ class AggregationITCase extends BatchTestBase {
 
   @Test
   def testAggregationWithTwoCount(): Unit = {
-    val t = BatchTableEnvUtil.fromElements(tEnv, (1f, "Hello"), (2f, "Ciao"))
+    val t = BatchTableEnvUtil
+      .fromElements(tEnv, (1f, "Hello"), (2f, "Ciao"))
       .select('_1.count, '_2.count)
 
     val expected = "2,2"
@@ -113,9 +116,11 @@ class AggregationITCase extends BatchTestBase {
 
   @Test
   def testAggregationAfterProjection(): Unit = {
-    val t = BatchTableEnvUtil.fromElements(tEnv,
-      (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
-      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao"))
+    val t = BatchTableEnvUtil
+      .fromElements(
+        tEnv,
+        (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
+        (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao"))
       .select('_1, '_2, '_3)
       .select('_1.avg, '_2.sum, '_3.count)
 
@@ -126,34 +131,36 @@ class AggregationITCase extends BatchTestBase {
 
   @Test
   def testSQLStyleAggregations(): Unit = {
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b ,c")
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv, "a, b ,c")
       .select(
-        """Sum( a) as a1, a.sum as a2,
-          |Min (a) as b1, a.min as b2,
-          |Max (a ) as c1, a.max as c2,
-          |Avg ( a ) as d1, a.avg as d2,
-          |Count(a) as e1, a.count as e2
-        """.stripMargin)
+        $"a".sum().as("a1"),
+        $"a".min().as("b1"),
+        $"a".max().as("c1"),
+        $"a".avg().as("d1"),
+        $"a".count().as("e1"))
 
-    val expected = "231,231,1,1,21,21,11,11,21,21"
+    val expected = "231,1,21,11,21"
     val results = executeQuery(t)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testPojoAggregation(): Unit = {
-    val input = BatchTableEnvUtil.fromElements(tEnv,
+    val input = BatchTableEnvUtil.fromElements(
+      tEnv,
       WC("hello", 1),
       WC("hello", 1),
       WC("ciao", 1),
       WC("hola", 1),
       WC("hola", 1))
     val expr = input
-    val result = executeQuery(expr
-      .groupBy('word)
-      .select('word, 'frequency.sum as 'frequency)
-      .filter('frequency === 2)
-      .select('word, 'frequency * 10))
+    val result = executeQuery(
+      expr
+        .groupBy('word)
+        .select('word, 'frequency.sum.as('frequency))
+        .filter('frequency === 2)
+        .select('word, 'frequency * 10))
 
     val mappedResult = result.map((row) => (row.getField(0), row.getField(1)))
     val expected = "(hello,20)\n" + "(hola,20)"
@@ -186,7 +193,8 @@ class AggregationITCase extends BatchTestBase {
     val wAvgFun = new WeightedAvgWithMergeAndReset
     val countDistinct = new CountDistinctWithMergeAndReset
 
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv, "a, b, c")
       .groupBy('b)
       .select(
         'b,
@@ -204,7 +212,8 @@ class AggregationITCase extends BatchTestBase {
 
   @Test
   def testGroupingKeyForwardIfNotUsed(): Unit = {
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv, "a, b, c")
       .groupBy('b)
       .select('a.sum)
 
@@ -215,9 +224,10 @@ class AggregationITCase extends BatchTestBase {
 
   @Test
   def testGroupNoAggregation(): Unit = {
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv, "a, b, c")
       .groupBy('b)
-      .select('a.sum as 'd, 'b)
+      .select('a.sum.as('d), 'b)
       .groupBy('b, 'd)
       .select('b)
 
@@ -226,44 +236,53 @@ class AggregationITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-
   @Test
   def testAggregateEmptyDataSets(): Unit = {
     val myAgg = new NonMergableCount
 
-    val t1 = BatchTableEnvUtil.fromCollection(
-      tEnv, new mutable.MutableList[(Int, String)], "a, b")
+    val t1 = BatchTableEnvUtil
+      .fromCollection(tEnv, new mutable.MutableList[(Int, String)], "a, b")
       .select('a.sum, 'a.count)
-    val t2 = BatchTableEnvUtil.fromCollection(
-      tEnv, new mutable.MutableList[(Int, String)], "a, b")
+    val t2 = BatchTableEnvUtil
+      .fromCollection(tEnv, new mutable.MutableList[(Int, String)], "a, b")
       .select('a.sum, myAgg('b), 'a.count)
+    // test agg with empty parameter
+    val t3 = BatchTableEnvUtil
+      .fromCollection(tEnv, new mutable.MutableList[(Int, String)], "a, b")
+      .select('a.sum, myAgg(), 'a.count)
 
     val expected1 = "null,0"
     val expected2 = "null,0,0"
+    val expected3 = "null,0,0"
 
     val results1 = executeQuery(t1)
     val results2 = executeQuery(t2)
+    val results3 = executeQuery(t3)
 
     TestBaseUtils.compareResultAsText(results1.asJava, expected1)
     TestBaseUtils.compareResultAsText(results2.asJava, expected2)
+    TestBaseUtils.compareResultAsText(results3.asJava, expected3)
 
   }
 
   @Test
   def testGroupedAggregateWithLongKeys(): Unit = {
-    val ds = BatchTableEnvUtil.fromCollection(tEnv,
-      Seq(
-        ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaa", 1, 2),
-        ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaa", 1, 2),
-        ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaa", 1, 2),
-        ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaa", 1, 2),
-        ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaa", 1, 2),
-        ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhab", 1, 2),
-        ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhab", 1, 2),
-        ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhab", 1, 2),
-        ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhab", 1, 2)),
-      "a,b,c"
-    )
+    val ds = BatchTableEnvUtil
+      .fromCollection(
+        tEnv,
+        Seq(
+          ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaa", 1, 2),
+          ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaa", 1, 2),
+          ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaa", 1, 2),
+          ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaa", 1, 2),
+          ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaa", 1, 2),
+          ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhab", 1, 2),
+          ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhab", 1, 2),
+          ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhab", 1, 2),
+          ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhab", 1, 2)
+        ),
+        "a,b,c"
+      )
       .groupBy('a, 'b)
       .select('c.sum)
 
@@ -274,8 +293,9 @@ class AggregationITCase extends BatchTestBase {
 
   @Test
   def testGroupedAggregateWithConstant1(): Unit = {
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
-      .select('a, 4 as 'four, 'b)
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv, "a, b, c")
+      .select('a, 4.as('four), 'b)
       .groupBy('four, 'a)
       .select('four, 'b.sum)
 
@@ -289,8 +309,9 @@ class AggregationITCase extends BatchTestBase {
 
   @Test
   def testGroupedAggregateWithConstant2(): Unit = {
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
-      .select('b, 4 as 'four, 'a)
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv, "a, b, c")
+      .select('b, 4.as('four), 'a)
       .groupBy('b, 'four)
       .select('four, 'a.sum)
 
@@ -301,21 +322,28 @@ class AggregationITCase extends BatchTestBase {
 
   @Test
   def testGroupedAggregateWithExpression(): Unit = {
-    val t = CollectionBatchExecTable.get5TupleDataSet(tEnv, "a, b, c, d, e")
+    val t = CollectionBatchExecTable
+      .get5TupleDataSet(tEnv, "a, b, c, d, e")
       .groupBy('e, 'b % 3)
       .select('c.min, 'e, 'a.avg, 'd.count)
 
     val expected = Seq(
-      s"0,1,${1 / 1},1", s"7,1,${9 / 2},2", s"2,1,${6 / 2},2",
-      s"3,2,${11 / 3},3", s"1,2,${10 / 3},3", s"14,2,${5 / 1},1",
-      s"12,3,${5 / 1},1", s"5,3,${8 / 2},2").mkString("\n")
+      s"0,1,${1 / 1},1",
+      s"7,1,${9 / 2},2",
+      s"2,1,${6 / 2},2",
+      s"3,2,${11 / 3},3",
+      s"1,2,${10 / 3},3",
+      s"14,2,${5 / 1},1",
+      s"12,3,${5 / 1},1",
+      s"5,3,${8 / 2},2").mkString("\n")
     val results = executeQuery(t)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testGroupedAggregateWithFilter(): Unit = {
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv, "a, b, c")
       .groupBy('b)
       .select('b, 'a.sum)
       .where('b === 2)
@@ -327,18 +355,40 @@ class AggregationITCase extends BatchTestBase {
 
   @Test
   def testAnalyticAggregation(): Unit = {
-    val ds = BatchTableEnvUtil.fromElements(tEnv,
+    val ds = BatchTableEnvUtil.fromElements(
+      tEnv,
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, BigDecimal.ONE),
       (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, new BigDecimal(2)))
     val res = ds.select(
-      '_1.stddevPop, '_2.stddevPop, '_3.stddevPop, '_4.stddevPop, '_5.stddevPop,
-      '_6.stddevPop, '_7.stddevPop,
-      '_1.stddevSamp, '_2.stddevSamp, '_3.stddevSamp, '_4.stddevSamp, '_5.stddevSamp,
-      '_6.stddevSamp, '_7.stddevSamp,
-      '_1.varPop, '_2.varPop, '_3.varPop, '_4.varPop, '_5.varPop,
-      '_6.varPop, '_7.varPop,
-      '_1.varSamp, '_2.varSamp, '_3.varSamp, '_4.varSamp, '_5.varSamp,
-      '_6.varSamp, '_7.varSamp)
+      '_1.stddevPop,
+      '_2.stddevPop,
+      '_3.stddevPop,
+      '_4.stddevPop,
+      '_5.stddevPop,
+      '_6.stddevPop,
+      '_7.stddevPop,
+      '_1.stddevSamp,
+      '_2.stddevSamp,
+      '_3.stddevSamp,
+      '_4.stddevSamp,
+      '_5.stddevSamp,
+      '_6.stddevSamp,
+      '_7.stddevSamp,
+      '_1.varPop,
+      '_2.varPop,
+      '_3.varPop,
+      '_4.varPop,
+      '_5.varPop,
+      '_6.varPop,
+      '_7.varPop,
+      '_1.varSamp,
+      '_2.varSamp,
+      '_3.varSamp,
+      '_4.varSamp,
+      '_5.varSamp,
+      '_6.varSamp,
+      '_7.varSamp
+    )
     val expected =
       "0,0,0," +
         "0,0.5,0.5,0.500000000000000000," +
@@ -356,7 +406,8 @@ class AggregationITCase extends BatchTestBase {
   def testComplexAggregate(): Unit = {
     val top10Fun = new Top10
 
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv, "a, b, c")
       .groupBy('b)
       .select('b, top10Fun('b.cast(DataTypes.INT()).ifNull(0), 'a.cast(DataTypes.FLOAT).ifNull(0f)))
 
@@ -373,7 +424,8 @@ class AggregationITCase extends BatchTestBase {
 
   @Test
   def testCollect(): Unit = {
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv, "a, b, c")
       .groupBy('b)
       .select('b, 'a.collect)
 
@@ -392,11 +444,11 @@ class AggregationITCase extends BatchTestBase {
 case class WC(word: String, frequency: Long)
 
 /**
-  * User-defined aggregation function to compute the TOP 10 most visited pages.
-  * We use and Array[Tuple2[Int, Float]] as accumulator to store the 10 most visited pages.
-  *
-  * The result is emitted as Array as well.
-  */
+ * User-defined aggregation function to compute the TOP 10 most visited pages. We use and
+ * Array[Tuple2[Int, Float]] as accumulator to store the 10 most visited pages.
+ *
+ * The result is emitted as Array as well.
+ */
 class Top10 extends AggregateFunction[Array[JTuple2[JInt, JFloat]], Array[JTuple2[JInt, JFloat]]] {
 
   @Override
@@ -405,12 +457,15 @@ class Top10 extends AggregateFunction[Array[JTuple2[JInt, JFloat]], Array[JTuple
   }
 
   /**
-    * Adds a new pages and count to the Top10 pages if necessary.
-    *
-    * @param acc The current top 10
-    * @param adId The id of the ad
-    * @param revenue The revenue for the ad
-    */
+   * Adds a new pages and count to the Top10 pages if necessary.
+   *
+   * @param acc
+   *   The current top 10
+   * @param adId
+   *   The id of the ad
+   * @param revenue
+   *   The revenue for the ad
+   */
   def accumulate(acc: Array[JTuple2[JInt, JFloat]], adId: Int, revenue: Float) {
 
     var i = 9
@@ -475,12 +530,10 @@ class Top10 extends AggregateFunction[Array[JTuple2[JInt, JFloat]], Array[JTuple
   }
 
   override def getAccumulatorType = {
-    ObjectArrayTypeInfo.getInfoFor(
-      new TupleTypeInfo[JTuple2[JInt, JFloat]](Types.INT, Types.FLOAT))
+    ObjectArrayTypeInfo.getInfoFor(new TupleTypeInfo[JTuple2[JInt, JFloat]](Types.INT, Types.FLOAT))
   }
 
   override def getResultType = {
-    ObjectArrayTypeInfo.getInfoFor(
-      new TupleTypeInfo[JTuple2[JInt, JFloat]](Types.INT, Types.FLOAT))
+    ObjectArrayTypeInfo.getInfoFor(new TupleTypeInfo[JTuple2[JInt, JFloat]](Types.INT, Types.FLOAT))
   }
 }

@@ -50,6 +50,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserWindowingSp
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
 import org.apache.flink.table.types.DataType;
@@ -74,7 +75,6 @@ import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
-import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalIntersect;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalMinus;
@@ -98,7 +98,6 @@ import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.sql.validate.SqlUserDefinedTableFunction;
 import org.apache.calcite.sql2rel.DeduplicateCorrelateVariables;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.util.CompositeList;
@@ -117,6 +116,7 @@ import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
 import org.apache.hadoop.hive.ql.parse.ColumnAccessInfo;
 import org.apache.hadoop.hive.ql.parse.JoinType;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
+import org.apache.hadoop.hive.ql.parse.SplitSample;
 import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
@@ -209,9 +209,7 @@ public class HiveParserCalcitePlanner {
             throws SemanticException {
         this.catalogManager = catalogManager;
         this.catalogReader = catalogReader;
-        flinkPlanner =
-                plannerContext.createFlinkPlanner(
-                        catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase());
+        flinkPlanner = plannerContext.createFlinkPlanner();
         this.plannerContext = plannerContext;
         this.frameworkConfig = frameworkConfig;
         this.semanticAnalyzer =
@@ -780,25 +778,15 @@ public class HiveParserCalcitePlanner {
         HiveParserRowResolver rowResolver = new HiveParserRowResolver();
 
         try {
-            // 1. If the table has a Sample specified, bail from Calcite path.
-            // 2. if returnpath is on and hivetestmode is on bail
-            if (qb.getParseInfo().needTableSample(tableAlias)
-                    || semanticAnalyzer.getNameToSplitSampleMap().containsKey(tableAlias)
-                    || Boolean.parseBoolean(
-                                    semanticAnalyzer
-                                            .getConf()
-                                            .get("hive.cbo.returnpath.hiveop", "false"))
-                            && semanticAnalyzer
-                                    .getConf()
-                                    .getBoolVar(HiveConf.ConfVars.HIVETESTMODE)) {
-                String msg =
-                        String.format(
-                                "Table Sample specified for %s."
-                                        + " Currently we don't support Table Sample clauses in CBO,"
-                                        + " turn off cbo for queries on tableSamples.",
-                                tableAlias);
-                LOG.debug(msg);
-                throw new SemanticException(msg);
+            // 1. If the table has a split sample, and it isn't TABLESAMPLE (n ROWS), throw
+            // exception
+            // 2. if the table has a bucket sample, throw exception
+            SplitSample splitSample = semanticAnalyzer.getNameToSplitSampleMap().get(tableAlias);
+            if ((splitSample != null
+                            && (splitSample.getPercent() != null
+                                    || splitSample.getTotalLength() != null))
+                    || qb.getParseInfo().needTableSample(tableAlias)) {
+                throw new UnsupportedOperationException("Only TABLESAMPLE (n ROWS) is supported.");
             }
 
             // 2. Get Table Metadata
@@ -866,6 +854,17 @@ public class HiveParserCalcitePlanner {
                                         ViewExpanders.toRelContext(
                                                 flinkPlanner.createToRelContext(), cluster));
 
+                if (splitSample != null) {
+                    tableRel =
+                            LogicalSort.create(
+                                    tableRel,
+                                    cluster.traitSet().canonize(RelCollations.EMPTY),
+                                    null,
+                                    cluster.getRexBuilder()
+                                            .makeExactLiteral(
+                                                    BigDecimal.valueOf(splitSample.getRowCount())));
+                }
+
                 // 6. Add Schema(RR) to RelNode-Schema map
                 Map<String, Integer> hiveToCalciteColMap = buildHiveToCalciteColumnMap(rowResolver);
                 relToRowResolver.put(tableRel, rowResolver);
@@ -912,7 +911,12 @@ public class HiveParserCalcitePlanner {
         RexNode factoredFilterExpr =
                 RexUtil.pullFactors(cluster.getRexBuilder(), convertedFilterExpr)
                         .accept(funcConverter);
-        RelNode filterRel = LogicalFilter.create(srcRel, factoredFilterExpr);
+        RelNode filterRel =
+                HiveParserUtils.genFilterRelNode(
+                        srcRel,
+                        factoredFilterExpr,
+                        HiveParserBaseSemanticAnalyzer.getVariablesSetForFilter(
+                                factoredFilterExpr));
         relToRowResolver.put(filterRel, relToRowResolver.get(srcRel));
         relToHiveColNameCalcitePosMap.put(filterRel, hiveColNameToCalcitePos);
 
@@ -1072,7 +1076,12 @@ public class HiveParserCalcitePlanner {
                             .convert(subQueryExpr)
                             .accept(funcConverter);
 
-            RelNode filterRel = LogicalFilter.create(srcRel, convertedFilterLHS);
+            RelNode filterRel =
+                    HiveParserUtils.genFilterRelNode(
+                            srcRel,
+                            convertedFilterLHS,
+                            HiveParserBaseSemanticAnalyzer.getVariablesSetForFilter(
+                                    convertedFilterLHS));
 
             relToHiveColNameCalcitePosMap.put(filterRel, relToHiveColNameCalcitePosMap.get(srcRel));
             relToRowResolver.put(filterRel, relToRowResolver.get(srcRel));
@@ -2541,9 +2550,9 @@ public class HiveParserCalcitePlanner {
 
         SqlOperator convertedOperator = convertedCall.getOperator();
         Preconditions.checkState(
-                convertedOperator instanceof SqlUserDefinedTableFunction,
+                convertedOperator instanceof BridgingSqlFunction,
                 "Expect operator to be "
-                        + SqlUserDefinedTableFunction.class.getSimpleName()
+                        + BridgingSqlFunction.class.getSimpleName()
                         + ", actually got "
                         + convertedOperator.getClass().getSimpleName());
 
@@ -2570,9 +2579,7 @@ public class HiveParserCalcitePlanner {
         if (correlUse == null) {
             correlRel =
                     plannerContext
-                            .createRelBuilder(
-                                    catalogManager.getCurrentCatalog(),
-                                    catalogManager.getCurrentDatabase())
+                            .createRelBuilder()
                             .push(input)
                             .push(tableFunctionScan)
                             .join(

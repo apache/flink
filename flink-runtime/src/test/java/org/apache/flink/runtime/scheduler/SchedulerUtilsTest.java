@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -75,11 +76,11 @@ public class SchedulerUtilsTest extends TestLogger {
         final CompletedCheckpointStore completedCheckpointStore =
                 SchedulerUtils.createCompletedCheckpointStore(
                         jobManagerConfig,
-                        getClass().getClassLoader(),
                         new StandaloneCheckpointRecoveryFactory(),
                         Executors.directExecutor(),
                         log,
-                        new JobID());
+                        new JobID(),
+                        RestoreMode.CLAIM);
 
         assertEquals(
                 maxNumberOfCheckpointsToRetain,
@@ -102,16 +103,16 @@ public class SchedulerUtilsTest extends TestLogger {
         CompletedCheckpointStore checkpointStore =
                 SchedulerUtils.createCompletedCheckpointStore(
                         new Configuration(),
-                        getClass().getClassLoader(),
                         recoveryFactory,
                         Executors.directExecutor(),
                         log,
-                        new JobID());
+                        new JobID(),
+                        RestoreMode.CLAIM);
 
         SharedStateRegistry sharedStateRegistry = checkpointStore.getSharedStateRegistry();
 
         IncrementalRemoteKeyedStateHandle newHandle =
-                buildIncrementalHandle(key, new PlaceholderStreamStateHandle(), backendId);
+                buildIncrementalHandle(key, new PlaceholderStreamStateHandle(1L), backendId);
         newHandle.registerSharedStates(sharedStateRegistry, 1L);
 
         assertSame(handle, newHandle.getSharedState().get(key));
@@ -123,14 +124,15 @@ public class SchedulerUtilsTest extends TestLogger {
             public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
                     JobID jobId,
                     int maxNumberOfCheckpointsToRetain,
-                    ClassLoader userClassLoader,
                     SharedStateRegistryFactory sharedStateRegistryFactory,
-                    Executor ioExecutor) {
+                    Executor ioExecutor,
+                    RestoreMode restoreMode) {
                 List<CompletedCheckpoint> checkpoints = singletonList(checkpoint);
                 return new EmbeddedCompletedCheckpointStore(
                         maxNumberOfCheckpointsToRetain,
                         checkpoints,
-                        sharedStateRegistryFactory.create(ioExecutor, checkpoints));
+                        sharedStateRegistryFactory.create(
+                                ioExecutor, checkpoints, RestoreMode.DEFAULT));
             }
 
             @Override
@@ -153,7 +155,8 @@ public class SchedulerUtilsTest extends TestLogger {
                 singletonMap(operatorID, operatorState),
                 emptyList(),
                 CheckpointProperties.forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION),
-                new TestCompletedCheckpointStorageLocation());
+                new TestCompletedCheckpointStorageLocation(),
+                null);
     }
 
     private IncrementalRemoteKeyedStateHandle buildIncrementalHandle(

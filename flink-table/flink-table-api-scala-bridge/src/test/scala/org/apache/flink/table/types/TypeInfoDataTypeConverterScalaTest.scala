@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.types
 
 import org.apache.flink.api.scala.createTypeInformation
@@ -24,30 +23,26 @@ import org.apache.flink.table.types.TypeInfoDataTypeConverterTest.TestSpec
 import org.apache.flink.table.types.utils.DataTypeFactoryMock.dummyRaw
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter
 
-import org.hamcrest.CoreMatchers.equalTo
-import org.junit.Assert.assertThat
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
-import org.junit.runners.Parameterized.Parameters
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 
-/**
- * Scala tests for [[TypeInfoDataTypeConverter]].
- */
-@RunWith(classOf[Parameterized])
-class TypeInfoDataTypeConverterScalaTest(testSpec: TypeInfoDataTypeConverterTest.TestSpec) {
+import java.util.stream
 
-  @Test
-  def testScalaConversion(): Unit = {
+/** Scala tests for [[TypeInfoDataTypeConverter]]. */
+class TypeInfoDataTypeConverterScalaTest {
+
+  @ParameterizedTest
+  @MethodSource(Array("testData"))
+  def testScalaConversion(testSpec: TestSpec): Unit = {
     val dataType = TypeInfoDataTypeConverter.toDataType(testSpec.typeFactory, testSpec.typeInfo)
-    assertThat(dataType, equalTo(testSpec.expectedDataType))
+    assertThat(dataType).isEqualTo(testSpec.expectedDataType)
   }
+
 }
 
 object TypeInfoDataTypeConverterScalaTest {
-
-  @Parameters
-  def testData: Array[TestSpec] = Array(
+  def testData(): stream.Stream[TestSpec] = java.util.stream.Stream.of(
     TestSpec
       .forType(createTypeInformation[ScalaCaseClass])
       .expectDataType(
@@ -58,7 +53,8 @@ object TypeInfoDataTypeConverterScalaTest {
               "primitiveIntField",
               DataTypes.INT().notNull().bridgedTo(java.lang.Integer.TYPE)),
             DataTypes.FIELD("doubleField", DataTypes.DOUBLE().notNull()),
-            DataTypes.FIELD("stringField", DataTypes.STRING().nullable()))
+            DataTypes.FIELD("stringField", DataTypes.STRING().nullable())
+          )
           .notNull()),
     TestSpec
       .forType(createTypeInformation[(java.lang.Double, java.lang.Float)])
@@ -80,8 +76,8 @@ object TypeInfoDataTypeConverterScalaTest {
   // ----------------------------------------------------------------------------------------------
 
   case class ScalaCaseClass(
-    primitiveIntField: Int,
-    doubleField: java.lang.Double,
-    stringField: String
+      primitiveIntField: Int,
+      doubleField: java.lang.Double,
+      stringField: String
   )
 }

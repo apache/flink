@@ -19,8 +19,8 @@
 package org.apache.flink.metrics.prometheus;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.util.Preconditions;
@@ -29,29 +29,28 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.PushGateway;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.Map;
 
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via Prometheus {@link PushGateway}.
  */
 @PublicEvolving
-@InstantiateViaFactory(
-        factoryClassName =
-                "org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterFactory")
 public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter implements Scheduled {
 
     private final PushGateway pushGateway;
     private final String jobName;
     private final Map<String, String> groupingKey;
     private final boolean deleteOnShutdown;
+    @VisibleForTesting final URL hostUrl;
 
     PrometheusPushGatewayReporter(
-            String host,
-            int port,
+            URL hostUrl,
             String jobName,
             Map<String, String> groupingKey,
             final boolean deleteOnShutdown) {
-        this.pushGateway = new PushGateway(host + ':' + port);
+        this.hostUrl = hostUrl;
+        this.pushGateway = new PushGateway(hostUrl);
         this.jobName = Preconditions.checkNotNull(jobName);
         this.groupingKey = Preconditions.checkNotNull(groupingKey);
         this.deleteOnShutdown = deleteOnShutdown;

@@ -20,12 +20,11 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.util.EvictingBoundedList;
-
-import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** {@code ArchivedExecutionVertex} is a readonly representation of {@link ExecutionVertex}. */
 public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializable {
@@ -34,7 +33,7 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 
     private final int subTaskIndex;
 
-    private final EvictingBoundedList<ArchivedExecution> priorExecutions;
+    private final ExecutionHistory executionHistory;
 
     /** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations. */
     private final String taskNameWithSubtask;
@@ -45,7 +44,7 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 
     public ArchivedExecutionVertex(ExecutionVertex vertex) {
         this.subTaskIndex = vertex.getParallelSubtaskIndex();
-        this.priorExecutions = vertex.getCopyOfPriorExecutionsList();
+        this.executionHistory = getCopyOfExecutionHistory(vertex);
         this.taskNameWithSubtask = vertex.getTaskNameWithSubtaskIndex();
         this.currentExecution = vertex.getCurrentExecutionAttempt().archive();
     }
@@ -54,11 +53,11 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
             int subTaskIndex,
             String taskNameWithSubtask,
             ArchivedExecution currentExecution,
-            EvictingBoundedList<ArchivedExecution> priorExecutions) {
+            ExecutionHistory executionHistory) {
         this.subTaskIndex = subTaskIndex;
-        this.taskNameWithSubtask = taskNameWithSubtask;
-        this.currentExecution = currentExecution;
-        this.priorExecutions = priorExecutions;
+        this.taskNameWithSubtask = checkNotNull(taskNameWithSubtask);
+        this.currentExecution = checkNotNull(currentExecution);
+        this.executionHistory = checkNotNull(executionHistory);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -100,13 +99,12 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
         return currentExecution.getAssignedResourceLocation();
     }
 
-    @Nullable
     @Override
-    public ArchivedExecution getPriorExecutionAttempt(int attemptNumber) {
-        if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
-            return priorExecutions.get(attemptNumber);
-        } else {
-            throw new IllegalArgumentException("attempt does not exist");
-        }
+    public ExecutionHistory getExecutionHistory() {
+        return executionHistory;
+    }
+
+    static ExecutionHistory getCopyOfExecutionHistory(ExecutionVertex executionVertex) {
+        return new ExecutionHistory(executionVertex.getExecutionHistory());
     }
 }

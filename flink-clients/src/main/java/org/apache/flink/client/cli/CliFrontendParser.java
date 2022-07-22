@@ -134,6 +134,7 @@ public class CliFrontendParser {
 
     public static final Option SAVEPOINT_RESTORE_MODE =
             new Option(
+                    "rm",
                     "restoreMode",
                     true,
                     "Defines how should we restore from the given savepoint. Supported options: "
@@ -145,6 +146,16 @@ public class CliFrontendParser {
 
     static final Option SAVEPOINT_DISPOSE_OPTION =
             new Option("d", "dispose", true, "Path of savepoint to dispose.");
+
+    static final Option SAVEPOINT_FORMAT_OPTION =
+            new Option(
+                    "type",
+                    "type",
+                    true,
+                    "Describes the binary format in which a savepoint should be taken. Supported"
+                            + " options: [canonical - a common format for all state backends, allow"
+                            + " for changing state backends, native = a specific format for the"
+                            + " chosen state backend, might be faster to take and restore from.");
 
     // list specific options
     static final Option RUNNING_OPTION =
@@ -254,8 +265,8 @@ public class CliFrontendParser {
                     true,
                     "Specify the path of the python interpreter used to execute the python UDF worker "
                             + "(e.g.: --pyExecutable /usr/local/bin/python3). "
-                            + "The python UDF worker depends on Python 3.6+, Apache Beam (version == 2.27.0), "
-                            + "Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0). "
+                            + "The python UDF worker depends on Python 3.6+, Apache Beam (version == 2.38.0), "
+                            + "Pip (version >= 20.3) and SetupTools (version >= 37.0.0). "
                             + "Please ensure that the specified environment meets the above requirements.");
 
     public static final Option PYCLIENTEXEC_OPTION =
@@ -301,6 +312,8 @@ public class CliFrontendParser {
 
         SAVEPOINT_ALLOW_NON_RESTORED_OPTION.setRequired(false);
         SAVEPOINT_RESTORE_MODE.setRequired(false);
+
+        SAVEPOINT_FORMAT_OPTION.setRequired(false);
 
         ZOOKEEPER_NAMESPACE_OPTION.setRequired(false);
         ZOOKEEPER_NAMESPACE_OPTION.setArgName("zookeeperNamespace");
@@ -397,20 +410,23 @@ public class CliFrontendParser {
     }
 
     static Options getCancelCommandOptions() {
-        Options options = buildGeneralOptions(new Options());
-        return options.addOption(CANCEL_WITH_SAVEPOINT_OPTION);
+        return buildGeneralOptions(new Options())
+                .addOption(CANCEL_WITH_SAVEPOINT_OPTION)
+                .addOption(SAVEPOINT_FORMAT_OPTION);
     }
 
     static Options getStopCommandOptions() {
         return buildGeneralOptions(new Options())
                 .addOption(STOP_WITH_SAVEPOINT_PATH)
-                .addOption(STOP_AND_DRAIN);
+                .addOption(STOP_AND_DRAIN)
+                .addOption(SAVEPOINT_FORMAT_OPTION);
     }
 
     static Options getSavepointCommandOptions() {
-        Options options = buildGeneralOptions(new Options());
-        options.addOption(SAVEPOINT_DISPOSE_OPTION);
-        return options.addOption(JAR_OPTION);
+        return buildGeneralOptions(new Options())
+                .addOption(SAVEPOINT_DISPOSE_OPTION)
+                .addOption(JAR_OPTION)
+                .addOption(SAVEPOINT_FORMAT_OPTION);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -442,13 +458,15 @@ public class CliFrontendParser {
     }
 
     private static Options getStopOptionsWithoutDeprecatedOptions(Options options) {
-        return options.addOption(STOP_WITH_SAVEPOINT_PATH).addOption(STOP_AND_DRAIN);
+        return options.addOption(STOP_WITH_SAVEPOINT_PATH)
+                .addOption(STOP_AND_DRAIN)
+                .addOption(SAVEPOINT_FORMAT_OPTION);
     }
 
     private static Options getSavepointOptionsWithoutDeprecatedOptions(Options options) {
-        options.addOption(SAVEPOINT_DISPOSE_OPTION);
-        options.addOption(JAR_OPTION);
-        return options;
+        return options.addOption(SAVEPOINT_DISPOSE_OPTION)
+                .addOption(SAVEPOINT_FORMAT_OPTION)
+                .addOption(JAR_OPTION);
     }
 
     /** Prints the help for the client. */

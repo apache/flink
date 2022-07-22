@@ -132,7 +132,13 @@ public enum ProtoUtils {
             DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
             RuntimeContext runtimeContext,
             Map<String, String> internalParameters,
-            boolean inBatchExecutionMode) {
+            boolean inBatchExecutionMode,
+            boolean isMetricEnabled,
+            boolean isProfileEnabled,
+            boolean hasSideOutput,
+            int stateCacheSize,
+            int mapStateReadCacheSize,
+            int mapStateWriteCacheSize) {
         FlinkFnApi.UserDefinedDataStreamFunction.Builder builder =
                 FlinkFnApi.UserDefinedDataStreamFunction.newBuilder();
         builder.setFunctionType(
@@ -175,7 +181,12 @@ public enum ProtoUtils {
                         dataStreamPythonFunctionInfo
                                 .getPythonFunction()
                                 .getSerializedPythonFunction()));
-        builder.setMetricEnabled(true);
+        builder.setMetricEnabled(isMetricEnabled);
+        builder.setProfileEnabled(isProfileEnabled);
+        builder.setHasSideOutput(hasSideOutput);
+        builder.setStateCacheSize(stateCacheSize);
+        builder.setMapStateReadCacheSize(mapStateReadCacheSize);
+        builder.setMapStateWriteCacheSize(mapStateWriteCacheSize);
         return builder.build();
     }
 
@@ -192,7 +203,13 @@ public enum ProtoUtils {
                     DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
                     RuntimeContext runtimeContext,
                     Map<String, String> internalParameters,
-                    boolean inBatchExecutionMode) {
+                    boolean inBatchExecutionMode,
+                    boolean isMetricEnabled,
+                    boolean isProfileEnabled,
+                    boolean hasSideOutput,
+                    int stateCacheSize,
+                    int mapStateReadCacheSize,
+                    int mapStateWriteCacheSize) {
         List<FlinkFnApi.UserDefinedDataStreamFunction> results = new ArrayList<>();
 
         Object[] inputs = dataStreamPythonFunctionInfo.getInputs();
@@ -203,7 +220,13 @@ public enum ProtoUtils {
                             (DataStreamPythonFunctionInfo) inputs[0],
                             runtimeContext,
                             internalParameters,
-                            inBatchExecutionMode));
+                            inBatchExecutionMode,
+                            isMetricEnabled,
+                            isProfileEnabled,
+                            false,
+                            stateCacheSize,
+                            mapStateReadCacheSize,
+                            mapStateWriteCacheSize));
         }
 
         results.add(
@@ -211,7 +234,13 @@ public enum ProtoUtils {
                         dataStreamPythonFunctionInfo,
                         runtimeContext,
                         internalParameters,
-                        inBatchExecutionMode));
+                        inBatchExecutionMode,
+                        isMetricEnabled,
+                        isProfileEnabled,
+                        hasSideOutput,
+                        stateCacheSize,
+                        mapStateReadCacheSize,
+                        mapStateWriteCacheSize));
         return results;
     }
 
@@ -221,17 +250,30 @@ public enum ProtoUtils {
                     RuntimeContext runtimeContext,
                     Map<String, String> internalParameters,
                     TypeInformation<?> keyTypeInfo,
-                    boolean inBatchExecutionMode) {
+                    boolean inBatchExecutionMode,
+                    boolean isMetricEnabled,
+                    boolean isProfileEnabled,
+                    boolean hasSideOutput,
+                    int stateCacheSize,
+                    int mapStateReadCacheSize,
+                    int mapStateWriteCacheSize) {
         List<FlinkFnApi.UserDefinedDataStreamFunction> results =
                 createUserDefinedDataStreamFunctionProtos(
                         dataStreamPythonFunctionInfo,
                         runtimeContext,
                         internalParameters,
-                        inBatchExecutionMode);
+                        inBatchExecutionMode,
+                        isMetricEnabled,
+                        isProfileEnabled,
+                        hasSideOutput,
+                        stateCacheSize,
+                        mapStateReadCacheSize,
+                        mapStateWriteCacheSize);
 
         // set the key typeinfo for the head operator
         FlinkFnApi.TypeInfo builtKeyTypeInfo =
-                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(keyTypeInfo);
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(
+                        keyTypeInfo, runtimeContext.getUserCodeClassLoader());
         results.set(0, results.get(0).toBuilder().setKeyTypeInfo(builtKeyTypeInfo).build());
         return results;
     }
@@ -243,7 +285,7 @@ public enum ProtoUtils {
                         RunnerApi.FunctionSpec.newBuilder()
                                 .setUrn(FLINK_CODER_URN)
                                 .setPayload(
-                                        org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf
+                                        org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf
                                                 .ByteString.copyFrom(
                                                 coderInfoDescriptor.toByteArray()))
                                 .build())
@@ -313,9 +355,11 @@ public enum ProtoUtils {
     public static FlinkFnApi.CoderInfoDescriptor createRawTypeCoderInfoDescriptorProto(
             TypeInformation<?> typeInformation,
             FlinkFnApi.CoderInfoDescriptor.Mode mode,
-            boolean separatedWithEndMessage) {
+            boolean separatedWithEndMessage,
+            ClassLoader userCodeClassLoader) {
         FlinkFnApi.TypeInfo typeinfo =
-                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(typeInformation);
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(
+                        typeInformation, userCodeClassLoader);
         return createCoderInfoDescriptorProto(
                 null,
                 null,

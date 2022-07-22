@@ -155,7 +155,6 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
     @Override
     public Set<ConfigOption<?>> forwardOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(IGNORE_PARSE_ERRORS);
         options.add(TIMESTAMP_FORMAT);
         options.add(MAP_NULL_KEY_MODE);
         options.add(MAP_NULL_KEY_LITERAL);

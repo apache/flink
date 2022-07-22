@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions.validation
 
 import org.apache.flink.table.api._
@@ -27,22 +26,17 @@ class ScalarOperatorsValidationTest extends ScalarOperatorsTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testIfInvalidTypesScala(): Unit = {
-    testTableApi(('f6 && true).?(5, "false"), "FAIL", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testIfInvalidTypesJava(): Unit = {
-    testTableApi("FAIL", "(f8 && true).?(5, 'false')", "FAIL")
+    testTableApi(('f6 && true).?(5, "false"), "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testInvalidStringComparison1(): Unit = {
-    testTableApi("w" === 4, "FAIL", "FAIL")
+    testTableApi("w" === 4, "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testInvalidStringComparison2(): Unit = {
-    testTableApi("w" > 4.toExpr, "FAIL", "FAIL")
+    testTableApi("w" > 4.toExpr, "FAIL")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -51,61 +45,46 @@ class ScalarOperatorsValidationTest extends ScalarOperatorsTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInMoreThanOneTypes(): Unit = {
-    testTableApi(
-      'f2.in('f3, 'f4, 4),
-      "FAIL",
-      "FAIL"
-    )
+    testTableApi('f2.in('f3, 'f4, 4), "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testInDifferentOperands(): Unit = {
-    testTableApi(
-      'f1.in("Hi", "Hello world", "Comment#1"),
-      "FAIL",
-      "FAIL"
-    )
+    testTableApi('f1.in("Hi", "Hello world", "Comment#1"), "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testBetweenWithDifferentOperandTypeScala(): Unit = {
-    testTableApi(
-      2.between(1, "a"),
-      "FAIL",
-      "FAIL"
-    )
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testBetweenWithDifferentOperandTypeJava(): Unit = {
-    testTableApi(
-      "FAIL",
-      "2.between(1, 'a')",
-      "FAIL"
-    )
+    testTableApi(2.between(1, "a"), "FAIL")
   }
 
   @Test
   def testTemporalTypeEqualsInvalidStringLiteral(): Unit = {
     testExpectedSqlException(
-      "f15 = 'invalid'", "Error when casting CHAR(7) NOT NULL to DATE",
+      "f15 = 'invalid'",
+      "Error when casting CHAR(7) NOT NULL to DATE",
       classOf[ValidationException])
     testExpectedSqlException(
-      "'invalid' = f15", "Error when casting CHAR(7) NOT NULL to DATE",
-      classOf[ValidationException])
-
-    testExpectedSqlException(
-      "f21 = 'invalid'", "Error when casting CHAR(7) NOT NULL to TIME",
-      classOf[ValidationException])
-    testExpectedSqlException(
-      "'invalid' = f21", "Error when casting CHAR(7) NOT NULL to TIME",
+      "'invalid' = f15",
+      "Error when casting CHAR(7) NOT NULL to DATE",
       classOf[ValidationException])
 
     testExpectedSqlException(
-      "f22 = 'invalid'", "Error when casting CHAR(7) NOT NULL to TIMESTAMP(6)",
+      "f21 = 'invalid'",
+      "Error when casting CHAR(7) NOT NULL to TIME",
       classOf[ValidationException])
     testExpectedSqlException(
-      "'invalid' = f22", "Error when casting CHAR(7) NOT NULL to TIMESTAMP(6)",
+      "'invalid' = f21",
+      "Error when casting CHAR(7) NOT NULL to TIME",
+      classOf[ValidationException])
+
+    testExpectedSqlException(
+      "f22 = 'invalid'",
+      "Error when casting CHAR(7) NOT NULL to TIMESTAMP(6)",
+      classOf[ValidationException])
+    testExpectedSqlException(
+      "'invalid' = f22",
+      "Error when casting CHAR(7) NOT NULL to TIMESTAMP(6)",
       classOf[ValidationException])
   }
 }

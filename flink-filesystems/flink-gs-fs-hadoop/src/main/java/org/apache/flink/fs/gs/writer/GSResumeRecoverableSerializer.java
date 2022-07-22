@@ -37,7 +37,7 @@ class GSResumeRecoverableSerializer implements SimpleVersionedSerializer<GSResum
             LoggerFactory.getLogger(GSResumeRecoverableSerializer.class);
 
     /** Current version of serializer. */
-    private static final int SERIALIZER_VERSION = 0;
+    private static final int SERIALIZER_VERSION = 1;
 
     /** The one and only instance of the serializer. */
     public static final GSResumeRecoverableSerializer INSTANCE =
@@ -83,7 +83,7 @@ class GSResumeRecoverableSerializer implements SimpleVersionedSerializer<GSResum
 
     @Override
     public GSResumeRecoverable deserialize(int version, byte[] serialized) throws IOException {
-        Preconditions.checkArgument(version >= 0);
+        Preconditions.checkArgument(version > 0);
         Preconditions.checkNotNull(serialized);
 
         // ensure this serializer can deserialize data with this version

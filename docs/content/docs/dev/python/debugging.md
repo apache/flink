@@ -60,10 +60,14 @@ You can log contextual and debug information via `print` or standard Python logg
 The logging messages will be printed in the log files of the `TaskManagers` during job execution.
 
 ```python
+from pyflink.table import DataTypes
+from pyflink.table.udf import udf
+
+import logging
+
 @udf(result_type=DataTypes.BIGINT())
 def add(i, j):
     # use logging modules
-    import logging
     logging.info("debug")
     # use print function
     print('debug')
@@ -119,7 +123,7 @@ You can make use of the [`pydevd_pycharm`](https://pypi.org/project/pydevd-pycha
 You can enable the profile to analyze performance bottlenecks.
 
 ```python
-t_env.get_config().get_configuration().set_boolean("python.profile.enabled", True)
+t_env.get_config().set("python.profile.enabled", "true")
 ``` 
 
 Then you can see the profile result in [logs](#accessing-logs)

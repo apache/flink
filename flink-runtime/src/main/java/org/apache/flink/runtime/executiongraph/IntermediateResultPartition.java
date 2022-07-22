@@ -25,8 +25,8 @@ import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 
 import java.util.List;
+import java.util.Optional;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 public class IntermediateResultPartition {
@@ -79,7 +79,14 @@ public class IntermediateResultPartition {
     }
 
     public ConsumerVertexGroup getConsumerVertexGroup() {
-        return checkNotNull(getEdgeManager().getConsumerVertexGroupForPartition(partitionId));
+        Optional<ConsumerVertexGroup> consumerVertexGroup = getConsumerVertexGroupOptional();
+        checkState(consumerVertexGroup.isPresent());
+        return consumerVertexGroup.get();
+    }
+
+    public Optional<ConsumerVertexGroup> getConsumerVertexGroupOptional() {
+        return Optional.ofNullable(
+                getEdgeManager().getConsumerVertexGroupForPartition(partitionId));
     }
 
     public List<ConsumedPartitionGroup> getConsumedPartitionGroups() {
@@ -149,7 +156,7 @@ public class IntermediateResultPartition {
     }
 
     void resetForNewExecution() {
-        if (getResultType().isBlocking() && hasDataProduced) {
+        if (!getResultType().canBePipelinedConsumed() && hasDataProduced) {
             // A BLOCKING result partition with data produced means it is finished
             // Need to add the running producer count of the result on resetting it
             for (ConsumedPartitionGroup consumedPartitionGroup : getConsumedPartitionGroups()) {
@@ -172,7 +179,7 @@ public class IntermediateResultPartition {
 
     void markFinished() {
         // Sanity check that this is only called on blocking partitions.
-        if (!getResultType().isBlocking()) {
+        if (getResultType().canBePipelinedConsumed()) {
             throw new IllegalStateException(
                     "Tried to mark a non-blocking result partition as finished");
         }

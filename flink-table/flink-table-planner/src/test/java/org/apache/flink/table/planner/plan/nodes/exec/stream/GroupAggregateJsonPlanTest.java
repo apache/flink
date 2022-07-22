@@ -57,20 +57,13 @@ public class GroupAggregateJsonPlanTest extends TableTestBase {
         tEnv = util.getTableEnv();
         if (isMiniBatchEnabled) {
             tEnv.getConfig()
-                    .getConfiguration()
-                    .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true);
-            tEnv.getConfig()
-                    .getConfiguration()
+                    .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
                     .set(
                             ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY,
-                            Duration.ofSeconds(10));
-            tEnv.getConfig()
-                    .getConfiguration()
+                            Duration.ofSeconds(10))
                     .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 5L);
         } else {
-            tEnv.getConfig()
-                    .getConfiguration()
-                    .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, false);
+            tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, false);
         }
 
         String srcTableDdl =

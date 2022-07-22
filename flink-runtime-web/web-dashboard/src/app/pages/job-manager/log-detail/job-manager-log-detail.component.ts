@@ -16,15 +16,18 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
 import { finalize, takeUntil } from 'rxjs/operators';
 
+import {
+  JOB_MANAGER_MODULE_CONFIG,
+  JOB_MANAGER_MODULE_DEFAULT_CONFIG,
+  JobManagerModuleConfig
+} from '@flink-runtime-web/pages/job-manager/job-manager.config';
+import { JobManagerService } from '@flink-runtime-web/services';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
-import { flinkEditorOptions } from 'share/common/editor/editor-config';
-
-import { JobManagerService } from 'services';
 
 @Component({
   selector: 'flink-job-manager-log-detail',
@@ -41,15 +44,18 @@ export class JobManagerLogDetailComponent implements OnInit, OnDestroy {
   public downloadUrl = '';
   public isLoading = false;
   public isFullScreen = false;
-  public editorOptions: EditorOptions = flinkEditorOptions;
+  public editorOptions: EditorOptions;
 
   private readonly destroy$ = new Subject<void>();
 
   constructor(
     private readonly jobManagerService: JobManagerService,
     private readonly cdr: ChangeDetectorRef,
-    private readonly activatedRoute: ActivatedRoute
-  ) {}
+    private readonly activatedRoute: ActivatedRoute,
+    @Inject(JOB_MANAGER_MODULE_CONFIG) readonly moduleConfig: JobManagerModuleConfig
+  ) {
+    this.editorOptions = moduleConfig.editorOptions || JOB_MANAGER_MODULE_DEFAULT_CONFIG.editorOptions;
+  }
 
   public ngOnInit(): void {
     this.logName = this.activatedRoute.snapshot.params.logName;

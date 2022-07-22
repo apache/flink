@@ -18,18 +18,20 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.DockerImageVersions;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.apache.http.HttpHost;
@@ -38,14 +40,17 @@ import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.common.unit.TimeValue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,13 +63,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.connector.elasticsearch.sink.TestClientBase.DOCUMENT_TYPE;
 import static org.apache.flink.connector.elasticsearch.sink.TestClientBase.buildMessage;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ElasticsearchWriter}. */
 @Testcontainers
@@ -113,7 +118,7 @@ class ElasticsearchWriterITCase {
             writer.write(Tuple2.of(4, buildMessage(4)), null);
 
             // Ignore flush on checkpoint
-            writer.prepareCommit(false);
+            writer.flush(false);
 
             context.assertThatIdsAreNotWritten(index, 1, 2, 3, 4);
 
@@ -166,7 +171,7 @@ class ElasticsearchWriterITCase {
             context.assertThatIdsAreNotWritten(index, 1, 2, 3);
 
             // Trigger flush
-            writer.prepareCommit(false);
+            writer.flush(false);
 
             context.assertThatIdsAreWritten(index, 1, 2, 3);
         }
@@ -187,20 +192,44 @@ class ElasticsearchWriterITCase {
         try (final ElasticsearchWriter<Tuple2<Integer, String>> writer =
                 createWriter(index, false, bulkProcessorConfig, metricGroup)) {
             final Counter numBytesOut = operatorIOMetricGroup.getNumBytesOutCounter();
-            assertEquals(numBytesOut.getCount(), 0);
+            assertThat(numBytesOut.getCount()).isEqualTo(0);
             writer.write(Tuple2.of(1, buildMessage(1)), null);
             writer.write(Tuple2.of(2, buildMessage(2)), null);
 
             writer.blockingFlushAllActions();
             long first = numBytesOut.getCount();
 
-            assertTrue(first > 0);
+            assertThat(first).isGreaterThan(0);
 
             writer.write(Tuple2.of(1, buildMessage(1)), null);
             writer.write(Tuple2.of(2, buildMessage(2)), null);
 
             writer.blockingFlushAllActions();
-            assertTrue(numBytesOut.getCount() > first);
+            assertThat(numBytesOut.getCount()).isGreaterThan(first);
+        }
+    }
+
+    @Test
+    void testIncrementRecordsSendMetric() throws Exception {
+        final String index = "test-inc-records-send";
+        final int flushAfterNActions = 2;
+        final BulkProcessorConfig bulkProcessorConfig =
+                new BulkProcessorConfig(flushAfterNActions, -1, -1, FlushBackoffType.NONE, 0, 0);
+
+        try (final ElasticsearchWriter<Tuple2<Integer, String>> writer =
+                createWriter(index, false, bulkProcessorConfig)) {
+            final Optional<Counter> recordsSend =
+                    metricListener.getCounter(MetricNames.NUM_RECORDS_SEND);
+            writer.write(Tuple2.of(1, buildMessage(1)), null);
+            // Update existing index
+            writer.write(Tuple2.of(1, "u" + buildMessage(2)), null);
+            // Delete index
+            writer.write(Tuple2.of(1, "d" + buildMessage(3)), null);
+
+            writer.blockingFlushAllActions();
+
+            assertThat(recordsSend).isPresent();
+            assertThat(recordsSend.get().getCount()).isEqualTo(3L);
         }
     }
 
@@ -220,8 +249,8 @@ class ElasticsearchWriterITCase {
 
             writer.blockingFlushAllActions();
 
-            assertTrue(currentSendTime.isPresent());
-            assertThat(currentSendTime.get().getValue(), greaterThan(0L));
+            assertThat(currentSendTime).isPresent();
+            assertThat(currentSendTime.get().getValue()).isGreaterThan(0L);
         }
     }
 
@@ -239,9 +268,9 @@ class ElasticsearchWriterITCase {
             boolean flushOnCheckpoint,
             BulkProcessorConfig bulkProcessorConfig,
             SinkWriterMetricGroup metricGroup) {
-        return new ElasticsearchWriter<Tuple2<Integer, String>>(
+        return new ElasticsearchWriter<>(
                 Collections.singletonList(HttpHost.create(ES_CONTAINER.getHttpHostAddress())),
-                TestEmitter.jsonEmitter(index, context.getDataFieldName()),
+                new UpdatingEmitter(index, context.getDataFieldName()),
                 flushOnCheckpoint,
                 bulkProcessorConfig,
                 new TestBulkProcessorBuilderFactory(),
@@ -307,6 +336,50 @@ class ElasticsearchWriterITCase {
             }
             builder.setBackoffPolicy(backoffPolicy);
             return builder;
+        }
+    }
+
+    private static class UpdatingEmitter implements ElasticsearchEmitter<Tuple2<Integer, String>> {
+
+        private final String dataFieldName;
+        private final String index;
+
+        UpdatingEmitter(String index, String dataFieldName) {
+            this.index = index;
+            this.dataFieldName = dataFieldName;
+        }
+
+        @Override
+        public void emit(
+                Tuple2<Integer, String> element,
+                SinkWriter.Context context,
+                RequestIndexer indexer) {
+
+            Map<String, Object> document = new HashMap<>();
+            document.put(dataFieldName, element.f1);
+
+            final char action = element.f1.charAt(0);
+            final String id = element.f0.toString();
+            switch (action) {
+                case 'd':
+                    {
+                        indexer.add(new DeleteRequest(index).id(id));
+                        break;
+                    }
+                case 'u':
+                    {
+                        indexer.add(new UpdateRequest().index(index).id(id).doc(document));
+                        break;
+                    }
+                default:
+                    {
+                        indexer.add(
+                                new IndexRequest(index)
+                                        .id(id)
+                                        .type(DOCUMENT_TYPE)
+                                        .source(document));
+                    }
+            }
         }
     }
 

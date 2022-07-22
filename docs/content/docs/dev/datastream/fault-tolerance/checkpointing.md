@@ -67,9 +67,13 @@ Other parameters for checkpointing include:
 
     Note that this value also implies that the number of concurrent checkpoints is *one*.
 
-  - *tolerable checkpoint failure number*: This defines how many consecutive checkpoint failures will be tolerated,
-    before the whole job is failed over. The default value is `0`, which means no checkpoint failures will be tolerated,
-    and the job will fail on first reported checkpoint failure.
+  - *tolerable checkpoint failure number*: This defines how many consecutive checkpoint failures will
+    be tolerated, before the whole job is failed over. The default value is `0`, which means no
+    checkpoint failures will be tolerated, and the job will fail on first reported checkpoint failure.
+    This only applies to the following failure reasons: IOException on the Job Manager, failures in
+    the async phase on the Task Managers and checkpoint expiration due to a timeout. Failures
+    originating from the sync phase on the Task Managers are always forcing failover of an affected
+    task. Other types of checkpoint failures (such as checkpoint being subsumed) are being ignored.
 
   - *number of concurrent checkpoints*: By default, the system will not trigger another checkpoint while one is still in progress.
     This ensures that the topology does not spend too much time on checkpoints and not make progress with processing the streams.
@@ -112,14 +116,14 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 
 // enable externalized checkpoints which are retained
 // after job cancellation
-env.getCheckpointConfig().enableExternalizedCheckpoints(
+env.getCheckpointConfig().setExternalizedCheckpointCleanup(
     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
 // enables the unaligned checkpoints
 env.getCheckpointConfig().enableUnalignedCheckpoints();
 
 // sets the checkpoint storage where checkpoint snapshots will be written
-env.getCheckpointConfig().setCheckpointStorage("hdfs:///my/checkpoint/dir")
+env.getCheckpointConfig().setCheckpointStorage("hdfs:///my/checkpoint/dir");
 
 // enable checkpointing with finished tasks
 Configuration config = new Configuration();
@@ -153,7 +157,7 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 
 // enable externalized checkpoints which are retained 
 // after job cancellation
-env.getCheckpointConfig().enableExternalizedCheckpoints(
+env.getCheckpointConfig().setExternalizedCheckpointCleanup(
     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
 // enables the unaligned checkpoints
@@ -260,16 +264,16 @@ exactly-once sinks and the `TwoPhaseCommitSinkFunction`.
 
 There is a special handling for `UnionListState`, which has often been used to implement a global
 view over offsets in an external system (i.e. storing current offsets of Kafka partitions). If we
-had discarded a state for a single subtask that had its `finish` method called, we would have lost
+had discarded a state for a single subtask that had its `close` method called, we would have lost
 the offsets for partitions that it had been assigned. In order to work around this problem, we let
 checkpoints succeed only if none or all subtasks that use `UnionListState` are finished.
 
 We have not seen `ListState` used in a similar way, but you should be aware that any state
-checkpointed after the `finish` method will be discarded and not be available after a restore.
+checkpointed after the `close` method will be discarded and not be available after a restore.
 
 Any operator that is prepared to be rescaled should work well with tasks that partially finish.
 Restoring from a checkpoint where only a subset of tasks finished is equivalent to restoring such a
-task with the number of new subtasks equal to the number of finished tasks.
+task with the number of new subtasks equal to the number of running tasks.
 
 ### Waiting for the final checkpoint before task exit
 

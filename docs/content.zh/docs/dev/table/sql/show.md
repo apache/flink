@@ -520,10 +520,87 @@ SHOW CURRENT DATABASE
 ## SHOW TABLES
 
 ```sql
-SHOW TABLES
+SHOW TABLES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE <sql_like_pattern> ]
 ```
 
-展示当前 catalog 和当前 database 中所有的表。
+展示指定库的所有表，如果没有指定库则展示当前库的所有表。另外返回的结果能被一个可选的匹配字符串过滤。
+
+**LIKE**
+根据可选的 `LIKE` 语句展示给定库中与 `<sql_like_pattern>` 是否模糊相似的所有表。
+
+`LIKE` 子句中 sql 正则式的语法与 `MySQL` 方言中的语法相同。
+* `%` 匹配任意数量的字符, 也包括0数量字符, `\%` 匹配一个 `%` 字符.
+* `_` 只匹配一个字符, `\_` 匹配一个 `_` 字符.
+
+
+### SHOW TABLES 示例
+
+假定在 `catalog1` 的 `db1` 库有如下表：
+* person
+* dim
+
+在会话的当前库下有如下表：
+* fights
+* orders
+
+- 显示指定库的所有表。
+
+```sql
+show tables from db1;
+-- show tables from catalog1.db1;
+-- show tables in db1;
+-- show tables in catalog1.db1;
++------------+
+| table name |
++------------+
+|        dim |
+|     person |
++------------+
+2 rows in set
+```
+
+- 显示指定库中相似于指定 SQL 正则式的所有表。
+
+```sql
+show tables from db1 like '%n';
+-- show tables from catalog1.db1 like '%n';
+-- show tables in db1 like '%n';
+-- show tables in catalog1.db1 like '%n';
++------------+
+| table name |
++------------+
+|     person |
++------------+
+1 row in set
+```
+
+- 显示指定库中不相似于指定 SQL 正则式的所有表。
+
+```sql
+show tables from db1 not like '%n';
+-- show tables from catalog1.db1 not like '%n';
+-- show tables in db1 not like '%n';
+-- show tables in catalog1.db1 not like '%n';
++------------+
+| table name |
++------------+
+|        dim |
++------------+
+1 row in set
+```
+
+- 显示当前库中的所有表。
+
+```sql
+show tables;
++------------+
+| table name |
++------------+
+|      items |
+|     orders |
++------------+
+2 rows in set
+```
 
 ## SHOW CREATE TABLE
 

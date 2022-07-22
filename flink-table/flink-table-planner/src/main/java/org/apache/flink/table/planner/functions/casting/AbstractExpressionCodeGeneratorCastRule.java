@@ -61,7 +61,7 @@ abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
     @Override
     public CastExecutor<IN, OUT> create(
             CastRule.Context context, LogicalType inputLogicalType, LogicalType targetLogicalType) {
-        if (this.canFail()) {
+        if (this.canFail(inputLogicalType, targetLogicalType)) {
             // We can't use the ExpressionEvaluator because we need proper wrapping of the eventual
             // exception
             return super.create(context, inputLogicalType, targetLogicalType);
@@ -103,6 +103,11 @@ abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
     private static CodeGeneratorCastRule.Context createCodeGeneratorCastRuleContext(
             CastRule.Context ctx) {
         return new CodeGeneratorCastRule.Context() {
+            @Override
+            public boolean isPrinting() {
+                return ctx.isPrinting();
+            }
+
             @Override
             public boolean legacyBehaviour() {
                 return ctx.legacyBehaviour();

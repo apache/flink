@@ -38,6 +38,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 /** Configuration object for the network stack. */
@@ -93,6 +95,10 @@ public class NettyShuffleEnvironmentConfiguration {
     /** The maximum number of tpc connections between taskmanagers for data communication. */
     private final int maxNumberOfConnections;
 
+    private final boolean connectionReuseEnabled;
+
+    private final int maxOverdraftBuffersPerGate;
+
     public NettyShuffleEnvironmentConfiguration(
             int numNetworkBuffers,
             int networkBufferSize,
@@ -112,7 +118,9 @@ public class NettyShuffleEnvironmentConfiguration {
             int sortShuffleMinBuffers,
             int sortShuffleMinParallelism,
             BufferDebloatConfiguration debloatConfiguration,
-            int maxNumberOfConnections) {
+            int maxNumberOfConnections,
+            boolean connectionReuseEnabled,
+            int maxOverdraftBuffersPerGate) {
 
         this.numNetworkBuffers = numNetworkBuffers;
         this.networkBufferSize = networkBufferSize;
@@ -133,6 +141,8 @@ public class NettyShuffleEnvironmentConfiguration {
         this.sortShuffleMinParallelism = sortShuffleMinParallelism;
         this.debloatConfiguration = debloatConfiguration;
         this.maxNumberOfConnections = maxNumberOfConnections;
+        this.connectionReuseEnabled = connectionReuseEnabled;
+        this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
     }
 
     // ------------------------------------------------------------------------
@@ -189,6 +199,10 @@ public class NettyShuffleEnvironmentConfiguration {
         return tempDirs;
     }
 
+    public boolean isConnectionReuseEnabled() {
+        return connectionReuseEnabled;
+    }
+
     public BoundedBlockingSubpartitionType getBlockingSubpartitionType() {
         return blockingSubpartitionType;
     }
@@ -215,6 +229,10 @@ public class NettyShuffleEnvironmentConfiguration {
 
     public int getMaxNumberOfConnections() {
         return maxNumberOfConnections;
+    }
+
+    public int getMaxOverdraftBuffersPerGate() {
+        return maxOverdraftBuffersPerGate;
     }
 
     // ------------------------------------------------------------------------
@@ -268,6 +286,10 @@ public class NettyShuffleEnvironmentConfiguration {
                 configuration.getInteger(
                         NettyShuffleEnvironmentOptions.NETWORK_MAX_BUFFERS_PER_CHANNEL);
 
+        int maxOverdraftBuffersPerGate =
+                configuration.getInteger(
+                        NettyShuffleEnvironmentOptions.NETWORK_MAX_OVERDRAFT_BUFFERS_PER_GATE);
+
         long batchShuffleReadMemoryBytes =
                 configuration.get(TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY).getBytes();
 
@@ -282,6 +304,10 @@ public class NettyShuffleEnvironmentConfiguration {
                 configuration.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_DETAILED_METRICS);
 
         String[] tempDirs = ConfigurationUtils.parseTempDirectories(configuration);
+        // Shuffle the data directories to make it fairer for directory selection between different
+        // TaskManagers, which is good for load balance especially when there are multiple disks.
+        List<String> shuffleDirs = Arrays.asList(tempDirs);
+        Collections.shuffle(shuffleDirs);
 
         Duration requestSegmentsTimeout =
                 Duration.ofMillis(
@@ -303,6 +329,11 @@ public class NettyShuffleEnvironmentConfiguration {
                         1,
                         configuration.getInteger(
                                 NettyShuffleEnvironmentOptions.MAX_NUM_TCP_CONNECTIONS));
+
+        boolean connectionReuseEnabled =
+                configuration.get(
+                        NettyShuffleEnvironmentOptions.TCP_CONNECTION_REUSE_ACROSS_JOBS_ENABLED);
+
         return new NettyShuffleEnvironmentConfiguration(
                 numberOfNetworkBuffers,
                 pageSize,
@@ -313,7 +344,7 @@ public class NettyShuffleEnvironmentConfiguration {
                 requestSegmentsTimeout,
                 isNetworkDetailedMetrics,
                 nettyConfig,
-                tempDirs,
+                shuffleDirs.toArray(tempDirs),
                 blockingSubpartitionType,
                 blockingShuffleCompressionEnabled,
                 compressionCodec,
@@ -322,7 +353,9 @@ public class NettyShuffleEnvironmentConfiguration {
                 sortShuffleMinBuffers,
                 sortShuffleMinParallelism,
                 BufferDebloatConfiguration.fromConfiguration(configuration),
-                maxNumConnections);
+                maxNumConnections,
+                connectionReuseEnabled,
+                maxOverdraftBuffersPerGate);
     }
 
     /**
@@ -460,6 +493,8 @@ public class NettyShuffleEnvironmentConfiguration {
         result = 31 * result + sortShuffleMinBuffers;
         result = 31 * result + sortShuffleMinParallelism;
         result = 31 * result + maxNumberOfConnections;
+        result = 31 * result + (connectionReuseEnabled ? 1 : 0);
+        result = 31 * result + maxOverdraftBuffersPerGate;
         return result;
     }
 
@@ -491,7 +526,9 @@ public class NettyShuffleEnvironmentConfiguration {
                             == that.blockingShuffleCompressionEnabled
                     && this.maxBuffersPerChannel == that.maxBuffersPerChannel
                     && Objects.equals(this.compressionCodec, that.compressionCodec)
-                    && this.maxNumberOfConnections == that.maxNumberOfConnections;
+                    && this.maxNumberOfConnections == that.maxNumberOfConnections
+                    && this.connectionReuseEnabled == that.connectionReuseEnabled
+                    && this.maxOverdraftBuffersPerGate == that.maxOverdraftBuffersPerGate;
         }
     }
 
@@ -530,6 +567,10 @@ public class NettyShuffleEnvironmentConfiguration {
                 + sortShuffleMinParallelism
                 + ", maxNumberOfConnections="
                 + maxNumberOfConnections
+                + ", connectionReuseEnabled="
+                + connectionReuseEnabled
+                + ", maxOverdraftBuffersPerGate="
+                + maxOverdraftBuffersPerGate
                 + '}';
     }
 }

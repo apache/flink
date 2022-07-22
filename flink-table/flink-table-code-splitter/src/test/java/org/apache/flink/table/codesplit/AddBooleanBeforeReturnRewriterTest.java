@@ -17,58 +17,58 @@
 
 package org.apache.flink.table.codesplit;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for {@link AddBoolBeforeReturnRewriter}. */
-public class AddBooleanBeforeReturnRewriterTest
-        extends CodeRewriterTestBase<AddBoolBeforeReturnRewriter> {
+class AddBooleanBeforeReturnRewriterTest extends CodeRewriterTestBase<AddBoolBeforeReturnRewriter> {
 
     public AddBooleanBeforeReturnRewriterTest() {
         super("add-boolean", code -> new AddBoolBeforeReturnRewriter(code, 50));
     }
 
     @Test
-    public void testAddBooleanBeforeReturn() {
+    void testAddBooleanBeforeReturn() {
         AddBoolBeforeReturnRewriter rewriter = runTest("TestAddBooleanBeforeReturn");
         List<Map<String, String>> result = rewriter.getBoolVarNames();
-        Assert.assertEquals(1, result.size());
-        Assert.assertEquals(2, result.get(0).size());
-        Assert.assertEquals("fun1HasReturned$0", result.get(0).get("fun1(int a)"));
-        Assert.assertEquals("fun2HasReturned$1", result.get(0).get("fun2(String b)"));
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0)).hasSize(2);
+        assertThat(result.get(0).get("fun1(int a)")).isEqualTo("fun1HasReturned$0");
+        assertThat(result.get(0).get("fun2(String b)")).isEqualTo("fun2HasReturned$1");
     }
 
     @Test
-    public void testRewriteInnerClass() {
+    void testRewriteInnerClass() {
         AddBoolBeforeReturnRewriter rewriter = runTest("TestRewriteInnerClass");
         List<Map<String, String>> result = rewriter.getBoolVarNames();
-        Assert.assertEquals(3, result.size());
-        Assert.assertEquals(1, result.get(0).size());
-        Assert.assertEquals("funHasReturned$0", result.get(0).get("fun(int a)"));
-        Assert.assertEquals(1, result.get(1).size());
-        Assert.assertEquals("funHasReturned$1", result.get(1).get("fun(int a)"));
-        Assert.assertEquals(1, result.get(2).size());
-        Assert.assertEquals("funHasReturned$2", result.get(2).get("fun(int a)"));
+        assertThat(result).hasSize(3);
+        assertThat(result.get(0)).hasSize(1);
+        assertThat(result.get(0).get("fun(int a)")).isEqualTo("funHasReturned$0");
+        assertThat(result.get(1)).hasSize(1);
+        assertThat(result.get(1).get("fun(int a)")).isEqualTo("funHasReturned$1");
+        assertThat(result.get(2)).hasSize(1);
+        assertThat(result.get(2).get("fun(int a)")).isEqualTo("funHasReturned$2");
     }
 
     @Test
-    public void testNotRewrite() {
+    void testNotRewrite() {
         AddBoolBeforeReturnRewriter rewriter = runTest("TestNotRewrite");
         List<Map<String, String>> result = rewriter.getBoolVarNames();
-        Assert.assertEquals(1, result.size());
-        Assert.assertEquals(0, result.get(0).size());
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0)).isEmpty();
     }
 
     @Test
-    public void testSkipAnonymousClassAndLambda() {
+    void testSkipAnonymousClassAndLambda() {
         AddBoolBeforeReturnRewriter rewriter = runTest("TestSkipAnonymousClassAndLambda");
         List<Map<String, String>> result = rewriter.getBoolVarNames();
-        Assert.assertEquals(2, result.size());
-        Assert.assertEquals(1, result.get(0).size());
-        Assert.assertEquals("funHasReturned$0", result.get(0).get("fun(String a)"));
-        Assert.assertEquals(0, result.get(1).size());
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0)).hasSize(1);
+        assertThat(result.get(0).get("fun(String a)")).isEqualTo("funHasReturned$0");
+        assertThat(result.get(1)).isEmpty();
     }
 }

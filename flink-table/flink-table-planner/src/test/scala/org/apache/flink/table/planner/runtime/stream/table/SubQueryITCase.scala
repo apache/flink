@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
@@ -31,8 +30,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(classOf[Parameterized])
-class SubQueryITCase(mode: StateBackendMode)
-    extends StreamingWithStateTestBase(mode) {
+class SubQueryITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
   @Test
   def testInUncorrelated(): Unit = {
@@ -61,7 +59,9 @@ class SubQueryITCase(mode: StateBackendMode)
     env.execute()
 
     val expected = Seq(
-      "1,1,Hello", "2,2,Hello", "4,4,Hello"
+      "1,1,Hello",
+      "2,2,Hello",
+      "4,4,Hello"
     )
 
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
@@ -85,9 +85,9 @@ class SubQueryITCase(mode: StateBackendMode)
       (-1, "Hanoi-1")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv,'a, 'b, 'c)
+    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv,'x, 'y)
+    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
 
     val result = tableA
       .where('a.in(tableB.where('y.like("%Hanoi%")).groupBy('y).select('x.sum)))
@@ -98,7 +98,8 @@ class SubQueryITCase(mode: StateBackendMode)
     env.execute()
 
     val expected = Seq(
-      "2,2,Hello", "3,3,Hello World"
+      "2,2,Hello",
+      "3,3,Hello World"
     )
 
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
@@ -125,11 +126,11 @@ class SubQueryITCase(mode: StateBackendMode)
       (2L, "Cool")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv,'a, 'b, 'c)
+    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv,'x, 'y)
+    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
 
-    val tableC = env.fromCollection(dataC).toTable(tEnv,'w, 'z)
+    val tableC = env.fromCollection(dataC).toTable(tEnv, 'w, 'z)
 
     val result = tableA
       .where('a.in(tableB.select('x)) && 'b.in(tableC.select('w)))
@@ -140,7 +141,8 @@ class SubQueryITCase(mode: StateBackendMode)
     env.execute()
 
     val expected = Seq(
-      "1,1,Hello", "2,2,Hello"
+      "1,1,Hello",
+      "2,2,Hello"
     )
 
     assertEquals(expected.sorted, sink.getRetractResults.sorted)

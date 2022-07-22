@@ -122,9 +122,9 @@ or in the `flink-conf.yml` configuration file:
 execution.checkpointing.aligned-checkpoint-timeout: 30 s
 ```
 
-When activated, each checkpoint will still begin as an aligned checkpoint, but if the time between
-the start of the global checkpoint and the start of the checkpoint on a subtask exceeds the aligned
-checkpoint timeout, then the checkpoint will proceed as an unaligned checkpoint.
+When activated, each checkpoint will still begin as an aligned checkpoint, but when the global
+checkpoint duration exceeds the `aligned-checkpoint-timeout`, if the aligned checkpoint has not
+completed, then the checkpoint will proceed as an unaligned checkpoint.
 
 ### Limitations
 

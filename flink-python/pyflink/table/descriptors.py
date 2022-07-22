@@ -24,7 +24,7 @@ from typing import Dict, Union
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.table_schema import TableSchema
-from pyflink.table.types import _to_java_type, DataType
+from pyflink.table.types import DataType, _to_java_data_type
 
 __all__ = [
     'Rowtime',
@@ -219,7 +219,7 @@ class Schema(Descriptor):
         if isinstance(field_type, str):
             self._j_schema = self._j_schema.field(field_name, field_type)
         else:
-            self._j_schema = self._j_schema.field(field_name, _to_java_type(field_type))
+            self._j_schema = self._j_schema.field(field_name, _to_java_data_type(field_type))
         return self
 
     def fields(self, fields: Dict[str, Union[DataType, str]]) -> 'Schema':

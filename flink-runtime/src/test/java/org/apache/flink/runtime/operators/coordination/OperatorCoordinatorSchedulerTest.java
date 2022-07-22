@@ -37,17 +37,23 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartAllFailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.scheduler.TestExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -60,6 +66,8 @@ import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
@@ -68,6 +76,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.hamcrest.Matcher;
 import org.junit.After;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -110,6 +119,10 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
     private final JobVertexID testVertexId = new JobVertexID();
     private final OperatorID testOperatorId = new OperatorID();
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private final ManuallyTriggeredScheduledExecutorService executor =
             new ManuallyTriggeredScheduledExecutorService();
@@ -687,11 +700,15 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                 new ComponentMainThreadExecutorServiceAdapter(
                         (ScheduledExecutorService) executor, Thread.currentThread());
 
-        final SchedulerTestingUtils.DefaultSchedulerBuilder schedulerBuilder =
+        final DefaultSchedulerBuilder schedulerBuilder =
                 taskExecutorOperatorEventGateway == null
-                        ? SchedulerTestingUtils.createSchedulerBuilder(jobGraph, mainThreadExecutor)
-                        : SchedulerTestingUtils.createSchedulerBuilder(
-                                jobGraph, mainThreadExecutor, taskExecutorOperatorEventGateway);
+                        ? createSchedulerBuilder(
+                                jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
+                        : createSchedulerBuilder(
+                                jobGraph,
+                                mainThreadExecutor,
+                                taskExecutorOperatorEventGateway,
+                                EXECUTOR_RESOURCE.getExecutor());
         if (restartAllOnFailover) {
             schedulerBuilder.setFailoverStrategyFactory(new RestartAllFailoverStrategy.Factory());
         }
@@ -701,6 +718,46 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         this.createdScheduler = scheduler;
         return scheduler;
+    }
+
+    private static DefaultSchedulerBuilder createSchedulerBuilder(
+            JobGraph jobGraph,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            ScheduledExecutorService scheduledExecutorService) {
+
+        return createSchedulerBuilder(
+                jobGraph,
+                mainThreadExecutor,
+                new SimpleAckingTaskManagerGateway(),
+                scheduledExecutorService);
+    }
+
+    private static DefaultSchedulerBuilder createSchedulerBuilder(
+            JobGraph jobGraph,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            TaskExecutorOperatorEventGateway operatorEventGateway,
+            ScheduledExecutorService scheduledExecutorService) {
+
+        final TaskManagerGateway gateway =
+                operatorEventGateway instanceof TaskManagerGateway
+                        ? (TaskManagerGateway) operatorEventGateway
+                        : new TaskExecutorOperatorEventGatewayAdapter(operatorEventGateway);
+
+        return createSchedulerBuilder(
+                jobGraph, mainThreadExecutor, gateway, scheduledExecutorService);
+    }
+
+    private static DefaultSchedulerBuilder createSchedulerBuilder(
+            JobGraph jobGraph,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            TaskManagerGateway taskManagerGateway,
+            ScheduledExecutorService executorService) {
+
+        return new DefaultSchedulerBuilder(jobGraph, mainThreadExecutor, executorService)
+                .setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory())
+                .setRestartBackoffTimeStrategy(new TestRestartBackoffTimeStrategy(true, 0))
+                .setExecutionSlotAllocatorFactory(
+                        new TestExecutionSlotAllocatorFactory(taskManagerGateway));
     }
 
     private void scheduleAllTasksToRunning(DefaultScheduler scheduler) {
@@ -1001,6 +1058,23 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                 CloseableRegistry cancelStreamRegistry)
                 throws Exception {
             throw new UnsupportedOperationException();
+        }
+    }
+
+    private static final class TaskExecutorOperatorEventGatewayAdapter
+            extends SimpleAckingTaskManagerGateway {
+
+        private final TaskExecutorOperatorEventGateway operatorGateway;
+
+        private TaskExecutorOperatorEventGatewayAdapter(
+                TaskExecutorOperatorEventGateway operatorGateway) {
+            this.operatorGateway = operatorGateway;
+        }
+
+        @Override
+        public CompletableFuture<Acknowledge> sendOperatorEventToTask(
+                ExecutionAttemptID task, OperatorID operator, SerializedValue<OperatorEvent> evt) {
+            return operatorGateway.sendOperatorEventToTask(task, operator, evt);
         }
     }
 }

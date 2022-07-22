@@ -72,6 +72,9 @@ public class MetricNames {
     public static final String TASK_IDLE_TIME = "idleTimeMs" + SUFFIX_RATE;
     public static final String TASK_BUSY_TIME = "busyTimeMs" + SUFFIX_RATE;
     public static final String TASK_BACK_PRESSURED_TIME = "backPressuredTimeMs" + SUFFIX_RATE;
+    public static final String ACC_TASK_IDLE_TIME = "accumulateIdleTimeMs";
+    public static final String ACC_TASK_BUSY_TIME = "accumulateBusyTimeMs";
+    public static final String ACC_TASK_BACK_PRESSURED_TIME = "accumulateBackPressuredTimeMs";
     public static final String TASK_SOFT_BACK_PRESSURED_TIME =
             "softBackPressuredTimeMs" + SUFFIX_RATE;
     public static final String TASK_HARD_BACK_PRESSURED_TIME =
@@ -84,8 +87,12 @@ public class MetricNames {
     public static final String DEBLOATED_BUFFER_SIZE = "debloatedBufferSize";
 
     // FLIP-33 sink
-    public static final String NUM_RECORDS_OUT_ERRORS = "numRecordsOutErrors";
+    // deprecated use NUM_RECORDS_SEND_ERRORS instead.
+    @Deprecated public static final String NUM_RECORDS_OUT_ERRORS = "numRecordsOutErrors";
+    public static final String NUM_RECORDS_SEND_ERRORS = "numRecordsSendErrors";
     public static final String CURRENT_SEND_TIME = "currentSendTime";
+    public static final String NUM_RECORDS_SEND = "numRecordsSend";
+    public static final String NUM_BYTES_SEND = "numBytesSend";
 
     // FLIP-33 source
     public static final String NUM_RECORDS_IN_ERRORS = "numRecordsInErrors";
@@ -95,4 +102,11 @@ public class MetricNames {
     public static final String PENDING_RECORDS = "pendingRecords";
     public static final String PENDING_BYTES = "pendingBytes";
     public static final String SOURCE_IDLE_TIME = "sourceIdleTime";
+
+    // FLIP-182 (watermark alignment)
+    public static final String WATERMARK_ALIGNMENT_DRIFT = "watermarkAlignmentDrift";
+
+    public static final String MAILBOX_THROUGHPUT = "mailboxMailsPerSecond";
+    public static final String MAILBOX_LATENCY = "mailboxLatencyMs";
+    public static final String MAILBOX_SIZE = "mailboxQueueSize";
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 
@@ -68,7 +67,7 @@ public class OperationMatchers {
      *
      * @param nestedMatchers additional matchers that must match
      * @see #withOptions(MapEntry[])
-     * @see #withSchema(TableSchema)
+     * @see #withSchema(Schema)
      * @see #partitionedBy(String...)
      */
     @SafeVarargs

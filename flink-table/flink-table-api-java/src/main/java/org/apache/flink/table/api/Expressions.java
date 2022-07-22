@@ -60,7 +60,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_S
  * API entities that are further translated into {@link ResolvedExpression ResolvedExpressions}
  * under the hood.
  *
- * <p>For fluent definition of expressions and easier readability, we recommend to add a star import
+ * <p>For fluent definition of expressions and easier readability, we recommend adding a star import
  * to the methods of this class:
  *
  * <pre>
@@ -72,20 +72,39 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_S
  */
 @PublicEvolving
 public final class Expressions {
+
     /**
-     * Creates an unresolved reference to a table's field.
+     * Creates an unresolved reference to a table's column.
      *
      * <p>Example:
      *
      * <pre>{@code
      * tab.select($("key"), $("value"))
      * }</pre>
+     *
+     * @see #col(String)
      */
     // CHECKSTYLE.OFF: MethodName
     public static ApiExpression $(String name) {
         return new ApiExpression(unresolvedRef(name));
     }
     // CHECKSTYLE.ON: MethodName
+
+    /**
+     * Creates an unresolved reference to a table's column.
+     *
+     * <p>Because {@link #$(String)} is not supported by every JVM language due to the dollar sign,
+     * this method provides a synonym with the same behavior.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * tab.select(col("key"), col("value"))
+     * }</pre>
+     */
+    public static ApiExpression col(String name) {
+        return $(name);
+    }
 
     /**
      * Creates a SQL literal.
@@ -261,6 +280,14 @@ public final class Expressions {
     }
 
     /**
+     * Return the current database, the return type of this expression is {@link
+     * DataTypes#STRING()}.
+     */
+    public static ApiExpression currentDatabase() {
+        return apiCall(BuiltInFunctionDefinitions.CURRENT_DATABASE);
+    }
+
+    /**
      * Returns the current SQL time in local time zone, the return type of this expression is {@link
      * DataTypes#TIME()}, this is a synonym for {@link Expressions#currentTime()}.
      */
@@ -362,6 +389,29 @@ public final class Expressions {
                 timePoint2);
     }
 
+    /**
+     * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+     * "yyyy-MM-dd HH:mm:ss" format.
+     *
+     * @param unixtime The unix timestamp with numeric type.
+     * @return The formatted timestamp as string.
+     */
+    public static ApiExpression fromUnixtime(Object unixtime) {
+        return apiCall(BuiltInFunctionDefinitions.FROM_UNIXTIME, unixtime);
+    }
+
+    /**
+     * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+     * given format.
+     *
+     * @param unixtime The unix timestamp with numeric type.
+     * @param format The format of the string.
+     * @return The formatted timestamp as string.
+     */
+    public static ApiExpression fromUnixtime(Object unixtime, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.FROM_UNIXTIME, unixtime, format);
+    }
+
     /** Creates an array of literals. */
     public static ApiExpression array(Object head, Object... tail) {
         return apiCallAtLeastOneArgument(BuiltInFunctionDefinitions.ARRAY, head, tail);
@@ -425,7 +475,7 @@ public final class Expressions {
     }
 
     /**
-     * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
+     * Returns a pseudorandom integer value between 0 (inclusive) and the specified value
      * (exclusive).
      */
     public static ApiExpression randInteger(Object bound) {
@@ -433,7 +483,7 @@ public final class Expressions {
     }
 
     /**
-     * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
+     * Returns a pseudorandom integer value between 0 (inclusive) and the specified value
      * (exclusive) with a initial seed. Two randInteger() functions will return identical sequences
      * of numbers if they have same initial seed and same bound.
      */

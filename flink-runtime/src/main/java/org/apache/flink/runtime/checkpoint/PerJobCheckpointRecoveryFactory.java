@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 
 import javax.annotation.Nullable;
@@ -42,7 +43,7 @@ public class PerJobCheckpointRecoveryFactory<T extends CompletedCheckpointStore>
     public static <T extends CompletedCheckpointStore>
             CheckpointRecoveryFactory withoutCheckpointStoreRecovery(IntFunction<T> storeFn) {
         return new PerJobCheckpointRecoveryFactory<>(
-                (maxCheckpoints, previous, sharedStateRegistry, ioExecutor) -> {
+                (maxCheckpoints, previous, sharedStateRegistry, ioExecutor, restoreMode) -> {
                     if (previous != null) {
                         throw new UnsupportedOperationException(
                                 "Checkpoint store recovery is not supported.");
@@ -74,9 +75,9 @@ public class PerJobCheckpointRecoveryFactory<T extends CompletedCheckpointStore>
     public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             JobID jobId,
             int maxNumberOfCheckpointsToRetain,
-            ClassLoader userClassLoader,
             SharedStateRegistryFactory sharedStateRegistryFactory,
-            Executor ioExecutor) {
+            Executor ioExecutor,
+            RestoreMode restoreMode) {
         return store.compute(
                 jobId,
                 (key, previous) ->
@@ -84,7 +85,8 @@ public class PerJobCheckpointRecoveryFactory<T extends CompletedCheckpointStore>
                                 maxNumberOfCheckpointsToRetain,
                                 previous,
                                 sharedStateRegistryFactory,
-                                ioExecutor));
+                                ioExecutor,
+                                restoreMode));
     }
 
     @Override
@@ -99,6 +101,7 @@ public class PerJobCheckpointRecoveryFactory<T extends CompletedCheckpointStore>
                 int maxNumberOfCheckpointsToRetain,
                 @Nullable StoreType previousStore,
                 SharedStateRegistryFactory sharedStateRegistryFactory,
-                Executor ioExecutor);
+                Executor ioExecutor,
+                RestoreMode restoreMode);
     }
 }

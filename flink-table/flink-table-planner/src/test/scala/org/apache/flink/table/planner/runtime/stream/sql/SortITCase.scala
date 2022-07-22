@@ -15,19 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSort
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils._
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.utils.InternalConfigOptions
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
 import org.junit._
+import org.junit.Assert._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -66,17 +66,13 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.registerTable("a", da)
 
     val sink = new TestingRetractSink
-    tEnv.getConfig.getConfiguration.setBoolean(
-      StreamExecSort.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, true)
+    tEnv.getConfig
+      .set(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, Boolean.box(true))
     val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     results.addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = Seq(
-      "5,1",
-      "1,2",
-      "3,3",
-      "0,4")
+    val expected = Seq("5,1", "1,2", "3,3", "0,4")
 
     assertEquals(expected, sink.getRetractResults)
   }
@@ -95,17 +91,14 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.registerTable("a", da)
 
     val sink = new TestingRetractSink
-    tEnv.getConfig.getConfiguration.setBoolean(
-      StreamExecSort.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, true)
+    tEnv.getConfig.set(
+      InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED,
+      Boolean.box(true))
     val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     results.addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = Seq(
-      "5,1",
-      "3,3",
-      "1,2",
-      "0,4")
+    val expected = Seq("5,1", "3,3", "1,2", "0,4")
 
     assertEquals(expected, sink.getRetractResults)
   }
@@ -124,17 +117,13 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.registerTable("a", da)
 
     val sink = new TestingRetractSink
-    tEnv.getConfig.getConfiguration.setBoolean(
-      StreamExecSort.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, true)
+    tEnv.getConfig
+      .set(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, Boolean.box(true))
     val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     results.addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = Seq(
-      "0,4",
-      "1,2",
-      "1,7",
-      "5,1")
+    val expected = Seq("0,4", "1,2", "1,7", "5,1")
 
     assertEquals(expected, sink.getRetractResults)
   }
@@ -153,17 +142,13 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.registerTable("a", da)
 
     val sink = new TestingRetractSink
-    tEnv.getConfig.getConfiguration.setBoolean(
-      StreamExecSort.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, true)
+    tEnv.getConfig
+      .set(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, Boolean.box(true))
     val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     results.addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = Seq(
-      "0,4",
-      "1,7",
-      "2,2",
-      "5,1")
+    val expected = Seq("0,4", "1,7", "2,2", "5,1")
 
     assertEquals(expected, sink.getRetractResults)
   }
@@ -188,17 +173,13 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.registerTable("a", da)
 
     val sink = new TestingRetractSink
-    tEnv.getConfig.getConfiguration.setBoolean(
-      StreamExecSort.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, true)
+    tEnv.getConfig
+      .set(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, Boolean.box(true))
     val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     results.addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = Seq(
-      "2,1",
-      "6,2",
-      "1,3",
-      "3,4")
+    val expected = Seq("2,1", "6,2", "1,3", "3,4")
 
     assertEquals(expected, sink.getRetractResults)
   }
@@ -221,17 +202,13 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.registerTable("a", da)
 
     val sink = new TestingRetractSink
-    tEnv.getConfig.getConfiguration.setBoolean(
-      StreamExecSort.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, true)
+    tEnv.getConfig
+      .set(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, Boolean.box(true))
     val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     results.addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = Seq(
-      "7",
-      "6",
-      "5",
-      "4")
+    val expected = Seq("7", "6", "5", "4")
 
     assertEquals(expected, sink.getRetractResults)
   }

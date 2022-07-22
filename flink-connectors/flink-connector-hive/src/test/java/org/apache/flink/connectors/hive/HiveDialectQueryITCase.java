@@ -50,7 +50,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test hive query compatibility. */
 public class HiveDialectQueryITCase {
@@ -82,6 +83,8 @@ public class HiveDialectQueryITCase {
         tableEnv.executeSql("CREATE TABLE src (key STRING, value STRING)");
         tableEnv.executeSql(
                 "CREATE TABLE srcpart (key STRING, `value` STRING) PARTITIONED BY (ds STRING, hr STRING)");
+        tableEnv.executeSql("create table binary_t (a int, ab array<binary>)");
+
         tableEnv.executeSql(
                 "CREATE TABLE nested (\n"
                         + "  a int,\n"
@@ -156,8 +159,9 @@ public class HiveDialectQueryITCase {
                                         + "(partition by dep order by salary desc) as rnk from employee) a where rnk=1",
                                 "select salary,sum(cnt) over (order by salary)/sum(cnt) over "
                                         + "(order by salary ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) from"
-                                        + " (select salary,count(*) as cnt from employee group by salary) a"));
-        if (HiveVersionTestUtil.HIVE_220_OR_LATER) {
+                                        + " (select salary,count(*) as cnt from employee group by salary) a",
+                                "select a, one from binary_t lateral view explode(ab) abs as one where a > 0"));
+        if (HiveVersionTestUtil.HIVE_230_OR_LATER) {
             toRun.add(
                     "select weekofyear(current_timestamp()), dayofweek(current_timestamp()) from src limit 1");
         }
@@ -187,59 +191,59 @@ public class HiveDialectQueryITCase {
                         .sorted()
                         .collect(Collectors.toList());
         if (HiveParserUtils.legacyGrouping(hiveCatalog.getHiveConf())) {
-            assertEquals(
-                    "["
-                            + "+I[1, 1, 3, 1],"
-                            + " +I[1, null, 1, 1],"
-                            + " +I[2, 2, 3, 1],"
-                            + " +I[2, null, 1, 1],"
-                            + " +I[3, 3, 3, 1],"
-                            + " +I[3, null, 1, 1],"
-                            + " +I[4, 4, 3, 1],"
-                            + " +I[4, null, 1, 1],"
-                            + " +I[5, 5, 3, 1],"
-                            + " +I[5, null, 1, 1]]",
-                    results1.toString());
-            assertEquals(
-                    "["
-                            + "+I[1, 1, 1, 1],"
-                            + " +I[1, null, 1, 1],"
-                            + " +I[2, 2, 1, 1],"
-                            + " +I[2, null, 1, 1],"
-                            + " +I[3, 3, 1, 1],"
-                            + " +I[3, null, 1, 1],"
-                            + " +I[4, 4, 1, 1],"
-                            + " +I[4, null, 1, 1],"
-                            + " +I[5, 5, 1, 1],"
-                            + " +I[5, null, 1, 1]]",
-                    results2.toString());
+            assertThat(results1.toString())
+                    .isEqualTo(
+                            "["
+                                    + "+I[1, 1, 3, 1],"
+                                    + " +I[1, null, 1, 1],"
+                                    + " +I[2, 2, 3, 1],"
+                                    + " +I[2, null, 1, 1],"
+                                    + " +I[3, 3, 3, 1],"
+                                    + " +I[3, null, 1, 1],"
+                                    + " +I[4, 4, 3, 1],"
+                                    + " +I[4, null, 1, 1],"
+                                    + " +I[5, 5, 3, 1],"
+                                    + " +I[5, null, 1, 1]]");
+            assertThat(results2.toString())
+                    .isEqualTo(
+                            "["
+                                    + "+I[1, 1, 1, 1],"
+                                    + " +I[1, null, 1, 1],"
+                                    + " +I[2, 2, 1, 1],"
+                                    + " +I[2, null, 1, 1],"
+                                    + " +I[3, 3, 1, 1],"
+                                    + " +I[3, null, 1, 1],"
+                                    + " +I[4, 4, 1, 1],"
+                                    + " +I[4, null, 1, 1],"
+                                    + " +I[5, 5, 1, 1],"
+                                    + " +I[5, null, 1, 1]]");
         } else {
-            assertEquals(
-                    "["
-                            + "+I[1, 1, 0, 1],"
-                            + " +I[1, null, 1, 1],"
-                            + " +I[2, 2, 0, 1],"
-                            + " +I[2, null, 1, 1],"
-                            + " +I[3, 3, 0, 1],"
-                            + " +I[3, null, 1, 1],"
-                            + " +I[4, 4, 0, 1],"
-                            + " +I[4, null, 1, 1],"
-                            + " +I[5, 5, 0, 1],"
-                            + " +I[5, null, 1, 1]]",
-                    results1.toString());
-            assertEquals(
-                    "["
-                            + "+I[1, 1, 0, 1],"
-                            + " +I[1, null, 0, 1],"
-                            + " +I[2, 2, 0, 1],"
-                            + " +I[2, null, 0, 1],"
-                            + " +I[3, 3, 0, 1],"
-                            + " +I[3, null, 0, 1],"
-                            + " +I[4, 4, 0, 1],"
-                            + " +I[4, null, 0, 1],"
-                            + " +I[5, 5, 0, 1],"
-                            + " +I[5, null, 0, 1]]",
-                    results2.toString());
+            assertThat(results1.toString())
+                    .isEqualTo(
+                            "["
+                                    + "+I[1, 1, 0, 1],"
+                                    + " +I[1, null, 1, 1],"
+                                    + " +I[2, 2, 0, 1],"
+                                    + " +I[2, null, 1, 1],"
+                                    + " +I[3, 3, 0, 1],"
+                                    + " +I[3, null, 1, 1],"
+                                    + " +I[4, 4, 0, 1],"
+                                    + " +I[4, null, 1, 1],"
+                                    + " +I[5, 5, 0, 1],"
+                                    + " +I[5, null, 1, 1]]");
+            assertThat(results2.toString())
+                    .isEqualTo(
+                            "["
+                                    + "+I[1, 1, 0, 1],"
+                                    + " +I[1, null, 0, 1],"
+                                    + " +I[2, 2, 0, 1],"
+                                    + " +I[2, null, 0, 1],"
+                                    + " +I[3, 3, 0, 1],"
+                                    + " +I[3, null, 0, 1],"
+                                    + " +I[4, 4, 0, 1],"
+                                    + " +I[4, null, 0, 1],"
+                                    + " +I[5, 5, 0, 1],"
+                                    + " +I[5, null, 0, 1]]");
         }
     }
 
@@ -260,29 +264,29 @@ public class HiveDialectQueryITCase {
             if (HiveParserUtils.legacyGrouping(hiveCatalog.getHiveConf())) {
                 // the grouping function in older version (2.2.0) hive has some serious bug and is
                 // barely usable, therefore we only care about the group__id here
-                assertEquals(
-                        "["
-                                + "+I[1, 2, 3, 7, 1, 1],"
-                                + " +I[1, 2, null, 3, 1, 0],"
-                                + " +I[1, null, 3, 5, 1, 1],"
-                                + " +I[1, null, null, 1, 1, 0],"
-                                + " +I[null, 2, 3, 6, 0, 1],"
-                                + " +I[null, 2, null, 2, 0, 0],"
-                                + " +I[null, null, 3, 4, 0, 1],"
-                                + " +I[null, null, null, 0, 0, 0]]",
-                        results.toString());
+                assertThat(results.toString())
+                        .isEqualTo(
+                                "["
+                                        + "+I[1, 2, 3, 7, 1, 1],"
+                                        + " +I[1, 2, null, 3, 1, 0],"
+                                        + " +I[1, null, 3, 5, 1, 1],"
+                                        + " +I[1, null, null, 1, 1, 0],"
+                                        + " +I[null, 2, 3, 6, 0, 1],"
+                                        + " +I[null, 2, null, 2, 0, 0],"
+                                        + " +I[null, null, 3, 4, 0, 1],"
+                                        + " +I[null, null, null, 0, 0, 0]]");
             } else {
-                assertEquals(
-                        "["
-                                + "+I[1, 2, 3, 0, 0, 0],"
-                                + " +I[1, 2, null, 1, 0, 1],"
-                                + " +I[1, null, 3, 2, 0, 0],"
-                                + " +I[1, null, null, 3, 0, 1],"
-                                + " +I[null, 2, 3, 4, 1, 0],"
-                                + " +I[null, 2, null, 5, 1, 1],"
-                                + " +I[null, null, 3, 6, 1, 0],"
-                                + " +I[null, null, null, 7, 1, 1]]",
-                        results.toString());
+                assertThat(results.toString())
+                        .isEqualTo(
+                                "["
+                                        + "+I[1, 2, 3, 0, 0, 0],"
+                                        + " +I[1, 2, null, 1, 0, 1],"
+                                        + " +I[1, null, 3, 2, 0, 0],"
+                                        + " +I[1, null, null, 3, 0, 1],"
+                                        + " +I[null, 2, 3, 4, 1, 0],"
+                                        + " +I[null, 2, null, 5, 1, 1],"
+                                        + " +I[null, null, 3, 6, 1, 0],"
+                                        + " +I[null, null, null, 7, 1, 1]]");
             }
         } finally {
             tableEnv.executeSql("drop table temp");
@@ -303,12 +307,132 @@ public class HiveDialectQueryITCase {
             List<Row> result =
                     CollectionUtil.iteratorToList(
                             tableEnv.executeSql("select * from test_values").collect());
-            assertEquals(
-                    "[+I[1, -2, 3, 4, 1.1, 1.1, 1.10000, 2021-08-04T16:26:33.400, 2021-08-04, null, 123, 56, false]]",
-                    result.toString());
+            assertThat(result.toString())
+                    .isEqualTo(
+                            "[+I[1, -2, 3, 4, 1.1, 1.1, 1.10000, 2021-08-04T16:26:33.400, 2021-08-04, null, 123, 56, false]]");
         } finally {
             tableEnv.executeSql("drop table test_values");
         }
+    }
+
+    @Test
+    public void testJoinInvolvingComplexType() throws Exception {
+        tableEnv.executeSql("CREATE TABLE test2a (a ARRAY<INT>)");
+        tableEnv.executeSql("CREATE TABLE test2b (a INT)");
+        try {
+            tableEnv.executeSql("insert into test2a SELECT ARRAY(1, 2)").await();
+            tableEnv.executeSql("insert into test2b values (2), (3), (4)").await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select *  from test2b join test2a on test2b.a = test2a.a[1]")
+                                    .collect());
+            assertThat(result.toString()).isEqualTo("[+I[2, [1, 2]]]");
+        } finally {
+            tableEnv.executeSql("drop table test2a");
+            tableEnv.executeSql("drop table test2b");
+        }
+    }
+
+    @Test
+    public void testWindowWithGrouping() throws Exception {
+        tableEnv.executeSql("create table t(category int, live int, comments int)");
+        try {
+            tableEnv.executeSql("insert into table t values (1, 0, 2), (2, 0, 2), (3, 0, 2)")
+                    .await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select grouping(category),"
+                                                    + " lag(live) over(partition by grouping(category)) "
+                                                    + "from t group by category, live")
+                                    .collect());
+            assertThat(result.toString()).isEqualTo("[+I[0, null], +I[0, 0], +I[0, 0]]");
+            // test grouping with multiple parameters
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select grouping(category, live),"
+                                                    + " lead(live) over(partition by grouping(category, live)) "
+                                                    + "from t group by category, live")
+                                    .collect());
+            assertThat(result.toString()).isEqualTo("[+I[0, 0], +I[0, 0], +I[0, null]]");
+        } finally {
+            tableEnv.executeSql("drop table t");
+        }
+    }
+
+    @Test
+    public void testCurrentDatabase() {
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select current_database()").collect());
+        assertThat(result.toString()).isEqualTo("[+I[default]]");
+        tableEnv.executeSql("create database db1");
+        tableEnv.executeSql("use db1");
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select current_database()").collect());
+        assertThat(result.toString()).isEqualTo("[+I[db1]]");
+        // switch to default database for following test use default database
+        tableEnv.executeSql("use default");
+        tableEnv.executeSql("drop database db1");
+    }
+
+    @Test
+    public void testDistinctFrom() throws Exception {
+        try {
+            tableEnv.executeSql("create table test(x string, y string)");
+            tableEnv.executeSql(
+                            "insert into test values ('q', 'q'), ('q', 'w'), (NULL, 'q'), ('q', NULL), (NULL, NULL)")
+                    .await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select x <=> y, (x <=> y) = false from test")
+                                    .collect());
+            assertThat(result.toString())
+                    .isEqualTo(
+                            "[+I[true, false], +I[false, true], +I[false, true], +I[false, true], +I[true, false]]");
+        } finally {
+            tableEnv.executeSql("drop table test");
+        }
+    }
+
+    @Test
+    public void testTableSample() throws Exception {
+        tableEnv.executeSql("create table test_sample(a int)");
+        try {
+            tableEnv.executeSql("insert into test_sample values (2), (1), (3)").await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from test_sample tablesample (2 rows)")
+                                    .collect());
+            assertThat(result.toString()).isEqualTo("[+I[2], +I[1]]");
+            // test unsupported table sample
+            String expectedMessage = "Only TABLESAMPLE (n ROWS) is supported.";
+            assertSqlException(
+                    "select * from test_sample tablesample (0.1 PERCENT)",
+                    UnsupportedOperationException.class,
+                    expectedMessage);
+            assertSqlException(
+                    "select * from test_sample tablesample (100M)",
+                    UnsupportedOperationException.class,
+                    expectedMessage);
+            assertSqlException(
+                    "select * from test_sample tablesample (BUCKET 3 OUT OF 64 ON a)",
+                    UnsupportedOperationException.class,
+                    expectedMessage);
+        } finally {
+            tableEnv.executeSql("drop table test_sample");
+        }
+    }
+
+    private void assertSqlException(
+            String sql, Class<?> expectedExceptionClz, String expectedMessage) {
+        assertThatThrownBy(() -> tableEnv.executeSql(sql))
+                .rootCause()
+                .isInstanceOf(expectedExceptionClz)
+                .hasMessage(expectedMessage);
     }
 
     private void runQFile(File qfile) throws Exception {
@@ -457,7 +581,7 @@ public class HiveDialectQueryITCase {
             this.statements = statements;
             this.results = results;
             this.sortResults = sortResults;
-            assertEquals(statements.size(), results.size());
+            assertThat(results).hasSize(statements.size());
         }
     }
 }

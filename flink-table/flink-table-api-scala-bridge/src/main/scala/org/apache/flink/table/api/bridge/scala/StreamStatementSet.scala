@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.api.bridge.scala
 
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.{StatementSet, Table, TableDescriptor}
+import org.apache.flink.table.api.{ExplainDetail, StatementSet, Table, TableDescriptor, TablePipeline}
 
 /**
  * A [[StatementSet]] that integrates with the Scala-specific [[DataStream]] API.
@@ -35,6 +34,8 @@ import org.apache.flink.table.api.{StatementSet, Table, TableDescriptor}
 @PublicEvolving
 trait StreamStatementSet extends StatementSet {
 
+  override def add(tablePipeline: TablePipeline): StreamStatementSet
+
   override def addInsertSql(statement: String): StreamStatementSet
 
   override def addInsert(targetPath: String, table: Table): StreamStatementSet
@@ -46,8 +47,9 @@ trait StreamStatementSet extends StatementSet {
   override def addInsert(
       targetDescriptor: TableDescriptor,
       table: Table,
-      overwrite: Boolean)
-    : StreamStatementSet
+      overwrite: Boolean): StreamStatementSet
+
+  override def printExplain(extraDetails: ExplainDetail*): StreamStatementSet
 
   /**
    * Optimizes all statements as one entity and adds them as transformations to the underlying

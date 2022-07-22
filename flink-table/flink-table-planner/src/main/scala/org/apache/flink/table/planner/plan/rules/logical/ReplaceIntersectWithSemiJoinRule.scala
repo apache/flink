@@ -15,27 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.plan.utils.SetOpRewriteUtil.generateEqualsCondition
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.core.{Aggregate, Intersect, Join, JoinRelType, RelFactories}
 
 import scala.collection.JavaConversions._
 
 /**
-  * Planner rule that replaces distinct [[Intersect]] with
-  * a distinct [[Aggregate]] on a SEMI [[Join]].
-  *
-  * Only handle the case of input size 2.
-  */
-class ReplaceIntersectWithSemiJoinRule extends RelOptRule(
-  operand(classOf[Intersect], any),
-  RelFactories.LOGICAL_BUILDER,
-  "ReplaceIntersectWithSemiJoinRule") {
+ * Planner rule that replaces distinct [[Intersect]] with a distinct [[Aggregate]] on a SEMI
+ * [[Join]].
+ *
+ * Only handle the case of input size 2.
+ */
+class ReplaceIntersectWithSemiJoinRule
+  extends RelOptRule(
+    operand(classOf[Intersect], any),
+    RelFactories.LOGICAL_BUILDER,
+    "ReplaceIntersectWithSemiJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val intersect: Intersect = call.rel(0)

@@ -54,7 +54,7 @@ public class DeployingTasksBenchmarkBase extends SchedulerBenchmarkBase {
             for (ExecutionVertex ev : ejv.getTaskVertices()) {
                 final LogicalSlot slot = slotBuilder.createTestingLogicalSlot();
                 final Execution execution = ev.getCurrentExecutionAttempt();
-                execution.registerProducedPartitions(slot.getTaskManagerLocation(), true).get();
+                execution.registerProducedPartitions(slot.getTaskManagerLocation()).get();
                 if (!execution.tryAssignResource(slot)) {
                     throw new RuntimeException("Error when assigning slot to execution.");
                 }

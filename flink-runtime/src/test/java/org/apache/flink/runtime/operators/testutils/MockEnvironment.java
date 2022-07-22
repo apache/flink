@@ -57,8 +57,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.concurrent.Executors;
 
-import com.sun.istack.NotNull;
-
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -67,6 +65,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -165,7 +164,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
         this.taskConfiguration = taskConfiguration;
         this.inputs = new LinkedList<>();
         this.outputs = new LinkedList<ResultPartitionWriter>();
-        this.executionAttemptID = new ExecutionAttemptID();
+        this.executionAttemptID = createExecutionAttemptId(jobVertexID, subtaskIndex, 0);
 
         this.memManager = memManager;
         this.ioManager = ioManager;
@@ -404,7 +403,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
     }
 
     @Override
-    public void setMainMailboxExecutor(@NotNull MailboxExecutor mainMailboxExecutor) {
+    public void setMainMailboxExecutor(MailboxExecutor mainMailboxExecutor) {
         this.mainMailboxExecutor = mainMailboxExecutor;
     }
 
@@ -414,7 +413,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
     }
 
     @Override
-    public void setAsyncOperationsThreadPool(@NotNull ExecutorService executorService) {
+    public void setAsyncOperationsThreadPool(ExecutorService executorService) {
         this.asyncOperationsThreadPool = executorService;
     }
 
@@ -424,8 +423,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
     }
 
     @Override
-    public void setCheckpointStorageAccess(
-            @NotNull CheckpointStorageAccess checkpointStorageAccess) {
+    public void setCheckpointStorageAccess(CheckpointStorageAccess checkpointStorageAccess) {
         this.checkpointStorageAccess = checkpointStorageAccess;
     }
 

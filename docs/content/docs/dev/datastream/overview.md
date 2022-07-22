@@ -85,11 +85,11 @@ The `StreamExecutionEnvironment` is the basis for all Flink programs. You can
 obtain one using these static methods on `StreamExecutionEnvironment`:
 
 ```java
-getExecutionEnvironment()
+getExecutionEnvironment();
 
-createLocalEnvironment()
+createLocalEnvironment();
 
-createRemoteEnvironment(String host, int port, String... jarFiles)
+createRemoteEnvironment(String host, int port, String... jarFiles);
 ```
 
 Typically, you only need to use `getExecutionEnvironment()`, since this will do
@@ -136,9 +136,9 @@ an outside system by creating a sink. These are just some example methods for
 creating a sink:
 
 ```java
-writeAsText(String path)
+writeAsText(String path);
 
-print()
+print();
 ```
 
 {{< /tab >}}
@@ -744,7 +744,7 @@ List<Tuple2<String, Integer>> data = ...
 DataStream<Tuple2<String, Integer>> myTuples = env.fromCollection(data);
 
 // Create a DataStream from an Iterator
-Iterator<Long> longIt = ...
+Iterator<Long> longIt = ...;
 DataStream<Long> myLongs = env.fromCollection(longIt, Long.class);
 ```
 {{< /tab >}}
@@ -777,10 +777,10 @@ Flink also provides a sink to collect DataStream results for testing and debuggi
 {{< tabs "125e228e-13b5-4c77-93a7-c0f436fcdd2f" >}}
 {{< tab "Java" >}}
 ```java
-import org.apache.flink.streaming.experimental.DataStreamUtils
+import org.apache.flink.streaming.experimental.DataStreamUtils;
 
-DataStream<Tuple2<String, Integer>> myResult = ...
-Iterator<Tuple2<String, Integer>> myOutput = DataStreamUtils.collect(myResult)
+DataStream<Tuple2<String, Integer>> myResult = ...;
+Iterator<Tuple2<String, Integer>> myOutput = DataStreamUtils.collect(myResult);
 ```
 
 {{< /tab >}}

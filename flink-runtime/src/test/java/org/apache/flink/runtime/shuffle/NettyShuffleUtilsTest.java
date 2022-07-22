@@ -45,6 +45,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED_BOUNDED;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
@@ -146,7 +147,7 @@ public class NettyShuffleUtilsTest extends TestLogger {
                 new InputGateDeploymentDescriptor(
                         new IntermediateDataSetID(), resultPartitionType, 0, shuffleDescriptors);
 
-        ExecutionAttemptID consumerID = new ExecutionAttemptID();
+        ExecutionAttemptID consumerID = createExecutionAttemptId();
         Collection<SingleInputGate> inputGates =
                 network.createInputGates(
                         network.createShuffleIOOwnerContext(
@@ -173,12 +174,13 @@ public class NettyShuffleUtilsTest extends TestLogger {
                         shuffleDescriptor.getResultPartitionID().getPartitionId(),
                         resultPartitionType,
                         numSubpartitions,
-                        0);
+                        0,
+                        false,
+                        true);
         ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor =
-                new ResultPartitionDeploymentDescriptor(
-                        partitionDescriptor, shuffleDescriptor, 1, true);
+                new ResultPartitionDeploymentDescriptor(partitionDescriptor, shuffleDescriptor, 1);
 
-        ExecutionAttemptID consumerID = new ExecutionAttemptID();
+        ExecutionAttemptID consumerID = createExecutionAttemptId();
         Collection<ResultPartition> resultPartitions =
                 network.createResultPartitionWriters(
                         network.createShuffleIOOwnerContext(
@@ -206,7 +208,7 @@ public class NettyShuffleUtilsTest extends TestLogger {
     }
 
     private int calculateBuffersConsumption(ResultPartition partition) {
-        if (partition.getPartitionType().isBlocking()) {
+        if (!partition.getPartitionType().canBePipelinedConsumed()) {
             return partition.getBufferPool().getNumberOfRequiredMemorySegments();
         } else {
             return partition.getBufferPool().getMaxNumberOfMemorySegments();

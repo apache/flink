@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStoppingOffsetsInitializer;
@@ -85,6 +86,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>Check the Java docs of each individual methods to learn more about the settings to build a
  * KafkaSource.
  */
+@PublicEvolving
 public class KafkaSourceBuilder<OUT> {
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceBuilder.class);
     private static final String[] REQUIRED_CONFIGS = {ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG};
@@ -179,6 +181,18 @@ public class KafkaSourceBuilder<OUT> {
     public KafkaSourceBuilder<OUT> setPartitions(Set<TopicPartition> partitions) {
         ensureSubscriberIsNull("partitions");
         subscriber = KafkaSubscriber.getPartitionSetSubscriber(partitions);
+        return this;
+    }
+
+    /**
+     * Set a custom Kafka subscriber to use to discover new splits.
+     *
+     * @param kafkaSubscriber the {@link KafkaSubscriber} to use for split discovery.
+     * @return this KafkaSourceBuilder.
+     */
+    public KafkaSourceBuilder<OUT> setKafkaSubscriber(KafkaSubscriber kafkaSubscriber) {
+        ensureSubscriberIsNull("custom");
+        this.subscriber = checkNotNull(kafkaSubscriber);
         return this;
     }
 

@@ -18,10 +18,14 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.streaming.api.transformations.UnionTransformation;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.api.internal.CompiledPlanUtils;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
@@ -29,8 +33,6 @@ import org.apache.flink.util.StringUtils;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
-import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
@@ -47,20 +49,16 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** The base class for json plan testing. */
 public abstract class JsonPlanTestBase extends AbstractTestBase {
 
-    @Rule public ExpectedException exception = ExpectedException.none();
-
-    protected TableEnvironmentInternal tableEnv;
+    protected TableEnvironment tableEnv;
 
     @Before
     public void setup() throws Exception {
-        tableEnv =
-                (TableEnvironmentInternal)
-                        TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
     }
 
     @After
@@ -68,8 +66,33 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
         TestValuesTableFactory.clearAllData();
     }
 
-    protected TableResult executeSqlWithJsonPlanVerified(String sql) {
-        return tableEnv.executeJsonPlan(tableEnv.getJsonPlan(sql));
+    protected TableResult compileSqlAndExecutePlan(String sql) {
+        CompiledPlan compiledPlan = tableEnv.compilePlanSql(sql);
+        checkTransformationUids(compiledPlan);
+        // try to execute the string json plan to validate to ser/de result
+        String jsonPlan = compiledPlan.asJsonString();
+        CompiledPlan newCompiledPlan = tableEnv.loadPlan(PlanReference.fromJsonString(jsonPlan));
+        return newCompiledPlan.execute();
+    }
+
+    protected void checkTransformationUids(CompiledPlan compiledPlan) {
+        List<Transformation<?>> transformations =
+                CompiledPlanUtils.toTransformations(tableEnv, compiledPlan);
+
+        transformations.stream()
+                .flatMap(t -> t.getTransitivePredecessors().stream())
+                // UnionTransformations don't need an uid
+                .filter(t -> !(t instanceof UnionTransformation))
+                .forEach(
+                        t ->
+                                assertThat(t.getUid())
+                                        .as(
+                                                "Transformation '"
+                                                        + t.getName()
+                                                        + "' with description '"
+                                                        + t.getDescription()
+                                                        + "' should contain a defined uid")
+                                        .isNotBlank());
     }
 
     protected void createTestValuesSourceTable(
@@ -92,10 +115,7 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
             @Nullable String partitionFields,
             Map<String, String> extraProperties) {
         checkArgument(fieldNameAndTypes.length > 0);
-        String partitionedBy =
-                StringUtils.isNullOrWhitespaceOnly(partitionFields)
-                        ? ""
-                        : "\n partitioned by (" + partitionFields + ") \n";
+
         String dataId = TestValuesTableFactory.registerData(data);
         Map<String, String> properties = new HashMap<>();
         properties.put("connector", "values");
@@ -103,6 +123,19 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
         properties.put("bounded", "true");
         properties.put("disable-lookup", "true");
         properties.putAll(extraProperties);
+        createTestSourceTable(tableName, fieldNameAndTypes, partitionFields, properties);
+    }
+
+    protected void createTestSourceTable(
+            String tableName,
+            String[] fieldNameAndTypes,
+            @Nullable String partitionFields,
+            Map<String, String> properties) {
+        checkArgument(fieldNameAndTypes.length > 0);
+        String partitionedBy =
+                StringUtils.isNullOrWhitespaceOnly(partitionFields)
+                        ? ""
+                        : "\n partitioned by (" + partitionFields + ") \n";
         String ddl =
                 String.format(
                         "CREATE TABLE %s (\n" + "%s\n" + ") %s with (\n%s)",
@@ -140,15 +173,26 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
             String tableName,
             String[] fieldNameAndTypes,
             @Nullable String partitionFields,
-            Map<String, String> extraProperties) {
+            Map<String, String> properties) {
+
+        Map<String, String> extraProperties = new HashMap<>();
+        extraProperties.put("connector", "values");
+
+        properties.putAll(extraProperties);
+
+        createTestSinkTable(tableName, fieldNameAndTypes, partitionFields, properties);
+    }
+
+    protected void createTestSinkTable(
+            String tableName,
+            String[] fieldNameAndTypes,
+            @Nullable String partitionFields,
+            Map<String, String> properties) {
         checkArgument(fieldNameAndTypes.length > 0);
         String partitionedBy =
                 StringUtils.isNullOrWhitespaceOnly(partitionFields)
                         ? ""
                         : "\n partitioned by (" + partitionFields + ") \n";
-        Map<String, String> properties = new HashMap<>();
-        properties.put("connector", "values");
-        properties.putAll(extraProperties);
         String ddl =
                 String.format(
                         "CREATE TABLE %s (\n" + "%s\n" + ") %s with (\n%s)",
@@ -219,7 +263,7 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
     protected void assertResult(List<String> expected, List<String> actual) {
         Collections.sort(expected);
         Collections.sort(actual);
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     protected List<String> readLines(File path) throws IOException {

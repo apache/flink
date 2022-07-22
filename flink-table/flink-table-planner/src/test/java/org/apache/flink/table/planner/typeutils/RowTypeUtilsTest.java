@@ -18,24 +18,25 @@
 
 package org.apache.flink.table.planner.typeutils;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link RowTypeUtils}. */
 public class RowTypeUtilsTest {
 
     @Test
     public void testGetUniqueName() {
-        Assert.assertEquals(
-                Arrays.asList("Dave", "Evan"),
-                RowTypeUtils.getUniqueName(
-                        Arrays.asList("Dave", "Evan"), Arrays.asList("Alice", "Bob")));
-        Assert.assertEquals(
-                Arrays.asList("Bob_0", "Bob_1", "Dave", "Alice_0"),
-                RowTypeUtils.getUniqueName(
-                        Arrays.asList("Bob", "Bob", "Dave", "Alice"),
-                        Arrays.asList("Alice", "Bob")));
+        assertThat(
+                        RowTypeUtils.getUniqueName(
+                                Arrays.asList("Dave", "Evan"), Arrays.asList("Alice", "Bob")))
+                .isEqualTo(Arrays.asList("Dave", "Evan"));
+        assertThat(
+                        RowTypeUtils.getUniqueName(
+                                Arrays.asList("Bob", "Bob", "Dave", "Alice"),
+                                Arrays.asList("Alice", "Bob")))
+                .isEqualTo(Arrays.asList("Bob_0", "Bob_1", "Dave", "Alice_0"));
     }
 }

@@ -35,13 +35,13 @@ import java.io.IOException;
  */
 @Deprecated
 @Internal
-public final class WindowReferenceJsonSerializer extends StdSerializer<WindowReference> {
+final class WindowReferenceJsonSerializer extends StdSerializer<WindowReference> {
     private static final long serialVersionUID = 1L;
 
-    public static final String FIELD_NAME_NAME = "name";
-    public static final String FIELD_NAME_TYPE = "type";
+    static final String FIELD_NAME_NAME = "name";
+    static final String FIELD_NAME_TYPE = "type";
 
-    protected WindowReferenceJsonSerializer() {
+    WindowReferenceJsonSerializer() {
         super(WindowReference.class);
     }
 

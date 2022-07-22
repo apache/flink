@@ -48,11 +48,7 @@ public class HiveParserFactory implements ParserFactory {
     public Parser create(Context context) {
         return new HiveParser(
                 context.getCatalogManager(),
-                () ->
-                        context.getPlannerContext()
-                                .createFlinkPlanner(
-                                        context.getCatalogManager().getCurrentCatalog(),
-                                        context.getCatalogManager().getCurrentDatabase()),
+                context.getPlannerContext()::createFlinkPlanner,
                 context.getPlannerContext()::createCalciteParser,
                 context.getPlannerContext());
     }

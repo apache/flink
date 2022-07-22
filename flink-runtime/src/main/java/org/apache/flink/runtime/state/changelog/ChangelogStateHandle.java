@@ -22,4 +22,8 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 
 /** A handle to saved {@link StateChange state changes}. */
 @Internal
-public interface ChangelogStateHandle extends KeyedStateHandle {}
+public interface ChangelogStateHandle extends KeyedStateHandle {
+
+    /** Get the storage identifier related to a specific {@link StateChangelogStorage}. */
+    String getStorageIdentifier();
+}

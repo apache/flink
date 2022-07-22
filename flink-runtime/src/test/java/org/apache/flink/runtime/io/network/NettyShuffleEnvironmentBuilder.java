@@ -36,6 +36,7 @@ import java.util.concurrent.Executor;
 /** Builder for the {@link NettyShuffleEnvironment}. */
 public class NettyShuffleEnvironmentBuilder {
 
+    private static final int DEFAULT_NUM_SLOTS = 1;
     private static final int DEFAULT_NETWORK_BUFFER_SIZE = 32 << 10;
     private static final int DEFAULT_NUM_NETWORK_BUFFERS = 1024;
 
@@ -65,6 +66,10 @@ public class NettyShuffleEnvironmentBuilder {
     private int maxBuffersPerChannel = Integer.MAX_VALUE;
 
     private boolean blockingShuffleCompressionEnabled = false;
+
+    private boolean connectionReuseEnabled = true;
+
+    private int maxOverdraftBuffersPerGate = 0;
 
     private String compressionCodec = "LZ4";
 
@@ -150,6 +155,18 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
+    public NettyShuffleEnvironmentBuilder setConnectionReuseEnabled(
+            boolean connectionReuseEnabled) {
+        this.connectionReuseEnabled = connectionReuseEnabled;
+        return this;
+    }
+
+    public NettyShuffleEnvironmentBuilder setMaxOverdraftBuffersPerGate(
+            int maxOverdraftBuffersPerGate) {
+        this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
+        return this;
+    }
+
     public NettyShuffleEnvironmentBuilder setCompressionCodec(String compressionCodec) {
         this.compressionCodec = compressionCodec;
         return this;
@@ -208,11 +225,15 @@ public class NettyShuffleEnvironmentBuilder {
                         sortShuffleMinBuffers,
                         sortShuffleMinParallelism,
                         debloatConfiguration,
-                        maxNumberOfConnections),
+                        maxNumberOfConnections,
+                        connectionReuseEnabled,
+                        maxOverdraftBuffersPerGate),
                 taskManagerLocation,
                 new TaskEventDispatcher(),
                 resultPartitionManager,
                 metricGroup,
-                ioExecutor);
+                ioExecutor,
+                DEFAULT_NUM_SLOTS,
+                DEFAULT_TEMP_DIRS);
     }
 }

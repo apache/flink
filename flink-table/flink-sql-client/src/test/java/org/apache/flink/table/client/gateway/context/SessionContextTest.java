@@ -20,8 +20,8 @@ package org.apache.flink.table.client.gateway.context;
 
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions;
-import org.apache.flink.table.utils.TestUserClassLoaderJar;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -42,12 +42,11 @@ import static org.apache.flink.configuration.PipelineOptions.NAME;
 import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Test {@link SessionContext}. */
 public class SessionContextTest {
@@ -61,11 +60,11 @@ public class SessionContextTest {
     @BeforeClass
     public static void prepare() throws Exception {
         udfJar =
-                TestUserClassLoaderJar.createJarFile(
+                UserClassLoaderJarTestUtils.createJarFile(
                         tempFolder.newFolder("test-jar"),
                         "test-classloader-udf.jar",
-                        UserDefinedFunctions.GENERATED_UDF_CLASS,
-                        UserDefinedFunctions.GENERATED_UDF_CODE);
+                        GENERATED_LOWER_UDF_CLASS,
+                        String.format(GENERATED_LOWER_UDF_CODE, GENERATED_LOWER_UDF_CLASS));
     }
 
     @Before
@@ -83,19 +82,19 @@ public class SessionContextTest {
         sessionContext.set(NAME.key(), "test");
         // runtime config from flink-conf
         sessionContext.set(OBJECT_REUSE.key(), "false");
-        assertEquals("hive", getConfiguration().getString(TABLE_SQL_DIALECT));
-        assertEquals(128, getConfiguration().getInteger(MAX_PARALLELISM));
-        assertEquals("test", getConfiguration().getString(NAME));
-        assertFalse(getConfiguration().getBoolean(OBJECT_REUSE));
+        assertThat(getConfiguration().get(TABLE_SQL_DIALECT)).isEqualTo("hive");
+        assertThat(getConfiguration().get(MAX_PARALLELISM)).isEqualTo(128);
+        assertThat(getConfiguration().get(NAME)).isEqualTo("test");
+        assertThat(getConfiguration().get(OBJECT_REUSE)).isFalse();
 
         sessionContext.reset();
-        assertEquals("default", getConfiguration().getString(TABLE_SQL_DIALECT));
-        assertNull(getConfiguration().get(NAME));
+        assertThat(getConfiguration().get(TABLE_SQL_DIALECT)).isEqualTo("default");
+        assertThat(getConfiguration().get(NAME)).isNull();
         // The value of MAX_PARALLELISM in DEFAULTS_ENVIRONMENT_FILE is 16
-        assertEquals(16, getConfiguration().getInteger(MAX_PARALLELISM));
-        assertNull(getConfiguration().getString(NAME, null));
+        assertThat(getConfiguration().get(MAX_PARALLELISM)).isEqualTo(16);
+        assertThat(getConfiguration().getOptional(NAME)).isEmpty();
         // The value of OBJECT_REUSE in origin configuration is true
-        assertTrue(getConfiguration().getBoolean(OBJECT_REUSE));
+        assertThat(getConfiguration().get(OBJECT_REUSE)).isTrue();
     }
 
     @Test
@@ -109,22 +108,22 @@ public class SessionContextTest {
         // runtime config from flink-conf
         sessionContext.set(OBJECT_REUSE.key(), "false");
 
-        assertEquals("hive", getConfiguration().getString(TABLE_SQL_DIALECT));
-        assertEquals(128, getConfiguration().getInteger(MAX_PARALLELISM));
-        assertEquals("test", getConfiguration().getString(NAME));
-        assertFalse(getConfiguration().getBoolean(OBJECT_REUSE));
+        assertThat(getConfiguration().get(TABLE_SQL_DIALECT)).isEqualTo("hive");
+        assertThat(getConfiguration().get(MAX_PARALLELISM)).isEqualTo(128);
+        assertThat(getConfiguration().get(NAME)).isEqualTo("test");
+        assertThat(getConfiguration().get(OBJECT_REUSE)).isFalse();
 
         sessionContext.reset(TABLE_SQL_DIALECT.key());
-        assertEquals("default", getConfiguration().getString(TABLE_SQL_DIALECT));
+        assertThat(getConfiguration().get(TABLE_SQL_DIALECT)).isEqualTo("default");
 
         sessionContext.reset(MAX_PARALLELISM.key());
-        assertEquals(16, getConfiguration().getInteger(MAX_PARALLELISM));
+        assertThat(getConfiguration().get(MAX_PARALLELISM)).isEqualTo(16);
 
         sessionContext.reset(NAME.key());
-        assertNull(getConfiguration().get(NAME));
+        assertThat(getConfiguration().get(NAME)).isNull();
 
         sessionContext.reset(OBJECT_REUSE.key());
-        assertTrue(getConfiguration().getBoolean(OBJECT_REUSE));
+        assertThat(getConfiguration().get(OBJECT_REUSE)).isTrue();
     }
 
     @Test
@@ -133,15 +132,15 @@ public class SessionContextTest {
         sessionContext.set("aa", "11");
         sessionContext.set("bb", "22");
 
-        assertEquals("11", getConfigurationMap().get("aa"));
-        assertEquals("22", getConfigurationMap().get("bb"));
+        assertThat(getConfigurationMap().get("aa")).isEqualTo("11");
+        assertThat(getConfigurationMap().get("bb")).isEqualTo("22");
 
         sessionContext.reset("aa");
-        assertNull(getConfigurationMap().get("aa"));
-        assertEquals("22", getConfigurationMap().get("bb"));
+        assertThat(getConfigurationMap().get("aa")).isNull();
+        assertThat(getConfigurationMap().get("bb")).isEqualTo("22");
 
         sessionContext.reset("bb");
-        assertNull(getConfigurationMap().get("bb"));
+        assertThat(getConfigurationMap().get("bb")).isNull();
     }
 
     @Test
@@ -164,14 +163,6 @@ public class SessionContextTest {
     public void testAddRemoteJar() {
         validateAddJarWithException(
                 "hdfs://remote:10080/remote.jar", "SQL Client only supports to add local jars.");
-    }
-
-    @Test
-    public void testAddIllegalJarInConfig() {
-        Configuration innerConfig = (Configuration) sessionContext.getReadableConfig();
-        innerConfig.set(JARS, Collections.singletonList("/path/to/illegal.jar"));
-
-        validateAddJarWithException(udfJar.getPath(), "no protocol: /path/to/illegal.jar");
     }
 
     @Test
@@ -222,34 +213,24 @@ public class SessionContextTest {
                 .toMap();
     }
 
-    private Configuration getConfiguration() {
-        return sessionContext
-                .getExecutionContext()
-                .getTableEnvironment()
-                .getConfig()
-                .getConfiguration();
+    private ReadableConfig getConfiguration() {
+        return sessionContext.getExecutionContext().getTableEnvironment().getConfig();
     }
 
-    private void validateAddJar(String jarPath) throws IOException {
+    private void validateAddJar(String jarPath) {
         sessionContext.addJar(jarPath);
-        assertEquals(Collections.singletonList(udfJar.getPath()), sessionContext.listJars());
-        assertEquals(
-                Collections.singletonList(udfJar.toURI().toURL().toString()),
-                getConfiguration().get(JARS));
+        assertThat(sessionContext.listJars()).containsExactly(udfJar.getPath());
         // reset to the default
         sessionContext.reset();
-        assertEquals(Collections.singletonList(udfJar.getPath()), sessionContext.listJars());
-        assertEquals(
-                Collections.singletonList(udfJar.toURI().toURL().toString()),
-                getConfiguration().get(JARS));
+        assertThat(sessionContext.listJars()).containsExactly(udfJar.getPath());
     }
 
     private void validateRemoveJar(String jarPath) {
         sessionContext.addJar(jarPath);
-        assertEquals(Collections.singletonList(udfJar.getPath()), sessionContext.listJars());
+        assertThat(sessionContext.listJars()).containsExactly(udfJar.getPath());
 
         sessionContext.removeJar(jarPath);
-        assertEquals(Collections.emptyList(), sessionContext.listJars());
+        assertThat(sessionContext.listJars()).isEmpty();
     }
 
     private void validateAddJarWithException(String jarPath, String errorMessages) {
@@ -258,9 +239,9 @@ public class SessionContextTest {
             sessionContext.addJar(jarPath);
             fail("Should fail.");
         } catch (Exception e) {
-            assertThat(e, containsMessage(errorMessages));
+            assertThat(e).satisfies(matching(containsMessage(errorMessages)));
             // Keep dependencies as same as before if fail to add jar
-            assertEquals(originDependencies, sessionContext.getDependencies());
+            assertThat(sessionContext.getDependencies()).isEqualTo(originDependencies);
         }
     }
 
@@ -270,9 +251,9 @@ public class SessionContextTest {
             sessionContext.removeJar(jarPath);
             fail("Should fail.");
         } catch (Exception e) {
-            assertThat(e, containsMessage(errorMessages));
+            assertThat(e).satisfies(matching(containsMessage(errorMessages)));
             // Keep dependencies as same as before if fail to remove jar
-            assertEquals(originDependencies, sessionContext.getDependencies());
+            assertThat(sessionContext.getDependencies()).isEqualTo(originDependencies);
         }
     }
 }

@@ -25,7 +25,7 @@ import java.math.BigDecimal;
 import java.util.Random;
 
 /** A test for the {@link BigDecSerializer}. */
-public class BigDecSerializerTest extends SerializerTestBase<BigDecimal> {
+class BigDecSerializerTest extends SerializerTestBase<BigDecimal> {
 
     @Override
     protected TypeSerializer<BigDecimal> createSerializer() {

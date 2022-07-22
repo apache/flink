@@ -45,6 +45,7 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -59,6 +60,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -102,49 +104,52 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
         TestingExecutionDeploymentTrackerWrapper deploymentTrackerWrapper =
                 new TestingExecutionDeploymentTrackerWrapper();
         final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
-        JobMaster jobMaster =
-                createAndStartJobMaster(onCompletionActions, deploymentTrackerWrapper, jobGraph);
-        JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
-        RPC_SERVICE_RESOURCE
-                .getTestingRpcService()
-                .registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+        try (JobMaster jobMaster =
+                createAndStartJobMaster(onCompletionActions, deploymentTrackerWrapper, jobGraph)) {
+            JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+            RPC_SERVICE_RESOURCE
+                    .getTestingRpcService()
+                    .registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
-        final CompletableFuture<ExecutionAttemptID> taskCancellationFuture =
-                new CompletableFuture<>();
-        TaskExecutorGateway taskExecutorGateway = createTaskExecutorGateway(taskCancellationFuture);
-        LocalUnresolvedTaskManagerLocation localUnresolvedTaskManagerLocation =
-                new LocalUnresolvedTaskManagerLocation();
+            final CompletableFuture<ExecutionAttemptID> taskCancellationFuture =
+                    new CompletableFuture<>();
+            TaskExecutorGateway taskExecutorGateway =
+                    createTaskExecutorGateway(taskCancellationFuture);
+            LocalUnresolvedTaskManagerLocation localUnresolvedTaskManagerLocation =
+                    new LocalUnresolvedTaskManagerLocation();
 
-        registerTaskExecutorAndOfferSlots(
-                jobMasterGateway,
-                jobGraph.getJobID(),
-                taskExecutorGateway,
-                localUnresolvedTaskManagerLocation);
+            registerTaskExecutorAndOfferSlots(
+                    jobMasterGateway,
+                    jobGraph.getJobID(),
+                    taskExecutorGateway,
+                    localUnresolvedTaskManagerLocation);
 
-        ExecutionAttemptID deployedExecution =
-                deploymentTrackerWrapper.getTaskDeploymentFuture().get();
-        assertFalse(taskCancellationFuture.isDone());
+            ExecutionAttemptID deployedExecution =
+                    deploymentTrackerWrapper.getTaskDeploymentFuture().get();
+            assertFalse(taskCancellationFuture.isDone());
 
-        ExecutionAttemptID unknownDeployment = new ExecutionAttemptID();
-        //  the deployment report is missing the just deployed task, but contains the ID of some
-        // other unknown deployment
-        //  the job master should cancel the unknown deployment, and fail the job
-        jobMasterGateway.heartbeatFromTaskManager(
-                localUnresolvedTaskManagerLocation.getResourceID(),
-                new TaskExecutorToJobManagerHeartbeatPayload(
-                        new AccumulatorReport(Collections.emptyList()),
-                        new ExecutionDeploymentReport(Collections.singleton(unknownDeployment))));
+            ExecutionAttemptID unknownDeployment = createExecutionAttemptId();
+            //  the deployment report is missing the just deployed task, but contains the ID of some
+            // other unknown deployment
+            //  the job master should cancel the unknown deployment, and fail the job
+            jobMasterGateway.heartbeatFromTaskManager(
+                    localUnresolvedTaskManagerLocation.getResourceID(),
+                    new TaskExecutorToJobManagerHeartbeatPayload(
+                            new AccumulatorReport(Collections.emptyList()),
+                            new ExecutionDeploymentReport(
+                                    Collections.singleton(unknownDeployment))));
 
-        assertThat(taskCancellationFuture.get(), is(unknownDeployment));
-        assertThat(deploymentTrackerWrapper.getStopFuture().get(), is(deployedExecution));
+            assertThat(taskCancellationFuture.get(), is(unknownDeployment));
+            assertThat(deploymentTrackerWrapper.getStopFuture().get(), is(deployedExecution));
 
-        assertThat(
-                onCompletionActions
-                        .getJobReachedGloballyTerminalStateFuture()
-                        .get()
-                        .getArchivedExecutionGraph()
-                        .getState(),
-                is(JobStatus.FAILED));
+            assertThat(
+                    onCompletionActions
+                            .getJobReachedGloballyTerminalStateFuture()
+                            .get()
+                            .getArchivedExecutionGraph()
+                            .getState(),
+                    is(JobStatus.FAILED));
+        }
     }
 
     /**
@@ -156,46 +161,48 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
         TestingExecutionDeploymentTrackerWrapper deploymentTrackerWrapper =
                 new TestingExecutionDeploymentTrackerWrapper();
         final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
-        JobMaster jobMaster = createAndStartJobMaster(deploymentTrackerWrapper, jobGraph);
-        JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
-        RPC_SERVICE_RESOURCE
-                .getTestingRpcService()
-                .registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+        try (JobMaster jobMaster = createAndStartJobMaster(deploymentTrackerWrapper, jobGraph)) {
+            JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+            RPC_SERVICE_RESOURCE
+                    .getTestingRpcService()
+                    .registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
-        final CompletableFuture<ExecutionAttemptID> taskSubmissionFuture =
-                new CompletableFuture<>();
-        final CompletableFuture<ExecutionAttemptID> taskCancellationFuture =
-                new CompletableFuture<>();
-        final CompletableFuture<Acknowledge> taskSubmissionAcknowledgeFuture =
-                new CompletableFuture<>();
-        TaskExecutorGateway taskExecutorGateway =
-                createTaskExecutorGateway(
-                        taskCancellationFuture,
-                        taskSubmissionFuture,
-                        taskSubmissionAcknowledgeFuture);
-        LocalUnresolvedTaskManagerLocation localUnresolvedTaskManagerLocation =
-                new LocalUnresolvedTaskManagerLocation();
+            final CompletableFuture<ExecutionAttemptID> taskSubmissionFuture =
+                    new CompletableFuture<>();
+            final CompletableFuture<ExecutionAttemptID> taskCancellationFuture =
+                    new CompletableFuture<>();
+            final CompletableFuture<Acknowledge> taskSubmissionAcknowledgeFuture =
+                    new CompletableFuture<>();
+            TaskExecutorGateway taskExecutorGateway =
+                    createTaskExecutorGateway(
+                            taskCancellationFuture,
+                            taskSubmissionFuture,
+                            taskSubmissionAcknowledgeFuture);
+            LocalUnresolvedTaskManagerLocation localUnresolvedTaskManagerLocation =
+                    new LocalUnresolvedTaskManagerLocation();
 
-        registerTaskExecutorAndOfferSlots(
-                jobMasterGateway,
-                jobGraph.getJobID(),
-                taskExecutorGateway,
-                localUnresolvedTaskManagerLocation);
+            registerTaskExecutorAndOfferSlots(
+                    jobMasterGateway,
+                    jobGraph.getJobID(),
+                    taskExecutorGateway,
+                    localUnresolvedTaskManagerLocation);
 
-        ExecutionAttemptID pendingExecutionId = taskSubmissionFuture.get();
+            ExecutionAttemptID pendingExecutionId = taskSubmissionFuture.get();
 
-        // the execution has not been acknowledged yet by the TaskExecutor, but we already allow the
-        // ID to be in the heartbeat payload
-        jobMasterGateway.heartbeatFromTaskManager(
-                localUnresolvedTaskManagerLocation.getResourceID(),
-                new TaskExecutorToJobManagerHeartbeatPayload(
-                        new AccumulatorReport(Collections.emptyList()),
-                        new ExecutionDeploymentReport(Collections.singleton(pendingExecutionId))));
+            // the execution has not been acknowledged yet by the TaskExecutor, but we already allow
+            // the ID to be in the heartbeat payload
+            jobMasterGateway.heartbeatFromTaskManager(
+                    localUnresolvedTaskManagerLocation.getResourceID(),
+                    new TaskExecutorToJobManagerHeartbeatPayload(
+                            new AccumulatorReport(Collections.emptyList()),
+                            new ExecutionDeploymentReport(
+                                    Collections.singleton(pendingExecutionId))));
 
-        taskSubmissionAcknowledgeFuture.complete(Acknowledge.get());
+            taskSubmissionAcknowledgeFuture.complete(Acknowledge.get());
 
-        deploymentTrackerWrapper.getTaskDeploymentFuture().get();
-        assertFalse(taskCancellationFuture.isDone());
+            deploymentTrackerWrapper.getTaskDeploymentFuture().get();
+            assertFalse(taskCancellationFuture.isDone());
+        }
     }
 
     private JobMaster createAndStartJobMaster(
@@ -270,9 +277,11 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
             throws ExecutionException, InterruptedException {
         jobMasterGateway
                 .registerTaskManager(
-                        taskExecutorGateway.getAddress(),
-                        taskManagerLocation,
                         jobId,
+                        TaskManagerRegistrationInformation.create(
+                                taskExecutorGateway.getAddress(),
+                                taskManagerLocation,
+                                TestingUtils.zeroUUID()),
                         testingTimeout)
                 .get();
 

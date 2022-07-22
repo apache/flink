@@ -105,22 +105,18 @@ public class HBaseConnectorOptionsUtil {
         return builder.build();
     }
 
-    /**
-     * config HBase Configuration.
-     *
-     * @param options properties option
-     */
-    public static Configuration getHBaseConfiguration(Map<String, String> options) {
-        org.apache.flink.configuration.Configuration tableOptions =
-                org.apache.flink.configuration.Configuration.fromMap(options);
+    /** config HBase Configuration. */
+    public static Configuration getHBaseConfiguration(ReadableConfig tableOptions) {
         // create default configuration from current runtime env (`hbase-site.xml` in classpath)
         // first,
         Configuration hbaseClientConf = HBaseConfigurationUtil.getHBaseConfiguration();
-        hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, tableOptions.getString(ZOOKEEPER_QUORUM));
+        hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, tableOptions.get(ZOOKEEPER_QUORUM));
         hbaseClientConf.set(
-                HConstants.ZOOKEEPER_ZNODE_PARENT, tableOptions.getString(ZOOKEEPER_ZNODE_PARENT));
+                HConstants.ZOOKEEPER_ZNODE_PARENT, tableOptions.get(ZOOKEEPER_ZNODE_PARENT));
         // add HBase properties
-        final Properties properties = getHBaseClientProperties(options);
+        final Properties properties =
+                getHBaseClientProperties(
+                        ((org.apache.flink.configuration.Configuration) tableOptions).toMap());
         properties.forEach((k, v) -> hbaseClientConf.set(k.toString(), v.toString()));
         return hbaseClientConf;
     }

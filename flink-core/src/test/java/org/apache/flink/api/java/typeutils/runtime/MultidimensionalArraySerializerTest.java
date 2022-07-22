@@ -36,7 +36,7 @@ public class MultidimensionalArraySerializerTest {
 
         SerializerTestInstance<String[][]> testInstance =
                 new SerializerTestInstance<String[][]>(
-                        ti.createSerializer(new ExecutionConfig()), String[][].class, -1, array);
+                        ti.createSerializer(new ExecutionConfig()), String[][].class, -1, array) {};
         testInstance.testAll();
     }
 
@@ -47,7 +47,7 @@ public class MultidimensionalArraySerializerTest {
 
         SerializerTestInstance<int[][]> testInstance =
                 new SerializerTestInstance<int[][]>(
-                        ti.createSerializer(new ExecutionConfig()), int[][].class, -1, array);
+                        ti.createSerializer(new ExecutionConfig()), int[][].class, -1, array) {};
         testInstance.testAll();
     }
 
@@ -79,7 +79,10 @@ public class MultidimensionalArraySerializerTest {
 
         SerializerTestInstance<Integer[][]> testInstance =
                 new SerializerTestInstance<Integer[][]>(
-                        ti.createSerializer(new ExecutionConfig()), Integer[][].class, -1, array);
+                        ti.createSerializer(new ExecutionConfig()),
+                        Integer[][].class,
+                        -1,
+                        array) {};
         testInstance.testAll();
 
         MyPojo[][] array2 =
@@ -90,7 +93,10 @@ public class MultidimensionalArraySerializerTest {
 
         SerializerTestInstance<MyPojo[][]> testInstance2 =
                 new SerializerTestInstance<MyPojo[][]>(
-                        ti2.createSerializer(new ExecutionConfig()), MyPojo[][].class, -1, array2);
+                        ti2.createSerializer(new ExecutionConfig()),
+                        MyPojo[][].class,
+                        -1,
+                        array2) {};
         testInstance2.testAll();
     }
 
@@ -136,7 +142,7 @@ public class MultidimensionalArraySerializerTest {
                         ti.createSerializer(new ExecutionConfig()),
                         MyGenericPojo[][].class,
                         -1,
-                        (Object) array);
+                        (Object) array) {};
         testInstance.testAll();
     }
 }

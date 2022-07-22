@@ -23,17 +23,18 @@ import org.apache.flink.table.planner.plan.cost.FlinkCostFactory
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.util.Util
 
 /**
-  * Batch physical RelNode for hash-based aggregate operator.
-  *
-  * @see [[BatchPhysicalGroupAggregateBase]] for more info.
-  */
+ * Batch physical RelNode for hash-based aggregate operator.
+ *
+ * @see
+ *   [[BatchPhysicalGroupAggregateBase]] for more info.
+ */
 abstract class BatchPhysicalHashAggregateBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

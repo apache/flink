@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -40,6 +41,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
@@ -96,6 +98,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
+import org.assertj.core.api.Assertions;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 import org.junit.Assert;
@@ -113,6 +116,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.areOperatorsChainable;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -638,6 +642,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
     @Test
     public void testExchangeModeBatch() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         env.setBufferTimeout(-1);
         // fromElements -> Map -> Print
         DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
@@ -719,6 +724,45 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 sourceAndMapVertex.getProducedDataSets().get(0).getResultType());
     }
 
+    /** Test setting exchange mode to {@link StreamExchangeMode#HYBRID}. */
+    @Test
+    public void testExchangeModeHybrid() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        // fromElements -> Map -> Print
+        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+
+        DataStream<Integer> partitionAfterSourceDataStream =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                sourceDataStream.getTransformation(),
+                                new ForwardPartitioner<>(),
+                                StreamExchangeMode.HYBRID));
+        DataStream<Integer> mapDataStream =
+                partitionAfterSourceDataStream.map(value -> value).setParallelism(1);
+
+        DataStream<Integer> partitionAfterMapDataStream =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                mapDataStream.getTransformation(),
+                                new RescalePartitioner<>(),
+                                StreamExchangeMode.HYBRID));
+        partitionAfterMapDataStream.print().setParallelism(2);
+
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+
+        List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+        assertEquals(2, verticesSorted.size());
+
+        // it can be chained with Hybrid exchange mode
+        JobVertex sourceAndMapVertex = verticesSorted.get(0);
+
+        // Hybrid exchange mode is translated into Hybrid result partition
+        Assertions.assertThat(sourceAndMapVertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.HYBRID);
+    }
+
     @Test
     public void testStreamingJobTypeByDefault() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -782,11 +826,6 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 return actual.getProducedDataSets().get(0).getResultType();
             }
         };
-    }
-
-    @Test(expected = UnsupportedOperationException.class)
-    public void testConflictExchangeModeWithBufferTimeout() {
-        testCompatibleExchangeModeWithBufferTimeout(StreamExchangeMode.BATCH);
     }
 
     @Test
@@ -1206,8 +1245,28 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
     }
 
     @Test
+    public void testSetNonDefaultSlotSharingInHybridMode() {
+        Configuration configuration = new Configuration();
+        // set all edge to HYBRID result partition type.
+        configuration.set(
+                ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.WIP_ALL_EXCHANGES_HYBRID);
+
+        final StreamGraph streamGraph = createStreamGraphForSlotSharingTest(configuration);
+        // specify slot sharing group for map1
+        streamGraph.getStreamNodes().stream()
+                .filter(n -> "map1".equals(n.getOperatorName()))
+                .findFirst()
+                .get()
+                .setSlotSharingGroup("testSlotSharingGroup");
+        assertThatThrownBy(() -> StreamingJobGraphGenerator.createJobGraph(streamGraph))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(
+                        "hybrid shuffle mode currently does not support setting non-default slot sharing group.");
+    }
+
+    @Test
     public void testSlotSharingOnAllVerticesInSameSlotSharingGroupByDefaultEnabled() {
-        final StreamGraph streamGraph = createStreamGraphForSlotSharingTest();
+        final StreamGraph streamGraph = createStreamGraphForSlotSharingTest(new Configuration());
         // specify slot sharing group for map1
         streamGraph.getStreamNodes().stream()
                 .filter(n -> "map1".equals(n.getOperatorName()))
@@ -1234,7 +1293,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
     @Test
     public void testSlotSharingOnAllVerticesInSameSlotSharingGroupByDefaultDisabled() {
-        final StreamGraph streamGraph = createStreamGraphForSlotSharingTest();
+        final StreamGraph streamGraph = createStreamGraphForSlotSharingTest(new Configuration());
         streamGraph.setAllVerticesInSameSlotSharingGroupByDefault(false);
         final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 
@@ -1247,11 +1306,8 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         final JobVertex map1Vertex = verticesMatched.get(2);
         final JobVertex map2Vertex = verticesMatched.get(3);
 
-        // vertices in the same region should be in the same slot sharing group
-        assertSameSlotSharingGroup(source1Vertex, map1Vertex);
-
         // vertices in different regions should be in different slot sharing groups
-        assertDistinctSharingGroups(source1Vertex, source2Vertex, map2Vertex);
+        assertDistinctSharingGroups(source1Vertex, source2Vertex, map2Vertex, map1Vertex);
     }
 
     @Test
@@ -1438,6 +1494,30 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 allVertices[0].getOperatorPrettyName());
     }
 
+    @Test
+    public void testNamingWithoutIndex() {
+        JobGraph job = createStreamGraphForSlotSharingTest(new Configuration()).getJobGraph();
+        List<JobVertex> allVertices = job.getVerticesSortedTopologicallyFromSources();
+        assertEquals(4, allVertices.size());
+        assertEquals("Source: source1", allVertices.get(0).getName());
+        assertEquals("Source: source2", allVertices.get(1).getName());
+        assertEquals("map1", allVertices.get(2).getName());
+        assertEquals("map2", allVertices.get(3).getName());
+    }
+
+    @Test
+    public void testNamingWithIndex() {
+        Configuration config = new Configuration();
+        config.setBoolean(PipelineOptions.VERTEX_NAME_INCLUDE_INDEX_PREFIX, true);
+        JobGraph job = createStreamGraphForSlotSharingTest(config).getJobGraph();
+        List<JobVertex> allVertices = job.getVerticesSortedTopologicallyFromSources();
+        assertEquals(4, allVertices.size());
+        assertEquals("[vertex-0]Source: source1", allVertices.get(0).getName());
+        assertEquals("[vertex-1]Source: source2", allVertices.get(1).getName());
+        assertEquals("[vertex-2]map1", allVertices.get(2).getName());
+        assertEquals("[vertex-3]map2", allVertices.get(3).getName());
+    }
+
     private JobGraph createJobGraphWithDescription(
             StreamExecutionEnvironment env, String... inputNames) {
         env.setParallelism(1);
@@ -1472,7 +1552,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
     }
 
-    private static final class UnusedOperatorFactory extends AbstractStreamOperatorFactory<Long> {
+    static final class UnusedOperatorFactory extends AbstractStreamOperatorFactory<Long> {
 
         @Override
         public <T extends StreamOperator<Long>> T createStreamOperator(
@@ -1506,9 +1586,11 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
      *
      * <p>source2 --(rebalance & blocking)--> Map2
      */
-    private StreamGraph createStreamGraphForSlotSharingTest() {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    private StreamGraph createStreamGraphForSlotSharingTest(Configuration config) {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(config);
         env.setBufferTimeout(-1);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         final DataStream<Integer> source1 = env.fromElements(1, 2, 3).name("source1");
         source1.rebalance().map(v -> v).name("map1");

@@ -49,6 +49,7 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -249,8 +250,6 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
                     new JobMasterBuilder(jobGraph, rpcService)
                             .withConfiguration(configuration)
                             .withHighAvailabilityServices(haServices)
-                            .withJobManagerSharedServices(
-                                    new TestingJobManagerSharedServicesBuilder().build())
                             .withFatalErrorHandler(fatalErrorHandler)
                             .withHeartbeatServices(heartbeatServices)
                             .withPartitionTrackerFactory(ignored -> partitionTracker)
@@ -273,9 +272,11 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 
             jobMasterGateway
                     .registerTaskManager(
-                            taskExecutorGateway.getAddress(),
-                            localTaskManagerUnresolvedLocation,
                             jobId,
+                            TaskManagerRegistrationInformation.create(
+                                    taskExecutorGateway.getAddress(),
+                                    localTaskManagerUnresolvedLocation,
+                                    TestingUtils.zeroUUID()),
                             testingTimeout)
                     .get();
 
@@ -318,7 +319,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
         public void close() throws Exception {
             try {
                 if (jobMaster != null) {
-                    RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+                    RpcUtils.terminateRpcEndpoint(jobMaster);
                 }
             } finally {
                 temporaryFolder.delete();

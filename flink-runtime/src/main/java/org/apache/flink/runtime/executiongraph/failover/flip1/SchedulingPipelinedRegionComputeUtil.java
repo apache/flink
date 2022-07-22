@@ -36,9 +36,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
+import static org.apache.flink.runtime.executiongraph.VertexGroupComputeUtil.mergeVertexGroups;
+import static org.apache.flink.runtime.executiongraph.VertexGroupComputeUtil.uniqueVertexGroups;
 import static org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil.buildRawRegions;
-import static org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil.mergeRegions;
-import static org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil.uniqueRegions;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Utils for computing {@link SchedulingPipelinedRegion}s. */
@@ -55,7 +55,7 @@ public final class SchedulingPipelinedRegionComputeUtil {
                 buildRawRegions(
                         topologicallySortedVertices,
                         vertex ->
-                                getNonReconnectableConsumedResults(
+                                getMustBePipelinedConsumedResults(
                                         vertex, resultPartitionRetriever));
 
         return mergeRegionsOnCycles(vertexToRegion, executionVertexRetriever);
@@ -73,7 +73,7 @@ public final class SchedulingPipelinedRegionComputeUtil {
                     executionVertexRetriever) {
 
         final List<Set<SchedulingExecutionVertex>> regionList =
-                new ArrayList<>(uniqueRegions(vertexToRegion));
+                new ArrayList<>(uniqueVertexGroups(vertexToRegion));
         final List<List<Integer>> outEdges =
                 buildOutEdgesDesc(vertexToRegion, regionList, executionVertexRetriever);
         final Set<Set<Integer>> sccs =
@@ -88,7 +88,8 @@ public final class SchedulingPipelinedRegionComputeUtil {
             Set<SchedulingExecutionVertex> mergedRegion = new HashSet<>();
             for (int regionIndex : scc) {
                 mergedRegion =
-                        mergeRegions(mergedRegion, regionList.get(regionIndex), vertexToRegion);
+                        mergeVertexGroups(
+                                mergedRegion, regionList.get(regionIndex), vertexToRegion);
             }
             mergedRegions.add(mergedRegion);
         }
@@ -112,7 +113,7 @@ public final class SchedulingPipelinedRegionComputeUtil {
             final List<Integer> currentRegionOutEdges = new ArrayList<>();
             for (SchedulingExecutionVertex vertex : currentRegion) {
                 for (SchedulingResultPartition producedResult : vertex.getProducedResults()) {
-                    if (!producedResult.getResultType().isReconnectable()) {
+                    if (producedResult.getResultType().mustBePipelinedConsumed()) {
                         continue;
                     }
                     final Optional<ConsumerVertexGroup> consumerVertexGroup =
@@ -142,23 +143,23 @@ public final class SchedulingPipelinedRegionComputeUtil {
         return outEdges;
     }
 
-    private static Iterable<SchedulingResultPartition> getNonReconnectableConsumedResults(
+    private static Iterable<SchedulingResultPartition> getMustBePipelinedConsumedResults(
             SchedulingExecutionVertex vertex,
             Function<IntermediateResultPartitionID, ? extends SchedulingResultPartition>
                     resultPartitionRetriever) {
-        List<SchedulingResultPartition> nonReconnectableConsumedResults = new ArrayList<>();
+        List<SchedulingResultPartition> mustBePipelinedConsumedResults = new ArrayList<>();
         for (ConsumedPartitionGroup consumedPartitionGroup : vertex.getConsumedPartitionGroups()) {
             for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
                 SchedulingResultPartition consumedResult =
                         resultPartitionRetriever.apply(partitionId);
-                if (consumedResult.getResultType().isReconnectable()) {
+                if (!consumedResult.getResultType().mustBePipelinedConsumed()) {
                     // The result types of partitions in one ConsumedPartitionGroup are all the same
                     break;
                 }
-                nonReconnectableConsumedResults.add(consumedResult);
+                mustBePipelinedConsumedResults.add(consumedResult);
             }
         }
-        return nonReconnectableConsumedResults;
+        return mustBePipelinedConsumedResults;
     }
 
     private SchedulingPipelinedRegionComputeUtil() {}

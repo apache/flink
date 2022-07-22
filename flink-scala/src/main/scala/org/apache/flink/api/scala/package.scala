@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api
 
 import org.apache.flink.annotation.Internal
@@ -23,24 +22,24 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer
+import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerConfigSnapshot
-import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.scala.typeutils._
 
 import _root_.scala.reflect.ClassTag
 import language.experimental.macros
 
 /**
- * The Flink Scala API. [[org.apache.flink.api.scala.ExecutionEnvironment]] is the starting-point
- * of any Flink program. It can be used to read from local files, HDFS, or other sources.
+ * The Flink Scala API. [[org.apache.flink.api.scala.ExecutionEnvironment]] is the starting-point of
+ * any Flink program. It can be used to read from local files, HDFS, or other sources.
  * [[org.apache.flink.api.scala.DataSet]] is the main abstraction of data in Flink. It provides
  * operations that create new DataSets via transformations.
  * [[org.apache.flink.api.scala.GroupedDataSet]] provides operations on grouped data that results
  * from [[org.apache.flink.api.scala.DataSet.groupBy()]].
  *
- * Use [[org.apache.flink.api.scala.ExecutionEnvironment.getExecutionEnvironment]] to obtain
- * an execution environment. This will either create a local environment or a remote environment,
+ * Use [[org.apache.flink.api.scala.ExecutionEnvironment.getExecutionEnvironment]] to obtain an
+ * execution environment. This will either create a local environment or a remote environment,
  * depending on the context where your program is executing.
  */
 package object scala {
@@ -72,19 +71,21 @@ package object scala {
         val result = ti.getFieldIndices(fields)
 
         if (result.contains(-1)) {
-          throw new IllegalArgumentException("Fields '" + fields.mkString(", ") +
-            "' are not valid for '" + ti.toString + "'.")
+          throw new IllegalArgumentException(
+            "Fields '" + fields.mkString(", ") +
+              "' are not valid for '" + ti.toString + "'.")
         }
 
         result
 
       case _ =>
-        throw new UnsupportedOperationException("Specifying fields by name is only" +
-          "supported on Case Classes (for now).")
+        throw new UnsupportedOperationException(
+          "Specifying fields by name is only" +
+            "supported on Case Classes (for now).")
     }
   }
 
-  def getCallLocationName(depth: Int = 3) : String = {
+  def getCallLocationName(depth: Int = 3): String = {
     val st = Thread.currentThread().getStackTrace()
     if (st.length < depth) {
       "<unknown>"
@@ -94,35 +95,32 @@ package object scala {
   }
 
   /**
-    * The definition of the class [[Tuple2CaseClassSerializer]] is not visible from Java,
-    * because it is defined within a scala package object, and we need it in
-    * [[Tuple2CaseClassSerializerSnapshot]] so we need to expose it as a subtype, via this method.
-    */
+   * The definition of the class [[Tuple2CaseClassSerializer]] is not visible from Java, because it
+   * is defined within a scala package object, and we need it in
+   * [[Tuple2CaseClassSerializerSnapshot]] so we need to expose it as a subtype, via this method.
+   */
   @Internal()
-  private[scala] def tuple2ClassForJava[T1, T2]()
-    : Class[ScalaCaseClassSerializer[(T1, T2)]] = {
+  private[scala] def tuple2ClassForJava[T1, T2](): Class[ScalaCaseClassSerializer[(T1, T2)]] = {
     classOf[Tuple2CaseClassSerializer[T1, T2]]
       .asInstanceOf[Class[ScalaCaseClassSerializer[(T1, T2)]]]
   }
 
   /**
-    * The definition of the class [[Tuple2CaseClassSerializer]] is not visible from Java
-    * because it is defined within a scala package object, and we need to be able to create new
-    * instances of it from [[Tuple2CaseClassSerializerSnapshot]] so we need to expose it via
-    * this method.
-    */
+   * The definition of the class [[Tuple2CaseClassSerializer]] is not visible from Java because it
+   * is defined within a scala package object, and we need to be able to create new instances of it
+   * from [[Tuple2CaseClassSerializerSnapshot]] so we need to expose it via this method.
+   */
   @Internal()
   private[scala] def tuple2Serializer[T1, T2](
-    klass: Class[(T1, T2)],
-    fieldSerializers: Array[TypeSerializer[_]]
+      klass: Class[(T1, T2)],
+      fieldSerializers: Array[TypeSerializer[_]]
   ): ScalaCaseClassSerializer[(T1, T2)] = {
     new Tuple2CaseClassSerializer[T1, T2](klass, fieldSerializers)
   }
 
   def createTuple2TypeInformation[T1, T2](
       t1: TypeInformation[T1],
-      t2: TypeInformation[T2])
-    : TypeInformation[(T1, T2)] =
+      t2: TypeInformation[T2]): TypeInformation[(T1, T2)] =
     new CaseClassTypeInfo[(T1, T2)](
       classOf[(T1, T2)],
       Array(t1, t2),
@@ -140,10 +138,10 @@ package object scala {
     }
 
   class Tuple2CaseClassSerializer[T1, T2](
-    val clazz: Class[(T1, T2)],
-    fieldSerializers: Array[TypeSerializer[_]]
+      val clazz: Class[(T1, T2)],
+      fieldSerializers: Array[TypeSerializer[_]]
   ) extends ScalaCaseClassSerializer[(T1, T2)](clazz, fieldSerializers)
-      with SelfResolvingTypeSerializer[(T1, T2)] {
+    with SelfResolvingTypeSerializer[(T1, T2)] {
 
     override def createInstance(fields: Array[AnyRef]): (T1, T2) = {
       (fields(0).asInstanceOf[T1], fields(1).asInstanceOf[T2])
@@ -154,7 +152,7 @@ package object scala {
     }
 
     override def resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
-      s: TypeSerializerConfigSnapshot[(T1, T2)]
+        s: TypeSerializerConfigSnapshot[(T1, T2)]
     ): TypeSerializerSchemaCompatibility[(T1, T2)] = {
 
       require(s.isInstanceOf[TupleSerializerConfigSnapshot[(T1, T2)]])

@@ -57,8 +57,6 @@ import org.apache.flink.util.CollectionUtil;
 
 import org.junit.Test;
 
-import java.net.URL;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -69,8 +67,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Dependency tests for {@link LocalExecutor}. Mainly for testing classloading of dependencies. */
 public class DependencyTest {
@@ -81,7 +78,6 @@ public class DependencyTest {
 
     public static final String CATALOG_TYPE_TEST = "DependencyTest";
 
-    private static final String TABLE_FACTORY_JAR_FILE = "table-factories-test-jar.jar";
     private static final List<String> INIT_SQL =
             Arrays.asList(
                     String.format(
@@ -106,18 +102,20 @@ public class DependencyTest {
         try {
             final TableResult tableResult =
                     executeSql(executor, SESSION_ID, "DESCRIBE TableNumber1");
-            assertEquals(
-                    tableResult.getResolvedSchema(),
-                    ResolvedSchema.physical(
-                            new String[] {"name", "type", "null", "key", "extras", "watermark"},
-                            new DataType[] {
-                                DataTypes.STRING(),
-                                DataTypes.STRING(),
-                                DataTypes.BOOLEAN(),
-                                DataTypes.STRING(),
-                                DataTypes.STRING(),
-                                DataTypes.STRING()
-                            }));
+            assertThat(
+                            ResolvedSchema.physical(
+                                    new String[] {
+                                        "name", "type", "null", "key", "extras", "watermark"
+                                    },
+                                    new DataType[] {
+                                        DataTypes.STRING(),
+                                        DataTypes.STRING(),
+                                        DataTypes.BOOLEAN(),
+                                        DataTypes.STRING(),
+                                        DataTypes.STRING(),
+                                        DataTypes.STRING()
+                                    }))
+                    .isEqualTo(tableResult.getResolvedSchema());
             List<Row> schemaData =
                     Arrays.asList(
                             Row.of("IntegerField1", "INT", true, null, null, null),
@@ -129,7 +127,7 @@ public class DependencyTest {
                                     null,
                                     null,
                                     "`rowtimeField`"));
-            assertEquals(schemaData, CollectionUtil.iteratorToList(tableResult.collect()));
+            assertThat(CollectionUtil.iteratorToList(tableResult.collect())).isEqualTo(schemaData);
         } finally {
             executor.closeSession(SESSION_ID);
         }
@@ -143,19 +141,17 @@ public class DependencyTest {
                     executor.parseStatement(
                             SESSION_ID, "SELECT IntegerField1, StringField1 FROM TableNumber1");
 
-            assertTrue(operation instanceof QueryOperation);
+            assertThat(operation).isInstanceOf(QueryOperation.class);
         } finally {
             executor.closeSession(SESSION_ID);
         }
     }
 
     private LocalExecutor createLocalExecutor() throws Exception {
-        // create executor with dependencies
-        final URL dependency = Paths.get("target", TABLE_FACTORY_JAR_FILE).toUri().toURL();
         // create default context
         DefaultContext defaultContext =
                 new DefaultContext(
-                        Collections.singletonList(dependency),
+                        Collections.emptyList(),
                         new Configuration(),
                         Collections.singletonList(new DefaultCLI()));
         LocalExecutor executor = new LocalExecutor(defaultContext);

@@ -35,8 +35,9 @@ import org.apache.flink.table.factories.FactoryUtil.TableFactoryHelper;
 import org.apache.hadoop.conf.Configuration;
 
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_ASYNC;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_CACHE_MAX_ROWS;
@@ -71,12 +72,10 @@ public class HBase2DynamicTableFactory
 
         final ReadableConfig tableOptions = helper.getOptions();
 
-        Map<String, String> options = context.getCatalogTable().getOptions();
-
         validatePrimaryKey(context.getPhysicalRowDataType(), context.getPrimaryKeyIndexes());
 
         String tableName = tableOptions.get(TABLE_NAME);
-        Configuration hbaseConf = getHBaseConfiguration(options);
+        Configuration hbaseConf = getHBaseConfiguration(tableOptions);
         HBaseLookupOptions lookupOptions = getHBaseLookupOptions(tableOptions);
         String nullStringLiteral = tableOptions.get(NULL_STRING_LITERAL);
         HBaseTableSchema hbaseSchema =
@@ -93,12 +92,10 @@ public class HBase2DynamicTableFactory
 
         final ReadableConfig tableOptions = helper.getOptions();
 
-        Map<String, String> options = context.getCatalogTable().getOptions();
-
         validatePrimaryKey(context.getPhysicalRowDataType(), context.getPrimaryKeyIndexes());
 
         String tableName = tableOptions.get(TABLE_NAME);
-        Configuration hbaseConf = getHBaseConfiguration(options);
+        Configuration hbaseConf = getHBaseConfiguration(tableOptions);
         HBaseWriteOptions hBaseWriteOptions = getHBaseWriteOptions(tableOptions);
         String nullStringLiteral = tableOptions.get(NULL_STRING_LITERAL);
         HBaseTableSchema hbaseSchema =
@@ -135,5 +132,21 @@ public class HBase2DynamicTableFactory
         set.add(LOOKUP_CACHE_TTL);
         set.add(LOOKUP_MAX_RETRIES);
         return set;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return Stream.of(
+                        TABLE_NAME,
+                        ZOOKEEPER_ZNODE_PARENT,
+                        ZOOKEEPER_QUORUM,
+                        NULL_STRING_LITERAL,
+                        LOOKUP_CACHE_MAX_ROWS,
+                        LOOKUP_CACHE_TTL,
+                        LOOKUP_MAX_RETRIES,
+                        SINK_BUFFER_FLUSH_MAX_SIZE,
+                        SINK_BUFFER_FLUSH_MAX_ROWS,
+                        SINK_BUFFER_FLUSH_INTERVAL)
+                .collect(Collectors.toSet());
     }
 }

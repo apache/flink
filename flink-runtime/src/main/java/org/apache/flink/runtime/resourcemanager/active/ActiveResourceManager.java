@@ -40,7 +40,9 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
@@ -73,7 +75,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 
     protected final Configuration flinkConfig;
 
-    private final Time startWorkerRetryInterval;
+    private final Duration startWorkerRetryInterval;
 
     private final ResourceManagerDriver<WorkerType> resourceManagerDriver;
 
@@ -91,7 +93,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 
     private final ThresholdMeter startWorkerFailureRater;
 
-    private final Time workerRegistrationTimeout;
+    private final Duration workerRegistrationTimeout;
 
     /**
      * Incompletion of this future indicates that the max failure rate of start worker is reached
@@ -107,6 +109,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             UUID leaderSessionId,
             ResourceID resourceId,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
             JobLeaderIdService jobLeaderIdService,
@@ -122,6 +125,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                 leaderSessionId,
                 resourceId,
                 heartbeatServices,
+                delegationTokenManager,
                 slotManager,
                 clusterPartitionTrackerFactory,
                 jobLeaderIdService,
@@ -140,9 +144,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         this.currentAttemptUnregisteredWorkers = new HashMap<>();
         this.previousAttemptUnregisteredWorkers = new HashSet<>();
         this.startWorkerFailureRater = checkNotNull(startWorkerFailureRater);
-        this.startWorkerRetryInterval = Time.of(retryInterval.toMillis(), TimeUnit.MILLISECONDS);
-        this.workerRegistrationTimeout =
-                Time.of(workerRegistrationTimeout.toMillis(), TimeUnit.MILLISECONDS);
+        this.startWorkerRetryInterval = retryInterval;
+        this.workerRegistrationTimeout = workerRegistrationTimeout;
         this.startWorkerCoolDown = FutureUtils.completedVoidFuture();
     }
 
@@ -453,6 +456,6 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @VisibleForTesting
     <T> CompletableFuture<T> runInMainThread(Callable<T> callable, Time timeout) {
-        return callAsync(callable, timeout);
+        return callAsync(callable, TimeUtils.toDuration(timeout));
     }
 }

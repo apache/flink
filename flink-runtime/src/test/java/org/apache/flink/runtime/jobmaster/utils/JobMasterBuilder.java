@@ -18,6 +18,8 @@
 package org.apache.flink.runtime.jobmaster.utils;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blocklist.BlocklistHandler;
+import org.apache.flink.runtime.blocklist.NoOpBlocklistHandler;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -65,8 +67,7 @@ public class JobMasterBuilder {
 
     private HighAvailabilityServices highAvailabilityServices;
 
-    private JobManagerSharedServices jobManagerSharedServices =
-            new TestingJobManagerSharedServicesBuilder().build();
+    private JobManagerSharedServices jobManagerSharedServices = null;
 
     private HeartbeatServices heartbeatServices = DEFAULT_HEARTBEAT_SERVICES;
 
@@ -86,6 +87,8 @@ public class JobMasterBuilder {
             new DefaultExecutionDeploymentTracker();
     private ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory =
             DefaultExecutionDeploymentReconciler::new;
+
+    private BlocklistHandler.Factory blocklistHandlerFactory = new NoOpBlocklistHandler.Factory();
 
     public JobMasterBuilder(JobGraph jobGraph, RpcService rpcService) {
         TestingHighAvailabilityServices testingHighAvailabilityServices =
@@ -168,6 +171,12 @@ public class JobMasterBuilder {
         return this;
     }
 
+    public JobMasterBuilder withBlocklistHandlerFactory(
+            BlocklistHandler.Factory blocklistHandlerFactory) {
+        this.blocklistHandlerFactory = blocklistHandlerFactory;
+        return this;
+    }
+
     public JobMasterBuilder withJobMasterId(JobMasterId jobMasterId) {
         this.jobMasterId = jobMasterId;
         return this;
@@ -188,7 +197,9 @@ public class JobMasterBuilder {
                         ? slotPoolServiceSchedulerFactory
                         : DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
                                 configuration, jobGraph.getJobType()),
-                jobManagerSharedServices,
+                jobManagerSharedServices != null
+                        ? jobManagerSharedServices
+                        : new TestingJobManagerSharedServicesBuilder().build(),
                 heartbeatServices,
                 UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
                 onCompletionActions,
@@ -198,6 +209,7 @@ public class JobMasterBuilder {
                 partitionTrackerFactory,
                 executionDeploymentTracker,
                 executionDeploymentReconcilerFactory,
+                blocklistHandlerFactory,
                 System.currentTimeMillis());
     }
 

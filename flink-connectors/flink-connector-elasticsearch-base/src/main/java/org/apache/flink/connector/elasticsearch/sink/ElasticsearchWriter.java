@@ -20,7 +20,7 @@ package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -47,13 +47,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
+class ElasticsearchWriter<IN> implements SinkWriter<IN> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchWriter.class);
 
@@ -104,7 +103,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
                                 RestClient.builder(hosts.toArray(new HttpHost[0])),
                                 networkClientConfig));
         this.bulkProcessor = createBulkProcessor(bulkProcessorBuilderFactory, bulkProcessorConfig);
-        this.requestIndexer = new DefaultRequestIndexer();
+        this.requestIndexer = new DefaultRequestIndexer(metricGroup.getNumRecordsSendCounter());
         checkNotNull(metricGroup);
         metricGroup.setCurrentSendTimeGauge(() -> ackTime - lastSendTime);
         this.numBytesOutCounter = metricGroup.getIOMetricGroup().getNumBytesOutCounter();
@@ -125,15 +124,14 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
     }
 
     @Override
-    public List<Void> prepareCommit(boolean flush) throws IOException, InterruptedException {
+    public void flush(boolean endOfInput) throws IOException, InterruptedException {
         checkpointInProgress = true;
-        while (pendingActions != 0 && (flushOnCheckpoint || flush)) {
+        while (pendingActions != 0 && (flushOnCheckpoint || endOfInput)) {
             bulkProcessor.flush();
             LOG.info("Waiting for the response of {} pending actions.", pendingActions);
             mailboxExecutor.yield();
         }
         checkpointInProgress = false;
-        return Collections.emptyList();
     }
 
     @VisibleForTesting
@@ -296,9 +294,16 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
 
     private class DefaultRequestIndexer implements RequestIndexer {
 
+        private final Counter numRecordsSendCounter;
+
+        public DefaultRequestIndexer(Counter numRecordsSendCounter) {
+            this.numRecordsSendCounter = checkNotNull(numRecordsSendCounter);
+        }
+
         @Override
         public void add(DeleteRequest... deleteRequests) {
             for (final DeleteRequest deleteRequest : deleteRequests) {
+                numRecordsSendCounter.inc();
                 pendingActions++;
                 bulkProcessor.add(deleteRequest);
             }
@@ -307,6 +312,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
         @Override
         public void add(IndexRequest... indexRequests) {
             for (final IndexRequest indexRequest : indexRequests) {
+                numRecordsSendCounter.inc();
                 pendingActions++;
                 bulkProcessor.add(indexRequest);
             }
@@ -315,6 +321,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
         @Override
         public void add(UpdateRequest... updateRequests) {
             for (final UpdateRequest updateRequest : updateRequests) {
+                numRecordsSendCounter.inc();
                 pendingActions++;
                 bulkProcessor.add(updateRequest);
             }

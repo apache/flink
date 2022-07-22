@@ -37,7 +37,7 @@ import java.util.Map;
 import static org.apache.flink.table.data.util.MapDataUtil.convertToJavaMap;
 
 /** Test for {@link MapDataSerializerTest}. */
-public class MapDataSerializerTest extends SerializerTestBase<MapData> {
+class MapDataSerializerTest extends SerializerTestBase<MapData> {
 
     private static final LogicalType BIGINT = DataTypes.BIGINT().getLogicalType();
     private static final LogicalType FLOAT = DataTypes.FLOAT().getLogicalType();

@@ -42,6 +42,7 @@ import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.MockSnapshotSupplier;
 
 import javax.annotation.Nonnull;
 
@@ -51,14 +52,14 @@ import java.util.HashMap;
 /** mack state backend. */
 public class MockStateBackend extends AbstractStateBackend {
     private static final long serialVersionUID = 995676510267499393L;
-    private final boolean emptySnapshot;
+    private MockSnapshotSupplier snapshotSupplier;
 
     public MockStateBackend() {
-        this(false);
+        this(MockSnapshotSupplier.DEFAULT);
     }
 
-    public MockStateBackend(boolean emptySnapshot) {
-        this.emptySnapshot = emptySnapshot;
+    public MockStateBackend(MockSnapshotSupplier snapshotSupplier) {
+        this.snapshotSupplier = snapshotSupplier;
     }
 
     @Override
@@ -86,7 +87,7 @@ public class MockStateBackend extends AbstractStateBackend {
                         stateHandles,
                         AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
                         cancelStreamRegistry,
-                        emptySnapshot)
+                        snapshotSupplier)
                 .build();
     }
 

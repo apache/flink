@@ -27,15 +27,13 @@ under the License.
 
 #### Flink Application Cluster
 
-A Flink Application Cluster is a dedicated [Flink Cluster](#flink-cluster) that
-only executes [Flink Jobs](#flink-job) from one [Flink Application](#flink-application).
-The lifetime of the [Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Application.
+Flink Application 集群是专用的 [Flink Cluster](#flink-cluster)，仅从 [Flink Application](#flink-application) 执行 [Flink Jobs](#flink-job)。
+[Flink Cluster](#flink-cluster) 的寿命与 Flink Application 的寿命有关。
 
 #### Flink Job Cluster
 
-A Flink Job Cluster is a dedicated [Flink Cluster](#flink-cluster) that only
-executes a single [Flink Job](#flink-job). The lifetime of the
-[Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Job.
+Flink Job 集群是专用的 [Flink Cluster](#flink-cluster)，仅执行一个 [Flink Job](#flink-job)。
+[Flink Cluster](#flink-cluster) 的寿命与 Flink Job 的寿命有关。
 
 #### Flink Cluster
 
@@ -59,20 +57,14 @@ Instance 常用于描述运行时的特定类型(通常是 [Operator](#operator)
 
 #### Flink Application
 
-A Flink application is a Java Application that submits one or multiple [Flink
-Jobs](#flink-job) from the `main()` method (or by some other means). Submitting
-jobs is usually done by calling `execute()` on an execution environment.
+一个 Flink 应用程序是一个 Java 应用程序，它从 `main()` 方法（或通过一些其他方式）提交一个或多个 [Flink Jobs](#flink-job)。
+提交 jobs 通常是通过调用 ExecutionEnvironment 的 `execute()` 方法来完成的。
 
-The jobs of an application can either be submitted to a long running [Flink
-Session Cluster](#flink-session-cluster), to a dedicated [Flink Application
-Cluster](#flink-application-cluster), or to a [Flink Job
-Cluster](#flink-job-cluster).
+一个应用程序的作业可以提交给一个长期运行的 [Flink Session Cluster](#flink-session-cluster)，或者提交到一个专用的 [Flink Application Cluster](#flink-application-cluster)，或提交到 [Flink Job Cluster](#flink-job-cluster)。
 
 #### Flink Job
 
-A Flink Job is the runtime representation of a [logical graph](#logical-graph)
-(also often called dataflow graph) that is created and submitted by calling
-`execute()` in a [Flink Application](#flink-application).
+Flink Job 表示为 runtime 的 [logical graph](#logical-graph)（通常也称为数据流图），通过在 [Flink Application](#flink-application) 中调用 `execute()` 方法来创建和提交 。
 
 #### JobGraph
 
@@ -87,14 +79,16 @@ Flink JobManager 是 [Flink Cluster](#flink-cluster) 的主节点。它包含三
 
 JobMaster 是在 [Flink JobManager](#flink-jobmanager) 运行中的组件之一。JobManager 负责监督单个作业 [Task](#task) 的执行。以前，整个 [Flink JobManager](#flink-jobmanager) 都叫做 JobManager。
 
+#### JobResultStore
+
+JobResultStore 是一个 Flink 组件，它将全局终止（已完成的、已取消的或失败的）作业的结果保存到文件系统中，从而使结果比已完成的作业更长久。
+这些结果然后被 Flink 用来确定作业是否应该在高可用集群中被恢复。
+
 #### Logical Graph
 
-A logical graph is a directed graph where the nodes are  [Operators](#operator)
-and the edges define input/output-relationships of the operators and correspond
-to data streams or data sets. A logical graph is created by submitting jobs
-from a [Flink Application](#flink-application).
+逻辑图是一种有向图，其中顶点是 [算子](#operator)，边定义算子的输入/输出关系，并对应于数据流或数据集。通过从 [Flink Application](#flink-application) 提交作业来创建逻辑图。
 
-Logical graphs are also often referred to as *dataflow graphs*.
+逻辑图通常也称为*数据流图*。
 
 #### Managed State
 

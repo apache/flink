@@ -111,8 +111,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], metadata=[$3], computed=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c, metadata, computed])
-+- FlinkLogicalCalc(select=[a, b, Reinterpret(c) AS c, CAST(metadata_2 AS BIGINT) AS metadata, +(CAST(metadata_2 AS BIGINT), b) AS computed])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, CAST(+(CAST(metadata_2 AS BIGINT), +(CAST(metadata_2 AS BIGINT), b)) AS INTERVAL SECOND))]]], fields=[a, b, c, metadata_2])
++- FlinkLogicalCalc(select=[a, b, Reinterpret(c) AS c, CAST(metadata AS BIGINT) AS metadata, +(CAST(metadata AS BIGINT), b) AS computed])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, CAST(+(CAST(metadata AS BIGINT), +(CAST(metadata AS BIGINT), b)) AS INTERVAL SECOND))]]], fields=[a, b, c, metadata])
 ]]>
     </Resource>
   </TestCase>
@@ -191,6 +191,27 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
 FlinkLogicalCalc(select=[a, b, c, d])
 +- FlinkLogicalCalc(select=[a, b, c, Reinterpret(func(c, a)) AS d])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[func(func(func(c, a), a), a)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWatermarkWithPythonFunctionInComputedColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalWatermarkAssigner(rowtime=[b], watermark=[$1])
+   +- LogicalProject(a=[$0], b=[parse_ts($0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b])
++- FlinkLogicalWatermarkAssigner(rowtime=[b], watermark=[$1])
+   +- FlinkLogicalCalc(select=[a, parse_ts(a) AS b])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a])
 ]]>
     </Resource>
   </TestCase>

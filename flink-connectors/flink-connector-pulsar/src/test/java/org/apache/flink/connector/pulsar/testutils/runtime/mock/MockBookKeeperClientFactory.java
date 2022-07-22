@@ -25,7 +25,7 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 import java.io.IOException;
 import java.util.Map;
@@ -42,7 +42,7 @@ public class MockBookKeeperClientFactory implements BookKeeperClientFactory {
     @Override
     public BookKeeper create(
             ServiceConfiguration conf,
-            ZooKeeper zkClient,
+            MetadataStoreExtended store,
             EventLoopGroup eventLoopGroup,
             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
             Map<String, Object> ensemblePlacementPolicyProperties)
@@ -53,7 +53,7 @@ public class MockBookKeeperClientFactory implements BookKeeperClientFactory {
     @Override
     public BookKeeper create(
             ServiceConfiguration conf,
-            ZooKeeper zkClient,
+            MetadataStoreExtended store,
             EventLoopGroup eventLoopGroup,
             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
             Map<String, Object> ensemblePlacementPolicyProperties,

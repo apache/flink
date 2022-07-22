@@ -164,6 +164,30 @@ val table = tEnv.fromDataStream(stream, $"user_action_time".rowtime, $"user_name
 val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+# Option 1:
+
+# extract timestamp and assign watermarks based on knowledge of the stream
+stream = input_stream.assign_timestamps_and_watermarks(...)
+
+table = t_env.from_data_stream(stream, col('user_name'), col('data'), col('user_action_time').rowtime)
+
+# Option 2:
+
+# extract timestamp from first field, and assign watermarks based on knowledge of the stream
+stream = input_stream.assign_timestamps_and_watermarks(...)
+
+# the first field has been used for timestamp extraction, and is no longer necessary
+# replace first field with a logical event time attribute
+table = t_env.from_data_stream(stream, col("user_action_time").rowtime, col('user_name'), col('data'))
+
+# Usage:
+
+table.window(Tumble.over(lit(10).minutes).on(col("user_action_time")).alias("userActionWindow"))
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 
@@ -220,6 +244,16 @@ val stream: DataStream[(String, String)] = ...
 val table = tEnv.fromDataStream(stream, $"UserActionTimestamp", $"user_name", $"data", $"user_action_time".proctime)
 
 val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+stream = ...
+
+# declare an additional logical field as a processing time attribute
+table = t_env.from_data_stream(stream, col("UserActionTimestamp"), col("user_name"), col("data"), col("user_action_time").proctime)
+
+windowed_table = table.window(Tumble.over(lit(10).minutes).on(col("user_action_time")).alias("userActionWindow"))
 ```
 {{< /tab >}}
 {{< /tabs >}}

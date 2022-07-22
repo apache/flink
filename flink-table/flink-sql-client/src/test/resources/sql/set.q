@@ -16,8 +16,23 @@
 # limitations under the License.
 
 # test set a configuration
+SET 'sql-client.execution.result-mode' = 'tableau';
+[INFO] Session property has been set.
+!info
+
 SET 'table.sql-dialect' = 'hive';
 [INFO] Session property has been set.
+!info
+
+create catalog hivecatalog with (
+ 'type' = 'hive-test',
+ 'hive-version' = '2.3.4'
+);
+[INFO] Execute statement succeed.
+!info
+
+use catalog hivecatalog;
+[INFO] Execute statement succeed.
 !info
 
 # test create a hive table to verify the configuration works
@@ -28,13 +43,23 @@ CREATE TABLE hive_table (
   pv_count BIGINT,
   like_count BIGINT,
   comment_count BIGINT,
-  update_time TIMESTAMP(3),
+  update_time TIMESTAMP,
   update_user STRING
 ) PARTITIONED BY (pt_year STRING, pt_month STRING, pt_day STRING) TBLPROPERTIES (
   'streaming-source.enable' = 'true'
 );
 [INFO] Execute statement succeed.
 !info
+
+# test "ctas" only supported in Hive Dialect
+CREATE TABLE foo as select 1;
++-------------------------+
+| hivecatalog.default.foo |
++-------------------------+
+|                      -1 |
++-------------------------+
+1 row in set
+!ok
 
 # list the configured configuration
 set;
@@ -47,7 +72,8 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
-'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
+'sql-client.execution.result-mode' = 'tableau'
+'table.exec.legacy-cast-behaviour' = 'DISABLED'
 'table.sql-dialect' = 'hive'
 !ok
 
@@ -66,7 +92,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
-'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
+'table.exec.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
 # should fail because default dialect doesn't support hive dialect
@@ -90,6 +116,10 @@ Was expecting one of:
 
 !error
 
+set 'sql-client.verbose' = 'true';
+[INFO] Session property has been set.
+!info
+
 set;
 'execution.attached' = 'true'
 'execution.savepoint-restore-mode' = 'NO_CLAIM'
@@ -100,7 +130,8 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
-'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
+'sql-client.verbose' = 'true'
+'table.exec.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
 set 'execution.attached' = 'false';
@@ -121,7 +152,8 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
-'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
+'sql-client.verbose' = 'true'
+'table.exec.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
 # test reset can work with add jar
@@ -141,9 +173,10 @@ set;
 'execution.target' = 'remote'
 'jobmanager.rpc.address' = 'localhost'
 'pipeline.classpaths' = ''
-'pipeline.jars' = '$VAR_PIPELINE_JARS_URL'
+'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
-'table.exec.sink.legacy-cast-behaviour' = 'DISABLED'
+'sql-client.verbose' = 'true'
+'table.exec.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
 reset;
@@ -169,4 +202,12 @@ SELECT id, func1(str) FROM (VALUES (1, 'Hello World')) AS T(id, str) ;
 | +I |           1 |                    hello world |
 +----+-------------+--------------------------------+
 Received a total of 1 row
+!ok
+
+REMOVE JAR '$VAR_UDF_JAR_PATH';
+[INFO] The specified jar is removed from session classloader.
+!info
+
+SHOW JARS;
+Empty set
 !ok

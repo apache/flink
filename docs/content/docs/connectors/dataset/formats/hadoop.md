@@ -63,7 +63,7 @@ The former is used for input formats derived
 from `FileInputFormat` while the latter has to be used for general purpose
 input formats.
 The resulting `InputFormat` can be used to create a data source by using
-`ExecutionEnvironmen#createInput`.
+`ExecutionEnvironment#createInput`.
 
 The resulting `DataSet` contains 2-tuples where the first field
 is the key and the second field is the value retrieved from the Hadoop
@@ -117,7 +117,7 @@ The following example shows how to use Hadoop's `TextOutputFormat`.
 
 ```java
 // Obtain the result we want to emit
-DataSet<Tuple2<Text, IntWritable>> hadoopResult = [...]
+DataSet<Tuple2<Text, IntWritable>> hadoopResult = [...];
 
 // Set up the Hadoop TextOutputFormat.
 HadoopOutputFormat<Text, IntWritable> hadoopOF =

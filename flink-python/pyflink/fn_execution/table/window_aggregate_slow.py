@@ -16,20 +16,19 @@
 # limitations under the License.
 ################################################################################
 import datetime
-import sys
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, List, Dict
 
 import pytz
 
 from pyflink.common import Row, RowKind
+from pyflink.common.constants import MAX_LONG_VALUE
 from pyflink.fn_execution.datastream.timerservice import InternalTimer
 from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTimerServiceImpl
 from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.aggregate_slow import DistinctViewDescriptor, RowKeySelector
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.fn_execution.table.window_assigner import WindowAssigner, PanedWindowAssigner, \
     MergingWindowAssigner
 from pyflink.fn_execution.table.window_context import WindowContext, TriggerContext, K, W
@@ -38,7 +37,6 @@ from pyflink.fn_execution.table.window_process_function import GeneralWindowProc
 from pyflink.fn_execution.table.window_trigger import Trigger
 from pyflink.table.udf import ImperativeAggregateFunction, FunctionContext
 
-MAX_LONG_VALUE = sys.maxsize
 
 N = TypeVar('N')
 
@@ -289,7 +287,7 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
     def __init__(self,
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
+                 state_backend,
                  state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunctionBase[W],
@@ -456,7 +454,7 @@ class GroupWindowAggFunction(GroupWindowAggFunctionBase[K, W]):
     def __init__(self,
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
+                 state_backend,
                  state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunction[W],

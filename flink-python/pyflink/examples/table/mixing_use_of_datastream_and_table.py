@@ -21,6 +21,7 @@ import sys
 from pyflink.common import Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import (DataTypes, TableDescriptor, Schema, StreamTableEnvironment)
+from pyflink.table.expressions import col
 from pyflink.table.udf import udf
 
 
@@ -55,7 +56,7 @@ def mixing_use_of_datastream_and_table():
 
     # perform table api operations
     table = t_env.from_path("source")
-    table = table.select(table.id, length(table.data))
+    table = table.select(col('id'), length(col('data')))
 
     # convert table to datastream and perform datastream api operations
     ds = t_env.to_data_stream(table)

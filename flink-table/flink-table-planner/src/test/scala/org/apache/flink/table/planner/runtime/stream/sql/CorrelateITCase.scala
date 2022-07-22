@@ -21,14 +21,14 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink, TestingAppendTableSink, TestSinkUtil}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.UdfWithOpen
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{NonDeterministicTableFunc, StringSplit}
-import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil, TestingAppendSink, TestingAppendTableSink}
 import org.apache.flink.table.planner.utils.{RF, TableFunc7}
 import org.apache.flink.types.Row
 
-import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.{Before, Test}
+import org.junit.Assert.{assertEquals, assertTrue}
 
 import java.lang.{Boolean => JBoolean}
 
@@ -46,15 +46,9 @@ class CorrelateITCase extends StreamingTestBase {
   // Fix IndexOutOfBoundsException when UDTF is used on the
   // same name field of different tables
   def testUdtfForSameFieldofDifferentSource(): Unit = {
-    val data = List(
-      (1, 2, "abc-bcd"),
-      (1, 2, "hhh"),
-      (1, 2, "xxx"))
+    val data = List((1, 2, "abc-bcd"), (1, 2, "hhh"), (1, 2, "xxx"))
 
-    val data2 = List(
-      (1, "abc-bcd"),
-      (1, "hhh"),
-      (1, "xxx"))
+    val data2 = List((1, "abc-bcd"), (1, "hhh"), (1, "xxx"))
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t1)
@@ -75,13 +69,11 @@ class CorrelateITCase extends StreamingTestBase {
         |SELECT * FROM TMP2
       """.stripMargin
 
-
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List(
-      "1,abc", "1,abc", "1,bcd", "1,bcd", "1,hhh", "1,hhh", "1,xxx", "1,xxx")
+    val expected = List("1,abc", "1,abc", "1,bcd", "1,bcd", "1,hhh", "1,hhh", "1,xxx", "1,xxx")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -111,10 +103,7 @@ class CorrelateITCase extends StreamingTestBase {
 
   @Test
   def testConstantTableFunc3(): Unit = {
-    val data = List(
-      (1, 2, "abc-bcd"),
-      (1, 2, "hhh"),
-      (1, 2, "xxx"))
+    val data = List((1, 2, "abc-bcd"), (1, 2, "hhh"), (1, 2, "xxx"))
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t1)
@@ -150,10 +139,7 @@ class CorrelateITCase extends StreamingTestBase {
 
   @Test
   def testConstantNonDeterministicTableFunc2(): Unit = {
-    val data = List(
-      (1, 2, "abc-bcd"),
-      (1, 2, "hhh"),
-      (1, 2, "xxx"))
+    val data = List((1, 2, "abc-bcd"), (1, 2, "hhh"), (1, 2, "xxx"))
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t1)
@@ -164,17 +150,13 @@ class CorrelateITCase extends StreamingTestBase {
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
     env.execute()
 
-
     val res = sink.getAppendResults;
     assertEquals(3, res.size)
   }
 
   @Test
   def testUdfIsOpenedAfterUdtf(): Unit = {
-    val data = List(
-      (1, 2, "abc-bcd"),
-      (1, 2, "hhh"),
-      (1, 2, "xxx"))
+    val data = List((1, 2, "abc-bcd"), (1, 2, "hhh"), (1, 2, "xxx"))
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t1)
@@ -193,7 +175,7 @@ class CorrelateITCase extends StreamingTestBase {
     tEnv.sqlQuery(query1).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List("1,abc", "1,bcd","1,hhh", "1,xxx")
+    val expected = List("1,abc", "1,bcd", "1,hhh", "1,xxx")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -210,28 +192,24 @@ class CorrelateITCase extends StreamingTestBase {
     val sink2 = new TestingAppendSink
 
     // correlate 1
-    val t1 = tEnv.sqlQuery(
-      s"""
-         |SELECT a, b, s
-         |FROM T1, LATERAL TABLE(str_split(c, ',')) as T2(s)
+    val t1 = tEnv.sqlQuery(s"""
+                              |SELECT a, b, s
+                              |FROM T1, LATERAL TABLE(str_split(c, ',')) as T2(s)
        """.stripMargin)
     t1.toAppendStream[Row].addSink(sink1)
 
     // correlate 2
-    val t2 = tEnv.sqlQuery(
-      s"""
-        |SELECT a, c, s
-        |FROM T1, LATERAL TABLE(str_split(b, ',')) as T3(s)
+    val t2 = tEnv.sqlQuery(s"""
+                              |SELECT a, c, s
+                              |FROM T1, LATERAL TABLE(str_split(b, ',')) as T3(s)
       """.stripMargin)
     t2.toAppendStream[Row].addSink(sink2)
 
     env.execute()
 
-    val expected = List("1,1,L,A", "1,1,L,B", "1,A,B,1", "1,A,B,L",
-                        "2,2,L,B", "2,2,L,C", "2,B,C,2", "2,B,C,L")
-    assertEquals(
-      expected.sorted,
-      (sink1.getAppendResults ++ sink2.getAppendResults).sorted)
+    val expected =
+      List("1,1,L,A", "1,1,L,B", "1,A,B,1", "1,A,B,L", "2,2,L,B", "2,2,L,C", "2,B,C,2", "2,B,C,L")
+    assertEquals(expected.sorted, (sink1.getAppendResults ++ sink2.getAppendResults).sorted)
   }
 
   @Test
@@ -250,9 +228,10 @@ class CorrelateITCase extends StreamingTestBase {
     tEnv.registerTable("MyTable", in)
     tEnv.registerFunction("rfFunc", new RF)
     tEnv.registerFunction("tfFunc", new TableFunc7)
-    tEnv.sqlQuery(
-      "SELECT rfFunc(a) as d, e FROM MyTable, LATERAL TABLE(tfFunc(rfFunc(a))) as T(e)")
-        .toAppendStream[Row].addSink(sink)
+    tEnv
+      .sqlQuery("SELECT rfFunc(a) as d, e FROM MyTable, LATERAL TABLE(tfFunc(rfFunc(a))) as T(e)")
+      .toAppendStream[Row]
+      .addSink(sink)
 
     env.execute()
 
@@ -261,10 +240,7 @@ class CorrelateITCase extends StreamingTestBase {
 
   @Test
   def testReUsePerRecord(): Unit = {
-    val data = List(
-      (1, 2, "3018-06-10|2018-06-03"),
-      (1, 2, "2018-06-01"),
-      (1, 2, "2018-06-02"))
+    val data = List((1, 2, "3018-06-10|2018-06-03"), (1, 2, "2018-06-01"), (1, 2, "2018-06-02"))
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t1)
@@ -288,9 +264,7 @@ class CorrelateITCase extends StreamingTestBase {
 
   @Test
   def testLeftJoinWithEmptyOutput(): Unit = {
-    val data = List(
-      (1, 2, ""),
-      (1, 3, ""))
+    val data = List((1, 2, ""), (1, 3, ""))
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t1)
@@ -308,10 +282,7 @@ class CorrelateITCase extends StreamingTestBase {
 
   @Test
   def testProjectCorrelateInput(): Unit = {
-    val data = List(
-      (1, 2, "3018-06-10|2018-06-03"),
-      (1, 2, "2018-06-01"),
-      (1, 2, "2018-06-02"))
+    val data = List((1, 2, "3018-06-10|2018-06-03"), (1, 2, "2018-06-01"), (1, 2, "2018-06-02"))
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t1)
@@ -329,10 +300,7 @@ class CorrelateITCase extends StreamingTestBase {
 
   @Test
   def testPartialProjectCorrelate(): Unit = {
-    val data = List(
-      (1, 2, "3018-06-10|2018-06-03"),
-      (1, 2, "2018-06-01"),
-      (1, 2, "2018-06-02"))
+    val data = List((1, 2, "3018-06-10|2018-06-03"), (1, 2, "2018-06-01"), (1, 2, "2018-06-02"))
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t1)
@@ -350,9 +318,7 @@ class CorrelateITCase extends StreamingTestBase {
 
   @Test
   def testProjectCorrelateInputWithEmptyOutput(): Unit = {
-    val data = List(
-      (1, 2, "a"),
-      (1, 3, ""))
+    val data = List((1, 2, "a"), (1, 3, ""))
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t1)
@@ -370,9 +336,7 @@ class CorrelateITCase extends StreamingTestBase {
 
   @Test
   def testLeftJoinProjectCorrelateInputWithEmptyOutput(): Unit = {
-    val data = List(
-      (1, 2, ""),
-      (1, 3, ""))
+    val data = List((1, 2, ""), (1, 3, ""))
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t1)
@@ -391,9 +355,7 @@ class CorrelateITCase extends StreamingTestBase {
 
   @Test
   def testPartialProjectWithEmptyOutput(): Unit = {
-    val data = List(
-      (1, 2, "a"),
-      (1, 3, ""))
+    val data = List((1, 2, "a"), (1, 3, ""))
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t1)
@@ -411,9 +373,7 @@ class CorrelateITCase extends StreamingTestBase {
 
   @Test
   def testLeftJoinPartialProjectWithEmptyOutput(): Unit = {
-    val data = List(
-      (1, 2, ""),
-      (1, 3, ""))
+    val data = List((1, 2, ""), (1, 3, ""))
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T1", t1)

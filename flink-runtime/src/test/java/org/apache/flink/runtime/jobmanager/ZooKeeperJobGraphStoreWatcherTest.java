@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
@@ -33,15 +32,13 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.PathChildrenCache;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-
-import java.time.Duration;
 
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
@@ -52,8 +49,6 @@ public class ZooKeeperJobGraphStoreWatcherTest extends TestLogger {
     @Rule public ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    private static final Duration TIMEOUT = Duration.ofMillis(30 * 1000);
 
     private Configuration configuration;
 
@@ -87,16 +82,14 @@ public class ZooKeeperJobGraphStoreWatcherTest extends TestLogger {
             stateHandleStore.addAndLock("/" + jobID, jobGraph);
 
             CommonTestUtils.waitUntilCondition(
-                    () -> testingJobGraphListener.getAddedJobGraphs().size() > 0,
-                    Deadline.fromNow(TIMEOUT));
+                    () -> testingJobGraphListener.getAddedJobGraphs().size() > 0);
 
             assertThat(testingJobGraphListener.getAddedJobGraphs(), contains(jobID));
 
             stateHandleStore.releaseAndTryRemove("/" + jobID);
 
             CommonTestUtils.waitUntilCondition(
-                    () -> testingJobGraphListener.getRemovedJobGraphs().size() > 0,
-                    Deadline.fromNow(TIMEOUT));
+                    () -> testingJobGraphListener.getRemovedJobGraphs().size() > 0);
             assertThat(testingJobGraphListener.getRemovedJobGraphs(), contains(jobID));
 
             jobGraphStoreWatcher.stop();

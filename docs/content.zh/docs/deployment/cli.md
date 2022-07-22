@@ -121,6 +121,8 @@ You can resume your program from this savepoint with the run command.
 The savepoint folder is optional and needs to be specified if 
 [state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) isn't set.
 
+Lastly, you can optionally provide what should be the [binary format]({{< ref "docs/ops/state/savepoints" >}}#savepoint-format) of the savepoint.
+
 The path to the savepoint can be used later on to [restart the Flink job](#starting-a-job-from-a-savepoint).
 
 #### Disposing a Savepoint
@@ -182,6 +184,8 @@ records to process after the savepoint taken while stopping.
 Use the `--drain` flag if you want to terminate the job permanently.
 If you want to resume the job at a later point in time, then do not drain the pipeline because it could lead to incorrect results when the job is resumed.
 {{< /hint >}}
+
+Lastly, you can optionally provide what should be the [binary format]({{< ref "docs/ops/state/savepoints" >}}#savepoint-format) of the savepoint.
 
 #### Cancelling a Job Ungracefully
 
@@ -414,6 +418,25 @@ $ ./bin/flink run \
       --python examples/python/table/word_count.py
 ```
 
+- Run a PyFlink job using a [YARN cluster in Application Mode]({{< ref "docs/deployment/resource-providers/yarn" >}}#application-mode):
+```bash
+$ ./bin/flink run-application -t yarn-application \
+      -Djobmanager.memory.process.size=1024m \
+      -Dtaskmanager.memory.process.size=1024m \
+      -Dyarn.application.name=<ApplicationName> \
+      -Dyarn.ship-files=/path/to/shipfiles \
+      -pyarch shipfiles/venv.zip \
+      -pyclientexec venv.zip/venv/bin/python3 \
+      -pyexec venv.zip/venv/bin/python3 \
+      -py shipfiles/word_count.py
+```
+<span class="label label-info">Note</span> It assumes that the Python dependencies needed to execute the job are already placed in the directory `/path/to/shipfiles`. For example, it should contain venv.zip and word_count.py for the above example.
+
+<span class="label label-info">Note</span> As it executes the job on the JobManager in YARN application mode, the paths specified in `-pyarch` and `-py` are paths relative to `shipfiles` which is the directory name of the shipped files.
+
+<span class="label label-info">Note</span> The archive files specified via `-pyarch` will be distributed to the TaskManagers through blob server where the file size limit is 2 GB.
+If the size of an archive file is more than 2 GB, you could upload it to a distributed file system and then use the path in the command line option `-pyarch`.
+
 - Run a PyFlink application on a native Kubernetes cluster having the cluster ID `<ClusterId>`, it requires a docker image with PyFlink installed, please refer to [Enabling PyFlink in docker]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#enabling-python):
 ```bash
 $ ./bin/flink run-application \
@@ -497,8 +520,8 @@ related options. Here's an overview of all the Python related options for the ac
             <td>
                 Specify the path of the python interpreter used to execute the python UDF worker
                 (e.g.: --pyExecutable /usr/local/bin/python3).
-                The python UDF worker depends on Python 3.6+, Apache Beam (version == 2.27.0),
-                Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0).
+                The python UDF worker depends on Python 3.6+, Apache Beam (version == 2.38.0),
+                Pip (version >= 20.3) and SetupTools (version >= 37.0.0).
                 Please ensure that the specified environment meets the above requirements.
             </td>
         </tr>

@@ -83,7 +83,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.MAX_RETAINED_CHECKPOINTS;
-import static org.apache.flink.shaded.curator4.org.apache.curator.shaded.com.google.common.base.Preconditions.checkState;
+import static org.apache.flink.shaded.curator5.org.apache.curator.shaded.com.google.common.base.Preconditions.checkState;
 import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 
@@ -128,7 +128,8 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
         // ChangelogStateBackend is used.
         // Doing it on cluster level unconditionally as randomization currently happens on the job
         // level (environment); while this factory can only be set on the cluster level.
-        FsStateChangelogStorageFactory.configure(configuration, changelogFolder.newFolder());
+        FsStateChangelogStorageFactory.configure(
+                configuration, changelogFolder.newFolder(), Duration.ofMinutes(1), 10);
 
         cluster =
                 new MiniClusterWithClientResource(

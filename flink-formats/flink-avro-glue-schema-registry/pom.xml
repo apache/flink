@@ -23,8 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-formats</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.15-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.16-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -36,7 +35,6 @@ under the License.
 	<properties>
 		<glue.schema.registry.version>1.1.8</glue.schema.registry.version>
 		<aws.sdkv2.version>2.17.52</aws.sdkv2.version>
-		<netty.version>4.1.68.Final</netty.version>
 		<kotlin.version>1.3.50</kotlin.version>
 	</properties>
 
@@ -47,18 +45,6 @@ under the License.
 		<dependencies>
 			<!-- dependencies to solve enforcer check issue -->
 			<!-- can be removed once new version of Glue Schema Registry releases -->
-
-			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-handler</artifactId>
-				<version>${netty.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-codec-http</artifactId>
-				<version>${netty.version}</version>
-			</dependency>
 
 			<dependency>
 				<groupId>org.jetbrains.kotlin</groupId>
@@ -95,6 +81,20 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-aws-base</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>

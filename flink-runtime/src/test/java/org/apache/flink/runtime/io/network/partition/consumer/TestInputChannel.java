@@ -80,6 +80,7 @@ public class TestInputChannel extends InputChannel {
                 new ResultPartitionID(),
                 0,
                 0,
+                0,
                 new SimpleCounter(),
                 new SimpleCounter());
         this.reuseLastReturnBuffer = reuseLastReturnBuffer;
@@ -166,7 +167,7 @@ public class TestInputChannel extends InputChannel {
     }
 
     @Override
-    void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {}
+    void requestSubpartition() throws IOException, InterruptedException {}
 
     @Override
     Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {

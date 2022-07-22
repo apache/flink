@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDropUpdateBefore
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -30,14 +30,11 @@ import org.apache.calcite.rel.{RelNode, SingleRel}
 import java.util
 
 /**
- * Stream physical RelNode which will drop the UPDATE_BEFORE messages.
- * This is usually used as an optimization for the downstream operators that doesn't need
- * the UPDATE_BEFORE messages, but the upstream operator can't drop it by itself (e.g. the source).
+ * Stream physical RelNode which will drop the UPDATE_BEFORE messages. This is usually used as an
+ * optimization for the downstream operators that doesn't need the UPDATE_BEFORE messages, but the
+ * upstream operator can't drop it by itself (e.g. the source).
  */
-class StreamPhysicalDropUpdateBefore(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    input: RelNode)
+class StreamPhysicalDropUpdateBefore(cluster: RelOptCluster, traitSet: RelTraitSet, input: RelNode)
   extends SingleRel(cluster, traitSet, input)
   with StreamPhysicalRel {
 
@@ -46,23 +43,21 @@ class StreamPhysicalDropUpdateBefore(
   override def deriveRowType(): RelDataType = getInput.getRowType
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamPhysicalDropUpdateBefore(
-      cluster,
-      traitSet,
-      inputs.get(0))
+    new StreamPhysicalDropUpdateBefore(cluster, traitSet, inputs.get(0))
   }
 
   override def translateToExecNode(): ExecNode[_] = {
     // sanity check
     if (ChangelogPlanUtils.generateUpdateBefore(this)) {
-      throw new IllegalStateException(s"${this.getClass.getSimpleName} is required to emit " +
-        s"UPDATE_BEFORE messages. This should never happen.")
+      throw new IllegalStateException(
+        s"${this.getClass.getSimpleName} is required to emit " +
+          s"UPDATE_BEFORE messages. This should never happen.")
     }
 
     new StreamExecDropUpdateBefore(
+      unwrapTableConfig(this),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

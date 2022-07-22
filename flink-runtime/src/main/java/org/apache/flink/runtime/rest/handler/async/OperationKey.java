@@ -21,13 +21,16 @@ package org.apache.flink.runtime.rest.handler.async;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.util.Preconditions;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * Any operation key for the {@link AbstractAsynchronousOperationHandlers} must extend this class.
  * It is used to store the trigger id.
  */
-public class OperationKey {
+public class OperationKey implements Serializable {
+
+    private static final long serialVersionUID = 6138473450686379255L;
 
     private final TriggerId triggerId;
 

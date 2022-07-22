@@ -17,17 +17,18 @@
  */
 package org.apache.flink.cep.scala.pattern
 
-import java.lang.reflect.Method
-
 import org.apache.flink.api.scala.completeness.ScalaAPICompletenessTestBase
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
+
 import org.junit.Test
+
+import java.lang.reflect.Method
 
 import scala.language.existentials
 
 /**
- * This checks whether the CEP Scala API is up to feature parity with the Java API.
- * Implements the [[ScalaAPICompletenessTestBase]] for CEP.
+ * This checks whether the CEP Scala API is up to feature parity with the Java API. Implements the
+ * [[ScalaAPICompletenessTestBase]] for CEP.
  */
 class PatternScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
 

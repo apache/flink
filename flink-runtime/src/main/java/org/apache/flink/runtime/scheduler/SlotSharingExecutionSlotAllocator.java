@@ -21,6 +21,8 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
@@ -45,6 +47,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Allocates {@link LogicalSlot}s from physical shared slots.
@@ -92,6 +95,36 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
         this.allocationTimeout = checkNotNull(allocationTimeout);
         this.resourceProfileRetriever = checkNotNull(resourceProfileRetriever);
         this.sharedSlots = new IdentityHashMap<>();
+
+        this.slotProvider.disableBatchSlotRequestTimeoutCheck();
+    }
+
+    @Override
+    public List<ExecutionSlotAssignment> allocateSlotsFor(
+            List<ExecutionAttemptID> executionAttemptIds) {
+
+        final Map<ExecutionVertexID, ExecutionAttemptID> vertexIdToExecutionId = new HashMap<>();
+        executionAttemptIds.forEach(
+                executionId ->
+                        vertexIdToExecutionId.put(executionId.getExecutionVertexId(), executionId));
+
+        checkState(
+                vertexIdToExecutionId.size() == executionAttemptIds.size(),
+                "SlotSharingExecutionSlotAllocator does not support one execution vertex to have multiple concurrent executions");
+
+        final List<ExecutionVertexID> vertexIds =
+                executionAttemptIds.stream()
+                        .map(ExecutionAttemptID::getExecutionVertexId)
+                        .collect(Collectors.toList());
+
+        return allocateSlotsForVertices(vertexIds).stream()
+                .map(
+                        vertexAssignment ->
+                                new ExecutionSlotAssignment(
+                                        vertexIdToExecutionId.get(
+                                                vertexAssignment.getExecutionVertexId()),
+                                        vertexAssignment.getLogicalSlotFuture()))
+                .collect(Collectors.toList());
     }
 
     /**
@@ -117,8 +150,7 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
      *
      * @param executionVertexIds Execution vertices to allocate slots for
      */
-    @Override
-    public List<SlotExecutionVertexAssignment> allocateSlotsFor(
+    private List<SlotExecutionVertexAssignment> allocateSlotsForVertices(
             List<ExecutionVertexID> executionVertexIds) {
 
         SharedSlotProfileRetriever sharedSlotProfileRetriever =
@@ -149,8 +181,8 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
     }
 
     @Override
-    public void cancel(ExecutionVertexID executionVertexId) {
-        cancelLogicalSlotRequest(executionVertexId, null);
+    public void cancel(ExecutionAttemptID executionAttemptId) {
+        cancelLogicalSlotRequest(executionAttemptId.getExecutionVertexId(), null);
     }
 
     private void cancelLogicalSlotRequest(ExecutionVertexID executionVertexId, Throwable cause) {
@@ -282,6 +314,29 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
                         bulk.clearPendingRequests();
                         return null;
                     });
+        }
+    }
+
+    /** The slot assignment for an {@link ExecutionVertex}. */
+    private static class SlotExecutionVertexAssignment {
+
+        private final ExecutionVertexID executionVertexId;
+
+        private final CompletableFuture<LogicalSlot> logicalSlotFuture;
+
+        SlotExecutionVertexAssignment(
+                ExecutionVertexID executionVertexId,
+                CompletableFuture<LogicalSlot> logicalSlotFuture) {
+            this.executionVertexId = checkNotNull(executionVertexId);
+            this.logicalSlotFuture = checkNotNull(logicalSlotFuture);
+        }
+
+        ExecutionVertexID getExecutionVertexId() {
+            return executionVertexId;
+        }
+
+        CompletableFuture<LogicalSlot> getLogicalSlotFuture() {
+            return logicalSlotFuture;
         }
     }
 }

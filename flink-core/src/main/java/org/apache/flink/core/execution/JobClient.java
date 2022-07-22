@@ -52,9 +52,32 @@ public interface JobClient {
      *     MAX_WATERMARK} in the pipeline
      * @param savepointDirectory directory the savepoint should be written to
      * @return a {@link CompletableFuture} containing the path where the savepoint is located
+     * @deprecated pass the format explicitly
+     */
+    @Deprecated
+    default CompletableFuture<String> stopWithSavepoint(
+            boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
+        return stopWithSavepoint(
+                advanceToEndOfEventTime, savepointDirectory, SavepointFormatType.DEFAULT);
+    }
+
+    /**
+     * Stops the associated job on Flink cluster.
+     *
+     * <p>Stopping works only for streaming programs. Be aware, that the job might continue to run
+     * for a while after sending the stop command, because after sources stopped to emit data all
+     * operators need to finish processing.
+     *
+     * @param advanceToEndOfEventTime flag indicating if the source should inject a {@code
+     *     MAX_WATERMARK} in the pipeline
+     * @param savepointDirectory directory the savepoint should be written to
+     * @param formatType binary format of the savepoint
+     * @return a {@link CompletableFuture} containing the path where the savepoint is located
      */
     CompletableFuture<String> stopWithSavepoint(
-            boolean advanceToEndOfEventTime, @Nullable String savepointDirectory);
+            boolean advanceToEndOfEventTime,
+            @Nullable String savepointDirectory,
+            SavepointFormatType formatType);
 
     /**
      * Triggers a savepoint for the associated job. The savepoint will be written to the given
@@ -63,8 +86,24 @@ public interface JobClient {
      *
      * @param savepointDirectory directory the savepoint should be written to
      * @return a {@link CompletableFuture} containing the path where the savepoint is located
+     * @deprecated pass the format explicitly
      */
-    CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory);
+    @Deprecated
+    default CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
+        return triggerSavepoint(savepointDirectory, SavepointFormatType.DEFAULT);
+    }
+
+    /**
+     * Triggers a savepoint for the associated job. The savepoint will be written to the given
+     * savepoint directory, or {@link
+     * org.apache.flink.configuration.CheckpointingOptions#SAVEPOINT_DIRECTORY} if it is null.
+     *
+     * @param savepointDirectory directory the savepoint should be written to
+     * @param formatType binary format of the savepoint
+     * @return a {@link CompletableFuture} containing the path where the savepoint is located
+     */
+    CompletableFuture<String> triggerSavepoint(
+            @Nullable String savepointDirectory, SavepointFormatType formatType);
 
     /**
      * Requests the accumulators of the associated job. Accumulators can be requested while it is

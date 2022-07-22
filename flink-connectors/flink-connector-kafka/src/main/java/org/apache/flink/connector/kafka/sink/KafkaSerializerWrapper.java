@@ -32,8 +32,12 @@ import java.util.function.Function;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
+/** Wrapper for Kafka {@link Serializer}. */
 class KafkaSerializerWrapper<IN> implements SerializationSchema<IN> {
+
     private final Class<? extends Serializer<? super IN>> serializerClass;
+    // Whether the serializer is for key or value.
+    private final boolean isKey;
     private final Map<String, String> config;
     private final Function<? super IN, String> topicSelector;
 
@@ -41,17 +45,20 @@ class KafkaSerializerWrapper<IN> implements SerializationSchema<IN> {
 
     KafkaSerializerWrapper(
             Class<? extends Serializer<? super IN>> serializerClass,
+            boolean isKey,
             Map<String, String> config,
             Function<? super IN, String> topicSelector) {
         this.serializerClass = checkNotNull(serializerClass);
+        this.isKey = isKey;
         this.config = checkNotNull(config);
         this.topicSelector = checkNotNull(topicSelector);
     }
 
     KafkaSerializerWrapper(
             Class<? extends Serializer<? super IN>> serializerClass,
+            boolean isKey,
             Function<? super IN, String> topicSelector) {
-        this(serializerClass, Collections.emptyMap(), topicSelector);
+        this(serializerClass, isKey, Collections.emptyMap(), topicSelector);
     }
 
     @SuppressWarnings("unchecked")
@@ -65,8 +72,11 @@ class KafkaSerializerWrapper<IN> implements SerializationSchema<IN> {
                             serializerClass.getName(),
                             Serializer.class,
                             getClass().getClassLoader());
+
             if (serializer instanceof Configurable) {
                 ((Configurable) serializer).configure(config);
+            } else {
+                serializer.configure(config, isKey);
             }
         } catch (Exception e) {
             throw new IOException("Failed to instantiate the serializer of class " + serializer, e);

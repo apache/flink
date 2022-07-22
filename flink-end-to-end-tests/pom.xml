@@ -25,8 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.15-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.16-SNAPSHOT</version>
 	</parent>
 
 	<packaging>pom</packaging>
@@ -52,7 +51,6 @@ under the License.
 		<module>flink-stream-stateful-job-upgrade-test</module>
 		<module>flink-queryable-state-test</module>
 		<module>flink-local-recovery-and-allocation-test</module>
-		<module>flink-elasticsearch6-test</module>
 		<module>flink-quickstart-test</module>
 		<module>flink-confluent-schema-registry</module>
 		<module>flink-stream-state-ttl-test</module>
@@ -70,7 +68,6 @@ under the License.
 		<module>flink-plugins-test</module>
 		<module>flink-tpch-test</module>
 		<module>flink-streaming-kinesis-test</module>
-		<module>flink-elasticsearch7-test</module>
 		<module>flink-end-to-end-tests-common-kafka</module>
 		<module>flink-tpcds-test</module>
 		<module>flink-netty-shuffle-memory-control-test</module>
@@ -80,6 +77,12 @@ under the License.
 		<module>flink-glue-schema-registry-avro-test</module>
 		<module>flink-glue-schema-registry-json-test</module>
 		<module>flink-end-to-end-tests-scala</module>
+		<module>flink-end-to-end-tests-aws-kinesis-streams</module>
+		<module>flink-end-to-end-tests-aws-kinesis-firehose</module>
+		<module>flink-end-to-end-tests-elasticsearch6</module>
+		<module>flink-end-to-end-tests-elasticsearch7</module>
+		<module>flink-end-to-end-tests-common-elasticsearch</module>
+		<module>flink-end-to-end-tests-sql</module>
 	</modules>
 
 	<dependencyManagement>

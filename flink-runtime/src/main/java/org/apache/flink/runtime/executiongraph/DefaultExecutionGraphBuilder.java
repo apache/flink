@@ -61,6 +61,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 
+import static org.apache.flink.configuration.StateChangelogOptions.STATE_CHANGE_LOG_STORAGE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -90,7 +91,8 @@ public class DefaultExecutionGraphBuilder {
             VertexAttemptNumberStore vertexAttemptNumberStore,
             VertexParallelismStore vertexParallelismStore,
             Supplier<CheckpointStatsTracker> checkpointStatsTrackerFactory,
-            boolean isDynamicGraph)
+            boolean isDynamicGraph,
+            ExecutionJobVertex.Factory executionJobVertexFactory)
             throws JobExecutionException, JobException {
 
         checkNotNull(jobGraph, "job graph cannot be null");
@@ -107,7 +109,7 @@ public class DefaultExecutionGraphBuilder {
                         jobGraph.getUserJarBlobKeys(),
                         jobGraph.getClasspaths());
 
-        final int maxPriorAttemptsHistoryLength =
+        final int executionHistorySizeLimit =
                 jobManagerConfig.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE);
 
         final PartitionGroupReleaseStrategy.Factory partitionGroupReleaseStrategyFactory =
@@ -123,7 +125,7 @@ public class DefaultExecutionGraphBuilder {
                             futureExecutor,
                             ioExecutor,
                             rpcTimeout,
-                            maxPriorAttemptsHistoryLength,
+                            executionHistorySizeLimit,
                             classLoader,
                             blobWriter,
                             partitionGroupReleaseStrategyFactory,
@@ -135,7 +137,9 @@ public class DefaultExecutionGraphBuilder {
                             initializationTimestamp,
                             vertexAttemptNumberStore,
                             vertexParallelismStore,
-                            isDynamicGraph);
+                            isDynamicGraph,
+                            executionJobVertexFactory,
+                            jobGraph.getJobStatusHooks());
         } catch (IOException e) {
             throw new JobException("Could not create the ExecutionGraph.", e);
         }
@@ -303,6 +307,7 @@ public class DefaultExecutionGraphBuilder {
 
             final CheckpointCoordinatorConfiguration chkConfig =
                     snapshotSettings.getCheckpointCoordinatorConfiguration();
+            String changelogStorage = jobManagerConfig.getString(STATE_CHANGE_LOG_STORAGE);
 
             executionGraph.enableCheckpointing(
                     chkConfig,
@@ -312,7 +317,8 @@ public class DefaultExecutionGraphBuilder {
                     rootBackend,
                     rootStorage,
                     checkpointStatsTrackerFactory.get(),
-                    checkpointsCleaner);
+                    checkpointsCleaner,
+                    jobManagerConfig.getString(STATE_CHANGE_LOG_STORAGE));
         }
 
         return executionGraph;

@@ -98,7 +98,7 @@ QueryableStateStream asQueryableState(
 返回的 `QueryableStateStream` 可以被视作一个sink，而且**不能再**被进一步转换。在内部实现上，一个 `QueryableStateStream` 被转换成一个 operator，使用输入的数据来更新 queryable state。state 如何更新是由 `asQueryableState` 提供的 `StateDescriptor` 来决定的。在下面的代码中, keyed stream 的所有数据将会通过 `ValueState.update(value)` 来更新状态：
 
 ```java
-stream.keyBy(value -> value.f0).asQueryableState("query-name")
+stream.keyBy(value -> value.f0).asQueryableState("query-name");
 ```
 
 这个行为类似于 Scala API 中的 `flatMapWithState`。
@@ -143,7 +143,7 @@ descriptor.setQueryable("query-name"); // queryable state name
 </dependency>
 ```
 
-关于依赖的更多信息, 可以参考如何 [配置 Flink 项目]({{< ref "docs/dev/datastream/project-configuration" >}}).
+关于依赖的更多信息, 可以参考如何[配置 Flink 项目]({{< ref "docs/dev/configuration/overview" >}})。
 
 `QueryableStateClient` 将提交你的请求到内部代理，代理会处理请求并返回结果。客户端的初始化只需要提供一个有效的 `TaskManager` 主机名
 (每个 task manager 上都运行着一个 queryable state 代理)，以及代理监听的端口号。关于如何配置代理以及端口号可以参考 [Configuration Section](#configuration).

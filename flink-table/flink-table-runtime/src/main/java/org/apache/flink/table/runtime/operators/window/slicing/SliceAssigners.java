@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.window.slicing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.util.IterableIterator;
 import org.apache.flink.util.MathUtils;
@@ -401,7 +402,7 @@ public final class SliceAssigners {
 
         @Override
         public long assignSliceEnd(RowData element, ClockService clock) {
-            return element.getLong(windowEndIndex);
+            return element.getTimestamp(windowEndIndex, 3).getMillisecond();
         }
 
         @Override
@@ -507,7 +508,7 @@ public final class SliceAssigners {
 
         @Override
         public long assignSliceEnd(RowData element, ClockService clock) {
-            return element.getLong(sliceEndIndex);
+            return element.getTimestamp(sliceEndIndex, 3).getMillisecond();
         }
 
         @Override
@@ -552,7 +553,14 @@ public final class SliceAssigners {
         public final long assignSliceEnd(RowData element, ClockService clock) {
             final long timestamp;
             if (rowtimeIndex >= 0) {
-                timestamp = toUtcTimestampMills(element.getLong(rowtimeIndex), shiftTimeZone);
+                if (element.isNullAt(rowtimeIndex)) {
+                    throw new RuntimeException(
+                            "RowTime field should not be null,"
+                                    + " please convert it to a non-null long value.");
+                }
+                // Precision for row timestamp is always 3
+                TimestampData rowTime = element.getTimestamp(rowtimeIndex, 3);
+                timestamp = toUtcTimestampMills(rowTime.getMillisecond(), shiftTimeZone);
             } else {
                 // in processing time mode
                 timestamp = toUtcTimestampMills(clock.currentProcessingTime(), shiftTimeZone);

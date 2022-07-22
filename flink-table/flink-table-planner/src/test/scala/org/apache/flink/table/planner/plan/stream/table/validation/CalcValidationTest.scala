@@ -31,91 +31,103 @@ class CalcValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testInvalidUseOfRowtime(): Unit = {
     val util = streamTestUtil()
-    util.addDataStream[(Long, Int, Double, Float, BigDecimal, String)](
-      "MyTable",
-      'rowtime, 'int, 'double, 'float, 'bigdec, 'string)
-    .select('rowtime.rowtime)
+    util
+      .addDataStream[(Long, Int, Double, Float, BigDecimal, String)](
+        "MyTable",
+        'rowtime,
+        'int,
+        'double,
+        'float,
+        'bigdec,
+        'string)
+      .select('rowtime.rowtime)
   }
 
   @Test(expected = classOf[ValidationException])
   def testInvalidUseOfRowtime2(): Unit = {
     val util = streamTestUtil()
-    util.addDataStream[(Long, Int, Double, Float, BigDecimal, String)](
-      "MyTable",
-      'rowtime, 'int, 'double, 'float, 'bigdec, 'string)
-    .window(Tumble over 2.millis on 'rowtime as 'w)
-    .groupBy('w)
-    .select('w.end.rowtime, 'int.count as 'int) // no rowtime on non-window reference
+    util
+      .addDataStream[(Long, Int, Double, Float, BigDecimal, String)](
+        "MyTable",
+        'rowtime,
+        'int,
+        'double,
+        'float,
+        'bigdec,
+        'string)
+      .window(Tumble.over(2.millis).on('rowtime).as('w))
+      .groupBy('w)
+      .select('w.end.rowtime, 'int.count.as('int)) // no rowtime on non-window reference
   }
 
   @Test(expected = classOf[ValidationException])
   def testAddColumnsWithAgg(): Unit = {
     val util = streamTestUtil()
-    val tab = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     tab.addColumns('a.sum)
   }
 
   @Test(expected = classOf[ValidationException])
   def testAddOrReplaceColumnsWithAgg(): Unit = {
     val util = streamTestUtil()
-    val tab = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     tab.addOrReplaceColumns('a.sum)
   }
 
   @Test(expected = classOf[ValidationException])
   def testRenameColumnsWithAgg(): Unit = {
-      val util = streamTestUtil()
-      val tab = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
-      tab.renameColumns('a.sum)
+    val util = streamTestUtil()
+    val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+    tab.renameColumns('a.sum)
   }
 
   @Test(expected = classOf[ValidationException])
   def testRenameColumnsWithoutAlias(): Unit = {
     val util = streamTestUtil()
-    val tab = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     tab.renameColumns('a)
   }
 
   @Test(expected = classOf[ValidationException])
   def testRenameColumnsWithFunctallCall(): Unit = {
     val util = streamTestUtil()
-    val tab = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
-    tab.renameColumns('a + 1  as 'a2)
+    val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+    tab.renameColumns(('a + 1).as('a2))
   }
 
   @Test(expected = classOf[ValidationException])
   def testRenameColumnsNotExist(): Unit = {
     val util = streamTestUtil()
-    val tab = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
-    tab.renameColumns('e as 'e2)
+    val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+    tab.renameColumns('e.as('e2))
   }
 
   @Test(expected = classOf[ValidationException])
   def testDropColumnsWithAgg(): Unit = {
     val util = streamTestUtil()
-    val tab = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     tab.dropColumns('a.sum)
   }
 
   @Test(expected = classOf[ValidationException])
   def testDropColumnsNotExist(): Unit = {
     val util = streamTestUtil()
-    val tab = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     tab.dropColumns('e)
   }
 
   @Test(expected = classOf[ValidationException])
   def testDropColumnsWithValueLiteral(): Unit = {
     val util = streamTestUtil()
-    val tab = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
-    tab.dropColumns("'a'")
+    val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+    tab.dropColumns("a")
   }
 
   @Test(expected = classOf[ValidationException])
   def testInvalidMapFunctionTypeAggregation(): Unit = {
     val util = streamTestUtil()
-    util.addTableSource[(Int)](
-      "MyTable", 'int)
+    util
+      .addTableSource[(Int)]("MyTable", 'int)
       .map('int.sum) // do not support AggregateFunction as input
   }
 
@@ -124,8 +136,8 @@ class CalcValidationTest extends TableTestBase {
     val util = streamTestUtil()
 
     val weightedAvg = new WeightedAvg
-    util.addTableSource[(Int)](
-      "MyTable", 'int)
+    util
+      .addTableSource[(Int)]("MyTable", 'int)
       .map(weightedAvg('int, 'int)) // do not support AggregateFunction as input
   }
 
@@ -134,8 +146,8 @@ class CalcValidationTest extends TableTestBase {
     val util = streamTestUtil()
 
     util.addFunction("weightedAvg", new WeightedAvg)
-    util.addTableSource[(Int)](
-      "MyTable", 'int)
+    util
+      .addTableSource[(Int)]("MyTable", 'int)
       .map(call("weightedAvg", $"int", $"int")) // do not support AggregateFunction as input
   }
 
@@ -144,8 +156,8 @@ class CalcValidationTest extends TableTestBase {
     val util = streamTestUtil()
 
     util.addFunction("func", new TableFunc0)
-    util.addTableSource[(String)](
-      "MyTable", 'string)
-      .map(call("func", $"string") as "a") // do not support TableFunction as input
+    util
+      .addTableSource[(String)]("MyTable", 'string)
+      .map(call("func", $"string").as("a")) // do not support TableFunction as input
   }
 }

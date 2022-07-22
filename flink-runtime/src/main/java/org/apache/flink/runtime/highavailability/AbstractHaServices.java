@@ -31,6 +31,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -47,7 +49,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * resources.
  *
  * <p>The abstract class is also responsible for determining which component service should be
- * reused. For example, {@link #runningJobsRegistry} is created once and could be reused many times.
+ * reused. For example, {@link #jobResultStore} is created once and could be reused many times.
  */
 public abstract class AbstractHaServices implements HighAvailabilityServices {
 
@@ -62,15 +64,18 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     /** Store for arbitrary blobs. */
     private final BlobStoreService blobStoreService;
 
-    /** The distributed storage based running jobs registry. */
-    private RunningJobsRegistry runningJobsRegistry;
+    private final JobResultStore jobResultStore;
 
-    public AbstractHaServices(
-            Configuration config, Executor ioExecutor, BlobStoreService blobStoreService) {
+    protected AbstractHaServices(
+            Configuration config,
+            Executor ioExecutor,
+            BlobStoreService blobStoreService,
+            JobResultStore jobResultStore) {
 
         this.configuration = checkNotNull(config);
         this.ioExecutor = checkNotNull(ioExecutor);
         this.blobStoreService = checkNotNull(blobStoreService);
+        this.jobResultStore = checkNotNull(jobResultStore);
     }
 
     @Override
@@ -130,11 +135,8 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public RunningJobsRegistry getRunningJobsRegistry() {
-        if (runningJobsRegistry == null) {
-            this.runningJobsRegistry = createRunningJobsRegistry();
-        }
-        return runningJobsRegistry;
+    public JobResultStore getJobResultStore() throws Exception {
+        return jobResultStore;
     }
 
     @Override
@@ -206,10 +208,19 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public void cleanupJobData(JobID jobID) throws Exception {
-        logger.info("Clean up the high availability data for job {}.", jobID);
-        internalCleanupJobData(jobID);
-        logger.info("Finished cleaning up the high availability data for job {}.", jobID);
+    public CompletableFuture<Void> globalCleanupAsync(JobID jobID, Executor executor) {
+        return CompletableFuture.runAsync(
+                () -> {
+                    logger.info("Clean up the high availability data for job {}.", jobID);
+                    try {
+                        internalCleanupJobData(jobID);
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                    logger.info(
+                            "Finished cleaning up the high availability data for job {}.", jobID);
+                },
+                executor);
     }
 
     /**
@@ -244,17 +255,12 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     protected abstract JobGraphStore createJobGraphStore() throws Exception;
 
     /**
-     * Create the registry that holds information about whether jobs are currently running.
-     *
-     * @return Running job registry to retrieve running jobs
-     */
-    protected abstract RunningJobsRegistry createRunningJobsRegistry();
-
-    /**
      * Closes the components which is used for external operations(e.g. Zookeeper Client, Kubernetes
      * Client).
+     *
+     * @throws Exception if the close operation failed
      */
-    protected abstract void internalClose();
+    protected abstract void internalClose() throws Exception;
 
     /**
      * Clean up the meta data in the distributed system(e.g. Zookeeper, Kubernetes ConfigMap).
@@ -269,7 +275,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
 
     /**
      * Clean up the meta data in the distributed system(e.g. Zookeeper, Kubernetes ConfigMap) for
-     * the specified Job.
+     * the specified Job. Method implementations need to be thread-safe.
      *
      * @param jobID The identifier of the job to cleanup.
      * @throws Exception when do the cleanup operation on external storage.

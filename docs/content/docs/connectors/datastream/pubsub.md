@@ -39,7 +39,7 @@ following dependency to your project:
 
 Note that the streaming connectors are currently not part of the binary
 distribution. See
-[here]({{< ref "docs/dev/datastream/project-configuration" >}})
+[here]({{< ref "docs/dev/configuration/overview" >}})
 for information about how to package the program with the libraries for
 cluster execution.
 

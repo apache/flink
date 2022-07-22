@@ -18,10 +18,10 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.scala.codegen.MacroContextHolder
 
 import scala.reflect.macros.Context
-import org.apache.flink.api.scala.codegen.MacroContextHolder
-import org.apache.flink.api.common.typeinfo.TypeInformation
 
 @Internal
 private[flink] object TypeUtils {

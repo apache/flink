@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.cassandra;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.io.SinkUtils;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -36,13 +37,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * CassandraSinkBase is the common abstract class of {@link CassandraPojoSink} and {@link
  * CassandraTupleSink}.
+ *
+ * <p>In case of experiencing the following error: {@code Error while sending value.
+ * com.datastax.driver.core.exceptions.WriteTimeoutException: Cassandra timeout during write query
+ * at consistency LOCAL_ONE (1 replica were required but only 0 acknowledged the write)},
+ *
+ * <p>it is recommended to increase the Cassandra write timeout to adapt to your workload in your
+ * Cassandra cluster so that such timeout errors do not happen. For that you need to raise
+ * write_request_timeout_in_ms conf parameter in your cassandra.yml. Indeed, This exception means
+ * that Cassandra coordinator node (internal Cassandra) waited too long for an internal replication
+ * (replication to another node and did not ack the write. It is not recommended to lower the
+ * replication factor in your Cassandra cluster because it is mandatory that you do not loose data
+ * in case of a Cassandra cluster failure. Waiting for a single replica for write acknowledge is the
+ * minimum level for this guarantee in Cassandra.}
  *
  * @param <IN> Type of the elements emitted by this sink
  */
@@ -150,17 +163,11 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN>
     public abstract ListenableFuture<V> send(IN value);
 
     private void tryAcquire(int permits) throws InterruptedException, TimeoutException {
-        if (!semaphore.tryAcquire(
+        SinkUtils.tryAcquire(
                 permits,
-                config.getMaxConcurrentRequestsTimeout().toMillis(),
-                TimeUnit.MILLISECONDS)) {
-            throw new TimeoutException(
-                    String.format(
-                            "Failed to acquire %d out of %d permits to send value in %s.",
-                            permits,
-                            config.getMaxConcurrentRequests(),
-                            config.getMaxConcurrentRequestsTimeout()));
-        }
+                config.getMaxConcurrentRequests(),
+                config.getMaxConcurrentRequestsTimeout(),
+                semaphore);
     }
 
     private void checkAsyncErrors() throws Exception {

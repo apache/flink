@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -47,10 +48,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_POSITION;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT cases for using Kinesis consumer/producer based on Kinesalite. */
 @Ignore("See FLINK-23528")
@@ -58,7 +56,7 @@ public class FlinkKinesisITCase extends TestLogger {
     public static final String TEST_STREAM = "test_stream";
 
     @ClassRule
-    public static MiniClusterWithClientResource miniCluster =
+    public static final MiniClusterWithClientResource MINI_CLUSTER =
             new MiniClusterWithClientResource(
                     new MiniClusterResourceConfiguration.Builder().build());
 
@@ -122,14 +120,13 @@ public class FlinkKinesisITCase extends TestLogger {
             List<String> result = stream.executeAndCollect(10000);
             // stop with savepoint will most likely only return a small subset of the elements
             // validate that the prefix is as expected
-            assertThat(result, hasSize(lessThan(numElements)));
-            assertThat(
-                    result,
-                    equalTo(
+            assertThat(result).size().isLessThan(numElements);
+            assertThat(result)
+                    .isEqualTo(
                             IntStream.range(0, numElements)
                                     .mapToObj(String::valueOf)
                                     .collect(Collectors.toList())
-                                    .subList(0, result.size())));
+                                    .subList(0, result.size()));
         } finally {
             stopTask.cancel(true);
         }
@@ -137,10 +134,14 @@ public class FlinkKinesisITCase extends TestLogger {
 
     private String stopWithSavepoint() throws Exception {
         JobStatusMessage job =
-                miniCluster.getClusterClient().listJobs().get().stream().findFirst().get();
-        return miniCluster
+                MINI_CLUSTER.getClusterClient().listJobs().get().stream().findFirst().get();
+        return MINI_CLUSTER
                 .getClusterClient()
-                .stopWithSavepoint(job.getJobId(), true, temp.getRoot().getAbsolutePath())
+                .stopWithSavepoint(
+                        job.getJobId(),
+                        true,
+                        temp.getRoot().getAbsolutePath(),
+                        SavepointFormatType.CANONICAL)
                 .get();
     }
 

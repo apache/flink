@@ -34,7 +34,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -56,7 +55,7 @@ public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row,
         // TypeSerializerUpgradeTestBase
         List<FlinkVersion> testVersions = new ArrayList<>();
         testVersions.add(FlinkVersion.v1_10);
-        testVersions.addAll(Arrays.asList(MIGRATION_VERSIONS));
+        testVersions.addAll(MIGRATION_VERSIONS);
         for (FlinkVersion flinkVersion : testVersions) {
             testSpecifications.add(
                     new TestSpecification<>(

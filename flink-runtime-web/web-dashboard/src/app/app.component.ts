@@ -20,7 +20,7 @@ import { Component } from '@angular/core';
 import { fromEvent, merge } from 'rxjs';
 import { map, startWith } from 'rxjs/operators';
 
-import { StatusService } from 'services';
+import { StatusService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-root',
@@ -35,6 +35,7 @@ export class AppComponent {
     fromEvent(window, 'online').pipe(map(() => true))
   ).pipe(startWith(true));
 
+  historyServerEnv = this.statusService.configuration.features['web-history'];
   webSubmitEnabled = this.statusService.configuration.features['web-submit'];
 
   showMessage(): void {

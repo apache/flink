@@ -35,7 +35,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 
 /**
- * A testing job whith blocks processing until it gets manually {@link #unblock(String) unblocked}.
+ * A testing job which blocks processing until it gets manually {@link #unblock(String) unblocked}.
  */
 public class BlockingJob {
 

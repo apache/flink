@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
@@ -28,8 +27,9 @@ import org.apache.flink.table.planner.utils._
 import org.apache.flink.table.runtime.functions.scalar.SourceWatermarkFunction
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
-import org.junit.Assert._
+
 import org.junit.{Before, Rule, Test}
+import org.junit.Assert._
 
 class TableSourceITCase extends StreamingTestBase {
 
@@ -40,35 +40,33 @@ class TableSourceITCase extends StreamingTestBase {
   override def before(): Unit = {
     super.before()
     val myTableDataId = TestValuesTableFactory.registerData(TestData.smallData3)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE MyTable (
-         |  `a` INT,
-         |  `b` BIGINT,
-         |  `c` STRING
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$myTableDataId',
-         |  'bounded' = 'false'
-         |)
-         |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE MyTable (
+                       |  `a` INT,
+                       |  `b` BIGINT,
+                       |  `c` STRING
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$myTableDataId',
+                       |  'bounded' = 'false'
+                       |)
+                       |""".stripMargin)
 
-    val filterableTableDataId = TestValuesTableFactory.registerData(
-      TestLegacyFilterableTableSource.defaultRows)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE FilterableTable (
-         |  name STRING,
-         |  id BIGINT,
-         |  amount INT,
-         |  price DOUBLE
-         |) WITH (
-         |  'connector' = 'values',
-         |  'filterable-fields' = 'amount',
-         |  'data-id' = '$filterableTableDataId',
-         |  'bounded' = 'false'
-         |)
-         |""".stripMargin)
+    val filterableTableDataId =
+      TestValuesTableFactory.registerData(TestLegacyFilterableTableSource.defaultRows)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE FilterableTable (
+                       |  name STRING,
+                       |  id BIGINT,
+                       |  amount INT,
+                       |  price DOUBLE
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'filterable-fields' = 'amount',
+                       |  'data-id' = '$filterableTableDataId',
+                       |  'bounded' = 'false'
+                       |)
+                       |""".stripMargin)
 
     val metadataTableDataId = TestValuesTableFactory.registerData(TestData.smallData5)
     tEnv.executeSql(
@@ -76,6 +74,7 @@ class TableSourceITCase extends StreamingTestBase {
          |CREATE TABLE MetadataTable (
          |  `a` INT,
          |  `other_metadata` INT METADATA FROM 'metadata_3',
+         |  `other_metadata2` AS CAST(`other_metadata` AS BIGINT),
          |  `b` BIGINT,
          |  `metadata_1` INT METADATA,
          |  `computed` AS `metadata_1` * 2,
@@ -116,10 +115,7 @@ class TableSourceITCase extends StreamingTestBase {
     result.addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,Hi",
-      "2,Hello",
-      "3,Hello world")
+    val expected = Seq("1,Hi", "2,Hello", "3,Hello world")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -173,7 +169,6 @@ class TableSourceITCase extends StreamingTestBase {
     val expected = Seq("1", "1", "1")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
-
 
   @Test
   def testTableSourceWithFilterable(): Unit = {
@@ -281,23 +276,21 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testSimpleMetadataAccess(): Unit = {
-    val result = tEnv.sqlQuery("SELECT `a`, `b`, `metadata_2` FROM MetadataTable")
+    val result = tEnv
+      .sqlQuery("SELECT `a`, `b`, `metadata_2` FROM MetadataTable")
       .toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,1,Hallo",
-      "2,2,Hallo Welt",
-      "2,3,Hallo Welt wie")
+    val expected = Seq("1,1,Hallo", "2,2,Hallo Welt", "2,3,Hallo Welt wie")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testComplexMetadataAccess(): Unit = {
-    val result = tEnv.sqlQuery(
-        "SELECT `a`, `other_metadata`, `b`, `metadata_2`, `computed` FROM MetadataTable")
+    val result = tEnv
+      .sqlQuery("SELECT `a`, `other_metadata`, `b`, `metadata_2`, `computed` FROM MetadataTable")
       .toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
@@ -306,10 +299,20 @@ class TableSourceITCase extends StreamingTestBase {
     // (1, 1L, 0, 0, "Hallo", 1L)
     // (2, 2L, 1, 2, "Hallo Welt", 2L)
     // (2, 3L, 2, 4, "Hallo Welt wie", 1L)
-    val expected = Seq(
-      "1,1,1,Hallo,0",
-      "2,2,2,Hallo Welt,2",
-      "2,1,3,Hallo Welt wie,4")
+    val expected = Seq("1,1,1,Hallo,0", "2,2,2,Hallo Welt,2", "2,1,3,Hallo Welt wie,4")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testDuplicateMetadataFromSameKey(): Unit = {
+    val result = tEnv
+      .sqlQuery("SELECT other_metadata, other_metadata2, metadata_2 FROM MetadataTable")
+      .toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq("1,1,Hallo", "1,1,Hallo Welt wie", "2,2,Hallo Welt")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -341,21 +344,19 @@ class TableSourceITCase extends StreamingTestBase {
   @Test
   def testSourceWatermarkInDDL(): Unit = {
     val dataId = TestValuesTableFactory.registerData(TestData.data3WithTimestamp)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE tableWithWatermark (
-         |  `a` INT,
-         |  `b` BIGINT,
-         |  `c` STRING,
-         |  `ts` TIMESTAMP(3),
-         |  WATERMARK FOR ts AS SOURCE_WATERMARK()
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$dataId',
-         |  'bounded' = 'false'
-         |)
-         |""".stripMargin)
-
+    tEnv.executeSql(s"""
+                       |CREATE TABLE tableWithWatermark (
+                       |  `a` INT,
+                       |  `b` BIGINT,
+                       |  `c` STRING,
+                       |  `ts` TIMESTAMP(3),
+                       |  WATERMARK FOR ts AS SOURCE_WATERMARK()
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'bounded' = 'false'
+                       |)
+                       |""".stripMargin)
 
     try {
       tEnv.executeSql("SELECT * FROM tableWithWatermark").await()

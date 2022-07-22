@@ -14,16 +14,18 @@
  *   limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
-import { first, takeUntil } from 'rxjs/operators';
+import { takeUntil } from 'rxjs/operators';
 
+import { ModuleConfig } from '@flink-runtime-web/core/module-config';
+import {
+  TASK_MANAGER_MODULE_CONFIG,
+  TASK_MANAGER_MODULE_DEFAULT_CONFIG
+} from '@flink-runtime-web/pages/task-manager/task-manager.config';
+import { TaskManagerService } from '@flink-runtime-web/services';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
-import { flinkEditorOptions } from 'share/common/editor/editor-config';
-
-import { TaskManagerDetail } from 'interfaces';
-import { TaskManagerService } from 'services';
 
 @Component({
   selector: 'flink-task-manager-log-detail',
@@ -35,13 +37,12 @@ import { TaskManagerService } from 'services';
   styleUrls: ['./task-manager-log-detail.component.less']
 })
 export class TaskManagerLogDetailComponent implements OnInit, OnDestroy {
-  public readonly editorOptions: EditorOptions = flinkEditorOptions;
-
+  public editorOptions: EditorOptions;
   public logs = '';
   public logName = '';
+  public taskManagerId: string;
   public downloadUrl = '';
   public isLoading = false;
-  public taskManagerDetail?: TaskManagerDetail;
   public isFullScreen = false;
 
   private readonly destroy$ = new Subject<void>();
@@ -49,15 +50,16 @@ export class TaskManagerLogDetailComponent implements OnInit, OnDestroy {
   constructor(
     private readonly taskManagerService: TaskManagerService,
     private readonly cdr: ChangeDetectorRef,
-    private readonly activatedRoute: ActivatedRoute
-  ) {}
+    private readonly activatedRoute: ActivatedRoute,
+    @Inject(TASK_MANAGER_MODULE_CONFIG) readonly moduleConfig: ModuleConfig
+  ) {
+    this.editorOptions = moduleConfig.editorOptions || TASK_MANAGER_MODULE_DEFAULT_CONFIG.editorOptions;
+  }
 
   public ngOnInit(): void {
-    this.taskManagerService.taskManagerDetail$.pipe(first(), takeUntil(this.destroy$)).subscribe(data => {
-      this.taskManagerDetail = data;
-      this.logName = this.activatedRoute.snapshot.params.logName;
-      this.reloadLog();
-    });
+    this.logName = this.activatedRoute.snapshot.params.logName;
+    this.taskManagerId = this.activatedRoute.parent!.snapshot.params.taskManagerId;
+    this.reloadLog();
   }
 
   public ngOnDestroy(): void {
@@ -66,30 +68,21 @@ export class TaskManagerLogDetailComponent implements OnInit, OnDestroy {
   }
 
   public reloadLog(): void {
-    if (!this.taskManagerDetail) {
-      return;
-    }
-
     this.isLoading = true;
     this.cdr.markForCheck();
     this.taskManagerService
-      .loadLog(this.taskManagerDetail.id, this.logName)
+      .loadLog(this.taskManagerId, this.logName)
       .pipe(takeUntil(this.destroy$))
-      .subscribe(
-        data => {
-          this.logs = data.data;
-          this.downloadUrl = data.url;
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        },
-        () => {
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        }
-      );
+      .subscribe(data => {
+        this.logs = data.data;
+        this.downloadUrl = data.url;
+        this.isLoading = false;
+        this.cdr.markForCheck();
+      });
   }
 
   public toggleFullScreen(fullScreen: boolean): void {
     this.isFullScreen = fullScreen;
+    this.cdr.markForCheck();
   }
 }

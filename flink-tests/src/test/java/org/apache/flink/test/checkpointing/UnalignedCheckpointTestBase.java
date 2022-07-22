@@ -51,6 +51,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
+import org.apache.flink.runtime.shuffle.ShuffleServiceOptions;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -69,8 +70,9 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
-import org.apache.flink.shaded.netty4.io.netty.util.internal.PlatformDependent;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ErrorCollector;
@@ -123,6 +125,20 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
     @Rule public TestName name = new TestName();
 
+    @BeforeClass
+    public static void beforeAll() {
+        // set to some high enough number, it is recommended to have as many arenas as slots
+        // If a single buffer pool is shared between all tms we should have tms * slots_per_tm
+        // This should be the maximum across all tests run
+        SharedPoolNettyShuffleServiceFactory.resetBufferPool(60);
+    }
+
+    @AfterClass
+    public static void afterAll() {
+        // safety precaution, make sure the buffer pool can be cleared by th GC
+        SharedPoolNettyShuffleServiceFactory.clearBufferPool();
+    }
+
     @Nullable
     protected File execute(UnalignedSettings settings) throws Exception {
         final File checkpointDir = temp.newFolder();
@@ -132,7 +148,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         // ChangelogStateBackend is used.
         // Doing it on cluster level unconditionally as randomization currently happens on the job
         // level (environment); while this factory can only be set on the cluster level.
-        FsStateChangelogStorageFactory.configure(conf, temp.newFolder());
+        FsStateChangelogStorageFactory.configure(conf, temp.newFolder(), Duration.ofMinutes(1), 10);
 
         final StreamGraph streamGraph = getStreamGraph(settings, conf);
         final int requiredSlots =
@@ -140,6 +156,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                         .mapToInt(node -> node.getParallelism())
                         .reduce(0, settings.channelType.slotSharing ? Integer::max : Integer::sum);
         int numberTaskmanagers = settings.channelType.slotsToTaskManagers.apply(requiredSlots);
+
         final int slotsPerTM = (requiredSlots + numberTaskmanagers - 1) / numberTaskmanagers;
         final MiniClusterWithClientResource miniCluster =
                 new MiniClusterWithClientResource(
@@ -156,7 +173,6 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             // print the test parameters to help debugging when the case is stuck
             System.out.println(
                     "Starting " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
-            waitForCleanShutdown();
             final CompletableFuture<JobSubmissionResult> result =
                     miniCluster.getMiniCluster().submitJob(streamGraph.getJobGraph());
 
@@ -194,30 +210,6 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 settings.expectedFailures - settings.failuresAfterSourceFinishes);
 
         return setupEnv.getStreamGraph();
-    }
-
-    private void waitForCleanShutdown() throws InterruptedException {
-        // direct memory in netty will be freed through gc/finalization
-        // too many successive executions will lead to OOM by netty
-        // slow down when half the memory is taken and wait for gc
-        if (PlatformDependent.usedDirectMemory() > PlatformDependent.maxDirectMemory() / 2) {
-            final Duration waitTime = Duration.ofSeconds(10);
-            Deadline deadline = Deadline.fromNow(waitTime);
-            while (PlatformDependent.usedDirectMemory() > 0 && deadline.hasTimeLeft()) {
-                System.gc();
-                Thread.sleep(100);
-            }
-            final Duration timeLeft = deadline.timeLeft();
-            if (timeLeft.isNegative()) {
-                LOG.warn(
-                        "Waited 10s for clean shutdown of previous runs but there is still direct memory in use: "
-                                + PlatformDependent.usedDirectMemory());
-            } else {
-                LOG.info(
-                        "Needed to wait {} ms for full cleanup of previous runs.",
-                        waitTime.minus(timeLeft).toMillis());
-            }
-        }
     }
 
     protected abstract void checkCounters(JobExecutionResult result);
@@ -763,8 +755,17 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                         restoreCheckpoint.toURI().toString());
             }
 
+            conf.set(
+                    ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS,
+                    SharedPoolNettyShuffleServiceFactory.class.getName());
             conf.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
             conf.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 60000);
+            // half memory consumption of network buffers (default is 64mb), as some tests spawn a
+            // large number of task managers (25)
+            // 12mb was sufficient to run the tests, so 32mb should put us above the recommended
+            // amount of buffers
+            conf.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(32));
+            conf.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(32));
             conf.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
             return conf;
         }

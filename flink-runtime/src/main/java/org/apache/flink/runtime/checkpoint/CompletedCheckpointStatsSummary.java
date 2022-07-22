@@ -32,6 +32,8 @@ public class CompletedCheckpointStatsSummary implements Serializable {
     /** State size statistics for all completed checkpoints. */
     private final StatsSummary stateSize;
 
+    private final StatsSummary checkpointedSize;
+
     /** Duration statistics for all completed checkpoints. */
     private final StatsSummary duration;
 
@@ -44,16 +46,19 @@ public class CompletedCheckpointStatsSummary implements Serializable {
                 new StatsSummary(HISTOGRAM_WINDOW_SIZE),
                 new StatsSummary(HISTOGRAM_WINDOW_SIZE),
                 new StatsSummary(HISTOGRAM_WINDOW_SIZE),
+                new StatsSummary(HISTOGRAM_WINDOW_SIZE),
                 new StatsSummary(HISTOGRAM_WINDOW_SIZE));
     }
 
     private CompletedCheckpointStatsSummary(
             StatsSummary stateSize,
+            StatsSummary checkpointedSize,
             StatsSummary duration,
             StatsSummary processedData,
             StatsSummary persistedData) {
 
         this.stateSize = checkNotNull(stateSize);
+        this.checkpointedSize = checkNotNull(checkpointedSize);
         this.duration = checkNotNull(duration);
         this.processedData = checkNotNull(processedData);
         this.persistedData = checkNotNull(persistedData);
@@ -66,6 +71,7 @@ public class CompletedCheckpointStatsSummary implements Serializable {
      */
     void updateSummary(CompletedCheckpointStats completed) {
         stateSize.add(completed.getStateSize());
+        checkpointedSize.add(completed.getCheckpointedSize());
         duration.add(completed.getEndToEndDuration());
         processedData.add(completed.getProcessedData());
         persistedData.add(completed.getPersistedData());
@@ -81,7 +87,8 @@ public class CompletedCheckpointStatsSummary implements Serializable {
                 duration.createSnapshot(),
                 processedData.createSnapshot(),
                 persistedData.createSnapshot(),
-                stateSize.createSnapshot());
+                stateSize.createSnapshot(),
+                checkpointedSize.createSnapshot());
     }
 
     /**

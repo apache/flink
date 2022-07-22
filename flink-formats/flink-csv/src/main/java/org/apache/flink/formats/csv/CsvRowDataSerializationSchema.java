@@ -65,6 +65,11 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
     /** Reusable object node. */
     private transient ObjectNode root;
 
+    /** Reusable converter context. */
+    private transient RowDataToCsvConverters.RowDataToCsvConverter
+                    .RowDataToCsvFormatConverterContext
+            converterContext;
+
     private CsvRowDataSerializationSchema(RowType rowType, CsvSchema csvSchema) {
         this.rowType = rowType;
         this.runtimeConverter = RowDataToCsvConverters.createRowConverter(rowType);
@@ -132,9 +137,12 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
     public byte[] serialize(RowData row) {
         if (root == null) {
             root = csvMapper.createObjectNode();
+            converterContext =
+                    new RowDataToCsvConverters.RowDataToCsvConverter
+                            .RowDataToCsvFormatConverterContext(csvMapper, root);
         }
         try {
-            runtimeConverter.convert(csvMapper, root, row);
+            runtimeConverter.convert(row, converterContext);
             return objectWriter.writeValueAsBytes(root);
         } catch (Throwable t) {
             throw new RuntimeException(String.format("Could not serialize row '%s'.", row), t);

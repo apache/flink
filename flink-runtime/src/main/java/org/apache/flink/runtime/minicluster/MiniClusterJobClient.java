@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -97,13 +98,16 @@ public final class MiniClusterJobClient implements JobClient, CoordinationReques
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            boolean terminate, @Nullable String savepointDirectory) {
-        return miniCluster.stopWithSavepoint(jobID, savepointDirectory, terminate);
+            boolean terminate,
+            @Nullable String savepointDirectory,
+            SavepointFormatType formatType) {
+        return miniCluster.stopWithSavepoint(jobID, savepointDirectory, terminate, formatType);
     }
 
     @Override
-    public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
-        return miniCluster.triggerSavepoint(jobID, savepointDirectory, false);
+    public CompletableFuture<String> triggerSavepoint(
+            @Nullable String savepointDirectory, SavepointFormatType formatType) {
+        return miniCluster.triggerSavepoint(jobID, savepointDirectory, false, formatType);
     }
 
     @Override

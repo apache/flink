@@ -30,7 +30,7 @@ import java.util.Random;
 import java.util.TreeMap;
 
 /** Tests for {@link NullAwareMapSerializer}. */
-public class NullAwareMapSerializerTest extends SerializerTestBase<Map<Long, String>> {
+class NullAwareMapSerializerTest extends SerializerTestBase<Map<Long, String>> {
     @Override
     protected TypeSerializer<Map<Long, String>> createSerializer() {
         return new NullAwareMapSerializer<>(LongSerializer.INSTANCE, StringSerializer.INSTANCE);

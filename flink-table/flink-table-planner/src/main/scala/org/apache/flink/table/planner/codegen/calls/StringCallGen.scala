@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.data.util.DataFormatConverters
-import org.apache.flink.table.planner.codegen.CodeGenUtils._
-import org.apache.flink.table.planner.codegen.GenerateUtils.{generateCallIfArgsNotNull, generateCallIfArgsNullable, generateStringResultCallIfArgsNotNull}
-import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.CodeGenUtils._
+import org.apache.flink.table.planner.codegen.GenerateUtils.{generateCallIfArgsNotNull, generateCallIfArgsNullable, generateNonNullField, generateStringResultCallIfArgsNotNull}
+import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp, isTimestampWithLocalZone}
@@ -35,13 +34,13 @@ import org.apache.calcite.sql.fun.SqlTrimFunction.Flag.{BOTH, LEADING, TRAILING}
 import java.lang.reflect.Method
 
 /**
-  * Code generator for call with string parameters or return value.
-  * 1.Some specific optimization of StringData.
-  * 2.Deal with conversions between Java String and internal String.
-  *
-  * <p>TODO Need to rewrite most of the methods here, calculated directly on the StringData
-  * instead of convert StringData to String.
-  */
+ * Code generator for call with string parameters or return value.
+ * 1.Some specific optimization of StringData. 2.Deal with conversions between Java String and
+ * internal String.
+ *
+ * <p>TODO Need to rewrite most of the methods here, calculated directly on the StringData instead
+ * of convert StringData to String.
+ */
 object StringCallGen {
 
   def generateCallExpression(
@@ -54,13 +53,17 @@ object StringCallGen {
       new MethodCallGen(method).generate(ctx, operands, returnType)
     }
 
+    def fallibleMethodGen(method: Method): GeneratedExpression = {
+      new MethodCallGen(method, wrapTryCatch = true).generate(ctx, operands, returnType)
+    }
+
     val generator = operator match {
 
       case LIKE =>
-        new LikeCallGen().generate(ctx, operands, new BooleanType())
+        new LikeCallGen().generate(ctx, operands, returnType)
 
       case NOT_LIKE =>
-        generateNot(ctx, new LikeCallGen().generate(ctx, operands, new BooleanType()))
+        generateNot(ctx, new LikeCallGen().generate(ctx, operands, returnType), returnType)
 
       case SUBSTR | SUBSTRING => generateSubString(ctx, operands, returnType)
 
@@ -68,21 +71,22 @@ object StringCallGen {
 
       case RIGHT => generateRight(ctx, operands.head, operands(1), returnType)
 
-      case CHAR_LENGTH | CHARACTER_LENGTH => generateCharLength(ctx, operands)
+      case CHAR_LENGTH | CHARACTER_LENGTH => generateCharLength(ctx, operands, returnType)
 
-      case SIMILAR_TO => generateSimilarTo(ctx, operands)
+      case SIMILAR_TO => generateSimilarTo(ctx, operands, returnType)
 
-      case NOT_SIMILAR_TO => generateNot(ctx, generateSimilarTo(ctx, operands))
+      case NOT_SIMILAR_TO =>
+        generateNot(ctx, generateSimilarTo(ctx, operands, returnType), returnType)
 
       case REGEXP_EXTRACT => generateRegexpExtract(ctx, operands, returnType)
 
       case REGEXP_REPLACE => generateRegexpReplace(ctx, operands, returnType)
 
-      case IS_DECIMAL => generateIsDecimal(ctx, operands)
+      case IS_DECIMAL => generateIsDecimal(ctx, operands, returnType)
 
-      case IS_DIGIT => generateIsDigit(ctx, operands)
+      case IS_DIGIT => generateIsDigit(ctx, operands, returnType)
 
-      case IS_ALPHA => generateIsAlpha(ctx, operands)
+      case IS_ALPHA => generateIsAlpha(ctx, operands, returnType)
 
       case UPPER => generateUpper(ctx, operands, returnType)
 
@@ -90,9 +94,9 @@ object StringCallGen {
 
       case INITCAP => generateInitcap(ctx, operands, returnType)
 
-      case POSITION => generatePosition(ctx, operands)
+      case POSITION => generatePosition(ctx, operands, returnType)
 
-      case LOCATE => generateLocate(ctx, operands)
+      case LOCATE => generateLocate(ctx, operands, returnType)
 
       case OVERLAY => generateOverlay(ctx, operands, returnType)
 
@@ -109,7 +113,7 @@ object StringCallGen {
       case SPLIT_INDEX => generateSplitIndex(ctx, operands, returnType)
 
       case HASH_CODE if isCharacterString(operands.head.resultType) =>
-        generateHashCode(ctx, operands)
+        generateHashCode(ctx, operands, returnType)
 
       case MD5 => generateMd5(ctx, operands, returnType)
 
@@ -133,7 +137,7 @@ object StringCallGen {
 
       case CHR => generateChr(ctx, operands, returnType)
 
-      case REGEXP => generateRegExp(ctx, operands)
+      case REGEXP => generateRegExp(ctx, operands, returnType)
 
       case BIN => generateBin(ctx, operands, returnType)
 
@@ -145,7 +149,7 @@ object StringCallGen {
         operands.foreach(requireCharacterString)
         generateConcatWs(ctx, operands, returnType)
 
-      case STR_TO_MAP => generateStrToMap(ctx, operands)
+      case STR_TO_MAP => generateStrToMap(ctx, operands, returnType)
 
       case TRIM => generateTrim(ctx, operands, returnType)
 
@@ -161,13 +165,13 @@ object StringCallGen {
 
       case UUID => generateUuid(ctx, operands, returnType)
 
-      case ASCII => generateAscii(ctx, operands.head)
+      case ASCII => generateAscii(ctx, operands.head, returnType)
 
       case ENCODE => generateEncode(ctx, operands.head, operands(1), returnType)
 
       case DECODE => generateDecode(ctx, operands.head, operands(1), returnType)
 
-      case INSTR => generateInstr(ctx, operands)
+      case INSTR => generateInstr(ctx, operands, returnType)
 
       case PRINT => new PrintCallGen().generate(ctx, operands, returnType)
 
@@ -180,47 +184,58 @@ object StringCallGen {
       case TO_DATE if operands.size == 1 && isCharacterString(operands.head.resultType) =>
         methodGen(BuiltInMethods.STRING_TO_DATE)
 
-      case TO_DATE if operands.size == 2 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) =>
+      case TO_DATE
+          if operands.size == 2 &&
+            isCharacterString(operands.head.resultType) &&
+            isCharacterString(operands(1).resultType) =>
         methodGen(BuiltInMethods.STRING_TO_DATE_WITH_FORMAT)
 
       case TO_TIMESTAMP if operands.size == 1 && isCharacterString(operands.head.resultType) =>
-        methodGen(BuiltInMethods.STRING_TO_TIMESTAMP)
+        fallibleMethodGen(BuiltInMethods.STRING_TO_TIMESTAMP)
 
-      case TO_TIMESTAMP if operands.size == 2 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.STRING_TO_TIMESTAMP_WITH_FORMAT)
+      case TO_TIMESTAMP
+          if operands.size == 2 &&
+            isCharacterString(operands.head.resultType) &&
+            isCharacterString(operands(1).resultType) =>
+        fallibleMethodGen(BuiltInMethods.STRING_TO_TIMESTAMP_WITH_FORMAT)
 
       case UNIX_TIMESTAMP if operands.size == 1 && isCharacterString(operands.head.resultType) =>
         methodGen(BuiltInMethods.UNIX_TIMESTAMP_STR)
 
-      case UNIX_TIMESTAMP if operands.size == 2 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) =>
+      case UNIX_TIMESTAMP
+          if operands.size == 2 &&
+            isCharacterString(operands.head.resultType) &&
+            isCharacterString(operands(1).resultType) =>
         methodGen(BuiltInMethods.UNIX_TIMESTAMP_FORMAT)
 
-      case DATE_FORMAT if operands.size == 2 &&
-          isTimestamp(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) =>
+      case DATE_FORMAT
+          if operands.size == 2 &&
+            isTimestamp(operands.head.resultType) &&
+            isCharacterString(operands(1).resultType) =>
         methodGen(BuiltInMethods.FORMAT_TIMESTAMP_DATA)
 
-      case DATE_FORMAT if operands.size == 2 &&
-          isTimestampWithLocalZone(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) =>
+      case DATE_FORMAT
+          if operands.size == 2 &&
+            isTimestampWithLocalZone(operands.head.resultType) &&
+            isCharacterString(operands(1).resultType) =>
         methodGen(BuiltInMethods.FORMAT_TIMESTAMP_DATA_WITH_TIME_ZONE)
 
-      case DATE_FORMAT if operands.size == 2 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) =>
+      case DATE_FORMAT
+          if operands.size == 2 &&
+            isCharacterString(operands.head.resultType) &&
+            isCharacterString(operands(1).resultType) =>
         methodGen(BuiltInMethods.FORMAT_TIMESTAMP_STRING_FORMAT_STRING_STRING)
 
-      case CONVERT_TZ if operands.size == 3 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) &&
-          isCharacterString(operands(2).resultType) =>
+      case CONVERT_TZ
+          if operands.size == 3 &&
+            isCharacterString(operands.head.resultType) &&
+            isCharacterString(operands(1).resultType) &&
+            isCharacterString(operands(2).resultType) =>
         methodGen(BuiltInMethods.CONVERT_TZ)
+
+      case CURRENT_DATABASE =>
+        val currentDatabase = ctx.addReusableQueryLevelCurrentDatabase()
+        generateNonNullField(returnType, currentDatabase)
 
       case _ => null
     }
@@ -229,23 +244,29 @@ object StringCallGen {
   }
 
   private def toStringTerms(terms: Seq[String], operands: Seq[GeneratedExpression]) = {
-    terms.zipWithIndex.map { case (term, index) =>
-      if (isCharacterString(operands(index).resultType)) {
-        s"$term.toString()"
-      } else {
-        term
+    terms.zipWithIndex
+      .map {
+        case (term, index) =>
+          if (isCharacterString(operands(index).resultType)) {
+            s"$term.toString()"
+          } else {
+            term
+          }
       }
-    }.mkString(",")
+      .mkString(",")
   }
 
   private def safeToStringTerms(terms: Seq[String], operands: Seq[GeneratedExpression]) = {
-    terms.zipWithIndex.map { case (term, index) =>
-      if (isCharacterString(operands(index).resultType)) {
-        s"$BINARY_STRING_UTIL.safeToString($term)"
-      } else {
-        term
+    terms.zipWithIndex
+      .map {
+        case (term, index) =>
+          if (isCharacterString(operands(index).resultType)) {
+            s"$BINARY_STRING_UTIL.safeToString($term)"
+          } else {
+            term
+          }
       }
-    }.mkString(",")
+      .mkString(",")
   }
 
   def generateConcat(
@@ -266,49 +287,47 @@ object StringCallGen {
     }
   }
 
-  /**
-    * Optimization: use StringData equals instead of compare.
-    */
+  /** Optimization: use StringData equals instead of compare. */
   def generateStringEquals(
       ctx: CodeGeneratorContext,
       left: GeneratedExpression,
-      right: GeneratedExpression): GeneratedExpression = {
-    generateCallIfArgsNotNull(ctx, new BooleanType(), Seq(left, right)) {
+      right: GeneratedExpression,
+      resultType: LogicalType): GeneratedExpression = {
+    generateCallIfArgsNotNull(ctx, resultType, Seq(left, right)) {
       terms => s"(${terms.head}.equals(${terms(1)}))"
     }
   }
 
-  /**
-    * Optimization: use StringData equals instead of compare.
-    */
+  /** Optimization: use StringData equals instead of compare. */
   def generateStringNotEquals(
       ctx: CodeGeneratorContext,
       left: GeneratedExpression,
-      right: GeneratedExpression): GeneratedExpression = {
-    generateCallIfArgsNotNull(ctx, new BooleanType(), Seq(left, right)) {
+      right: GeneratedExpression,
+      resultType: LogicalType): GeneratedExpression = {
+    generateCallIfArgsNotNull(ctx, resultType, Seq(left, right)) {
       terms => s"!(${terms.head}.equals(${terms(1)}))"
     }
   }
 
   def generateSubString(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, returnType, operands) {
       terms => s"$BINARY_STRING_UTIL.substringSQL(${terms.head}, ${terms.drop(1).mkString(", ")})"
     }
   }
 
   def generateLeft(
-    ctx: CodeGeneratorContext,
-    str: GeneratedExpression,
-    len: GeneratedExpression,
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      str: GeneratedExpression,
+      len: GeneratedExpression,
+      returnType: LogicalType): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, returnType, Seq(str, len)) {
       val emptyString = s"$BINARY_STRING.EMPTY_UTF8"
       terms =>
         s"${terms(1)} <= 0 ? $emptyString :" +
-            s" $BINARY_STRING_UTIL.substringSQL(${terms.head}, 1, ${terms(1)})"
+          s" $BINARY_STRING_UTIL.substringSQL(${terms.head}, 1, ${terms(1)})"
     }
   }
 
@@ -331,137 +350,140 @@ object StringCallGen {
 
   def generateCharLength(
       ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression]): GeneratedExpression = {
-    generateCallIfArgsNotNull(ctx, new IntType(), operands) {
-      terms => s"${terms.head}.numChars()"
-    }
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
+    generateCallIfArgsNotNull(ctx, resultType, operands)(terms => s"${terms.head}.numChars()")
   }
 
   def generateSimilarTo(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression]): GeneratedExpression = {
-    generateCallIfArgsNotNull(ctx, new BooleanType(), operands) {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
+    generateCallIfArgsNotNull(ctx, resultType, operands) {
       terms => s"${qualifyMethod(BuiltInMethods.STRING_SIMILAR)}(${toStringTerms(terms, operands)})"
     }
   }
 
   def generateRegexpExtract(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
+    generateStringResultCallIfArgsNotNull(ctx, operands, resultType) {
       terms => s"$className.regexpExtract(${safeToStringTerms(terms, operands)})"
     }
   }
 
   def generateRegexpReplace(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
+    generateStringResultCallIfArgsNotNull(ctx, operands, resultType) {
       terms => s"$className.regexpReplace(${toStringTerms(terms, operands)})"
     }
   }
 
   def generateIsDecimal(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression]): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateCallIfArgsNullable(ctx, new BooleanType(), operands) {
+    generateCallIfArgsNullable(ctx, resultType, operands) {
       terms => s"$className.isDecimal(${safeToStringTerms(terms, operands)})"
     }
   }
 
   def generateIsDigit(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression]): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateCallIfArgsNullable(ctx, new BooleanType(), operands) {
+    generateCallIfArgsNullable(ctx, resultType, operands) {
       terms => s"$className.isDigit(${safeToStringTerms(terms, operands)})"
     }
   }
 
   def generateAscii(
-    ctx: CodeGeneratorContext,
-    str: GeneratedExpression): GeneratedExpression = {
-    generateCallIfArgsNotNull(ctx, new IntType(), Seq(str)) {
+      ctx: CodeGeneratorContext,
+      str: GeneratedExpression,
+      resultType: LogicalType): GeneratedExpression = {
+    generateCallIfArgsNotNull(ctx, resultType, Seq(str)) {
       terms => s"${terms.head}.getSizeInBytes() <= 0 ? 0 : (int) ${terms.head}.byteAt(0)"
     }
   }
 
   def generateIsAlpha(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression]): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateCallIfArgsNullable(ctx, new BooleanType(), operands) {
+    generateCallIfArgsNullable(ctx, resultType, operands) {
       terms => s"$className.isAlpha(${safeToStringTerms(terms, operands)})"
     }
   }
 
   def generateUpper(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
-    generateCallIfArgsNotNull(ctx, returnType, operands) {
-      terms => s"${terms.head}.toUpperCase()"
-    }
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
+    generateCallIfArgsNotNull(ctx, returnType, operands)(terms => s"${terms.head}.toUpperCase()")
   }
 
   def generateLower(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
-    generateCallIfArgsNotNull(ctx, returnType, operands) {
-      terms => s"${terms.head}.toLowerCase()"
-    }
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
+    generateCallIfArgsNotNull(ctx, returnType, operands)(terms => s"${terms.head}.toLowerCase()")
   }
 
   def generateInitcap(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
       terms => s"${qualifyMethod(BuiltInMethods.STRING_INITCAP)}(${terms.head}.toString())"
     }
   }
 
   def generatePosition(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression]): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateCallIfArgsNotNull(ctx, new IntType(), operands) {
+    generateCallIfArgsNotNull(ctx, resultType, operands) {
       terms => s"$className.position(${terms.mkString(",")})"
     }
   }
 
   def generateLocate(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression]): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateCallIfArgsNotNull(ctx, new IntType(), operands) {
+    generateCallIfArgsNotNull(ctx, resultType, operands) {
       terms => s"$className.position(${terms.mkString(",")})"
     }
   }
 
   def generateInstr(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression]): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateCallIfArgsNotNull(ctx, new IntType(), operands) {
+    generateCallIfArgsNotNull(ctx, resultType, operands) {
       terms =>
         val startPosition = if (operands.length < 3) 1 else terms(2)
         val nthAppearance = if (operands.length < 4) 1 else terms(3)
-          s"$className.instr(${terms.head}, ${terms(1)}, " +
+        s"$className.instr(${terms.head}, ${terms(1)}, " +
           s"$startPosition, $nthAppearance)"
     }
   }
 
   def generateOverlay(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
       terms => s"$className.overlay(${toStringTerms(terms, operands)})"
@@ -479,31 +501,29 @@ object StringCallGen {
   }
 
   def generateLpad(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
-      terms =>
-        s"$className.lpad(${toStringTerms(terms, operands)})"
+      terms => s"$className.lpad(${toStringTerms(terms, operands)})"
     }
   }
 
   def generateRpad(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
-      terms =>
-        s"$className.rpad(${toStringTerms(terms, operands)})"
+      terms => s"$className.rpad(${toStringTerms(terms, operands)})"
     }
   }
 
   def generateRepeat(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
       terms => s"$className.repeat(${toStringTerms(terms, operands)})"
@@ -511,18 +531,18 @@ object StringCallGen {
   }
 
   def generateReverse(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, returnType, operands) {
       terms => s"$BINARY_STRING_UTIL.reverse(${terms.head})"
     }
   }
 
   def generateReplace(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
       terms => s"$className.replace(${toStringTerms(terms, operands)})"
@@ -530,9 +550,9 @@ object StringCallGen {
   }
 
   def generateSplitIndex(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
       terms => s"$className.splitIndex(${toStringTerms(terms, operands)})"
@@ -540,9 +560,9 @@ object StringCallGen {
   }
 
   def generateKeyValue(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateCallIfArgsNullable(ctx, returnType, operands) {
       terms => s"$className.keyValue(${terms.mkString(",")})"
@@ -550,10 +570,11 @@ object StringCallGen {
   }
 
   def generateHashCode(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression]): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateCallIfArgsNotNull(ctx, new IntType(), operands) {
+    generateCallIfArgsNotNull(ctx, resultType, operands) {
       terms => s"$className.hashCode(${terms.head}.toString())"
     }
   }
@@ -572,7 +593,7 @@ object StringCallGen {
     val digestTerm = ctx.addReusableMessageDigest(algorithm)
     if (operands.length == 1) {
       generateCallIfArgsNotNull(ctx, returnType, operands) {
-        terms =>s"$BINARY_STRING_UTIL.hash(${terms.head}, $digestTerm)"
+        terms => s"$BINARY_STRING_UTIL.hash(${terms.head}, $digestTerm)"
       }
     } else {
       val className = classOf[SqlFunctionUtils].getCanonicalName
@@ -621,36 +642,36 @@ object StringCallGen {
       val digestTerm = ctx.addReusableSha2MessageDigest(operands.last)
       if (operands.length == 2) {
         generateCallIfArgsNotNull(ctx, returnType, operands) {
-          terms =>s"$BINARY_STRING_UTIL.hash(${terms.head}, $digestTerm)"
+          terms => s"$BINARY_STRING_UTIL.hash(${terms.head}, $digestTerm)"
         }
       } else {
         generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
           terms =>
             s"$className.hash($digestTerm," +
-                s"${toStringTerms(terms.dropRight(1), operands.dropRight(1))})"
+              s"${toStringTerms(terms.dropRight(1), operands.dropRight(1))})"
         }
       }
     } else {
       if (operands.length == 2) {
         generateCallIfArgsNotNull(ctx, returnType, operands) {
-          terms =>
-            s"""$BINARY_STRING_UTIL.hash(${terms.head}, "SHA-" + ${terms.last})"""
+          terms => s"""$BINARY_STRING_UTIL.hash(${terms.head}, "SHA-" + ${terms.last})"""
         }
       } else {
         generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
-          terms => {
-            val strTerms = toStringTerms(terms.dropRight(1), operands.dropRight(1))
-            s"""$className.hash("SHA-" + ${terms.last}, $strTerms)"""
-          }
+          terms =>
+            {
+              val strTerms = toStringTerms(terms.dropRight(1), operands.dropRight(1))
+              s"""$className.hash("SHA-" + ${terms.last}, $strTerms)"""
+            }
         }
       }
     }
   }
 
   def generateParserUrl(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
       terms => s"$className.parseUrl(${safeToStringTerms(terms, operands)})"
@@ -658,9 +679,9 @@ object StringCallGen {
   }
 
   def generateFromBase64(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateCallIfArgsNotNull(ctx, returnType, operands) {
       terms => s"$className.fromBase64(${terms.head})"
@@ -668,9 +689,9 @@ object StringCallGen {
   }
 
   def generateToBase64(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
       terms => s"$className.toBase64(${terms.head})"
@@ -678,9 +699,9 @@ object StringCallGen {
   }
 
   def generateChr(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
       terms => s"$className.chr(${terms.head})"
@@ -688,38 +709,38 @@ object StringCallGen {
   }
 
   def generateRegExp(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression]): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateCallIfArgsNotNull(ctx, new BooleanType(), operands) {
+    generateCallIfArgsNotNull(ctx, returnType, operands) {
       terms => s"$className.regExp(${toStringTerms(terms, operands)})"
     }
   }
 
   def generateJsonValue(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
-      terms =>
-        s"$className.jsonValue(${safeToStringTerms(terms, operands)})"
+      terms => s"$className.jsonValue(${safeToStringTerms(terms, operands)})"
     }
   }
 
   def generateBin(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
       terms => s"Long.toBinaryString(${terms.head})"
     }
   }
 
   def generateTrim(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, returnType, operands) {
       terms =>
         val leading = compareEnum(terms.head, BOTH) || compareEnum(terms.head, LEADING)
@@ -730,27 +751,27 @@ object StringCallGen {
   }
 
   def generateTrimLeft(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, returnType, operands) {
       terms => s"$BINARY_STRING_UTIL.trimLeft(${terms.mkString(", ")})"
     }
   }
 
   def generateTrimRight(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, returnType, operands) {
       terms => s"$BINARY_STRING_UTIL.trimRight(${terms.mkString(", ")})"
     }
   }
 
   def generateUuid(
-    ctx: CodeGeneratorContext,
-    operands: Seq[GeneratedExpression],
-    returnType: LogicalType): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
       terms => s"$className.uuid(${terms.mkString(",")})"
@@ -759,14 +780,13 @@ object StringCallGen {
 
   def generateStrToMap(
       ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression]): GeneratedExpression = {
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
-    val t = new MapType(
-      VarCharType.STRING_TYPE, VarCharType.STRING_TYPE)
     val converter = DataFormatConverters.getConverterForDataType(
       DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()))
     val converterTerm = ctx.addReusableObject(converter, "mapConverter")
-    generateCallIfArgsNotNull(ctx, t, operands) {
+    generateCallIfArgsNotNull(ctx, resultType, operands) {
       terms =>
         val map = s"$className.strToMap(${toStringTerms(terms, operands)})"
         s"($BINARY_MAP) $converterTerm.toInternal($map)"
@@ -778,8 +798,7 @@ object StringCallGen {
       str: GeneratedExpression,
       charset: GeneratedExpression,
       returnType: LogicalType): GeneratedExpression = {
-    generateCallIfArgsNotNull(
-      ctx, returnType, Seq(str, charset)) {
+    generateCallIfArgsNotNull(ctx, returnType, Seq(str, charset)) {
       terms => s"${terms.head}.toString().getBytes(${terms(1)}.toString())"
     }
   }
@@ -790,8 +809,7 @@ object StringCallGen {
       charset: GeneratedExpression,
       returnType: LogicalType): GeneratedExpression = {
     generateStringResultCallIfArgsNotNull(ctx, Seq(binary, charset), returnType) {
-      terms =>
-        s"new String(${terms.head}, ${terms(1)}.toString())"
+      terms => s"new String(${terms.head}, ${terms(1)}.toString())"
     }
   }
 }

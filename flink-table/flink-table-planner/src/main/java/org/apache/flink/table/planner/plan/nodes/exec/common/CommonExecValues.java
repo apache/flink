@@ -19,21 +19,21 @@
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.ValuesCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer;
 import org.apache.flink.table.runtime.operators.values.ValuesInputFormat;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.rex.RexNode;
 
 import java.util.Collections;
 import java.util.List;
@@ -42,21 +42,30 @@ import java.util.List;
 public abstract class CommonExecValues extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
+    public static final String VALUES_TRANSFORMATION = "values";
+
     public static final String FIELD_NAME_TUPLES = "tuples";
 
-    @JsonIgnore private final List<List<RexLiteral>> tuples;
+    private final List<List<RexLiteral>> tuples;
 
     public CommonExecValues(
-            List<List<RexLiteral>> tuples, int id, RowType outputType, String description) {
-        super(id, Collections.emptyList(), outputType, description);
+            int id,
+            ExecNodeContext context,
+            ReadableConfig persistedConfig,
+            List<List<RexLiteral>> tuples,
+            RowType outputType,
+            String description) {
+        super(id, context, persistedConfig, Collections.emptyList(), outputType, description);
         this.tuples = tuples;
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ValuesInputFormat inputFormat =
                 ValuesCodeGenerator.generatorInputFormat(
-                        planner.getTableConfig(),
+                        config,
+                        planner.getFlinkContext().getClassLoader(),
                         (RowType) getOutputType(),
                         tuples,
                         getClass().getSimpleName());
@@ -64,19 +73,14 @@ public abstract class CommonExecValues extends ExecNodeBase<RowData>
                 planner.getExecEnv()
                         .createInput(inputFormat, inputFormat.getProducedType())
                         .getTransformation();
-        transformation.setName(getOperatorName(planner.getTableConfig()));
-        transformation.setDescription(getOperatorDescription(planner.getTableConfig()));
+        createTransformationMeta(VALUES_TRANSFORMATION, config).fill(transformation);
         transformation.setParallelism(1);
         transformation.setMaxParallelism(1);
         return transformation;
     }
 
-    /**
-     * In order to use {@link RexNodeJsonSerializer} to serialize {@link RexLiteral}, so we force
-     * cast element of tuples to {@link RexNode} which is the parent class of {@link RexLiteral}.
-     */
     @JsonProperty(value = FIELD_NAME_TUPLES)
-    public List<List<RexNode>> getTuples() {
-        return (List<List<RexNode>>) (Object) tuples;
+    public List<List<RexLiteral>> getTuples() {
+        return tuples;
     }
 }

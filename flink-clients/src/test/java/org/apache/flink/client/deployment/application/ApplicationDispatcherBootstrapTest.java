@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.client.testjar.FailingJob;
 import org.apache.flink.client.testjar.MultiExecuteJob;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -43,16 +45,19 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -63,6 +68,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -74,10 +80,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link ApplicationDispatcherBootstrap}. */
-public class ApplicationDispatcherBootstrapTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class ApplicationDispatcherBootstrapTest {
 
-    private static final String MULTI_EXECUTE_JOB_CLASS_NAME =
-            "org.apache.flink.client.testjar.MultiExecuteJob";
     private static final int TIMEOUT_SECONDS = 10;
 
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
@@ -92,7 +97,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
     @Test
     public void testExceptionThrownWhenApplicationContainsNoJobs() throws Throwable {
         final TestingDispatcherGateway.Builder dispatcherBuilder =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()));
 
@@ -141,10 +146,12 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
     }
 
     @Test
-    public void testJobIdDefaultsToZeroWithHa() throws Throwable {
+    public void testJobIdDefaultsToClusterIdWithHa() throws Throwable {
         final Configuration configurationUnderTest = getConfiguration();
+        final String clusterId = "cluster";
         configurationUnderTest.set(
                 HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
+        configurationUnderTest.set(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
 
         final CompletableFuture<JobID> submittedJobId = new CompletableFuture<>();
 
@@ -161,7 +168,9 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
 
         applicationFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-        assertThat(submittedJobId.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(new JobID(0L, 0L)));
+        assertThat(
+                submittedJobId.get(TIMEOUT_SECONDS, TimeUnit.SECONDS),
+                is(new JobID(clusterId.hashCode(), 0L)));
     }
 
     @Test
@@ -223,7 +232,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         final ConcurrentLinkedDeque<JobID> submittedJobIds = new ConcurrentLinkedDeque<>();
 
         final TestingDispatcherGateway.Builder dispatcherBuilder =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph -> {
                                     submittedJobIds.add(jobGraph.getJobID());
@@ -418,7 +427,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
     private void testErrorHandlerIsCalled(Supplier<CompletableFuture<Acknowledge>> shutdownFunction)
             throws Exception {
         final TestingDispatcherGateway.Builder dispatcherBuilder =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
                         .setRequestJobStatusFunction(
@@ -638,7 +647,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
      * In this scenario, job result is no longer present in the {@link
      * org.apache.flink.runtime.dispatcher.Dispatcher dispatcher} (job has terminated and job
      * manager failed over), but we know that job has already terminated from {@link
-     * org.apache.flink.runtime.highavailability.RunningJobsRegistry running jobs registry}.
+     * org.apache.flink.runtime.highavailability.JobResultStore}.
      */
     @Test
     public void testDuplicateJobSubmissionWithTerminatedJobIdWithUnknownResult() throws Throwable {
@@ -649,7 +658,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         configurationUnderTest.set(
                 HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
         final TestingDispatcherGateway.Builder dispatcherBuilder =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph ->
                                         FutureUtils.completedExceptionally(
@@ -672,7 +681,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
      * In this scenario, job result is no longer present in the {@link
      * org.apache.flink.runtime.dispatcher.Dispatcher dispatcher} (job has terminated and job
      * manager failed over), but we know that job has already terminated from {@link
-     * org.apache.flink.runtime.highavailability.RunningJobsRegistry running jobs registry}.
+     * org.apache.flink.runtime.highavailability.JobResultStore}.
      */
     @Test
     public void testDuplicateJobSubmissionWithTerminatedJobIdWithUnknownResultAttached()
@@ -684,7 +693,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         configurationUnderTest.set(
                 HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
         final TestingDispatcherGateway.Builder dispatcherBuilder =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph ->
                                         FutureUtils.completedExceptionally(
@@ -712,7 +721,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         configurationUnderTest.set(
                 HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
         final TestingDispatcherGateway.Builder dispatcherBuilder =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph ->
                                         FutureUtils.completedExceptionally(
@@ -755,6 +764,109 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         bootstrap.getBootstrapCompletionFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
+    @Test
+    public void testSubmitFailedJobOnApplicationErrorInHASetup() throws Exception {
+        final Configuration configuration = getConfiguration();
+        final JobID jobId = new JobID();
+        configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
+        configuration.set(DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR, true);
+        configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
+        testSubmitFailedJobOnApplicationError(
+                configuration,
+                (id, t) -> {
+                    Assertions.assertThat(id).isEqualTo(jobId);
+                    Assertions.assertThat(t)
+                            .isInstanceOf(ProgramInvocationException.class)
+                            .hasRootCauseInstanceOf(RuntimeException.class)
+                            .hasRootCauseMessage(FailingJob.EXCEPTION_MESSAGE);
+                });
+    }
+
+    @Test
+    public void testSubmitFailedJobOnApplicationErrorInHASetupWithCustomFixedJobId()
+            throws Exception {
+        final Configuration configuration = getConfiguration();
+        final JobID customFixedJobId = new JobID();
+        configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
+        configuration.set(DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR, true);
+        configuration.set(
+                PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, customFixedJobId.toHexString());
+        testSubmitFailedJobOnApplicationError(
+                configuration,
+                (jobId, t) -> {
+                    Assertions.assertThat(jobId).isEqualTo(customFixedJobId);
+                    Assertions.assertThat(t)
+                            .isInstanceOf(ProgramInvocationException.class)
+                            .hasRootCauseInstanceOf(RuntimeException.class)
+                            .hasRootCauseMessage(FailingJob.EXCEPTION_MESSAGE);
+                });
+    }
+
+    private void testSubmitFailedJobOnApplicationError(
+            Configuration configuration, BiConsumer<JobID, Throwable> failedJobAssertion)
+            throws Exception {
+        final CompletableFuture<Void> submitted = new CompletableFuture<>();
+        final TestingDispatcherGateway dispatcherGateway =
+                TestingDispatcherGateway.newBuilder()
+                        .setSubmitFailedFunction(
+                                (jobId, jobName, t) -> {
+                                    try {
+                                        failedJobAssertion.accept(jobId, t);
+                                        submitted.complete(null);
+                                        return CompletableFuture.completedFuture(Acknowledge.get());
+                                    } catch (Throwable assertion) {
+                                        submitted.completeExceptionally(assertion);
+                                        return FutureUtils.completedExceptionally(assertion);
+                                    }
+                                })
+                        .setRequestJobStatusFunction(
+                                jobId -> submitted.thenApply(ignored -> JobStatus.FAILED))
+                        .setRequestJobResultFunction(
+                                jobId ->
+                                        submitted.thenApply(
+                                                ignored ->
+                                                        createJobResult(
+                                                                jobId, ApplicationStatus.FAILED)))
+                        .build();
+
+        final ApplicationDispatcherBootstrap bootstrap =
+                new ApplicationDispatcherBootstrap(
+                        FailingJob.getProgram(),
+                        Collections.emptyList(),
+                        configuration,
+                        dispatcherGateway,
+                        scheduledExecutor,
+                        exception -> {});
+
+        bootstrap.getBootstrapCompletionFuture().get();
+    }
+
+    @Test
+    public void testSubmitFailedJobOnApplicationErrorInNonHASetup() throws Exception {
+        final Configuration configuration = getConfiguration();
+        configuration.set(DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR, true);
+        final ApplicationDispatcherBootstrap bootstrap =
+                new ApplicationDispatcherBootstrap(
+                        FailingJob.getProgram(),
+                        Collections.emptyList(),
+                        configuration,
+                        TestingDispatcherGateway.newBuilder().build(),
+                        scheduledExecutor,
+                        exception -> {});
+        Assertions.assertThat(bootstrap.getBootstrapCompletionFuture())
+                .failsWithin(Duration.ofHours(1))
+                .withThrowableOfType(ExecutionException.class)
+                .extracting(Throwable::getCause)
+                .satisfies(
+                        e ->
+                                Assertions.assertThat(e)
+                                        .isInstanceOf(ApplicationExecutionException.class)
+                                        .hasMessageContaining(
+                                                DeploymentOptions
+                                                        .SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR
+                                                        .key()));
+    }
+
     private TestingDispatcherGateway.Builder finishedJobGatewayBuilder() {
         return dispatcherGatewayBuilder(JobStatus.FINISHED);
     }
@@ -773,7 +885,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
 
     private TestingDispatcherGateway.Builder dispatcherGatewayBuilder(JobStatus jobStatus) {
         TestingDispatcherGateway.Builder builder =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setSubmitFunction(
                                 jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
                         .setRequestJobStatusFunction(

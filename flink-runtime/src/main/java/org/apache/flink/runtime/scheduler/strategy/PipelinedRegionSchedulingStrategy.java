@@ -21,8 +21,6 @@ package org.apache.flink.runtime.scheduler.strategy;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.scheduler.DeploymentOption;
-import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
 import org.apache.flink.util.IterableUtils;
 
@@ -47,8 +45,6 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
     private final SchedulerOperations schedulerOperations;
 
     private final SchedulingTopology schedulingTopology;
-
-    private final DeploymentOption deploymentOption = new DeploymentOption(false);
 
     /** External consumer regions of each ConsumedPartitionGroup. */
     private final Map<ConsumedPartitionGroup, Set<SchedulingPipelinedRegion>>
@@ -228,10 +224,7 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
                 areRegionVerticesAllInCreatedState(region),
                 "BUG: trying to schedule a region which is not in CREATED state");
 
-        final List<ExecutionVertexDeploymentOption> vertexDeploymentOptions =
-                SchedulingStrategyUtils.createExecutionVertexDeploymentOptions(
-                        regionVerticesSorted.get(region), id -> deploymentOption);
-        schedulerOperations.allocateSlotsAndDeploy(vertexDeploymentOptions);
+        schedulerOperations.allocateSlotsAndDeploy(regionVerticesSorted.get(region));
     }
 
     private boolean areRegionInputsAllConsumable(

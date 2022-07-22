@@ -47,12 +47,6 @@ public class SqlCompleter implements Completer {
 
     public void complete(LineReader reader, ParsedLine line, List<Candidate> candidates) {
         String statement = line.line();
-
-        // remove ';' at the end
-        if (statement.endsWith(";")) {
-            statement = statement.substring(0, statement.length() - 1);
-        }
-
         try {
             executor.completeStatement(sessionId, statement, line.cursor())
                     .forEach(hint -> candidates.add(createCandidate(hint)));

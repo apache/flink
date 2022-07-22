@@ -21,18 +21,21 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 
+import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.util.stream.Stream;
 
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.configuredSerdeContext;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.toJson;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.toObject;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.configuredSerdeContext;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toJson;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toObject;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link DataType} serialization and deserialization. */
+@Execution(CONCURRENT)
 public class DataTypeJsonSerdeTest {
 
     @ParameterizedTest
@@ -68,11 +71,12 @@ public class DataTypeJsonSerdeTest {
                         DataTypes.FIELD("f0", DataTypes.INT().notNull().bridgedTo(int.class)),
                         DataTypes.FIELD("f1", DataTypes.BIGINT().notNull().bridgedTo(long.class)),
                         DataTypes.FIELD("f2", DataTypes.STRING())),
-                DataTypes.MAP(DataTypes.STRING().toInternal(), DataTypes.TIMESTAMP(3)));
+                DataTypes.MAP(DataTypes.STRING().toInternal(), DataTypes.TIMESTAMP(3)),
+                DataTypes.ROW(DataTypes.TIMESTAMP_LTZ(3)).toInternal());
     }
 
     // --------------------------------------------------------------------------------------------
-    // Shared utilities
+    // Helper POJOs
     // --------------------------------------------------------------------------------------------
 
     /** Testing class. */
