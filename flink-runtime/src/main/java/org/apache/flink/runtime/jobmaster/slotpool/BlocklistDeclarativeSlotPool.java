@@ -75,9 +75,7 @@ public class BlocklistDeclarativeSlotPool extends DefaultDeclarativeSlotPool {
         if (!isBlockedTaskManager(taskManagerLocation.getResourceID())) {
             return super.offerSlots(offers, taskManagerLocation, taskManagerGateway, currentTime);
         } else {
-            LOG.debug(
-                    "Receive slots {} from a blocked TaskManager {}.", offers, taskManagerLocation);
-            return internalOfferSlotsFromBlockedTaskManager(offers);
+            return internalOfferSlotsFromBlockedTaskManager(offers, taskManagerLocation);
         }
     }
 
@@ -90,15 +88,14 @@ public class BlocklistDeclarativeSlotPool extends DefaultDeclarativeSlotPool {
         if (!isBlockedTaskManager(taskManagerLocation.getResourceID())) {
             return super.registerSlots(slots, taskManagerLocation, taskManagerGateway, currentTime);
         } else {
-            LOG.debug(
-                    "Receive slots {} from a blocked TaskManager {}.", slots, taskManagerLocation);
-            return internalOfferSlotsFromBlockedTaskManager(slots);
+            return internalOfferSlotsFromBlockedTaskManager(slots, taskManagerLocation);
         }
     }
 
     private Collection<SlotOffer> internalOfferSlotsFromBlockedTaskManager(
-            Collection<? extends SlotOffer> offers) {
+            Collection<? extends SlotOffer> offers, TaskManagerLocation taskManagerLocation) {
         final Collection<SlotOffer> acceptedSlotOffers = new ArrayList<>();
+        final Collection<SlotOffer> rejectedSlotOffers = new ArrayList<>();
 
         // we should accept a duplicate (already accepted) slot, even if it's from a currently
         // blocked task manager. Because the slot may already be assigned to an execution, rejecting
@@ -107,8 +104,19 @@ public class BlocklistDeclarativeSlotPool extends DefaultDeclarativeSlotPool {
             if (slotPool.containsSlot(offer.getAllocationId())) {
                 // we have already accepted this offer
                 acceptedSlotOffers.add(offer);
+            } else {
+                rejectedSlotOffers.add(offer);
             }
         }
+
+        LOG.debug(
+                "Received {} slots from a blocked TaskManager {}, {} was accepted before: {}, {} was rejected: {}.",
+                offers.size(),
+                taskManagerLocation,
+                acceptedSlotOffers.size(),
+                acceptedSlotOffers,
+                rejectedSlotOffers.size(),
+                rejectedSlotOffers);
 
         return acceptedSlotOffers;
     }

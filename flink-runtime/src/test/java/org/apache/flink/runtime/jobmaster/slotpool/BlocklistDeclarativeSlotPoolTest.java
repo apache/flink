@@ -34,7 +34,9 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -115,22 +117,25 @@ class BlocklistDeclarativeSlotPoolTest {
                         .setBlockedTaskManagerChecker(blockedTaskManagers::contains)
                         .build();
 
-        final ResourceCounter resourceRequirements = createResourceRequirements();
+        final ResourceCounter resourceRequirements =
+                ResourceCounter.withResource(RESOURCE_PROFILE, 2);
         slotPool.increaseResourceRequirementsBy(resourceRequirements);
 
-        Collection<SlotOffer> slotOffers =
-                createSlotOffersForResourceRequirements(resourceRequirements);
+        SlotOffer slot1 = new SlotOffer(new AllocationID(), 1, RESOURCE_PROFILE);
+        SlotOffer slot2 = new SlotOffer(new AllocationID(), 1, RESOURCE_PROFILE);
 
-        // offer slots
-        assertThat(SlotPoolTestUtils.offerSlots(slotPool, slotOffers, taskManager))
-                .containsExactlyInAnyOrderElementsOf(slotOffers);
+        // offer and accept slot1
+        assertThat(
+                        SlotPoolTestUtils.offerSlots(
+                                slotPool, Collections.singleton(slot1), taskManager))
+                .containsExactly(slot1);
 
         // block the task manager.
         blockedTaskManagers.add(taskManager.getResourceID());
 
-        // offer duplicate slots
-        assertThat(SlotPoolTestUtils.offerSlots(slotPool, slotOffers, taskManager))
-                .containsExactlyInAnyOrderElementsOf(slotOffers);
+        // offer slot1 and slot2, accept slot1, reject slot2
+        assertThat(SlotPoolTestUtils.offerSlots(slotPool, Arrays.asList(slot1, slot2), taskManager))
+                .containsExactly(slot1);
     }
 
     @Test
@@ -192,31 +197,29 @@ class BlocklistDeclarativeSlotPoolTest {
                         .setBlockedTaskManagerChecker(blockedTaskManagers::contains)
                         .build();
 
-        final int numberSlots = 10;
-        final Collection<SlotOffer> slotOffers =
-                createSlotOffersForResourceRequirements(
-                        ResourceCounter.withResource(RESOURCE_PROFILE, numberSlots));
+        SlotOffer slot1 = new SlotOffer(new AllocationID(), 1, RESOURCE_PROFILE);
+        SlotOffer slot2 = new SlotOffer(new AllocationID(), 1, RESOURCE_PROFILE);
 
-        // register slots
+        // register and accept slot1
         Collection<SlotOffer> acceptedOffers =
                 slotPool.registerSlots(
-                        slotOffers,
+                        Collections.singleton(slot1),
                         taskManager,
                         SlotPoolTestUtils.createTaskManagerGateway(null),
                         0);
-        assertThat(acceptedOffers).containsExactlyInAnyOrderElementsOf(slotOffers);
+        assertThat(acceptedOffers).containsExactly(slot1);
 
         // block the task manager
         blockedTaskManagers.add(taskManager.getResourceID());
 
-        // register duplicate slots
+        // register slot1 and slot2, accept slot1, reject slot2
         acceptedOffers =
                 slotPool.registerSlots(
-                        slotOffers,
+                        Arrays.asList(slot1, slot2),
                         taskManager,
                         SlotPoolTestUtils.createTaskManagerGateway(null),
                         0);
-        assertThat(acceptedOffers).containsExactlyInAnyOrderElementsOf(slotOffers);
+        assertThat(acceptedOffers).containsExactly(slot1);
     }
 
     @Test
