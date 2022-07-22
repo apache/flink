@@ -25,7 +25,7 @@ import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.connector.source.{LookupTableSource, ScanTableSource}
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.data.utils.JoinedRowData
-import org.apache.flink.table.functions.{AsyncTableFunction, LookupFunction, TableFunction, UserDefinedFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.{AsyncLookupFunction, AsyncTableFunction, LookupFunction, TableFunction, UserDefinedFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils._
@@ -248,11 +248,15 @@ object LookupJoinCodeGenerator {
         val defaultArgDataTypes = callContext.getArgumentDataTypes.asScala
         val defaultOutputDataType = callContext.getOutputDataType.get()
 
-        val outputClass = if (udf.getClass.getSuperclass == classOf[LookupFunction]) {
-          Some(classOf[RowData])
-        } else {
-          toScala(extractSimpleGeneric(baseClass, udf.getClass, 0))
-        }
+        val outputClass =
+          if (
+            udf.getClass.getSuperclass == classOf[
+              LookupFunction] || udf.getClass.getSuperclass == classOf[AsyncLookupFunction]
+          ) {
+            Some(classOf[RowData])
+          } else {
+            toScala(extractSimpleGeneric(baseClass, udf.getClass, 0))
+          }
         val (argDataTypes, outputDataType) = outputClass match {
           case Some(c) if c == classOf[Row] =>
             (defaultArgDataTypes, defaultOutputDataType)

@@ -384,7 +384,16 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                             generatedResultFuture,
                             InternalSerializers.create(rightRowType),
                             isLeftOuterJoin,
-                            asyncBufferCapacity);
+                            asyncBufferCapacity,
+                            LookupJoinUtil.getPartialLookupCacheHandler(
+                                            temporalTable,
+                                            config,
+                                            classLoader,
+                                            inputRowType,
+                                            tableSourceRowType,
+                                            lookupKeys,
+                                            false)
+                                    .orElse(null));
         } else {
             // right type is the same as table source row type, because no calc after temporal table
             asyncFunc =
@@ -394,7 +403,16 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                             generatedResultFuture,
                             InternalSerializers.create(rightRowType),
                             isLeftOuterJoin,
-                            asyncBufferCapacity);
+                            asyncBufferCapacity,
+                            LookupJoinUtil.getPartialLookupCacheHandler(
+                                            temporalTable,
+                                            config,
+                                            classLoader,
+                                            inputRowType,
+                                            tableSourceRowType,
+                                            lookupKeys,
+                                            false)
+                                    .orElse(null));
         }
 
         return new AsyncWaitOperatorFactory<>(

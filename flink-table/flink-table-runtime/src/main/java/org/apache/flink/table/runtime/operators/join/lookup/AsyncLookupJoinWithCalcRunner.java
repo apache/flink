@@ -31,6 +31,8 @@ import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.util.Collector;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -48,14 +50,16 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
             GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture,
             RowDataSerializer rightRowSerializer,
             boolean isLeftOuterJoin,
-            int asyncBufferCapacity) {
+            int asyncBufferCapacity,
+            @Nullable LookupCacheHandler cacheHandler) {
         super(
                 generatedFetcher,
                 fetcherConverter,
                 generatedResultFuture,
                 rightRowSerializer,
                 isLeftOuterJoin,
-                asyncBufferCapacity);
+                asyncBufferCapacity,
+                cacheHandler);
         this.generatedCalc = generatedCalc;
     }
 

@@ -21,9 +21,11 @@ package org.apache.flink.table.runtime.operators.join.lookup;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.metrics.groups.InternalCacheMetricGroup;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
+import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
@@ -32,6 +34,8 @@ import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,6 +46,8 @@ import java.util.concurrent.BlockingQueue;
 
 /** The async join runner to lookup the dimension table. */
 public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
+    public static final String LOOKUP_CACHE_METRIC_GROUP = "lookupCache";
+
     private static final long serialVersionUID = -6664660022391632480L;
 
     private final GeneratedFunction<AsyncFunction<RowData, Object>> generatedFetcher;
@@ -49,6 +55,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
     private final GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture;
     private final boolean isLeftOuterJoin;
     private final int asyncBufferCapacity;
+    private final @Nullable LookupCacheHandler cacheHandler;
 
     private transient AsyncFunction<RowData, Object> fetcher;
 
@@ -72,13 +79,15 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
             GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture,
             RowDataSerializer rightRowSerializer,
             boolean isLeftOuterJoin,
-            int asyncBufferCapacity) {
+            int asyncBufferCapacity,
+            @Nullable LookupCacheHandler cacheHandler) {
         this.generatedFetcher = generatedFetcher;
         this.fetcherConverter = fetcherConverter;
         this.generatedResultFuture = generatedResultFuture;
         this.rightRowSerializer = rightRowSerializer;
         this.isLeftOuterJoin = isLeftOuterJoin;
         this.asyncBufferCapacity = asyncBufferCapacity;
+        this.cacheHandler = cacheHandler;
     }
 
     @Override
@@ -104,15 +113,31 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
                             createFetcherResultFuture(parameters),
                             fetcherConverter,
                             isLeftOuterJoin,
-                            rightRowSerializer.getArity());
+                            rightRowSerializer.getArity(),
+                            cacheHandler == null ? null : cacheHandler.getCache());
             // add will throw exception immediately if the queue is full which should never happen
             resultFutureBuffer.add(rf);
             allResultFutures.add(rf);
+        }
+        if (cacheHandler != null) {
+            cacheHandler.open(
+                    new InternalCacheMetricGroup(
+                            getRuntimeContext().getMetricGroup(), LOOKUP_CACHE_METRIC_GROUP),
+                    getRuntimeContext().getUserCodeClassLoader());
         }
     }
 
     @Override
     public void asyncInvoke(RowData input, ResultFuture<RowData> resultFuture) throws Exception {
+        // Check cache first
+        if (cacheHandler != null) {
+            Collection<RowData> cachedValues = cacheHandler.getCache().getIfPresent(input);
+            if (cachedValues != null) {
+                resultFuture.complete(cachedValues);
+                return;
+            }
+        }
+
         JoinedRowResultFuture outResultFuture = resultFutureBuffer.take();
         // the input row is copied when object reuse in AsyncWaitOperator
         outResultFuture.reset(input, resultFuture);
@@ -141,11 +166,20 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
                 rf.close();
             }
         }
+        if (cacheHandler != null) {
+            cacheHandler.getCache().close();
+        }
     }
 
     @VisibleForTesting
     public List<JoinedRowResultFuture> getAllResultFutures() {
         return allResultFutures;
+    }
+
+    @Nullable
+    @VisibleForTesting
+    public LookupCache getLookupCache() {
+        return cacheHandler == null ? null : cacheHandler.getCache();
     }
 
     /**
@@ -171,6 +205,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
         private final TableFunctionResultFuture<RowData> joinConditionResultFuture;
         private final DataStructureConverter<RowData, Object> resultConverter;
         private final boolean isLeftOuterJoin;
+        private final @Nullable LookupCache lookupCache;
 
         private final DelegateResultFuture delegate;
         private final GenericRowData nullRow;
@@ -183,13 +218,15 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
                 TableFunctionResultFuture<RowData> joinConditionResultFuture,
                 DataStructureConverter<RowData, Object> resultConverter,
                 boolean isLeftOuterJoin,
-                int rightArity) {
+                int rightArity,
+                @Nullable LookupCache lookupCache) {
             this.resultFutureBuffer = resultFutureBuffer;
             this.joinConditionResultFuture = joinConditionResultFuture;
             this.resultConverter = resultConverter;
             this.isLeftOuterJoin = isLeftOuterJoin;
             this.delegate = new DelegateResultFuture();
             this.nullRow = new GenericRowData(rightArity);
+            this.lookupCache = lookupCache;
         }
 
         public void reset(RowData row, ResultFuture<RowData> realOutput) {
@@ -224,6 +261,16 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
             }
 
             Collection<RowData> rightRows = delegate.collection;
+
+            // Cache the lookup result
+            if (lookupCache != null) {
+                if (rightRows == null) {
+                    lookupCache.put(leftRow, Collections.emptyList());
+                } else {
+                    lookupCache.put(leftRow, rightRows);
+                }
+            }
+
             if (rightRows == null || rightRows.isEmpty()) {
                 if (isLeftOuterJoin) {
                     RowData outRow = new JoinedRowData(leftRow.getRowKind(), leftRow, nullRow);
