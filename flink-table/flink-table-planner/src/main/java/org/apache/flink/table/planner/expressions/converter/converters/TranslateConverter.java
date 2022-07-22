@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.planner.expressions.converter.converters;
 
-import org.apache.calcite.rex.RexNode;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+
+import org.apache.calcite.rex.RexNode;
 
 import java.util.List;
 

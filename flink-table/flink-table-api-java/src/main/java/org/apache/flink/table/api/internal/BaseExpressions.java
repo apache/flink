@@ -895,9 +895,7 @@ public abstract class BaseExpressions<InType, OutType> {
                         objectToExpression(replacement)));
     }
 
-    /**
-     * Returns an expr where all characters in from have been replaced with those in to.
-     */
+    /** Returns an expr where all characters in from have been replaced with those in to. */
     public OutType translate(InType search, InType replacement) {
         return toApiSpecificExpression(
                 unresolvedCall(
