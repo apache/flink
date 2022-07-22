@@ -17,8 +17,9 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
@@ -107,61 +108,90 @@ under the License.
 			<artifactId>json-simple</artifactId>
 			<version>1.1</version>
 		</dependency>
+		<dependency>
+			<groupId>plangeneratorflink</groupId>
+			<artifactId>plangeneratorflink</artifactId>
+			<version>1.0-SNAPSHOT</version>
+		</dependency>
 	</dependencies>
 
-	<build>
-		<plugins>
+<build>
+<plugins>
 
-			<!-- activate API compatibility checks -->
-			<plugin>
-				<groupId>com.github.siom79.japicmp</groupId>
-				<artifactId>japicmp-maven-plugin</artifactId>
-				<configuration>
-					<parameter>
-						<excludes combine.children="append">
-							<exclude>org.apache.flink.streaming.api.datastream.DataStream#assignTimestamps(org.apache.flink.streaming.api.functions.TimestampExtractor)</exclude>
+	<!-- activate API compatibility checks -->
+	<plugin>
+		<groupId>com.github.siom79.japicmp</groupId>
+		<artifactId>japicmp-maven-plugin</artifactId>
+		<configuration>
+			<parameter>
+				<excludes combine.children="append">
+					<exclude>
+						org.apache.flink.streaming.api.datastream.DataStream#assignTimestamps(org.apache.flink.streaming.api.functions.TimestampExtractor)
+					</exclude>
 
-							<!-- DataStream#fold was removed in 1.12 -->
-							<exclude>org.apache.flink.streaming.api.datastream.AllWindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.functions.windowing.AllWindowFunction)</exclude>
-							<exclude>org.apache.flink.streaming.api.datastream.AllWindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.functions.windowing.AllWindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.datastream.AllWindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction)</exclude>
-							<exclude>org.apache.flink.streaming.api.datastream.AllWindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.datastream.KeyedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction)</exclude>
-							<exclude>org.apache.flink.streaming.api.datastream.WindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.datastream.WindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction)</exclude>
-							<exclude>org.apache.flink.streaming.api.datastream.WindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.functions.windowing.WindowFunction)</exclude>
-							<exclude>org.apache.flink.streaming.api.datastream.WindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.functions.windowing.WindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+					<!-- DataStream#fold was removed in 1.12 -->
+					<exclude>
+						org.apache.flink.streaming.api.datastream.AllWindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.functions.windowing.AllWindowFunction)
+					</exclude>
+					<exclude>
+						org.apache.flink.streaming.api.datastream.AllWindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.functions.windowing.AllWindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation)
+					</exclude>
+					<exclude>
+						org.apache.flink.streaming.api.datastream.AllWindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction)
+					</exclude>
+					<exclude>
+						org.apache.flink.streaming.api.datastream.AllWindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)
+					</exclude>
+					<exclude>
+						org.apache.flink.streaming.api.datastream.KeyedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction)
+					</exclude>
+					<exclude>
+						org.apache.flink.streaming.api.datastream.WindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)
+					</exclude>
+					<exclude>
+						org.apache.flink.streaming.api.datastream.WindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction)
+					</exclude>
+					<exclude>
+						org.apache.flink.streaming.api.datastream.WindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.functions.windowing.WindowFunction)
+					</exclude>
+					<exclude>
+						org.apache.flink.streaming.api.datastream.WindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.functions.windowing.WindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation)
+					</exclude>
 
-							<!-- DataStream#split was removed in 1.12 -->
-							<exclude>org.apache.flink.streaming.api.datastream.DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)</exclude>
-							<exclude>org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)</exclude>
-						</excludes>
-					</parameter>
-				</configuration>
-			</plugin>
+					<!-- DataStream#split was removed in 1.12 -->
+					<exclude>
+						org.apache.flink.streaming.api.datastream.DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)
+					</exclude>
+					<exclude>
+						org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)
+					</exclude>
+				</excludes>
+			</parameter>
+		</configuration>
+	</plugin>
 
-			<!-- disable fork reuse for the streaming project, because of
-			incorrect declaration of tests -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<reuseForks>false</reuseForks>
-				</configuration>
-			</plugin>
+	<!-- disable fork reuse for the streaming project, because of
+	incorrect declaration of tests -->
+	<plugin>
+		<groupId>org.apache.maven.plugins</groupId>
+		<artifactId>maven-surefire-plugin</artifactId>
+		<configuration>
+			<reuseForks>false</reuseForks>
+		</configuration>
+	</plugin>
 
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
+	<plugin>
+		<groupId>org.apache.maven.plugins</groupId>
+		<artifactId>maven-jar-plugin</artifactId>
+		<executions>
+			<execution>
+				<goals>
+					<goal>test-jar</goal>
+				</goals>
+			</execution>
+		</executions>
+	</plugin>
+</plugins>
+</build>
 
-</project>
+	</project>

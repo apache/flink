@@ -1,12 +1,16 @@
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.java.tuple.Tuple3;
+
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import plangeneratorflink.utils.DataTuple;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Objects;
 
 /**
  * This class is entirely new and added to the storm sources. The StreamMonitor is attached to the
@@ -28,33 +32,28 @@ public class StreamMonitor implements Serializable {
     private int outputCounter;
     private final long duration = 30_000_000_000L; // 30 seconds, starting after first call
     private boolean localMode;
-    // private final BaseProcessor<?> processor;
+    private final AbstractUdfStreamOperator operator;
     // private final Map<String, Object> topoConf;
     private final ArrayList<Double> joinSelectivities;
     private final ArrayList<Integer> windowLengths;
     private Logger logger;
     // private MongoCollection<JSONObject> mongoCollection;
 
-    public StreamMonitor(HashMap<String, Object> description) {
+    public StreamMonitor(HashMap<String, Object> description, AbstractUdfStreamOperator operator) {
         // this.topoConf = Utils.readStormConfig();
-        if (description == null) {
-            this.description = new HashMap<>();
-        } else {
-            this.description = description;
-        }
+        this.description = Objects.requireNonNullElseGet(description, HashMap::new);
 
         this.logger = LoggerFactory.getLogger("observation");
-        this.description.put("tupleWidthIn", -2);
-        this.description.put("tupleWidthOut", -2);
+        this.description.put("tupleWidthIn", -1);
+        this.description.put("tupleWidthOut", -1);
         this.initialized = false;
         this.observationMade = false;
-        // this.processor = processor;
+        this.operator = operator;
         this.joinSelectivities = new ArrayList<>();
         this.windowLengths = new ArrayList<>();
-        //        if (this.processor instanceof JoinProcessor || this.processor instanceof
-        // FilterProcessor) {
-        //            this.description.put("realSelectivity", 0.0);
-        //        }
+        if (this.operator instanceof StreamFilter || this.operator instanceof StreamFilter) {
+            this.description.put("realSelectivity", 0.0);
+        }
     }
 
     public <T> void reportInput(T input) {
@@ -120,8 +119,11 @@ public class StreamMonitor implements Serializable {
                 // this.joinSelectivities.stream().mapToDouble(val -> val).average().orElse(0.0);
                 //                    description.put("realSelectivity", average);
                 //                } else if (this.processor instanceof FilterProcessor) {
-                //                    description.put("realSelectivity", ((double)
-                // this.outputCounter / (double) this.inputCounter));
+                if (this.operator instanceof StreamFilter) {
+                    description.put(
+                            "realSelectivity",
+                            ((double) this.outputCounter / (double) this.inputCounter));
+                }
                 //                } else if (this.processor instanceof AggregateProcessor) {
                 //                    double averageWindowLength =
                 // this.windowLengths.stream().mapToDouble(val -> val).average().orElse(0.0);
@@ -144,11 +146,15 @@ public class StreamMonitor implements Serializable {
     }
 
     private <T> int getTupleSize(T input) {
-        //        DataTuple dt = input.getValue();
-        //        Tuple3<Integer, Integer, Integer> getNumTupleDataTypes =
-        // dt.getNumTupleDataTypes();
-        int size = 3;
-        return size;
+        try {
+            DataTuple dt = (DataTuple) input;
+            Tuple3<Integer, Integer, Integer> getNumTupleDataTypes = dt.getNumTupleDataTypes();
+            int size = getNumTupleDataTypes.f0 + getNumTupleDataTypes.f1 + getNumTupleDataTypes.f2;
+            return size;
+
+        } catch (Exception e) {
+            return -1;
+        }
 
         //        if (input instanceof Integer || input instanceof String || input instanceof Double
         // || input instanceof Long) {
