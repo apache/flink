@@ -691,6 +691,12 @@ class Expression(Generic[T]):
         """
         return _binary_op("ifNull")(self, null_replacement)
 
+    def nvl(self, null_replacement) -> 'Expression':
+        """
+        Returns expr2 if expr1 is NULL, or expr1 otherwise.
+        """
+        return _binary_op("nvl")(self, null_replacement)
+
     @property
     def is_null(self) -> 'Expression[bool]':
         """
