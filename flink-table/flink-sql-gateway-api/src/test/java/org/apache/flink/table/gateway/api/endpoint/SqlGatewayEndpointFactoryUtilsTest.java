@@ -35,7 +35,7 @@ import java.util.UUID;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Test {@link SqlGatewayEndpointFactoryUtils}. */
 public class SqlGatewayEndpointFactoryUtilsTest {
@@ -50,7 +50,8 @@ public class SqlGatewayEndpointFactoryUtilsTest {
                         new MockedSqlGatewayService(), Configuration.fromMap(config));
         MockedSqlGatewayEndpoint expectedMocked =
                 new MockedSqlGatewayEndpoint(id, "localhost", 9999, "Hello World.");
-        assertEquals(Arrays.asList(expectedMocked, FakeSqlGatewayEndpoint.INSTANCE), actual);
+        assertThat(actual)
+                .isEqualTo(Arrays.asList(expectedMocked, FakeSqlGatewayEndpoint.INSTANCE));
     }
 
     @Test
