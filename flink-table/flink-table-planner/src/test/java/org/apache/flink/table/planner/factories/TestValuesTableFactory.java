@@ -65,8 +65,10 @@ import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushD
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
+import org.apache.flink.table.connector.source.lookup.AsyncLookupFunctionProvider;
 import org.apache.flink.table.connector.source.lookup.LookupFunctionProvider;
 import org.apache.flink.table.connector.source.lookup.LookupOptions;
+import org.apache.flink.table.connector.source.lookup.PartialCachingAsyncLookupProvider;
 import org.apache.flink.table.connector.source.lookup.PartialCachingLookupProvider;
 import org.apache.flink.table.connector.source.lookup.cache.DefaultLookupCache;
 import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
@@ -1498,7 +1500,6 @@ public final class TestValuesTableFactory
             }
 
             int[] lookupIndices = Arrays.stream(context.getKeys()).mapToInt(k -> k[0]).toArray();
-            Map<Row, List<Row>> mapping = new HashMap<>();
             Collection<Row> rows;
             if (allPartitions.equals(Collections.EMPTY_LIST)) {
                 rows = data.getOrDefault(Collections.EMPTY_MAP, Collections.EMPTY_LIST);
@@ -1516,39 +1517,24 @@ public final class TestValuesTableFactory
                     data = data.subList(numElementToSkip, data.size());
                 }
             }
-
-            data.forEach(
-                    record -> {
-                        Row key =
-                                Row.of(
-                                        Arrays.stream(lookupIndices)
-                                                .mapToObj(record::getField)
-                                                .toArray());
-                        List<Row> list = mapping.get(key);
-                        if (list != null) {
-                            list.add(record);
-                        } else {
-                            list = new ArrayList<>();
-                            list.add(record);
-                            mapping.put(key, list);
-                        }
-                    });
+            DataStructureConverter converter =
+                    context.createDataStructureConverter(producedDataType);
             if (isAsync) {
-                return AsyncTableFunctionProvider.of(new AsyncTestValueLookupFunction(mapping));
-            } else {
+                AsyncTestValueLookupFunction asyncLookupFunction =
+                        new AsyncTestValueLookupFunction(data, lookupIndices, converter);
                 if (cache == null) {
-                    return LookupFunctionProvider.of(
-                            new TestValuesLookupFunction(
-                                    data,
-                                    lookupIndices,
-                                    context.createDataStructureConverter(producedDataType)));
+                    return AsyncLookupFunctionProvider.of(asyncLookupFunction);
                 } else {
-                    return PartialCachingLookupProvider.of(
-                            new TestValuesLookupFunction(
-                                    data,
-                                    lookupIndices,
-                                    context.createDataStructureConverter(producedDataType)),
-                            cache);
+
+                    return PartialCachingAsyncLookupProvider.of(asyncLookupFunction, cache);
+                }
+            } else {
+                TestValuesLookupFunction lookupFunction =
+                        new TestValuesLookupFunction(data, lookupIndices, converter);
+                if (cache == null) {
+                    return LookupFunctionProvider.of(lookupFunction);
+                } else {
+                    return PartialCachingLookupProvider.of(lookupFunction, cache);
                 }
             }
         }
