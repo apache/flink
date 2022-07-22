@@ -25,6 +25,8 @@ import org.apache.flink.connector.file.src.reader.SimpleStreamFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.formats.common.Converter;
+import org.apache.flink.util.function.SerializableFunction;
+import org.apache.flink.util.function.SerializableSupplier;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.MappingIterator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
@@ -74,8 +76,8 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
 
     private static final long serialVersionUID = 1L;
 
-    private final Supplier<CsvMapper> mapperFactory;
-    private final Function<CsvMapper, CsvSchema> schemaGenerator;
+    private final SerializableSupplier<CsvMapper> mapperFactory;
+    private final SerializableFunction<CsvMapper, CsvSchema> schemaGenerator;
     private final Class<Object> rootType;
     private final Converter<Object, T, Void> converter;
     private final TypeInformation<T> typeInformation;
@@ -83,8 +85,8 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
 
     @SuppressWarnings("unchecked")
     <R> CsvReaderFormat(
-            Supplier<CsvMapper> mapperFactory,
-            Function<CsvMapper, CsvSchema> schemaGenerator,
+            SerializableSupplier<CsvMapper> mapperFactory,
+            SerializableFunction<CsvMapper, CsvSchema> schemaGenerator,
             Class<R> rootType,
             Converter<R, T, Void> converter,
             TypeInformation<T> typeInformation,
@@ -139,8 +141,8 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
      * @param <T> The type of the returned elements.
      */
     public static <T> CsvReaderFormat<T> forSchema(
-            Supplier<CsvMapper> mapperFactory,
-            Function<CsvMapper, CsvSchema> schemaGenerator,
+            SerializableSupplier<CsvMapper> mapperFactory,
+            SerializableFunction<CsvMapper, CsvSchema> schemaGenerator,
             TypeInformation<T> typeInformation) {
         return new CsvReaderFormat<>(
                 mapperFactory,
