@@ -41,7 +41,7 @@ import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.AsyncLookupFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.LookupFunction;
 import org.apache.flink.test.util.SuccessException;
@@ -624,16 +624,24 @@ final class TestValuesRuntimeFunctions {
      * An async lookup function which find matched rows with the given fields. NOTE: We have to
      * declare it as public because it will be used in code generation.
      */
-    public static class AsyncTestValueLookupFunction extends AsyncTableFunction<Row> {
+    public static class AsyncTestValueLookupFunction extends AsyncLookupFunction {
 
         private static final long serialVersionUID = 1L;
-        private final Map<Row, List<Row>> mapping;
+        private final List<Row> data;
+        private final int[] lookupIndices;
+        private final LookupTableSource.DataStructureConverter converter;
         private final Random random;
         private transient boolean isOpenCalled = false;
         private transient ExecutorService executor;
+        private transient Map<RowData, List<RowData>> indexedData;
 
-        protected AsyncTestValueLookupFunction(Map<Row, List<Row>> mapping) {
-            this.mapping = mapping;
+        protected AsyncTestValueLookupFunction(
+                List<Row> data,
+                int[] lookupIndices,
+                LookupTableSource.DataStructureConverter converter) {
+            this.data = data;
+            this.lookupIndices = lookupIndices;
+            this.converter = converter;
             this.random = new Random();
         }
 
@@ -643,33 +651,29 @@ final class TestValuesRuntimeFunctions {
             isOpenCalled = true;
             // generate unordered result for async lookup
             executor = Executors.newFixedThreadPool(2);
+            indexDataByKey();
         }
 
-        public void eval(CompletableFuture<Collection<Row>> resultFuture, Object... inputs) {
+        @Override
+        public CompletableFuture<Collection<RowData>> asyncLookup(RowData keyRow) {
             checkArgument(isOpenCalled, "open() is not called.");
-            final Row key = Row.of(inputs);
-            if (Arrays.asList(inputs).contains(null)) {
-                throw new IllegalArgumentException(
+            for (int i = 0; i < keyRow.getArity(); i++) {
+                checkNotNull(
+                        ((GenericRowData) keyRow).getField(i),
                         String.format(
                                 "Lookup key %s contains null value, which should not happen.",
-                                key));
+                                keyRow));
             }
-            CompletableFuture.supplyAsync(
-                            () -> {
-                                try {
-                                    Thread.sleep(random.nextInt(5));
-                                } catch (InterruptedException e) {
-                                    throw new RuntimeException(e);
-                                }
-                                List<Row> list = mapping.get(key);
-                                if (list == null) {
-                                    return Collections.<Row>emptyList();
-                                } else {
-                                    return list;
-                                }
-                            },
-                            executor)
-                    .thenAccept(resultFuture::complete);
+            return CompletableFuture.supplyAsync(
+                    () -> {
+                        try {
+                            Thread.sleep(random.nextInt(5));
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        return indexedData.get(keyRow);
+                    },
+                    executor);
         }
 
         @Override
@@ -678,6 +682,29 @@ final class TestValuesRuntimeFunctions {
             if (executor != null && !executor.isShutdown()) {
                 executor.shutdown();
             }
+        }
+
+        private void indexDataByKey() {
+            indexedData = new HashMap<>();
+            data.forEach(
+                    record -> {
+                        GenericRowData rowData = (GenericRowData) converter.toInternal(record);
+                        checkNotNull(
+                                rowData, "Cannot convert record to internal GenericRowData type");
+                        RowData key =
+                                GenericRowData.of(
+                                        Arrays.stream(lookupIndices)
+                                                .mapToObj(rowData::getField)
+                                                .toArray());
+                        List<RowData> list = indexedData.get(key);
+                        if (list != null) {
+                            list.add(rowData);
+                        } else {
+                            list = new ArrayList<>();
+                            list.add(rowData);
+                            indexedData.put(key, list);
+                        }
+                    });
         }
     }
 }

@@ -22,6 +22,7 @@ import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.AsyncOutputMode
+import org.apache.flink.table.connector.source.lookup.LookupOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
@@ -44,7 +45,8 @@ class AsyncLookupJoinITCase(
     legacyTableSource: Boolean,
     backend: StateBackendMode,
     objectReuse: Boolean,
-    asyncOutputMode: AsyncOutputMode)
+    asyncOutputMode: AsyncOutputMode,
+    enableCache: Boolean)
   extends StreamingWithStateTestBase(backend) {
 
   val data = List(
@@ -97,12 +99,20 @@ class AsyncLookupJoinITCase(
         tableName)
     } else {
       val dataId = TestValuesTableFactory.registerData(data)
+      val cacheOptions =
+        if (enableCache)
+          s"""
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupOptions.LookupCacheType.PARTIAL}',
+             |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
+             |""".stripMargin
+        else ""
       tEnv.executeSql(s"""
                          |CREATE TABLE $tableName (
                          |  `age` INT,
                          |  `id` BIGINT,
                          |  `name` STRING
                          |) WITH (
+                         |  $cacheOptions
                          |  'connector' = 'values',
                          |  'data-id' = '$dataId',
                          |  'async' = 'true'
@@ -308,16 +318,78 @@ class AsyncLookupJoinITCase(
 }
 
 object AsyncLookupJoinITCase {
-  @Parameterized.Parameters(
-    name = "LegacyTableSource={0}, StateBackend={1}, ObjectReuse={2}, AsyncOutputMode={3}")
+
+  val LEGACY_TABLE_SOURCE: JBoolean = JBoolean.TRUE;
+  val DYNAMIC_TABLE_SOURCE: JBoolean = JBoolean.FALSE;
+  val ENABLE_OBJECT_REUSE: JBoolean = JBoolean.TRUE;
+  val DISABLE_OBJECT_REUSE: JBoolean = JBoolean.FALSE;
+  val ENABLE_CACHE: JBoolean = JBoolean.TRUE;
+  val DISABLE_CACHE: JBoolean = JBoolean.FALSE;
+
+  @Parameterized.Parameters(name =
+    "LegacyTableSource={0}, StateBackend={1}, ObjectReuse={2}, AsyncOutputMode={3}, EnableCache={4}")
   def parameters(): JCollection[Array[Object]] = {
     Seq[Array[AnyRef]](
-      Array(JBoolean.TRUE, HEAP_BACKEND, JBoolean.TRUE, AsyncOutputMode.ALLOW_UNORDERED),
-      Array(JBoolean.TRUE, ROCKSDB_BACKEND, JBoolean.FALSE, AsyncOutputMode.ORDERED),
-      Array(JBoolean.FALSE, HEAP_BACKEND, JBoolean.FALSE, AsyncOutputMode.ORDERED),
-      Array(JBoolean.FALSE, HEAP_BACKEND, JBoolean.TRUE, AsyncOutputMode.ORDERED),
-      Array(JBoolean.FALSE, ROCKSDB_BACKEND, JBoolean.FALSE, AsyncOutputMode.ALLOW_UNORDERED),
-      Array(JBoolean.FALSE, ROCKSDB_BACKEND, JBoolean.TRUE, AsyncOutputMode.ALLOW_UNORDERED)
+      Array(
+        LEGACY_TABLE_SOURCE,
+        HEAP_BACKEND,
+        ENABLE_OBJECT_REUSE,
+        AsyncOutputMode.ALLOW_UNORDERED,
+        DISABLE_CACHE),
+      Array(
+        LEGACY_TABLE_SOURCE,
+        ROCKSDB_BACKEND,
+        DISABLE_OBJECT_REUSE,
+        AsyncOutputMode.ORDERED,
+        DISABLE_CACHE),
+      Array(
+        DYNAMIC_TABLE_SOURCE,
+        HEAP_BACKEND,
+        DISABLE_OBJECT_REUSE,
+        AsyncOutputMode.ORDERED,
+        DISABLE_CACHE),
+      Array(
+        DYNAMIC_TABLE_SOURCE,
+        HEAP_BACKEND,
+        ENABLE_OBJECT_REUSE,
+        AsyncOutputMode.ORDERED,
+        DISABLE_CACHE),
+      Array(
+        DYNAMIC_TABLE_SOURCE,
+        ROCKSDB_BACKEND,
+        DISABLE_OBJECT_REUSE,
+        AsyncOutputMode.ALLOW_UNORDERED,
+        DISABLE_CACHE),
+      Array(
+        DYNAMIC_TABLE_SOURCE,
+        ROCKSDB_BACKEND,
+        ENABLE_OBJECT_REUSE,
+        AsyncOutputMode.ALLOW_UNORDERED,
+        DISABLE_CACHE),
+      Array(
+        DYNAMIC_TABLE_SOURCE,
+        HEAP_BACKEND,
+        DISABLE_OBJECT_REUSE,
+        AsyncOutputMode.ORDERED,
+        ENABLE_CACHE),
+      Array(
+        DYNAMIC_TABLE_SOURCE,
+        HEAP_BACKEND,
+        ENABLE_OBJECT_REUSE,
+        AsyncOutputMode.ORDERED,
+        ENABLE_CACHE),
+      Array(
+        DYNAMIC_TABLE_SOURCE,
+        ROCKSDB_BACKEND,
+        DISABLE_OBJECT_REUSE,
+        AsyncOutputMode.ALLOW_UNORDERED,
+        ENABLE_CACHE),
+      Array(
+        DYNAMIC_TABLE_SOURCE,
+        ROCKSDB_BACKEND,
+        ENABLE_OBJECT_REUSE,
+        AsyncOutputMode.ALLOW_UNORDERED,
+        ENABLE_CACHE)
     )
   }
 }
