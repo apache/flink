@@ -86,7 +86,6 @@ public class SqlCreateHiveTable extends SqlCreateTable {
                 extractPartColIdentifiers(partColList),
                 null,
                 HiveDDLUtils.unescapeStringLiteral(comment),
-                null,
                 isTemporary,
                 ifNotExists);
 

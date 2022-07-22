@@ -1906,12 +1906,21 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testCreateTableAsSelectWithTmpTable() {
+        sql("CREATE TEMPORARY TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "CREATE TABLE AS SELECT syntax does not support to create temporary table yet."));
+    }
+
+    @Test
     void testCreateTableAsSelectWithExplicitColumns() {
         sql("CREATE TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()
                                 .fails(
-                                        "CREATE TABLE AS SELECT syntax does not yet support explicitly specifying columns."));
+                                        "CREATE TABLE AS SELECT syntax does not support explicitly specifying columns yet."));
     }
 
     @Test
@@ -1920,7 +1929,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .node(
                         new ValidationMatcher()
                                 .fails(
-                                        "CREATE TABLE AS SELECT syntax does not yet support explicitly specifying watermark."));
+                                        "CREATE TABLE AS SELECT syntax does not support explicitly specifying watermark yet."));
     }
 
     @Test
@@ -1929,7 +1938,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .node(
                         new ValidationMatcher()
                                 .fails(
-                                        "CREATE TABLE AS SELECT syntax does not yet support primary key constraints."));
+                                        "CREATE TABLE AS SELECT syntax does not support primary key constraints yet."));
     }
 
     @Test
@@ -1938,7 +1947,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .node(
                         new ValidationMatcher()
                                 .fails(
-                                        "CREATE TABLE AS SELECT syntax does not yet support creating partitioned table."));
+                                        "CREATE TABLE AS SELECT syntax does not support creating partitioned table yet."));
     }
 
     public static BaseMatcher<SqlNode> validated(String validatedSql) {

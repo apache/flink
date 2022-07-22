@@ -37,42 +37,15 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 
-/**
- * {@link SqlNode} to describe the CREATE TABLE AS syntax. The CTAS syntax is different from CREATE
- * TABLE syntax, which also create the pipeline to sync the data from the source to the derived
- * table.
- *
- * <p>Example: A DDL like the one below for creating a `derived_table`
- *
- * <pre>{@code
- * CREATE TABLE base_table (
- *     id BIGINT,
- *     name STRING,
- *     tstmp TIMESTAMP,
- *     PRIMARY KEY(id)
- * ) WITH (
- *     ‘connector’ = ‘kafka’,
- *     ‘connector.starting-offset’: ‘12345’,
- *     ‘format’ =  ‘json’
- * )
- *
- * CREATE TABLE derived_table
- * WITH (
- *   'connector' = 'jdbc',
- *   'url' = 'http://localhost:10000',
- *   'table-name' = 'syncedTable'
- * )
- * AS SELECT * FROM base_table_1;
- * }</pre>
- */
-public class SqlCreateTableAs extends SqlCreateTable {
+/** CREATE TABLE LIKE DDL sql call. */
+public class SqlCreateTableLike extends SqlCreateTable {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("CREATE TABLE AS", SqlKind.CREATE_TABLE);
+            new SqlSpecialOperator("CREATE TABLE LIKE", SqlKind.CREATE_TABLE);
 
-    private final SqlNode asQuery;
+    private final SqlTableLike tableLike;
 
-    public SqlCreateTableAs(
+    public SqlCreateTableLike(
             SqlParserPos pos,
             SqlIdentifier tableName,
             SqlNodeList columnList,
@@ -81,7 +54,7 @@ public class SqlCreateTableAs extends SqlCreateTable {
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
-            SqlNode asQuery,
+            SqlTableLike tableLike,
             boolean isTemporary,
             boolean ifNotExists) {
         super(
@@ -96,7 +69,7 @@ public class SqlCreateTableAs extends SqlCreateTable {
                 comment,
                 isTemporary,
                 ifNotExists);
-        this.asQuery = asQuery;
+        this.tableLike = tableLike;
     }
 
     @Override
@@ -108,45 +81,18 @@ public class SqlCreateTableAs extends SqlCreateTable {
     public @Nonnull List<SqlNode> getOperandList() {
         return ImmutableNullableList.<SqlNode>builder()
                 .addAll(super.getOperandList())
-                .add(asQuery)
+                .add(tableLike)
                 .build();
     }
 
     @Override
     public void validate() throws SqlValidateException {
         super.validate();
-        if (isTemporary()) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support to create temporary table yet.");
-        }
-
-        if (getColumnList().size() > 0) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support explicitly specifying columns yet.");
-        }
-
-        if (getWatermark().isPresent()) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support explicitly specifying watermark yet.");
-        }
-        // TODO flink dialect supports dynamic partition
-        if (getPartitionKeyList().size() > 0) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support creating partitioned table yet.");
-        }
-        if (getFullConstraints().stream().anyMatch(SqlTableConstraint::isPrimaryKey)) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support primary key constraints yet.");
-        }
+        tableLike.validate();
     }
 
-    public SqlNode getAsQuery() {
-        return asQuery;
+    public SqlTableLike getTableLike() {
+        return tableLike;
     }
 
     @Override
@@ -154,8 +100,6 @@ public class SqlCreateTableAs extends SqlCreateTable {
         super.unparse(writer, leftPrec, rightPrec);
 
         writer.newlineAndIndent();
-        writer.keyword("AS");
-        writer.newlineAndIndent();
-        this.asQuery.unparse(writer, leftPrec, rightPrec);
+        this.tableLike.unparse(writer, leftPrec, rightPrec);
     }
 }

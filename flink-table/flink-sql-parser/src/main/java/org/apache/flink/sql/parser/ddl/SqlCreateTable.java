@@ -72,8 +72,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
     private final SqlCharStringLiteral comment;
 
-    private final SqlTableLike tableLike;
-
     private final boolean isTemporary;
 
     public SqlCreateTable(
@@ -85,7 +83,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
-            @Nullable SqlTableLike tableLike,
             boolean isTemporary,
             boolean ifNotExists) {
         super(OPERATOR, pos, false, ifNotExists);
@@ -98,7 +95,31 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
                 requireNonNull(partitionKeyList, "partitionKeyList should not be null");
         this.watermark = watermark;
         this.comment = comment;
-        this.tableLike = tableLike;
+        this.isTemporary = isTemporary;
+    }
+
+    protected SqlCreateTable(
+            SqlSpecialOperator operator,
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNodeList columnList,
+            List<SqlTableConstraint> tableConstraints,
+            SqlNodeList propertyList,
+            SqlNodeList partitionKeyList,
+            @Nullable SqlWatermark watermark,
+            @Nullable SqlCharStringLiteral comment,
+            boolean isTemporary,
+            boolean ifNotExists) {
+        super(operator, pos, false, ifNotExists);
+        this.tableName = requireNonNull(tableName, "tableName should not be null");
+        this.columnList = requireNonNull(columnList, "columnList should not be null");
+        this.tableConstraints =
+                requireNonNull(tableConstraints, "table constraints should not be null");
+        this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
+        this.partitionKeyList =
+                requireNonNull(partitionKeyList, "partitionKeyList should not be null");
+        this.watermark = watermark;
+        this.comment = comment;
         this.isTemporary = isTemporary;
     }
 
@@ -116,8 +137,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
                 propertyList,
                 partitionKeyList,
                 watermark,
-                comment,
-                tableLike);
+                comment);
     }
 
     public SqlIdentifier getTableName() {
@@ -146,10 +166,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
     public Optional<SqlCharStringLiteral> getComment() {
         return Optional.ofNullable(comment);
-    }
-
-    public Optional<SqlTableLike> getTableLike() {
-        return Optional.ofNullable(tableLike);
     }
 
     public boolean isIfNotExists() {
@@ -184,10 +200,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
                     regularColumn.setType(notNullType);
                 }
             }
-        }
-
-        if (tableLike != null) {
-            tableLike.validate();
         }
     }
 
@@ -296,11 +308,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             }
             writer.newlineAndIndent();
             writer.endList(withFrame);
-        }
-
-        if (this.tableLike != null) {
-            writer.newlineAndIndent();
-            this.tableLike.unparse(writer, leftPrec, rightPrec);
         }
     }
 

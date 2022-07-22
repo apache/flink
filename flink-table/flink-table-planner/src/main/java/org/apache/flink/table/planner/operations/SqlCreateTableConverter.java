@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.ddl.SqlCreateTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
@@ -87,8 +88,8 @@ class SqlCreateTableConverter {
         final List<String> sourcePartitionKeys;
         final List<SqlTableLike.SqlTableLikeOption> likeOptions;
         final Map<String, String> sourceProperties;
-        if (sqlCreateTable.getTableLike().isPresent()) {
-            SqlTableLike sqlTableLike = sqlCreateTable.getTableLike().get();
+        if (sqlCreateTable instanceof SqlCreateTableLike) {
+            SqlTableLike sqlTableLike = ((SqlCreateTableLike) sqlCreateTable).getTableLike();
             CatalogTable table = lookupLikeSourceTable(sqlTableLike);
             sourceTableSchema =
                     TableSchema.fromResolvedSchema(
