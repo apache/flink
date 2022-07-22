@@ -26,7 +26,9 @@ import org.apache.flink.orc.vector.Vectorizer;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.orc.OrcConf;
 import org.apache.orc.OrcFile;
+import org.apache.orc.impl.PhysicalFsWriter;
 import org.apache.orc.impl.WriterImpl;
 
 import java.io.IOException;
@@ -73,6 +75,13 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
         this(vectorizer, null, configuration);
     }
 
+    public OrcBulkWriterFactory(Vectorizer<T> vectorizer, OrcFile.WriterOptions writerOptions) {
+        this.vectorizer = vectorizer;
+        this.writerOptions = writerOptions;
+        this.writerProperties = null;
+        this.confMap = new HashMap<>();
+    }
+
     /**
      * Creates a new OrcBulkWriterFactory using the provided Vectorizer, Hadoop Configuration, ORC
      * writer properties.
@@ -96,7 +105,10 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
     @Override
     public BulkWriter<T> create(FSDataOutputStream out) throws IOException {
         OrcFile.WriterOptions opts = getWriterOptions();
-        opts.physicalWriter(new PhysicalWriterImpl(out, opts));
+        HadoopNoCloseStream hadoopOutputStream = new HadoopNoCloseStream(out, null);
+        EncryptionProvider provider = new EncryptionProvider(opts);
+        opts.physicalWriter(
+                new PhysicalFsWriter(hadoopOutputStream, opts, provider.getEncryptionVariants()));
 
         // The path of the Writer is not used to indicate the destination file
         // in this case since we have used a dedicated physical writer to write
@@ -115,9 +127,12 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
             }
 
             writerOptions = OrcFile.writerOptions(writerProperties, conf);
-            writerOptions.setSchema(this.vectorizer.getSchema());
-        }
 
+            // Column encryption configuration
+            writerOptions.encrypt(OrcConf.ENCRYPTION.getString(writerProperties, conf));
+            writerOptions.masks(OrcConf.DATA_MASK.getString(writerProperties, conf));
+        }
+        writerOptions.setSchema(this.vectorizer.getSchema());
         return writerOptions;
     }
 }

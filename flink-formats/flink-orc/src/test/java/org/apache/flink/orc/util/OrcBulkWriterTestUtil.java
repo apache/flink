@@ -43,36 +43,36 @@ public class OrcBulkWriterTestUtil {
     public static final String USER_METADATA_KEY = "userKey";
     public static final ByteBuffer USER_METADATA_VALUE = ByteBuffer.wrap("hello".getBytes());
 
-    public static void validate(File files, List<Record> expected) throws IOException {
-        final File[] buckets = files.listFiles();
-        assertThat(buckets).isNotNull();
-        assertThat(buckets).hasSize(1);
+    public static void validate(File files, List<Record> expected, CompressionKind compressionKind)
+            throws IOException {
+        assertThat(files).isNotNull();
+        assertThat(files.exists()).isTrue();
 
+        assertThat(expected).isNotNull();
+        assertThat(expected).isNotEmpty();
+        validateBucketAndFileSize(files, 1);
+
+        final File[] buckets = files.listFiles();
         final File[] partFiles = buckets[0].listFiles();
-        assertThat(partFiles).isNotNull();
 
         for (File partFile : partFiles) {
-            assertThat(partFile.length()).isGreaterThan(0);
+            Reader reader = getOrcReader(partFile);
 
-            OrcFile.ReaderOptions readerOptions = OrcFile.readerOptions(new Configuration());
-            Reader reader =
-                    OrcFile.createReader(
-                            new org.apache.hadoop.fs.Path(partFile.toURI()), readerOptions);
-
-            assertThat(reader.getNumberOfRows()).isEqualTo(3);
-            assertThat(reader.getSchema().getFieldNames()).hasSize(2);
-            assertThat(reader.getCompressionKind()).isSameAs(CompressionKind.LZ4);
+            assertThat(reader.getNumberOfRows()).isEqualTo(expected.size());
+            assertThat(reader.getSchema().getFieldNames())
+                    .hasSize(expected.get(0).getClass().getDeclaredFields().length);
+            assertThat(reader.getCompressionKind()).isSameAs(compressionKind);
             assertThat(reader.hasMetadataValue(USER_METADATA_KEY)).isTrue();
             assertThat(reader.getMetadataKeys()).contains(USER_METADATA_KEY);
 
             List<Record> results = getResults(reader);
 
-            assertThat(results).hasSize(3);
+            assertThat(results).hasSize(expected.size());
             assertThat(results).isEqualTo(expected);
         }
     }
 
-    private static List<Record> getResults(Reader reader) throws IOException {
+    public static List<Record> getResults(Reader reader) throws IOException {
         List<Record> results = new ArrayList<>();
 
         RecordReader recordReader = reader.rows();
@@ -95,5 +95,22 @@ public class OrcBulkWriterTestUtil {
         }
 
         return results;
+    }
+
+    public static void validateBucketAndFileSize(File outputDir, int bucketCount) {
+        final File[] buckets = outputDir.listFiles();
+        assertThat(buckets).isNotNull();
+        assertThat(buckets.length).isEqualTo(bucketCount);
+
+        final File[] partFiles = buckets[0].listFiles();
+        assertThat(partFiles.length).isNotNull();
+    }
+
+    public static Reader getOrcReader(File orcFile) throws IOException {
+        assertThat(orcFile.exists()).isTrue();
+        assertThat(orcFile.length()).isGreaterThan(0);
+
+        OrcFile.ReaderOptions readerOptions = OrcFile.readerOptions(new Configuration());
+        return OrcFile.createReader(new org.apache.hadoop.fs.Path(orcFile.toURI()), readerOptions);
     }
 }

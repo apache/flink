@@ -20,7 +20,8 @@ package org.apache.flink.orc.nohive;
 
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.orc.nohive.writer.NoHivePhysicalWriterImpl;
+import org.apache.flink.orc.writer.EncryptionProvider;
+import org.apache.flink.orc.writer.HadoopNoCloseStream;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -31,6 +32,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.orc.OrcFile;
 import org.apache.orc.TypeDescription;
+import org.apache.orc.impl.PhysicalFsWriter;
 import org.apache.orc.impl.WriterImpl;
 import org.apache.orc.storage.common.type.HiveDecimal;
 import org.apache.orc.storage.ql.exec.vector.BytesColumnVector;
@@ -65,7 +67,11 @@ public class OrcNoHiveBulkWriterFactory implements BulkWriter.Factory<RowData> {
         OrcFile.WriterOptions opts = OrcFile.writerOptions(new Properties(), conf);
         TypeDescription description = TypeDescription.fromString(schema);
         opts.setSchema(description);
-        opts.physicalWriter(new NoHivePhysicalWriterImpl(out, opts));
+
+        HadoopNoCloseStream hadoopOutputStream = new HadoopNoCloseStream(out, null);
+        EncryptionProvider provider = new EncryptionProvider(opts);
+        opts.physicalWriter(
+                new PhysicalFsWriter(hadoopOutputStream, opts, provider.getEncryptionVariants()));
         WriterImpl writer = new WriterImpl(null, new Path("."), opts);
 
         VectorizedRowBatch rowBatch = description.createRowBatch();

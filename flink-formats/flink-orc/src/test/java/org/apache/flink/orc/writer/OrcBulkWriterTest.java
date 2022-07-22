@@ -27,15 +27,28 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.orc.CompressionKind;
+import org.apache.orc.EncryptionAlgorithm;
+import org.apache.orc.InMemoryKeystore;
+import org.apache.orc.OrcConf;
+import org.apache.orc.OrcFile;
+import org.apache.orc.Reader;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+
+import static org.apache.flink.orc.util.OrcBulkWriterTestUtil.getOrcReader;
+import static org.apache.flink.orc.util.OrcBulkWriterTestUtil.validateBucketAndFileSize;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for the ORC BulkWriter implementation. */
 public class OrcBulkWriterTest {
@@ -48,14 +61,80 @@ public class OrcBulkWriterTest {
 
     @Test
     public void testOrcBulkWriter() throws Exception {
+        writeOrcFileWithCodec(CompressionKind.LZ4);
+        writeOrcFileWithCodec(CompressionKind.SNAPPY);
+        writeOrcFileWithCodec(CompressionKind.ZLIB);
+        writeOrcFileWithCodec(CompressionKind.LZO);
+        writeOrcFileWithCodec(CompressionKind.ZSTD);
+    }
+
+    private void writeOrcFileWithCodec(CompressionKind codec) throws Exception {
         final File outDir = TEMPORARY_FOLDER.newFolder();
         final Properties writerProps = new Properties();
-        writerProps.setProperty("orc.compress", "LZ4");
+        writerProps.setProperty("orc.compress", codec.name());
 
-        final OrcBulkWriterFactory<Record> writer =
+        OrcBulkWriterFactory<Record> writer =
                 new OrcBulkWriterFactory<>(
                         new RecordVectorizer(schema), writerProps, new Configuration());
 
+        writeRecordsIntoOrcFile(outDir, writer);
+
+        // validate records and compression kind
+        OrcBulkWriterTestUtil.validate(outDir, input, codec);
+    }
+
+    @Test
+    public void testOrcColumnEncryption() throws Exception {
+        final File outDir = TEMPORARY_FOLDER.newFolder();
+
+        // Simple configuration for column encryption.
+        Configuration conf = new Configuration();
+        conf.set("orc.encrypt", "pii:_col0");
+        conf.set("orc.mask", "sha256:_col0");
+        OrcFile.WriterOptions writerOptions =
+                OrcFile.writerOptions(conf)
+                        .encrypt(OrcConf.ENCRYPTION.getString(conf))
+                        .masks(OrcConf.DATA_MASK.getString(conf))
+                        .setKeyProvider(new DummyInMemoryKeystore());
+
+        OrcBulkWriterFactory<Record> writer =
+                new OrcBulkWriterFactory<>(new RecordVectorizer(schema), writerOptions);
+
+        writeRecordsIntoOrcFile(outDir, writer);
+
+        validateBucketAndFileSize(outDir, 1);
+        final File[] buckets = outDir.listFiles();
+        final File[] partFiles = buckets[0].listFiles();
+
+        // Validate data in orc and file schema attribute value.
+        for (File partFile : partFiles) {
+            validateEncryptedColumn(partFile);
+        }
+    }
+
+    private void validateEncryptedColumn(File orcFile) throws IOException {
+        Reader reader = getOrcReader(orcFile);
+        assertThat(reader.getNumberOfRows()).isEqualTo(input.size());
+
+        List<String> fieldNames = reader.getSchema().getFieldNames();
+        for (int i = 0; i < fieldNames.size(); i++) {
+            if (StringUtils.equals(fieldNames.get(i), "_col0")) {
+                String encrypt =
+                        reader.getSchema().getChildren().get(i).getAttributeValue("encrypt");
+                assertThat(encrypt).isEqualTo("pii");
+            }
+        }
+
+        List<Record> results = OrcBulkWriterTestUtil.getResults(reader);
+        for (int i = 0; i < results.size(); i++) {
+            assertThat(results.get(i).getName()).isNotNull();
+            assertThat(results.get(i).getName()).isNotEqualTo(input.get(i).getName());
+            assertThat(results.get(i).getAge()).isEqualTo(input.get(i).getAge());
+        }
+    }
+
+    private void writeRecordsIntoOrcFile(File outDir, OrcBulkWriterFactory<Record> writer)
+            throws Exception {
         StreamingFileSink<Record> sink =
                 StreamingFileSink.forBulkFormat(new Path(outDir.toURI()), writer)
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))
@@ -75,8 +154,21 @@ public class OrcBulkWriterTest {
 
             testHarness.snapshot(1, ++time);
             testHarness.notifyOfCompletedCheckpoint(1);
+        }
+    }
 
-            OrcBulkWriterTestUtil.validate(outDir, input);
+    /** A fake in-memory keystore for testing. */
+    private static class DummyInMemoryKeystore extends InMemoryKeystore {
+
+        public DummyInMemoryKeystore() {
+            super();
+
+            try {
+                byte[] kmsKey = "secret123".getBytes(StandardCharsets.UTF_8);
+                addKey("pii", EncryptionAlgorithm.AES_CTR_128, kmsKey);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to initial memory keystore.");
+            }
         }
     }
 }

@@ -31,6 +31,7 @@ import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.orc.CompressionKind;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -73,6 +74,6 @@ public class OrcBulkWriterITCase extends TestLogger {
 
         env.execute();
 
-        OrcBulkWriterTestUtil.validate(outDir, testData);
+        OrcBulkWriterTestUtil.validate(outDir, testData, CompressionKind.LZ4);
     }
 }
