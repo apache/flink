@@ -55,6 +55,7 @@ class BufferReaderWriterUtilTest {
     void writeReadByteBuffer() {
         final ByteBuffer memory = ByteBuffer.allocateDirect(1200);
         final Buffer buffer = createTestBuffer();
+        BufferReaderWriterUtil.configureByteBuffer(memory);
 
         BufferReaderWriterUtil.writeBuffer(buffer, memory);
         final int pos = memory.position();
