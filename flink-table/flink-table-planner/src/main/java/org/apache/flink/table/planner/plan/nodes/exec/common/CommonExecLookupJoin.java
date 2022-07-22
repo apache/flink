@@ -479,7 +479,16 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                             generatedCalc,
                             generatedCollector,
                             isLeftOuterJoin,
-                            rightRowType.getFieldCount());
+                            rightRowType.getFieldCount(),
+                            LookupJoinUtil.getPartialLookupCacheHandler(
+                                            temporalTable,
+                                            config,
+                                            classLoader,
+                                            inputRowType,
+                                            tableSourceRowType,
+                                            lookupKeys,
+                                            isObjectReuseEnabled)
+                                    .orElse(null));
         } else {
             // right type is the same as table source row type, because no calc after temporal table
             processFunc =
@@ -487,7 +496,16 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                             generatedFetcher,
                             generatedCollector,
                             isLeftOuterJoin,
-                            rightRowType.getFieldCount());
+                            rightRowType.getFieldCount(),
+                            LookupJoinUtil.getPartialLookupCacheHandler(
+                                            temporalTable,
+                                            config,
+                                            classLoader,
+                                            inputRowType,
+                                            tableSourceRowType,
+                                            lookupKeys,
+                                            isObjectReuseEnabled)
+                                    .orElse(null));
         }
         return SimpleOperatorFactory.of(new ProcessOperator<>(processFunc));
     }

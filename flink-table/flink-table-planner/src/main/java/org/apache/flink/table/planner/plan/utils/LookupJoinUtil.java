@@ -19,16 +19,26 @@
 package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.AsyncLookupFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.LookupFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.PartialCachingAsyncLookupProvider;
+import org.apache.flink.table.connector.source.lookup.PartialCachingLookupProvider;
+import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.planner.codegen.LookupJoinCodeGenerator;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext;
+import org.apache.flink.table.runtime.operators.join.lookup.LookupCacheHandler;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -39,11 +49,14 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rex.RexLiteral;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 /** Utilities for lookup joins using {@link LookupTableSource}. */
@@ -148,23 +161,15 @@ public final class LookupJoinUtil {
     /** Gets LookupFunction from temporal table according to the given lookup keys. */
     public static UserDefinedFunction getLookupFunction(
             RelOptTable temporalTable, Collection<Integer> lookupKeys) {
-
-        int[] lookupKeyIndicesInOrder = getOrderedLookupKeys(lookupKeys);
-
         if (temporalTable instanceof TableSourceTable) {
-            // TODO: support nested lookup keys in the future,
-            //  currently we only support top-level lookup keys
-            int[][] indices =
-                    IntStream.of(lookupKeyIndicesInOrder)
-                            .mapToObj(i -> new int[] {i})
-                            .toArray(int[][]::new);
-            LookupTableSource tableSource =
-                    (LookupTableSource) ((TableSourceTable) temporalTable).tableSource();
-            LookupRuntimeProviderContext providerContext =
-                    new LookupRuntimeProviderContext(indices);
+            LookupTableSource tableSource = getLookupTableSource(temporalTable);
             LookupTableSource.LookupRuntimeProvider provider =
-                    tableSource.getLookupRuntimeProvider(providerContext);
-            if (provider instanceof TableFunctionProvider) {
+                    tableSource.getLookupRuntimeProvider(createLookupContext(lookupKeys));
+            if (provider instanceof LookupFunctionProvider) {
+                return ((LookupFunctionProvider) provider).createLookupFunction();
+            } else if (provider instanceof AsyncLookupFunctionProvider) {
+                return ((AsyncLookupFunctionProvider) provider).createAsyncLookupFunction();
+            } else if (provider instanceof TableFunctionProvider) {
                 return ((TableFunctionProvider<?>) provider).createTableFunction();
             } else if (provider instanceof AsyncTableFunctionProvider) {
                 return ((AsyncTableFunctionProvider<?>) provider).createAsyncTableFunction();
@@ -172,6 +177,7 @@ public final class LookupJoinUtil {
         }
 
         if (temporalTable instanceof LegacyTableSourceTable) {
+            int[] lookupKeyIndicesInOrder = getOrderedLookupKeys(lookupKeys);
             String[] lookupFieldNamesInOrder =
                     IntStream.of(lookupKeyIndicesInOrder)
                             .mapToObj(temporalTable.getRowType().getFieldNames()::get)
@@ -190,5 +196,114 @@ public final class LookupJoinUtil {
                 String.format(
                         "table %s is neither TableSourceTable not LegacyTableSourceTable",
                         temporalTable.getQualifiedName()));
+    }
+
+    public static Optional<LookupCacheHandler> getPartialLookupCacheHandler(
+            RelOptTable temporalTable,
+            ReadableConfig tableConfig,
+            ClassLoader classLoader,
+            RowType leftTableRowType,
+            RowType rightTableRowType,
+            Map<Integer, LookupKey> lookupKeys,
+            boolean enableObjectReuse) {
+        // Legacy table source does not support lookup caching
+        if (temporalTable instanceof LegacyTableSourceTable) {
+            return Optional.empty();
+        }
+        LookupTableSource lookupTableSource = getLookupTableSource(temporalTable);
+        LookupTableSource.LookupRuntimeProvider provider =
+                lookupTableSource.getLookupRuntimeProvider(
+                        createLookupContext(lookupKeys.keySet()));
+        if (provider instanceof PartialCachingLookupProvider) {
+            LookupCache cache = ((PartialCachingLookupProvider) provider).getCache();
+            if (cache == null) {
+                return Optional.empty();
+            } else {
+                return buildLookupCacheHandler(
+                        temporalTable,
+                        tableConfig,
+                        classLoader,
+                        leftTableRowType,
+                        rightTableRowType,
+                        lookupKeys,
+                        enableObjectReuse,
+                        cache);
+            }
+        } else if (provider instanceof PartialCachingAsyncLookupProvider) {
+            LookupCache cache = ((PartialCachingAsyncLookupProvider) provider).getCache();
+            if (cache == null) {
+                return Optional.empty();
+            } else {
+                return buildLookupCacheHandler(
+                        temporalTable,
+                        tableConfig,
+                        classLoader,
+                        leftTableRowType,
+                        rightTableRowType,
+                        lookupKeys,
+                        enableObjectReuse,
+                        cache);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<LookupCacheHandler> buildLookupCacheHandler(
+            RelOptTable temporalTable,
+            ReadableConfig tableConfig,
+            ClassLoader classLoader,
+            RowType leftTableRowType,
+            RowType rightTableRowType,
+            Map<Integer, LookupKey> lookupKeys,
+            boolean enableObjectReuse,
+            LookupCache cache) {
+        RowType keyRowType =
+                RowType.of(
+                        lookupKeys.values().stream()
+                                .filter(key -> key instanceof FieldRefLookupKey)
+                                .map(key -> ((FieldRefLookupKey) key).index)
+                                .map(leftTableRowType::getTypeAt)
+                                .toArray(LogicalType[]::new));
+        if (enableObjectReuse) {
+            return Optional.of(
+                    new LookupCacheHandler(
+                            cache,
+                            StringUtils.join(temporalTable.getQualifiedName(), "."),
+                            LookupJoinCodeGenerator.generateLeftTableKeyProjection(
+                                    tableConfig,
+                                    classLoader,
+                                    leftTableRowType,
+                                    keyRowType,
+                                    lookupKeys)));
+        } else {
+            return Optional.of(
+                    new LookupCacheHandler(
+                            cache,
+                            StringUtils.join(temporalTable.getQualifiedName(), "."),
+                            LookupJoinCodeGenerator.generateLeftTableKeyProjection(
+                                    tableConfig,
+                                    classLoader,
+                                    leftTableRowType,
+                                    keyRowType,
+                                    lookupKeys),
+                            new RowDataSerializer(keyRowType),
+                            new RowDataSerializer(rightTableRowType)));
+        }
+    }
+
+    private static LookupTableSource getLookupTableSource(RelOptTable temporalTable) {
+        return ((LookupTableSource) ((TableSourceTable) temporalTable).tableSource());
+    }
+
+    private static LookupTableSource.LookupContext createLookupContext(
+            Collection<Integer> lookupKeys) {
+        int[] lookupKeyIndicesInOrder = getOrderedLookupKeys(lookupKeys);
+        // TODO: support nested lookup keys in the future,
+        //  currently we only support top-level lookup keys
+        int[][] indices =
+                IntStream.of(lookupKeyIndicesInOrder)
+                        .mapToObj(i -> new int[] {i})
+                        .toArray(int[][]::new);
+        return new LookupRuntimeProviderContext(indices);
     }
 }

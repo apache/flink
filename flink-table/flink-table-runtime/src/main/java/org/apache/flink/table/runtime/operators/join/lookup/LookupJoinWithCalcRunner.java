@@ -27,6 +27,8 @@ import org.apache.flink.table.runtime.generated.GeneratedCollector;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.util.Collector;
 
+import javax.annotation.Nullable;
+
 /** The join runner with an additional calculate function on the dimension table. */
 public class LookupJoinWithCalcRunner extends LookupJoinRunner {
 
@@ -41,8 +43,14 @@ public class LookupJoinWithCalcRunner extends LookupJoinRunner {
             GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc,
             GeneratedCollector<TableFunctionCollector<RowData>> generatedCollector,
             boolean isLeftOuterJoin,
-            int tableFieldsCount) {
-        super(generatedFetcher, generatedCollector, isLeftOuterJoin, tableFieldsCount);
+            int tableFieldsCount,
+            @Nullable LookupCacheHandler cacheHandler) {
+        super(
+                generatedFetcher,
+                generatedCollector,
+                isLeftOuterJoin,
+                tableFieldsCount,
+                cacheHandler);
         this.generatedCalc = generatedCalc;
     }
 

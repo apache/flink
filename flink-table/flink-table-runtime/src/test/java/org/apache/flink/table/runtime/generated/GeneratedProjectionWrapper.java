@@ -18,32 +18,25 @@
 
 package org.apache.flink.table.runtime.generated;
 
-import org.apache.flink.util.Collector;
+import org.apache.flink.table.data.RowData;
 
-import java.util.function.Consumer;
+@SuppressWarnings("rawtypes")
+public class GeneratedProjectionWrapper<IN extends RowData, OUT extends RowData>
+        extends GeneratedProjection {
 
-/**
- * A wrapper for {@link GeneratedCollector} which wraps a class instead of generated code in it. It
- * is only used for easy testing.
- */
-public class GeneratedCollectorWrapper<C extends Collector<?>> extends GeneratedCollector<C> {
+    private static final long serialVersionUID = 1L;
+    private final Class<Projection> clazz;
 
-    private static final long serialVersionUID = 3964204655565783705L;
-    private final Class<C> clazz;
-    private final Consumer<C> newInstanceConsumer;
-
-    public GeneratedCollectorWrapper(C collector, Consumer<C> newInstanceConsumer) {
-        super(collector.getClass().getSimpleName(), "", new Object[0]);
-        this.clazz = (Class<C>) collector.getClass();
-        this.newInstanceConsumer = newInstanceConsumer;
+    @SuppressWarnings("unchecked")
+    public GeneratedProjectionWrapper(Projection<IN, OUT> projection) {
+        super(projection.getClass().getSimpleName(), "", new Object[0]);
+        this.clazz = (Class<Projection>) projection.getClass();
     }
 
     @Override
-    public C newInstance(ClassLoader classLoader) {
+    public Projection newInstance(ClassLoader classLoader) {
         try {
-            C collector = clazz.newInstance();
-            newInstanceConsumer.accept(collector);
-            return collector;
+            return clazz.newInstance();
         } catch (Exception e) {
             throw new RuntimeException(
                     "Could not instantiate class " + clazz.getCanonicalName(), e);
@@ -51,7 +44,7 @@ public class GeneratedCollectorWrapper<C extends Collector<?>> extends Generated
     }
 
     @Override
-    public Class<C> compile(ClassLoader classLoader) {
+    public Class<Projection> compile(ClassLoader classLoader) {
         return clazz;
     }
 }

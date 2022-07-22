@@ -18,12 +18,16 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.connector.source.lookup.cache.DefaultLookupCache;
+import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryStringData;
@@ -31,6 +35,9 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.collector.TableFunctionCollector;
 import org.apache.flink.table.runtime.generated.GeneratedCollectorWrapper;
 import org.apache.flink.table.runtime.generated.GeneratedFunctionWrapper;
+import org.apache.flink.table.runtime.generated.GeneratedProjectionWrapper;
+import org.apache.flink.table.runtime.generated.Projection;
+import org.apache.flink.table.runtime.operators.join.lookup.LookupCacheHandler;
 import org.apache.flink.table.runtime.operators.join.lookup.LookupJoinRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.LookupJoinWithCalcRunner;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
@@ -38,17 +45,26 @@ import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Harness tests for {@link LookupJoinRunner} and {@link LookupJoinWithCalcRunner}. */
 public class LookupJoinHarnessTest {
@@ -66,15 +82,36 @@ public class LookupJoinHarnessTest {
                         DataTypes.STRING().getLogicalType()
                     });
 
-    @Test
-    public void testTemporalInnerJoin() throws Exception {
+    private final List<CloseValidator> closeValidators = new ArrayList<>();
+
+    @BeforeEach
+    void beforeEach() {
+        closeValidators.clear();
+    }
+
+    @AfterEach
+    void afterEach() {
+        for (CloseValidator closeValidator : closeValidators) {
+            assertThat(closeValidator.isClosed())
+                    .overridingErrorMessage(
+                            "%s is not closed", closeValidator.getClass().getSimpleName())
+                    .isTrue();
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(Caching.class)
+    void testTemporalInnerJoin(Caching caching) throws Exception {
+        AtomicReference<TestingFetcherFunction> fetcher = new AtomicReference<>();
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
-                createHarness(JoinType.INNER_JOIN, FilterOnTable.WITHOUT_FILTER);
+                createHarness(
+                        JoinType.INNER_JOIN, FilterOnTable.WITHOUT_FILTER, caching, fetcher::set);
 
         testHarness.open();
 
         testHarness.processElement(insertRecord(1, "a"));
         testHarness.processElement(insertRecord(2, "b"));
+        testHarness.processElement(insertRecord(3, "c"));
         testHarness.processElement(insertRecord(3, "c"));
         testHarness.processElement(insertRecord(4, "d"));
         testHarness.processElement(insertRecord(5, "e"));
@@ -83,21 +120,42 @@ public class LookupJoinHarnessTest {
         expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
         expectedOutput.add(insertRecord(3, "c", 3, "Jark"));
         expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jark"));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+
+        if (caching.equals(Caching.ENABLE_CACHE)) {
+            LookupCache cache = getRunner(testHarness).getLookupCache();
+            assertThat(cache).isNotNull();
+            Map<RowData, Collection<RowData>> expectedCachedEntries = new HashMap<>();
+            // Rows with
+            expectedCachedEntries.put(row(1), Collections.singleton(row(1, "Julian")));
+            expectedCachedEntries.put(row(2), Collections.emptySet());
+            expectedCachedEntries.put(row(3), Arrays.asList(row(3, "Jark"), row(3, "Jackson")));
+            expectedCachedEntries.put(row(4), Collections.singleton(row(4, "Fabian")));
+            expectedCachedEntries.put(row(5), Collections.emptySet());
+            validateCache(cache, expectedCachedEntries);
+            assertThat(fetcher.get().fetchCounter).isEqualTo(5);
+        }
+
         testHarness.close();
     }
 
-    @Test
-    public void testTemporalInnerJoinWithFilter() throws Exception {
+    @ParameterizedTest
+    @EnumSource(Caching.class)
+    void testTemporalInnerJoinWithFilter(Caching caching) throws Exception {
+        AtomicReference<TestingFetcherFunction> fetcher = new AtomicReference<>();
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
-                createHarness(JoinType.INNER_JOIN, FilterOnTable.WITH_FILTER);
+                createHarness(
+                        JoinType.INNER_JOIN, FilterOnTable.WITH_FILTER, caching, fetcher::set);
 
         testHarness.open();
 
         testHarness.processElement(insertRecord(1, "a"));
         testHarness.processElement(insertRecord(2, "b"));
+        testHarness.processElement(insertRecord(3, "c"));
         testHarness.processElement(insertRecord(3, "c"));
         testHarness.processElement(insertRecord(4, "d"));
         testHarness.processElement(insertRecord(5, "e"));
@@ -105,21 +163,40 @@ public class LookupJoinHarnessTest {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
         expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+
+        if (caching.equals(Caching.ENABLE_CACHE)) {
+            LookupCache cache = getRunner(testHarness).getLookupCache();
+            assertThat(cache).isNotNull();
+            Map<RowData, Collection<RowData>> expectedCachedEntries = new HashMap<>();
+            expectedCachedEntries.put(row(1), Collections.singleton(row(1, "Julian")));
+            expectedCachedEntries.put(row(2), Collections.emptySet());
+            expectedCachedEntries.put(row(3), Arrays.asList(row(3, "Jark"), row(3, "Jackson")));
+            expectedCachedEntries.put(row(4), Collections.singleton(row(4, "Fabian")));
+            expectedCachedEntries.put(row(5), Collections.emptySet());
+            validateCache(cache, expectedCachedEntries);
+            assertThat(fetcher.get().fetchCounter).isEqualTo(5);
+        }
+
         testHarness.close();
     }
 
-    @Test
-    public void testTemporalLeftJoin() throws Exception {
+    @ParameterizedTest
+    @EnumSource(Caching.class)
+    void testTemporalLeftJoin(Caching caching) throws Exception {
+        AtomicReference<TestingFetcherFunction> fetcher = new AtomicReference<>();
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
-                createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITHOUT_FILTER);
+                createHarness(
+                        JoinType.LEFT_JOIN, FilterOnTable.WITHOUT_FILTER, caching, fetcher::set);
 
         testHarness.open();
 
         testHarness.processElement(insertRecord(1, "a"));
         testHarness.processElement(insertRecord(2, "b"));
+        testHarness.processElement(insertRecord(3, "c"));
         testHarness.processElement(insertRecord(3, "c"));
         testHarness.processElement(insertRecord(4, "d"));
         testHarness.processElement(insertRecord(5, "e"));
@@ -129,22 +206,41 @@ public class LookupJoinHarnessTest {
         expectedOutput.add(insertRecord(2, "b", null, null));
         expectedOutput.add(insertRecord(3, "c", 3, "Jark"));
         expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jark"));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
         expectedOutput.add(insertRecord(5, "e", null, null));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+
+        if (caching.equals(Caching.ENABLE_CACHE)) {
+            LookupCache cache = getRunner(testHarness).getLookupCache();
+            assertThat(cache).isNotNull();
+            Map<RowData, Collection<RowData>> expectedCachedEntries = new HashMap<>();
+            expectedCachedEntries.put(row(1), Collections.singleton(row(1, "Julian")));
+            expectedCachedEntries.put(row(2), Collections.emptySet());
+            expectedCachedEntries.put(row(3), Arrays.asList(row(3, "Jark"), row(3, "Jackson")));
+            expectedCachedEntries.put(row(4), Collections.singleton(row(4, "Fabian")));
+            expectedCachedEntries.put(row(5), Collections.emptySet());
+            validateCache(cache, expectedCachedEntries);
+            assertThat(fetcher.get().fetchCounter).isEqualTo(5);
+        }
+
         testHarness.close();
     }
 
-    @Test
-    public void testTemporalLeftJoinWithFilter() throws Exception {
+    @ParameterizedTest
+    @EnumSource(Caching.class)
+    void testTemporalLeftJoinWithFilter(Caching caching) throws Exception {
+        AtomicReference<TestingFetcherFunction> fetcher = new AtomicReference<>();
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
-                createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITH_FILTER);
+                createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITH_FILTER, caching, fetcher::set);
 
         testHarness.open();
 
         testHarness.processElement(insertRecord(1, "a"));
         testHarness.processElement(insertRecord(2, "b"));
+        testHarness.processElement(insertRecord(3, "c"));
         testHarness.processElement(insertRecord(3, "c"));
         testHarness.processElement(insertRecord(4, "d"));
         testHarness.processElement(insertRecord(5, "e"));
@@ -153,42 +249,178 @@ public class LookupJoinHarnessTest {
         expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
         expectedOutput.add(insertRecord(2, "b", null, null));
         expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
         expectedOutput.add(insertRecord(5, "e", null, null));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+
+        if (caching.equals(Caching.ENABLE_CACHE)) {
+            LookupCache cache = getRunner(testHarness).getLookupCache();
+            assertThat(cache).isNotNull();
+            Map<RowData, Collection<RowData>> expectedCachedEntries = new HashMap<>();
+            expectedCachedEntries.put(row(1), Collections.singleton(row(1, "Julian")));
+            expectedCachedEntries.put(row(2), Collections.emptySet());
+            expectedCachedEntries.put(row(3), Arrays.asList(row(3, "Jark"), row(3, "Jackson")));
+            expectedCachedEntries.put(row(4), Collections.singleton(row(4, "Fabian")));
+            expectedCachedEntries.put(row(5), Collections.emptySet());
+            validateCache(cache, expectedCachedEntries);
+            assertThat(fetcher.get().fetchCounter).isEqualTo(5);
+        }
+
         testHarness.close();
+    }
+
+    @ParameterizedTest
+    @EnumSource(JoinType.class)
+    void testSharedCacheAcrossSubtasks(JoinType joinType) throws Exception {
+        AtomicReference<TestingFetcherFunction> fetcherA = new AtomicReference<>();
+        AtomicReference<TestingFetcherFunction> fetcherB = new AtomicReference<>();
+        String tableIdentifier = "shared-cache-" + joinType;
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarnessA =
+                createHarness(
+                        joinType,
+                        FilterOnTable.WITH_FILTER,
+                        Caching.ENABLE_CACHE,
+                        fetcherA::set,
+                        tableIdentifier);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarnessB =
+                createHarness(
+                        joinType,
+                        FilterOnTable.WITH_FILTER,
+                        Caching.ENABLE_CACHE,
+                        fetcherB::set,
+                        tableIdentifier);
+
+        testHarnessA.open();
+        testHarnessB.open();
+
+        List<StreamRecord<RowData>> records = new ArrayList<>();
+        records.add(insertRecord(1, "a"));
+        records.add(insertRecord(2, "b"));
+        records.add(insertRecord(3, "c"));
+        records.add(insertRecord(3, "c"));
+        records.add(insertRecord(4, "d"));
+        records.add(insertRecord(5, "e"));
+
+        // Let runner B process elements after runner A
+        for (StreamRecord<RowData> record : records) {
+            testHarnessA.processElement(record);
+            testHarnessB.processElement(record);
+        }
+
+        // Runner A and B should share the same cache
+        LookupCache cache = getRunner(testHarnessA).getLookupCache();
+        assertThat(cache).isNotNull();
+        assertThat(getRunner(testHarnessB).getLookupCache()).isSameAs(cache);
+
+        // Validate entries in the cache
+        Map<RowData, Collection<RowData>> expectedCachedEntries = new HashMap<>();
+        expectedCachedEntries.put(row(1), Collections.singleton(row(1, "Julian")));
+        expectedCachedEntries.put(row(2), Collections.emptySet());
+        expectedCachedEntries.put(row(3), Arrays.asList(row(3, "Jark"), row(3, "Jackson")));
+        expectedCachedEntries.put(row(4), Collections.singleton(row(4, "Fabian")));
+        expectedCachedEntries.put(row(5), Collections.emptySet());
+        validateCache(cache, expectedCachedEntries);
+
+        // Fetcher A should be invoked for 5 times
+        assertThat(fetcherA.get().fetchCounter).isEqualTo(5);
+        // Fetcher B should never be invoked because of the cache hit
+        assertThat(fetcherB.get().fetchCounter).isZero();
+
+        testHarnessA.close();
+        testHarnessB.close();
     }
 
     // ---------------------------------------------------------------------------------
 
+    private OneInputStreamOperatorTestHarness<RowData, RowData> createHarness(
+            JoinType joinType,
+            FilterOnTable filterOnTable,
+            Caching caching,
+            Consumer<TestingFetcherFunction> fetcherConsumer)
+            throws Exception {
+        return createHarness(
+                joinType,
+                filterOnTable,
+                caching,
+                fetcherConsumer,
+                RandomStringUtils.randomAlphabetic(10));
+    }
+
     @SuppressWarnings("unchecked")
     private OneInputStreamOperatorTestHarness<RowData, RowData> createHarness(
-            JoinType joinType, FilterOnTable filterOnTable) throws Exception {
+            JoinType joinType,
+            FilterOnTable filterOnTable,
+            Caching caching,
+            Consumer<TestingFetcherFunction> fetcherConsumer,
+            String tableIdentifier)
+            throws Exception {
         boolean isLeftJoin = joinType == JoinType.LEFT_JOIN;
         ProcessFunction<RowData, RowData> joinRunner;
+        LookupCacheHandler cacheHandler = null;
+        if (caching == Caching.ENABLE_CACHE) {
+            cacheHandler =
+                    new LookupCacheHandler(
+                            DefaultLookupCache.newBuilder().maximumSize(Long.MAX_VALUE).build(),
+                            tableIdentifier,
+                            new GeneratedProjectionWrapper<>(new CacheKeyProjection()));
+        }
         if (filterOnTable == FilterOnTable.WITHOUT_FILTER) {
             joinRunner =
                     new LookupJoinRunner(
-                            new GeneratedFunctionWrapper<>(new TestingFetcherFunction()),
-                            new GeneratedCollectorWrapper<>(new TestingFetcherCollector()),
+                            new GeneratedFunctionWrapper<>(
+                                    new TestingFetcherFunction(),
+                                    function -> {
+                                        fetcherConsumer.accept((TestingFetcherFunction) function);
+                                        closeValidators.add(((CloseValidator) function));
+                                    }),
+                            new GeneratedCollectorWrapper<TableFunctionCollector<RowData>>(
+                                    new TestingFetcherCollector(),
+                                    collector -> closeValidators.add(((CloseValidator) collector))),
                             isLeftJoin,
-                            2);
+                            2,
+                            cacheHandler);
         } else {
             joinRunner =
                     new LookupJoinWithCalcRunner(
-                            new GeneratedFunctionWrapper<>(new TestingFetcherFunction()),
+                            new GeneratedFunctionWrapper<>(
+                                    new TestingFetcherFunction(),
+                                    function -> {
+                                        fetcherConsumer.accept((TestingFetcherFunction) function);
+                                        closeValidators.add(((CloseValidator) function));
+                                    }),
                             new GeneratedFunctionWrapper<>(new CalculateOnTemporalTable()),
-                            new GeneratedCollectorWrapper<>(new TestingFetcherCollector()),
+                            new GeneratedCollectorWrapper<TableFunctionCollector<RowData>>(
+                                    new TestingFetcherCollector(),
+                                    collector -> closeValidators.add(((CloseValidator) collector))),
                             isLeftJoin,
-                            2);
+                            2,
+                            cacheHandler);
         }
 
         ProcessOperator<RowData, RowData> operator = new ProcessOperator<>(joinRunner);
         return new OneInputStreamOperatorTestHarness<>(operator, inSerializer);
     }
 
-    /** Whether this is a inner join or left join. */
+    private void validateCache(
+            LookupCache cache, Map<RowData, Collection<RowData>> expectedCachedEntries) {
+        for (Map.Entry<RowData, Collection<RowData>> entry : expectedCachedEntries.entrySet()) {
+            assertThat(cache.getIfPresent(entry.getKey())).isNotNull();
+            assertThat(cache.getIfPresent(entry.getKey()))
+                    .containsExactlyInAnyOrderElementsOf(entry.getValue());
+        }
+        assertThat(cache.size()).isEqualTo(expectedCachedEntries.size());
+    }
+
+    private LookupJoinRunner getRunner(
+            OneInputStreamOperatorTestHarness<RowData, RowData> testHarness) {
+        return ((LookupJoinRunner)
+                ((ProcessOperator<RowData, RowData>) testHarness.getOneInputOperator())
+                        .getUserFunction());
+    }
+
+    /** Whether this is an inner join or left join. */
     private enum JoinType {
         INNER_JOIN,
         LEFT_JOIN
@@ -200,17 +432,25 @@ public class LookupJoinHarnessTest {
         WITHOUT_FILTER
     }
 
+    private enum Caching {
+        ENABLE_CACHE,
+        DISABLE_CACHE
+    }
+
     // ---------------------------------------------------------------------------------
 
     /**
      * The {@link TestingFetcherFunction} only accepts a single integer lookup key and returns zero
      * or one or more RowData.
      */
-    public static final class TestingFetcherFunction implements FlatMapFunction<RowData, RowData> {
+    public static final class TestingFetcherFunction extends RichFlatMapFunction<RowData, RowData>
+            implements CloseValidator {
 
-        private static final long serialVersionUID = 4018474964018227081L;
-
+        private static final long serialVersionUID = -494579552308003331L;
         private static final Map<Integer, List<GenericRowData>> data = new HashMap<>();
+        private boolean isOpened = false;
+        private boolean isClosed = false;
+        private int fetchCounter;
 
         static {
             data.put(1, Collections.singletonList(GenericRowData.of(1, fromString("Julian"))));
@@ -223,7 +463,17 @@ public class LookupJoinHarnessTest {
         }
 
         @Override
+        public void open(Configuration parameters) throws Exception {
+            isOpened = true;
+            fetchCounter = 0;
+        }
+
+        @Override
         public void flatMap(RowData value, Collector<RowData> out) throws Exception {
+            assertThat(isOpened)
+                    .overridingErrorMessage("TestingFetcherFunction is not opened before collect")
+                    .isTrue();
+            fetchCounter++;
             int id = value.getInt(0);
             List<GenericRowData> rows = data.get(id);
             if (rows != null) {
@@ -232,20 +482,51 @@ public class LookupJoinHarnessTest {
                 }
             }
         }
+
+        @Override
+        public void close() throws Exception {
+            isClosed = true;
+        }
+
+        @Override
+        public boolean isClosed() {
+            return isClosed;
+        }
     }
 
     /**
      * The {@link TestingFetcherCollector} is a simple implementation of {@link
      * TableFunctionCollector} which combines left and right into a JoinedRowData.
      */
-    public static final class TestingFetcherCollector extends TableFunctionCollector {
-        private static final long serialVersionUID = -312754413938303160L;
+    public static final class TestingFetcherCollector extends TableFunctionCollector
+            implements CloseValidator {
+        private static final long serialVersionUID = -2361970630447540259L;
+        private boolean isOpened = false;
+        private boolean isClosed = false;
+
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            isOpened = true;
+        }
 
         @Override
         public void collect(Object record) {
+            assertThat(isOpened)
+                    .overridingErrorMessage("TestingFetcherCollector is not opened before collect")
+                    .isTrue();
             RowData left = (RowData) getInput();
             RowData right = (RowData) record;
             outputResult(new JoinedRowData(left, right));
+        }
+
+        @Override
+        public void close() {
+            isClosed = true;
+        }
+
+        @Override
+        public boolean isClosed() {
+            return isClosed;
         }
     }
 
@@ -253,17 +534,49 @@ public class LookupJoinHarnessTest {
      * The {@link CalculateOnTemporalTable} is a filter on temporal table which only accepts length
      * of name greater than or equal to 6.
      */
-    public static final class CalculateOnTemporalTable
-            implements FlatMapFunction<RowData, RowData> {
-
+    public static final class CalculateOnTemporalTable extends RichFlatMapFunction<RowData, RowData>
+            implements CloseValidator {
         private static final long serialVersionUID = -1860345072157431136L;
+
+        private boolean isOpened = false;
+        private boolean isClosed = false;
+
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            isOpened = true;
+        }
 
         @Override
         public void flatMap(RowData value, Collector<RowData> out) throws Exception {
+            assertThat(isOpened)
+                    .overridingErrorMessage("CalculateOnTemporalTable is not opened before collect")
+                    .isTrue();
             BinaryStringData name = (BinaryStringData) value.getString(1);
             if (name.getSizeInBytes() >= 6) {
                 out.collect(value);
             }
         }
+
+        @Override
+        public void close() {
+            isClosed = true;
+        }
+
+        @Override
+        public boolean isClosed() {
+            return isClosed;
+        }
+    }
+
+    public static final class CacheKeyProjection implements Projection<RowData, RowData> {
+
+        @Override
+        public RowData apply(RowData row) {
+            return GenericRowData.of(row.getInt(0));
+        }
+    }
+
+    private interface CloseValidator {
+        boolean isClosed();
     }
 }

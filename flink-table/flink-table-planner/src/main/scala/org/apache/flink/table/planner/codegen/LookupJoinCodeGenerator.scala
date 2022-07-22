@@ -25,7 +25,7 @@ import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.connector.source.{LookupTableSource, ScanTableSource}
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.data.utils.JoinedRowData
-import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.{AsyncTableFunction, LookupFunction, TableFunction, UserDefinedFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils._
@@ -38,7 +38,7 @@ import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.{ConstantLookupK
 import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.{TableFunctionCollector, TableFunctionResultFuture}
-import org.apache.flink.table.runtime.generated.{GeneratedCollector, GeneratedFunction, GeneratedResultFuture}
+import org.apache.flink.table.runtime.generated.{GeneratedCollector, GeneratedFunction, GeneratedProjection, GeneratedResultFuture}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.ExtractionUtils.extractSimpleGeneric
 import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies, TypeTransformations}
@@ -248,7 +248,11 @@ object LookupJoinCodeGenerator {
         val defaultArgDataTypes = callContext.getArgumentDataTypes.asScala
         val defaultOutputDataType = callContext.getOutputDataType.get()
 
-        val outputClass = toScala(extractSimpleGeneric(baseClass, udf.getClass, 0))
+        val outputClass = if (udf.getClass.getSuperclass == classOf[LookupFunction]) {
+          Some(classOf[RowData])
+        } else {
+          toScala(extractSimpleGeneric(baseClass, udf.getClass, 0))
+        }
         val (argDataTypes, outputDataType) = outputClass match {
           case Some(c) if c == classOf[Row] =>
             (defaultArgDataTypes, defaultOutputDataType)
@@ -515,6 +519,30 @@ object LookupJoinCodeGenerator {
       Option(condition),
       tableConfig,
       classLoader
+    )
+  }
+
+  def generateLeftTableKeyProjection(
+      tableConfig: ReadableConfig,
+      classloader: ClassLoader,
+      inputType: RowType,
+      outputType: RowType,
+      lookupKey: util.Map[Integer, LookupKey]): GeneratedProjection = {
+    val lookupKeyIndices: Array[Int] = lookupKey.asScala.values
+      .toArray[LookupKey]
+      .filter(_.isInstanceOf[FieldRefLookupKey])
+      .map(_.asInstanceOf[FieldRefLookupKey].index)
+    ProjectionCodeGenerator.generateProjection(
+      new CodeGeneratorContext(tableConfig, classloader),
+      "LeftTableKeyProjection",
+      inputType,
+      outputType,
+      lookupKeyIndices,
+      inputTerm = DEFAULT_INPUT1_TERM,
+      // BinaryRowData is backed by MemorySegments which possibly can change,
+      // we can't allow that, because our keys must be the same all the time
+      outClass = classOf[GenericRowData],
+      reusedOutRecord = false
     )
   }
 }
