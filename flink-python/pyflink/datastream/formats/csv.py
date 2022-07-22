@@ -293,8 +293,9 @@ class CsvReaderFormat(StreamFormat):
         Builds a :class:`CsvReaderFormat` using `CsvSchema`.
         """
         jvm = get_gateway().jvm
-        j_csv_format = jvm.org.apache.flink.formats.csv.CsvReaderFormatFactory.createCsvReaderFormat(
-            schema._j_schema,
-            _to_java_data_type(schema._data_type)
+        j_csv_format = jvm.org.apache.flink.formats.csv.CsvReaderFormatFactory \
+            .createCsvReaderFormat(
+                schema._j_schema,
+                _to_java_data_type(schema._data_type)
             )
         return CsvReaderFormat(j_csv_format)
