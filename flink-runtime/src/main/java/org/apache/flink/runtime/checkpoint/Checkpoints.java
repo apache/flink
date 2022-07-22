@@ -28,7 +28,6 @@ import org.apache.flink.runtime.checkpoint.metadata.MetadataV4Serializer;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -132,8 +131,7 @@ public class Checkpoints {
             CompletedCheckpointStorageLocation location,
             ClassLoader classLoader,
             boolean allowNonRestoredState,
-            CheckpointProperties checkpointProperties,
-            RestoreMode restoreMode)
+            CheckpointProperties checkpointProperties)
             throws IOException {
 
         checkNotNull(jobId, "jobId");
@@ -221,9 +219,7 @@ public class Checkpoints {
                 operatorStates,
                 checkpointMetadata.getMasterStates(),
                 checkpointProperties,
-                restoreMode == RestoreMode.CLAIM
-                        ? new ClaimModeCompletedStorageLocation(location)
-                        : location,
+                location,
                 null,
                 checkpointMetadata.getCheckpointProperties());
     }
@@ -383,37 +379,4 @@ public class Checkpoints {
 
     /** This class contains only static utility methods and is not meant to be instantiated. */
     private Checkpoints() {}
-
-    private static class ClaimModeCompletedStorageLocation
-            implements CompletedCheckpointStorageLocation {
-
-        private final CompletedCheckpointStorageLocation wrapped;
-
-        private ClaimModeCompletedStorageLocation(CompletedCheckpointStorageLocation location) {
-            wrapped = location;
-        }
-
-        @Override
-        public String getExternalPointer() {
-            return wrapped.getExternalPointer();
-        }
-
-        @Override
-        public StreamStateHandle getMetadataHandle() {
-            return wrapped.getMetadataHandle();
-        }
-
-        @Override
-        public void disposeStorageLocation() throws IOException {
-            try {
-                wrapped.disposeStorageLocation();
-            } catch (Exception ex) {
-                LOG.debug(
-                        "We could not delete the storage location: {} in CLAIM restore mode. It is"
-                                + " most probably because of shared files still being used by newer"
-                                + " checkpoints",
-                        wrapped);
-            }
-        }
-    }
 }
