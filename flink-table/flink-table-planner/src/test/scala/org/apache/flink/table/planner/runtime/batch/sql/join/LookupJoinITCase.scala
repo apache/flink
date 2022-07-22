@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.connector.source.lookup.LookupOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, InMemoryLookupableTableSource}
 import org.apache.flink.types.Row
@@ -33,7 +34,8 @@ import java.util
 import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
-class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends BatchTestBase {
+class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, enableCache: Boolean)
+  extends BatchTestBase {
 
   val data = List(
     rowOf(1L, 12L, "Julian"),
@@ -96,12 +98,21 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
         isBounded = true)
     } else {
       val dataId = TestValuesTableFactory.registerData(data)
+      val cacheOptions =
+        if (enableCache)
+          s"""
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupOptions.LookupCacheType.PARTIAL}',
+             |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
+             |""".stripMargin
+        else ""
+
       tEnv.executeSql(s"""
                          |CREATE TABLE $tableName (
                          |  `age` INT,
                          |  `id` BIGINT,
                          |  `name` STRING
                          |) WITH (
+                         |  $cacheOptions
                          |  'connector' = 'values',
                          |  'data-id' = '$dataId',
                          |  'async' = '$isAsyncMode',
@@ -114,6 +125,13 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
   private def createLookupTableWithComputedColumn(tableName: String, data: List[Row]): Unit = {
     if (!legacyTableSource) {
       val dataId = TestValuesTableFactory.registerData(data)
+      val cacheOptions =
+        if (enableCache)
+          s"""
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupOptions.LookupCacheType.PARTIAL}',
+             |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
+             |""".stripMargin
+        else ""
       tEnv.executeSql(s"""
                          |CREATE TABLE $tableName (
                          |  `age` INT,
@@ -121,6 +139,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
                          |  `name` STRING,
                          |  `nominal_age` as age + 1
                          |) WITH (
+                         |  $cacheOptions
                          |  'connector' = 'values',
                          |  'data-id' = '$dataId',
                          |  'async' = '$isAsyncMode',
@@ -308,13 +327,22 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
 object LookupJoinITCase {
 
-  @Parameterized.Parameters(name = "LegacyTableSource={0}, isAsyncMode = {1}")
+  val LEGACY_TABLE_SOURCE: JBoolean = JBoolean.TRUE;
+  val DYNAMIC_TABLE_SOURCE: JBoolean = JBoolean.FALSE;
+  val ASYNC_MODE: JBoolean = JBoolean.TRUE;
+  val SYNC_MODE: JBoolean = JBoolean.FALSE;
+  val ENABLE_CACHE: JBoolean = JBoolean.TRUE;
+  val DISABLE_CACHE: JBoolean = JBoolean.FALSE;
+
+  @Parameterized.Parameters(name = "LegacyTableSource={0}, isAsyncMode = {1}, enableCache = {2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
-      Array(JBoolean.TRUE, JBoolean.TRUE),
-      Array(JBoolean.TRUE, JBoolean.FALSE),
-      Array(JBoolean.FALSE, JBoolean.TRUE),
-      Array(JBoolean.FALSE, JBoolean.FALSE)
+      Array(LEGACY_TABLE_SOURCE, ASYNC_MODE, DISABLE_CACHE),
+      Array(LEGACY_TABLE_SOURCE, SYNC_MODE, DISABLE_CACHE),
+      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, DISABLE_CACHE),
+      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, DISABLE_CACHE),
+      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, ENABLE_CACHE),
+      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, ENABLE_CACHE)
     )
   }
 }

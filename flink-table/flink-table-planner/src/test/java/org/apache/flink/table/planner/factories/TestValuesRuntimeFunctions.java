@@ -37,11 +37,13 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter;
+import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.FunctionContext;
-import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.LookupFunction;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -65,6 +67,7 @@ import java.util.concurrent.Executors;
 
 import static org.apache.flink.table.planner.factories.TestValuesTableFactory.RESOURCE_COUNTER;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Runtime function implementations for {@link TestValuesTableFactory}. */
@@ -550,40 +553,70 @@ final class TestValuesRuntimeFunctions {
      * A lookup function which find matched rows with the given fields. NOTE: We have to declare it
      * as public because it will be used in code generation.
      */
-    public static class TestValuesLookupFunction extends TableFunction<Row> {
+    public static class TestValuesLookupFunction extends LookupFunction {
 
         private static final long serialVersionUID = 1L;
-        private final Map<Row, List<Row>> data;
+        private final List<Row> data;
+        private final int[] lookupIndices;
+        private final LookupTableSource.DataStructureConverter converter;
+        private transient Map<RowData, List<RowData>> indexedData;
         private transient boolean isOpenCalled = false;
 
-        protected TestValuesLookupFunction(Map<Row, List<Row>> data) {
+        protected TestValuesLookupFunction(
+                List<Row> data,
+                int[] lookupIndices,
+                LookupTableSource.DataStructureConverter converter) {
             this.data = data;
+            this.lookupIndices = lookupIndices;
+            this.converter = converter;
         }
 
         @Override
         public void open(FunctionContext context) throws Exception {
             RESOURCE_COUNTER.incrementAndGet();
             isOpenCalled = true;
+            indexDataByKey();
         }
 
-        public void eval(Object... inputs) {
+        @Override
+        public Collection<RowData> lookup(RowData keyRow) throws IOException {
             checkArgument(isOpenCalled, "open() is not called.");
-            Row key = Row.of(inputs);
-            if (Arrays.asList(inputs).contains(null)) {
-                throw new IllegalArgumentException(
+            for (int i = 0; i < keyRow.getArity(); i++) {
+                checkNotNull(
+                        ((GenericRowData) keyRow).getField(i),
                         String.format(
                                 "Lookup key %s contains null value, which should not happen.",
-                                key));
+                                keyRow));
             }
-            List<Row> list = data.get(key);
-            if (list != null) {
-                list.forEach(this::collect);
-            }
+            return indexedData.get(keyRow);
         }
 
         @Override
         public void close() throws Exception {
             RESOURCE_COUNTER.decrementAndGet();
+        }
+
+        private void indexDataByKey() {
+            indexedData = new HashMap<>();
+            data.forEach(
+                    record -> {
+                        GenericRowData rowData = (GenericRowData) converter.toInternal(record);
+                        checkNotNull(
+                                rowData, "Cannot convert record to internal GenericRowData type");
+                        RowData key =
+                                GenericRowData.of(
+                                        Arrays.stream(lookupIndices)
+                                                .mapToObj(rowData::getField)
+                                                .toArray());
+                        List<RowData> list = indexedData.get(key);
+                        if (list != null) {
+                            list.add(rowData);
+                        } else {
+                            list = new ArrayList<>();
+                            list.add(rowData);
+                            indexedData.put(key, list);
+                        }
+                    });
         }
     }
 

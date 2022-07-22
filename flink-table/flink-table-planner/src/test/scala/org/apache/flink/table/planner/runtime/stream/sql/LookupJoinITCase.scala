@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.connector.source.lookup.LookupOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.TestAddWithOpen
@@ -37,7 +38,7 @@ import java.util.{Collection => JCollection}
 import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
-class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
+class LookupJoinITCase(legacyTableSource: Boolean, enableCache: Boolean) extends StreamingTestBase {
 
   val data = List(
     rowOf(1L, 12, "Julian"),
@@ -100,12 +101,21 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
         tableName)
     } else {
       val dataId = TestValuesTableFactory.registerData(data)
+      val cacheOptions =
+        if (enableCache)
+          s"""
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupOptions.LookupCacheType.PARTIAL}',
+             |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
+             |""".stripMargin
+        else ""
+
       tEnv.executeSql(s"""
                          |CREATE TABLE $tableName (
                          |  `age` INT,
                          |  `id` BIGINT,
                          |  `name` STRING
                          |) WITH (
+                         |  $cacheOptions
                          |  'connector' = 'values',
                          |  'data-id' = '$dataId'
                          |)
@@ -116,6 +126,13 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
   private def createLookupTableWithComputedColumn(tableName: String, data: List[Row]): Unit = {
     if (!legacyTableSource) {
       val dataId = TestValuesTableFactory.registerData(data)
+      val cacheOptions =
+        if (enableCache)
+          s"""
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupOptions.LookupCacheType.PARTIAL}',
+             |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
+             |""".stripMargin
+        else ""
       tEnv.executeSql(s"""
                          |CREATE TABLE $tableName (
                          |  `age` INT,
@@ -123,6 +140,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
                          |  `name` STRING,
                          |  `nominal_age` as age + 1
                          |) WITH (
+                         |  $cacheOptions
                          |  'connector' = 'values',
                          |  'data-id' = '$dataId'
                          |)
@@ -532,8 +550,17 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 }
 
 object LookupJoinITCase {
-  @Parameterized.Parameters(name = "LegacyTableSource={0}")
+
+  val LEGACY_TABLE_SOURCE: JBoolean = JBoolean.TRUE;
+  val DYNAMIC_TABLE_SOURCE: JBoolean = JBoolean.FALSE;
+  val ENABLE_CACHE: JBoolean = JBoolean.TRUE;
+  val DISABLE_CACHE: JBoolean = JBoolean.FALSE;
+
+  @Parameterized.Parameters(name = "LegacyTableSource={0}, EnableCache={1}")
   def parameters(): JCollection[Array[Object]] = {
-    Seq[Array[AnyRef]](Array(JBoolean.TRUE), Array(JBoolean.FALSE))
+    Seq[Array[AnyRef]](
+      Array(LEGACY_TABLE_SOURCE, DISABLE_CACHE),
+      Array(DYNAMIC_TABLE_SOURCE, ENABLE_CACHE),
+      Array(DYNAMIC_TABLE_SOURCE, DISABLE_CACHE))
   }
 }
