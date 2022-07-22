@@ -370,6 +370,10 @@ public class SqlFunctionUtils {
     public static String repeat(String str, int repeat) {
         return EncodingUtils.repeat(str, repeat);
     }
+    /** Returns an expr where all characters in from have been replaced with those in to. */
+    public static String translate3(String str, String search, String replacement) {
+        return org.apache.commons.lang3.StringUtils.replaceChars(str, search, replacement);
+    }
 
     /** Replaces all the old strings with the replacement string. */
     public static String replace(String str, String oldStr, String replacement) {

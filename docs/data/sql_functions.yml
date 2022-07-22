@@ -293,6 +293,9 @@ string:
   - sql: REPLACE(string1, string2, string3)
     table: STRING1.replace(STRING2, STRING3)
     description: Returns a new string which replaces all the occurrences of STRING2 with STRING3 (non-overlapping) from STRING1. E.g., 'hello world'.replace('world', 'flink') returns 'hello flink'; 'ababab'.replace('abab', 'z') returns 'zab'.
+  - sql: TRANSLATE(string1, string2, string3)
+    table: STRING1.translate(STRING2, STRING3)
+    description: Returns an expr where all characters in from have been replaced with those in to. If to has a shorter length than from unmatched characters are removed. E.g., 'AaBbCc'.translate('abc', '123') returns 'A1B2C3'; 'AaBbCc'.translate('abc', '1') returns 'A1BC'.
   - sql: REGEXP_EXTRACT(string1, string2[, integer])
     table: STRING1.regexpExtract(STRING2[, INTEGER1])
     description: |
