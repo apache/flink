@@ -71,9 +71,9 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
     }
 
     /**
-     * Distinguish if the function is a generic function.
+     * Distinguish if the function is a Flink function.
      *
-     * @return whether the function is a generic function
+     * @return whether the function is a Flink function
      */
     private boolean isFlinkFunction(CatalogFunction catalogFunction, ClassLoader classLoader) {
         if (catalogFunction.getFunctionLanguage() == FunctionLanguage.PYTHON) {

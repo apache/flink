@@ -140,7 +140,7 @@ public class HiveModule implements Module {
         if (name.equalsIgnoreCase("internal_interval")) {
             return Optional.of(
                     factory.createFunctionDefinitionFromHiveFunction(
-                            name, HiveGenericUDFInternalInterval.class.getName()));
+                            name, HiveGenericUDFInternalInterval.class.getName(), context));
         }
 
         Optional<FunctionInfo> info = hiveShim.getBuiltInFunctionInfo(name);

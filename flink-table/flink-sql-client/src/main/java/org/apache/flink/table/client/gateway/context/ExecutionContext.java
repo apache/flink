@@ -36,10 +36,8 @@ import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.util.MutableURLClassLoader;
-import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import java.lang.reflect.Method;
-import java.util.function.Supplier;
 
 import static org.apache.flink.table.client.gateway.context.SessionContext.SessionState;
 
