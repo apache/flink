@@ -45,7 +45,7 @@ public class SqlGatewayOptionsParser {
                     .argName("property=value")
                     .numberOfArgs(2)
                     .valueSeparator('=')
-                    .desc("use value for given property")
+                    .desc("Use value for given property")
                     .build();
 
     // --------------------------------------------------------------------------------------------

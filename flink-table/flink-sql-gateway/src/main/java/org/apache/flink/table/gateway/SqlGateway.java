@@ -20,6 +20,9 @@ package org.apache.flink.table.gateway;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.JvmShutdownSafeguard;
+import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils;
@@ -37,6 +40,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 
 /** Main entry point for the SQL Gateway. */
 public class SqlGateway {
@@ -45,15 +49,17 @@ public class SqlGateway {
 
     private final List<SqlGatewayEndpoint> endpoints;
     private final Properties dynamicConfig;
+    private final CountDownLatch latch;
 
     private SessionManager sessionManager;
 
     public SqlGateway(Properties dynamicConfig) {
         this.endpoints = new ArrayList<>();
         this.dynamicConfig = dynamicConfig;
+        this.latch = new CountDownLatch(1);
     }
 
-    public void start() {
+    public void start() throws Exception {
         DefaultContext context =
                 DefaultContext.load(ConfigurationUtils.createConfiguration(dynamicConfig));
         sessionManager = new SessionManager(context);
@@ -83,9 +89,19 @@ public class SqlGateway {
         if (sessionManager != null) {
             sessionManager.stop();
         }
+        latch.countDown();
+    }
+
+    public void waitUntilStop() throws Exception {
+        latch.await();
     }
 
     public static void main(String[] args) {
+        // startup checks and logging
+        EnvironmentInformation.logEnvironmentInfo(LOG, "SqlGateway", args);
+        SignalHandler.register(LOG);
+        JvmShutdownSafeguard.installAsShutdownHook(LOG);
+
         startSqlGateway(System.out, args);
     }
 
@@ -102,8 +118,13 @@ public class SqlGateway {
         try {
             Runtime.getRuntime().addShutdownHook(new ShutdownThread(gateway));
             gateway.start();
-            gateway.awaitTermination();
+            gateway.waitUntilStop();
         } catch (Throwable t) {
+            // User uses ctrl + c to cancel the Gateway manually
+            if (t instanceof InterruptedException) {
+                LOG.info("Caught " + t.getClass().getSimpleName() + ". Shutting down.");
+                return;
+            }
             // make space in terminal
             stream.println();
             stream.println();
@@ -112,30 +133,6 @@ public class SqlGateway {
                     t);
             throw new SqlGatewayException(
                     "Unexpected exception. This is a bug. Please consider filing an issue.", t);
-        }
-    }
-
-    /**
-     * Wait all endpoints terminate. In some cases, any of the endpoints get unrecoverable exception
-     * terminate all the running endpoints. If the error is related to the endpoint itself, the
-     * Gateway process should not exit and continue running.
-     *
-     * <p>The current implementation is simplified. If uncaught error happens, terminate the
-     * Gateway.
-     */
-    private void awaitTermination() throws Exception {
-        for (SqlGatewayEndpoint endpoint : endpoints) {
-            try {
-                endpoint.awaitTermination();
-            } catch (Throwable t) {
-                // User uses ctrl + c to cancel the Gateway manually
-                if (t instanceof InterruptedException) {
-                    LOG.info("Caught " + t.getClass().getSimpleName() + ". Shutting down.");
-                    return;
-                } else {
-                    throw t;
-                }
-            }
         }
     }
 

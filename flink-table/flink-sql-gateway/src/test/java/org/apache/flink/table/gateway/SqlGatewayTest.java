@@ -80,7 +80,7 @@ public class SqlGatewayTest {
                         "Start the Flink SQL Gateway as a daemon to submit Flink SQL.\n"
                                 + "\n"
                                 + "  Syntax: start [OPTIONS]\n"
-                                + "     -D<property=value>   use value for given property\n"
+                                + "     -D <property=value>   Use value for given property\n"
                                 + "     -h,--help             Show the help message with descriptions of all\n"
                                 + "                           options.\n\n");
     }

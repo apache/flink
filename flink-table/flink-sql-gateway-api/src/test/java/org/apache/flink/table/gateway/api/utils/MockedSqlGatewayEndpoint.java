@@ -20,22 +20,19 @@ package org.apache.flink.table.gateway.api.utils;
 
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
 
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ConcurrentHashMap;
 
 /** Mocked {@link SqlGatewayEndpoint}. */
 public class MockedSqlGatewayEndpoint implements SqlGatewayEndpoint {
 
-    private static final Set<String> RUNNING_ENDPOINTS = new HashSet<>();
+    private static final Set<String> RUNNING_ENDPOINTS = ConcurrentHashMap.newKeySet();
 
     private final String id;
     private final String host;
     private final int port;
     private final String description;
-
-    private final CountDownLatch latch;
 
     public static boolean isRunning(String id) {
         return RUNNING_ENDPOINTS.contains(id);
@@ -46,7 +43,6 @@ public class MockedSqlGatewayEndpoint implements SqlGatewayEndpoint {
         this.host = host;
         this.port = port;
         this.description = description;
-        this.latch = new CountDownLatch(1);
 
         if (RUNNING_ENDPOINTS.contains(id)) {
             throw new IllegalArgumentException(
@@ -61,13 +57,7 @@ public class MockedSqlGatewayEndpoint implements SqlGatewayEndpoint {
 
     @Override
     public void stop() throws Exception {
-        latch.countDown();
         RUNNING_ENDPOINTS.remove(id);
-    }
-
-    @Override
-    public void awaitTermination() throws Exception {
-        latch.await();
     }
 
     @Override
