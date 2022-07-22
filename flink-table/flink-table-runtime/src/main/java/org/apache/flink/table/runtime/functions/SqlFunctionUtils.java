@@ -422,10 +422,9 @@ public class SqlFunctionUtils {
      * @param str target string.
      * @param delim An expression matching the type of expr specifying the delimiter.
      * @param index An INTEGER expression to count the delimiters.
-     * @return
-     * The result matches the type of expr.
-     * If count is positive, everything to the left of the final delimiter (counting from the left) is returned.
-     * If count is negative, everything to the right of the final delimiter (counting from the right) is returned.
+     * @return The result matches the type of expr. If count is positive, everything to the left of
+     *     the final delimiter (counting from the left) is returned. If count is negative,
+     *     everything to the right of the final delimiter (counting from the right) is returned.
      */
     public static String substringIndex(String str, String delim, int index) {
         String[] values = StringUtils.splitByWholeSeparatorPreserveAllTokens(str, delim);

@@ -662,8 +662,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     }
   }
 
-
-
   @Test
   def testLPad(): Unit = {
     testSqlApi("lpad(f33,1,'??')", "NULL")
