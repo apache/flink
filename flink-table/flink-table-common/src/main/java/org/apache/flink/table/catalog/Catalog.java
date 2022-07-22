@@ -44,6 +44,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * This interface is responsible for reading and writing metadata such as database/table/views/UDFs
  * from a registered catalog. It connects a registered catalog and Flink's Table API. This interface
@@ -577,7 +579,15 @@ public interface Catalog {
     default List<CatalogTableStatistics> bulkGetPartitionStatistics(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException, CatalogException {
-        return new ArrayList<>(0);
+
+        checkNotNull(partitionSpecs, "partitionSpecs cannot be null");
+
+        List<CatalogTableStatistics> result = new ArrayList<>(partitionSpecs.size());
+        for (CatalogPartitionSpec partitionSpec : partitionSpecs) {
+            result.add(getPartitionStatistics(tablePath, partitionSpec));
+        }
+
+        return result;
     }
 
     /**
@@ -607,17 +617,15 @@ public interface Catalog {
     default List<CatalogColumnStatistics> bulkGetPartitionColumnStatistics(
             ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionNotExistException, CatalogException {
-        return new ArrayList<>(0);
-    }
 
-    /**
-     * SQL planner can use this method to identify if the catalog implementation support bulk get or
-     * not. The default catalog implementation does not support bulk get.
-     *
-     * @return true means bulk get is supported.
-     */
-    default boolean isBulkGetSupported() {
-        return false;
+        checkNotNull(partitionSpecs, "partitionSpecs cannot be null");
+
+        List<CatalogColumnStatistics> result = new ArrayList<>(partitionSpecs.size());
+        for (CatalogPartitionSpec partitionSpec : partitionSpecs) {
+            result.add(getPartitionColumnStatistics(tablePath, partitionSpec));
+        }
+
+        return result;
     }
 
     /**
