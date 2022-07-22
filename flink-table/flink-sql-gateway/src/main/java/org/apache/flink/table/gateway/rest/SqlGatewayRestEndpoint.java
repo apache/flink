@@ -31,6 +31,8 @@ import org.apache.flink.table.gateway.rest.handler.session.CloseSessionHandler;
 import org.apache.flink.table.gateway.rest.handler.session.GetSessionConfigHandler;
 import org.apache.flink.table.gateway.rest.handler.session.OpenSessionHandler;
 import org.apache.flink.table.gateway.rest.handler.session.TriggerSessionHeartbeatHandler;
+import org.apache.flink.table.gateway.rest.handler.util.GetApiVersionHandler;
+import org.apache.flink.table.gateway.rest.handler.util.GetInfoHandler;
 import org.apache.flink.table.gateway.rest.header.operation.CancelOperationHeaders;
 import org.apache.flink.table.gateway.rest.header.operation.CloseOperationHeaders;
 import org.apache.flink.table.gateway.rest.header.operation.GetOperationStatusHeaders;
@@ -38,6 +40,8 @@ import org.apache.flink.table.gateway.rest.header.session.CloseSessionHeaders;
 import org.apache.flink.table.gateway.rest.header.session.GetSessionConfigHeaders;
 import org.apache.flink.table.gateway.rest.header.session.OpenSessionHeaders;
 import org.apache.flink.table.gateway.rest.header.session.TriggerSessionHeartbeatHeaders;
+import org.apache.flink.table.gateway.rest.header.util.GetApiVersionHeaders;
+import org.apache.flink.table.gateway.rest.header.util.GetInfoHeaders;
 import org.apache.flink.util.ConfigurationException;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
@@ -64,6 +68,7 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
         List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>();
         addSessionRelatedHandlers(handlers);
         addOperationRelatedHandlers(handlers);
+        addUtilRelatedHandlers(handlers);
         return handlers;
     }
 
@@ -116,6 +121,20 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
                 new CloseOperationHandler(
                         service, responseHeaders, CloseOperationHeaders.getInstance());
         handlers.add(Tuple2.of(CloseOperationHeaders.getInstance(), closeOperationHandler));
+    }
+
+    protected void addUtilRelatedHandlers(
+            List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers) {
+
+        // Get info
+        GetInfoHandler getInfoHandler =
+                new GetInfoHandler(service, responseHeaders, GetInfoHeaders.getInstance());
+        handlers.add(Tuple2.of(GetInfoHeaders.getInstance(), getInfoHandler));
+        // Get version
+        GetApiVersionHandler getApiVersionHandler =
+                new GetApiVersionHandler(
+                        service, responseHeaders, GetApiVersionHeaders.getInstance());
+        handlers.add(Tuple2.of(GetApiVersionHeaders.getInstance(), getApiVersionHandler));
     }
 
     @Override
