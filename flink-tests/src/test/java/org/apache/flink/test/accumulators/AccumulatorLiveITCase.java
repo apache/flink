@@ -148,12 +148,10 @@ public class AccumulatorLiveITCase extends TestLogger {
         final ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
 
         final CheckedThread submissionThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
-                    }
-                };
+                new CheckedThread(
+                        () ->
+                                submitJobAndWaitForResult(
+                                        client, jobGraph, CheckedThread.class.getClassLoader()));
 
         submissionThread.start();
 

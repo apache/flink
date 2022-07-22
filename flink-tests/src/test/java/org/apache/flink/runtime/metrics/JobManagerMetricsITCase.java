@@ -65,31 +65,28 @@ public class JobManagerMetricsITCase extends TestLogger {
     @Before
     public void setUp() throws Exception {
         jobExecuteThread =
-                new CheckedThread() {
+                new CheckedThread(
+                        () -> {
+                            StreamExecutionEnvironment env =
+                                    StreamExecutionEnvironment.getExecutionEnvironment();
+                            env.addSource(
+                                            new SourceFunction<String>() {
 
-                    @Override
-                    public void go() throws Exception {
-                        StreamExecutionEnvironment env =
-                                StreamExecutionEnvironment.getExecutionEnvironment();
-                        env.addSource(
-                                        new SourceFunction<String>() {
+                                                @Override
+                                                public void run(SourceContext<String> ctx)
+                                                        throws Exception {
+                                                    sync.block();
+                                                }
 
-                                            @Override
-                                            public void run(SourceContext<String> ctx)
-                                                    throws Exception {
-                                                sync.block();
-                                            }
+                                                @Override
+                                                public void cancel() {
+                                                    sync.releaseBlocker();
+                                                }
+                                            })
+                                    .addSink(new PrintSinkFunction());
 
-                                            @Override
-                                            public void cancel() {
-                                                sync.releaseBlocker();
-                                            }
-                                        })
-                                .addSink(new PrintSinkFunction());
-
-                        env.execute();
-                    }
-                };
+                            env.execute();
+                        });
 
         jobExecuteThread.start();
         sync.awaitBlocker();

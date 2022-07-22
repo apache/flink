@@ -106,12 +106,7 @@ class OutputFormatBaseTest {
             assertThat(testOutputFormat.getAcquiredPermits()).isEqualTo(1);
 
             CheckedThread checkedThread =
-                    new CheckedThread("Flink-OutputFormatBaseTest") {
-                        @Override
-                        public void go() throws Exception {
-                            testOutputFormat.close();
-                        }
-                    };
+                    new CheckedThread(() -> testOutputFormat.close(), "Flink-OutputFormatBaseTest");
             checkedThread.start();
             while (checkedThread.getState() != Thread.State.TIMED_WAITING) {
                 Thread.sleep(5);

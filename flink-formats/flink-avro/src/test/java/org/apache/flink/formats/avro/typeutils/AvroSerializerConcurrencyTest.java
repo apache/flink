@@ -49,12 +49,7 @@ class AvroSerializerConcurrencyTest {
 
         // this thread serializes and gets stuck there
         final CheckedThread thread =
-                new CheckedThread("serializer") {
-                    @Override
-                    public void go() throws Exception {
-                        serializer.serialize("a value", lockingOut);
-                    }
-                };
+                new CheckedThread(() -> serializer.serialize("a value", lockingOut), "serializer");
 
         thread.start();
         sync.awaitBlocker();

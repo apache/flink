@@ -91,38 +91,16 @@ public class BlobCachePutTest extends TestLogger {
 
     /** Checked thread that calls {@link TransientBlobCache#getStorageLocation(JobID, BlobKey)}. */
     public static class TransientBlobCacheGetStorageLocation extends CheckedThread {
-        private final TransientBlobCache cache;
-        private final JobID jobId;
-        private final BlobKey key;
-
         TransientBlobCacheGetStorageLocation(
                 TransientBlobCache cache, @Nullable JobID jobId, BlobKey key) {
-            this.cache = cache;
-            this.jobId = jobId;
-            this.key = key;
-        }
-
-        @Override
-        public void go() throws Exception {
-            cache.getStorageLocation(jobId, key);
+            super(() -> cache.getStorageLocation(jobId, key));
         }
     }
 
     /** Checked thread that calls {@link PermanentBlobCache#getStorageLocation(JobID, BlobKey)}. */
     public static class PermanentBlobCacheGetStorageLocation extends CheckedThread {
-        private final PermanentBlobCache cache;
-        private final JobID jobId;
-        private final BlobKey key;
-
         PermanentBlobCacheGetStorageLocation(PermanentBlobCache cache, JobID jobId, BlobKey key) {
-            this.cache = cache;
-            this.jobId = jobId;
-            this.key = key;
-        }
-
-        @Override
-        public void go() throws Exception {
-            cache.getStorageLocation(jobId, key);
+            super(() -> cache.getStorageLocation(jobId, key));
         }
     }
 

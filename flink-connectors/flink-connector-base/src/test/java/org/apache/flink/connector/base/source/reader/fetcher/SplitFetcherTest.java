@@ -127,7 +127,7 @@ public class SplitFetcherTest {
                         queue,
                         new TestingSplitReader<>(finishedSplitFetch("test-split")));
 
-        final QueueDrainerThread queueDrainer = new QueueDrainerThread(queue, fetcher, 1);
+        final QueueDrainerThread queueDrainer = QueueDrainerThread.create(queue, fetcher, 1);
         queueDrainer.start();
 
         fetcher.runOnce();
@@ -152,7 +152,7 @@ public class SplitFetcherTest {
                         queue,
                         new TestingSplitReader<>(finishedSplitFetch("test-split")));
 
-        final QueueDrainerThread queueDrainer = new QueueDrainerThread(queue, fetcher, 1);
+        final QueueDrainerThread queueDrainer = QueueDrainerThread.create(queue, fetcher, 1);
         queueDrainer.start();
 
         final CompletableFuture<?> future = queue.getAvailabilityFuture();
@@ -297,37 +297,50 @@ public class SplitFetcherTest {
     // ------------------------------------------------------------------------
 
     private static final class QueueDrainerThread extends CheckedThread {
+        private final State state;
 
-        private final FutureCompletingBlockingQueue<?> queue;
-        private final SplitFetcher<?, ?> fetcher;
-        private final int numFetchesToTake;
+        private QueueDrainerThread(State state) {
+            super(
+                    () -> {
+                        int remaining = state.numFetchesToTake;
+                        while (remaining > 0) {
+                            remaining--;
+                            state.queue.take();
+                        }
 
-        private volatile boolean wasIdleWhenFinished;
+                        state.wasIdleWhenFinished = state.fetcher.isIdle();
+                    },
+                    "Queue Drainer");
+            setPriority(Thread.MAX_PRIORITY);
+            this.state = state;
+        }
 
-        QueueDrainerThread(
+        public static QueueDrainerThread create(
                 FutureCompletingBlockingQueue<?> queue,
                 SplitFetcher<?, ?> fetcher,
                 int numFetchesToTake) {
-            super("Queue Drainer");
-            setPriority(Thread.MAX_PRIORITY);
-            this.queue = queue;
-            this.fetcher = fetcher;
-            this.numFetchesToTake = numFetchesToTake;
-        }
-
-        @Override
-        public void go() throws Exception {
-            int remaining = numFetchesToTake;
-            while (remaining > 0) {
-                remaining--;
-                queue.take();
-            }
-
-            wasIdleWhenFinished = fetcher.isIdle();
+            return new QueueDrainerThread(new State(queue, fetcher, numFetchesToTake));
         }
 
         public boolean wasIdleWhenFinished() {
-            return wasIdleWhenFinished;
+            return state.wasIdleWhenFinished;
+        }
+
+        private static class State {
+            private final FutureCompletingBlockingQueue<?> queue;
+            private final SplitFetcher<?, ?> fetcher;
+            private final int numFetchesToTake;
+
+            private volatile boolean wasIdleWhenFinished;
+
+            public State(
+                    FutureCompletingBlockingQueue<?> queue,
+                    SplitFetcher<?, ?> fetcher,
+                    int numFetchesToTake) {
+                this.queue = queue;
+                this.fetcher = fetcher;
+                this.numFetchesToTake = numFetchesToTake;
+            }
         }
     }
 }

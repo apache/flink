@@ -237,22 +237,20 @@ class HsSubpartitionFileReaderImplTest {
         writeDataToFile(targetChannel, 0, numBuffers);
         subpartitionFileReader.prepareForScheduling();
         CheckedThread checkedThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        int numConsumedBuffer = 0;
-                        while (numConsumedBuffer < numBuffers) {
-                            BufferIndexOrError bufferIndexOrError = loadedBuffers.poll();
-                            if (bufferIndexOrError != null) {
-                                assertThat(bufferIndexOrError.getBuffer()).isPresent();
-                                numConsumedBuffer++;
-                            } else {
-                                notifyLatch.await();
-                                notifyLatch.reset();
+                new CheckedThread(
+                        () -> {
+                            int numConsumedBuffer = 0;
+                            while (numConsumedBuffer < numBuffers) {
+                                BufferIndexOrError bufferIndexOrError = loadedBuffers.poll();
+                                if (bufferIndexOrError != null) {
+                                    assertThat(bufferIndexOrError.getBuffer()).isPresent();
+                                    numConsumedBuffer++;
+                                } else {
+                                    notifyLatch.await();
+                                    notifyLatch.reset();
+                                }
                             }
-                        }
-                    }
-                };
+                        });
         checkedThread.start();
 
         // read data from disk then add it to buffer queue.

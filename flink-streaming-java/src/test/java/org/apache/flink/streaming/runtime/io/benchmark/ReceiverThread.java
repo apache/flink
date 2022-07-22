@@ -35,63 +35,75 @@ import static org.apache.flink.util.Preconditions.checkState;
 public abstract class ReceiverThread extends CheckedThread {
     protected static final Logger LOG = LoggerFactory.getLogger(ReceiverThread.class);
 
-    protected final int expectedRepetitionsOfExpectedRecord;
+    private final State state;
 
-    protected int expectedRecordCounter;
-    protected CompletableFuture<Long> expectedRecord = new CompletableFuture<>();
-    protected CompletableFuture<?> recordsProcessed = new CompletableFuture<>();
+    ReceiverThread(State state) {
+        super(
+                () -> {
+                    try {
+                        while (state.running) {
+                            state.readRecords(state.getExpectedRecord().get());
+                            state.finishProcessingExpectedRecords();
+                        }
+                    } catch (InterruptedException e) {
+                        if (state.running) {
+                            throw e;
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                });
 
-    protected volatile boolean running;
-
-    ReceiverThread(int expectedRepetitionsOfExpectedRecord) {
         setName(this.getClass().getName());
-
-        this.expectedRepetitionsOfExpectedRecord = expectedRepetitionsOfExpectedRecord;
-        this.running = true;
+        this.state = state;
     }
 
-    public synchronized CompletableFuture<?> setExpectedRecord(long record) {
-        checkState(!expectedRecord.isDone());
-        checkState(!recordsProcessed.isDone());
-        expectedRecord.complete(record);
-        expectedRecordCounter = 0;
-        return recordsProcessed;
+    public CompletableFuture<?> setExpectedRecord(long record) {
+        return state.setExpectedRecord(record);
     }
-
-    private synchronized CompletableFuture<Long> getExpectedRecord() {
-        return expectedRecord;
-    }
-
-    private synchronized void finishProcessingExpectedRecords() {
-        checkState(expectedRecord.isDone());
-        checkState(!recordsProcessed.isDone());
-
-        recordsProcessed.complete(null);
-        expectedRecord = new CompletableFuture<>();
-        recordsProcessed = new CompletableFuture<>();
-    }
-
-    @Override
-    public void go() throws Exception {
-        try {
-            while (running) {
-                readRecords(getExpectedRecord().get());
-                finishProcessingExpectedRecords();
-            }
-        } catch (InterruptedException e) {
-            if (running) {
-                throw e;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    protected abstract void readRecords(long lastExpectedRecord) throws Exception;
 
     public void shutdown() {
-        running = false;
+        state.running = false;
         interrupt();
-        expectedRecord.complete(0L);
+        state.expectedRecord.complete(0L);
+    }
+
+    /** Maintain the states of ReceiverThread. */
+    protected abstract static class State {
+        protected final int expectedRepetitionsOfExpectedRecord;
+
+        protected int expectedRecordCounter;
+        protected CompletableFuture<Long> expectedRecord = new CompletableFuture<>();
+        protected CompletableFuture<?> recordsProcessed = new CompletableFuture<>();
+
+        protected volatile boolean running;
+
+        protected State(int expectedRepetitionsOfExpectedRecord) {
+            this.expectedRepetitionsOfExpectedRecord = expectedRepetitionsOfExpectedRecord;
+            this.running = true;
+        }
+
+        public synchronized CompletableFuture<?> setExpectedRecord(long record) {
+            checkState(!expectedRecord.isDone());
+            checkState(!recordsProcessed.isDone());
+            expectedRecord.complete(record);
+            expectedRecordCounter = 0;
+            return recordsProcessed;
+        }
+
+        private synchronized CompletableFuture<Long> getExpectedRecord() {
+            return expectedRecord;
+        }
+
+        protected abstract void readRecords(long lastExpectedRecord) throws Exception;
+
+        private synchronized void finishProcessingExpectedRecords() {
+            checkState(expectedRecord.isDone());
+            checkState(!recordsProcessed.isDone());
+
+            recordsProcessed.complete(null);
+            expectedRecord = new CompletableFuture<>();
+            recordsProcessed = new CompletableFuture<>();
+        }
     }
 }

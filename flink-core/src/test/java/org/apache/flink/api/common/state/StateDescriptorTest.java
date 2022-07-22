@@ -233,14 +233,12 @@ public class StateDescriptorTest {
                 new ConcurrentHashMap<>();
         for (int i = 0; i < threadNumber; i++) {
             threads.add(
-                    new CheckedThread() {
-                        @Override
-                        public void go() {
-                            desc.initializeSerializerUnlessSet(executionConfig);
-                            TypeSerializer<String> serializer = desc.getOriginalSerializer();
-                            serializers.put(System.identityHashCode(serializer), serializer);
-                        }
-                    });
+                    new CheckedThread(
+                            () -> {
+                                desc.initializeSerializerUnlessSet(executionConfig);
+                                TypeSerializer<String> serializer = desc.getOriginalSerializer();
+                                serializers.put(System.identityHashCode(serializer), serializer);
+                            }));
         }
         threads.forEach(Thread::start);
         for (CheckedThread t : threads) {

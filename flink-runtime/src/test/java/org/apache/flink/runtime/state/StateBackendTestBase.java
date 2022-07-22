@@ -1637,34 +1637,32 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                             namespaceSerializer,
                             valueSerializer));
             state.update("1");
-
             final CheckedThread getter =
-                    new CheckedThread("State getter") {
-                        @Override
-                        public void go() throws Exception {
-                            while (!isInterrupted()) {
-                                assertEquals("1", state.value());
-                            }
-                        }
-                    };
+                    new CheckedThread(
+                            () -> {
+                                while (!Thread.currentThread().isInterrupted()) {
+                                    assertEquals("1", state.value());
+                                }
+                            },
+                            "State getter");
 
             final CheckedThread serializedGetter =
-                    new CheckedThread("Serialized state getter") {
-                        @Override
-                        public void go() throws Exception {
-                            while (!isInterrupted() && getter.isAlive()) {
-                                final String serializedValue =
-                                        getSerializedValue(
-                                                kvState,
-                                                key2,
-                                                keySerializer,
-                                                namespace,
-                                                namespaceSerializer,
-                                                valueSerializer);
-                                assertEquals("1", serializedValue);
-                            }
-                        }
-                    };
+                    new CheckedThread(
+                            () -> {
+                                while (!Thread.currentThread().isInterrupted()
+                                        && getter.isAlive()) {
+                                    final String serializedValue =
+                                            getSerializedValue(
+                                                    kvState,
+                                                    key2,
+                                                    keySerializer,
+                                                    namespace,
+                                                    namespaceSerializer,
+                                                    valueSerializer);
+                                    assertEquals("1", serializedValue);
+                                }
+                            },
+                            "Serialized state getter");
 
             getter.start();
             serializedGetter.start();

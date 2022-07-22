@@ -91,17 +91,15 @@ public class DefaultJobLeaderServiceTest extends TestLogger {
                 "foobar", rpcServiceResource.getTestingRpcService(), haServices, jobLeaderListener);
 
         final CheckedThread addJobAction =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        for (int i = 0; i < numberOperations; i++) {
-                            final JobID jobId = JobID.generate();
-                            jobLeaderService.addJob(jobId, "foobar");
-                            Thread.yield();
-                            jobLeaderService.removeJob(jobId);
-                        }
-                    }
-                };
+                new CheckedThread(
+                        () -> {
+                            for (int i = 0; i < numberOperations; i++) {
+                                final JobID jobId = JobID.generate();
+                                jobLeaderService.addJob(jobId, "foobar");
+                                Thread.yield();
+                                jobLeaderService.removeJob(jobId);
+                            }
+                        });
         addJobAction.start();
 
         for (int i = 0; i < numberOperations; i++) {

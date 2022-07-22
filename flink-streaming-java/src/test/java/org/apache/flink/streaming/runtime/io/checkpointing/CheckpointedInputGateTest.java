@@ -248,13 +248,12 @@ public class CheckpointedInputGateTest {
                 // triggered or closing came first in which case we expect a CancelTaskException
                 CountDownLatch beforeLatch = new CountDownLatch(2);
                 final CheckedThread canceler =
-                        new CheckedThread("Canceler") {
-                            @Override
-                            public void go() throws IOException {
-                                beforeLatch.countDown();
-                                singleInputGate.close();
-                            }
-                        };
+                        new CheckedThread(
+                                () -> {
+                                    beforeLatch.countDown();
+                                    singleInputGate.close();
+                                },
+                                "Canceler");
                 canceler.start();
                 beforeLatch.countDown();
                 try {

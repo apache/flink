@@ -294,32 +294,26 @@ public class BoundedBlockingSubpartitionWriteReadTest {
     }
 
     private static final class LongReader extends CheckedThread {
-
-        private final ResultSubpartitionView reader;
-
-        private final long numLongs;
-
-        private final int numBuffers;
-
-        private final boolean compressionEnabled;
-
-        private final BufferDecompressor decompressor;
-
         LongReader(
                 ResultSubpartitionView reader,
                 long numLongs,
                 int numBuffers,
-                boolean compressionEnabled) {
-            this.reader = reader;
-            this.numLongs = numLongs;
-            this.numBuffers = numBuffers;
-            this.compressionEnabled = compressionEnabled;
-            this.decompressor = new BufferDecompressor(BUFFER_SIZE, COMPRESSION_CODEC);
+                boolean compressionEnabled,
+                BufferDecompressor decompressor) {
+            super(() -> readLongs(reader, numLongs, numBuffers, compressionEnabled, decompressor));
         }
 
-        @Override
-        public void go() throws Exception {
-            readLongs(reader, numLongs, numBuffers, compressionEnabled, decompressor);
+        public LongReader(
+                ResultSubpartitionView reader,
+                long numLongs,
+                int numBuffers,
+                boolean compressionEnabled) {
+            this(
+                    reader,
+                    numLongs,
+                    numBuffers,
+                    compressionEnabled,
+                    new BufferDecompressor(BUFFER_SIZE, COMPRESSION_CODEC));
         }
     }
 }

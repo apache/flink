@@ -26,28 +26,40 @@ import org.apache.flink.types.LongValue;
 /** {@link ReceiverThread} that deserialize incoming messages. */
 public class SerializingLongReceiver extends ReceiverThread {
 
-    private final MutableRecordReader<LongValue> reader;
-
-    @SuppressWarnings("WeakerAccess")
-    public SerializingLongReceiver(InputGate inputGate, int expectedRepetitionsOfExpectedRecord) {
-        super(expectedRepetitionsOfExpectedRecord);
-        this.reader =
-                new MutableRecordReader<>(
-                        inputGate,
-                        new String[] {EnvironmentInformation.getTemporaryFileDirectory()});
+    private SerializingLongReceiver(State state) {
+        super(state);
     }
 
-    @Override
-    protected void readRecords(long lastExpectedRecord) throws Exception {
-        LOG.debug("readRecords(lastExpectedRecord = {})", lastExpectedRecord);
-        final LongValue value = new LongValue();
+    public static SerializingLongReceiver create(
+            InputGate inputGate, int expectedRepetitionsOfExpectedRecord) {
+        return new SerializingLongReceiver(
+                new SerializingLongReceiver.State(inputGate, expectedRepetitionsOfExpectedRecord));
+    }
 
-        while (running && reader.next(value)) {
-            final long ts = value.getValue();
-            if (ts == lastExpectedRecord) {
-                expectedRecordCounter++;
-                if (expectedRecordCounter == expectedRepetitionsOfExpectedRecord) {
-                    break;
+    private static class State extends ReceiverThread.State {
+
+        private final MutableRecordReader<LongValue> reader;
+
+        private State(InputGate inputGate, int expectedRepetitionsOfExpectedRecord) {
+            super(expectedRepetitionsOfExpectedRecord);
+            this.reader =
+                    new MutableRecordReader<>(
+                            inputGate,
+                            new String[] {EnvironmentInformation.getTemporaryFileDirectory()});
+        }
+
+        @Override
+        protected void readRecords(long lastExpectedRecord) throws Exception {
+            LOG.debug("readRecords(lastExpectedRecord = {})", lastExpectedRecord);
+            final LongValue value = new LongValue();
+
+            while (running && reader.next(value)) {
+                final long ts = value.getValue();
+                if (ts == lastExpectedRecord) {
+                    expectedRecordCounter++;
+                    if (expectedRecordCounter == expectedRepetitionsOfExpectedRecord) {
+                        break;
+                    }
                 }
             }
         }

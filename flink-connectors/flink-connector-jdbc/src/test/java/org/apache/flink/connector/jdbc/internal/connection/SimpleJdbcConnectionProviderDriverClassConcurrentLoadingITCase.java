@@ -74,17 +74,15 @@ public class SimpleJdbcConnectionProviderDriverClassConcurrentLoadingITCase {
         Function<JdbcConnectionOptions, CheckedThread> connectionThreadCreator =
                 options -> {
                     CheckedThread thread =
-                            new CheckedThread() {
-                                @Override
-                                public void go() throws Exception {
-                                    startLatch.await();
-                                    JdbcConnectionProvider connectionProvider =
-                                            new SimpleJdbcConnectionProvider(options);
-                                    Connection connection =
-                                            connectionProvider.getOrEstablishConnection();
-                                    connection.close();
-                                }
-                            };
+                            new CheckedThread(
+                                    () -> {
+                                        startLatch.await();
+                                        JdbcConnectionProvider connectionProvider =
+                                                new SimpleJdbcConnectionProvider(options);
+                                        Connection connection =
+                                                connectionProvider.getOrEstablishConnection();
+                                        connection.close();
+                                    });
                     thread.setName("Loading " + options.getDriverName());
                     thread.setDaemon(true);
                     return thread;

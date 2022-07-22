@@ -180,13 +180,7 @@ public class ElasticsearchSinkBaseTest {
         testHarness.processElement(new StreamRecord<>("msg-3"));
         verify(sink.getMockBulkProcessor(), times(3)).add(any(IndexRequest.class));
 
-        CheckedThread snapshotThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        testHarness.snapshot(1L, 1000L);
-                    }
-                };
+        CheckedThread snapshotThread = new CheckedThread(() -> testHarness.snapshot(1L, 1000L));
         snapshotThread.start();
 
         // the snapshot should eventually be blocked before snapshot triggers flushing
@@ -296,14 +290,7 @@ public class ElasticsearchSinkBaseTest {
         testHarness.processElement(new StreamRecord<>("msg-2"));
         testHarness.processElement(new StreamRecord<>("msg-3"));
         verify(sink.getMockBulkProcessor(), times(3)).add(any(IndexRequest.class));
-
-        CheckedThread snapshotThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        testHarness.snapshot(1L, 1000L);
-                    }
-                };
+        CheckedThread snapshotThread = new CheckedThread(() -> testHarness.snapshot(1L, 1000L));
         snapshotThread.start();
 
         // the snapshot should eventually be blocked before snapshot triggers flushing
@@ -348,13 +335,7 @@ public class ElasticsearchSinkBaseTest {
         testHarness.processElement(new StreamRecord<>("msg"));
         verify(sink.getMockBulkProcessor(), times(1)).add(any(IndexRequest.class));
 
-        CheckedThread snapshotThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        testHarness.snapshot(1L, 1000L);
-                    }
-                };
+        CheckedThread snapshotThread = new CheckedThread(() -> testHarness.snapshot(1L, 1000L));
         snapshotThread.start();
 
         // the snapshot should eventually be blocked before snapshot triggers flushing

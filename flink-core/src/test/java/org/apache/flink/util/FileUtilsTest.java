@@ -515,15 +515,8 @@ public class FileUtilsTest extends TestLogger {
 
     private static class Deleter extends CheckedThread {
 
-        private final File target;
-
         Deleter(File target) {
-            this.target = target;
-        }
-
-        @Override
-        public void go() throws Exception {
-            FileUtils.deleteDirectory(target);
+            super(() -> FileUtils.deleteDirectory(target));
         }
     }
 }

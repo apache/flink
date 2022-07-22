@@ -129,12 +129,7 @@ public class KinesisDataFetcherTest extends TestLogger {
                 new DummyFlinkKinesisConsumer<>(TestUtils.getStandardProperties(), fetcher, 1, 0);
 
         CheckedThread consumerThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        consumer.run(new TestSourceContext<>());
-                    }
-                };
+                new CheckedThread(() -> consumer.run(new TestSourceContext<>()));
         consumerThread.start();
 
         // wait for the second discovery to be triggered, that has a high probability to be inside
@@ -183,12 +178,7 @@ public class KinesisDataFetcherTest extends TestLogger {
                 new DummyFlinkKinesisConsumer<>(TestUtils.getStandardProperties(), fetcher, 1, 0);
 
         CheckedThread consumerThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        consumer.run(new TestSourceContext<>());
-                    }
-                };
+                new CheckedThread(() -> consumer.run(new TestSourceContext<>()));
         consumerThread.start();
 
         fetcher.waitUntilRun();
@@ -252,12 +242,7 @@ public class KinesisDataFetcherTest extends TestLogger {
                 new DummyFlinkKinesisConsumer<>(TestUtils.getStandardProperties(), fetcher, 1, 0);
 
         CheckedThread consumerThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        consumer.run(new TestSourceContext<>());
-                    }
-                };
+                new CheckedThread(() -> consumer.run(new TestSourceContext<>()));
         consumerThread.start();
 
         fetcher.waitUntilRun();
@@ -353,13 +338,7 @@ public class KinesisDataFetcherTest extends TestLogger {
                             new SequenceNumber(restoredState.getValue())));
         }
 
-        CheckedThread runFetcherThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        fetcher.runFetcher();
-                    }
-                };
+        CheckedThread runFetcherThread = new CheckedThread(() -> fetcher.runFetcher());
         runFetcherThread.start();
 
         fetcher.waitUntilInitialDiscovery();
@@ -460,13 +439,7 @@ public class KinesisDataFetcherTest extends TestLogger {
                             new SequenceNumber(restoredState.getValue())));
         }
 
-        CheckedThread runFetcherThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        fetcher.runFetcher();
-                    }
-                };
+        CheckedThread runFetcherThread = new CheckedThread(() -> fetcher.runFetcher());
         runFetcherThread.start();
 
         fetcher.waitUntilInitialDiscovery();
@@ -567,13 +540,7 @@ public class KinesisDataFetcherTest extends TestLogger {
                             new SequenceNumber(restoredState.getValue())));
         }
 
-        CheckedThread runFetcherThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        fetcher.runFetcher();
-                    }
-                };
+        CheckedThread runFetcherThread = new CheckedThread(() -> fetcher.runFetcher());
         runFetcherThread.start();
 
         fetcher.waitUntilInitialDiscovery();
@@ -677,13 +644,7 @@ public class KinesisDataFetcherTest extends TestLogger {
                             new SequenceNumber(restoredState.getValue())));
         }
 
-        CheckedThread runFetcherThread =
-                new CheckedThread() {
-                    @Override
-                    public void go() throws Exception {
-                        fetcher.runFetcher();
-                    }
-                };
+        CheckedThread runFetcherThread = new CheckedThread(() -> fetcher.runFetcher());
         runFetcherThread.start();
 
         fetcher.waitUntilInitialDiscovery();
@@ -982,12 +943,8 @@ public class KinesisDataFetcherTest extends TestLogger {
                 new DummyFlinkKinesisConsumer<>(TestUtils.getStandardProperties(), fetcher, 1, 0);
 
         CheckedThread consumerThread =
-                new CheckedThread("FlinkKinesisConsumer") {
-                    @Override
-                    public void go() throws Exception {
-                        consumer.run(new TestSourceContext<>());
-                    }
-                };
+                new CheckedThread(
+                        () -> consumer.run(new TestSourceContext<>()), "FlinkKinesisConsumer");
         consumerThread.start();
         fetcher.waitUntilRun();
 

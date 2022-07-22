@@ -183,21 +183,14 @@ public class InitOutputPathTest {
     // ------------------------------------------------------------------------
 
     private static class FileCreator extends CheckedThread {
-
-        private final FileSystem fs;
-        private final Path path;
-
         FileCreator(FileSystem fs, Path path) {
-            this.fs = fs;
-            this.path = path;
-        }
-
-        @Override
-        public void go() throws Exception {
-            fs.initOutPathLocalFS(path.getParent(), WriteMode.OVERWRITE, true);
-            try (FSDataOutputStream out = fs.create(path, WriteMode.OVERWRITE)) {
-                out.write(11);
-            }
+            super(
+                    () -> {
+                        fs.initOutPathLocalFS(path.getParent(), WriteMode.OVERWRITE, true);
+                        try (FSDataOutputStream out = fs.create(path, WriteMode.OVERWRITE)) {
+                            out.write(11);
+                        }
+                    });
         }
     }
 

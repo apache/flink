@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.core.testutils.ThrowingRunnable;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -171,11 +172,12 @@ public class LimitedConnectionsFileSystemTest {
                         0L); // infinite inactivity timeout
 
         // create the threads that block all streams
-        final BlockingWriterThread[] threads = new BlockingWriterThread[maxConcurrentOpen];
+        final BlockingThread[] threads = new BlockingThread[maxConcurrentOpen];
         for (int i = 0; i < maxConcurrentOpen; i++) {
             Path path = new Path(tempFolder.newFile().toURI());
             threads[i] =
-                    new BlockingWriterThread(limitedFs, path, Integer.MAX_VALUE, maxConcurrentOpen);
+                    createBlockingWriterThread(
+                            limitedFs, path, Integer.MAX_VALUE, maxConcurrentOpen);
             threads[i].start();
         }
 
@@ -193,7 +195,7 @@ public class LimitedConnectionsFileSystemTest {
         }
 
         // clean shutdown
-        for (BlockingWriterThread t : threads) {
+        for (BlockingThread t : threads) {
             t.wakeup();
             t.sync();
         }
@@ -213,13 +215,14 @@ public class LimitedConnectionsFileSystemTest {
 
         // create the threads that block all streams
         final Random rnd = new Random();
-        final BlockingReaderThread[] threads = new BlockingReaderThread[maxConcurrentOpen];
+        final BlockingThread[] threads = new BlockingThread[maxConcurrentOpen];
         for (int i = 0; i < maxConcurrentOpen; i++) {
             File file = tempFolder.newFile();
             createRandomContents(file, rnd);
             Path path = new Path(file.toURI());
             threads[i] =
-                    new BlockingReaderThread(limitedFs, path, maxConcurrentOpen, Integer.MAX_VALUE);
+                    createBlockingReaderThread(
+                            limitedFs, path, maxConcurrentOpen, Integer.MAX_VALUE);
             threads[i].start();
         }
 
@@ -239,7 +242,7 @@ public class LimitedConnectionsFileSystemTest {
         }
 
         // clean shutdown
-        for (BlockingReaderThread t : threads) {
+        for (BlockingThread t : threads) {
             t.wakeup();
             t.sync();
         }
@@ -261,7 +264,7 @@ public class LimitedConnectionsFileSystemTest {
                         50); // timeout of 50 ms
 
         final WriterThread[] threads = new WriterThread[numThreads];
-        final BlockingWriterThread[] blockers = new BlockingWriterThread[numThreads];
+        final BlockingThread[] blockers = new BlockingThread[numThreads];
 
         for (int i = 0; i < numThreads; i++) {
             Path path1 = new Path(tempFolder.newFile().toURI());
@@ -269,7 +272,7 @@ public class LimitedConnectionsFileSystemTest {
 
             threads[i] = new WriterThread(limitedFs, path1, maxConcurrentOpen, Integer.MAX_VALUE);
             blockers[i] =
-                    new BlockingWriterThread(
+                    createBlockingWriterThread(
                             limitedFs, path2, maxConcurrentOpen, Integer.MAX_VALUE);
         }
 
@@ -321,7 +324,7 @@ public class LimitedConnectionsFileSystemTest {
         final Random rnd = new Random();
 
         final ReaderThread[] threads = new ReaderThread[numThreads];
-        final BlockingReaderThread[] blockers = new BlockingReaderThread[numThreads];
+        final BlockingThread[] blockers = new BlockingThread[numThreads];
 
         for (int i = 0; i < numThreads; i++) {
             File file1 = tempFolder.newFile();
@@ -335,7 +338,7 @@ public class LimitedConnectionsFileSystemTest {
 
             threads[i] = new ReaderThread(limitedFs, path1, maxConcurrentOpen, Integer.MAX_VALUE);
             blockers[i] =
-                    new BlockingReaderThread(
+                    createBlockingReaderThread(
                             limitedFs, path2, maxConcurrentOpen, Integer.MAX_VALUE);
         }
 
@@ -398,13 +401,14 @@ public class LimitedConnectionsFileSystemTest {
                 threads[i] =
                         new ReaderThread(limitedFs, path1, maxConcurrentOpen, Integer.MAX_VALUE);
                 blockers[i] =
-                        new BlockingReaderThread(
+                        createBlockingReaderThread(
                                 limitedFs, path2, maxConcurrentOpen, Integer.MAX_VALUE);
+
             } else {
                 threads[i] =
                         new WriterThread(limitedFs, path1, maxConcurrentOpen, Integer.MAX_VALUE);
                 blockers[i] =
-                        new BlockingWriterThread(
+                        createBlockingWriterThread(
                                 limitedFs, path2, maxConcurrentOpen, Integer.MAX_VALUE);
             }
         }
@@ -572,85 +576,59 @@ public class LimitedConnectionsFileSystemTest {
     // ------------------------------------------------------------------------
 
     private static final class WriterThread extends CheckedThread {
-
-        private final LimitedConnectionsFileSystem fs;
-
-        private final Path path;
-
-        private final int maxConcurrentOutputStreams;
-
-        private final int maxConcurrentStreamsTotal;
-
         WriterThread(
                 LimitedConnectionsFileSystem fs,
                 Path path,
                 int maxConcurrentOutputStreams,
                 int maxConcurrentStreamsTotal) {
+            super(
+                    () -> {
+                        try (FSDataOutputStream stream = fs.create(path, WriteMode.OVERWRITE)) {
+                            assertTrue(
+                                    fs.getNumberOfOpenOutputStreams()
+                                            <= maxConcurrentOutputStreams);
+                            assertTrue(
+                                    fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal);
 
-            this.fs = fs;
-            this.path = path;
-            this.maxConcurrentOutputStreams = maxConcurrentOutputStreams;
-            this.maxConcurrentStreamsTotal = maxConcurrentStreamsTotal;
-        }
-
-        @Override
-        public void go() throws Exception {
-
-            try (FSDataOutputStream stream = fs.create(path, WriteMode.OVERWRITE)) {
-                assertTrue(fs.getNumberOfOpenOutputStreams() <= maxConcurrentOutputStreams);
-                assertTrue(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal);
-
-                final Random rnd = new Random();
-                final byte[] data = new byte[rnd.nextInt(10000) + 1];
-                rnd.nextBytes(data);
-                stream.write(data);
-            }
+                            final Random rnd = new Random();
+                            final byte[] data = new byte[rnd.nextInt(10000) + 1];
+                            rnd.nextBytes(data);
+                            stream.write(data);
+                        }
+                    });
         }
     }
 
     private static final class ReaderThread extends CheckedThread {
-
-        private final LimitedConnectionsFileSystem fs;
-
-        private final Path path;
-
-        private final int maxConcurrentInputStreams;
-
-        private final int maxConcurrentStreamsTotal;
-
         ReaderThread(
                 LimitedConnectionsFileSystem fs,
                 Path path,
                 int maxConcurrentInputStreams,
                 int maxConcurrentStreamsTotal) {
+            super(
+                    () -> {
+                        try (FSDataInputStream stream = fs.open(path)) {
+                            assertTrue(
+                                    fs.getNumberOfOpenInputStreams() <= maxConcurrentInputStreams);
+                            assertTrue(
+                                    fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal);
 
-            this.fs = fs;
-            this.path = path;
-            this.maxConcurrentInputStreams = maxConcurrentInputStreams;
-            this.maxConcurrentStreamsTotal = maxConcurrentStreamsTotal;
-        }
+                            final byte[] readBuffer = new byte[4096];
 
-        @Override
-        public void go() throws Exception {
-
-            try (FSDataInputStream stream = fs.open(path)) {
-                assertTrue(fs.getNumberOfOpenInputStreams() <= maxConcurrentInputStreams);
-                assertTrue(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal);
-
-                final byte[] readBuffer = new byte[4096];
-
-                //noinspection StatementWithEmptyBody
-                while (stream.read(readBuffer) != -1) {}
-            }
+                            //noinspection StatementWithEmptyBody
+                            while (stream.read(readBuffer) != -1) {}
+                        }
+                    });
         }
     }
 
-    private abstract static class BlockingThread extends CheckedThread {
+    private static class BlockingThread extends CheckedThread {
 
-        private final OneShotLatch waiter = new OneShotLatch();
+        private final OneShotLatch waiter;
 
-        public void waitTillWokenUp() throws InterruptedException {
-            waiter.await();
+        public BlockingThread(ThrowingRunnable<Exception> runnable, OneShotLatch waiter) {
+            super(runnable);
+            this.waiter = waiter;
         }
 
         public void wakeup() {
@@ -658,87 +636,60 @@ public class LimitedConnectionsFileSystemTest {
         }
     }
 
-    private static final class BlockingWriterThread extends BlockingThread {
+    private static BlockingThread createBlockingWriterThread(
+            LimitedConnectionsFileSystem fs,
+            Path path,
+            int maxConcurrentOutputStreams,
+            int maxConcurrentStreamsTotal) {
+        final OneShotLatch waiter = new OneShotLatch();
 
-        private final LimitedConnectionsFileSystem fs;
+        return new BlockingThread(
+                () -> {
+                    try (FSDataOutputStream stream = fs.create(path, WriteMode.OVERWRITE)) {
+                        assertTrue(fs.getNumberOfOpenOutputStreams() <= maxConcurrentOutputStreams);
+                        assertTrue(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal);
 
-        private final Path path;
+                        final Random rnd = new Random();
+                        final byte[] data = new byte[rnd.nextInt(10000) + 1];
+                        rnd.nextBytes(data);
+                        stream.write(data);
 
-        private final int maxConcurrentOutputStreams;
+                        waiter.await();
 
-        private final int maxConcurrentStreamsTotal;
-
-        BlockingWriterThread(
-                LimitedConnectionsFileSystem fs,
-                Path path,
-                int maxConcurrentOutputStreams,
-                int maxConcurrentStreamsTotal) {
-
-            this.fs = fs;
-            this.path = path;
-            this.maxConcurrentOutputStreams = maxConcurrentOutputStreams;
-            this.maxConcurrentStreamsTotal = maxConcurrentStreamsTotal;
-        }
-
-        @Override
-        public void go() throws Exception {
-
-            try (FSDataOutputStream stream = fs.create(path, WriteMode.OVERWRITE)) {
-                assertTrue(fs.getNumberOfOpenOutputStreams() <= maxConcurrentOutputStreams);
-                assertTrue(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal);
-
-                final Random rnd = new Random();
-                final byte[] data = new byte[rnd.nextInt(10000) + 1];
-                rnd.nextBytes(data);
-                stream.write(data);
-
-                waitTillWokenUp();
-
-                // try to write one more thing, which might/should fail with an I/O exception
-                stream.write(rnd.nextInt());
-            }
-        }
+                        // try to write one more thing, which might/should fail with an I/O
+                        // exception
+                        stream.write(rnd.nextInt());
+                    }
+                },
+                waiter);
     }
 
-    private static final class BlockingReaderThread extends BlockingThread {
+    private static BlockingThread createBlockingReaderThread(
+            LimitedConnectionsFileSystem fs,
+            Path path,
+            int maxConcurrentInputStreams,
+            int maxConcurrentStreamsTotal) {
+        final OneShotLatch waiter = new OneShotLatch();
 
-        private final LimitedConnectionsFileSystem fs;
+        return new BlockingThread(
+                () -> {
+                    try (FSDataInputStream stream = fs.open(path)) {
+                        assertTrue(fs.getNumberOfOpenInputStreams() <= maxConcurrentInputStreams);
+                        assertTrue(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal);
 
-        private final Path path;
+                        final byte[] readBuffer =
+                                new byte[(int) fs.getFileStatus(path).getLen() - 1];
+                        assertTrue(stream.read(readBuffer) != -1);
 
-        private final int maxConcurrentInputStreams;
+                        waiter.await();
 
-        private final int maxConcurrentStreamsTotal;
-
-        BlockingReaderThread(
-                LimitedConnectionsFileSystem fs,
-                Path path,
-                int maxConcurrentInputStreams,
-                int maxConcurrentStreamsTotal) {
-
-            this.fs = fs;
-            this.path = path;
-            this.maxConcurrentInputStreams = maxConcurrentInputStreams;
-            this.maxConcurrentStreamsTotal = maxConcurrentStreamsTotal;
-        }
-
-        @Override
-        public void go() throws Exception {
-
-            try (FSDataInputStream stream = fs.open(path)) {
-                assertTrue(fs.getNumberOfOpenInputStreams() <= maxConcurrentInputStreams);
-                assertTrue(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal);
-
-                final byte[] readBuffer = new byte[(int) fs.getFileStatus(path).getLen() - 1];
-                assertTrue(stream.read(readBuffer) != -1);
-
-                waitTillWokenUp();
-
-                // try to write one more thing, which might/should fail with an I/O exception
-                //noinspection ResultOfMethodCallIgnored
-                stream.read();
-            }
-        }
+                        // try to write one more thing, which might/should fail with an I/O
+                        // exception
+                        //noinspection ResultOfMethodCallIgnored
+                        stream.read();
+                    }
+                },
+                waiter);
     }
 
     // ------------------------------------------------------------------------

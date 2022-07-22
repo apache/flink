@@ -122,72 +122,79 @@ public class SafetyNetCloseableRegistryTest
     @Test
     public void testCorrectScopesForSafetyNet() throws Exception {
         CheckedThread t1 =
-                new CheckedThread() {
-
-                    @Override
-                    public void go() throws Exception {
-                        try {
-                            FileSystem fs1 = FileSystem.getLocalFileSystem();
-                            // ensure no safety net in place
-                            Assert.assertFalse(fs1 instanceof SafetyNetWrapperFileSystem);
-                            FileSystemSafetyNet.initializeSafetyNetForThread();
-                            fs1 = FileSystem.getLocalFileSystem();
-                            // ensure safety net is in place now
-                            Assert.assertTrue(fs1 instanceof SafetyNetWrapperFileSystem);
-
-                            Path tmp =
-                                    new Path(tmpFolder.newFolder().toURI().toString(), "test_file");
-
-                            try (FSDataOutputStream stream =
-                                    fs1.create(tmp, FileSystem.WriteMode.NO_OVERWRITE)) {
-                                CheckedThread t2 =
-                                        new CheckedThread() {
-                                            @Override
-                                            public void go() {
-                                                FileSystem fs2 = FileSystem.getLocalFileSystem();
-                                                // ensure the safety net does not leak here
-                                                Assert.assertFalse(
-                                                        fs2 instanceof SafetyNetWrapperFileSystem);
-                                                FileSystemSafetyNet.initializeSafetyNetForThread();
-                                                fs2 = FileSystem.getLocalFileSystem();
-                                                // ensure we can bring another safety net in place
-                                                Assert.assertTrue(
-                                                        fs2 instanceof SafetyNetWrapperFileSystem);
-                                                FileSystemSafetyNet
-                                                        .closeSafetyNetAndGuardedResourcesForThread();
-                                                fs2 = FileSystem.getLocalFileSystem();
-                                                // and that we can remove it again
-                                                Assert.assertFalse(
-                                                        fs2 instanceof SafetyNetWrapperFileSystem);
-                                            }
-                                        };
-
-                                t2.start();
-                                t2.sync();
-
-                                // ensure stream is still open and was never closed by any
-                                // interferences
-                                stream.write(42);
-                                FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
-
-                                // ensure leaking stream was closed
-                                try {
-                                    stream.write(43);
-                                    Assert.fail();
-                                } catch (IOException ignore) {
-
-                                }
-                                fs1 = FileSystem.getLocalFileSystem();
-                                // ensure safety net was removed
+                new CheckedThread(
+                        () -> {
+                            try {
+                                FileSystem fs1 = FileSystem.getLocalFileSystem();
+                                // ensure no safety net in place
                                 Assert.assertFalse(fs1 instanceof SafetyNetWrapperFileSystem);
-                            } finally {
-                                fs1.delete(tmp, false);
+                                FileSystemSafetyNet.initializeSafetyNetForThread();
+                                fs1 = FileSystem.getLocalFileSystem();
+                                // ensure safety net is in place now
+                                Assert.assertTrue(fs1 instanceof SafetyNetWrapperFileSystem);
+
+                                Path tmp =
+                                        new Path(
+                                                tmpFolder.newFolder().toURI().toString(),
+                                                "test_file");
+
+                                try (FSDataOutputStream stream =
+                                        fs1.create(tmp, FileSystem.WriteMode.NO_OVERWRITE)) {
+                                    CheckedThread t2 =
+                                            new CheckedThread(
+                                                    () -> {
+                                                        FileSystem fs2 =
+                                                                FileSystem.getLocalFileSystem();
+                                                        // ensure the safety net does not leak here
+                                                        Assert.assertFalse(
+                                                                fs2
+                                                                        instanceof
+                                                                        SafetyNetWrapperFileSystem);
+                                                        FileSystemSafetyNet
+                                                                .initializeSafetyNetForThread();
+                                                        fs2 = FileSystem.getLocalFileSystem();
+                                                        // ensure we can bring another safety net in
+                                                        // place
+                                                        Assert.assertTrue(
+                                                                fs2
+                                                                        instanceof
+                                                                        SafetyNetWrapperFileSystem);
+                                                        FileSystemSafetyNet
+                                                                .closeSafetyNetAndGuardedResourcesForThread();
+                                                        fs2 = FileSystem.getLocalFileSystem();
+                                                        // and that we can remove it again
+                                                        Assert.assertFalse(
+                                                                fs2
+                                                                        instanceof
+                                                                        SafetyNetWrapperFileSystem);
+                                                    });
+
+                                    t2.start();
+                                    t2.sync();
+
+                                    // ensure stream is still open and was never closed by any
+                                    // interferences
+                                    stream.write(42);
+                                    FileSystemSafetyNet
+                                            .closeSafetyNetAndGuardedResourcesForThread();
+
+                                    // ensure leaking stream was closed
+                                    try {
+                                        stream.write(43);
+                                        Assert.fail();
+                                    } catch (IOException ignore) {
+
+                                    }
+                                    fs1 = FileSystem.getLocalFileSystem();
+                                    // ensure safety net was removed
+                                    Assert.assertFalse(fs1 instanceof SafetyNetWrapperFileSystem);
+                                } finally {
+                                    fs1.delete(tmp, false);
+                                }
+                            } catch (Exception e) {
+                                Assert.fail(ExceptionUtils.stringifyException(e));
                             }
-                        } catch (Exception e) {
-                            Assert.fail(ExceptionUtils.stringifyException(e));
-                        }
-                    }
-                };
+                        });
 
         t1.start();
         t1.sync();
