@@ -27,15 +27,19 @@ public class StreamFilter<IN> extends AbstractUdfStreamOperator<IN, FilterFuncti
         implements OneInputStreamOperator<IN, IN> {
 
     private static final long serialVersionUID = 1L;
+    private StreamMonitor streamMonitor;
 
     public StreamFilter(FilterFunction<IN> filterFunction) {
         super(filterFunction);
         chainingStrategy = ChainingStrategy.ALWAYS;
+        streamMonitor = new StreamMonitor(null);
     }
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
+        streamMonitor.reportInput(element.getValue());
         if (userFunction.filter(element.getValue())) {
+            streamMonitor.reportOutput(element.getValue());
             output.collect(element);
         }
     }
