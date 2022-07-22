@@ -24,6 +24,14 @@ import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
+import org.apache.flink.table.gateway.rest.handler.session.CloseSessionHandler;
+import org.apache.flink.table.gateway.rest.handler.session.GetSessionConfigHandler;
+import org.apache.flink.table.gateway.rest.handler.session.OpenSessionHandler;
+import org.apache.flink.table.gateway.rest.handler.session.TriggerSessionHeartbeatHandler;
+import org.apache.flink.table.gateway.rest.header.session.CloseSessionHeaders;
+import org.apache.flink.table.gateway.rest.header.session.GetSessionConfigHeaders;
+import org.apache.flink.table.gateway.rest.header.session.OpenSessionHeaders;
+import org.apache.flink.table.gateway.rest.header.session.TriggerSessionHeartbeatHeaders;
 import org.apache.flink.util.ConfigurationException;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
@@ -47,7 +55,38 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
     @Override
     protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(
             CompletableFuture<String> localAddressFuture) {
-        return new ArrayList<>();
+        List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>();
+        addSessionRelatedHandlers(handlers);
+        return handlers;
+    }
+
+    private void addSessionRelatedHandlers(
+            List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers) {
+        // Open a session
+        OpenSessionHandler openSessionHandler =
+                new OpenSessionHandler(service, responseHeaders, OpenSessionHeaders.getInstance());
+        handlers.add(Tuple2.of(OpenSessionHeaders.getInstance(), openSessionHandler));
+
+        // Close a session
+        CloseSessionHandler closeSessionHandler =
+                new CloseSessionHandler(
+                        service, responseHeaders, CloseSessionHeaders.getInstance());
+        handlers.add(Tuple2.of(CloseSessionHeaders.getInstance(), closeSessionHandler));
+
+        // Get session configuration
+        GetSessionConfigHandler getSessionConfigHandler =
+                new GetSessionConfigHandler(
+                        service, responseHeaders, GetSessionConfigHeaders.getInstance());
+        handlers.add(Tuple2.of(GetSessionConfigHeaders.getInstance(), getSessionConfigHandler));
+
+        // Trigger session heartbeat
+        TriggerSessionHeartbeatHandler triggerSessionHeartbeatHandler =
+                new TriggerSessionHeartbeatHandler(
+                        service, responseHeaders, TriggerSessionHeartbeatHeaders.getInstance());
+        handlers.add(
+                Tuple2.of(
+                        TriggerSessionHeartbeatHeaders.getInstance(),
+                        triggerSessionHeartbeatHandler));
     }
 
     @Override
