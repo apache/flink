@@ -17,7 +17,6 @@
 ################################################################################
 from typing import Optional, cast
 
-from py4j.java_gateway import get_java_class
 from pyflink.datastream.connectors import StreamFormat
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, DataTypes, _to_java_data_type, RowType, NumericType
@@ -294,8 +293,8 @@ class CsvReaderFormat(StreamFormat):
         Builds a :class:`CsvReaderFormat` using `CsvSchema`.
         """
         jvm = get_gateway().jvm
-        j_csv_format = org.apache.flink.formats.csv.CsvReaderFormatFactory.createCsvReaderFormat(
-            scheme._j_schema,
+        j_csv_format = jvm.org.apache.flink.formats.csv.CsvReaderFormatFactory.createCsvReaderFormat(
+            schema._j_schema,
             _to_java_data_type(schema._data_type)
             )
         return CsvReaderFormat(j_csv_format)
