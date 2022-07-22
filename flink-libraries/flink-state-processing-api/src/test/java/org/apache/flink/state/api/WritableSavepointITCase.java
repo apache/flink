@@ -28,11 +28,9 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -47,14 +45,13 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.util.StreamCollector;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.SerializedThrowable;
 
 import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -63,9 +60,9 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT test for writing savepoints. */
 public class WritableSavepointITCase extends AbstractTestBase {
@@ -85,8 +82,6 @@ public class WritableSavepointITCase extends AbstractTestBase {
 
     private static final Collection<CurrencyRate> currencyRates =
             Arrays.asList(new CurrencyRate("USD", 1.0), new CurrencyRate("EUR", 1.3));
-
-    @Rule public StreamCollector collector = new StreamCollector();
 
     @Test
     public void testFsStateBackend() throws Exception {
@@ -161,7 +156,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
                         .flatMap(new UpdateAndGetAccount())
                         .uid(ACCOUNT_UID);
 
-        CompletableFuture<Collection<Account>> results = collector.collect(stream);
+        CloseableIterator<Account> results = stream.collectAsync();
 
         sEnv.fromCollection(currencyRates)
                 .connect(sEnv.fromCollection(currencyRates).broadcast(descriptor))
@@ -169,22 +164,13 @@ public class WritableSavepointITCase extends AbstractTestBase {
                 .uid(CURRENCY_UID)
                 .addSink(new DiscardingSink<>());
 
-        JobGraph jobGraph = sEnv.getStreamGraph().getJobGraph();
-        jobGraph.setSavepointRestoreSettings(
+        StreamGraph streamGraph = sEnv.getStreamGraph();
+        streamGraph.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(savepointPath, false));
 
-        ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
-        Optional<SerializedThrowable> serializedThrowable =
-                client.submitJob(jobGraph)
-                        .thenCompose(client::requestJobResult)
-                        .get()
-                        .getSerializedThrowable();
+        sEnv.execute(streamGraph);
 
-        serializedThrowable.ifPresent(
-                t -> {
-                    throw new AssertionError("Unexpected exception during bootstrapping", t);
-                });
-        Assert.assertEquals("Unexpected output", 3, results.get().size());
+        assertThat(results).toIterable().hasSize(3);
     }
 
     private void modifySavepoint(StateBackend backend, String savepointPath, String modifyPath)
@@ -214,26 +200,20 @@ public class WritableSavepointITCase extends AbstractTestBase {
                         .flatMap(new UpdateAndGetAccount())
                         .uid(ACCOUNT_UID);
 
-        CompletableFuture<Collection<Account>> results = collector.collect(stream);
+        CloseableIterator<Account> results = stream.collectAsync();
 
         stream.map(acc -> acc.id)
                 .map(new StatefulOperator())
                 .uid(MODIFY_UID)
                 .addSink(new DiscardingSink<>());
 
-        JobGraph jobGraph = sEnv.getStreamGraph().getJobGraph();
-        jobGraph.setSavepointRestoreSettings(
+        StreamGraph streamGraph = sEnv.getStreamGraph();
+        streamGraph.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(savepointPath, false));
 
-        ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
-        Optional<SerializedThrowable> serializedThrowable =
-                client.submitJob(jobGraph)
-                        .thenCompose(client::requestJobResult)
-                        .get()
-                        .getSerializedThrowable();
+        sEnv.execute(streamGraph);
 
-        Assert.assertFalse(serializedThrowable.isPresent());
-        Assert.assertEquals("Unexpected output", 3, results.get().size());
+        assertThat(results).toIterable().hasSize(3);
     }
 
     /** A simple pojo. */
