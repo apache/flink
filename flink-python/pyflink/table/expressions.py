@@ -238,6 +238,16 @@ def current_timestamp() -> Expression:
     return _leaf_op("currentTimestamp")
 
 
+def add_months() -> Expression:
+    """
+    Returns the date that is numMonths after startDate.A DATE.
+    If the result exceeds the number of days of the month the result is rounded
+    down to the end of the month.If the result exceeds the supported range for a
+    date an overflow error is reported.
+    """
+    return _leaf_op("addMonths")
+
+
 def current_watermark(rowtimeAttribute) -> Expression:
     """
     Returns the current watermark for the given rowtime attribute, or NULL if no common watermark of

@@ -1375,16 +1375,6 @@ class Expression(Generic[T]):
         """
         return _unary_op("toTimestamp")(self)
 
-    @property
-    def add_months(self) -> 'Expression':
-        """
-        Returns the date that is numMonths after startDate.A DATE.
-        If the result exceeds the number of days of the month the result is rounded
-        down to the end of the month.If the result exceeds the supported range for a
-        date an overflow error is reported.
-        """
-        return _unary_op("addMonths")(self)
-
     def extract(self, time_interval_unit: TimeIntervalUnit) -> 'Expression':
         """
         Extracts parts of a time point or time interval. Returns the part as a long value.
