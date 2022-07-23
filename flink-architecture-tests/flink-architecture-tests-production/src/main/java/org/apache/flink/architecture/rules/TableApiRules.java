@@ -69,6 +69,8 @@ public class TableApiRules {
                             .haveSimpleNameEndingWith("ConnectorOptions")
                             .or()
                             .haveSimpleNameEndingWith("FormatOptions")
+                            .and()
+                            .haveSimpleNameNotContaining("Json")
                             .should()
                             .resideInAPackage("org.apache.flink..table")
                             .andShould(

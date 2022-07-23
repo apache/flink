@@ -31,6 +31,8 @@ import org.apache.flink.table.gateway.rest.handler.session.CloseSessionHandler;
 import org.apache.flink.table.gateway.rest.handler.session.GetSessionConfigHandler;
 import org.apache.flink.table.gateway.rest.handler.session.OpenSessionHandler;
 import org.apache.flink.table.gateway.rest.handler.session.TriggerSessionHeartbeatHandler;
+import org.apache.flink.table.gateway.rest.handler.statement.ExecuteStatementHandler;
+import org.apache.flink.table.gateway.rest.handler.statement.FetchResultsHandler;
 import org.apache.flink.table.gateway.rest.handler.util.GetApiVersionHandler;
 import org.apache.flink.table.gateway.rest.handler.util.GetInfoHandler;
 import org.apache.flink.table.gateway.rest.header.operation.CancelOperationHeaders;
@@ -40,6 +42,8 @@ import org.apache.flink.table.gateway.rest.header.session.CloseSessionHeaders;
 import org.apache.flink.table.gateway.rest.header.session.GetSessionConfigHeaders;
 import org.apache.flink.table.gateway.rest.header.session.OpenSessionHeaders;
 import org.apache.flink.table.gateway.rest.header.session.TriggerSessionHeartbeatHeaders;
+import org.apache.flink.table.gateway.rest.header.statement.ExecuteStatementHeaders;
+import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
 import org.apache.flink.table.gateway.rest.header.util.GetApiVersionHeaders;
 import org.apache.flink.table.gateway.rest.header.util.GetInfoHeaders;
 import org.apache.flink.util.ConfigurationException;
@@ -69,6 +73,7 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
         addSessionRelatedHandlers(handlers);
         addOperationRelatedHandlers(handlers);
         addUtilRelatedHandlers(handlers);
+        addStatementRelatedHandlers(handlers);
         return handlers;
     }
 
@@ -135,6 +140,22 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
                 new GetApiVersionHandler(
                         service, responseHeaders, GetApiVersionHeaders.getInstance());
         handlers.add(Tuple2.of(GetApiVersionHeaders.getInstance(), getApiVersionHandler));
+    }
+
+    private void addStatementRelatedHandlers(
+            List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers) {
+
+        // Execute a statement
+        ExecuteStatementHandler executeStatementHandler =
+                new ExecuteStatementHandler(
+                        service, responseHeaders, ExecuteStatementHeaders.getInstance());
+        handlers.add(Tuple2.of(ExecuteStatementHeaders.getInstance(), executeStatementHandler));
+
+        // Fetch results
+        FetchResultsHandler fetchResultsHandler =
+                new FetchResultsHandler(
+                        service, responseHeaders, FetchResultsHeaders.getInstance());
+        handlers.add(Tuple2.of(FetchResultsHeaders.getInstance(), fetchResultsHandler));
     }
 
     @Override
