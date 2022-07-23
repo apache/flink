@@ -502,4 +502,10 @@ class ImperativeAggCodeGen(
     val accTerm = if (isAccTypeInternal) accInternalTerm else accExternalTerm
     s"$functionTerm.emitValue($accTerm, $MEMBER_COLLECTOR_TERM);"
   }
+
+  override def setWindowSize(generator: ExprCodeGenerator): String = {
+    // currently, we don't support set window size for ImperativeAggregateFunction,
+    // so return empty string directly
+    ""
+  }
 }

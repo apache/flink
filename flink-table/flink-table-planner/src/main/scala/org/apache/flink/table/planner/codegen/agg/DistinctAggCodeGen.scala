@@ -955,4 +955,9 @@ class DistinctAggCodeGen(
        """.stripMargin
     }
   }
+
+  override def setWindowSize(generator: ExprCodeGenerator): String = {
+    throw new TableException(
+      "Distinct shouldn't set window size, this is a bug, please file a issue.")
+  }
 }

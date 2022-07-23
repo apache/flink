@@ -70,6 +70,7 @@ public abstract class UnboundedFollowingOverFrame implements OverWindowFrame {
     @Override
     public void prepare(ResettableExternalBuffer rows) throws Exception {
         input = rows;
+        processor.setWindowSize(rows.size());
         // cleanup the retired accumulators value
         processor.setAccumulators(processor.createAccumulators());
         inputIndex = 0;

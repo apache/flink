@@ -1138,6 +1138,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlAggFunction RANK = SqlStdOperatorTable.RANK;
     public static final SqlAggFunction DENSE_RANK = SqlStdOperatorTable.DENSE_RANK;
     public static final SqlAggFunction ROW_NUMBER = SqlStdOperatorTable.ROW_NUMBER;
+    public static final SqlAggFunction CUME_DIST = SqlStdOperatorTable.CUME_DIST;
     public static final SqlAggFunction LEAD = SqlStdOperatorTable.LEAD;
     public static final SqlAggFunction LAG = SqlStdOperatorTable.LAG;
 

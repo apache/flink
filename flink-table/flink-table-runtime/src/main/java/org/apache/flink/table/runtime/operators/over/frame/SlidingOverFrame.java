@@ -78,6 +78,7 @@ public abstract class SlidingOverFrame implements OverWindowFrame {
         inputIterator = rows.newIterator();
         nextRow = OverWindowFrame.getNextOrNull(inputIterator);
         buffer.clear();
+        processor.setWindowSize(rows.size());
         // cleanup the retired accumulators value
         processor.setAccumulators(processor.createAccumulators());
     }
