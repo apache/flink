@@ -49,11 +49,12 @@ class DefaultBlocklistTrackerTest {
         // do nothing because blockedNode6 equals to blockedNode3
         BlockedNode blockedNode6 = new BlockedNode("node3", "cause1", 1L);
 
-        Collection<BlockedNode> changes =
+        BlockedNodeAdditionResult result =
                 blocklistTracker.addNewBlockedNodes(
                         Arrays.asList(blockedNode4, blockedNode5, blockedNode6));
 
-        assertThat(changes).containsExactlyInAnyOrder(blockedNode4, blockedNode5);
+        assertThat(result.getNewlyAddedNodes()).containsExactly(blockedNode4);
+        assertThat(result.getMergedNodes()).containsExactly(blockedNode5);
         assertThat(blocklistTracker.getAllBlockedNodes())
                 .containsExactlyInAnyOrder(blockedNode1, blockedNode3, blockedNode4, blockedNode5);
 
@@ -61,9 +62,10 @@ class DefaultBlocklistTrackerTest {
         // blockedNode7.cause != blockedNode3.cause
         BlockedNode blockedNode7 = new BlockedNode("node3", "cause2", 1L);
 
-        changes = blocklistTracker.addNewBlockedNodes(Collections.singletonList(blockedNode7));
+        result = blocklistTracker.addNewBlockedNodes(Collections.singletonList(blockedNode7));
 
-        assertThat(changes).containsExactly(blockedNode7);
+        assertThat(result.getNewlyAddedNodes()).isEmpty();
+        assertThat(result.getMergedNodes()).containsExactly(blockedNode7);
         assertThat(blocklistTracker.getAllBlockedNodes())
                 .containsExactlyInAnyOrder(blockedNode1, blockedNode4, blockedNode5, blockedNode7);
     }

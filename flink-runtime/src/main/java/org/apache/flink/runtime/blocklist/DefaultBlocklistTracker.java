@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -38,16 +37,16 @@ public class DefaultBlocklistTracker implements BlocklistTracker {
      * newly added one will be merged with the existing one.
      *
      * @param newNode the new blocked node record
-     * @return the changed record, or {@link Optional#empty()} if no change
+     * @return the add status
      */
-    private Optional<BlockedNode> tryAddOrMerge(BlockedNode newNode) {
+    private AddStatus tryAddOrMerge(BlockedNode newNode) {
         checkNotNull(newNode);
         final String nodeId = newNode.getNodeId();
         final BlockedNode existingNode = blockedNodes.get(nodeId);
 
         if (existingNode == null) {
             blockedNodes.put(nodeId, newNode);
-            return Optional.of(newNode);
+            return AddStatus.ADDED;
         } else {
             BlockedNode merged =
                     newNode.getEndTimestamp() >= existingNode.getEndTimestamp()
@@ -55,22 +54,36 @@ public class DefaultBlocklistTracker implements BlocklistTracker {
                             : existingNode;
             if (!merged.equals(existingNode)) {
                 blockedNodes.put(nodeId, merged);
-                return Optional.of(merged);
+                return AddStatus.MERGED;
             }
-            return Optional.empty();
+            return AddStatus.NONE;
         }
     }
 
     @Override
-    public Collection<BlockedNode> addNewBlockedNodes(Collection<BlockedNode> newNodes) {
+    public BlockedNodeAdditionResult addNewBlockedNodes(Collection<BlockedNode> newNodes) {
         checkNotNull(newNodes);
 
-        final Map<String, BlockedNode> addedOrMergedNodes = new HashMap<>();
-        for (BlockedNode newNode : newNodes) {
-            tryAddOrMerge(newNode)
-                    .ifPresent(node -> addedOrMergedNodes.put(node.getNodeId(), node));
+        final Map<String, BlockedNode> newlyAddedNodes = new HashMap<>();
+        final Map<String, BlockedNode> mergedNodes = new HashMap<>();
+        for (BlockedNode node : newNodes) {
+            String nodeId = node.getNodeId();
+            AddStatus status = tryAddOrMerge(node);
+            switch (status) {
+                case ADDED:
+                    newlyAddedNodes.put(nodeId, blockedNodes.get(nodeId));
+                    break;
+                case MERGED:
+                    mergedNodes.put(nodeId, blockedNodes.get(nodeId));
+                    break;
+                case NONE:
+                    break;
+                default:
+                    throw new IllegalStateException(
+                            "Add or merge status " + status + " is not supported.");
+            }
         }
-        return addedOrMergedNodes.values();
+        return new BlockedNodeAdditionResult(newlyAddedNodes.values(), mergedNodes.values());
     }
 
     @Override
@@ -101,5 +114,11 @@ public class DefaultBlocklistTracker implements BlocklistTracker {
             }
         }
         return removedNodes;
+    }
+
+    private enum AddStatus {
+        ADDED,
+        MERGED,
+        NONE
     }
 }
