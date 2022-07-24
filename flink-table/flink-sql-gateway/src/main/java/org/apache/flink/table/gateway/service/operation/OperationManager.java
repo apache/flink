@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.service.operation;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.operation.OperationType;
@@ -148,6 +149,15 @@ public class OperationManager {
      */
     public OperationInfo getOperationInfo(OperationHandle operationHandle) {
         return getOperation(operationHandle).getOperationInfo();
+    }
+
+    /**
+     * Get the {@link ResolvedSchema} of the operation.
+     *
+     * @param operationHandle identifies the {@link Operation}.
+     */
+    public ResolvedSchema getOperationResultSchema(OperationHandle operationHandle) {
+        return getOperation(operationHandle).getResultSchema();
     }
 
     /**
@@ -309,7 +319,17 @@ public class OperationManager {
         }
 
         public OperationInfo getOperationInfo() {
-            return new OperationInfo(status.get(), operationType, hasResults);
+            return new OperationInfo(status.get(), operationType);
+        }
+
+        public ResolvedSchema getResultSchema() {
+            OperationStatus current = status.get();
+            if (current != OperationStatus.FINISHED || !hasResults) {
+                throw new IllegalStateException(
+                        "The result schema is available when the Operation is in FINISHED state and the Operation has data.");
+            }
+
+            return resultFetcher.getResultSchema();
         }
 
         private void updateState(OperationStatus toStatus) {

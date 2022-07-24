@@ -193,12 +193,12 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
 
         startRunningLatch.await();
         assertEquals(
-                new OperationInfo(OperationStatus.RUNNING, OperationType.UNKNOWN, true),
+                new OperationInfo(OperationStatus.RUNNING, OperationType.UNKNOWN),
                 service.getOperationInfo(sessionHandle, operationHandle));
 
         endRunningLatch.countDown();
         OperationInfo expectedInfo =
-                new OperationInfo(OperationStatus.FINISHED, OperationType.UNKNOWN, true);
+                new OperationInfo(OperationStatus.FINISHED, OperationType.UNKNOWN);
 
         CommonTestUtils.waitUtil(
                 () -> service.getOperationInfo(sessionHandle, operationHandle).equals(expectedInfo),
@@ -237,13 +237,13 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
 
         startRunningLatch.await();
         assertEquals(
-                new OperationInfo(OperationStatus.RUNNING, OperationType.UNKNOWN, true),
+                new OperationInfo(OperationStatus.RUNNING, OperationType.UNKNOWN),
                 service.getOperationInfo(sessionHandle, operationHandle));
 
         service.cancelOperation(sessionHandle, operationHandle);
 
         assertEquals(
-                new OperationInfo(OperationStatus.CANCELED, OperationType.UNKNOWN, true),
+                new OperationInfo(OperationStatus.CANCELED, OperationType.UNKNOWN),
                 service.getOperationInfo(sessionHandle, operationHandle));
         service.closeOperation(sessionHandle, operationHandle);
         assertEquals(0, sessionManager.getOperationCount(sessionHandle));

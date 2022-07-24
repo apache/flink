@@ -22,24 +22,28 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.operation.OperationType;
 
+import javax.annotation.Nullable;
+
 import java.util.Objects;
+import java.util.Optional;
 
 /** Information of the {@code Operation}. */
 @PublicEvolving
 public class OperationInfo {
 
     private final OperationStatus status;
-    private final boolean hasResults;
     private final OperationType type;
+    @Nullable private final Exception exception;
 
-    public OperationInfo(OperationStatus status, OperationType type, boolean hasResults) {
-        this.status = status;
-        this.type = type;
-        this.hasResults = hasResults;
+    public OperationInfo(OperationStatus status, OperationType type) {
+        this(status, type, null);
     }
 
-    public boolean isHasResults() {
-        return hasResults;
+    public OperationInfo(
+            OperationStatus status, OperationType type, @Nullable Exception exception) {
+        this.status = status;
+        this.type = type;
+        this.exception = exception;
     }
 
     public OperationType getType() {
@@ -48,6 +52,10 @@ public class OperationInfo {
 
     public OperationStatus getStatus() {
         return status;
+    }
+
+    public Optional<Exception> getException() {
+        return Optional.ofNullable(exception);
     }
 
     @Override
@@ -59,11 +67,11 @@ public class OperationInfo {
             return false;
         }
         OperationInfo that = (OperationInfo) o;
-        return hasResults == that.hasResults && status == that.status && type == that.type;
+        return status == that.status && type == that.type && exception == that.exception;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(status, hasResults, type);
+        return Objects.hash(status, type, exception);
     }
 }

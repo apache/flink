@@ -231,10 +231,6 @@ public class SqlGatewayServiceStatementITCase {
                 Duration.ofSeconds(100),
                 "Failed to wait operation finish.");
 
-        if (!service.getOperationInfo(sessionHandle, operationHandle).isHasResults()) {
-            return Tag.INFO.addTag("");
-        }
-
         // The content in the result of the `explain` and `show create` statement is large, so it's
         // more straightforward to just print the content without the table.
         if (statement.toUpperCase().startsWith("EXPLAIN")

@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.service;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationType;
@@ -121,6 +122,20 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         } catch (Throwable t) {
             LOG.error("Failed to getOperationInfo.", t);
             throw new SqlGatewayException("Failed to getOperationInfo.", t);
+        }
+    }
+
+    @Override
+    public ResolvedSchema getOperationResultSchema(
+            SessionHandle sessionHandle, OperationHandle operationHandle)
+            throws SqlGatewayException {
+        try {
+            return getSession(sessionHandle)
+                    .getOperationManager()
+                    .getOperationResultSchema(operationHandle);
+        } catch (Throwable t) {
+            LOG.error("Failed to getOperationResultSchema.", t);
+            throw new SqlGatewayException("Failed to getOperationResultSchema.", t);
         }
     }
 
