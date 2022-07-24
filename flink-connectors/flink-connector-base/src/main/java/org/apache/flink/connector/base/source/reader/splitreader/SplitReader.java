@@ -90,6 +90,8 @@ public interface SplitReader<E, SplitT extends SourceSplit> {
     default void pauseOrResumeSplits(
             Collection<SplitT> splitsToPause, Collection<SplitT> splitsToResume) {
         throw new UnsupportedOperationException(
-                "This split reader does not support pause or resume.");
+                "This split reader does not support pause or resume. (To use watermark alignment "
+                        + "and allow unaligned source splits set configuration parameter "
+                        + "'pipeline.watermark-alignment.allow-unaligned-source-splits' to true.)");
     }
 }

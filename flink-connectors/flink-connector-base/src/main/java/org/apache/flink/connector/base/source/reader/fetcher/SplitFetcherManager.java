@@ -21,6 +21,7 @@ package org.apache.flink.connector.base.source.reader.fetcher;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -42,6 +43,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import static org.apache.flink.configuration.PipelineOptions.ALLOW_UNALIGNED_SOURCE_SPLITS;
 
 /**
  * A class responsible for starting the {@link SplitFetcher} and manage the life cycles of them.
@@ -88,6 +91,8 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
      */
     private final Consumer<Collection<String>> splitFinishedHook;
 
+    private final boolean allowUnalignedSourceSplits;
+
     /**
      * Create a split fetcher manager.
      *
@@ -96,8 +101,9 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
      */
     public SplitFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-            Supplier<SplitReader<E, SplitT>> splitReaderFactory) {
-        this(elementsQueue, splitReaderFactory, (ignore) -> {});
+            Supplier<SplitReader<E, SplitT>> splitReaderFactory,
+            Configuration configuration) {
+        this(elementsQueue, splitReaderFactory, configuration, (ignore) -> {});
     }
 
     /**
@@ -111,6 +117,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
     public SplitFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitReaderFactory,
+            Configuration configuration,
             Consumer<Collection<String>> splitFinishedHook) {
         this.elementsQueue = elementsQueue;
         this.errorHandler =
@@ -131,6 +138,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
         this.uncaughtFetcherException = new AtomicReference<>(null);
         this.fetcherIdGenerator = new AtomicInteger(0);
         this.fetchers = new ConcurrentHashMap<>();
+        this.allowUnalignedSourceSplits = configuration.get(ALLOW_UNALIGNED_SOURCE_SPLITS);
 
         // Create the executor with a thread factory that fails the source reader if one of
         // the fetcher thread exits abnormally.
@@ -143,7 +151,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 
     public abstract void addSplits(List<SplitT> splitsToAdd);
 
-    public void alignSplitsWatermarks(
+    public void pauseOrResumeSplits(
             Collection<String> splitIdsToPause, Collection<String> splitIdsToResume) {
         for (SplitFetcher<E, SplitT> fetcher : fetchers.values()) {
             Map<String, SplitT> idToSplit = fetcher.assignedSplits();
@@ -201,7 +209,8 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
                             // containsValue are not designed for program control.
                             elementsQueue.notifyAvailable();
                         },
-                        this.splitFinishedHook);
+                        this.splitFinishedHook,
+                        allowUnalignedSourceSplits);
         fetchers.put(fetcherId, splitFetcher);
         return splitFetcher;
     }

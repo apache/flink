@@ -77,6 +77,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.configuration.PipelineOptions.ALLOW_UNALIGNED_SOURCE_SPLITS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -187,6 +188,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private @Nullable LatencyMarkerEmitter<OUT> latencyMarkerEmitter;
 
+    private final boolean allowUnalignedSourceSplits;
+    private boolean sourceReaderSupportsPauseOrResumeSplits = true;
+
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
                     readerFactory,
@@ -208,6 +212,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         this.emitProgressiveWatermarks = emitProgressiveWatermarks;
         this.operatingMode = OperatingMode.OUTPUT_NOT_INITIALIZED;
         this.watermarkAlignmentParams = watermarkStrategy.getAlignmentParameters();
+        this.allowUnalignedSourceSplits = configuration.get(ALLOW_UNALIGNED_SOURCE_SPLITS);
     }
 
     @Override
@@ -586,8 +591,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     public void updateCurrentSplitWatermark(String splitId, long watermark) {
         splitCurrentWatermarks.put(splitId, watermark);
         if (currentMaxDesiredWatermark < watermark && !currentlyPausedSplits.contains(splitId)) {
-            sourceReader.pauseOrResumeSplits(
-                    Collections.singletonList(splitId), Collections.emptyList());
+            pauseOrResumeSplits(Collections.singletonList(splitId), Collections.emptyList());
             currentlyPausedSplits.add(splitId);
         }
     }
@@ -614,9 +618,23 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                 });
         splitsToPause.removeAll(currentlyPausedSplits);
         if (!splitsToPause.isEmpty() || !splitsToResume.isEmpty()) {
-            sourceReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
+            pauseOrResumeSplits(splitsToPause, splitsToResume);
             currentlyPausedSplits.addAll(splitsToPause);
             splitsToResume.forEach(currentlyPausedSplits::remove);
+        }
+    }
+
+    private void pauseOrResumeSplits(
+            Collection<String> splitsToPause, Collection<String> splitsToResume) {
+        if (!allowUnalignedSourceSplits || sourceReaderSupportsPauseOrResumeSplits) {
+            try {
+                sourceReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
+            } catch (UnsupportedOperationException e) {
+                sourceReaderSupportsPauseOrResumeSplits = false;
+                if (!allowUnalignedSourceSplits) {
+                    throw new UnsupportedOperationException("", e);
+                }
+            }
         }
     }
 

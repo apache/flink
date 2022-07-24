@@ -94,7 +94,7 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
             SourceReaderContext context) {
         super(
                 elementsQueue,
-                new SingleThreadFetcherManager<>(elementsQueue, splitReaderSupplier),
+                new SingleThreadFetcherManager<>(elementsQueue, splitReaderSupplier, config),
                 recordEmitter,
                 config,
                 context);
