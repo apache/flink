@@ -308,6 +308,18 @@ class OverAggregateTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
+  @Test
+  def testOverWindowWithConstants3(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT
+        |    COUNT(2) OVER (ORDER BY a),
+        |    COUNT(1) OVER (PARTITION BY c ORDER BY a)
+        |FROM MyTable
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
   @Test(expected = classOf[RuntimeException])
   def testDistinct(): Unit = {
     val sqlQuery =
