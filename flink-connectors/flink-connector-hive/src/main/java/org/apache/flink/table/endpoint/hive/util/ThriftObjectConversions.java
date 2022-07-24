@@ -18,31 +18,64 @@
 
 package org.apache.flink.table.endpoint.hive.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.formats.common.TimestampFormat;
+import org.apache.flink.formats.json.JsonFormatOptions;
+import org.apache.flink.formats.json.RowDataToJsonConverters;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.operation.OperationType;
+import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.types.RowKind;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.apache.hadoop.hive.serde2.SerDeUtils;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.thrift.Type;
+import org.apache.hive.service.rpc.thrift.TBinaryColumn;
+import org.apache.hive.service.rpc.thrift.TBoolColumn;
+import org.apache.hive.service.rpc.thrift.TBoolValue;
+import org.apache.hive.service.rpc.thrift.TByteColumn;
+import org.apache.hive.service.rpc.thrift.TByteValue;
 import org.apache.hive.service.rpc.thrift.TCLIServiceConstants;
+import org.apache.hive.service.rpc.thrift.TColumn;
 import org.apache.hive.service.rpc.thrift.TColumnDesc;
+import org.apache.hive.service.rpc.thrift.TColumnValue;
+import org.apache.hive.service.rpc.thrift.TDoubleColumn;
+import org.apache.hive.service.rpc.thrift.TDoubleValue;
+import org.apache.hive.service.rpc.thrift.TFetchOrientation;
 import org.apache.hive.service.rpc.thrift.THandleIdentifier;
+import org.apache.hive.service.rpc.thrift.TI16Column;
+import org.apache.hive.service.rpc.thrift.TI16Value;
+import org.apache.hive.service.rpc.thrift.TI32Column;
+import org.apache.hive.service.rpc.thrift.TI32Value;
+import org.apache.hive.service.rpc.thrift.TI64Column;
+import org.apache.hive.service.rpc.thrift.TI64Value;
 import org.apache.hive.service.rpc.thrift.TOperationHandle;
 import org.apache.hive.service.rpc.thrift.TOperationState;
 import org.apache.hive.service.rpc.thrift.TOperationType;
 import org.apache.hive.service.rpc.thrift.TPrimitiveTypeEntry;
+import org.apache.hive.service.rpc.thrift.TProtocolVersion;
+import org.apache.hive.service.rpc.thrift.TRow;
+import org.apache.hive.service.rpc.thrift.TRowSet;
 import org.apache.hive.service.rpc.thrift.TSessionHandle;
 import org.apache.hive.service.rpc.thrift.TStatus;
 import org.apache.hive.service.rpc.thrift.TStatusCode;
+import org.apache.hive.service.rpc.thrift.TStringColumn;
+import org.apache.hive.service.rpc.thrift.TStringValue;
 import org.apache.hive.service.rpc.thrift.TTableSchema;
 import org.apache.hive.service.rpc.thrift.TTypeDesc;
 import org.apache.hive.service.rpc.thrift.TTypeEntry;
@@ -51,15 +84,25 @@ import org.apache.hive.service.rpc.thrift.TTypeQualifiers;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointVersion.HIVE_CLI_SERVICE_PROTOCOL_V6;
+import static org.apache.flink.table.types.logical.LogicalTypeFamily.CONSTRUCTED;
 
 /** Conversion between thrift object and flink object. */
 public class ThriftObjectConversions {
 
     private static final UUID SECRET_ID = UUID.fromString("b06fa16a-3d16-475f-b510-6c64abb9b173");
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final RowDataToJsonConverters TO_JSON_CONVERTERS =
+            new RowDataToJsonConverters(
+                    TimestampFormat.SQL, JsonFormatOptions.MapNullKeyMode.LITERAL, "null");
 
     // --------------------------------------------------------------------------------------------
     // Flink SessionHandle from/to Hive SessionHandle
@@ -153,6 +196,17 @@ public class ThriftObjectConversions {
     // Statement related conversions
     // --------------------------------------------------------------------------------------------
 
+    public static FetchOrientation toFetchOrientation(int fetchOrientation) {
+        if (fetchOrientation == TFetchOrientation.FETCH_NEXT.getValue()) {
+            return FetchOrientation.FETCH_NEXT;
+        } else if (fetchOrientation == TFetchOrientation.FETCH_PRIOR.getValue()) {
+            return FetchOrientation.FETCH_PRIOR;
+        } else {
+            throw new UnsupportedOperationException(
+                    String.format("Unsupported fetch orientation: %s.", fetchOrientation));
+        }
+    }
+
     /** Similar logic in the {@code org.apache.hive.service.cli.ColumnDescriptor}. */
     public static TTableSchema toTTableSchema(ResolvedSchema schema) {
         TTableSchema tSchema = new TTableSchema();
@@ -183,6 +237,38 @@ public class ThriftObjectConversions {
         return tSchema;
     }
 
+    /**
+     * Similar to {@link SerDeUtils#toThriftPayload(Object, ObjectInspector, int)} that converts the
+     * returned Rows to JSON string. The only difference is the current implementation also keep the
+     * type for primitive type.
+     */
+    public static TRowSet toTRowSet(
+            TProtocolVersion version, ResolvedSchema schema, List<RowData> data) {
+        for (RowData row : data) {
+            if (row.getRowKind() != RowKind.INSERT) {
+                throw new UnsupportedOperationException(
+                        "HiveServer2 Endpoint only supports to serialize the INSERT-ONLY RowData.");
+            }
+        }
+
+        List<RowData.FieldGetter> fieldGetters = new ArrayList<>();
+        for (int i = 0; i < schema.getColumnCount(); i++) {
+            fieldGetters.add(
+                    RowData.createFieldGetter(
+                            schema.getColumnDataTypes().get(i).getLogicalType(), i));
+        }
+
+        List<LogicalType> fieldTypes =
+                schema.getColumnDataTypes().stream()
+                        .map(DataType::getLogicalType)
+                        .collect(Collectors.toList());
+        if (version.getValue() < HIVE_CLI_SERVICE_PROTOCOL_V6.getVersion().getValue()) {
+            return toRowBasedSet(fieldTypes, fieldGetters, data);
+        } else {
+            return toColumnBasedSet(fieldTypes, fieldGetters, data);
+        }
+    }
+
     public static TStatus toTStatus(Throwable t) {
         TStatus tStatus = new TStatus(TStatusCode.ERROR_STATUS);
         tStatus.setErrorMessage(t.getMessage());
@@ -203,6 +289,203 @@ public class ThriftObjectConversions {
         secretBB.putLong(secretId.getMostSignificantBits());
         secretBB.putLong(secretId.getLeastSignificantBits());
         return new THandleIdentifier(ByteBuffer.wrap(guid), ByteBuffer.wrap(secret));
+    }
+
+    @VisibleForTesting
+    public static TRowSet toColumnBasedSet(
+            List<LogicalType> fieldTypes,
+            List<RowData.FieldGetter> fieldGetters,
+            List<RowData> rows) {
+        int rowNum = rows.size();
+        // TODO: Support accurate start offset
+        TRowSet rowSet = new TRowSet(0, new ArrayList<>(rowNum));
+        for (int i = 0; i < fieldTypes.size(); i++) {
+            RowData.FieldGetter fieldGetter = fieldGetters.get(i);
+            RowDataToJsonConverters.RowDataToJsonConverter converter =
+                    TO_JSON_CONVERTERS.createConverter(fieldTypes.get(i));
+            rowSet.addToColumns(
+                    toTColumn(
+                            fieldTypes.get(i),
+                            fieldGetter,
+                            buildJsonValueConverter(converter),
+                            rows));
+        }
+        return rowSet;
+    }
+
+    private static TColumn toTColumn(
+            LogicalType fieldType,
+            RowData.FieldGetter fieldGetter,
+            Function<Object, String> jsonValue,
+            List<RowData> rows) {
+        BitSet nulls = new BitSet();
+        switch (fieldType.getTypeRoot()) {
+            case BOOLEAN:
+                return TColumn.boolVal(
+                        new TBoolColumn(
+                                getValues(rows, fieldGetter::getFieldOrNull, false, nulls),
+                                ByteBuffer.wrap(nulls.toByteArray())));
+            case TINYINT:
+                return TColumn.byteVal(
+                        new TByteColumn(
+                                getValues(rows, fieldGetter::getFieldOrNull, (byte) 0, nulls),
+                                ByteBuffer.wrap(nulls.toByteArray())));
+            case SMALLINT:
+                return TColumn.i16Val(
+                        new TI16Column(
+                                (getValues(rows, fieldGetter::getFieldOrNull, (short) 0, nulls)),
+                                ByteBuffer.wrap(nulls.toByteArray())));
+
+            case INTEGER:
+                return TColumn.i32Val(
+                        new TI32Column(
+                                getValues(rows, fieldGetter::getFieldOrNull, 0, nulls),
+                                ByteBuffer.wrap(nulls.toByteArray())));
+            case BIGINT:
+                return TColumn.i64Val(
+                        new TI64Column(
+                                getValues(rows, fieldGetter::getFieldOrNull, 0L, nulls),
+                                ByteBuffer.wrap(nulls.toByteArray())));
+            case FLOAT:
+                return TColumn.doubleVal(
+                        new TDoubleColumn(
+                                getValues(rows, fieldGetter::getFieldOrNull, 0.0f, nulls).stream()
+                                        .map(Float::doubleValue)
+                                        .collect(Collectors.toList()),
+                                ByteBuffer.wrap(nulls.toByteArray())));
+            case DOUBLE:
+                return TColumn.doubleVal(
+                        new TDoubleColumn(
+                                getValues(rows, fieldGetter::getFieldOrNull, 0.0, nulls),
+                                ByteBuffer.wrap(nulls.toByteArray())));
+            case BINARY:
+            case VARBINARY:
+                return TColumn.binaryVal(
+                        new TBinaryColumn(
+                                getValues(rows, fieldGetter::getFieldOrNull, new byte[0], nulls)
+                                        .stream()
+                                        .map(ByteBuffer::wrap)
+                                        .collect(Collectors.toList()),
+                                ByteBuffer.wrap(nulls.toByteArray())));
+            default:
+                List<String> jsonValues =
+                        getValues(
+                                rows,
+                                row -> {
+                                    Object fieldOrNull = fieldGetter.getFieldOrNull(row);
+                                    if (!fieldType.is(CONSTRUCTED) && fieldOrNull == null) {
+                                        return null;
+                                    } else {
+                                        return jsonValue.apply(fieldOrNull);
+                                    }
+                                },
+                                "",
+                                nulls);
+                return TColumn.stringVal(
+                        new TStringColumn(jsonValues, ByteBuffer.wrap(nulls.toByteArray())));
+        }
+    }
+
+    @VisibleForTesting
+    public static TRowSet toRowBasedSet(
+            List<LogicalType> fieldTypes,
+            List<RowData.FieldGetter> fieldGetters,
+            List<RowData> rows) {
+        TRowSet rowSet = new TRowSet();
+        List<RowDataToJsonConverters.RowDataToJsonConverter> converters =
+                fieldTypes.stream()
+                        .map(TO_JSON_CONVERTERS::createConverter)
+                        .collect(Collectors.toList());
+        for (RowData row : rows) {
+            TRow convertedRow = new TRow();
+            for (int i = 0; i < row.getArity(); i++) {
+                Object field = fieldGetters.get(i).getFieldOrNull(row);
+                RowDataToJsonConverters.RowDataToJsonConverter converter = converters.get(i);
+                convertedRow.addToColVals(
+                        toTColumnValue(
+                                fieldTypes.get(i), field, buildJsonValueConverter(converter)));
+            }
+            rowSet.addToRows(convertedRow);
+        }
+        return rowSet;
+    }
+
+    private static TColumnValue toTColumnValue(
+            LogicalType fieldType, Object value, Function<Object, String> jsonValue) {
+        switch (fieldType.getTypeRoot()) {
+            case BOOLEAN:
+                {
+                    TBoolValue boolValue = new TBoolValue();
+                    if (value != null) {
+                        boolValue.setValue((Boolean) value);
+                    }
+                    return TColumnValue.boolVal(boolValue);
+                }
+            case TINYINT:
+                {
+                    TByteValue byteValue = new TByteValue();
+                    if (value != null) {
+                        byteValue.setValue((byte) value);
+                    }
+                    return TColumnValue.byteVal(byteValue);
+                }
+            case SMALLINT:
+                {
+                    TI16Value tI16Value = new TI16Value();
+                    if (value != null) {
+                        tI16Value.setValue((Short) value);
+                    }
+                    return TColumnValue.i16Val(tI16Value);
+                }
+            case INTEGER:
+                {
+                    TI32Value tI32Value = new TI32Value();
+                    if (value != null) {
+                        tI32Value.setValue((Integer) value);
+                    }
+                    return TColumnValue.i32Val(tI32Value);
+                }
+            case BIGINT:
+                {
+                    TI64Value tI64Value = new TI64Value();
+                    if (value != null) {
+                        tI64Value.setValue((Long) value);
+                    }
+                    return TColumnValue.i64Val(tI64Value);
+                }
+            case FLOAT:
+            case DOUBLE:
+                {
+                    TDoubleValue tDoubleValue = new TDoubleValue();
+                    if (value != null) {
+                        if (value instanceof Double) {
+                            tDoubleValue.setValue((Double) value);
+                        } else if (value instanceof Float) {
+                            tDoubleValue.setValue((Float) value);
+                        }
+                    }
+                    return TColumnValue.doubleVal(tDoubleValue);
+                }
+            case BINARY:
+            case VARBINARY:
+                // For BINARY type, convert to STRING. Please refer to SerDeUtil#toThriftPayload
+                {
+                    TStringValue tStringValue = new TStringValue();
+                    if (value != null) {
+                        tStringValue.setValue(new String((byte[]) value));
+                    }
+                    return TColumnValue.stringVal(tStringValue);
+                }
+            default:
+                {
+                    TStringValue jsonString = new TStringValue();
+                    if (fieldType.is(CONSTRUCTED) || value != null) {
+                        // If field is ARRAY/MAP/MULTISET, convert to "null".
+                        jsonString.setValue(jsonValue.apply(value));
+                    }
+                    return TColumnValue.stringVal(jsonString);
+                }
+        }
     }
 
     /** Only the type that has length, precision or scale has {@link TTypeQualifiers}. */
@@ -246,6 +529,40 @@ public class ThriftObjectConversions {
         }
 
         return new TTypeQualifiers(qualifiers);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> List<T> getValues(
+            List<RowData> rows,
+            Function<RowData, Object> fieldGetter,
+            T defaultValue,
+            BitSet isNulls) {
+        List<T> columnValues = new ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) {
+            T value = (T) fieldGetter.apply(rows.get(i));
+            if (value == null) {
+                isNulls.set(i, true);
+                columnValues.add(defaultValue);
+            } else {
+                columnValues.add(value);
+            }
+        }
+        return columnValues;
+    }
+
+    private static Function<Object, String> buildJsonValueConverter(
+            RowDataToJsonConverters.RowDataToJsonConverter converter) {
+        return field -> {
+            JsonNode node = converter.convert(OBJECT_MAPPER, null, field);
+            // The difference below is the primitive value return the actual value, e.g. STRING type
+            // will get "Hello World" rather than "\"Hello World\"" but the nested type return the
+            // json value.
+            if (node.isValueNode()) {
+                return node.asText();
+            } else {
+                return node.toString();
+            }
+        };
     }
 
     /**

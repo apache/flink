@@ -116,6 +116,10 @@ public class SessionContext {
         return operationManager;
     }
 
+    public EndpointVersion getEndpointVersion() {
+        return endpointVersion;
+    }
+
     public void set(String key, String value) {
         try {
             // Test whether the key value will influence the creation of the Executor.
@@ -155,7 +159,7 @@ public class SessionContext {
         sessionState.catalogManager.registerCatalog(catalogName, catalog);
     }
 
-    public void registerModule(String moduleName, Module module) {
+    public void registerModuleAtHead(String moduleName, Module module) {
         Deque<String> moduleNames = new ArrayDeque<>(sessionState.moduleManager.listModules());
         moduleNames.addFirst(moduleName);
 

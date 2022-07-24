@@ -43,7 +43,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.net.InetAddress;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.Map;
@@ -75,7 +74,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     public void testOpenCloseJdbcConnection() throws Exception {
         SessionManager sessionManager = SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager();
         int originSessionCount = sessionManager.currentSessionCount();
-        try (Connection ignore = getConnection()) {
+        try (Connection ignore = ENDPOINT_EXTENSION.getConnection()) {
             assertThat(1 + originSessionCount).isEqualTo(sessionManager.currentSessionCount());
         }
         assertThat(sessionManager.currentSessionCount()).isEqualTo(originSessionCount);
@@ -122,13 +121,6 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 error.contains(
                                         String.format(
                                                 "Session '%s' does not exist", sessionHandle)));
-    }
-
-    private Connection getConnection() throws Exception {
-        return DriverManager.getConnection(
-                String.format(
-                        "jdbc:hive2://%s:%s/default;auth=noSasl",
-                        InetAddress.getLocalHost().getHostAddress(), ENDPOINT_EXTENSION.getPort()));
     }
 
     private TCLIService.Client createClient() throws Exception {

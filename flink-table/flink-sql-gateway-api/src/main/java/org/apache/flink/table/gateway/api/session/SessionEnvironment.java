@@ -181,7 +181,7 @@ public class SessionEnvironment {
             return this;
         }
 
-        public Builder registerModule(String moduleName, Module module) {
+        public Builder registerModuleAtHead(String moduleName, Module module) {
             if (registeredModules.containsKey(moduleName)) {
                 throw new ValidationException(
                         String.format("A module with name '%s' already exists", moduleName));

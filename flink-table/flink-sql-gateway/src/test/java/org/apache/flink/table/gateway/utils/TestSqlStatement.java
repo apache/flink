@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.service.utils;
+package org.apache.flink.table.gateway.utils;
 
 /**
  * A structure describes a SQL statement for testing.

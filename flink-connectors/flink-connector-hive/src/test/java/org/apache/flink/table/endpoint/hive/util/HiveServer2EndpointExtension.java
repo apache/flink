@@ -29,6 +29,8 @@ import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.net.InetAddress;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.CATALOG_DEFAULT_DATABASE;
@@ -80,7 +82,8 @@ public class HiveServer2EndpointExtension implements BeforeAllCallback, AfterAll
                         HiveTestUtils.createHiveSite().getParent(),
                         endpointConfig.get(CATALOG_DEFAULT_DATABASE),
                         endpointConfig.get(MODULE_NAME),
-                        true);
+                        true,
+                        false);
         endpoint.start();
     }
 
@@ -96,5 +99,12 @@ public class HiveServer2EndpointExtension implements BeforeAllCallback, AfterAll
 
     public int getPort() {
         return checkNotNull(port).getPort();
+    }
+
+    public Connection getConnection() throws Exception {
+        return DriverManager.getConnection(
+                String.format(
+                        "jdbc:hive2://%s:%s/default;auth=noSasl",
+                        InetAddress.getLocalHost().getHostAddress(), getPort()));
     }
 }

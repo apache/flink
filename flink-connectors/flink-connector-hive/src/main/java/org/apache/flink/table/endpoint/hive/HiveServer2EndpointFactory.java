@@ -105,7 +105,7 @@ public class HiveServer2EndpointFactory implements SqlGatewayEndpointFactory {
             return InetAddress.getByName(hostName);
         } catch (UnknownHostException e) {
             throw new ValidationException(
-                    String.format("Can not get the address for the host '%s'.", hostName));
+                    String.format("Can not get the address for the host '%s'.", hostName), e);
         }
     }
 
