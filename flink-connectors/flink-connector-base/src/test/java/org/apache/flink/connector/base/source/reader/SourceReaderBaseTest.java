@@ -239,7 +239,8 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
                         .setBlockingFetch(true)
                         .build();
         BlockingShutdownSplitFetcherManager<int[], MockSourceSplit> splitFetcherManager =
-                new BlockingShutdownSplitFetcherManager<>(elementsQueue, () -> mockSplitReader);
+                new BlockingShutdownSplitFetcherManager<>(
+                        elementsQueue, () -> mockSplitReader, getConfig());
         final MockSourceReader sourceReader =
                 new MockSourceReader(
                         elementsQueue,
@@ -448,8 +449,9 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 
         public BlockingShutdownSplitFetcherManager(
                 FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-                Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
-            super(elementsQueue, splitReaderSupplier);
+                Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
+                Configuration configuration) {
+            super(elementsQueue, splitReaderSupplier, configuration);
             this.inShutdownSplitFetcherFuture = new CompletableFuture<>();
         }
 

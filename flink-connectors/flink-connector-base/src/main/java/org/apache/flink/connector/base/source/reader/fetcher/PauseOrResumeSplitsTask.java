@@ -22,6 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.Collection;
 
@@ -37,23 +40,32 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 class PauseOrResumeSplitsTask<SplitT extends SourceSplit> implements SplitFetcherTask {
-
+    private static final Logger LOG = LoggerFactory.getLogger(PauseOrResumeSplitsTask.class);
     private final SplitReader<?, SplitT> splitReader;
     private final Collection<SplitT> splitsToPause;
     private final Collection<SplitT> splitsToResume;
+    private final boolean allowUnalignedSourceSplits;
 
     PauseOrResumeSplitsTask(
             SplitReader<?, SplitT> splitReader,
             Collection<SplitT> splitsToPause,
-            Collection<SplitT> splitsToResume) {
+            Collection<SplitT> splitsToResume,
+            boolean allowUnalignedSourceSplits) {
         this.splitReader = checkNotNull(splitReader);
         this.splitsToPause = checkNotNull(splitsToPause);
         this.splitsToResume = checkNotNull(splitsToResume);
+        this.allowUnalignedSourceSplits = allowUnalignedSourceSplits;
     }
 
     @Override
     public boolean run() throws IOException {
-        splitReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
+        try {
+            splitReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
+        } catch (UnsupportedOperationException e) {
+            if (!allowUnalignedSourceSplits) {
+                throw new UnsupportedOperationException("", e);
+            }
+        }
         return true;
     }
 

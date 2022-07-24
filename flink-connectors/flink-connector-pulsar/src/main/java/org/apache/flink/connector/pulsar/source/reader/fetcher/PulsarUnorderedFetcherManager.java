@@ -19,6 +19,7 @@
 package org.apache.flink.connector.pulsar.source.reader.fetcher;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcher;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -49,8 +50,9 @@ public class PulsarUnorderedFetcherManager<T> extends PulsarFetcherManagerBase<T
 
     public PulsarUnorderedFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<PulsarMessage<T>>> elementsQueue,
-            Supplier<SplitReader<PulsarMessage<T>, PulsarPartitionSplit>> splitReaderSupplier) {
-        super(elementsQueue, splitReaderSupplier);
+            Supplier<SplitReader<PulsarMessage<T>, PulsarPartitionSplit>> splitReaderSupplier,
+            Configuration configuration) {
+        super(elementsQueue, splitReaderSupplier, configuration);
     }
 
     public List<PulsarPartitionSplit> snapshotState() {

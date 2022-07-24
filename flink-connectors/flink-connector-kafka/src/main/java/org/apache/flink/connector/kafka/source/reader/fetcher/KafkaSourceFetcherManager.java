@@ -19,6 +19,7 @@
 package org.apache.flink.connector.kafka.source.reader.fetcher;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
@@ -68,7 +69,7 @@ public class KafkaSourceFetcherManager
             Supplier<SplitReader<ConsumerRecord<byte[], byte[]>, KafkaPartitionSplit>>
                     splitReaderSupplier,
             Consumer<Collection<String>> splitFinishedHook) {
-        super(elementsQueue, splitReaderSupplier, splitFinishedHook);
+        super(elementsQueue, splitReaderSupplier, new Configuration(), splitFinishedHook);
     }
 
     public void commitOffsets(

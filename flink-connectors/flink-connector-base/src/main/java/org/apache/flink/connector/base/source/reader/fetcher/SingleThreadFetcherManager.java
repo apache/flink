@@ -21,6 +21,7 @@ package org.apache.flink.connector.base.source.reader.fetcher;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -55,8 +56,9 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
      */
     public SingleThreadFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-            Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
-        super(elementsQueue, splitReaderSupplier);
+            Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
+            Configuration configuration) {
+        super(elementsQueue, splitReaderSupplier, configuration);
     }
 
     /**
@@ -73,8 +75,9 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
     public SingleThreadFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
+            Configuration configuration,
             Consumer<Collection<String>> splitFinishedHook) {
-        super(elementsQueue, splitReaderSupplier, splitFinishedHook);
+        super(elementsQueue, splitReaderSupplier, configuration, splitFinishedHook);
     }
 
     @Override

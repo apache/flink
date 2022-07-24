@@ -282,4 +282,21 @@ public class PipelineOptions {
                     .withDescription(
                             "Whether name of vertex includes topological index or not. "
                                     + "When it is true, the name will have a prefix of index of the vertex, like '[vertex-0]Source: source'. It is false by default");
+
+    @PublicEvolving
+    public static final ConfigOption<Boolean> ALLOW_UNALIGNED_SOURCE_SPLITS =
+            key("pipeline.watermark-alignment.allow-unaligned-source-splits")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If watermark alignment is used, sources with multiple splits will "
+                                    + "attempt to pause/resume split readers to avoid watermark "
+                                    + "drift of source splits. "
+                                    + "However, if split readers don't support pause/resume an "
+                                    + "UnsupportedOperationException will be thrown when there is "
+                                    + "an attempt to pause/resume. To allow use of split readers that "
+                                    + "don't support pause/resume and, hence, t allow unaligned splits "
+                                    + "while still using watermark alignment, set this parameter to true. "
+                                    + "The default value is false. Note: This parameter may be "
+                                    + "removed in future releases.");
 }
