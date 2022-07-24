@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.operation.OperationType;
+import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
@@ -172,6 +173,11 @@ public class OperationManager {
         return getOperation(operationHandle).fetchResults(token, maxRows);
     }
 
+    public ResultSet fetchResults(
+            OperationHandle operationHandle, FetchOrientation orientation, int maxRows) {
+        return getOperation(operationHandle).fetchResults(orientation, maxRows);
+    }
+
     /** Closes the {@link OperationManager} and all operations. */
     public void close() {
         stateLock.writeLock().lock();
@@ -300,12 +306,34 @@ public class OperationManager {
         }
 
         public ResultSet fetchResults(long token, int maxRows) {
+            return fetchResultsInternal(() -> resultFetcher.fetchResults(token, maxRows));
+        }
+
+        public ResultSet fetchResults(FetchOrientation orientation, int maxRows) {
+            return fetchResultsInternal(() -> resultFetcher.fetchResults(orientation, maxRows));
+        }
+
+        public ResolvedSchema getResultSchema() {
+            OperationStatus current = status.get();
+            if (current != OperationStatus.FINISHED || !hasResults) {
+                throw new IllegalStateException(
+                        "The result schema is available when the Operation is in FINISHED state and the Operation indicates it has data.");
+            }
+
+            return resultFetcher.getResultSchema();
+        }
+
+        public OperationInfo getOperationInfo() {
+            return new OperationInfo(status.get(), operationType, operationError);
+        }
+
+        private ResultSet fetchResultsInternal(Supplier<ResultSet> results) {
             OperationStatus currentStatus = status.get();
 
             if (currentStatus == OperationStatus.ERROR) {
                 throw operationError;
             } else if (currentStatus == OperationStatus.FINISHED) {
-                return resultFetcher.fetchResults(token, maxRows);
+                return results.get();
             } else if (currentStatus == OperationStatus.RUNNING
                     || currentStatus == OperationStatus.PENDING
                     || currentStatus == OperationStatus.INITIALIZED) {
@@ -316,20 +344,6 @@ public class OperationManager {
                                 "Can not fetch results from the %s in %s status.",
                                 operationHandle, currentStatus));
             }
-        }
-
-        public OperationInfo getOperationInfo() {
-            return new OperationInfo(status.get(), operationType);
-        }
-
-        public ResolvedSchema getResultSchema() {
-            OperationStatus current = status.get();
-            if (current != OperationStatus.FINISHED || !hasResults) {
-                throw new IllegalStateException(
-                        "The result schema is available when the Operation is in FINISHED state and the Operation has data.");
-            }
-
-            return resultFetcher.getResultSchema();
         }
 
         private void updateState(OperationStatus toStatus) {
