@@ -19,7 +19,6 @@
 package org.apache.flink.table.gateway.api.operation;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.gateway.api.HandleIdentifier;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -28,17 +27,17 @@ import java.util.UUID;
 @PublicEvolving
 public class OperationHandle {
 
-    private final HandleIdentifier identifier;
+    private final UUID identifier;
 
     public static OperationHandle create() {
-        return new OperationHandle(new HandleIdentifier(UUID.randomUUID(), UUID.randomUUID()));
+        return new OperationHandle(UUID.randomUUID());
     }
 
-    public OperationHandle(HandleIdentifier identifier) {
+    public OperationHandle(UUID identifier) {
         this.identifier = identifier;
     }
 
-    public HandleIdentifier getIdentifier() {
+    public UUID getIdentifier() {
         return identifier;
     }
 

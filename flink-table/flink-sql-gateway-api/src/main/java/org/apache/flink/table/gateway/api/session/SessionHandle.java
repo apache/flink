@@ -19,7 +19,6 @@
 package org.apache.flink.table.gateway.api.session;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.gateway.api.HandleIdentifier;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -28,17 +27,17 @@ import java.util.UUID;
 @PublicEvolving
 public class SessionHandle {
 
-    private final HandleIdentifier identifier;
+    private final UUID identifier;
 
     public static SessionHandle create() {
-        return new SessionHandle(new HandleIdentifier(UUID.randomUUID(), UUID.randomUUID()));
+        return new SessionHandle(UUID.randomUUID());
     }
 
-    public SessionHandle(HandleIdentifier identifier) {
+    public SessionHandle(UUID identifier) {
         this.identifier = identifier;
     }
 
-    public HandleIdentifier getIdentifier() {
+    public UUID getIdentifier() {
         return identifier;
     }
 

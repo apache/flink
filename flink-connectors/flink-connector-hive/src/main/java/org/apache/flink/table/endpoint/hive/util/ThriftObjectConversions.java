@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.endpoint.hive.util;
 
-import org.apache.flink.table.gateway.api.HandleIdentifier;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 
 import org.apache.hive.service.rpc.thrift.THandleIdentifier;
@@ -34,12 +33,19 @@ import java.util.UUID;
 /** Conversion between thrift object and flink object. */
 public class ThriftObjectConversions {
 
+    private static final UUID SECRET_ID = UUID.fromString("b06fa16a-3d16-475f-b510-6c64abb9b173");
+
+    // --------------------------------------------------------------------------------------------
+    // Flink SessionHandle from/to Hive SessionHandle
+    // --------------------------------------------------------------------------------------------
+
     public static TSessionHandle toTSessionHandle(SessionHandle sessionHandle) {
         return new TSessionHandle(toTHandleIdentifier(sessionHandle.getIdentifier()));
     }
 
     public static SessionHandle toSessionHandle(TSessionHandle tSessionHandle) {
-        return new SessionHandle(toHandleIdentifier(tSessionHandle.getSessionId()));
+        ByteBuffer bb = ByteBuffer.wrap(tSessionHandle.getSessionId().getGuid());
+        return new SessionHandle(new UUID(bb.getLong(), bb.getLong()));
     }
 
     public static TStatus toTStatus(Throwable t) {
@@ -51,25 +57,17 @@ public class ThriftObjectConversions {
 
     // --------------------------------------------------------------------------------------------
 
-    private static THandleIdentifier toTHandleIdentifier(HandleIdentifier identifier) {
+    private static THandleIdentifier toTHandleIdentifier(UUID publicId) {
         byte[] guid = new byte[16];
         byte[] secret = new byte[16];
         ByteBuffer guidBB = ByteBuffer.wrap(guid);
         ByteBuffer secretBB = ByteBuffer.wrap(secret);
 
-        guidBB.putLong(identifier.getPublicId().getMostSignificantBits());
-        guidBB.putLong(identifier.getPublicId().getLeastSignificantBits());
-        secretBB.putLong(identifier.getSecretId().getMostSignificantBits());
-        secretBB.putLong(identifier.getSecretId().getLeastSignificantBits());
+        guidBB.putLong(publicId.getMostSignificantBits());
+        guidBB.putLong(publicId.getLeastSignificantBits());
+        secretBB.putLong(SECRET_ID.getMostSignificantBits());
+        secretBB.putLong(SECRET_ID.getLeastSignificantBits());
         return new THandleIdentifier(ByteBuffer.wrap(guid), ByteBuffer.wrap(secret));
-    }
-
-    private static HandleIdentifier toHandleIdentifier(THandleIdentifier tHandleId) {
-        ByteBuffer bb = ByteBuffer.wrap(tHandleId.getGuid());
-        UUID publicId = new UUID(bb.getLong(), bb.getLong());
-        bb = ByteBuffer.wrap(tHandleId.getSecret());
-        UUID secretId = new UUID(bb.getLong(), bb.getLong());
-        return new HandleIdentifier(publicId, secretId);
     }
 
     /**
@@ -103,7 +101,7 @@ public class ThriftObjectConversions {
     }
 
     private static List<String> enroll(Throwable ex, StackTraceElement[] trace, int max) {
-        List<String> details = new ArrayList<String>();
+        List<String> details = new ArrayList<>();
         StringBuilder builder = new StringBuilder();
         builder.append('*').append(ex.getClass().getName()).append(':');
         builder.append(ex.getMessage()).append(':');
