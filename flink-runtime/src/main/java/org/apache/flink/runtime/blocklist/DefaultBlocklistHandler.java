@@ -30,6 +30,8 @@ import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -111,26 +113,32 @@ public class DefaultBlocklistHandler implements BlocklistHandler, AutoCloseable 
     public void addNewBlockedNodes(Collection<BlockedNode> newNodes) {
         assertRunningInMainThread();
 
-        Collection<BlockedNode> newlyAddedOrMerged = blocklistTracker.addNewBlockedNodes(newNodes);
-        if (!newlyAddedOrMerged.isEmpty()) {
+        BlockedNodeAdditionResult result = blocklistTracker.addNewBlockedNodes(newNodes);
+        Collection<BlockedNode> newlyAddedNodes = result.getNewlyAddedNodes();
+        if (!newlyAddedNodes.isEmpty()) {
             if (log.isDebugEnabled()) {
                 log.debug(
-                        "Newly added/merged {} blocked nodes, details: {}."
+                        "Newly added {} blocked nodes, details: {}."
                                 + " Total {} blocked nodes currently, details: {}.",
-                        newlyAddedOrMerged.size(),
-                        newlyAddedOrMerged,
+                        newlyAddedNodes.size(),
+                        newlyAddedNodes,
                         blocklistTracker.getAllBlockedNodes().size(),
                         blocklistTracker.getAllBlockedNodes());
             } else {
                 log.info(
-                        "Newly added/merged {} blocked nodes. Total {} blocked nodes currently.",
-                        newlyAddedOrMerged.size(),
+                        "Newly added {} blocked nodes. Total {} blocked nodes currently.",
+                        newlyAddedNodes.size(),
                         blocklistTracker.getAllBlockedNodes().size());
             }
 
             blocklistListeners.forEach(
-                    listener -> listener.notifyNewBlockedNodes(newlyAddedOrMerged));
-            blocklistContext.blockResources(newlyAddedOrMerged);
+                    listener ->
+                            listener.notifyNewBlockedNodes(
+                                    Stream.concat(
+                                                    newlyAddedNodes.stream(),
+                                                    result.getMergedNodes().stream())
+                                            .collect(Collectors.toList())));
+            blocklistContext.blockResources(newlyAddedNodes);
         }
     }
 
