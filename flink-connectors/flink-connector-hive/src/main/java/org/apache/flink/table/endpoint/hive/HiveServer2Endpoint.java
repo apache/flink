@@ -22,16 +22,21 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
+import org.apache.flink.table.gateway.api.operation.OperationHandle;
+import org.apache.flink.table.gateway.api.operation.OperationStatus;
+import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.api.utils.ThreadUtils;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.hive.HiveModule;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hive.service.rpc.thrift.TCLIService;
@@ -75,6 +80,7 @@ import org.apache.hive.service.rpc.thrift.TGetTypeInfoReq;
 import org.apache.hive.service.rpc.thrift.TGetTypeInfoResp;
 import org.apache.hive.service.rpc.thrift.TOpenSessionReq;
 import org.apache.hive.service.rpc.thrift.TOpenSessionResp;
+import org.apache.hive.service.rpc.thrift.TOperationHandle;
 import org.apache.hive.service.rpc.thrift.TProtocolVersion;
 import org.apache.hive.service.rpc.thrift.TRenewDelegationTokenReq;
 import org.apache.hive.service.rpc.thrift.TRenewDelegationTokenResp;
@@ -107,9 +113,12 @@ import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIA
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointVersion.HIVE_CLI_SERVICE_PROTOCOL_V10;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.getUsedDefaultDatabase;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.validateAndNormalize;
+import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toOperationHandle;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toSessionHandle;
+import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTOperationState;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTSessionHandle;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTStatus;
+import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTTableSchema;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -218,9 +227,10 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         this.catalogName = checkNotNull(catalogName);
         this.hiveConfPath = hiveConfPath;
         this.defaultDatabase = defaultDatabase;
-        this.allowEmbedded = allowEmbedded;
 
         this.moduleName = moduleName;
+
+        this.allowEmbedded = allowEmbedded;
     }
 
     @Override
@@ -375,7 +385,27 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     @Override
     public TGetOperationStatusResp GetOperationStatus(TGetOperationStatusReq tGetOperationStatusReq)
             throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetOperationStatusResp resp = new TGetOperationStatusResp();
+        try {
+            TOperationHandle operationHandle = tGetOperationStatusReq.getOperationHandle();
+            OperationInfo operationInfo =
+                    service.getOperationInfo(
+                            toSessionHandle(operationHandle), toOperationHandle(operationHandle));
+            resp.setStatus(OK_STATUS);
+            // TODO: support completed time / start time
+            resp.setOperationState(toTOperationState(operationInfo.getStatus()));
+            // Currently, all operations have results.
+            resp.setHasResultSet(true);
+            if (operationInfo.getStatus().equals(OperationStatus.ERROR)
+                    && operationInfo.getException().isPresent()) {
+                resp.setErrorMessage(
+                        ExceptionUtils.stringifyException(operationInfo.getException().get()));
+            }
+        } catch (Throwable t) {
+            LOG.error("Failed to GetOperationStatus.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
@@ -393,7 +423,22 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     @Override
     public TGetResultSetMetadataResp GetResultSetMetadata(
             TGetResultSetMetadataReq tGetResultSetMetadataReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetResultSetMetadataResp resp = new TGetResultSetMetadataResp();
+        try {
+            SessionHandle sessionHandle =
+                    toSessionHandle(tGetResultSetMetadataReq.getOperationHandle());
+            OperationHandle operationHandle =
+                    toOperationHandle(tGetResultSetMetadataReq.getOperationHandle());
+            ResolvedSchema schema =
+                    service.getOperationResultSchema(sessionHandle, operationHandle);
+
+            resp.setStatus(OK_STATUS);
+            resp.setSchema(toTTableSchema(schema));
+        } catch (Throwable t) {
+            LOG.warn("Failed to GetResultSetMetadata.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override

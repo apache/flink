@@ -89,6 +89,10 @@ public class ResultFetcher {
         resultStore.close();
     }
 
+    public ResolvedSchema getResultSchema() {
+        return resultSchema;
+    }
+
     /**
      * Fetch results from the result store. It tries to return the data cached in the buffer first.
      * If the buffer is empty, then fetch results from the {@link ResultStore}. It's possible

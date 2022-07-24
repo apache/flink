@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
@@ -106,6 +107,16 @@ public interface SqlGatewayService {
      * @param operationHandle handle to identify the operation.
      */
     OperationInfo getOperationInfo(SessionHandle sessionHandle, OperationHandle operationHandle)
+            throws SqlGatewayException;
+
+    /**
+     * Get the result schema for the specified Operation.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param operationHandle handle to identify the operation.
+     */
+    ResolvedSchema getOperationResultSchema(
+            SessionHandle sessionHandle, OperationHandle operationHandle)
             throws SqlGatewayException;
 
     // -------------------------------------------------------------------------------------------
