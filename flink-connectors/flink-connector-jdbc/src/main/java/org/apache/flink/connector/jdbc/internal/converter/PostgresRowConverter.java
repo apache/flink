@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.jdbc.internal.converter;
 
+import org.apache.flink.connector.jdbc.utils.JdbcTypeUtil;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.types.logical.ArrayType;
@@ -27,6 +28,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.postgresql.jdbc.PgArray;
 import org.postgresql.util.PGobject;
@@ -89,10 +91,27 @@ public class PostgresRowConverter extends AbstractJdbcRowConverter {
     protected JdbcSerializationConverter createNullableExternalConverter(LogicalType type) {
         LogicalTypeRoot root = type.getTypeRoot();
         if (root == LogicalTypeRoot.ARRAY) {
-            return (val, index, statement) -> {
-                ArrayData arrayData = val.getArray(index);
-                LogicalTypeRoot arrayType = type.getChildren().get(0).getTypeRoot();
+            return createPostgresArraySerializationConverter(type);
+        } else {
+            return super.createNullableExternalConverter(type);
+        }
+    }
 
+    private JdbcSerializationConverter createPostgresArraySerializationConverter(LogicalType type) {
+        return (val, index, statement) -> {
+            ArrayData arrayData = val.getArray(index);
+            LogicalTypeRoot arrayType = type.getChildren().get(0).getTypeRoot();
+
+            int sqlType =
+                    JdbcTypeUtil.typeInformationToSqlType(
+                            TypeConversions.fromDataTypeToLegacyInfo(
+                                    TypeConversions.fromLogicalToDataType(type)));
+
+            if (val == null
+                    || val.isNullAt(index)
+                    || LogicalTypeRoot.NULL.equals(type.getTypeRoot())) {
+                statement.setNull(index, sqlType);
+            } else {
                 switch (arrayType) {
                     case TINYINT:
                         byte[] byteArray = new byte[arrayData.size()];
@@ -169,10 +188,8 @@ public class PostgresRowConverter extends AbstractJdbcRowConverter {
                                         "Writing ARRAY<%s> type is not yet supported in JDBC:%s.",
                                         arrayType, converterName()));
                 }
-            };
-        } else {
-            return super.createNullableExternalConverter(type);
-        }
+            }
+        };
     }
 
     private JdbcDeserializationConverter createPostgresArrayConverter(ArrayType arrayType) {
