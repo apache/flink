@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.DataStreamPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.embedded.AbstractEmbeddedDataStreamPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.process.AbstractExternalDataStreamPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.process.AbstractExternalOneInputPythonFunctionOperator;
@@ -315,33 +316,13 @@ public class PythonConfigUtil {
                                     AbstractPythonFunctionOperator<?> pythonFunctionOperator =
                                             getPythonOperator(input);
                                     if (pythonFunctionOperator
-                                            instanceof
-                                            AbstractExternalDataStreamPythonFunctionOperator) {
-                                        AbstractExternalDataStreamPythonFunctionOperator<?>
+                                            instanceof DataStreamPythonFunctionOperator) {
+                                        DataStreamPythonFunctionOperator
                                                 pythonDataStreamFunctionOperator =
-                                                        (AbstractExternalDataStreamPythonFunctionOperator<
-                                                                        ?>)
+                                                        (DataStreamPythonFunctionOperator)
                                                                 pythonFunctionOperator;
-                                        if (pythonDataStreamFunctionOperator
-                                                .containsPartitionCustom()) {
-                                            pythonDataStreamFunctionOperator.setNumPartitions(
-                                                    transformation.getParallelism());
-                                        }
-                                    }
-
-                                    if (pythonFunctionOperator
-                                            instanceof
-                                            AbstractEmbeddedDataStreamPythonFunctionOperator) {
-                                        AbstractEmbeddedDataStreamPythonFunctionOperator<?>
-                                                pythonDataStreamFunctionOperator =
-                                                        (AbstractEmbeddedDataStreamPythonFunctionOperator<
-                                                                        ?>)
-                                                                pythonFunctionOperator;
-                                        if (pythonDataStreamFunctionOperator
-                                                .containsPartitionCustom()) {
-                                            pythonDataStreamFunctionOperator.setNumPartitions(
-                                                    transformation.getParallelism());
-                                        }
+                                        pythonDataStreamFunctionOperator.setNumPartitions(
+                                                transformation.getParallelism());
                                     }
                                 });
 

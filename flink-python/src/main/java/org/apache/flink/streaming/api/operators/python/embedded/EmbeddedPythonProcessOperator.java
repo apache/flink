@@ -22,17 +22,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
-import com.google.protobuf.AbstractMessageLite;
-
 import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
 import static org.apache.flink.python.PythonOptions.MAP_STATE_READ_CACHE_SIZE;
@@ -43,8 +40,7 @@ import static org.apache.flink.python.PythonOptions.STATE_CACHE_SIZE;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
- * {@link EmbeddedPythonProcessOperator} is responsible for executing user defined python
- * ProcessFunction in embedded Python environment.
+ * {@link EmbeddedPythonProcessOperator} is responsible for executing Python ProcessFunction in JVM.
  */
 @Internal
 public class EmbeddedPythonProcessOperator<IN, OUT>
@@ -66,27 +62,24 @@ public class EmbeddedPythonProcessOperator<IN, OUT>
 
     @Override
     public void open() throws Exception {
+        currentWatermark = Long.MIN_VALUE;
         context = new ContextImpl(getProcessingTimeService());
         super.open();
-        currentWatermark = Long.MIN_VALUE;
     }
 
     @Override
-    public List<byte[]> serializedDataStreamFunctionProtos() {
-        List<FlinkFnApi.UserDefinedDataStreamFunction> protos =
-                ProtoUtils.createUserDefinedDataStreamFunctionProtos(
-                        getPythonFunctionInfo(),
-                        getRuntimeContext(),
-                        new HashMap<>(),
-                        inBatchExecutionMode(getKeyedStateBackend()),
-                        config.get(PYTHON_METRIC_ENABLED),
-                        config.get(PYTHON_PROFILE_ENABLED),
-                        false,
-                        config.get(STATE_CACHE_SIZE),
-                        config.get(MAP_STATE_READ_CACHE_SIZE),
-                        config.get(MAP_STATE_WRITE_CACHE_SIZE));
-
-        return protos.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
+    public List<FlinkFnApi.UserDefinedDataStreamFunction> createUserDefinedFunctionsProto() {
+        return ProtoUtils.createUserDefinedDataStreamFunctionProtos(
+                getPythonFunctionInfo(),
+                getRuntimeContext(),
+                new HashMap<>(),
+                inBatchExecutionMode(getKeyedStateBackend()),
+                config.get(PYTHON_METRIC_ENABLED),
+                config.get(PYTHON_PROFILE_ENABLED),
+                false,
+                config.get(STATE_CACHE_SIZE),
+                config.get(MAP_STATE_READ_CACHE_SIZE),
+                config.get(MAP_STATE_WRITE_CACHE_SIZE));
     }
 
     @Override

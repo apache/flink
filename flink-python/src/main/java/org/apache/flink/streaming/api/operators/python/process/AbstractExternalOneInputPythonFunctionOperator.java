@@ -33,13 +33,13 @@ import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionI
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.streaming.api.operators.python.collector.RunnerOutputCollector;
+import org.apache.flink.streaming.api.operators.python.process.collector.RunnerOutputCollector;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
+import static org.apache.flink.python.util.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
 
 /**
  * {@link AbstractExternalOneInputPythonFunctionOperator} is responsible for launching beam runner

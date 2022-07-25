@@ -53,7 +53,7 @@ class OneInputFunctionOperation(FunctionOperation):
                 runtime_context,
                 function_context,
                 job_parameters)
-             for serialized_fn in serialized_fns])
+                for serialized_fn in serialized_fns])
         super(OneInputFunctionOperation, self).__init__(
             operations, input_data_converter, output_data_converter)
 

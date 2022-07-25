@@ -62,6 +62,23 @@ class PickleDataConverter(DataConverter):
         return pickle.dumps(value)
 
 
+class FlattenRowDataConverter(DataConverter):
+    def __init__(self, field_data_converters: List[DataConverter]):
+        self._field_data_converters = field_data_converters
+
+    def to_internal(self, value) -> IN:
+        if value is None:
+            return None
+
+        return [self._field_data_converters[i].to_internal(item) for i, item in enumerate(value)]
+
+    def to_external(self, value) -> OUT:
+        if value is None:
+            return None
+
+        return [self._field_data_converters[i].to_external(item) for i, item in enumerate(value)]
+
+
 class RowDataConverter(DataConverter):
 
     def __init__(self, field_data_converters: List[DataConverter], field_names: List[str]):
@@ -174,5 +191,32 @@ def from_type_info_proto(type_info):
     elif type_name == type_info_name.MAP:
         return DictDataConverter(from_type_info_proto(type_info.map_type_info.key_type),
                                  from_type_info_proto(type_info.map_type_info.value_type))
+
+    return IdentityDataConverter()
+
+
+def from_schema_proto(schema, one_arg_optimized=False):
+    field_converters = [from_field_type_proto(f.type) for f in schema.fields]
+    if one_arg_optimized and len(field_converters) == 1:
+        return field_converters[0]
+    else:
+        return FlattenRowDataConverter(field_converters)
+
+
+def from_field_type_proto(field_type):
+    from pyflink.fn_execution import flink_fn_execution_pb2
+
+    schema_type_name = flink_fn_execution_pb2.Schema
+
+    type_name = field_type.type_name
+    if type_name == schema_type_name.ROW:
+        return RowDataConverter(
+            [from_field_type_proto(f.type) for f in field_type.row_schema.fields],
+            [f.name for f in field_type.row_schema.fields])
+    elif type_name == schema_type_name.BASIC_ARRAY:
+        return ListDataConverter(from_field_type_proto(field_type.collection_element_type))
+    elif type_name == schema_type_name.MAP:
+        return DictDataConverter(from_field_type_proto(field_type.map_info.key_type),
+                                 from_field_type_proto(field_type.map_info.value_type))
 
     return IdentityDataConverter()

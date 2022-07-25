@@ -25,6 +25,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.TimeDomain;
@@ -32,10 +33,9 @@ import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionI
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.api.operators.python.timer.TimerHandler;
-import org.apache.flink.streaming.api.operators.python.timer.TimerRegistration;
+import org.apache.flink.streaming.api.operators.python.process.timer.TimerHandler;
+import org.apache.flink.streaming.api.operators.python.process.timer.TimerRegistration;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
-import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Row;
@@ -46,8 +46,8 @@ import static org.apache.flink.python.PythonOptions.MAP_STATE_WRITE_CACHE_SIZE;
 import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
 import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
 import static org.apache.flink.python.PythonOptions.STATE_CACHE_SIZE;
-import static org.apache.flink.streaming.api.operators.python.timer.TimerUtils.createTimerDataCoderInfoDescriptorProto;
-import static org.apache.flink.streaming.api.operators.python.timer.TimerUtils.createTimerDataTypeInfo;
+import static org.apache.flink.streaming.api.operators.python.process.timer.TimerUtils.createTimerDataCoderInfoDescriptorProto;
+import static org.apache.flink.streaming.api.operators.python.process.timer.TimerUtils.createTimerDataTypeInfo;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**

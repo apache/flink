@@ -21,13 +21,12 @@ package org.apache.flink.table.runtime.operators.python.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.streaming.api.utils.ProtoUtils;
+import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.python.AbstractEmbeddedStatelessFunctionOperator;
@@ -36,10 +35,9 @@ import org.apache.flink.util.Preconditions;
 
 import pemja.core.object.PyIterator;
 
-import java.util.Map;
-
 import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
 import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
+import static org.apache.flink.python.util.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
 
 /** The Python {@link TableFunction} operator in embedded Python environment. */
 @Internal
@@ -86,28 +84,56 @@ public class EmbeddedPythonTableFunctionOperator extends AbstractEmbeddedStatele
     }
 
     @Override
-    public void openPythonInterpreter(String pythonExecutable, Map<String, String> env) {
+    public void openPythonInterpreter() {
+        // from pyflink.fn_execution.embedded.operation_utils import
+        // create_table_operation_from_proto
+        //
+        // proto = xxx
+        // table_operation = create_table_operation_from_proto(
+        //      proto, input_coder_proto, output_coder_proto)
+        // table_operation.open()
+
         interpreter.exec(
-                "from pyflink.fn_execution.utils.operation_utils import create_table_operation_from_proto");
-        interpreter.set("proto", getUserDefinedFunctionsProto().toByteArray());
+                "from pyflink.fn_execution.embedded.operation_utils import create_table_operation_from_proto");
 
-        interpreter.exec("table_operation = create_table_operation_from_proto(proto)");
+        interpreter.set(
+                "input_coder_proto",
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                                udfInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false)
+                        .toByteArray());
 
-        // invoke `open` method of TableOperation.
+        interpreter.set(
+                "output_coder_proto",
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                                udfOutputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false)
+                        .toByteArray());
+
+        interpreter.set(
+                "proto",
+                ProtoUtils.createUserDefinedFunctionsProto(
+                                new PythonFunctionInfo[] {tableFunction},
+                                config.get(PYTHON_METRIC_ENABLED),
+                                config.get(PYTHON_PROFILE_ENABLED))
+                        .toByteArray());
+
+        interpreter.exec(
+                "table_operation = create_table_operation_from_proto("
+                        + "proto,"
+                        + "input_coder_proto,"
+                        + "output_coder_proto)");
+
+        // invoke the open method of table_operation which calls
+        // the open method of the user-defined table function.
         interpreter.invokeMethod("table_operation", "open");
     }
 
     @Override
     public void endInput() {
         if (interpreter != null) {
-            // invoke `close` method of TableOperation.
+            // invoke the open method of table_operation which calls
+            // the close method of the user-defined table function.
             interpreter.invokeMethod("table_operation", "close");
         }
-    }
-
-    @Override
-    public PythonEnv getPythonEnv() {
-        return tableFunction.getPythonFunction().getPythonEnv();
     }
 
     @SuppressWarnings("unchecked")
@@ -139,20 +165,5 @@ public class EmbeddedPythonTableFunctionOperator extends AbstractEmbeddedStatele
         } else if (joinType == FlinkJoinType.LEFT) {
             rowDataWrapper.collect(reuseJoinedRow.replace(value, reuseNullResultRowData));
         }
-    }
-
-    @Override
-    protected void invokeFinishBundle() throws Exception {
-        // TODO: Support batches invoking.
-    }
-
-    @Override
-    public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
-        FlinkFnApi.UserDefinedFunctions.Builder builder =
-                FlinkFnApi.UserDefinedFunctions.newBuilder();
-        builder.addUdfs(ProtoUtils.getUserDefinedFunctionProto(tableFunction));
-        builder.setMetricEnabled(config.get(PYTHON_METRIC_ENABLED));
-        builder.setProfileEnabled(config.get(PYTHON_PROFILE_ENABLED));
-        return builder.build();
     }
 }

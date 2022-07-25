@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.python.timer;
+package org.apache.flink.streaming.api.operators.python.process.timer;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.streaming.api.utils.ProtoUtils;
+import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.types.Row;
 
 /** Utilities for timer. */

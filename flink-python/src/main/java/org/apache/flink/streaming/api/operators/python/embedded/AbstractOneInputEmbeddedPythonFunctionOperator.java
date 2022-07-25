@@ -22,19 +22,20 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 
+import com.google.protobuf.AbstractMessageLite;
 import pemja.core.object.PyIterator;
 
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * {@link AbstractOneInputEmbeddedPythonFunctionOperator} is responsible for run Python DataStream
@@ -47,7 +48,7 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
 
     private static final long serialVersionUID = 1L;
 
-    /** The TypeInformation of input data. */
+    /** The TypeInformation of the input data. */
     private final TypeInformation<IN> inputTypeInfo;
 
     private transient PythonTypeUtils.DataConverter<IN, Object> inputDataConverter;
@@ -82,11 +83,30 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
     }
 
     @Override
-    public void openPythonInterpreter(String pythonExecutable, Map<String, String> env) {
+    public void openPythonInterpreter() {
+        // function_urn = ...
+        // function_protos = ...
+        // input_coder_info = ...
+        // output_coder_info = ...
+        // runtime_context = ...
+        // function_context = ...
+        // job_parameters = ...
+        //
+        // from pyflink.fn_execution.embedded.operation_utils import
+        // create_one_input_user_defined_data_stream_function_from_protos
+        //
+        // operation = create_one_input_user_defined_data_stream_function_from_protos(function_urn,
+        //     function_protos, input_coder_info, output_coder_info, runtime_context,
+        //     function_context, job_parameters)
+        // operation.open()
 
         interpreter.set("function_urn", functionUrn);
 
-        interpreter.set("function_protos", serializedDataStreamFunctionProtos());
+        interpreter.set(
+                "function_protos",
+                createUserDefinedFunctionsProto().stream()
+                        .map(AbstractMessageLite::toByteArray)
+                        .collect(Collectors.toList()));
 
         interpreter.set(
                 "input_coder_info",
@@ -96,7 +116,6 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
                                 false,
                                 null)
                         .toByteArray());
-
         interpreter.set(
                 "output_coder_info",
                 ProtoUtils.createRawTypeCoderInfoDescriptorProto(
@@ -107,9 +126,7 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
                         .toByteArray());
 
         interpreter.set("runtime_context", getRuntimeContext());
-
         interpreter.set("function_context", getFunctionContext());
-
         interpreter.set("job_parameters", getJobParameters());
 
         interpreter.exec(
@@ -129,21 +146,18 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
     }
 
     @Override
-    public void endInput() throws Exception {
+    public void endInput() {
         if (interpreter != null) {
             interpreter.invokeMethod("operation", "close");
         }
     }
 
     @Override
-    public void processElement(StreamRecord<IN> element) throws Exception {
-
+    public void processElement(StreamRecord<IN> element) {
         collector.setTimestamp(element);
-
         timestamp = element.getTimestamp();
 
         IN value = element.getValue();
-
         PyIterator results =
                 (PyIterator)
                         interpreter.invokeMethod(
@@ -157,12 +171,13 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
         }
     }
 
-    public TypeInformation<IN> getInputTypeInfo() {
+    TypeInformation<IN> getInputTypeInfo() {
         return inputTypeInfo;
     }
 
-    /** Serialized DataStream function protos. */
-    public abstract List<byte[]> serializedDataStreamFunctionProtos();
+    /** Gets the proto representation of the Python user-defined functions to be executed. */
+    public abstract List<FlinkFnApi.UserDefinedDataStreamFunction>
+            createUserDefinedFunctionsProto();
 
     /** Gets The function context. */
     public abstract Object getFunctionContext();

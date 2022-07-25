@@ -143,6 +143,9 @@ public abstract class AbstractExternalPythonFunctionOperator<OUT>
         }
     }
 
+    /** Returns the {@link PythonEnv} used to create PythonEnvironmentManager.. */
+    public abstract PythonEnv getPythonEnv();
+
     /** Sends the execution result to the downstream operator. */
     public abstract void emitResult(Tuple3<String, byte[], Integer> resultTuple) throws Exception;
 

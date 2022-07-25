@@ -20,10 +20,9 @@ package org.apache.flink.streaming.api.operators.python.embedded;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.table.functions.python.PythonEnv;
+import org.apache.flink.streaming.api.operators.python.DataStreamPythonFunctionOperator;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
@@ -35,7 +34,8 @@ import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
 /** Base class for all Python DataStream operators executed in embedded Python environment. */
 @Internal
 public abstract class AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
-        extends AbstractEmbeddedPythonFunctionOperator<OUT> implements ResultTypeQueryable<OUT> {
+        extends AbstractEmbeddedPythonFunctionOperator<OUT>
+        implements DataStreamPythonFunctionOperator<OUT> {
 
     private static final long serialVersionUID = 1L;
 
@@ -48,16 +48,10 @@ public abstract class AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
     protected final TypeInformation<OUT> outputTypeInfo;
 
     /** The function urn. */
-    protected final String functionUrn;
+    final String functionUrn;
 
     /** The number of partitions for the partition custom function. */
     private Integer numPartitions;
-
-    /**
-     * Whether it contains partition custom function. If true, the variable numPartitions should be
-     * set and the value should be set to the parallelism of the downstream operator.
-     */
-    private boolean containsPartitionCustom;
 
     public AbstractEmbeddedDataStreamPythonFunctionOperator(
             String functionUrn,
@@ -65,25 +59,13 @@ public abstract class AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
             DataStreamPythonFunctionInfo pythonFunctionInfo,
             TypeInformation<OUT> outputTypeInfo) {
         super(config);
-        this.pythonFunctionInfo = Preconditions.checkNotNull(pythonFunctionInfo);
-        this.outputTypeInfo = Preconditions.checkNotNull(outputTypeInfo);
         Preconditions.checkArgument(
-                functionUrn.equals(STATELESS_FUNCTION_URN)
-                        || functionUrn.equals(STATEFUL_FUNCTION_URN),
+                STATELESS_FUNCTION_URN.equals(functionUrn)
+                        || STATEFUL_FUNCTION_URN.equals(functionUrn),
                 "The function urn should be `STATELESS_FUNCTION_URN` or `STATEFUL_FUNCTION_URN`.");
         this.functionUrn = functionUrn;
-    }
-
-    public void setNumPartitions(int numPartitions) {
-        this.numPartitions = numPartitions;
-    }
-
-    public void setContainsPartitionCustom(boolean containsPartitionCustom) {
-        this.containsPartitionCustom = containsPartitionCustom;
-    }
-
-    public boolean containsPartitionCustom() {
-        return this.containsPartitionCustom;
+        this.pythonFunctionInfo = Preconditions.checkNotNull(pythonFunctionInfo);
+        this.outputTypeInfo = Preconditions.checkNotNull(outputTypeInfo);
     }
 
     @Override
@@ -92,15 +74,11 @@ public abstract class AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
     }
 
     @Override
-    public PythonEnv getPythonEnv() {
-        return pythonFunctionInfo.getPythonFunction().getPythonEnv();
+    public void setNumPartitions(int numPartitions) {
+        this.numPartitions = numPartitions;
     }
 
     @Override
-    protected void invokeFinishBundle() throws Exception {
-        // TODO: Support batches invoking.
-    }
-
     public DataStreamPythonFunctionInfo getPythonFunctionInfo() {
         return pythonFunctionInfo;
     }
@@ -112,7 +90,4 @@ public abstract class AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
         }
         return jobParameters;
     }
-
-    public abstract <T> AbstractEmbeddedDataStreamPythonFunctionOperator<T> copy(
-            DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo);
 }

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.utils;
+package org.apache.flink.python.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -25,6 +25,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
@@ -50,7 +51,103 @@ import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoTy
 public enum ProtoUtils {
     ;
 
-    public static FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(
+    public static RunnerApi.Coder createCoderProto(
+            FlinkFnApi.CoderInfoDescriptor coderInfoDescriptor) {
+        return RunnerApi.Coder.newBuilder()
+                .setSpec(
+                        RunnerApi.FunctionSpec.newBuilder()
+                                .setUrn(FLINK_CODER_URN)
+                                .setPayload(
+                                        org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf
+                                                .ByteString.copyFrom(
+                                                coderInfoDescriptor.toByteArray()))
+                                .build())
+                .build();
+    }
+
+    // ------------------------------------------------------------------------
+    //  Table API related utilities
+    // ------------------------------------------------------------------------
+
+    // coder utilities
+
+    public static FlinkFnApi.CoderInfoDescriptor createRowTypeCoderInfoDescriptorProto(
+            RowType rowType,
+            FlinkFnApi.CoderInfoDescriptor.Mode mode,
+            boolean separatedWithEndMessage) {
+        return createCoderInfoDescriptorProto(
+                null,
+                FlinkFnApi.CoderInfoDescriptor.RowType.newBuilder()
+                        .setSchema(toProtoType(rowType).getRowSchema())
+                        .build(),
+                null,
+                null,
+                null,
+                mode,
+                separatedWithEndMessage);
+    }
+
+    public static FlinkFnApi.CoderInfoDescriptor createFlattenRowTypeCoderInfoDescriptorProto(
+            RowType rowType,
+            FlinkFnApi.CoderInfoDescriptor.Mode mode,
+            boolean separatedWithEndMessage) {
+        FlinkFnApi.CoderInfoDescriptor.FlattenRowType flattenRowType =
+                FlinkFnApi.CoderInfoDescriptor.FlattenRowType.newBuilder()
+                        .setSchema(toProtoType(rowType).getRowSchema())
+                        .build();
+        return createCoderInfoDescriptorProto(
+                flattenRowType, null, null, null, null, mode, separatedWithEndMessage);
+    }
+
+    public static FlinkFnApi.CoderInfoDescriptor createArrowTypeCoderInfoDescriptorProto(
+            RowType rowType,
+            FlinkFnApi.CoderInfoDescriptor.Mode mode,
+            boolean separatedWithEndMessage) {
+        return createCoderInfoDescriptorProto(
+                null,
+                null,
+                FlinkFnApi.CoderInfoDescriptor.ArrowType.newBuilder()
+                        .setSchema(toProtoType(rowType).getRowSchema())
+                        .build(),
+                null,
+                null,
+                mode,
+                separatedWithEndMessage);
+    }
+
+    public static FlinkFnApi.CoderInfoDescriptor createOverWindowArrowTypeCoderInfoDescriptorProto(
+            RowType rowType,
+            FlinkFnApi.CoderInfoDescriptor.Mode mode,
+            boolean separatedWithEndMessage) {
+        return createCoderInfoDescriptorProto(
+                null,
+                null,
+                null,
+                FlinkFnApi.CoderInfoDescriptor.OverWindowArrowType.newBuilder()
+                        .setSchema(toProtoType(rowType).getRowSchema())
+                        .build(),
+                null,
+                mode,
+                separatedWithEndMessage);
+    }
+
+    // function utilities
+
+    public static FlinkFnApi.UserDefinedFunctions createUserDefinedFunctionsProto(
+            PythonFunctionInfo[] userDefinedFunctions,
+            boolean isMetricEnabled,
+            boolean isProfileEnabled) {
+        FlinkFnApi.UserDefinedFunctions.Builder builder =
+                FlinkFnApi.UserDefinedFunctions.newBuilder();
+        for (PythonFunctionInfo userDefinedFunction : userDefinedFunctions) {
+            builder.addUdfs(createUserDefinedFunctionProto(userDefinedFunction));
+        }
+        builder.setMetricEnabled(isMetricEnabled);
+        builder.setProfileEnabled(isProfileEnabled);
+        return builder.build();
+    }
+
+    public static FlinkFnApi.UserDefinedFunction createUserDefinedFunctionProto(
             PythonFunctionInfo pythonFunctionInfo) {
         FlinkFnApi.UserDefinedFunction.Builder builder =
                 FlinkFnApi.UserDefinedFunction.newBuilder();
@@ -60,7 +157,7 @@ public enum ProtoUtils {
         for (Object input : pythonFunctionInfo.getInputs()) {
             FlinkFnApi.Input.Builder inputProto = FlinkFnApi.Input.newBuilder();
             if (input instanceof PythonFunctionInfo) {
-                inputProto.setUdf(getUserDefinedFunctionProto((PythonFunctionInfo) input));
+                inputProto.setUdf(createUserDefinedFunctionProto((PythonFunctionInfo) input));
             } else if (input instanceof Integer) {
                 inputProto.setInputOffset((Integer) input);
             } else {
@@ -75,7 +172,7 @@ public enum ProtoUtils {
         return builder.build();
     }
 
-    public static FlinkFnApi.UserDefinedAggregateFunction getUserDefinedAggregateFunctionProto(
+    public static FlinkFnApi.UserDefinedAggregateFunction createUserDefinedAggregateFunctionProto(
             PythonAggregateFunctionInfo pythonFunctionInfo, DataViewSpec[] dataViewSpecs) {
         FlinkFnApi.UserDefinedAggregateFunction.Builder builder =
                 FlinkFnApi.UserDefinedAggregateFunction.newBuilder();
@@ -127,6 +224,10 @@ public enum ProtoUtils {
         }
         return builder.build();
     }
+
+    // ------------------------------------------------------------------------
+    //  DataStream API related utilities
+    // ------------------------------------------------------------------------
 
     public static FlinkFnApi.UserDefinedDataStreamFunction createUserDefinedDataStreamFunctionProto(
             DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
@@ -278,80 +379,6 @@ public enum ProtoUtils {
         return results;
     }
 
-    public static RunnerApi.Coder createCoderProto(
-            FlinkFnApi.CoderInfoDescriptor coderInfoDescriptor) {
-        return RunnerApi.Coder.newBuilder()
-                .setSpec(
-                        RunnerApi.FunctionSpec.newBuilder()
-                                .setUrn(FLINK_CODER_URN)
-                                .setPayload(
-                                        org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf
-                                                .ByteString.copyFrom(
-                                                coderInfoDescriptor.toByteArray()))
-                                .build())
-                .build();
-    }
-
-    public static FlinkFnApi.CoderInfoDescriptor createFlattenRowTypeCoderInfoDescriptorProto(
-            RowType rowType,
-            FlinkFnApi.CoderInfoDescriptor.Mode mode,
-            boolean separatedWithEndMessage) {
-        FlinkFnApi.CoderInfoDescriptor.FlattenRowType flattenRowType =
-                FlinkFnApi.CoderInfoDescriptor.FlattenRowType.newBuilder()
-                        .setSchema(toProtoType(rowType).getRowSchema())
-                        .build();
-        return createCoderInfoDescriptorProto(
-                flattenRowType, null, null, null, null, mode, separatedWithEndMessage);
-    }
-
-    public static FlinkFnApi.CoderInfoDescriptor createRowTypeCoderInfoDescriptorProto(
-            RowType rowType,
-            FlinkFnApi.CoderInfoDescriptor.Mode mode,
-            boolean separatedWithEndMessage) {
-        return createCoderInfoDescriptorProto(
-                null,
-                FlinkFnApi.CoderInfoDescriptor.RowType.newBuilder()
-                        .setSchema(toProtoType(rowType).getRowSchema())
-                        .build(),
-                null,
-                null,
-                null,
-                mode,
-                separatedWithEndMessage);
-    }
-
-    public static FlinkFnApi.CoderInfoDescriptor createArrowTypeCoderInfoDescriptorProto(
-            RowType rowType,
-            FlinkFnApi.CoderInfoDescriptor.Mode mode,
-            boolean separatedWithEndMessage) {
-        return createCoderInfoDescriptorProto(
-                null,
-                null,
-                FlinkFnApi.CoderInfoDescriptor.ArrowType.newBuilder()
-                        .setSchema(toProtoType(rowType).getRowSchema())
-                        .build(),
-                null,
-                null,
-                mode,
-                separatedWithEndMessage);
-    }
-
-    public static FlinkFnApi.CoderInfoDescriptor createOverWindowArrowTypeCoderInfoDescriptorProto(
-            RowType rowType,
-            FlinkFnApi.CoderInfoDescriptor.Mode mode,
-            boolean separatedWithEndMessage) {
-        return createCoderInfoDescriptorProto(
-                null,
-                null,
-                null,
-                FlinkFnApi.CoderInfoDescriptor.OverWindowArrowType.newBuilder()
-                        .setSchema(toProtoType(rowType).getRowSchema())
-                        .build(),
-                null,
-                mode,
-                separatedWithEndMessage);
-    }
-
     public static FlinkFnApi.CoderInfoDescriptor createRawTypeCoderInfoDescriptorProto(
             TypeInformation<?> typeInformation,
             FlinkFnApi.CoderInfoDescriptor.Mode mode,
@@ -395,6 +422,10 @@ public enum ProtoUtils {
         builder.setSeparatedWithEndMessage(separatedWithEndMessage);
         return builder.build();
     }
+
+    // ------------------------------------------------------------------------
+    //  State related utilities
+    // ------------------------------------------------------------------------
 
     public static StateTtlConfig parseStateTtlConfigFromProto(
             FlinkFnApi.StateDescriptor.StateTTLConfig stateTTLConfigProto) {

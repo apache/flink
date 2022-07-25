@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.DataStreamPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.embedded.AbstractEmbeddedDataStreamPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonProcessOperator;
 import org.apache.flink.streaming.api.operators.python.process.AbstractExternalDataStreamPythonFunctionOperator;
@@ -272,35 +272,11 @@ public class PythonOperatorChainingOptimizer {
 
         assert arePythonOperatorsInSameExecutionEnvironment(upOperator, downOperator);
 
-        final DataStreamPythonFunctionInfo upPythonFunctionInfo;
+        final DataStreamPythonFunctionInfo upPythonFunctionInfo =
+                ((DataStreamPythonFunctionOperator) upOperator).getPythonFunctionInfo().copy();
 
-        final DataStreamPythonFunctionInfo downPythonFunctionInfo;
-
-        if (upOperator instanceof AbstractExternalDataStreamPythonFunctionOperator) {
-            upPythonFunctionInfo =
-                    ((AbstractExternalDataStreamPythonFunctionOperator) upOperator)
-                            .getPythonFunctionInfo()
-                            .copy();
-            downPythonFunctionInfo =
-                    ((AbstractExternalDataStreamPythonFunctionOperator) downOperator)
-                            .getPythonFunctionInfo()
-                            .copy();
-        } else if (upOperator instanceof AbstractEmbeddedDataStreamPythonFunctionOperator) {
-            upPythonFunctionInfo =
-                    ((AbstractEmbeddedDataStreamPythonFunctionOperator) upOperator)
-                            .getPythonFunctionInfo()
-                            .copy();
-
-            downPythonFunctionInfo =
-                    ((AbstractEmbeddedDataStreamPythonFunctionOperator) downOperator)
-                            .getPythonFunctionInfo()
-                            .copy();
-        } else {
-            throw new RuntimeException(
-                    "The Operator should be the AbstractExternalDataStreamPythonFunctionOperator or "
-                            + "AbstractEmbeddedDataStreamPythonFunctionOperator, but it is "
-                            + upOperator);
-        }
+        final DataStreamPythonFunctionInfo downPythonFunctionInfo =
+                ((DataStreamPythonFunctionOperator) downOperator).getPythonFunctionInfo().copy();
 
         DataStreamPythonFunctionInfo headPythonFunctionInfoOfDownOperator = downPythonFunctionInfo;
         while (headPythonFunctionInfoOfDownOperator.getInputs().length != 0) {
@@ -311,45 +287,17 @@ public class PythonOperatorChainingOptimizer {
         headPythonFunctionInfoOfDownOperator.setInputs(
                 new DataStreamPythonFunctionInfo[] {upPythonFunctionInfo});
 
-        final AbstractPythonFunctionOperator chainedOperator;
-        if (upOperator instanceof AbstractExternalDataStreamPythonFunctionOperator) {
-            chainedOperator =
-                    ((AbstractExternalDataStreamPythonFunctionOperator) upOperator)
-                            .copy(
-                                    downPythonFunctionInfo,
-                                    ((AbstractExternalDataStreamPythonFunctionOperator)
-                                                    downOperator)
-                                            .getProducedType());
+        final DataStreamPythonFunctionOperator chainedOperator =
+                ((DataStreamPythonFunctionOperator) upOperator)
+                        .copy(
+                                downPythonFunctionInfo,
+                                ((DataStreamPythonFunctionOperator) downOperator)
+                                        .getProducedType());
+        if (chainedOperator instanceof AbstractExternalDataStreamPythonFunctionOperator) {
             ((AbstractExternalDataStreamPythonFunctionOperator) chainedOperator)
                     .addSideOutputTags(
                             ((AbstractExternalDataStreamPythonFunctionOperator) downOperator)
                                     .getSideOutputTags());
-
-            // set partition custom flag
-            ((AbstractExternalDataStreamPythonFunctionOperator) chainedOperator)
-                    .setContainsPartitionCustom(
-                            ((AbstractExternalDataStreamPythonFunctionOperator) downOperator)
-                                            .containsPartitionCustom()
-                                    || ((AbstractExternalDataStreamPythonFunctionOperator)
-                                                    upOperator)
-                                            .containsPartitionCustom());
-        } else {
-            chainedOperator =
-                    ((AbstractEmbeddedDataStreamPythonFunctionOperator) upOperator)
-                            .copy(
-                                    downPythonFunctionInfo,
-                                    ((AbstractEmbeddedDataStreamPythonFunctionOperator)
-                                                    downOperator)
-                                            .getProducedType());
-
-            // set partition custom flag
-            ((AbstractEmbeddedDataStreamPythonFunctionOperator) chainedOperator)
-                    .setContainsPartitionCustom(
-                            ((AbstractEmbeddedDataStreamPythonFunctionOperator) downOperator)
-                                            .containsPartitionCustom()
-                                    || ((AbstractEmbeddedDataStreamPythonFunctionOperator)
-                                                    upOperator)
-                                            .containsPartitionCustom());
         }
 
         PhysicalTransformation<?> chainedTransformation;

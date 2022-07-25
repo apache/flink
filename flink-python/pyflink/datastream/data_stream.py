@@ -787,8 +787,6 @@ class DataStream(object):
         stream_with_partition_info = self.process(
             CustomPartitioner(partitioner, key_selector),
             output_type=Types.ROW([Types.INT(), original_type_info]))
-        stream_with_partition_info._j_data_stream.getTransformation().getOperatorFactory() \
-            .getOperator().setContainsPartitionCustom(True)
 
         stream_with_partition_info.name(
             gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
