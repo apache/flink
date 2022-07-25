@@ -28,8 +28,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.datatype.jsr310.Ja
 
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -104,7 +104,8 @@ class CsvReaderFormatTest {
                         TypeInformation.of(Pojo.class));
 
         format.createReader(
-                new Configuration(), new InputStreamFSInputWrapper(InputStream.nullInputStream()));
+                new Configuration(),
+                new InputStreamFSInputWrapper(new ByteArrayInputStream(new byte[0])));
         assertThat(passedMapper.get()).isSameAs(csvMapper);
     }
 
