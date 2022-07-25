@@ -36,7 +36,6 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.DataStreamPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.embedded.AbstractEmbeddedDataStreamPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.process.AbstractExternalDataStreamPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.process.AbstractExternalOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
@@ -291,9 +290,7 @@ public class PythonConfigUtil {
             StreamOperatorFactory<?> streamOperatorFactory) {
         if (streamOperatorFactory instanceof SimpleOperatorFactory) {
             return ((SimpleOperatorFactory<?>) streamOperatorFactory).getOperator()
-                            instanceof AbstractExternalDataStreamPythonFunctionOperator
-                    || ((SimpleOperatorFactory<?>) streamOperatorFactory).getOperator()
-                            instanceof AbstractEmbeddedDataStreamPythonFunctionOperator;
+                    instanceof DataStreamPythonFunctionOperator;
         } else {
             return false;
         }

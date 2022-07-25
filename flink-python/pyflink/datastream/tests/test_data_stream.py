@@ -122,6 +122,54 @@ class DataStreamTests(object):
                     "<Row('deeefg', 7, Decimal('4'))>"]
         self.assert_equals_sorted(expected, results)
 
+    def test_array_type_info(self):
+        ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
+                                       (2, [None, 2.2, 2.3], ['hello', None, 'flink']),
+                                       (3, [3.1, 3.2, None], ['hello', 'hi', None])],
+                                      type_info=Types.ROW([Types.INT(),
+                                                           Types.BASIC_ARRAY(Types.FLOAT()),
+                                                           Types.OBJECT_ARRAY(Types.STRING())]))
+
+        ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
+                                                   Types.BASIC_ARRAY(Types.FLOAT()),
+                                                   Types.OBJECT_ARRAY(Types.STRING())]))\
+            .add_sink(self.test_sink)
+        self.env.execute("test basic array type info")
+        results = self.test_sink.get_results()
+        expected = ['+I[1, [1.1, null, 1.3], [null, hi, flink]]',
+                    '+I[2, [null, 2.2, 2.3], [hello, null, flink]]',
+                    '+I[3, [3.1, 3.2, null], [hello, hi, null]]']
+        self.assert_equals_sorted(expected, results)
+
+    def test_partition_custom(self):
+        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2),
+                                       ('f', 7), ('g', 7), ('h', 8), ('i', 8), ('j', 9)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        expected_num_partitions = 5
+
+        def my_partitioner(key, num_partitions):
+            assert expected_num_partitions == num_partitions
+            return key % num_partitions
+
+        partitioned_stream = ds.map(lambda x: x, output_type=Types.ROW([Types.STRING(),
+                                                                        Types.INT()]))\
+            .set_parallelism(4).partition_custom(my_partitioner, lambda x: x[1])
+
+        JPartitionCustomTestMapFunction = get_gateway().jvm\
+            .org.apache.flink.python.util.PartitionCustomTestMapFunction
+        test_map_stream = DataStream(partitioned_stream
+                                     ._j_data_stream.map(JPartitionCustomTestMapFunction()))
+        test_map_stream.set_parallelism(expected_num_partitions).add_sink(self.test_sink)
+
+        self.env.execute('test_partition_custom')
+
+
+class ProcessDataStreamTests(DataStreamTests):
+    """
+    The tests only tested in Process Mode.
+    """
+
     def test_basic_co_operations(self):
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
         os.mkdir(python_file_dir)
@@ -1074,7 +1122,7 @@ class DataStreamTests(object):
         self.assert_equals_sorted(expected, self.test_sink.get_results())
 
 
-class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
+class StreamingModeDataStreamTests(ProcessDataStreamTests, PyFlinkStreamingTestCase):
     def test_data_stream_name(self):
         ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
         test_name = 'test_name'
@@ -1183,29 +1231,6 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         shuffle_node = exec_plan['nodes'][1]
         pre_ship_strategy = shuffle_node['predecessors'][0]['ship_strategy']
         self.assertEqual(pre_ship_strategy, 'SHUFFLE')
-
-    def test_partition_custom(self):
-        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2),
-                                       ('f', 7), ('g', 7), ('h', 8), ('i', 8), ('j', 9)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-
-        expected_num_partitions = 5
-
-        def my_partitioner(key, num_partitions):
-            assert expected_num_partitions == num_partitions
-            return key % num_partitions
-
-        partitioned_stream = ds.map(lambda x: x, output_type=Types.ROW([Types.STRING(),
-                                                                        Types.INT()]))\
-            .set_parallelism(4).partition_custom(my_partitioner, lambda x: x[1])
-
-        JPartitionCustomTestMapFunction = get_gateway().jvm\
-            .org.apache.flink.python.util.PartitionCustomTestMapFunction
-        test_map_stream = DataStream(partitioned_stream
-                                     ._j_data_stream.map(JPartitionCustomTestMapFunction()))
-        test_map_stream.set_parallelism(expected_num_partitions).add_sink(self.test_sink)
-
-        self.env.execute('test_partition_custom')
 
     def test_keyed_stream_partitioning(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)])
@@ -1504,7 +1529,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         self.assert_equals_sorted(expected, results)
 
 
-class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
+class BatchModeDataStreamTests(ProcessDataStreamTests, PyFlinkBatchTestCase):
 
     def test_timestamp_assigner_and_watermark_strategy(self):
         self.env.set_parallelism(1)
@@ -1679,98 +1704,11 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
 
 
 @pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
-class EmbeddedDataStreamTests(PyFlinkStreamingTestCase):
+class EmbeddedDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
     def setUp(self):
         super(EmbeddedDataStreamTests, self).setUp()
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
         config.setString("python.execution-mode", "thread")
-        config.setString("akka.ask.timeout", "20 s")
-        self.test_sink = DataStreamTestSinkFunction()
-
-    def tearDown(self) -> None:
-        self.test_sink.clear()
-
-    def assert_equals_sorted(self, expected, actual):
-        expected.sort()
-        actual.sort()
-        self.assertEqual(expected, actual)
-
-    def test_basic_operations(self):
-        ds = self.env.from_collection(
-            [('ab', Row('a', decimal.Decimal(1))),
-             ('bdc', Row('b', decimal.Decimal(2))),
-             ('cfgs', Row('c', decimal.Decimal(3))),
-             ('deeefg', Row('d', decimal.Decimal(4)))],
-            type_info=Types.TUPLE([Types.STRING(), Types.ROW([Types.STRING(), Types.BIG_DEC()])]))
-
-        class MyMapFunction(MapFunction):
-            def map(self, value):
-                return Row(value[0], value[1] + 1, value[2])
-
-        class MyFlatMapFunction(FlatMapFunction):
-            def flat_map(self, value):
-                if value[1] % 2 == 0:
-                    yield value
-
-        class MyFilterFunction(FilterFunction):
-            def filter(self, value):
-                return value[1] > 2
-
-        (ds.map(lambda i: (i[0], len(i[0]), i[1][1]),
-                output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
-           .flat_map(MyFlatMapFunction(),
-                     output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
-           .filter(MyFilterFunction())
-           .map(MyMapFunction(),
-                output_type=Types.ROW([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
-           .add_sink(self.test_sink))
-        self.env.execute('test_basic_operations')
-        results = self.test_sink.get_results()
-        expected = ["+I[cfgs, 5, 3]",
-                    "+I[deeefg, 7, 4]"]
-        self.assert_equals_sorted(expected, results)
-
-    def test_array_type_info(self):
-        ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
-                                       (2, [None, 2.2, 2.3], ['hello', None, 'flink']),
-                                       (3, [3.1, 3.2, None], ['hello', 'hi', None])],
-                                      type_info=Types.ROW([Types.INT(),
-                                                           Types.BASIC_ARRAY(Types.FLOAT()),
-                                                           Types.OBJECT_ARRAY(Types.STRING())]))
-
-        ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
-                                                   Types.BASIC_ARRAY(Types.FLOAT()),
-                                                   Types.OBJECT_ARRAY(Types.STRING())]))\
-            .add_sink(self.test_sink)
-        self.env.execute("test basic array type info")
-        results = self.test_sink.get_results()
-        expected = ['+I[1, [1.1, null, 1.3], [null, hi, flink]]',
-                    '+I[2, [null, 2.2, 2.3], [hello, null, flink]]',
-                    '+I[3, [3.1, 3.2, null], [hello, hi, null]]']
-        self.assert_equals_sorted(expected, results)
-
-    def test_partition_custom(self):
-        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2),
-                                       ('f', 7), ('g', 7), ('h', 8), ('i', 8), ('j', 9)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-
-        expected_num_partitions = 5
-
-        def my_partitioner(key, num_partitions):
-            assert expected_num_partitions == num_partitions
-            return key % num_partitions
-
-        partitioned_stream = ds.map(lambda x: x, output_type=Types.ROW([Types.STRING(),
-                                                                        Types.INT()]))\
-            .set_parallelism(4).partition_custom(my_partitioner, lambda x: x[1])
-
-        JPartitionCustomTestMapFunction = get_gateway().jvm\
-            .org.apache.flink.python.util.PartitionCustomTestMapFunction
-        test_map_stream = DataStream(partitioned_stream
-                                     ._j_data_stream.map(JPartitionCustomTestMapFunction()))
-        test_map_stream.set_parallelism(expected_num_partitions).add_sink(self.test_sink)
-
-        self.env.execute('test_partition_custom')
 
 
 class MyKeySelector(KeySelector):
