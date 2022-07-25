@@ -37,7 +37,37 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 
-/** CREATE TABLE LIKE DDL sql call. */
+import static java.util.Objects.requireNonNull;
+
+/**
+ * {@link SqlNode} to describe the CREATE TABLE LIKE syntax. CREATE TABLE LIKE syntax is the same as
+ * CREATE TABLE syntax, both are just metadata operations.
+ *
+ * <p>Example: A DDL like the one below for creating a `derived_table`
+ *
+ * <pre>{@code
+ * CREATE TABLE base_table (
+ *     id BIGINT,
+ *     name STRING,
+ *     tstmp TIMESTAMP,
+ *     PRIMARY KEY(id)
+ * ) WITH (
+ *     ‘connector’ = ‘kafka’,
+ *     ‘connector.starting-offset’: ‘12345’,
+ *     ‘format’ =  ‘json’
+ * )
+ *
+ * CREATE TABLE derived_table (
+ *      a int
+ * )
+ * WITH (
+ *   'connector' = 'jdbc',
+ *   'url' = 'http://localhost:10000',
+ *   'table-name' = 'derivedTable'
+ * )
+ * LIKE base_table;
+ * }</pre>
+ */
 public class SqlCreateTableLike extends SqlCreateTable {
 
     public static final SqlSpecialOperator OPERATOR =
@@ -69,7 +99,7 @@ public class SqlCreateTableLike extends SqlCreateTable {
                 comment,
                 isTemporary,
                 ifNotExists);
-        this.tableLike = tableLike;
+        this.tableLike = requireNonNull(tableLike, "tableLike should not be null");
     }
 
     @Override

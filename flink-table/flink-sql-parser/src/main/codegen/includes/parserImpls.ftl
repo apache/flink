@@ -1152,12 +1152,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
     [
         <LIKE>
         tableLike = SqlTableLike(getPos())
-    |
-        <AS>
-        asQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
-    ]
-    {
-        if (tableLike != null) {
+        {
             return new SqlCreateTableLike(startPos.plus(getPos()),
                 tableName,
                 columnList,
@@ -1170,7 +1165,10 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
                 isTemporary,
                 ifNotExists);
         }
-        if (asQuery != null) {
+    |
+        <AS>
+        asQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+        {
             return new SqlCreateTableAs(startPos.plus(getPos()),
                 tableName,
                 columnList,
@@ -1183,6 +1181,8 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
                 isTemporary,
                 ifNotExists);
         }
+    ]
+    {
         return new SqlCreateTable(startPos.plus(getPos()),
             tableName,
             columnList,

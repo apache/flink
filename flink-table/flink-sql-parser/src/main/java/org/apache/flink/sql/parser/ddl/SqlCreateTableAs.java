@@ -37,6 +37,8 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * {@link SqlNode} to describe the CREATE TABLE AS syntax. The CTAS syntax is different from CREATE
  * TABLE syntax, which also create the pipeline to sync the data from the source to the derived
@@ -62,7 +64,7 @@ import java.util.List;
  *   'url' = 'http://localhost:10000',
  *   'table-name' = 'syncedTable'
  * )
- * AS SELECT * FROM base_table_1;
+ * AS SELECT * FROM base_table;
  * }</pre>
  */
 public class SqlCreateTableAs extends SqlCreateTable {
@@ -96,7 +98,7 @@ public class SqlCreateTableAs extends SqlCreateTable {
                 comment,
                 isTemporary,
                 ifNotExists);
-        this.asQuery = asQuery;
+        this.asQuery = requireNonNull(asQuery, "asQuery should not be null");
     }
 
     @Override
@@ -124,19 +126,19 @@ public class SqlCreateTableAs extends SqlCreateTable {
         if (getColumnList().size() > 0) {
             throw new SqlValidateException(
                     getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support explicitly specifying columns yet.");
+                    "CREATE TABLE AS SELECT syntax does not support to specify explicit columns yet.");
         }
 
         if (getWatermark().isPresent()) {
             throw new SqlValidateException(
                     getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support explicitly specifying watermark yet.");
+                    "CREATE TABLE AS SELECT syntax does not support to specify explicit watermark yet.");
         }
         // TODO flink dialect supports dynamic partition
         if (getPartitionKeyList().size() > 0) {
             throw new SqlValidateException(
                     getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support creating partitioned table yet.");
+                    "CREATE TABLE AS SELECT syntax does not support to create partitioned table yet.");
         }
         if (getFullConstraints().stream().anyMatch(SqlTableConstraint::isPrimaryKey)) {
             throw new SqlValidateException(

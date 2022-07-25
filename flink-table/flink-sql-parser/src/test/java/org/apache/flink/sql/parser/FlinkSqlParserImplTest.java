@@ -1920,7 +1920,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .node(
                         new ValidationMatcher()
                                 .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support explicitly specifying columns yet."));
+                                        "CREATE TABLE AS SELECT syntax does not support to specify explicit columns yet."));
     }
 
     @Test
@@ -1929,7 +1929,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .node(
                         new ValidationMatcher()
                                 .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support explicitly specifying watermark yet."));
+                                        "CREATE TABLE AS SELECT syntax does not support to specify explicit watermark yet."));
     }
 
     @Test
@@ -1947,7 +1947,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .node(
                         new ValidationMatcher()
                                 .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support creating partitioned table yet."));
+                                        "CREATE TABLE AS SELECT syntax does not support to create partitioned table yet."));
     }
 
     public static BaseMatcher<SqlNode> validated(String validatedSql) {
