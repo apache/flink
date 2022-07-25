@@ -30,6 +30,7 @@ import org.apache.orc.OrcConf;
 import org.apache.orc.OrcFile;
 import org.apache.orc.impl.PhysicalFsWriter;
 import org.apache.orc.impl.WriterImpl;
+import org.apache.orc.impl.writer.WriterEncryptionVariant;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -106,9 +107,8 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
     public BulkWriter<T> create(FSDataOutputStream out) throws IOException {
         OrcFile.WriterOptions opts = getWriterOptions();
         HadoopNoCloseStream hadoopOutputStream = new HadoopNoCloseStream(out, null);
-        EncryptionProvider provider = new EncryptionProvider(opts);
         opts.physicalWriter(
-                new PhysicalFsWriter(hadoopOutputStream, opts, provider.getEncryptionVariants()));
+                new PhysicalFsWriter(hadoopOutputStream, opts, new WriterEncryptionVariant[0]));
 
         // The path of the Writer is not used to indicate the destination file
         // in this case since we have used a dedicated physical writer to write
