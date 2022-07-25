@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.table.api.internal.TableResultInternal;
-import org.apache.flink.table.delegation.OperationExternalExecutor;
+import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.operations.Operation;
 
 import java.util.Optional;
@@ -28,7 +28,7 @@ import java.util.Optional;
  * A Hive's operation executor used to execute operation in custom way instead of Flink's
  * implementation.
  */
-public class HiveOperationExecutor implements OperationExternalExecutor {
+public class HiveOperationExecutor implements ExtendedOperationExecutor {
     @Override
     public Optional<TableResultInternal> executeOperation(Operation operation) {
         return Optional.empty();

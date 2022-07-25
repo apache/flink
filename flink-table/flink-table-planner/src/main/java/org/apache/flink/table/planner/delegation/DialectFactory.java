@@ -23,7 +23,7 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.delegation.Executor;
-import org.apache.flink.table.delegation.OperationExternalExecutor;
+import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.operations.Operation;
@@ -31,7 +31,7 @@ import org.apache.flink.table.operations.Operation;
 import java.util.Optional;
 
 /**
- * Factory that creates {@link Parser} and {@link OperationExternalExecutor}.
+ * Factory that creates {@link Parser} and {@link ExtendedOperationExecutor}.
  *
  * <p>The {@link #factoryIdentifier()} is identified by matching it against {@link
  * TableConfigOptions#TABLE_SQL_DIALECT}.
@@ -42,8 +42,8 @@ public interface DialectFactory extends Factory {
     /** Creates a new parser. */
     Parser create(Context context);
 
-    default OperationExternalExecutor createOperatorExternalExecutor(Context context) {
-        return new DefaultOperationExternalExecutor();
+    default ExtendedOperationExecutor createExtendedOperationExecutor(Context context) {
+        return new EmptyOperationExecutor();
     }
 
     /** Context provided when a parser is created. */
@@ -84,8 +84,11 @@ public interface DialectFactory extends Factory {
         }
     }
 
-    /** Default implementation for {@link OperationExternalExecutor}. */
-    class DefaultOperationExternalExecutor implements OperationExternalExecutor {
+    /**
+     * Default implementation for {@link ExtendedOperationExecutor} that doesn't extend any
+     * operation behavior but forward all operations to the Flink planner.
+     */
+    class EmptyOperationExecutor implements ExtendedOperationExecutor {
 
         @Override
         public Optional<TableResultInternal> executeOperation(Operation operation) {

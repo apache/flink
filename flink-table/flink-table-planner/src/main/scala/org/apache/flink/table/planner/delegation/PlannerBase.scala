@@ -26,7 +26,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
-import org.apache.flink.table.delegation.{Executor, OperationExternalExecutor, Parser, Planner}
+import org.apache.flink.table.delegation.{Executor, ExtendedOperationExecutor, Parser, Planner}
 import org.apache.flink.table.factories.{DynamicTableSinkFactory, FactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations._
@@ -102,7 +102,7 @@ abstract class PlannerBase(
 
   private var dialectFactory: DialectFactory = _
   private var parser: Parser = _
-  private var operationExternalExecutor: OperationExternalExecutor = _
+  private var extendedOperationExecutor: ExtendedOperationExecutor = _
   private var currentDialect: SqlDialect = getTableConfig.getSqlDialect
 
   @VisibleForTesting
@@ -158,7 +158,7 @@ abstract class PlannerBase(
         factoryIdentifier)
       currentDialect = getTableConfig.getSqlDialect
       parser = null
-      operationExternalExecutor = null
+      extendedOperationExecutor = null
     }
     dialectFactory
   }
@@ -172,13 +172,13 @@ abstract class PlannerBase(
     parser
   }
 
-  override def getOperationExternalExecutor: OperationExternalExecutor = {
-    if (operationExternalExecutor == null || getTableConfig.getSqlDialect != currentDialect) {
+  override def getExtendedOperationExecutor: ExtendedOperationExecutor = {
+    if (extendedOperationExecutor == null || getTableConfig.getSqlDialect != currentDialect) {
       dialectFactory = getDialectFactory
-      operationExternalExecutor = dialectFactory.createOperatorExternalExecutor(
+      extendedOperationExecutor = dialectFactory.createExtendedOperationExecutor(
         new DefaultParserContext(catalogManager, plannerContext, executor))
     }
-    operationExternalExecutor
+    extendedOperationExecutor
   }
 
   override def translate(

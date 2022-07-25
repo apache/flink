@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.SqlDialect;
-import org.apache.flink.table.delegation.OperationExternalExecutor;
+import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.planner.delegation.DialectFactory;
 
@@ -55,7 +55,7 @@ public class HiveDialectFactory implements DialectFactory {
     }
 
     @Override
-    public OperationExternalExecutor createOperatorExternalExecutor(Context context) {
+    public ExtendedOperationExecutor createExtendedOperationExecutor(Context context) {
         return new HiveOperationExecutor();
     }
 }

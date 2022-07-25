@@ -25,12 +25,12 @@ import org.apache.flink.table.operations.Operation;
 import java.util.Optional;
 
 /**
- * An external operation executor which provides method for executing operation. External pluggable
+ * An extended operation executor which provides method for executing operation. External pluggable
  * dialect can implement this interface to execute operation in its own way instead of using Flink's
  * own implementation for operation execution.
  */
 @Internal
-public interface OperationExternalExecutor {
+public interface ExtendedOperationExecutor {
 
     /**
      * Execute the given operation and return the execution result. This method will delegate

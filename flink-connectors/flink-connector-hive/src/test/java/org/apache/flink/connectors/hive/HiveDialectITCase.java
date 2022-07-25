@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
@@ -34,7 +35,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.delegation.OperationExternalExecutor;
+import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
@@ -121,19 +122,24 @@ public class HiveDialectITCase {
         Parser parser = tableEnvInternal.getParser();
         // hive dialect should use HiveParser
         assertThat(parser).isInstanceOf(HiveParser.class);
-        OperationExternalExecutor operationExecutor =
-                tableEnvInternal.getOperationExternalExecutor();
+        ExtendedOperationExecutor operationExecutor =
+                ((TableEnvironmentImpl) tableEnvInternal).getExtendedOperationExecutor();
         // hive dialect should use HiveOperationExecutor
         assertThat(operationExecutor).isInstanceOf(HiveOperationExecutor.class);
         // execute some sql and verify the parser/operation executor instance is reused
         tableEnvInternal.executeSql("show databases");
         assertThat(tableEnvInternal.getParser()).isSameAs(parser);
-        assertThat(tableEnvInternal.getOperationExternalExecutor()).isSameAs(operationExecutor);
+        assertThat(((TableEnvironmentImpl) tableEnvInternal).getExtendedOperationExecutor())
+                .isSameAs(operationExecutor);
         // switching dialect will result in a new parser
         tableEnvInternal.getConfig().setSqlDialect(SqlDialect.DEFAULT);
         assertThat(tableEnvInternal.getParser().getClass().getName())
                 .isNotEqualTo(parser.getClass().getName());
-        assertThat(tableEnvInternal.getOperationExternalExecutor().getClass().getName())
+        assertThat(
+                        ((TableEnvironmentImpl) tableEnvInternal)
+                                .getExtendedOperationExecutor()
+                                .getClass()
+                                .getName())
                 .isNotEqualTo(operationExecutor.getClass().getName());
     }
 

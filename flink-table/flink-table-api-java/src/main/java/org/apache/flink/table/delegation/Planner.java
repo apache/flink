@@ -63,12 +63,12 @@ public interface Planner {
     Parser getParser();
 
     /**
-     * Retrieves a {@link OperationExternalExecutor} that provides method for executing operation in
+     * Retrieves a {@link ExtendedOperationExecutor} that provides method for executing operation in
      * a custom way.
      *
-     * @return initialized {@link OperationExternalExecutor}
+     * @return initialized {@link ExtendedOperationExecutor}
      */
-    OperationExternalExecutor getOperationExternalExecutor();
+    ExtendedOperationExecutor getExtendedOperationExecutor();
 
     /**
      * Converts a relational tree of {@link ModifyOperation}s into a set of runnable {@link
