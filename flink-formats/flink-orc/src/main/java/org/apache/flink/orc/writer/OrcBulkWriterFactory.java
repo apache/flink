@@ -26,7 +26,6 @@ import org.apache.flink.orc.vector.Vectorizer;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.orc.OrcConf;
 import org.apache.orc.OrcFile;
 import org.apache.orc.impl.PhysicalFsWriter;
 import org.apache.orc.impl.WriterImpl;
@@ -76,13 +75,6 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
         this(vectorizer, null, configuration);
     }
 
-    public OrcBulkWriterFactory(Vectorizer<T> vectorizer, OrcFile.WriterOptions writerOptions) {
-        this.vectorizer = vectorizer;
-        this.writerOptions = writerOptions;
-        this.writerProperties = null;
-        this.confMap = new HashMap<>();
-    }
-
     /**
      * Creates a new OrcBulkWriterFactory using the provided Vectorizer, Hadoop Configuration, ORC
      * writer properties.
@@ -127,12 +119,9 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
             }
 
             writerOptions = OrcFile.writerOptions(writerProperties, conf);
-
-            // Column encryption configuration
-            writerOptions.encrypt(OrcConf.ENCRYPTION.getString(writerProperties, conf));
-            writerOptions.masks(OrcConf.DATA_MASK.getString(writerProperties, conf));
+            writerOptions.setSchema(this.vectorizer.getSchema());
         }
-        writerOptions.setSchema(this.vectorizer.getSchema());
+
         return writerOptions;
     }
 }
