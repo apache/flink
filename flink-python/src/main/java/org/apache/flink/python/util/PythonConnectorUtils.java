@@ -38,16 +38,16 @@ public class PythonConnectorUtils {
      * @param <T> An interface
      */
     @SuppressWarnings("unchecked")
-    public static <T> T createFirstColumnSelector(Class<T> clazz) {
+    public static <T> T createFirstColumnTopicSelector(Class<T> clazz) {
         return (T)
                 Proxy.newProxyInstance(
                         clazz.getClassLoader(),
                         new Class[] {clazz},
-                        new FirstColumnSelectorInvocationHandler());
+                        new FirstColumnTopicSelectorInvocationHandler());
     }
 
     /** The serializable {@link InvocationHandler} as the proxy for first column selector. */
-    public static class FirstColumnSelectorInvocationHandler
+    public static class FirstColumnTopicSelectorInvocationHandler
             implements InvocationHandler, Serializable {
 
         @Override
@@ -68,6 +68,8 @@ public class PythonConnectorUtils {
      * @param <T> The actual data type wrapped in the Row.
      */
     public static class SecondColumnSerializationSchema<T> implements SerializationSchema<Row> {
+
+        private static final long serialVersionUID = 1L;
 
         private final SerializationSchema<T> wrappedSchema;
 

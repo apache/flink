@@ -43,14 +43,7 @@ class RowKind(Enum):
 
     def to_j_row_kind(self):
         JRowKind = get_gateway().jvm.org.apache.flink.types.RowKind
-        if self.value == RowKind.INSERT.value:
-            return JRowKind.INSERT
-        elif self.value == RowKind.UPDATE_BEFORE.value:
-            return JRowKind.UPDATE_BEFORE
-        elif self.value == RowKind.UPDATE_AFTER.value:
-            return JRowKind.UPDATE_AFTER
-        else:
-            return JRowKind.DELETE
+        return getattr(JRowKind, self.name)
 
 
 def _create_row(fields, values, row_kind: RowKind = None):
@@ -290,33 +283,3 @@ class Row(object):
 
     def __len__(self):
         return len(self._values)
-
-    def to_java_row(self):
-        return _to_java_object(self)
-
-
-def _to_java_object(value):
-    jvm = get_gateway().jvm
-    if isinstance(value, (int, float, str)):
-        return value
-    elif isinstance(value, (list, tuple)):
-        j_list = jvm.java.util.ArrayList()
-        for item in value:
-            j_list.add(_to_java_object(item))
-        return j_list
-    elif isinstance(value, map):
-        j_map = jvm.java.util.HashMap()
-        for k, v in value:
-            j_map.put(_to_java_object(k), _to_java_object(v))
-        return j_map
-    elif isinstance(value, Row):
-        j_row = jvm.org.apache.flink.types.Row(value.get_row_kind().to_j_row_kind(), len(value))
-        if hasattr(value, '_fields'):
-            for field_name, value in zip(value._fields, value._values):
-                j_row.setField(field_name, _to_java_object(value))
-        else:
-            for idx, value in enumerate(value._values):
-                j_row.setField(idx, _to_java_object(value))
-        return j_row
-    else:
-        raise TypeError('value must be a vanilla Python object')

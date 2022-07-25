@@ -24,13 +24,12 @@ from py4j.java_gateway import JavaObject, get_java_class
 
 from pyflink.common import DeserializationSchema, TypeInformation, typeinfo, SerializationSchema, \
     Types, Row
-from pyflink.common.typeinfo import RowTypeInfo
 from pyflink.datastream.connectors import Source, Sink
-from pyflink.datastream.connectors.base import DeliveryGuarantee, PreTransformWrapper, \
+from pyflink.datastream.connectors.base import DeliveryGuarantee, SupportPreprocessing, \
     TransformAppender
 from pyflink.datastream.functions import SinkFunction, SourceFunction
 from pyflink.java_gateway import get_gateway
-from pyflink.util.java_utils import to_jarray, get_field
+from pyflink.util.java_utils import to_jarray, get_field, get_field_value
 
 __all__ = [
     'FlinkKafkaConsumer',
@@ -829,7 +828,7 @@ class KafkaOffsetsInitializer(object):
             j_map_wrapper.asMap(), offset_reset_strategy._to_j_offset_reset_strategy()))
 
 
-class KafkaSink(Sink, PreTransformWrapper):
+class KafkaSink(Sink, SupportPreprocessing):
     """
     Flink Sink to produce data into a Kafka topic. The sink supports all delivery guarantees
     described by :class:`DeliveryGuarantee`.
@@ -854,9 +853,9 @@ class KafkaSink(Sink, PreTransformWrapper):
     .. versionadded:: 1.16.0
     """
 
-    def __init__(self, j_kafka_sink, pre_transform: TransformAppender = None):
+    def __init__(self, j_kafka_sink, preprocessing: TransformAppender = None):
         super().__init__(j_kafka_sink)
-        self._pre_transform = pre_transform
+        self._preprocessing = preprocessing
 
     @staticmethod
     def builder() -> 'KafkaSinkBuilder':
@@ -865,11 +864,11 @@ class KafkaSink(Sink, PreTransformWrapper):
         """
         return KafkaSinkBuilder()
 
-    def need_pre_transform(self) -> bool:
-        return self._pre_transform is not None
+    def need_preprocessing(self) -> bool:
+        return self._preprocessing is not None
 
-    def get_pre_transform(self) -> TransformAppender:
-        return self._pre_transform
+    def get_preprocessing(self) -> TransformAppender:
+        return self._preprocessing
 
 
 class KafkaSinkBuilder(object):
@@ -901,16 +900,16 @@ class KafkaSinkBuilder(object):
     def __init__(self):
         jvm = get_gateway().jvm
         self._j_builder = jvm.org.apache.flink.connector.kafka.sink.KafkaSink.builder()
-        self._pre_transform = None
+        self._preprocessing = None
 
     def build(self) -> 'KafkaSink':
         """
         Constructs the :class:`KafkaSink` with the configured properties.
         """
-        if self._pre_transform is None:
+        if self._preprocessing is None:
             return KafkaSink(self._j_builder.build())
         else:
-            return KafkaSink(self._j_builder.build(), self._pre_transform)
+            return KafkaSink(self._j_builder.build(), self._preprocessing)
 
     def set_bootstrap_servers(self, bootstrap_servers: str) -> 'KafkaSinkBuilder':
         """
@@ -959,8 +958,19 @@ class KafkaSinkBuilder(object):
 
         :param record_serializer: The :class:`KafkaRecordSerializationSchema`.
         """
-        if record_serializer.need_pre_transform():
-            self._pre_transform = record_serializer.get_pre_transform()
+        # NOTE: If topic selector is a generated first-column selector, do extra preprocessing
+        j_topic_selector = get_field_value(record_serializer._j_serialization_schema,
+                                           'topicSelector')
+        if (
+            j_topic_selector.getClass().getCanonicalName() ==
+            'org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchemaBuilder.'
+            'CachingTopicSelector'
+        ) and (
+            get_field_value(j_topic_selector, 'topicSelector').getClass().getCanonicalName()
+                .startswith('com.sun.proxy')
+        ):
+            record_serializer._wrap_serialization_schema()
+            self._preprocessing = record_serializer._build_preprocessing()
 
         self._j_builder.setRecordSerializer(record_serializer._j_serialization_schema)
         return self
@@ -976,16 +986,17 @@ class KafkaSinkBuilder(object):
         return self
 
 
-class KafkaRecordSerializationSchema(SerializationSchema, PreTransformWrapper):
+class KafkaRecordSerializationSchema(SerializationSchema):
     """
     A serialization schema which defines how to convert the stream record to kafka producer record.
 
     .. versionadded:: 1.16.0
     """
 
-    def __init__(self, j_serialization_schema, pre_transform: TransformAppender = None):
+    def __init__(self, j_serialization_schema,
+                 topic_selector: Optional['KafkaTopicSelector'] = None):
         super().__init__(j_serialization_schema)
-        self._pre_transform = pre_transform
+        self._topic_selector = topic_selector
 
     def require_row_type(self) -> bool:
         return False
@@ -998,11 +1009,35 @@ class KafkaRecordSerializationSchema(SerializationSchema, PreTransformWrapper):
         """
         return KafkaRecordSerializationSchemaBuilder()
 
-    def need_pre_transform(self) -> bool:
-        return self._pre_transform is not None
+    def _wrap_serialization_schema(self):
+        jvm = get_gateway().jvm
 
-    def get_pre_transform(self) -> TransformAppender:
-        return self._pre_transform
+        def _wrap_schema(field_name):
+            j_schema_field = get_field(self._j_serialization_schema.getClass(), field_name)
+            if j_schema_field.get(self._j_serialization_schema) is not None:
+                j_schema_field.set(
+                    self._j_serialization_schema,
+                    jvm.org.apache.flink.python.util.PythonConnectorUtils
+                    .SecondColumnSerializationSchema(
+                        j_schema_field.get(self._j_serialization_schema)
+                    )
+                )
+
+        _wrap_schema('keySerializationSchema')
+        _wrap_schema('valueSerializationSchema')
+
+    def _build_preprocessing(self) -> TransformAppender:
+        class TopicSelectorTransformAppender(TransformAppender):
+
+            def __init__(self, topic_selector: KafkaTopicSelector):
+                self._topic_selector = topic_selector
+
+            def apply(self, ds):
+                output_type = Types.ROW([Types.STRING(), ds.get_type()])
+                return ds.map(lambda v: Row(self._topic_selector.apply(v), v),
+                              output_type=output_type)
+
+        return TopicSelectorTransformAppender(self._topic_selector)
 
 
 class KafkaRecordSerializationSchemaBuilder(object):
@@ -1049,8 +1084,7 @@ class KafkaRecordSerializationSchemaBuilder(object):
         if self._fixed_topic:
             return KafkaRecordSerializationSchema(self._j_builder.build())
         else:
-            pre_transform = self._build_pre_transform()
-            return KafkaRecordSerializationSchema(self._j_builder.build(), pre_transform)
+            return KafkaRecordSerializationSchema(self._j_builder.build(), self._topic_selector)
 
     def set_topic(self, topic: str) -> 'KafkaRecordSerializationSchemaBuilder':
         """
@@ -1085,7 +1119,7 @@ class KafkaRecordSerializationSchemaBuilder(object):
 
         jvm = get_gateway().jvm
         self._j_builder.setTopicSelector(
-            jvm.org.apache.flink.python.util.PythonConnectorUtils.createFirstColumnSelector(
+            jvm.org.apache.flink.python.util.PythonConnectorUtils.createFirstColumnTopicSelector(
                 get_java_class(jvm.org.apache.flink.connector.kafka.sink.TopicSelector)
             )
         )
@@ -1120,44 +1154,6 @@ class KafkaRecordSerializationSchemaBuilder(object):
         self._j_builder.setValueSerializationSchema(
             value_serialization_schema._j_serialization_schema)
         return self
-
-    def _build_pre_transform(self) -> TransformAppender:
-        jvm = get_gateway().jvm
-
-        require_row_type = (
-            self._key_serialization_schema is not None and
-            self._key_serialization_schema.require_row_type()
-        ) or (
-            self._value_serialization_schema is not None and
-            self._value_serialization_schema.require_row_type()
-        )
-
-        def _wrap_schema(field_name):
-            j_schema_field = get_field(self._j_builder.getClass(), field_name)
-            if j_schema_field.get(self._j_builder) is not None:
-                j_schema_field.set(
-                    self._j_builder,
-                    jvm.org.apache.flink.python.util.PythonConnectorUtils
-                        .SecondColumnSerializationSchema(j_schema_field.get(self._j_builder))
-                )
-
-        _wrap_schema('keySerializationSchema')
-        _wrap_schema('valueSerializationSchema')
-
-        class TopicSelectorTransformAppender(TransformAppender):
-
-            def __init__(self, topic_selector: KafkaTopicSelector, require_row_type: bool):
-                self._topic_selector = topic_selector
-                self._require_row_type = require_row_type
-
-            def apply(self, ds):
-                if self._require_row_type and not isinstance(ds.get_type(), RowTypeInfo):
-                    raise TypeError('The serialization schema requires data type to be Row')
-                output_type = Types.ROW([Types.STRING(), ds.get_type()])
-                return ds.map(lambda v: Row(self._topic_selector.apply(v), v),
-                              output_type=output_type)
-
-        return TopicSelectorTransformAppender(self._topic_selector, require_row_type)
 
 
 class KafkaTopicSelector(ABC):

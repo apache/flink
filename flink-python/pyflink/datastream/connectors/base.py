@@ -60,14 +60,14 @@ class TransformAppender(ABC):
         pass
 
 
-class PreTransformWrapper(ABC):
+class SupportPreprocessing(ABC):
 
     @abstractmethod
-    def need_pre_transform(self) -> bool:
+    def need_preprocessing(self) -> bool:
         pass
 
     @abstractmethod
-    def get_pre_transform(self) -> 'TransformAppender':
+    def get_preprocessing(self) -> 'TransformAppender':
         pass
 
 

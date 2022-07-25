@@ -32,7 +32,7 @@ dependencies are required:
 {{ if eq $connector.versions nil }}
 <table>
     <thead>
-    <th style="text-align:left">SQL Client JAR</th>
+    <th style="text-align:left">PyFlink JAR</th>
     </thead>
     <tbody>
     <tr>
@@ -40,7 +40,7 @@ dependencies are required:
         <td style="text-align: left">Built-in</td>
         {{ else if $.Site.Params.IsStable }}
         {{ if eq $connector.sql_url nil }}
-        <td style="text-align:left">There is not sql jar available yet.</td>
+        <td style="text-align:left">There is no sql jar available yet.</td>
         {{ else }}
         <td style="text-align: left"><a href="{{- partial "docs/interpolate" $connector.sql_url -}}">Download</a></td>
         {{ end }}
@@ -54,7 +54,7 @@ dependencies are required:
 <table>
     <thead>
     <th style="text-align: left">{{ $connector.name }} version</th>
-    <th style="text-align: left">SQL Client JAR</th>
+    <th style="text-align: left">PyFlink JAR</th>
     </thead>
     <tbody>
     {{ range $connector.versions }}

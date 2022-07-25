@@ -32,7 +32,8 @@ from pyflink.datastream.connectors.kafka import KafkaSource, KafkaTopicPartition
     KafkaOffsetsInitializer, KafkaOffsetResetStrategy, KafkaRecordSerializationSchema, KafkaSink
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase, PyFlinkTestCase
-from pyflink.util.java_utils import to_jarray, is_instance_of, get_field_value
+from pyflink.util.java_utils import to_jarray, is_instance_of, get_field_value, \
+    to_java_data_structure
 
 
 class KafkaSourceTests(PyFlinkStreamingTestCase):
@@ -430,6 +431,22 @@ class KafkaSinkTests(PyFlinkStreamingTestCase):
         config = get_field_value(sink.get_java_function(), 'kafkaProducerConfig')
         self.assertEqual(config.get('test-key'), 'test-value')
 
+    def test_set_record_serializer(self):
+        sink = KafkaSink.builder() \
+            .set_bootstrap_servers('localhost:9092') \
+            .set_record_serializer(self._build_serialization_schema()) \
+            .build()
+        serializer = get_field_value(sink.get_java_function(), 'recordSerializer')
+        self.assertEqual(serializer.getClass().getCanonicalName(),
+                         'org.apache.flink.connector.kafka.sink.'
+                         'KafkaRecordSerializationSchemaBuilder.'
+                         'KafkaRecordSerializationSchemaWrapper')
+        topic_selector = get_field_value(serializer, 'topicSelector')
+        self.assertEqual(topic_selector.apply(None), 'test-topic')
+        value_serializer = get_field_value(serializer, 'valueSerializationSchema')
+        self.assertEqual(value_serializer.getClass().getCanonicalName(),
+                         'org.apache.flink.api.common.serialization.SimpleStringSchema')
+
     @staticmethod
     def _build_serialization_schema() -> KafkaRecordSerializationSchema:
         return KafkaRecordSerializationSchema.builder() \
@@ -450,7 +467,7 @@ class KafkaRecordSerializationSchemaTests(PyFlinkTestCase):
             .build()
 
         j_record = serialization_schema._j_serialization_schema.serialize(
-            Row('test').to_java_row(), None, None
+            to_java_data_structure(Row('test')), None, None
         )
         self.assertEqual(j_record.topic(), 'test-topic')
         self.assertIsNone(j_record.key())
@@ -484,7 +501,7 @@ class KafkaRecordSerializationSchemaTests(PyFlinkTestCase):
             row = Row(data)
             topic_row = ds.feed(row)  # type: Row
             j_record = serialization_schema._j_serialization_schema.serialize(
-                topic_row.to_java_row(), None, None
+                to_java_data_structure(topic_row), None, None
             )
             self.assertEqual(j_record.topic(), topic)
             self.assertIsNone(j_record.key())
@@ -572,8 +589,8 @@ class MockDataStream(data_stream.DataStream):
 
     def sink_to(self, sink):
         ds = self
-        from pyflink.datastream.connectors.base import PreTransformWrapper
-        if isinstance(sink, PreTransformWrapper):
-            if sink.need_pre_transform():
-                ds = sink.get_pre_transform().apply(self)
+        from pyflink.datastream.connectors.base import SupportPreprocessing
+        if isinstance(sink, SupportPreprocessing):
+            if sink.need_preprocessing():
+                ds = sink.get_preprocessing().apply(self)
         return ds

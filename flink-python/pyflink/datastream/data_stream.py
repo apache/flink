@@ -826,11 +826,11 @@ class DataStream(object):
         """
         ds = self
 
-        from pyflink.datastream.connectors.base import PreTransformWrapper
-        if isinstance(sink, PreTransformWrapper):
-            pre_transform_sink = cast(PreTransformWrapper, sink)
-            if pre_transform_sink.need_pre_transform():
-                ds = pre_transform_sink.get_pre_transform().apply(self)
+        from pyflink.datastream.connectors.base import SupportPreprocessing
+        if isinstance(sink, SupportPreprocessing):
+            preprocessing_sink = cast(SupportPreprocessing, sink)
+            if preprocessing_sink.need_preprocessing():
+                ds = preprocessing_sink.get_preprocessing().apply(self)
 
         return DataStreamSink(ds._j_data_stream.sinkTo(sink.get_java_function()))
 
