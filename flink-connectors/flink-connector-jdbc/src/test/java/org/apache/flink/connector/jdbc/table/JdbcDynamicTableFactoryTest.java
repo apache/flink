@@ -18,10 +18,10 @@
 
 package org.apache.flink.connector.jdbc.table;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
@@ -29,9 +29,12 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.lookup.LookupOptions;
+import org.apache.flink.table.connector.source.lookup.cache.DefaultLookupCache;
 
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -78,17 +81,12 @@ public class JdbcDynamicTableFactoryTest {
                         .setPassword("pass")
                         .setConnectionCheckTimeoutSeconds(120)
                         .build();
-        JdbcLookupOptions lookupOptions =
-                JdbcLookupOptions.builder()
-                        .setCacheMaxSize(-1)
-                        .setCacheExpireMs(10_000)
-                        .setMaxRetryTimes(3)
-                        .build();
         JdbcDynamicTableSource expectedSource =
                 new JdbcDynamicTableSource(
                         options,
                         JdbcReadOptions.builder().build(),
-                        lookupOptions,
+                        LookupOptions.MAX_RETRIES.defaultValue(),
+                        null,
                         SCHEMA.toPhysicalRowDataType());
         assertThat(actualSource).isEqualTo(expectedSource);
 
@@ -140,21 +138,47 @@ public class JdbcDynamicTableFactoryTest {
                         .setFetchSize(20)
                         .setAutoCommit(false)
                         .build();
-        JdbcLookupOptions lookupOptions =
-                JdbcLookupOptions.builder()
-                        .setCacheMaxSize(-1)
-                        .setCacheExpireMs(10_000)
-                        .setMaxRetryTimes(3)
-                        .build();
         JdbcDynamicTableSource expected =
                 new JdbcDynamicTableSource(
-                        options, readOptions, lookupOptions, SCHEMA.toPhysicalRowDataType());
+                        options,
+                        readOptions,
+                        LookupOptions.MAX_RETRIES.defaultValue(),
+                        null,
+                        SCHEMA.toPhysicalRowDataType());
 
         assertThat(actual).isEqualTo(expected);
     }
 
     @Test
     public void testJdbcLookupProperties() {
+        Map<String, String> properties = getAllOptions();
+        properties.put("lookup.cache", "PARTIAL");
+        properties.put("lookup.partial-cache.expire-after-write", "10s");
+        properties.put("lookup.partial-cache.expire-after-access", "20s");
+        properties.put("lookup.partial-cache.cache-missing-key", "false");
+        properties.put("lookup.partial-cache.max-rows", "15213");
+        properties.put("lookup.max-retries", "10");
+
+        DynamicTableSource actual = createTableSource(SCHEMA, properties);
+
+        JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
+                        .setDBUrl("jdbc:derby:memory:mydb")
+                        .setTableName("mytable")
+                        .build();
+        JdbcDynamicTableSource expected =
+                new JdbcDynamicTableSource(
+                        options,
+                        JdbcReadOptions.builder().build(),
+                        10,
+                        DefaultLookupCache.fromConfig(Configuration.fromMap(properties)),
+                        SCHEMA.toPhysicalRowDataType());
+
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    public void testJdbcLookupPropertiesWithLegacyOptions() {
         Map<String, String> properties = getAllOptions();
         properties.put("lookup.cache.max-rows", "1000");
         properties.put("lookup.cache.ttl", "10s");
@@ -167,17 +191,15 @@ public class JdbcDynamicTableFactoryTest {
                         .setDBUrl("jdbc:derby:memory:mydb")
                         .setTableName("mytable")
                         .build();
-        JdbcLookupOptions lookupOptions =
-                JdbcLookupOptions.builder()
-                        .setCacheMaxSize(1000)
-                        .setCacheExpireMs(10_000)
-                        .setMaxRetryTimes(10)
-                        .build();
         JdbcDynamicTableSource expected =
                 new JdbcDynamicTableSource(
                         options,
                         JdbcReadOptions.builder().build(),
-                        lookupOptions,
+                        10,
+                        DefaultLookupCache.newBuilder()
+                                .maximumSize(1000L)
+                                .expireAfterWrite(Duration.ofSeconds(10))
+                                .build(),
                         SCHEMA.toPhysicalRowDataType());
 
         assertThat(actual).isEqualTo(expected);
@@ -354,18 +376,15 @@ public class JdbcDynamicTableFactoryTest {
                         .setDBUrl("jdbc:derby:memory:mydb")
                         .setTableName("mytable")
                         .build();
-        JdbcLookupOptions lookupOptions =
-                JdbcLookupOptions.builder()
-                        .setCacheMaxSize(1000)
-                        .setCacheExpireMs(10_000)
-                        .setMaxRetryTimes(10)
-                        .setCacheMissingKey(true)
-                        .build();
         JdbcDynamicTableSource expected =
                 new JdbcDynamicTableSource(
                         options,
                         JdbcReadOptions.builder().build(),
-                        lookupOptions,
+                        10,
+                        DefaultLookupCache.newBuilder()
+                                .maximumSize(1000L)
+                                .expireAfterWrite(Duration.ofSeconds(10))
+                                .build(),
                         SCHEMA.toPhysicalRowDataType());
 
         assertThat(actual).isEqualTo(expected);

@@ -35,6 +35,7 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Collection;
+import java.util.Objects;
 
 import static org.apache.flink.table.connector.source.lookup.LookupOptions.CACHE_TYPE;
 import static org.apache.flink.table.connector.source.lookup.LookupOptions.LookupCacheType.PARTIAL;
@@ -213,6 +214,24 @@ public class DefaultLookupCache implements LookupCache {
     @VisibleForTesting
     boolean isCacheMissingKey() {
         return cacheMissingKey;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof DefaultLookupCache)) {
+            return false;
+        }
+        DefaultLookupCache that = (DefaultLookupCache) o;
+        return Objects.equals(expireAfterWriteDuration, that.expireAfterWriteDuration)
+                && Objects.equals(expireAfterAccessDuration, that.expireAfterAccessDuration)
+                && Objects.equals(maximumSize, that.maximumSize)
+                && Objects.equals(cacheMissingKey, that.cacheMissingKey);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                expireAfterAccessDuration, expireAfterAccessDuration, maximumSize, cacheMissingKey);
     }
 
     private void sanityCheck() {
