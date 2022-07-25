@@ -588,8 +588,7 @@ class MockDataStream(data_stream.DataStream):
 
     def sink_to(self, sink):
         ds = self
-        from pyflink.datastream.connectors.base import SupportPreprocessing
-        if isinstance(sink, SupportPreprocessing):
-            if sink.need_preprocessing():
-                ds = sink.get_preprocessing().apply(self)
+        from pyflink.datastream.connectors.base import SupportsPreprocessing
+        if isinstance(sink, SupportsPreprocessing) and sink.get_transformer() is not None:
+            ds = sink.get_transformer().apply(self)
         return ds

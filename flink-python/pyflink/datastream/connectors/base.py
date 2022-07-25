@@ -17,7 +17,7 @@
 ################################################################################
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Union
+from typing import Union, Optional
 
 from py4j.java_gateway import JavaObject
 
@@ -53,21 +53,17 @@ class Sink(JavaFunctionWrapper):
         super(Sink, self).__init__(sink)
 
 
-class TransformAppender(ABC):
+class StreamTransformer(ABC):
 
     @abstractmethod
     def apply(self, ds):
         pass
 
 
-class SupportPreprocessing(ABC):
+class SupportsPreprocessing(ABC):
 
     @abstractmethod
-    def need_preprocessing(self) -> bool:
-        pass
-
-    @abstractmethod
-    def get_preprocessing(self) -> 'TransformAppender':
+    def get_transformer(self) -> Optional[StreamTransformer]:
         pass
 
 

@@ -18,7 +18,13 @@
 package org.apache.flink.python.util;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.conversion.RowRowConverter;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
@@ -92,6 +98,32 @@ public class PythonConnectorUtils {
         public byte[] serialize(Row row) {
             Preconditions.checkArgument(row.getArity() >= 2);
             return wrappedSchema.serialize((T) row.getField(1));
+        }
+    }
+
+    /** A {@link ProcessFunction} that convert {@link Row} to {@link RowData}. */
+    public static class RowRowMapper extends ProcessFunction<Row, RowData> {
+
+        private static final long serialVersionUID = 1L;
+        private final DataType dataType;
+        private transient RowRowConverter converter;
+
+        public RowRowMapper(DataType dataType) {
+            this.dataType = dataType;
+        }
+
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            converter = RowRowConverter.create(dataType);
+            converter.open(getRuntimeContext().getUserCodeClassLoader());
+        }
+
+        @Override
+        public void processElement(
+                Row row, ProcessFunction<Row, RowData>.Context ctx, Collector<RowData> out)
+                throws Exception {
+            out.collect(converter.toInternal(row));
         }
     }
 }

@@ -25,8 +25,8 @@ from py4j.java_gateway import JavaObject, get_java_class
 from pyflink.common import DeserializationSchema, TypeInformation, typeinfo, SerializationSchema, \
     Types, Row
 from pyflink.datastream.connectors import Source, Sink
-from pyflink.datastream.connectors.base import DeliveryGuarantee, SupportPreprocessing, \
-    TransformAppender
+from pyflink.datastream.connectors.base import DeliveryGuarantee, SupportsPreprocessing, \
+    StreamTransformer
 from pyflink.datastream.functions import SinkFunction, SourceFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import to_jarray, get_field, get_field_value
@@ -828,7 +828,7 @@ class KafkaOffsetsInitializer(object):
             j_map_wrapper.asMap(), offset_reset_strategy._to_j_offset_reset_strategy()))
 
 
-class KafkaSink(Sink, SupportPreprocessing):
+class KafkaSink(Sink, SupportsPreprocessing):
     """
     Flink Sink to produce data into a Kafka topic. The sink supports all delivery guarantees
     described by :class:`DeliveryGuarantee`.
@@ -853,9 +853,9 @@ class KafkaSink(Sink, SupportPreprocessing):
     .. versionadded:: 1.16.0
     """
 
-    def __init__(self, j_kafka_sink, preprocessing: TransformAppender = None):
+    def __init__(self, j_kafka_sink, transformer: Optional[StreamTransformer] = None):
         super().__init__(j_kafka_sink)
-        self._preprocessing = preprocessing
+        self._transformer = transformer
 
     @staticmethod
     def builder() -> 'KafkaSinkBuilder':
@@ -864,11 +864,8 @@ class KafkaSink(Sink, SupportPreprocessing):
         """
         return KafkaSinkBuilder()
 
-    def need_preprocessing(self) -> bool:
-        return self._preprocessing is not None
-
-    def get_preprocessing(self) -> TransformAppender:
-        return self._preprocessing
+    def get_transformer(self) -> Optional[StreamTransformer]:
+        return self._transformer
 
 
 class KafkaSinkBuilder(object):
@@ -1020,8 +1017,8 @@ class KafkaRecordSerializationSchema(SerializationSchema):
         _wrap_schema('keySerializationSchema')
         _wrap_schema('valueSerializationSchema')
 
-    def _build_preprocessing(self) -> TransformAppender:
-        class TopicSelectorTransformAppender(TransformAppender):
+    def _build_preprocessing(self) -> StreamTransformer:
+        class SelectTopicTransformer(StreamTransformer):
 
             def __init__(self, topic_selector: KafkaTopicSelector):
                 self._topic_selector = topic_selector
@@ -1031,7 +1028,7 @@ class KafkaRecordSerializationSchema(SerializationSchema):
                 return ds.map(lambda v: Row(self._topic_selector.apply(v), v),
                               output_type=output_type)
 
-        return TopicSelectorTransformAppender(self._topic_selector)
+        return SelectTopicTransformer(self._topic_selector)
 
 
 class KafkaRecordSerializationSchemaBuilder(object):
