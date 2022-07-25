@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -143,15 +142,22 @@ public class SsgNetworkMemoryCalculationUtils {
         Map<IntermediateDataSetID, Integer> ret = new HashMap<>();
         List<IntermediateDataSet> producedDataSets = ejv.getJobVertex().getProducedDataSets();
 
-        for (int i = 0; i < producedDataSets.size(); i++) {
-            IntermediateDataSet producedDataSet = producedDataSets.get(i);
-            JobEdge outputEdge = checkNotNull(producedDataSet.getConsumer());
-            ExecutionJobVertex consumerJobVertex = ejvs.apply(outputEdge.getTarget().getID());
-            int maxNum =
-                    EdgeManagerBuildUtil.computeMaxEdgesToTargetExecutionVertex(
-                            ejv.getParallelism(),
-                            consumerJobVertex.getParallelism(),
-                            outputEdge.getDistributionPattern());
+        checkState(!ejv.getGraph().isDynamic(), "Only support non-dynamic graph.");
+        for (IntermediateDataSet producedDataSet : producedDataSets) {
+            int maxNum = 0;
+            List<JobEdge> outputEdges = producedDataSet.getConsumers();
+
+            if (!outputEdges.isEmpty()) {
+                // for non-dynamic graph, the consumer vertices' parallelisms and distribution
+                // patterns must be the same
+                JobEdge outputEdge = outputEdges.get(0);
+                ExecutionJobVertex consumerJobVertex = ejvs.apply(outputEdge.getTarget().getID());
+                maxNum =
+                        EdgeManagerBuildUtil.computeMaxEdgesToTargetExecutionVertex(
+                                ejv.getParallelism(),
+                                consumerJobVertex.getParallelism(),
+                                outputEdge.getDistributionPattern());
+            }
             ret.put(producedDataSet.getId(), maxNum);
         }
 
@@ -177,7 +183,9 @@ public class SsgNetworkMemoryCalculationUtils {
                         ejv.getGraph().getResultPartitionOrThrow((partitionGroup.getFirst()));
                 SubpartitionIndexRange subpartitionIndexRange =
                         TaskDeploymentDescriptorFactory.computeConsumedSubpartitionRange(
-                                resultPartition, vertex.getParallelSubtaskIndex());
+                                partitionGroup.getNumConsumers(),
+                                resultPartition,
+                                vertex.getParallelSubtaskIndex());
 
                 ret.merge(
                         partitionGroup.getIntermediateDataSetID(),

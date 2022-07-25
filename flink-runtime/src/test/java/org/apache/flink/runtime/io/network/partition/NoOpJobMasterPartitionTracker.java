@@ -28,8 +28,9 @@ import java.util.Collections;
 import java.util.List;
 
 /** No-op implementation of {@link JobMasterPartitionTracker}. */
-public enum NoOpJobMasterPartitionTracker implements JobMasterPartitionTracker {
-    INSTANCE;
+public class NoOpJobMasterPartitionTracker implements JobMasterPartitionTracker {
+    public static final NoOpJobMasterPartitionTracker INSTANCE =
+            new NoOpJobMasterPartitionTracker();
 
     public static final PartitionTrackerFactory FACTORY = lookup -> INSTANCE;
 

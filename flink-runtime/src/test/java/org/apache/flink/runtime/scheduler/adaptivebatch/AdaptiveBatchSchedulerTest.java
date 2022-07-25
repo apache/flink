@@ -166,7 +166,7 @@ class AdaptiveBatchSchedulerTest {
         sink.connectNewDataSetAsInput(
                 source2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
         if (withForwardEdge) {
-            source1.getProducedDataSets().get(0).getConsumer().setForward(true);
+            source1.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
         }
         return new JobGraph(new JobID(), "test job", source1, source2, sink);
     }

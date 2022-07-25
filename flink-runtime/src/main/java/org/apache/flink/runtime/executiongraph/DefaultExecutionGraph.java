@@ -1399,6 +1399,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             final List<ConsumedPartitionGroup> releasablePartitionGroups) {
 
         if (releasablePartitionGroups.size() > 0) {
+            final List<ResultPartitionID> releasablePartitionIds = new ArrayList<>();
 
             // Remove the cache of ShuffleDescriptors when ConsumedPartitionGroups are released
             for (ConsumedPartitionGroup releasablePartitionGroup : releasablePartitionGroups) {
@@ -1406,14 +1407,16 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                         checkNotNull(
                                 intermediateResults.get(
                                         releasablePartitionGroup.getIntermediateDataSetID()));
+                for (IntermediateResultPartitionID partitionId : releasablePartitionGroup) {
+                    IntermediateResultPartition partition =
+                            totalResult.getPartitionById(partitionId);
+                    partition.markPartitionGroupReleasable(releasablePartitionGroup);
+                    if (partition.canBeReleased()) {
+                        releasablePartitionIds.add(createResultPartitionId(partitionId));
+                    }
+                }
                 totalResult.clearCachedInformationForPartitionGroup(releasablePartitionGroup);
             }
-
-            final List<ResultPartitionID> releasablePartitionIds =
-                    releasablePartitionGroups.stream()
-                            .flatMap(IterableUtils::toStream)
-                            .map(this::createResultPartitionId)
-                            .collect(Collectors.toList());
 
             partitionTracker.stopTrackingAndReleasePartitions(releasablePartitionIds);
         }

@@ -56,6 +56,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -93,7 +94,7 @@ public class NettyShuffleEnvironment
 
     private final FileChannelManager fileChannelManager;
 
-    private final Map<InputGateID, SingleInputGate> inputGatesById;
+    private final Map<InputGateID, Set<SingleInputGate>> inputGatesById;
 
     private final ResultPartitionFactory resultPartitionFactory;
 
@@ -169,7 +170,7 @@ public class NettyShuffleEnvironment
     }
 
     @VisibleForTesting
-    public Optional<InputGate> getInputGate(InputGateID id) {
+    public Optional<Collection<SingleInputGate>> getInputGate(InputGateID id) {
         return Optional.ofNullable(inputGatesById.get(id));
     }
 
@@ -260,8 +261,24 @@ public class NettyShuffleEnvironment
                 InputGateID id =
                         new InputGateID(
                                 igdd.getConsumedResultId(), ownerContext.getExecutionAttemptID());
-                inputGatesById.put(id, inputGate);
-                inputGate.getCloseFuture().thenRun(() -> inputGatesById.remove(id));
+                Set<SingleInputGate> inputGateSet =
+                        inputGatesById.computeIfAbsent(
+                                id, ignored -> ConcurrentHashMap.newKeySet());
+                inputGateSet.add(inputGate);
+                inputGatesById.put(id, inputGateSet);
+                inputGate
+                        .getCloseFuture()
+                        .thenRun(
+                                () ->
+                                        inputGatesById.computeIfPresent(
+                                                id,
+                                                (key, value) -> {
+                                                    value.remove(inputGate);
+                                                    if (value.isEmpty()) {
+                                                        return null;
+                                                    }
+                                                    return value;
+                                                }));
                 inputGates[gateIndex] = inputGate;
             }
 
@@ -297,17 +314,20 @@ public class NettyShuffleEnvironment
         IntermediateDataSetID intermediateResultPartitionID =
                 partitionInfo.getIntermediateDataSetID();
         InputGateID id = new InputGateID(intermediateResultPartitionID, consumerID);
-        SingleInputGate inputGate = inputGatesById.get(id);
-        if (inputGate == null) {
+        Set<SingleInputGate> inputGates = inputGatesById.get(id);
+        if (inputGates == null || inputGates.isEmpty()) {
             return false;
         }
+
         ShuffleDescriptor shuffleDescriptor = partitionInfo.getShuffleDescriptor();
         checkArgument(
                 shuffleDescriptor instanceof NettyShuffleDescriptor,
                 "Tried to update unknown channel with unknown ShuffleDescriptor %s.",
                 shuffleDescriptor.getClass().getName());
-        inputGate.updateInputChannel(
-                taskExecutorResourceId, (NettyShuffleDescriptor) shuffleDescriptor);
+        for (SingleInputGate inputGate : inputGates) {
+            inputGate.updateInputChannel(
+                    taskExecutorResourceId, (NettyShuffleDescriptor) shuffleDescriptor);
+        }
         return true;
     }
 

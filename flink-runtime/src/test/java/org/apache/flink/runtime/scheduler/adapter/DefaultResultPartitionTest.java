@@ -28,7 +28,10 @@ import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -47,8 +50,8 @@ class DefaultResultPartitionTest {
 
     private DefaultResultPartition resultPartition;
 
-    private final Map<IntermediateResultPartitionID, ConsumerVertexGroup> consumerVertexGroups =
-            new HashMap<>();
+    private final Map<IntermediateResultPartitionID, List<ConsumerVertexGroup>>
+            consumerVertexGroups = new HashMap<>();
 
     @BeforeEach
     void setUp() {
@@ -58,7 +61,9 @@ class DefaultResultPartitionTest {
                         intermediateResultId,
                         BLOCKING,
                         resultPartitionState,
-                        () -> consumerVertexGroups.get(resultPartitionId),
+                        () ->
+                                consumerVertexGroups.computeIfAbsent(
+                                        resultPartitionId, ignored -> new ArrayList<>()),
                         () -> {
                             throw new UnsupportedOperationException();
                         });
@@ -75,14 +80,15 @@ class DefaultResultPartitionTest {
     @Test
     void testGetConsumerVertexGroup() {
 
-        assertThat(resultPartition.getConsumerVertexGroup()).isNotPresent();
+        assertThat(resultPartition.getConsumerVertexGroups()).isEmpty();
 
         // test update consumers
         ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
         consumerVertexGroups.put(
-                resultPartition.getId(), ConsumerVertexGroup.fromSingleVertex(executionVertexId));
-        assertThat(resultPartition.getConsumerVertexGroup()).isPresent();
-        assertThat(resultPartition.getConsumerVertexGroup().get()).contains(executionVertexId);
+                resultPartition.getId(),
+                Collections.singletonList(ConsumerVertexGroup.fromSingleVertex(executionVertexId)));
+        assertThat(resultPartition.getConsumerVertexGroups()).isNotEmpty();
+        assertThat(resultPartition.getConsumerVertexGroups().get(0)).contains(executionVertexId);
     }
 
     /** A test {@link ResultPartitionState} supplier. */

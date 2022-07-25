@@ -34,12 +34,52 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SuppressWarnings("serial")
 class JobTaskVertexTest {
+
+    @Test
+    void testMultipleConsumersVertices() {
+        JobVertex producer = new JobVertex("producer");
+        JobVertex consumer1 = new JobVertex("consumer1");
+        JobVertex consumer2 = new JobVertex("consumer2");
+
+        IntermediateDataSetID dataSetId = new IntermediateDataSetID();
+        consumer1.connectNewDataSetAsInput(
+                producer,
+                DistributionPattern.ALL_TO_ALL,
+                ResultPartitionType.BLOCKING,
+                dataSetId,
+                false);
+        consumer2.connectNewDataSetAsInput(
+                producer,
+                DistributionPattern.ALL_TO_ALL,
+                ResultPartitionType.BLOCKING,
+                dataSetId,
+                false);
+
+        JobVertex consumer3 = new JobVertex("consumer3");
+        consumer3.connectNewDataSetAsInput(
+                producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+
+        assertThat(producer.getProducedDataSets()).hasSize(2);
+
+        IntermediateDataSet dataSet = producer.getProducedDataSets().get(0);
+        assertThat(dataSet.getId()).isEqualTo(dataSetId);
+
+        List<JobEdge> consumers1 = dataSet.getConsumers();
+        assertThat(consumers1).hasSize(2);
+        assertThat(consumers1.get(0).getTarget().getID()).isEqualTo(consumer1.getID());
+        assertThat(consumers1.get(1).getTarget().getID()).isEqualTo(consumer2.getID());
+
+        List<JobEdge> consumers2 = producer.getProducedDataSets().get(1).getConsumers();
+        assertThat(consumers2).hasSize(1);
+        assertThat(consumers2.get(0).getTarget().getID()).isEqualTo(consumer3.getID());
+    }
 
     @Test
     void testConnectDirectly() {
@@ -59,7 +99,8 @@ class JobTaskVertexTest {
         assertThat(source.getProducedDataSets().get(0))
                 .isEqualTo(target.getInputs().get(0).getSource());
 
-        assertThat(source.getProducedDataSets().get(0).getConsumer().getTarget()).isEqualTo(target);
+        assertThat(source.getProducedDataSets().get(0).getConsumers().get(0).getTarget())
+                .isEqualTo(target);
     }
 
     @Test
