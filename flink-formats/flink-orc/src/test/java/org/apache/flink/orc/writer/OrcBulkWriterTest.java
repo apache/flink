@@ -29,9 +29,9 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.orc.CompressionKind;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.File;
 import java.util.Arrays;
@@ -41,23 +41,16 @@ import java.util.Properties;
 /** Unit test for the ORC BulkWriter implementation. */
 public class OrcBulkWriterTest {
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir private java.nio.file.Path tempDir;
 
     private final String schema = "struct<_col0:string,_col1:int>";
     private final List<Record> input =
             Arrays.asList(new Record("Shiv", 44), new Record("Jesse", 23), new Record("Walt", 50));
 
-    @Test
-    public void testOrcBulkWriter() throws Exception {
-        writeOrcFileWithCodec(CompressionKind.LZ4);
-        writeOrcFileWithCodec(CompressionKind.SNAPPY);
-        writeOrcFileWithCodec(CompressionKind.ZLIB);
-        writeOrcFileWithCodec(CompressionKind.LZO);
-        writeOrcFileWithCodec(CompressionKind.ZSTD);
-    }
-
-    private void writeOrcFileWithCodec(CompressionKind codec) throws Exception {
-        final File outDir = TEMPORARY_FOLDER.newFolder();
+    @ParameterizedTest
+    @EnumSource(CompressionKind.class)
+    public void writeOrcFileWithCodec(CompressionKind codec) throws Exception {
+        final File outDir = tempDir.toFile();
         final Properties writerProps = new Properties();
         writerProps.setProperty("orc.compress", codec.name());
 
