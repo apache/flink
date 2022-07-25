@@ -25,15 +25,14 @@ from pyflink.common.serialization import SimpleStringSchema, DeserializationSche
     JsonRowDeserializationSchema, CsvRowDeserializationSchema, AvroRowDeserializationSchema, \
     JsonRowSerializationSchema, CsvRowSerializationSchema, AvroRowSerializationSchema
 from pyflink.common.typeinfo import Types
-from pyflink.common.types import Row
+from pyflink.common.types import Row, to_java_data_structure
 from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream.connectors.base import DeliveryGuarantee
 from pyflink.datastream.connectors.kafka import KafkaSource, KafkaTopicPartition, \
     KafkaOffsetsInitializer, KafkaOffsetResetStrategy, KafkaRecordSerializationSchema, KafkaSink
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase, PyFlinkTestCase
-from pyflink.util.java_utils import to_jarray, is_instance_of, get_field_value, \
-    to_java_data_structure
+from pyflink.util.java_utils import to_jarray, is_instance_of, get_field_value
 
 
 class KafkaSourceTests(PyFlinkStreamingTestCase):

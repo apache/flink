@@ -22,7 +22,6 @@ from py4j.java_gateway import JavaClass, get_java_class, JavaObject
 from py4j.protocol import Py4JJavaError
 
 from pyflink.java_gateway import get_gateway
-from pyflink.common.types import Row
 
 
 def to_jarray(j_type, arr):
@@ -37,33 +36,6 @@ def to_jarray(j_type, arr):
     for i in range(0, len(arr)):
         j_arr[i] = arr[i]
     return j_arr
-
-
-def to_java_data_structure(value):
-    jvm = get_gateway().jvm
-    if isinstance(value, (int, float, str)):
-        return value
-    elif isinstance(value, (list, tuple)):
-        j_list = jvm.java.util.ArrayList()
-        for item in value:
-            j_list.add(to_java_data_structure(item))
-        return j_list
-    elif isinstance(value, map):
-        j_map = jvm.java.util.HashMap()
-        for k, v in value:
-            j_map.put(to_java_data_structure(k), to_java_data_structure(v))
-        return j_map
-    elif isinstance(value, Row):
-        j_row = jvm.org.apache.flink.types.Row(value.get_row_kind().to_j_row_kind(), len(value))
-        if hasattr(value, '_fields'):
-            for field_name, value in zip(value._fields, value._values):
-                j_row.setField(field_name, to_java_data_structure(value))
-        else:
-            for idx, value in enumerate(value._values):
-                j_row.setField(idx, to_java_data_structure(value))
-        return j_row
-    else:
-        raise TypeError('value must be a vanilla Python object')
 
 
 def to_j_flink_time(time_delta):
