@@ -31,7 +31,7 @@ class PojoTestUtilsTest {
 
     @Test
     void testPojoAccepted() {
-        assertThatThrownBy(() -> PojoTestUtils.assertSerializedAsPojo(Pojo.class)).isNull();
+        PojoTestUtils.assertSerializedAsPojo(Pojo.class);
     }
 
     private static class NoPojo {}
