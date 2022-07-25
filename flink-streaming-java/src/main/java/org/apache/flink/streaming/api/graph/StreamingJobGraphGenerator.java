@@ -97,9 +97,11 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -176,6 +178,8 @@ public class StreamingJobGraphGenerator {
     // Futures for the serialization of operator coordinators
     private final List<CompletableFuture<Void>> coordinatorSerializationFutures = new ArrayList<>();
 
+    private final Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputs;
+
     private StreamingJobGraphGenerator(
             StreamGraph streamGraph, @Nullable JobID jobID, Executor serializationExecutor) {
         this.streamGraph = streamGraph;
@@ -192,6 +196,7 @@ public class StreamingJobGraphGenerator {
         this.chainedInputOutputFormats = new HashMap<>();
         this.physicalEdgesInOrder = new ArrayList<>();
         this.serializationExecutor = Preconditions.checkNotNull(serializationExecutor);
+        this.opIntermediateOutputs = new HashMap<>();
 
         jobGraph = new JobGraph(jobID, streamGraph.getJobName());
     }
@@ -677,11 +682,15 @@ public class StreamingJobGraphGenerator {
                 config.setChainIndex(chainIndex);
                 config.setOperatorName(streamGraph.getStreamNode(currentNodeId).getOperatorName());
 
+                LinkedHashSet<NonChainedOutput> transitiveOutputs = new LinkedHashSet<>();
                 for (StreamEdge edge : transitiveOutEdges) {
-                    connect(startNodeId, edge);
+                    NonChainedOutput output =
+                            opIntermediateOutputs.get(edge.getSourceId()).get(edge);
+                    transitiveOutputs.add(output);
+                    connect(startNodeId, edge, output);
                 }
 
-                config.setOutEdgesInOrder(transitiveOutEdges);
+                config.setVertexNonChainedOutputs(new ArrayList<>(transitiveOutputs));
                 config.setTransitiveChainedTaskConfigs(chainedConfigs.get(startNodeId));
 
             } else {
@@ -937,8 +946,10 @@ public class StreamingJobGraphGenerator {
 
         config.setStreamOperatorFactory(vertex.getOperatorFactory());
 
-        config.setNumberOfOutputs(nonChainableOutputs.size());
-        config.setNonChainedOutputs(nonChainableOutputs);
+        List<NonChainedOutput> deduplicatedOutputs =
+                mayReuseNonChainedOutputs(vertexID, nonChainableOutputs);
+        config.setNumberOfOutputs(deduplicatedOutputs.size());
+        config.setOperatorNonChainedOutputs(deduplicatedOutputs);
         config.setChainedOutputs(chainableOutputs);
 
         config.setTimeCharacteristic(streamGraph.getTimeCharacteristic());
@@ -973,6 +984,75 @@ public class StreamingJobGraphGenerator {
         }
 
         vertexConfigs.put(vertexID, config);
+    }
+
+    private List<NonChainedOutput> mayReuseNonChainedOutputs(
+            int vertexId, List<StreamEdge> consumerEdges) {
+        if (consumerEdges.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<NonChainedOutput> outputs = new ArrayList<>(consumerEdges.size());
+        Map<StreamEdge, NonChainedOutput> outputsConsumedByEdge =
+                opIntermediateOutputs.computeIfAbsent(vertexId, ignored -> new HashMap<>());
+        for (StreamEdge consumerEdge : consumerEdges) {
+            checkState(vertexId == consumerEdge.getSourceId(), "Vertex id must be the same.");
+            int consumerParallelism =
+                    streamGraph.getStreamNode(consumerEdge.getTargetId()).getParallelism();
+            int consumerMaxParallelism =
+                    streamGraph.getStreamNode(consumerEdge.getTargetId()).getMaxParallelism();
+            StreamPartitioner<?> partitioner = consumerEdge.getPartitioner();
+            ResultPartitionType partitionType = getResultPartitionType(consumerEdge);
+            IntermediateDataSetID dataSetId = new IntermediateDataSetID();
+
+            boolean isPersistentDataSet =
+                    isPersistentIntermediateDataset(partitionType, consumerEdge);
+            if (isPersistentDataSet) {
+                partitionType = ResultPartitionType.BLOCKING_PERSISTENT;
+                dataSetId = consumerEdge.getIntermediateDatasetIdToProduce();
+            }
+
+            NonChainedOutput output =
+                    new NonChainedOutput(
+                            consumerEdge.supportsUnalignedCheckpoints(),
+                            consumerEdge.getSourceId(),
+                            consumerParallelism,
+                            consumerMaxParallelism,
+                            consumerEdge.getBufferTimeout(),
+                            isPersistentDataSet,
+                            dataSetId,
+                            consumerEdge.getOutputTag(),
+                            partitioner,
+                            partitionType);
+            if (!partitionType.isReconsumable()) {
+                outputs.add(output);
+                outputsConsumedByEdge.put(consumerEdge, output);
+            } else {
+                NonChainedOutput reusableOutput = null;
+                for (NonChainedOutput outputCandidate : outputsConsumedByEdge.values()) {
+                    // the target output can be reused if they have the same partitioner and
+                    // consumer parallelism, reusing the same output can improve performance
+                    if (outputCandidate.getPartitionType().isReconsumable()
+                            && consumerParallelism == outputCandidate.getConsumerParallelism()
+                            && consumerMaxParallelism == outputCandidate.getConsumerMaxParallelism()
+                            && outputCandidate.getPartitionType() == partitionType
+                            && Objects.equals(
+                                    outputCandidate.getPersistentDataSetId(),
+                                    consumerEdge.getIntermediateDatasetIdToProduce())
+                            && Objects.equals(
+                                    outputCandidate.getOutputTag(), consumerEdge.getOutputTag())
+                            && Objects.equals(partitioner, outputCandidate.getPartitioner())) {
+                        reusableOutput = outputCandidate;
+                        outputsConsumedByEdge.put(consumerEdge, reusableOutput);
+                        break;
+                    }
+                }
+                if (reusableOutput == null) {
+                    outputs.add(output);
+                    outputsConsumedByEdge.put(consumerEdge, output);
+                }
+            }
+        }
+        return outputs;
     }
 
     private void tryConvertPartitionerForDynamicGraph(
@@ -1026,7 +1106,7 @@ public class StreamingJobGraphGenerator {
         }
     }
 
-    private void connect(Integer headOfChain, StreamEdge edge) {
+    private void connect(Integer headOfChain, StreamEdge edge, NonChainedOutput output) {
 
         physicalEdgesInOrder.add(edge);
 
@@ -1039,35 +1119,11 @@ public class StreamingJobGraphGenerator {
 
         downStreamConfig.setNumberOfNetworkInputs(downStreamConfig.getNumberOfNetworkInputs() + 1);
 
-        StreamPartitioner<?> partitioner = edge.getPartitioner();
-
-        ResultPartitionType resultPartitionType;
-        switch (edge.getExchangeMode()) {
-            case PIPELINED:
-                resultPartitionType = ResultPartitionType.PIPELINED_BOUNDED;
-                break;
-            case BATCH:
-                resultPartitionType = ResultPartitionType.BLOCKING;
-                break;
-            case HYBRID:
-                resultPartitionType = ResultPartitionType.HYBRID;
-                break;
-            case UNDEFINED:
-                resultPartitionType = determineResultPartitionType(partitioner);
-                break;
-            default:
-                throw new UnsupportedOperationException(
-                        "Data exchange mode " + edge.getExchangeMode() + " is not supported yet.");
-        }
+        StreamPartitioner<?> partitioner = output.getPartitioner();
+        ResultPartitionType resultPartitionType = output.getPartitionType();
 
         if (resultPartitionType == ResultPartitionType.HYBRID) {
             hasHybridResultPartition = true;
-        }
-
-        IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
-        if (isPersistentIntermediateDataset(resultPartitionType, edge)) {
-            resultPartitionType = ResultPartitionType.BLOCKING_PERSISTENT;
-            intermediateDataSetID = edge.getIntermediateDatasetIdToProduce();
         }
 
         checkBufferTimeout(resultPartitionType, edge);
@@ -1079,7 +1135,7 @@ public class StreamingJobGraphGenerator {
                             headVertex,
                             DistributionPattern.POINTWISE,
                             resultPartitionType,
-                            intermediateDataSetID,
+                            opIntermediateOutputs.get(edge.getSourceId()).get(edge).getDataSetId(),
                             partitioner.isBroadcast());
         } else {
             jobEdge =
@@ -1087,7 +1143,7 @@ public class StreamingJobGraphGenerator {
                             headVertex,
                             DistributionPattern.ALL_TO_ALL,
                             resultPartitionType,
-                            intermediateDataSetID,
+                            opIntermediateOutputs.get(edge.getSourceId()).get(edge).getDataSetId(),
                             partitioner.isBroadcast());
         }
 
@@ -1125,7 +1181,24 @@ public class StreamingJobGraphGenerator {
         }
     }
 
-    private ResultPartitionType determineResultPartitionType(StreamPartitioner<?> partitioner) {
+    private ResultPartitionType getResultPartitionType(StreamEdge edge) {
+        switch (edge.getExchangeMode()) {
+            case PIPELINED:
+                return ResultPartitionType.PIPELINED_BOUNDED;
+            case BATCH:
+                return ResultPartitionType.BLOCKING;
+            case HYBRID:
+                return ResultPartitionType.HYBRID;
+            case UNDEFINED:
+                return determineUndefinedResultPartitionType(edge.getPartitioner());
+            default:
+                throw new UnsupportedOperationException(
+                        "Data exchange mode " + edge.getExchangeMode() + " is not supported yet.");
+        }
+    }
+
+    private ResultPartitionType determineUndefinedResultPartitionType(
+            StreamPartitioner<?> partitioner) {
         switch (streamGraph.getGlobalStreamExchangeMode()) {
             case ALL_EDGES_BLOCKING:
                 return ResultPartitionType.BLOCKING;
