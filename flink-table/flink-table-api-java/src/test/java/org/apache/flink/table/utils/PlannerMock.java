@@ -30,6 +30,7 @@ import org.apache.flink.table.operations.Operation;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 /** Mocking {@link Planner} for tests. */
 public class PlannerMock implements Planner {
@@ -41,7 +42,7 @@ public class PlannerMock implements Planner {
 
     @Override
     public ExtendedOperationExecutor getExtendedOperationExecutor() {
-        return null;
+        return (operation) -> Optional.empty();
     }
 
     @Override
