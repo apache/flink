@@ -306,8 +306,8 @@ public class HiveTableSource
             if (inputSplits.size() != 0) {
                 TableStats tableStats;
                 if (defaultBulkFormat instanceof FileBasedStatisticsReportableInputFormat) {
-                    // If HiveInputFormat's variable useMapRedReader is false, Hive using Flink's
-                    // InputFormat to read data.
+                    // If HiveInputFormat's variable useMapRedReader is false, Flink will use hadoop
+                    // mapRed record to read data.
                     tableStats =
                             ((FileBasedStatisticsReportableInputFormat) defaultBulkFormat)
                                     .reportStatistics(

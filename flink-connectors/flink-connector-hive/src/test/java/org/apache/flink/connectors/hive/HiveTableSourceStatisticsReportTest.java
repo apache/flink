@@ -59,25 +59,22 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
         tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
         tEnv.registerCatalog(catalogName, hiveCatalog);
         tEnv.useCatalog(catalogName);
-        tEnv.executeSql("create database " + dbName);
+        tEnv.executeSql(String.format("create database %s", dbName));
 
         tEnv.executeSql(
-                "create table "
-                        + catalogName
-                        + "."
-                        + dbName
-                        + "."
-                        + sourceTable
-                        + "("
-                        + String.join(", ", ddlTypesMapToStringList(ddlTypesMap()))
-                        + ")");
+                String.format(
+                        "create table %s.%s.%s ( %s )",
+                        catalogName,
+                        dbName,
+                        sourceTable,
+                        String.join(", ", ddlTypesMapToStringList(ddlTypesMap()))));
 
         DataType dataType =
-                tEnv.from(catalogName + "." + dbName + "." + sourceTable)
+                tEnv.from(String.format("%s.%s.%s", catalogName, dbName, sourceTable))
                         .getResolvedSchema()
                         .toPhysicalRowDataType();
         tEnv.fromValues(dataType, getData())
-                .executeInsert(catalogName + "." + dbName + "." + sourceTable)
+                .executeInsert(String.format("%s.%s.%s", catalogName, dbName, sourceTable))
                 .await();
     }
 
@@ -98,24 +95,20 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
     public void testMapRedCsvFormatHiveTableSourceStatisticsReport() {
         FlinkStatistic statistic =
                 getStatisticsFromOptimizedPlan(
-                        "select * from " + catalogName + "." + dbName + "." + sourceTable);
+                        String.format("select * from %s.%s.%s", catalogName, dbName, sourceTable));
         assertThat(statistic.getTableStats()).isEqualTo(TableStats.UNKNOWN);
     }
 
     @Test
     public void testFlinkOrcFormatHiveTableSourceStatisticsReport() throws Exception {
         tEnv.executeSql(
-                "create table hive.db1.orcTable "
-                        + " ("
-                        + String.join(", ", ddlTypesMapToStringList(ddlTypesMap()))
-                        + ") stored as orc");
+                String.format(
+                        "create table hive.db1.orcTable ( %s ) stored as orc",
+                        String.join(", ", ddlTypesMapToStringList(ddlTypesMap()))));
         tEnv.executeSql(
-                        "insert into hive.db1.orcTable select * from "
-                                + catalogName
-                                + "."
-                                + dbName
-                                + "."
-                                + sourceTable)
+                        String.format(
+                                "insert into hive.db1.orcTable select * from %s.%s.%s",
+                                catalogName, dbName, sourceTable))
                 .await();
 
         // Hive to read Orc file
@@ -128,17 +121,13 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
     @Test
     public void testFlinkParquetFormatHiveTableSourceStatisticsReport() throws Exception {
         tEnv.executeSql(
-                "create table hive.db1.parquetTable"
-                        + " ("
-                        + String.join(", ", ddlTypesMapToStringList(ddlTypesMap()))
-                        + ") stored as parquet");
+                String.format(
+                        "create table hive.db1.parquetTable ( %s ) stored as parquet",
+                        String.join(", ", ddlTypesMapToStringList(ddlTypesMap()))));
         tEnv.executeSql(
-                        "insert into hive.db1.parquetTable select * from "
-                                + catalogName
-                                + "."
-                                + dbName
-                                + "."
-                                + sourceTable)
+                        String.format(
+                                "insert into hive.db1.parquetTable select * from %s.%s.%s",
+                                catalogName, dbName, sourceTable))
                 .await();
 
         // Hive to read Parquet file
@@ -153,17 +142,13 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
         // Use mapRed parquet format.
         tEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
         tEnv.executeSql(
-                "create table hive.db1.orcTable"
-                        + " ("
-                        + String.join(", ", ddlTypesMapToStringList(ddlTypesMap()))
-                        + ") stored as orc");
+                String.format(
+                        "create table hive.db1.orcTable ( %s ) stored as orc",
+                        String.join(", ", ddlTypesMapToStringList(ddlTypesMap()))));
         tEnv.executeSql(
-                        "insert into hive.db1.orcTable select * from "
-                                + catalogName
-                                + "."
-                                + dbName
-                                + "."
-                                + sourceTable)
+                        String.format(
+                                "insert into hive.db1.orcTable select * from %s.%s.%s",
+                                catalogName, dbName, sourceTable))
                 .await();
 
         // Hive to read Orc file
@@ -178,17 +163,13 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
         // Use mapRed parquet format.
         tEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
         tEnv.executeSql(
-                "create table hive.db1.parquetTable"
-                        + " ("
-                        + String.join(", ", ddlTypesMapToStringList(ddlTypesMap()))
-                        + ") stored as parquet");
+                String.format(
+                        "create table hive.db1.parquetTable ( %s ) stored as parquet",
+                        String.join(", ", ddlTypesMapToStringList(ddlTypesMap()))));
         tEnv.executeSql(
-                        "insert into hive.db1.parquetTable select * from "
-                                + catalogName
-                                + "."
-                                + dbName
-                                + "."
-                                + sourceTable)
+                        String.format(
+                                "insert into hive.db1.parquetTable select * from %s.%s.%s",
+                                catalogName, dbName, sourceTable))
                 .await();
 
         // Hive to read Parquet file.
@@ -202,13 +183,9 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
     public void testHiveTableSourceWithLimitPushDown() {
         FlinkStatistic statistic =
                 getStatisticsFromOptimizedPlan(
-                        "select * from "
-                                + catalogName
-                                + "."
-                                + dbName
-                                + "."
-                                + sourceTable
-                                + " limit 1");
+                        String.format(
+                                "select * from %s.%s.%s limit 1",
+                                catalogName, dbName, sourceTable));
         assertThat(statistic.getTableStats()).isEqualTo(new TableStats(1));
     }
 
