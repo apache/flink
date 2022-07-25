@@ -29,6 +29,7 @@ import java.io.IOException;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link JsonNodeDeserializationSchema}. */
+@SuppressWarnings("deprecation")
 class JsonNodeDeserializationSchemaTest {
 
     @Test

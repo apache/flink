@@ -23,8 +23,10 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
  * DeserializationSchema that deserializes a JSON String into an ObjectNode.
  *
  * <p>Fields can be accessed by calling objectNode.get(&lt;name>).as(&lt;type>)
+ *
+ * @deprecated Use {@code new JsonDeserializationSchema(ObjectNode.class)} instead
  */
-@PublicEvolving
+@Deprecated
 public class JsonNodeDeserializationSchema extends JsonDeserializationSchema<ObjectNode> {
 
     private static final long serialVersionUID = 2L;
