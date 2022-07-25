@@ -20,7 +20,8 @@ package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
-import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -39,10 +40,15 @@ public class IntermediateDataSet implements java.io.Serializable {
 
     private final JobVertex producer; // the operation that produced this data set
 
-    @Nullable private JobEdge consumer;
+    // All consumers must have the same partitioner and parallelism
+    private final List<JobEdge> consumers = new ArrayList<>();
 
     // The type of partition to use at runtime
     private final ResultPartitionType resultType;
+
+    private DistributionPattern distributionPattern;
+
+    private boolean isBroadcast;
 
     // --------------------------------------------------------------------------------------------
 
@@ -63,9 +69,16 @@ public class IntermediateDataSet implements java.io.Serializable {
         return producer;
     }
 
-    @Nullable
-    public JobEdge getConsumer() {
-        return consumer;
+    public List<JobEdge> getConsumers() {
+        return this.consumers;
+    }
+
+    public boolean isBroadcast() {
+        return isBroadcast;
+    }
+
+    public DistributionPattern getDistributionPattern() {
+        return distributionPattern;
     }
 
     public ResultPartitionType getResultType() {
@@ -75,10 +88,19 @@ public class IntermediateDataSet implements java.io.Serializable {
     // --------------------------------------------------------------------------------------------
 
     public void addConsumer(JobEdge edge) {
-        checkState(
-                this.consumer == null,
-                "Currently one IntermediateDataSet can have at most one consumer.");
-        this.consumer = edge;
+        // sanity check
+        checkState(id.equals(edge.getSourceId()), "Incompatible dataset id.");
+
+        if (consumers.isEmpty()) {
+            distributionPattern = edge.getDistributionPattern();
+            isBroadcast = edge.isBroadcast();
+        } else {
+            checkState(
+                    distributionPattern == edge.getDistributionPattern(),
+                    "Incompatible distribution pattern.");
+            checkState(isBroadcast == edge.isBroadcast(), "Incompatible broadcast type.");
+        }
+        consumers.add(edge);
     }
 
     // --------------------------------------------------------------------------------------------

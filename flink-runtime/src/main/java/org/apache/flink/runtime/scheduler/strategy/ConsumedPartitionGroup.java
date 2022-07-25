@@ -42,12 +42,17 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
 
     private final ResultPartitionType resultPartitionType;
 
+    /** Number of consumer tasks in the corresponding {@link ConsumerVertexGroup}. */
+    private final int numConsumers;
+
     private ConsumedPartitionGroup(
+            int numConsumers,
             List<IntermediateResultPartitionID> resultPartitions,
             ResultPartitionType resultPartitionType) {
         checkArgument(
                 resultPartitions.size() > 0,
                 "The size of result partitions in the ConsumedPartitionGroup should be larger than 0.");
+        this.numConsumers = numConsumers;
         this.intermediateDataSetID = resultPartitions.get(0).getIntermediateDataSetID();
         this.resultPartitionType = Preconditions.checkNotNull(resultPartitionType);
 
@@ -63,16 +68,18 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
     }
 
     public static ConsumedPartitionGroup fromMultiplePartitions(
+            int numConsumers,
             List<IntermediateResultPartitionID> resultPartitions,
             ResultPartitionType resultPartitionType) {
-        return new ConsumedPartitionGroup(resultPartitions, resultPartitionType);
+        return new ConsumedPartitionGroup(numConsumers, resultPartitions, resultPartitionType);
     }
 
     public static ConsumedPartitionGroup fromSinglePartition(
+            int numConsumers,
             IntermediateResultPartitionID resultPartition,
             ResultPartitionType resultPartitionType) {
         return new ConsumedPartitionGroup(
-                Collections.singletonList(resultPartition), resultPartitionType);
+                numConsumers, Collections.singletonList(resultPartition), resultPartitionType);
     }
 
     @Override
@@ -86,6 +93,14 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
 
     public boolean isEmpty() {
         return resultPartitions.isEmpty();
+    }
+
+    /**
+     * In dynamic graph cases, the number of consumers of ConsumedPartitionGroup can be different
+     * even if they contain the same IntermediateResultPartition.
+     */
+    public int getNumConsumers() {
+        return numConsumers;
     }
 
     public IntermediateResultPartitionID getFirst() {

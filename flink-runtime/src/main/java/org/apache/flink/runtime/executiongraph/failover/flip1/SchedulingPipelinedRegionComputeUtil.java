@@ -32,7 +32,6 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -116,23 +115,20 @@ public final class SchedulingPipelinedRegionComputeUtil {
                     if (producedResult.getResultType().mustBePipelinedConsumed()) {
                         continue;
                     }
-                    final Optional<ConsumerVertexGroup> consumerVertexGroup =
-                            producedResult.getConsumerVertexGroup();
-                    if (!consumerVertexGroup.isPresent()) {
-                        continue;
-                    }
-
-                    for (ExecutionVertexID consumerVertexId : consumerVertexGroup.get()) {
-                        SchedulingExecutionVertex consumerVertex =
-                                executionVertexRetriever.apply(consumerVertexId);
-                        // Skip the ConsumerVertexGroup if its vertices are outside current
-                        // regions and cannot be merged
-                        if (!vertexToRegion.containsKey(consumerVertex)) {
-                            break;
-                        }
-                        if (!currentRegion.contains(consumerVertex)) {
-                            currentRegionOutEdges.add(
-                                    regionIndices.get(vertexToRegion.get(consumerVertex)));
+                    for (ConsumerVertexGroup consumerVertexGroup :
+                            producedResult.getConsumerVertexGroups()) {
+                        for (ExecutionVertexID consumerVertexId : consumerVertexGroup) {
+                            SchedulingExecutionVertex consumerVertex =
+                                    executionVertexRetriever.apply(consumerVertexId);
+                            // Skip the ConsumerVertexGroup if its vertices are outside current
+                            // regions and cannot be merged
+                            if (!vertexToRegion.containsKey(consumerVertex)) {
+                                break;
+                            }
+                            if (!currentRegion.contains(consumerVertex)) {
+                                currentRegionOutEdges.add(
+                                        regionIndices.get(vertexToRegion.get(consumerVertex)));
+                            }
                         }
                     }
                 }

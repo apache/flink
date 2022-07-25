@@ -21,11 +21,13 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 
+import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -47,6 +49,12 @@ public class IntermediateResultPartition {
     /** Whether this partition has produced some data. */
     private boolean hasDataProduced = false;
 
+    /**
+     * Releasable {@link ConsumedPartitionGroup}s for this result partition. This result partition
+     * can be released if all {@link ConsumedPartitionGroup}s are releasable.
+     */
+    private final Set<ConsumedPartitionGroup> releasablePartitionGroups = new HashSet<>();
+
     public IntermediateResultPartition(
             IntermediateResult totalResult,
             ExecutionVertex producer,
@@ -56,6 +64,25 @@ public class IntermediateResultPartition {
         this.producer = producer;
         this.partitionId = new IntermediateResultPartitionID(totalResult.getId(), partitionNumber);
         this.edgeManager = edgeManager;
+    }
+
+    public void markPartitionGroupReleasable(ConsumedPartitionGroup partitionGroup) {
+        releasablePartitionGroups.add(partitionGroup);
+    }
+
+    public boolean canBeReleased() {
+        if (releasablePartitionGroups.size()
+                != edgeManager.getNumberOfConsumedPartitionGroupsById(partitionId)) {
+            return false;
+        }
+        for (JobVertexID jobVertexId : totalResult.getConsumerVertices()) {
+            // for dynamic graph, if any consumer vertex is still not initialized, this result
+            // partition can not be released
+            if (!producer.getExecutionGraphAccessor().getJobVertex(jobVertexId).isInitialized()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public ExecutionVertex getProducer() {
@@ -78,15 +105,8 @@ public class IntermediateResultPartition {
         return totalResult.getResultType();
     }
 
-    public ConsumerVertexGroup getConsumerVertexGroup() {
-        Optional<ConsumerVertexGroup> consumerVertexGroup = getConsumerVertexGroupOptional();
-        checkState(consumerVertexGroup.isPresent());
-        return consumerVertexGroup.get();
-    }
-
-    public Optional<ConsumerVertexGroup> getConsumerVertexGroupOptional() {
-        return Optional.ofNullable(
-                getEdgeManager().getConsumerVertexGroupForPartition(partitionId));
+    public List<ConsumerVertexGroup> getConsumerVertexGroups() {
+        return getEdgeManager().getConsumerVertexGroupsForPartition(partitionId);
     }
 
     public List<ConsumedPartitionGroup> getConsumedPartitionGroups() {
@@ -106,12 +126,13 @@ public class IntermediateResultPartition {
 
     private int computeNumberOfSubpartitions() {
         if (!getProducer().getExecutionGraphAccessor().isDynamic()) {
-            ConsumerVertexGroup consumerVertexGroup = getConsumerVertexGroup();
-            checkState(consumerVertexGroup.size() > 0);
+            List<ConsumerVertexGroup> consumerVertexGroups = getConsumerVertexGroups();
+            checkState(!consumerVertexGroups.isEmpty());
 
             // The produced data is partitioned among a number of subpartitions, one for each
-            // consuming sub task.
-            return consumerVertexGroup.size();
+            // consuming sub task. All vertex groups must have the same number of consumers
+            // for non-dynamic graph.
+            return consumerVertexGroups.get(0).size();
         } else {
             if (totalResult.isBroadcast()) {
                 // for dynamic graph and broadcast result, we only produced one subpartition,
@@ -124,18 +145,16 @@ public class IntermediateResultPartition {
     }
 
     private int computeNumberOfMaxPossiblePartitionConsumers() {
-        final ExecutionJobVertex consumerJobVertex =
-                getIntermediateResult().getConsumerExecutionJobVertex();
         final DistributionPattern distributionPattern =
                 getIntermediateResult().getConsumingDistributionPattern();
 
         // decide the max possible consumer job vertex parallelism
-        int maxConsumerJobVertexParallelism = consumerJobVertex.getParallelism();
+        int maxConsumerJobVertexParallelism = getIntermediateResult().getConsumersParallelism();
         if (maxConsumerJobVertexParallelism <= 0) {
+            maxConsumerJobVertexParallelism = getIntermediateResult().getConsumersMaxParallelism();
             checkState(
-                    consumerJobVertex.getMaxParallelism() > 0,
+                    maxConsumerJobVertexParallelism > 0,
                     "Neither the parallelism nor the max parallelism of a job vertex is set");
-            maxConsumerJobVertexParallelism = consumerJobVertex.getMaxParallelism();
         }
 
         // compute number of subpartitions according to the distribution pattern
@@ -163,6 +182,7 @@ public class IntermediateResultPartition {
                 consumedPartitionGroup.partitionUnfinished();
             }
         }
+        releasablePartitionGroups.clear();
         hasDataProduced = false;
         for (ConsumedPartitionGroup consumedPartitionGroup : getConsumedPartitionGroups()) {
             totalResult.clearCachedInformationForPartitionGroup(consumedPartitionGroup);
