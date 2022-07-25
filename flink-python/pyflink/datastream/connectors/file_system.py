@@ -383,7 +383,7 @@ class RollingPolicy(object):
     def default_rolling_policy(
             part_size: int = 1024 * 1024 * 128,
             rollover_interval: int = 60 * 1000,
-            inactivity_interval: int = 60 * 1000) -> 'RollingPolicy':
+            inactivity_interval: int = 60 * 1000) -> 'DefaultRollingPolicy':
         """
         Returns the default implementation of the RollingPolicy.
 
@@ -408,16 +408,28 @@ class RollingPolicy(object):
             .withRolloverInterval(rollover_interval) \
             .withInactivityInterval(inactivity_interval) \
             .build()
-        return RollingPolicy(j_rolling_policy)
+        return DefaultRollingPolicy(j_rolling_policy)
 
     @staticmethod
-    def on_checkpoint_rolling_policy() -> 'RollingPolicy':
+    def on_checkpoint_rolling_policy() -> 'OnCheckpointRollingPolicy':
         """
         Returns a RollingPolicy which rolls (ONLY) on every checkpoint.
         """
         JOnCheckpointRollingPolicy = get_gateway().jvm.org.apache.flink.streaming.api.functions. \
             sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy
-        return RollingPolicy(JOnCheckpointRollingPolicy.build())
+        return OnCheckpointRollingPolicy(JOnCheckpointRollingPolicy.build())
+
+
+class DefaultRollingPolicy(RollingPolicy):
+
+    def __init__(self, j_rolling_policy):
+        super().__init__(j_rolling_policy)
+
+
+class OnCheckpointRollingPolicy(RollingPolicy):
+
+    def __init__(self, j_rolling_policy):
+        super().__init__(j_rolling_policy)
 
 
 class OutputFileConfig(object):
@@ -576,9 +588,8 @@ class FileSink(Sink):
             self._j_bulk_format_builder.withBucketAssigner(bucket_assigner._j_bucket_assigner)
             return self
 
-        def with_rolling_policy(self, rolling_policy: RollingPolicy) \
+        def with_rolling_policy(self, rolling_policy: OnCheckpointRollingPolicy) \
                 -> 'FileSink.BulkFormatBuilder':
-            # TODO: restrict to checkpoint rolling policy
             self._j_bulk_format_builder.withRollingPolicy(rolling_policy._j_rolling_policy)
             return self
 
@@ -671,6 +682,28 @@ class StreamingFileSink(SinkFunction):
         def __init__(self, j_default_bulk_format_builder):
             self._j_default_bulk_format_builder = j_default_bulk_format_builder
 
+        def with_bucket_check_interval(self, interval: int) \
+                -> 'StreamingFileSink.DefaultBulkFormatBuilder':
+            self._j_default_bulk_format_builder.withBucketCheckInterval(interval)
+            return self
+
+        def with_bucket_assigner(self, bucket_assigner: BucketAssigner) \
+                -> 'StreamingFileSink.DefaultBulkFormatBuilder':
+            self._j_default_bulk_format_builder.withBucketAssigner(
+                bucket_assigner._j_bucket_assigner)
+            return self
+
+        def with_rolling_policy(self, policy: OnCheckpointRollingPolicy) \
+                -> 'StreamingFileSink.DefaultBulkFormatBuilder':
+            self._j_default_bulk_format_builder.withRollingPolicy(policy._j_rolling_policy)
+            return self
+
+        def with_output_file_config(self, output_file_config: 'OutputFileConfig') \
+                -> 'StreamingFileSink.DefaultBulkFormatBuilder':
+            self._j_default_bulk_format_builder.withOutputFileConfig(
+                output_file_config._j_output_file_config)
+            return self
+
         def build(self):
             j_streaming_file_sink = self._j_default_bulk_format_builder.build()
             return StreamingFileSink(j_streaming_file_sink)
@@ -680,5 +713,5 @@ class StreamingFileSink(SinkFunction):
         jvm = get_gateway().jvm
         j_path = jvm.org.apache.flink.core.fs.Path(base_path)
         j_default_bulk_format_builder = jvm.org.apache.flink.streaming.api.functions.sink.filesystem \
-            .StreamingFileSink.forBulkFormat(j_path, writer_factory.get_java_function())
+            .StreamingFileSink.forBulkFormat(j_path, writer_factory.get_java_object())
         return StreamingFileSink.DefaultBulkFormatBuilder(j_default_bulk_format_builder)

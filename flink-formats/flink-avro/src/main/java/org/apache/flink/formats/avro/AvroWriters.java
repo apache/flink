@@ -48,21 +48,7 @@ public class AvroWriters {
             Class<T> type) {
         String schemaString = SpecificData.get().getSchema(type).toString();
         AvroBuilder<T> builder =
-                new AvroBuilder<T>() {
-                    @Override
-                    public DataFileWriter<T> createWriter(OutputStream outputStream)
-                            throws IOException {
-                        return createAvroDataFileWriter(
-                                schemaString,
-                                new Function<Schema, DatumWriter<T>>() {
-                                    @Override
-                                    public DatumWriter<T> apply(Schema schema) {
-                                        return new SpecificDatumWriter<>(schema);
-                                    }
-                                },
-                                outputStream);
-                    }
-                };
+                (out) -> createAvroDataFileWriter(schemaString, SpecificDatumWriter::new, out);
         return new AvroWriterFactory<>(builder);
     }
 
@@ -74,6 +60,8 @@ public class AvroWriters {
      */
     public static AvroWriterFactory<GenericRecord> forGenericRecord(Schema schema) {
         String schemaString = schema.toString();
+        // Must override the lambda representation because of a bug in shading lambda
+        // serialization, see similar issue FLINK-28043 for more details.
         AvroBuilder<GenericRecord> builder =
                 new AvroBuilder<GenericRecord>() {
                     @Override
@@ -102,21 +90,7 @@ public class AvroWriters {
     public static <T> AvroWriterFactory<T> forReflectRecord(Class<T> type) {
         String schemaString = ReflectData.get().getSchema(type).toString();
         AvroBuilder<T> builder =
-                new AvroBuilder<T>() {
-                    @Override
-                    public DataFileWriter<T> createWriter(OutputStream outputStream)
-                            throws IOException {
-                        return createAvroDataFileWriter(
-                                schemaString,
-                                new Function<Schema, DatumWriter<T>>() {
-                                    @Override
-                                    public DatumWriter<T> apply(Schema schema) {
-                                        return new ReflectDatumWriter<>(schema);
-                                    }
-                                },
-                                outputStream);
-                    }
-                };
+                (out) -> createAvroDataFileWriter(schemaString, ReflectDatumWriter::new, out);
         return new AvroWriterFactory<>(builder);
     }
 
