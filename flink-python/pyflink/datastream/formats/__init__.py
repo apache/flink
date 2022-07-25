@@ -17,11 +17,12 @@
 ################################################################################
 from .avro import AvroSchema, AvroInputFormat, AvroWriters, GenericRecordAvroTypeInfo
 from .csv import CsvSchema, CsvReaderFormat
-from .parquet import AvroParquetReaders, ParquetColumnarRowInputFormat
+from .parquet import AvroParquetReaders, AvroParquetWriters, ParquetColumnarRowInputFormat
 
 __all__ = [
     'AvroInputFormat',
     'AvroParquetReaders',
+    'AvroParquetWriters',
     'AvroSchema',
     'AvroWriters',
     'CsvReaderFormat',
