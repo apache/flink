@@ -17,6 +17,8 @@
 
 package org.apache.flink.formats.csv;
 
+import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.formats.common.Converter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -24,16 +26,20 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ContainerNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
-/** Util for creating a {@link CsvReaderFormat}. */
-public class CsvReaderFormatFactory {
-    public static CsvReaderFormat createCsvReaderFormat(CsvSchema schema, DataType dataType) {
+/** Utilities for using CSV format in PyFlink. */
+public class PythonCsvUtils {
+
+    /** Util for creating a {@link CsvReaderFormat}. */
+    public static CsvReaderFormat<Object> createCsvReaderFormat(
+            CsvSchema schema, DataType dataType) {
         Preconditions.checkArgument(dataType.getLogicalType() instanceof RowType);
 
-        return new CsvReaderFormat(
-                () -> new CsvMapper(),
+        return new CsvReaderFormat<>(
+                CsvMapper::new,
                 ignored -> schema,
                 JsonNode.class,
                 new CsvToRowDataConverters(false)
@@ -41,5 +47,23 @@ public class CsvReaderFormatFactory {
                                 LogicalTypeUtils.toRowType(dataType.getLogicalType()), true),
                 InternalTypeInfo.of(dataType.getLogicalType()),
                 false);
+    }
+
+    /**
+     * Util for creating a {@link
+     * RowDataToCsvConverters.RowDataToCsvConverter.RowDataToCsvFormatConverterContext}.
+     */
+    public static RowDataToCsvConverters.RowDataToCsvConverter.RowDataToCsvFormatConverterContext
+            createRowDataToCsvFormatConverterContext(CsvMapper mapper, ContainerNode<?> container) {
+        return new RowDataToCsvConverters.RowDataToCsvConverter.RowDataToCsvFormatConverterContext(
+                mapper, container);
+    }
+
+    /**
+     * Util for creating a {@link BulkWriter.Factory} that wraps {@link CsvBulkWriter#forSchema}.
+     */
+    public static <T, R, C> BulkWriter.Factory<T> createCsvBulkWriterFactory(
+            CsvMapper mapper, CsvSchema schema, Converter<T, R, C> converter, C converterContext) {
+        return (out) -> CsvBulkWriter.forSchema(mapper, schema, converter, converterContext, out);
     }
 }

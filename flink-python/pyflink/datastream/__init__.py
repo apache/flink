@@ -200,7 +200,9 @@ Classes to define source & sink:
 Classes to define formats used together with source & sink:
 
     - :class:`formats.CsvReaderFormat`:
-      A :class:`connectors.StreamFormat` to read csv files into Row data.
+      A :class:`connectors.StreamFormat` to read CSV files into Row data.
+    - :class:`formats.CsvBulkWriter`:
+      Creates :class:`connectors.BulkWriterFactory` to write Row data into CSV files.
     - :class:`formats.GenericRecordAvroTypeInfo`:
       A :class:`TypeInformation` to indicate vanilla Python records will be translated to
       GenericRecordAvroTypeInfo on the Java side.
