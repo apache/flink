@@ -184,7 +184,7 @@ public class OneInputStreamTaskTest extends TestLogger {
         streamConfig2.setOperatorID(new OperatorID());
 
         testHarness2.invoke();
-        testHarness.waitForTaskRunning();
+        testHarness2.waitForTaskRunning();
 
         long initialTime = 0L;
 
