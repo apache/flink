@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createBuffer;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link HsBufferContext}. */
@@ -57,10 +58,8 @@ class HsBufferContextTest {
 
     @Test
     void testBufferStartSpillingRepeatedly() {
-        bufferContext.startSpilling(new CompletableFuture<>());
-        assertThatThrownBy(() -> bufferContext.startSpilling(new CompletableFuture<>()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Spill buffer repeatedly is unexpected.");
+        assertThat(bufferContext.startSpilling(new CompletableFuture<>())).isTrue();
+        assertThat(bufferContext.startSpilling(new CompletableFuture<>())).isFalse();
     }
 
     @Test
@@ -75,9 +74,9 @@ class HsBufferContextTest {
     @Test
     void testBufferReleaseRepeatedly() {
         bufferContext.release();
-        assertThatThrownBy(() -> bufferContext.release())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Release buffer repeatedly is unexpected.");
+        assertThatNoException()
+                .as("repeatedly release should only recycle buffer once.")
+                .isThrownBy(() -> bufferContext.release());
     }
 
     @Test
@@ -99,9 +98,7 @@ class HsBufferContextTest {
     @Test
     void testBufferStartSpillOrConsumedAfterReleased() {
         bufferContext.release();
-        assertThatThrownBy(() -> bufferContext.startSpilling(new CompletableFuture<>()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Buffer is already released.");
+        assertThat(bufferContext.startSpilling(new CompletableFuture<>())).isFalse();
         assertThatThrownBy(() -> bufferContext.consumed())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Buffer is already released.");

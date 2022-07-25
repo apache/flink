@@ -97,24 +97,34 @@ public class HsBufferContext {
         return Optional.ofNullable(spilledFuture);
     }
 
+    /** Mark buffer status to release. */
     public void release() {
-        checkState(!released, "Release buffer repeatedly is unexpected.");
+        if (isReleased()) {
+            return;
+        }
         released = true;
         // decrease ref count when buffer is released from memory.
         buffer.recycleBuffer();
     }
 
-    public void startSpilling(CompletableFuture<Void> spilledFuture) {
-        checkState(!released, "Buffer is already released.");
-        checkState(
-                !spillStarted && this.spilledFuture == null,
-                "Spill buffer repeatedly is unexpected.");
+    /**
+     * Mark buffer status to startSpilling.
+     *
+     * @param spilledFuture completable future of this buffer's spilling operation.
+     * @return false, if spilling of the buffer has been started before or the buffer has been
+     *     released already; true, otherwise.
+     */
+    public boolean startSpilling(CompletableFuture<Void> spilledFuture) {
+        if (isReleased() || isSpillStarted()) {
+            return false;
+        }
         spillStarted = true;
         this.spilledFuture = spilledFuture;
         // increase ref count when buffer is decided to spill.
         buffer.retainBuffer();
         // decrease ref count when buffer spilling is finished.
         spilledFuture.thenRun(buffer::recycleBuffer);
+        return true;
     }
 
     public void consumed() {

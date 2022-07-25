@@ -214,14 +214,16 @@ public class HsSubpartitionMemoryDataManager {
                                 .map(
                                         indexAndChannel -> {
                                             int bufferIndex = indexAndChannel.getBufferIndex();
-                                            HsBufferContext bufferContext =
-                                                    startSpillingBuffer(
-                                                            bufferIndex, spillDoneFuture);
-                                            return new BufferWithIdentity(
-                                                    bufferContext.getBuffer(),
-                                                    bufferIndex,
-                                                    targetChannel);
+                                            return startSpillingBuffer(bufferIndex, spillDoneFuture)
+                                                    .map(
+                                                            (context) ->
+                                                                    new BufferWithIdentity(
+                                                                            context.getBuffer(),
+                                                                            bufferIndex,
+                                                                            targetChannel));
                                         })
+                                .filter(Optional::isPresent)
+                                .map(Optional::get)
                                 .collect(Collectors.toList()));
     }
 
@@ -385,18 +387,25 @@ public class HsSubpartitionMemoryDataManager {
 
     @GuardedBy("subpartitionLock")
     private void releaseBuffer(int bufferIndex) {
-        HsBufferContext bufferContext = checkNotNull(bufferIndexToContexts.remove(bufferIndex));
+        HsBufferContext bufferContext = bufferIndexToContexts.remove(bufferIndex);
+        if (bufferContext == null) {
+            return;
+        }
         bufferContext.release();
         // remove released buffers from head lazy.
         trimHeadingReleasedBuffers(allBuffers);
     }
 
     @GuardedBy("subpartitionLock")
-    private HsBufferContext startSpillingBuffer(
+    private Optional<HsBufferContext> startSpillingBuffer(
             int bufferIndex, CompletableFuture<Void> spillFuture) {
-        HsBufferContext bufferContext = checkNotNull(bufferIndexToContexts.get(bufferIndex));
-        bufferContext.startSpilling(spillFuture);
-        return bufferContext;
+        HsBufferContext bufferContext = bufferIndexToContexts.get(bufferIndex);
+        if (bufferContext == null) {
+            return Optional.empty();
+        }
+        return bufferContext.startSpilling(spillFuture)
+                ? Optional.of(bufferContext)
+                : Optional.empty();
     }
 
     @GuardedBy("subpartitionLock")
