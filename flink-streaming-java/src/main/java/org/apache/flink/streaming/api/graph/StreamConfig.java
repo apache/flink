@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
 import org.apache.flink.runtime.state.CheckpointStorage;
@@ -91,8 +92,8 @@ public class StreamConfig implements Serializable {
     private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out";
     private static final String TYPE_SERIALIZER_SIDEOUT_PREFIX = "typeSerializer_sideout_";
     private static final String ITERATON_WAIT = "iterationWait";
-    private static final String NONCHAINED_OUTPUTS = "nonChainedOutputs";
-    private static final String EDGES_IN_ORDER = "edgesInOrder";
+    private static final String OP_NONCHAINED_OUTPUTS = "opNonChainedOutputs";
+    private static final String VERTEX_NONCHAINED_OUTPUTS = "vertexNonChainedOutputs";
     private static final String IN_STREAM_EDGES = "inStreamEdges";
     private static final String OPERATOR_NAME = "operatorName";
     private static final String OPERATOR_ID = "operatorID";
@@ -434,15 +435,16 @@ public class StreamConfig implements Serializable {
         return config.getInteger(NUMBER_OF_OUTPUTS, 0);
     }
 
-    public void setNonChainedOutputs(List<StreamEdge> outputvertexIDs) {
-        toBeSerializedConfigObjects.put(NONCHAINED_OUTPUTS, outputvertexIDs);
+    /** Sets the operator level non-chained outputs. */
+    public void setOperatorNonChainedOutputs(List<NonChainedOutput> nonChainedOutputs) {
+        toBeSerializedConfigObjects.put(OP_NONCHAINED_OUTPUTS, nonChainedOutputs);
     }
 
-    public List<StreamEdge> getNonChainedOutputs(ClassLoader cl) {
+    public List<NonChainedOutput> getOperatorNonChainedOutputs(ClassLoader cl) {
         try {
-            List<StreamEdge> nonChainedOutputs =
-                    InstantiationUtil.readObjectFromConfig(this.config, NONCHAINED_OUTPUTS, cl);
-            return nonChainedOutputs == null ? new ArrayList<StreamEdge>() : nonChainedOutputs;
+            List<NonChainedOutput> nonChainedOutputs =
+                    InstantiationUtil.readObjectFromConfig(this.config, OP_NONCHAINED_OUTPUTS, cl);
+            return nonChainedOutputs == null ? new ArrayList<>() : nonChainedOutputs;
         } catch (Exception e) {
             throw new StreamTaskException("Could not instantiate non chained outputs.", e);
         }
@@ -520,15 +522,20 @@ public class StreamConfig implements Serializable {
                 ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT, alignedCheckpointTimeout);
     }
 
-    public void setOutEdgesInOrder(List<StreamEdge> outEdgeList) {
-        toBeSerializedConfigObjects.put(EDGES_IN_ORDER, outEdgeList);
+    /**
+     * Sets the job vertex level non-chained outputs. The given output list must have the same order
+     * with {@link JobVertex#getProducedDataSets()}.
+     */
+    public void setVertexNonChainedOutputs(List<NonChainedOutput> nonChainedOutputs) {
+        toBeSerializedConfigObjects.put(VERTEX_NONCHAINED_OUTPUTS, nonChainedOutputs);
     }
 
-    public List<StreamEdge> getOutEdgesInOrder(ClassLoader cl) {
+    public List<NonChainedOutput> getVertexNonChainedOutputs(ClassLoader cl) {
         try {
-            List<StreamEdge> outEdgesInOrder =
-                    InstantiationUtil.readObjectFromConfig(this.config, EDGES_IN_ORDER, cl);
-            return outEdgesInOrder == null ? new ArrayList<StreamEdge>() : outEdgesInOrder;
+            List<NonChainedOutput> nonChainedOutputs =
+                    InstantiationUtil.readObjectFromConfig(
+                            this.config, VERTEX_NONCHAINED_OUTPUTS, cl);
+            return nonChainedOutputs == null ? new ArrayList<>() : nonChainedOutputs;
         } catch (Exception e) {
             throw new StreamTaskException("Could not instantiate outputs in order.", e);
         }
@@ -721,11 +728,11 @@ public class StreamConfig implements Serializable {
         builder.append("=======================");
         builder.append("\nNumber of non-chained inputs: ").append(getNumberOfNetworkInputs());
         builder.append("\nNumber of non-chained outputs: ").append(getNumberOfOutputs());
-        builder.append("\nOutput names: ").append(getNonChainedOutputs(cl));
+        builder.append("\nOutput names: ").append(getOperatorNonChainedOutputs(cl));
         builder.append("\nPartitioning:");
-        for (StreamEdge output : getNonChainedOutputs(cl)) {
-            int outputname = output.getTargetId();
-            builder.append("\n\t").append(outputname).append(": ").append(output.getPartitioner());
+        for (NonChainedOutput output : getOperatorNonChainedOutputs(cl)) {
+            String outputName = output.getDataSetId().toString();
+            builder.append("\n\t").append(outputName).append(": ").append(output.getPartitioner());
         }
 
         builder.append("\nChained subtasks: ").append(getChainedOutputs(cl));
