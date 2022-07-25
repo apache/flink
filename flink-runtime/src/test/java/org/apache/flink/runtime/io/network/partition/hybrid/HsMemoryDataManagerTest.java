@@ -152,9 +152,9 @@ class HsMemoryDataManagerTest {
         }
 
         assertThat(spilledFuture).succeedsWithin(10, TimeUnit.SECONDS);
+        assertThat(readableFuture).succeedsWithin(10, TimeUnit.SECONDS);
         assertThat(readableFuture).isCompletedWithValue(2);
         assertThat(memoryDataManager.getNumTotalUnSpillBuffers()).isEqualTo(1);
-        assertThat(memoryDataManager.getNumTotalRequestedBuffers()).isEqualTo(2);
     }
 
     @Test

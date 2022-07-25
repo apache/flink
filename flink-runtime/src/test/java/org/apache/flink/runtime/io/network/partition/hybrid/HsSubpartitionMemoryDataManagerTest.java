@@ -98,7 +98,7 @@ class HsSubpartitionMemoryDataManagerTest {
         HsMemoryDataManagerOperation memoryDataManagerOperation =
                 TestingMemoryDataManagerOperation.builder()
                         .setRequestBufferFromPoolSupplier(() -> createBufferBuilder(bufferSize))
-                        .setMarkBufferFinishedRunnable(finishedBuffers::incrementAndGet)
+                        .setOnBufferFinishedRunnable(finishedBuffers::incrementAndGet)
                         .build();
         HsSubpartitionMemoryDataManager subpartitionMemoryDataManager =
                 createSubpartitionMemoryDataManager(memoryDataManagerOperation);
@@ -185,7 +185,7 @@ class HsSubpartitionMemoryDataManagerTest {
         TestingMemoryDataManagerOperation memoryDataManagerOperation =
                 TestingMemoryDataManagerOperation.builder()
                         .setRequestBufferFromPoolSupplier(() -> createBufferBuilder(RECORD_SIZE))
-                        .setMarkBufferConsumedConsumer(consumedBufferIndexAndChannel::add)
+                        .setOnBufferConsumedConsumer(consumedBufferIndexAndChannel::add)
                         .build();
         HsSubpartitionMemoryDataManager subpartitionMemoryDataManager =
                 createSubpartitionMemoryDataManager(memoryDataManagerOperation);

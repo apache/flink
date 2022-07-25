@@ -31,20 +31,20 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
 
     private final BiConsumer<Integer, Integer> markBufferReadableConsumer;
 
-    private final Consumer<BufferIndexAndChannel> markBufferConsumedConsumer;
+    private final Consumer<BufferIndexAndChannel> onBufferConsumedConsumer;
 
-    private final Runnable markBufferFinishedRunnable;
+    private final Runnable onBufferFinishedRunnable;
 
     private TestingMemoryDataManagerOperation(
             SupplierWithException<BufferBuilder, InterruptedException>
                     requestBufferFromPoolSupplier,
             BiConsumer<Integer, Integer> markBufferReadableConsumer,
-            Consumer<BufferIndexAndChannel> markBufferConsumedConsumer,
-            Runnable markBufferFinishedRunnable) {
+            Consumer<BufferIndexAndChannel> onBufferConsumedConsumer,
+            Runnable onBufferFinishedRunnable) {
         this.requestBufferFromPoolSupplier = requestBufferFromPoolSupplier;
         this.markBufferReadableConsumer = markBufferReadableConsumer;
-        this.markBufferConsumedConsumer = markBufferConsumedConsumer;
-        this.markBufferFinishedRunnable = markBufferFinishedRunnable;
+        this.onBufferConsumedConsumer = onBufferConsumedConsumer;
+        this.onBufferFinishedRunnable = onBufferFinishedRunnable;
     }
 
     @Override
@@ -59,12 +59,12 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
 
     @Override
     public void onBufferConsumed(BufferIndexAndChannel consumedBuffer) {
-        markBufferConsumedConsumer.accept(consumedBuffer);
+        onBufferConsumedConsumer.accept(consumedBuffer);
     }
 
     @Override
     public void onBufferFinished() {
-        markBufferFinishedRunnable.run();
+        onBufferFinishedRunnable.run();
     }
 
     public static Builder builder() {
@@ -78,9 +78,9 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
 
         private BiConsumer<Integer, Integer> markBufferReadableConsumer = (ignore1, ignore2) -> {};
 
-        private Consumer<BufferIndexAndChannel> markBufferConsumedConsumer = (ignore1) -> {};
+        private Consumer<BufferIndexAndChannel> onBufferConsumedConsumer = (ignore1) -> {};
 
-        private Runnable markBufferFinishedRunnable = () -> {};
+        private Runnable onBufferFinishedRunnable = () -> {};
 
         public Builder setRequestBufferFromPoolSupplier(
                 SupplierWithException<BufferBuilder, InterruptedException>
@@ -95,14 +95,14 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
             return this;
         }
 
-        public Builder setMarkBufferConsumedConsumer(
-                Consumer<BufferIndexAndChannel> markBufferConsumedConsumer) {
-            this.markBufferConsumedConsumer = markBufferConsumedConsumer;
+        public Builder setOnBufferConsumedConsumer(
+                Consumer<BufferIndexAndChannel> onBufferConsumedConsumer) {
+            this.onBufferConsumedConsumer = onBufferConsumedConsumer;
             return this;
         }
 
-        public Builder setMarkBufferFinishedRunnable(Runnable markBufferFinishedRunnable) {
-            this.markBufferFinishedRunnable = markBufferFinishedRunnable;
+        public Builder setOnBufferFinishedRunnable(Runnable onBufferFinishedRunnable) {
+            this.onBufferFinishedRunnable = onBufferFinishedRunnable;
             return this;
         }
 
@@ -112,8 +112,8 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
             return new TestingMemoryDataManagerOperation(
                     requestBufferFromPoolSupplier,
                     markBufferReadableConsumer,
-                    markBufferConsumedConsumer,
-                    markBufferFinishedRunnable);
+                    onBufferConsumedConsumer,
+                    onBufferFinishedRunnable);
         }
     }
 }
