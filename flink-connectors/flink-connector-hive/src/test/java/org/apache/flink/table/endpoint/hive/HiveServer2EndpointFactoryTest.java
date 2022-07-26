@@ -25,7 +25,10 @@ import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtil
 import org.apache.flink.table.gateway.api.utils.MockedSqlGatewayService;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import java.net.InetAddress;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -38,6 +41,7 @@ import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOpti
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.CATALOG_HIVE_CONF_DIR;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.CATALOG_NAME;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.MODULE_NAME;
+import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.THRIFT_HOST;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.THRIFT_LOGIN_BEBACKOFF_SLOT_LENGTH;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.THRIFT_LOGIN_TIMEOUT;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.THRIFT_MAX_MESSAGE_SIZE;
@@ -70,7 +74,7 @@ class HiveServer2EndpointFactoryTest {
     private final String moduleName = "test-module";
 
     @Test
-    public void testCreateHiveServer2Endpoint() {
+    public void testCreateHiveServer2Endpoint() throws Exception {
         assertThat(
                         SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint(
                                 service, Configuration.fromMap(getDefaultConfig())))
@@ -78,6 +82,7 @@ class HiveServer2EndpointFactoryTest {
                         Collections.singletonList(
                                 new HiveServer2Endpoint(
                                         service,
+                                        InetAddress.getByName("localhost"),
                                         port,
                                         maxMessageSize,
                                         (int) loginTimeout.toMillis(),
@@ -91,45 +96,47 @@ class HiveServer2EndpointFactoryTest {
                                         moduleName)));
     }
 
-    @Test
-    public void testCreateHiveServer2EndpointWithIllegalArgument() {
-        List<TestSpec<?>> specs =
-                Arrays.asList(
-                        new TestSpec<>(
-                                THRIFT_WORKER_THREADS_MIN,
-                                -1,
-                                "The specified min thrift worker thread number is -1, which should be larger than 0."),
-                        new TestSpec<>(
-                                THRIFT_WORKER_THREADS_MAX,
-                                0,
-                                "The specified max thrift worker thread number is 0, which should be larger than 0."),
-                        new TestSpec<>(
-                                THRIFT_PORT,
-                                1008668001,
-                                "The specified port is 1008668001, which should range from 0 to 65535."),
-                        new TestSpec<>(
-                                THRIFT_LOGIN_TIMEOUT,
-                                "9223372036854775807 ms",
-                                "The specified login timeout should range from 0 ms to 2147483647 ms but the specified value is 9223372036854775807 ms."),
-                        new TestSpec<>(
-                                THRIFT_LOGIN_BEBACKOFF_SLOT_LENGTH,
-                                "9223372036854775807 ms",
-                                "The specified binary exponential backoff slot time should range from 0 ms to 2147483647 ms but the specified value is 9223372036854775807 ms."));
+    @ParameterizedTest
+    @MethodSource("getIllegalArgumentTestSpecs")
+    public void testCreateHiveServer2EndpointWithIllegalArgument(TestSpec<?> spec) {
+        assertThatThrownBy(
+                        () ->
+                                SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint(
+                                        service,
+                                        Configuration.fromMap(
+                                                getModifiedConfig(
+                                                        config ->
+                                                                setEndpointOption(
+                                                                        config,
+                                                                        spec.option,
+                                                                        spec.value)))))
+                .satisfies(FlinkAssertions.anyCauseMatches(spec.exceptionMessage));
+    }
 
-        for (TestSpec<?> spec : specs) {
-            assertThatThrownBy(
-                            () ->
-                                    SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint(
-                                            service,
-                                            Configuration.fromMap(
-                                                    getModifiedConfig(
-                                                            config ->
-                                                                    setEndpointOption(
-                                                                            config,
-                                                                            spec.option,
-                                                                            spec.value)))))
-                    .satisfies(FlinkAssertions.anyCauseMatches(spec.exceptionMessage));
-        }
+    // --------------------------------------------------------------------------------------------
+
+    private static List<TestSpec<?>> getIllegalArgumentTestSpecs() {
+        return Arrays.asList(
+                new TestSpec<>(
+                        THRIFT_WORKER_THREADS_MIN,
+                        -1,
+                        "The specified min thrift worker thread number is -1, which should be larger than 0."),
+                new TestSpec<>(
+                        THRIFT_WORKER_THREADS_MAX,
+                        0,
+                        "The specified max thrift worker thread number is 0, which should be larger than 0."),
+                new TestSpec<>(
+                        THRIFT_PORT,
+                        1008668001,
+                        "The specified port is 1008668001, which should range from 0 to 65535."),
+                new TestSpec<>(
+                        THRIFT_LOGIN_TIMEOUT,
+                        "9223372036854775807 ms",
+                        "The specified login timeout should range from 0 ms to 2147483647 ms but the specified value is 9223372036854775807 ms."),
+                new TestSpec<>(
+                        THRIFT_LOGIN_BEBACKOFF_SLOT_LENGTH,
+                        "9223372036854775807 ms",
+                        "The specified binary exponential backoff slot time should range from 0 ms to 2147483647 ms but the specified value is 9223372036854775807 ms."));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -145,6 +152,11 @@ class HiveServer2EndpointFactoryTest {
             this.value = value;
             this.exceptionMessage = exceptionMessage;
         }
+
+        @Override
+        public String toString() {
+            return "TestSpec{option=" + option.key() + '}';
+        }
     }
 
     private Map<String, String> getModifiedConfig(Consumer<Map<String, String>> consumer) {
@@ -158,6 +170,7 @@ class HiveServer2EndpointFactoryTest {
 
         config.put(SQL_GATEWAY_ENDPOINT_TYPE.key(), IDENTIFIER);
 
+        setEndpointOption(config, THRIFT_HOST, "localhost");
         setEndpointOption(config, THRIFT_PORT, port);
         setEndpointOption(config, THRIFT_WORKER_THREADS_MIN, minWorkerThreads);
         setEndpointOption(config, THRIFT_WORKER_THREADS_MAX, maxWorkerThreads);

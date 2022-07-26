@@ -35,10 +35,19 @@ public class HiveServer2EndpointConfigOptions {
     // Server Options
     // --------------------------------------------------------------------------------------------
 
+    public static final ConfigOption<String> THRIFT_HOST =
+            ConfigOptions.key("thrift.host")
+                    .stringType()
+                    .defaultValue("localhost")
+                    .withDescription(
+                            "The server address of HiveServer2 host to be used for communication."
+                                    + "Default is empty, which means the to bind to the localhost. "
+                                    + "This is only necessary if the host has multiple network addresses.");
+
     public static final ConfigOption<Integer> THRIFT_PORT =
             ConfigOptions.key("thrift.port")
                     .intType()
-                    .defaultValue(8084)
+                    .defaultValue(10000)
                     .withDescription("The port of the HiveServer2 endpoint");
 
     public static final ConfigOption<Integer> THRIFT_WORKER_THREADS_MIN =

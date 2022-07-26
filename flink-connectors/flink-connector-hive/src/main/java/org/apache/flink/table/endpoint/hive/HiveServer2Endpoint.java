@@ -19,6 +19,7 @@
 package org.apache.flink.table.endpoint.hive;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
@@ -100,6 +101,8 @@ import java.util.Objects;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointVersion.HIVE_CLI_SERVICE_PROTOCOL_V10;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.getUsedDefaultDatabase;
@@ -126,13 +129,14 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     // --------------------------------------------------------------------------------------------
 
     private final SqlGatewayService service;
+    private final InetAddress hostAddress;
+    private final int port;
     private final int minWorkerThreads;
     private final int maxWorkerThreads;
     private final Duration workerKeepAliveTime;
     private final int requestTimeoutMs;
     private final int backOffSlotLengthMs;
     private final long maxMessageSize;
-    private final int port;
 
     private final Thread serverThread = new Thread(this, "HiveServer2 Endpoint");
     private ThreadPoolExecutor executor;
@@ -155,6 +159,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     public HiveServer2Endpoint(
             SqlGatewayService service,
+            InetAddress hostAddress,
             int port,
             long maxMessageSize,
             int requestTimeoutMs,
@@ -168,6 +173,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             String moduleName) {
         this(
                 service,
+                hostAddress,
                 port,
                 maxMessageSize,
                 requestTimeoutMs,
@@ -185,6 +191,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     @VisibleForTesting
     public HiveServer2Endpoint(
             SqlGatewayService service,
+            InetAddress hostAddress,
             int port,
             long maxMessageSize,
             int requestTimeoutMs,
@@ -199,6 +206,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             boolean allowEmbedded) {
         this.service = service;
 
+        this.hostAddress = hostAddress;
         this.port = port;
         this.maxMessageSize = maxMessageSize;
         this.requestTimeoutMs = requestTimeoutMs;
@@ -228,7 +236,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         }
 
         if (executor != null) {
-            executor.shutdown();
+            executor.shutdownNow();
         }
     }
 
@@ -255,6 +263,8 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                             : tOpenSessionReq.getConfiguration();
             Map<String, String> sessionConfig = new HashMap<>();
             sessionConfig.put(TABLE_SQL_DIALECT.key(), SqlDialect.HIVE.name());
+            sessionConfig.put(RUNTIME_MODE.key(), RuntimeExecutionMode.BATCH.name());
+            sessionConfig.put(TABLE_DML_SYNC.key(), "true");
             sessionConfig.putAll(validateAndNormalize(originSessionConf));
 
             HiveConf conf = HiveCatalog.createHiveConf(hiveConfPath, null);
@@ -284,7 +294,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             resp.setSessionHandle(toTSessionHandle(sessionHandle));
             resp.setConfiguration(service.getSessionConfig(sessionHandle));
         } catch (Exception e) {
-            LOG.error("Failed to openSession.", e);
+            LOG.error("Failed to OpenSession.", e);
             resp.setStatus(toTStatus(e));
         }
         return resp;
@@ -298,7 +308,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             service.closeSession(sessionHandle);
             resp.setStatus(OK_STATUS);
         } catch (Throwable t) {
-            LOG.error("Failed to closeSession.", t);
+            LOG.error("Failed to CloseSession.", t);
             resp.setStatus(toTStatus(t));
         }
         return resp;
@@ -419,12 +429,13 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         }
         HiveServer2Endpoint that = (HiveServer2Endpoint) o;
 
-        return minWorkerThreads == that.minWorkerThreads
+        return Objects.equals(hostAddress, that.hostAddress)
+                && port == that.port
+                && minWorkerThreads == that.minWorkerThreads
                 && maxWorkerThreads == that.maxWorkerThreads
                 && requestTimeoutMs == that.requestTimeoutMs
                 && backOffSlotLengthMs == that.backOffSlotLengthMs
                 && maxMessageSize == that.maxMessageSize
-                && port == that.port
                 && Objects.equals(workerKeepAliveTime, that.workerKeepAliveTime)
                 && Objects.equals(catalogName, that.catalogName)
                 && Objects.equals(defaultDatabase, that.defaultDatabase)
@@ -436,13 +447,14 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     @Override
     public int hashCode() {
         return Objects.hash(
+                hostAddress,
+                port,
                 minWorkerThreads,
                 maxWorkerThreads,
                 workerKeepAliveTime,
                 requestTimeoutMs,
                 backOffSlotLengthMs,
                 maxMessageSize,
-                port,
                 catalogName,
                 defaultDatabase,
                 hiveConfPath,
@@ -453,10 +465,14 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     @Override
     public void run() {
         try {
-            LOG.info("HiveServer2 Endpoint begins to listen on {}.", port);
+            LOG.info(
+                    "HiveServer2 Endpoint begins to listen on {}:{}.",
+                    hostAddress.getHostAddress(),
+                    port);
             server.serve();
         } catch (Throwable t) {
             LOG.error("Exception caught by " + getClass().getSimpleName() + ". Exiting.", t);
+            System.exit(-1);
         }
     }
 
@@ -472,8 +488,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                     new TThreadPoolServer(
                             new TThreadPoolServer.Args(
                                             new TServerSocket(
-                                                    new ServerSocket(
-                                                            port, -1, InetAddress.getByName(null))))
+                                                    new ServerSocket(port, -1, hostAddress)))
                                     .processorFactory(
                                             new TProcessorFactory(
                                                     new TCLIService.Processor<>(this)))
