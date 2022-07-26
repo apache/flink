@@ -125,7 +125,8 @@ public class JarRunHandler
                         });
     }
 
-    private SavepointRestoreSettings getSavepointRestoreSettings(
+    @VisibleForTesting
+    SavepointRestoreSettings getSavepointRestoreSettings(
             final @Nonnull HandlerRequest<JarRunRequestBody> request) throws RestHandlerException {
 
         final JarRunRequestBody requestBody = request.getRequestBody();
