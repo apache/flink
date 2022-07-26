@@ -255,7 +255,7 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
         bufferPool.recycle(buffer);
     }
 
-    public <T, R extends Exception> T callWithLock(SupplierWithException<T, R> callable) throws R {
+    private <T, R extends Exception> T callWithLock(SupplierWithException<T, R> callable) throws R {
         try {
             lock.lock();
             return callable.get();
