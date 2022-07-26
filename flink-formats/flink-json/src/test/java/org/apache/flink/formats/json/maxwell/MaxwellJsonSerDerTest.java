@@ -43,6 +43,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.connector.testutils.formats.SchemaTestUtils.open;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
@@ -80,6 +81,7 @@ class MaxwellJsonSerDerTest {
                         InternalTypeInfo.of(producedDataType.getLogicalType()),
                         false,
                         TimestampFormat.ISO_8601);
+        open(deserializationSchema);
         final SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
         assertThat(collector.list).hasSize(1);
@@ -109,6 +111,7 @@ class MaxwellJsonSerDerTest {
                         InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
                         false,
                         TimestampFormat.ISO_8601);
+        open(deserializationSchema);
 
         SimpleCollector collector = new SimpleCollector();
         for (String line : lines) {
@@ -185,7 +188,7 @@ class MaxwellJsonSerDerTest {
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
-        serializationSchema.open(null);
+        open(serializationSchema);
         List<String> result = new ArrayList<>();
         for (RowData rowData : collector.list) {
             result.add(new String(serializationSchema.serialize(rowData), StandardCharsets.UTF_8));

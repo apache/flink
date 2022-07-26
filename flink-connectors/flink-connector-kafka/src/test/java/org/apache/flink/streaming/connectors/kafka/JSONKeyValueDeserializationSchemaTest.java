@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.connector.testutils.formats.DummyInitializationContext;
 import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserializationSchema;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,6 +43,7 @@ public class JSONKeyValueDeserializationSchemaTest {
         byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
 
         JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(false);
+        schema.open(new DummyInitializationContext());
         ObjectNode deserializedValue =
                 schema.deserialize(newConsumerRecord(serializedKey, serializedValue));
 
@@ -60,6 +62,7 @@ public class JSONKeyValueDeserializationSchemaTest {
         byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
 
         JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(false);
+        schema.open(new DummyInitializationContext());
         ObjectNode deserializedValue =
                 schema.deserialize(newConsumerRecord(serializedKey, serializedValue));
 
@@ -93,6 +96,7 @@ public class JSONKeyValueDeserializationSchemaTest {
         byte[] serializedValue = null;
 
         JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(false);
+        schema.open(new DummyInitializationContext());
         ObjectNode deserializedValue =
                 schema.deserialize(newConsumerRecord(serializedKey, serializedValue));
 
@@ -113,6 +117,7 @@ public class JSONKeyValueDeserializationSchemaTest {
         byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
 
         JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(true);
+        schema.open(new DummyInitializationContext());
         final ConsumerRecord<byte[], byte[]> consumerRecord =
                 newConsumerRecord("topic#1", 3, 4L, serializedKey, serializedValue);
         ObjectNode deserializedValue = schema.deserialize(consumerRecord);

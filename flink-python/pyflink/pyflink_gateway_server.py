@@ -230,6 +230,8 @@ def construct_test_classpath():
         "flink-connectors/flink-connector-cassandra/target/flink-connector-*.jar",
         "flink-python/target/artifacts/testDataStream.jar",
         "flink-python/target/flink-python*-tests.jar",
+        ("flink-test-utils-parent/flink-connector-test-utils/target/"
+         "flink-connector-test-utils-*.jar"),
         ("flink-state-backends/flink-statebackend-rocksdb/target/"
          "flink-statebackend-rocksdb*tests.jar"),
     ]

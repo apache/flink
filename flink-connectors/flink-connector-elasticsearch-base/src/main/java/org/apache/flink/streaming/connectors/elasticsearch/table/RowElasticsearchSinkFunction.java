@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.elasticsearch.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
@@ -67,7 +68,9 @@ class RowElasticsearchSinkFunction implements ElasticsearchSinkFunction<RowData>
     }
 
     @Override
-    public void open() {
+    public void open(RuntimeContext ctx) throws Exception {
+        serializationSchema.open(
+                RuntimeContextInitializationContextAdapters.serializationAdapter(ctx));
         indexGenerator.open();
     }
 

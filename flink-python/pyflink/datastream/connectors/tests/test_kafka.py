@@ -464,6 +464,11 @@ class KafkaRecordSerializationSchemaTests(PyFlinkTestCase):
             .set_value_serialization_schema(
                 JsonRowSerializationSchema.builder().with_type_info(input_type).build()) \
             .build()
+        jvm = get_gateway().jvm
+        serialization_schema._j_serialization_schema.open(
+            jvm.org.apache.flink.connector.testutils.formats.DummyInitializationContext(),
+            jvm.org.apache.flink.connector.kafka.sink.DefaultKafkaSinkContext(
+                0, 1, jvm.java.util.Properties()))
 
         j_record = serialization_schema._j_serialization_schema.serialize(
             to_java_data_structure(Row('test')), None, None
@@ -490,6 +495,11 @@ class KafkaRecordSerializationSchemaTests(PyFlinkTestCase):
                 .set_value_serialization_schema(
                     JsonRowSerializationSchema.builder().with_type_info(input_type).build()) \
                 .build()
+            jvm = get_gateway().jvm
+            serialization_schema._j_serialization_schema.open(
+                jvm.org.apache.flink.connector.testutils.formats.DummyInitializationContext(),
+                jvm.org.apache.flink.connector.kafka.sink.DefaultKafkaSinkContext(
+                    0, 1, jvm.java.util.Properties()))
             sink = KafkaSink.builder() \
                 .set_bootstrap_servers('localhost:9092') \
                 .set_record_serializer(serialization_schema) \

@@ -320,7 +320,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
                 callBridge.createBulkProcessorIndexer(
                         bulkProcessor, flushOnCheckpoint, numPendingRequests);
         failureRequestIndexer = new BufferingNoOpRequestIndexer();
-        elasticsearchSinkFunction.open();
+        elasticsearchSinkFunction.open(getRuntimeContext());
     }
 
     @Override
