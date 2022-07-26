@@ -56,38 +56,50 @@ class DefaultBlocklistHandlerTest {
 
     @Test
     void testAddNewBlockedNodes() throws Exception {
-        BlockedNode node1 = new BlockedNode("node1", "cause", Long.MAX_VALUE);
-        BlockedNode node2 = new BlockedNode("node2", "cause", Long.MAX_VALUE);
+        BlockedNode node1 = new BlockedNode("node1", "cause", 1L);
+        BlockedNode node2 = new BlockedNode("node2", "cause", 1L);
+        BlockedNode node2Update = new BlockedNode("node2", "cause", 2L);
 
-        Collection<BlockedNode> allBlockedNodes = new ArrayList<>();
+        List<List<BlockedNode>> contextReceivedNodes = new ArrayList<>();
+
         TestBlocklistContext context =
                 TestBlocklistContext.newBuilder()
-                        .setBlockResourcesConsumer(allBlockedNodes::addAll)
+                        .setBlockResourcesConsumer(
+                                blockedNodes ->
+                                        contextReceivedNodes.add(new ArrayList<>(blockedNodes)))
                         .build();
         TestBlocklistListener listener = new TestBlocklistListener();
 
         try (DefaultBlocklistHandler handler = createDefaultBlocklistHandler(context)) {
             handler.registerBlocklistListener(listener);
-            assertThat(listener.notifiedTimes).isEqualTo(0);
-            assertThat(listener.notifiedNodes).isEmpty();
-            assertThat(allBlockedNodes).isEmpty();
+            assertThat(listener.listenerReceivedNodes).isEmpty();
+            assertThat(contextReceivedNodes).isEmpty();
 
             // add node1, node2
             handler.addNewBlockedNodes(Arrays.asList(node1, node2));
             // check listener and context
-            assertThat(listener.notifiedTimes).isEqualTo(1);
-            assertThat(listener.notifiedNodes).containsExactlyInAnyOrder(node1, node2);
-            assertThat(allBlockedNodes).containsExactlyInAnyOrder(node1, node2);
+            assertThat(listener.listenerReceivedNodes).hasSize(1);
+            assertThat(listener.listenerReceivedNodes.get(0))
+                    .containsExactlyInAnyOrder(node1, node2);
+            assertThat(contextReceivedNodes).hasSize(1);
+            assertThat(contextReceivedNodes.get(0)).containsExactlyInAnyOrder(node1, node2);
 
-            // add node1, node2 again, should not notify listener
-            handler.addNewBlockedNodes(Arrays.asList(node1, node2));
-            assertThat(listener.notifiedTimes).isEqualTo(1);
+            // add node1, node2 again, should not notify context and listener
+            assertThat(contextReceivedNodes).hasSize(1);
+            assertThat(listener.listenerReceivedNodes).hasSize(1);
+
+            // update node2, should notify listener, not notify context
+            handler.addNewBlockedNodes(Collections.singleton(node2Update));
+            assertThat(listener.listenerReceivedNodes).hasSize(2);
+            assertThat(listener.listenerReceivedNodes.get(1)).containsExactly(node2Update);
+            assertThat(contextReceivedNodes).hasSize(1);
 
             // register a new listener, will notify all items
             TestBlocklistListener listener2 = new TestBlocklistListener();
             handler.registerBlocklistListener(listener2);
-            assertThat(listener2.notifiedTimes).isEqualTo(1);
-            assertThat(listener2.notifiedNodes).containsExactlyInAnyOrder(node1, node2);
+            assertThat(listener2.listenerReceivedNodes).hasSize(1);
+            assertThat(listener2.listenerReceivedNodes.get(0))
+                    .containsExactlyInAnyOrder(node1, node2Update);
         }
     }
 
@@ -187,15 +199,12 @@ class DefaultBlocklistHandlerTest {
 
     private static class TestBlocklistListener implements BlocklistListener {
 
-        private int notifiedTimes = 0;
-
-        private final List<BlockedNode> notifiedNodes = new ArrayList<>();
+        private final List<List<BlockedNode>> listenerReceivedNodes = new ArrayList<>();
 
         @Override
         public CompletableFuture<Acknowledge> notifyNewBlockedNodes(
                 Collection<BlockedNode> newNodes) {
-            notifiedTimes++;
-            notifiedNodes.addAll(newNodes);
+            listenerReceivedNodes.add(new ArrayList<>(newNodes));
             return CompletableFuture.completedFuture(Acknowledge.get());
         }
     }
