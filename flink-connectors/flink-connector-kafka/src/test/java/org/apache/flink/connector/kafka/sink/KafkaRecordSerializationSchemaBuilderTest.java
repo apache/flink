@@ -19,10 +19,9 @@ package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.connector.testutils.formats.DummyInitializationContext;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.UserCodeClassLoader;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
@@ -351,28 +350,6 @@ public class KafkaRecordSerializationSchemaBuilderTest extends TestLogger {
     }
 
     private void open(KafkaRecordSerializationSchema<String> schema) throws Exception {
-        schema.open(
-                new SerializationSchema.InitializationContext() {
-                    @Override
-                    public MetricGroup getMetricGroup() {
-                        return null;
-                    }
-
-                    @Override
-                    public UserCodeClassLoader getUserCodeClassLoader() {
-                        return new UserCodeClassLoader() {
-                            @Override
-                            public ClassLoader asClassLoader() {
-                                return KafkaRecordSerializationSchemaBuilderTest.class
-                                        .getClassLoader();
-                            }
-
-                            @Override
-                            public void registerReleaseHookIfAbsent(
-                                    String releaseHookName, Runnable releaseHook) {}
-                        };
-                    }
-                },
-                null);
+        schema.open(new DummyInitializationContext(), null);
     }
 }
