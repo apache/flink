@@ -72,6 +72,8 @@ import org.apache.hive.service.rpc.thrift.TGetOperationStatusReq;
 import org.apache.hive.service.rpc.thrift.TGetOperationStatusResp;
 import org.apache.hive.service.rpc.thrift.TGetPrimaryKeysReq;
 import org.apache.hive.service.rpc.thrift.TGetPrimaryKeysResp;
+import org.apache.hive.service.rpc.thrift.TGetQueryIdReq;
+import org.apache.hive.service.rpc.thrift.TGetQueryIdResp;
 import org.apache.hive.service.rpc.thrift.TGetResultSetMetadataReq;
 import org.apache.hive.service.rpc.thrift.TGetResultSetMetadataResp;
 import org.apache.hive.service.rpc.thrift.TGetSchemasReq;
@@ -88,6 +90,8 @@ import org.apache.hive.service.rpc.thrift.TOperationHandle;
 import org.apache.hive.service.rpc.thrift.TProtocolVersion;
 import org.apache.hive.service.rpc.thrift.TRenewDelegationTokenReq;
 import org.apache.hive.service.rpc.thrift.TRenewDelegationTokenResp;
+import org.apache.hive.service.rpc.thrift.TSetClientInfoReq;
+import org.apache.hive.service.rpc.thrift.TSetClientInfoResp;
 import org.apache.hive.service.rpc.thrift.TStatus;
 import org.apache.hive.service.rpc.thrift.TStatusCode;
 import org.apache.thrift.TException;
@@ -555,6 +559,18 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             TRenewDelegationTokenReq tRenewDelegationTokenReq) throws TException {
         throw new UnsupportedOperationException(ERROR_MESSAGE);
     }
+
+    // CHECKSTYLE.OFF: MethodName
+    /** To be compatible with Hive3, add a default implementation. */
+    public TGetQueryIdResp GetQueryId(TGetQueryIdReq tGetQueryIdReq) throws TException {
+        throw new UnsupportedOperationException(ERROR_MESSAGE);
+    }
+
+    /** To be compatible with Hive3, add a default implementation. */
+    public TSetClientInfoResp SetClientInfo(TSetClientInfoReq tSetClientInfoReq) throws TException {
+        throw new UnsupportedOperationException(ERROR_MESSAGE);
+    }
+    // CHECKSTYLE.ON: MethodName
 
     @Override
     public boolean equals(Object o) {
