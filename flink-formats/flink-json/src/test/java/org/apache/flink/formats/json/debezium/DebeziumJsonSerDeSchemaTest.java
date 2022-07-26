@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.connector.testutils.formats.SchemaTestUtils.open;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
@@ -179,6 +180,7 @@ class DebeziumJsonSerDeSchemaTest {
                         schemaInclude,
                         false,
                         TimestampFormat.ISO_8601);
+        open(deserializationSchema);
 
         SimpleCollector collector = new SimpleCollector();
         for (String line : lines) {
@@ -249,7 +251,7 @@ class DebeziumJsonSerDeSchemaTest {
                         "null",
                         true);
 
-        serializationSchema.open(null);
+        open(serializationSchema);
         actual = new ArrayList<>();
         for (RowData rowData : collector.list) {
             actual.add(new String(serializationSchema.serialize(rowData), StandardCharsets.UTF_8));
@@ -303,6 +305,7 @@ class DebeziumJsonSerDeSchemaTest {
                         schemaInclude,
                         false,
                         TimestampFormat.ISO_8601);
+        open(deserializationSchema);
 
         final SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);

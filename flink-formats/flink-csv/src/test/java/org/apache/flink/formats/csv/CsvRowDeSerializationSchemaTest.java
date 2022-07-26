@@ -35,6 +35,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.function.Consumer;
 
+import static org.apache.flink.connector.testutils.formats.SchemaTestUtils.open;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -372,6 +373,7 @@ public class CsvRowDeSerializationSchemaTest {
                 InstantiationUtil.deserializeObject(
                         InstantiationUtil.serializeObject(serSchemaBuilder.build()),
                         CsvRowDeSerializationSchemaTest.class.getClassLoader());
+        open(schema);
         return schema.serialize(row);
     }
 
@@ -383,6 +385,7 @@ public class CsvRowDeSerializationSchemaTest {
                 InstantiationUtil.deserializeObject(
                         InstantiationUtil.serializeObject(deserSchemaBuilder.build()),
                         CsvRowDeSerializationSchemaTest.class.getClassLoader());
+        open(schema);
         return schema.deserialize(csv.getBytes());
     }
 }

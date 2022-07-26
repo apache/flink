@@ -23,6 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.io.File;
 
@@ -67,6 +68,13 @@ public class UpsertTestSink<IN> implements Sink<IN> {
     @Internal
     @Override
     public SinkWriter<IN> createWriter(InitContext context) {
+        try {
+            keySerializationSchema.open(context.asSerializationSchemaInitializationContext());
+            valueSerializationSchema.open(context.asSerializationSchemaInitializationContext());
+        } catch (Exception e) {
+            throw new FlinkRuntimeException("Failed to initialize schema.", e);
+        }
+
         return new UpsertTestSinkWriter<>(
                 outputFile, keySerializationSchema, valueSerializationSchema);
     }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json.canal;
 
+import org.apache.flink.connector.testutils.formats.DummyInitializationContext;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.formats.json.canal.CanalJsonDecodingFormat.ReadableMetadata;
@@ -44,6 +45,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.connector.testutils.formats.SchemaTestUtils.open;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
@@ -80,6 +82,7 @@ class CanalJsonSerDeSchemaTest {
         final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
         final CanalJsonDeserializationSchema deserializationSchema =
                 createCanalJsonDeserializationSchema(null, null, requestedMetadata);
+        open(deserializationSchema);
         final SimpleCollector collector = new SimpleCollector();
 
         deserializationSchema.deserialize(null, collector);
@@ -139,6 +142,7 @@ class CanalJsonSerDeSchemaTest {
 
     public void runTest(List<String> lines, CanalJsonDeserializationSchema deserializationSchema)
             throws Exception {
+        open(deserializationSchema);
         SimpleCollector collector = new SimpleCollector();
         for (String line : lines) {
             deserializationSchema.deserialize(line.getBytes(StandardCharsets.UTF_8), collector);
@@ -215,7 +219,7 @@ class CanalJsonSerDeSchemaTest {
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
-        serializationSchema.open(null);
+        serializationSchema.open(new DummyInitializationContext());
 
         List<String> result = new ArrayList<>();
         for (RowData rowData : collector.list) {
@@ -262,6 +266,7 @@ class CanalJsonSerDeSchemaTest {
         final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
         final CanalJsonDeserializationSchema deserializationSchema =
                 createCanalJsonDeserializationSchema(database, table, requestedMetadata);
+        open(deserializationSchema);
         final SimpleCollector collector = new SimpleCollector();
 
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
