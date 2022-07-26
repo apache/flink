@@ -3225,6 +3225,12 @@
         "slots-available" : {
           "type" : "integer"
         },
+        "taskmanagers-blocked" : {
+          "type" : "integer"
+        },
+        "slots-free-and-blocked" : {
+          "type" : "integer"
+        },
         "jobs-running" : {
           "type" : "integer"
         },
