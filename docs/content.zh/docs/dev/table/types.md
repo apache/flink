@@ -1563,11 +1563,11 @@ COALESCE(TRY_CAST('non-number' AS INT), 0) --- 结果返回数字 0 的 INT 格�
 
 {{< tabs "extraction" >}}
 {{< tab "Java/Scala" >}}
-在 API 中的很多地方，Flink 都尝试使用反射从类信息中自动提取数据类型，以避免重复手动定义 schema 的工作。但是，通过反射提取数据类型并不总是有效，因为可能会缺失逻辑信息。因此，可能需要在类或字段声明的附近添加额外信息以支持提取逻辑。
+在 API 中的很多地方，Flink 都尝试利用反射机制从类信息中自动提取数据类型，以避免重复地手动定义 schema。但是，通过反射提取数据类型并不总是有效的，因为有可能会缺失逻辑信息。因此，可能需要在类或字段声明的附近添加额外信息以支持提取逻辑。
 
 下表列出了无需更多信息即可隐式映射到数据类型的类。
 
-如果你打算在 Scala 中实现类，*建议使用包装类型*（例如 `java.lang.Integer`）而不是 Scala 的基本类型。如下表所示，Scala 的基本类型（例如 `Int` 或 `Double`）被编译为 JVM 基本类型（例如 `int`/`double`）并产生 `NOT NULL` 语义。此外，在泛型中使用的 Scala 基本类型（例如 `java.util.Map[Int, Double]`）在编译期间会被抹去，导致类信息类似于 `java.util.Map[java.lang.Object, java.lang.Object]`。
+如果你打算在 Scala 中实现类，*建议使用包装类型*（例如 `java.lang.Integer`）而不是 Scala 的基本类型。如下表所示，Scala 的基本类型（例如 `Int` 或 `Double`）会被编译为 JVM 基本类型（例如 `int`/`double`）并产生 `NOT NULL` 语义。此外，在泛型中使用的 Scala 基本类型（例如 `java.util.Map[Int, Double]`）在编译期间会被擦除，导致类信息类似于 `java.util.Map[java.lang.Object, java.lang.Object]`。
 
 | 类                          | 数据类型                             |
 |:----------------------------|:------------------------------------|
