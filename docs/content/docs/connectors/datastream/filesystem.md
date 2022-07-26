@@ -522,7 +522,7 @@ input.sinkTo(sink)
 ```python
 schema = AvroSchema.parse_string(JSON_SCHEMA)
 # The element could be vanilla Python data structure matching the schema,
-# which is annotated with Types.PICKLED_BYTE_ARRAY()
+# which is annotated with default Types.PICKLED_BYTE_ARRAY()
 data_stream = ...
 
 avro_type_info = GenericRecordAvroTypeInfo(schema)
@@ -530,6 +530,7 @@ sink = FileSink \
     .for_bulk_format(OUTPUT_BASE_PATH, AvroWriters.for_generic_record(schema)) \
     .build()
 
+# A map to indicate its Avro type info is necessary for serialization
 data_stream.map(lambda e: e, output_type=avro_type_info).sink_to(sink)
 ```
 {{< /tab >}}
