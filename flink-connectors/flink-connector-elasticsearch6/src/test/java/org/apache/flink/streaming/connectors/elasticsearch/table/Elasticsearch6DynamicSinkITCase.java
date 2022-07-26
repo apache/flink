@@ -231,8 +231,11 @@ public class Elasticsearch6DynamicSinkITCase extends TestLogger {
 
     @Test
     public void testWritingDocumentsNoPrimaryKey() throws Exception {
-        TableEnvironment tableEnvironment =
-                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
+        settings.getConfiguration().setString("restart-strategy", "fixed-delay");
+        settings.getConfiguration().setInteger("restart-strategy.fixed-delay.attempts", 3);
+        // default fixed delay is 1 seconds
+        TableEnvironment tableEnvironment = TableEnvironment.create(settings);
 
         String index = "no-primary-key";
         String myType = "MyType";
