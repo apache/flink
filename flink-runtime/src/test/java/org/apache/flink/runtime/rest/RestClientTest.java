@@ -23,8 +23,8 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
@@ -96,7 +96,7 @@ public class RestClientTest extends TestLogger {
                             EmptyMessageParameters.getInstance(),
                             EmptyRequestBody.getInstance(),
                             Collections.emptyList(),
-                            RestAPIVersion.V0);
+                            RuntimeRestAPIVersion.V0);
             Assert.fail("The request should have been rejected due to a version mismatch.");
         } catch (IllegalArgumentException e) {
             // expected
@@ -208,7 +208,8 @@ public class RestClientTest extends TestLogger {
     }
 
     private static class TestMessageHeaders
-            implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+            implements RuntimeMessageHeaders<
+                    EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
         @Override
         public Class<EmptyRequestBody> getRequestClass() {

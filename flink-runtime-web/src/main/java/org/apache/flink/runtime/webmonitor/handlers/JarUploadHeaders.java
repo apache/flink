@@ -22,12 +22,14 @@ import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** {@link MessageHeaders} for uploading jars. */
 public final class JarUploadHeaders
-        implements MessageHeaders<EmptyRequestBody, JarUploadResponseBody, EmptyMessageParameters> {
+        implements RuntimeMessageHeaders<
+                EmptyRequestBody, JarUploadResponseBody, EmptyMessageParameters> {
 
     public static final String URL = "/jars/upload";
     private static final JarUploadHeaders INSTANCE = new JarUploadHeaders();

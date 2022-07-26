@@ -26,7 +26,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Message headers for the {@link JobVertexFlameGraphHandler}. */
 public class JobVertexFlameGraphHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 EmptyRequestBody, JobVertexFlameGraph, JobVertexFlameGraphParameters> {
 
     private static final JobVertexFlameGraphHeaders INSTANCE = new JobVertexFlameGraphHeaders();

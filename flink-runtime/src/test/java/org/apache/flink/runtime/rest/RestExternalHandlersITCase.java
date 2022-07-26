@@ -26,9 +26,9 @@ import org.apache.flink.runtime.io.network.netty.OutboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.Prio0InboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.Prio1InboundChannelHandlerFactory;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
@@ -168,7 +168,7 @@ public class RestExternalHandlersITCase extends TestLogger {
     private static class TestResponse implements ResponseBody {}
 
     private static class TestHeaders
-            implements MessageHeaders<TestRequest, TestResponse, EmptyMessageParameters> {
+            implements RuntimeMessageHeaders<TestRequest, TestResponse, EmptyMessageParameters> {
 
         @Override
         public HttpMethodWrapper getHttpMethod() {

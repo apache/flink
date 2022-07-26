@@ -31,6 +31,7 @@ import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.util.TestMessageHeaders;
 import org.apache.flink.runtime.rest.util.TestRestHandler;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
@@ -61,6 +62,7 @@ import java.io.File;
 import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -286,6 +288,11 @@ class AbstractHandlerTest {
             @Override
             public boolean acceptsFileUploads() {
                 return true;
+            }
+
+            @Override
+            public Collection<RuntimeRestAPIVersion> getSupportedAPIVersions() {
+                return Collections.singleton(RuntimeRestAPIVersion.V1);
             }
         }
     }
