@@ -277,7 +277,7 @@ public final class RocksDBResourceContainer implements AutoCloseable {
 
     /** Create a {@link DBOptions} for RocksDB, including some common settings. */
     DBOptions createBaseCommonDBOptions() {
-        return new DBOptions().setUseFsync(false).setStatsDumpPeriodSec(0);
+        return new DBOptions().setUseFsync(false).setStatsDumpPeriodSec(300);
     }
 
     /** Create a {@link ColumnFamilyOptions} for RocksDB, including some common settings. */
