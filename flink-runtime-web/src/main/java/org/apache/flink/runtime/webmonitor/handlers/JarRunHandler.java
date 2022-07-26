@@ -148,7 +148,7 @@ public class JarRunHandler
                         log);
         final RestoreMode restoreMode =
                 Optional.ofNullable(requestBody.getRestoreMode())
-                        .orElseGet(SavepointConfigOptions.RESTORE_MODE::defaultValue);
+                        .orElse(configuration.get(SavepointConfigOptions.RESTORE_MODE));
         final SavepointRestoreSettings savepointRestoreSettings;
         if (savepointPath != null) {
             savepointRestoreSettings =
