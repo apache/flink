@@ -3439,6 +3439,9 @@
                     "type" : "integer"
                   }
                 }
+              },
+              "blocked" : {
+                "type" : "boolean"
               }
             }
           }
@@ -3596,6 +3599,9 @@
               "type" : "integer"
             }
           }
+        },
+        "blocked" : {
+          "type" : "boolean"
         },
         "allocatedSlots" : {
           "type" : "array",
