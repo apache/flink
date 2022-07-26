@@ -24,6 +24,10 @@ import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -68,6 +72,23 @@ class ArchivedExecutionGraphTestUtils {
         compareExecution(
                 runtimeVertex.getCurrentExecutionAttempt(),
                 archivedVertex.getCurrentExecutionAttempt());
+
+        compareExecutions(
+                runtimeVertex.getCurrentExecutions(), archivedVertex.getCurrentExecutions());
+    }
+
+    private static <RT extends AccessExecution, AT extends AccessExecution> void compareExecutions(
+            Collection<RT> runtimeExecutions, Collection<AT> archivedExecutions) {
+        assertThat(runtimeExecutions).hasSameSizeAs(archivedExecutions);
+
+        List<RT> sortedRuntimeExecutions = new ArrayList<>(runtimeExecutions);
+        List<AT> sortedArchivedExecutions = new ArrayList<>(archivedExecutions);
+        sortedRuntimeExecutions.sort(Comparator.comparingInt(AccessExecution::getAttemptNumber));
+        sortedArchivedExecutions.sort(Comparator.comparingInt(AccessExecution::getAttemptNumber));
+
+        for (int i = 0; i < runtimeExecutions.size(); i++) {
+            compareExecution(sortedRuntimeExecutions.get(i), sortedArchivedExecutions.get(i));
+        }
     }
 
     private static void compareExecution(

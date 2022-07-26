@@ -285,8 +285,8 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
     }
 
     @Override
-    public ArchivedSpeculativeExecutionVertex archive() {
-        return new ArchivedSpeculativeExecutionVertex(this);
+    public ArchivedExecutionVertex archive() {
+        return new ArchivedExecutionVertex(this);
     }
 
     @Override
