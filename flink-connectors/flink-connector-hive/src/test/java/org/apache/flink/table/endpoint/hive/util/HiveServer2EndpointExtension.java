@@ -28,6 +28,7 @@ import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
+import java.net.InetAddress;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.CATALOG_DEFAULT_DATABASE;
@@ -67,6 +68,7 @@ public class HiveServer2EndpointExtension implements BeforeAllCallback, AfterAll
         endpoint =
                 new HiveServer2Endpoint(
                         serviceSupplier.get(),
+                        InetAddress.getLocalHost(),
                         port.getPort(),
                         checkNotNull(endpointConfig.get(THRIFT_MAX_MESSAGE_SIZE)),
                         (int) endpointConfig.get(THRIFT_LOGIN_TIMEOUT).toMillis(),

@@ -41,12 +41,16 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.net.InetAddress;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.table.api.config.TableConfigOptions.MAX_LENGTH_GENERATED_CODE;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -83,7 +87,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
         TOpenSessionReq openSessionReq = new TOpenSessionReq();
 
         Map<String, String> configs = new HashMap<>();
-        configs.put(TABLE_DML_SYNC.key(), "true");
+        configs.put(MAX_LENGTH_GENERATED_CODE.key(), "-1");
         // simulate to set config using hive jdbc
         configs.put("set:hiveconf:key", "value");
         // TODO: set hivevar when FLINK-28096 is fixed
@@ -99,6 +103,8 @@ public class HiveServer2EndpointITCase extends TestLogger {
                         new AbstractMap.SimpleEntry<>(
                                 TableConfigOptions.TABLE_SQL_DIALECT.key(), SqlDialect.HIVE.name()),
                         new AbstractMap.SimpleEntry<>(TABLE_DML_SYNC.key(), "true"),
+                        new AbstractMap.SimpleEntry<>(RUNTIME_MODE.key(), BATCH.name()),
+                        new AbstractMap.SimpleEntry<>(MAX_LENGTH_GENERATED_CODE.key(), "-1"),
                         new AbstractMap.SimpleEntry<>("key", "value"));
     }
 
@@ -121,13 +127,16 @@ public class HiveServer2EndpointITCase extends TestLogger {
     private Connection getConnection() throws Exception {
         return DriverManager.getConnection(
                 String.format(
-                        "jdbc:hive2://localhost:%s/default;auth=noSasl",
-                        ENDPOINT_EXTENSION.getPort()));
+                        "jdbc:hive2://%s:%s/default;auth=noSasl",
+                        InetAddress.getLocalHost().getHostAddress(), ENDPOINT_EXTENSION.getPort()));
     }
 
     private TCLIService.Client createClient() throws Exception {
         TTransport transport =
-                HiveAuthUtils.getSocketTransport("localhost", ENDPOINT_EXTENSION.getPort(), 0);
+                HiveAuthUtils.getSocketTransport(
+                        InetAddress.getLocalHost().getHostAddress(),
+                        ENDPOINT_EXTENSION.getPort(),
+                        0);
         transport.open();
         return new TCLIService.Client(new TBinaryProtocol(transport));
     }

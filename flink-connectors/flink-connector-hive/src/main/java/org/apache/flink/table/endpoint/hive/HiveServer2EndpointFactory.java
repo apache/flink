@@ -25,7 +25,10 @@ import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactory;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -33,6 +36,7 @@ import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOpti
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.CATALOG_HIVE_CONF_DIR;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.CATALOG_NAME;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.MODULE_NAME;
+import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.THRIFT_HOST;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.THRIFT_LOGIN_BEBACKOFF_SLOT_LENGTH;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.THRIFT_LOGIN_TIMEOUT;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.THRIFT_MAX_MESSAGE_SIZE;
@@ -55,6 +59,7 @@ public class HiveServer2EndpointFactory implements SqlGatewayEndpointFactory {
         validate(configuration);
         return new HiveServer2Endpoint(
                 context.getSqlGatewayService(),
+                getHostAddress(configuration.get(THRIFT_HOST)),
                 configuration.get(THRIFT_PORT),
                 checkNotNull(configuration.get(THRIFT_MAX_MESSAGE_SIZE)),
                 (int) configuration.get(THRIFT_LOGIN_TIMEOUT).toMillis(),
@@ -75,8 +80,14 @@ public class HiveServer2EndpointFactory implements SqlGatewayEndpointFactory {
 
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
+        return Collections.emptySet();
+    }
+
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
         return new HashSet<>(
                 Arrays.asList(
+                        THRIFT_HOST,
                         THRIFT_PORT,
                         THRIFT_MAX_MESSAGE_SIZE,
                         THRIFT_LOGIN_TIMEOUT,
@@ -84,12 +95,18 @@ public class HiveServer2EndpointFactory implements SqlGatewayEndpointFactory {
                         THRIFT_WORKER_THREADS_MAX,
                         THRIFT_WORKER_KEEPALIVE_TIME,
                         CATALOG_NAME,
+                        CATALOG_HIVE_CONF_DIR,
+                        CATALOG_DEFAULT_DATABASE,
                         MODULE_NAME));
     }
 
-    @Override
-    public Set<ConfigOption<?>> optionalOptions() {
-        return new HashSet<>(Arrays.asList(CATALOG_HIVE_CONF_DIR, CATALOG_DEFAULT_DATABASE));
+    private static InetAddress getHostAddress(String hostName) {
+        try {
+            return InetAddress.getByName(hostName);
+        } catch (UnknownHostException e) {
+            throw new ValidationException(
+                    String.format("Can not get the address for the host '%s'.", hostName));
+        }
     }
 
     private static void validate(ReadableConfig configuration) {

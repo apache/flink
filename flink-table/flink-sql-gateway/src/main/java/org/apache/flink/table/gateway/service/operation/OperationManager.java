@@ -354,6 +354,8 @@ public class OperationManager {
         }
     }
 
+    // -------------------------------------------------------------------------------------------
+
     @VisibleForTesting
     public int getOperationCount() {
         return submittedOperations.size();
