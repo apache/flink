@@ -600,6 +600,10 @@ public class SqlToRelConverter {
         }
         // propagate the hints.
         result = RelOptUtil.propagateRelHints(result, false);
+
+        // clear node SubQueryAlias.
+        result = result.accept(new SubQueryAliasNodeClearShuttle());
+
         return RelRoot.of(result, validatedRowType, query.getKind())
                 .withCollation(collation)
                 .withHints(hints);
@@ -2061,6 +2065,10 @@ public class SqlToRelConverter {
                     }
                 }
                 convertFrom(bb, firstOperand, fieldNameList);
+                // flink modification: add a sub-query alias node to distinguish different query
+                // levels
+                RelNode subQueryAlias = LogicalSubQueryAlias.create(bb.root, call.operand(1));
+                bb.setRoot(subQueryAlias, false);
                 return;
 
             case MATCH_RECOGNIZE:

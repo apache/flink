@@ -20,18 +20,28 @@ package org.apache.flink.table.planner.hint;
 
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
 
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalProject;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** Utility class for Flink hints. */
 public abstract class FlinkHints {
     // ~ Static fields/initializers ---------------------------------------------
 
     public static final String HINT_NAME_OPTIONS = "OPTIONS";
+
+    // ~ Internal alias tag hint
+    public static final String HINT_ALIAS = "ALIAS";
 
     /**
      * Internal hint that JSON aggregation function arguments have been wrapped already. See {@link
@@ -74,5 +84,78 @@ public abstract class FlinkHints {
         newProps.putAll(props);
         newProps.putAll(hints);
         return Collections.unmodifiableMap(newProps);
+    }
+
+    public static Optional<String> getTableAlias(RelNode node) {
+        if (node instanceof Hintable) {
+            Hintable aliasNode = (Hintable) node;
+            List<String> aliasNames =
+                    aliasNode.getHints().stream()
+                            .filter(h -> h.hintName.equalsIgnoreCase(FlinkHints.HINT_ALIAS))
+                            .flatMap(h -> h.listOptions.stream())
+                            .collect(Collectors.toList());
+            if (aliasNames.size() > 0) {
+                return Optional.of(aliasNames.get(0));
+            } else {
+                if (canTransposeToTableScan(node)) {
+                    return getTableAlias(node.getInput(0));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    public static boolean canTransposeToTableScan(RelNode node) {
+        // TODO support look up join
+        return node instanceof LogicalProject // computed column on table
+                || node instanceof LogicalFilter;
+    }
+
+    /** Returns the qualified name of a table scan, otherwise returns empty. */
+    public static Optional<String> getTableName(RelOptTable table) {
+        if (table == null) {
+            return Optional.empty();
+        }
+        List<String> qualifiedNames = table.getQualifiedName();
+        return Optional.of(String.join(".", qualifiedNames));
+    }
+
+    public static String stringifyHints(List<RelHint> hints) {
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (RelHint h : hints) {
+            if (h.hintName.equalsIgnoreCase(FlinkHints.HINT_ALIAS)) {
+                continue;
+            }
+            if (!first) {
+                sb.append(", ");
+            }
+            sb.append(h.hintName);
+            if (h.listOptions.size() > 0) {
+                sb.append("(").append(String.join(", ", h.listOptions)).append(")");
+            } else if (h.kvOptions.size() > 0) {
+                String mapStr =
+                        h.kvOptions.entrySet().stream()
+                                .map(e -> e.getKey() + "=" + e.getValue())
+                                .collect(Collectors.joining(", "));
+                sb.append("(").append(mapStr).append(")");
+            }
+            first = false;
+        }
+        return sb.toString();
+    }
+
+    /** Get all hints without alias hint. */
+    public static List<RelHint> getHintsWithoutAlias(List<RelHint> allHints) {
+        return allHints.stream()
+                .filter(hint -> !(hint.hintName.equals(FlinkHints.HINT_ALIAS)))
+                .collect(Collectors.toList());
+    }
+
+    /** Get all hints without join hints. */
+    public static List<RelHint> getHintsWithoutJoinHints(List<RelHint> allHints) {
+        return allHints.stream()
+                .filter(hint -> !JoinStrategy.isJoinStrategy(hint.hintName))
+                .collect(Collectors.toList());
     }
 }

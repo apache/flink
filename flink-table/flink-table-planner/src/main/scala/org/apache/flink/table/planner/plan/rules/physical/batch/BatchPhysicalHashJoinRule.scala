@@ -17,16 +17,13 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.configuration.ReadableConfig
-import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.planner.JDouble
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.hint.JoinStrategy
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalHashJoin
-import org.apache.flink.table.planner.plan.utils.OperatorType
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
-import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -49,24 +46,9 @@ class BatchPhysicalHashJoinRule
   with BatchPhysicalJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val join: Join = call.rel(0)
-    val joinInfo = join.analyzeCondition
-    // join keys must not be empty
-    if (joinInfo.pairs().isEmpty) {
-      return false
-    }
-
-    val tableConfig = unwrapTableConfig(call)
-    val isShuffleHashJoinEnabled = !isOperatorDisabled(tableConfig, OperatorType.ShuffleHashJoin)
-    val isBroadcastHashJoinEnabled =
-      !isOperatorDisabled(tableConfig, OperatorType.BroadcastHashJoin)
-
-    val leftSize = binaryRowRelNodeSize(join.getLeft)
-    val rightSize = binaryRowRelNodeSize(join.getRight)
-    val (isBroadcast, _) = canBroadcast(join.getJoinType, leftSize, rightSize, tableConfig)
-
     // TODO use shuffle hash join if isBroadcast is true and isBroadcastHashJoinEnabled is false ?
-    if (isBroadcast) isBroadcastHashJoinEnabled else isShuffleHashJoinEnabled
+    checkMatchJoinStrategy(call, JoinStrategy.BROADCAST) ||
+    checkMatchJoinStrategy(call, JoinStrategy.SHUFFLE_HASH)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -89,19 +71,49 @@ class BatchPhysicalHashJoinRule
       case _ => (join.getRight, false)
     }
 
-    val leftSize = binaryRowRelNodeSize(left)
-    val rightSize = binaryRowRelNodeSize(right)
+    var isBroadcast = false
 
-    val (isBroadcast, leftIsBroadcast) = canBroadcast(joinType, leftSize, rightSize, tableConfig)
+    var isLeftToBroadcast = false
+    var isLeftToBuild = false
+
+    val validJoinHints = collectValidJoinHints(join, tableConfig)
+    if (
+      !validJoinHints.isEmpty &&
+      (validJoinHints.head.equals(JoinStrategy.BROADCAST)
+        || validJoinHints.head.equals(JoinStrategy.SHUFFLE_HASH))
+    ) {
+      validJoinHints.head match {
+        case JoinStrategy.BROADCAST =>
+          isBroadcast = true
+          isLeftToBroadcast = checkBroadcast(join, tableConfig, withHint = true)._2
+        case JoinStrategy.SHUFFLE_HASH =>
+          isLeftToBuild = checkShuffleHash(join, tableConfig, withHint = true)._2
+      }
+    } else if (!validJoinHints.isEmpty) {
+      // this should not happen
+      throw new TableException(
+        String.format(
+          "The planner is trying to convert the " +
+            "`FlinkLogicalJoin` using BROADCAST or SHUFFLE_HASH," +
+            " but they are missing in valid join hints: %s",
+          java.util.Arrays.toString(validJoinHints.toArray)
+        ))
+    } else {
+      // treat as non-join-hints
+      val (canBroadcast, leftToBroadcast) = checkBroadcast(join, tableConfig, withHint = false)
+      isBroadcast = canBroadcast
+      isLeftToBroadcast = leftToBroadcast
+
+      if (!canBroadcast) {
+        val (_, leftToBuild) = checkShuffleHash(join, tableConfig, withHint = false)
+        isLeftToBuild = leftToBuild
+      }
+    }
 
     val leftIsBuild = if (isBroadcast) {
-      leftIsBroadcast
-    } else if (leftSize == null || rightSize == null || leftSize == rightSize) {
-      // use left to build hash table if leftSize or rightSize is unknown or equal size.
-      // choose right to build if join is SEMI/ANTI.
-      !join.getJoinType.projectsRight
+      isLeftToBroadcast
     } else {
-      leftSize < rightSize
+      isLeftToBuild
     }
 
     def transformToEquiv(leftRequiredTrait: RelTraitSet, rightRequiredTrait: RelTraitSet): Unit = {
@@ -128,7 +140,7 @@ class BatchPhysicalHashJoinRule
       val buildTrait = join.getTraitSet
         .replace(FlinkConventions.BATCH_PHYSICAL)
         .replace(FlinkRelDistribution.BROADCAST_DISTRIBUTED)
-      if (leftIsBroadcast) {
+      if (isLeftToBroadcast) {
         transformToEquiv(buildTrait, probeTrait)
       } else {
         transformToEquiv(probeTrait, buildTrait)
@@ -157,40 +169,6 @@ class BatchPhysicalHashJoinRule
 
   }
 
-  /**
-   * Decides whether the join can convert to BroadcastHashJoin.
-   *
-   * @param joinType
-   *   flink join type
-   * @param leftSize
-   *   size of join left child
-   * @param rightSize
-   *   size of join right child
-   * @return
-   *   an Tuple2 instance. The first element of tuple is true if join can convert to broadcast hash
-   *   join, false else. The second element of tuple is true if left side used as broadcast side,
-   *   false else.
-   */
-  private def canBroadcast(
-      joinType: JoinRelType,
-      leftSize: JDouble,
-      rightSize: JDouble,
-      tableConfig: ReadableConfig): (Boolean, Boolean) = {
-    // if leftSize or rightSize is unknown, cannot use broadcast
-    if (leftSize == null || rightSize == null) {
-      return (false, false)
-    }
-    val threshold = tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD)
-    joinType match {
-      case JoinRelType.LEFT => (rightSize <= threshold, false)
-      case JoinRelType.RIGHT => (leftSize <= threshold, true)
-      case JoinRelType.FULL => (false, false)
-      case JoinRelType.INNER =>
-        (leftSize <= threshold || rightSize <= threshold, leftSize < rightSize)
-      // left side cannot be used as build side in SEMI/ANTI join.
-      case JoinRelType.SEMI | JoinRelType.ANTI => (rightSize <= threshold, false)
-    }
-  }
 }
 
 object BatchPhysicalHashJoinRule {

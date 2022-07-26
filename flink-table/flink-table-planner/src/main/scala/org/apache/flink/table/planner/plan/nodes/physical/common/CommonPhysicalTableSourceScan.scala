@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.common
 
 import org.apache.flink.table.connector.source.ScanTableSource
+import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
@@ -30,6 +31,7 @@ import org.apache.calcite.rel.hint.RelHint
 import java.util
 
 import scala.collection.JavaConverters._
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /** Base physical RelNode to read data from an external source defined by a [[ScanTableSource]]. */
 abstract class CommonPhysicalTableSourceScan(
@@ -51,9 +53,10 @@ abstract class CommonPhysicalTableSourceScan(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
+    val hintsWithoutAlias = FlinkHints.getHintsWithoutAlias(getHints)
     super
       .explainTerms(pw)
       .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
-      .itemIf("hints", RelExplainUtil.hintsToString(getHints), !getHints.isEmpty)
+      .itemIf("hints", RelExplainUtil.hintsToString(hintsWithoutAlias), hintsWithoutAlias.nonEmpty)
   }
 }

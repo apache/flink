@@ -17,16 +17,18 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.hint.JoinStrategy
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalNestedLoopJoin
-import org.apache.flink.table.planner.plan.utils.OperatorType
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
-import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinRelType}
+
+import scala.collection.JavaConversions._
 
 /**
  * Rule that converts [[FlinkLogicalJoin]] to [[BatchPhysicalNestedLoopJoin]] if NestedLoopJoin is
@@ -40,11 +42,11 @@ class BatchPhysicalNestedLoopJoinRule
   with BatchPhysicalNestedLoopJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = unwrapTableConfig(call)
-    !isOperatorDisabled(tableConfig, OperatorType.NestedLoopJoin)
+    checkMatchJoinStrategy(call, JoinStrategy.NEST_LOOP)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
+    val tableConfig = unwrapTableConfig(call)
     val join: Join = call.rel(0)
     val left = join.getLeft
     val right = join.getJoinType match {
@@ -59,26 +61,28 @@ class BatchPhysicalNestedLoopJoinRule
         }
       case _ => join.getRight
     }
-    val leftIsBuild = isLeftBuild(join, left, right)
-    val newJoin = createNestedLoopJoin(join, left, right, leftIsBuild, singleRowJoin = false)
-    call.transformTo(newJoin)
-  }
 
-  private def isLeftBuild(join: Join, left: RelNode, right: RelNode): Boolean = {
-    join.getJoinType match {
-      case JoinRelType.LEFT => false
-      case JoinRelType.RIGHT => true
-      case JoinRelType.INNER | JoinRelType.FULL =>
-        val leftSize = binaryRowRelNodeSize(left)
-        val rightSize = binaryRowRelNodeSize(right)
-        // use left as build size if leftSize or rightSize is unknown.
-        if (leftSize == null || rightSize == null) {
-          true
-        } else {
-          leftSize <= rightSize
-        }
-      case JoinRelType.SEMI | JoinRelType.ANTI => false
+    val validJoinHints = collectValidJoinHints(join, tableConfig)
+    var isLeftToBuild = false
+
+    val temJoin = join.copy(join.getTraitSet, List(left, right))
+
+    if (!validJoinHints.isEmpty && validJoinHints.head.equals(JoinStrategy.NEST_LOOP)) {
+      isLeftToBuild = checkNestLoopJoin(temJoin, tableConfig, withHint = true)._2
+    } else if (!validJoinHints.isEmpty) {
+      // this should not happen
+      throw new TableException(
+        String.format(
+          "The planner is trying to convert the " +
+            "`FlinkLogicalJoin` using NEST_LOOP, but NEST_LOOP is missing in valid join hints: %s",
+          java.util.Arrays.toString(validJoinHints.toArray)
+        ))
+    } else {
+      isLeftToBuild = checkNestLoopJoin(temJoin, tableConfig, withHint = false)._2
     }
+
+    val newJoin = createNestedLoopJoin(join, left, right, isLeftToBuild, singleRowJoin = false)
+    call.transformTo(newJoin)
   }
 }
 

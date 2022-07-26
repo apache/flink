@@ -38,8 +38,13 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
   extends CommonSubGraphBasedOptimizer {
 
   override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
+    // TODO currently join hint only works in BATCH
+    // resolve hints before optimizing
+    val joinHintResolver = new JoinHintResolver()
+    val resolvedRoots = joinHintResolver.resolve(roots)
     // build RelNodeBlock plan
-    val rootBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, planner.getTableConfig)
+    val rootBlocks =
+      RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(resolvedRoots, planner.getTableConfig)
     // optimize recursively RelNodeBlock
     rootBlocks.foreach(optimizeBlock)
     rootBlocks

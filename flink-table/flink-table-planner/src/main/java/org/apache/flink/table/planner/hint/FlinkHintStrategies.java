@@ -20,10 +20,14 @@ package org.apache.flink.table.planner.hint;
 
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
 
+import org.apache.calcite.rel.hint.HintOptionChecker;
+import org.apache.calcite.rel.hint.HintPredicate;
 import org.apache.calcite.rel.hint.HintPredicates;
 import org.apache.calcite.rel.hint.HintStrategy;
 import org.apache.calcite.rel.hint.HintStrategyTable;
 import org.apache.calcite.util.Litmus;
+
+import java.util.Collections;
 
 /** A collection of Flink style {@link HintStrategy}s. */
 public abstract class FlinkHintStrategies {
@@ -51,6 +55,61 @@ public abstract class FlinkHintStrategies {
                         HintStrategy.builder(HintPredicates.AGGREGATE)
                                 .excludedRules(WrapJsonAggFunctionArgumentsRule.INSTANCE)
                                 .build())
+                // internal join hint used for alias
+                .hintStrategy(
+                        FlinkHints.HINT_ALIAS,
+                        HintStrategy.builder(TAG_PREDICATE)
+                                .optionChecker(fixedSizeListOptionChecker(1))
+                                .build())
+                // TODO semi/anti join with CORRELATE is not supported
+                .hintStrategy(
+                        JoinStrategy.BROADCAST.getJoinHintName(),
+                        HintStrategy.builder(HintPredicates.JOIN)
+                                .optionChecker(NON_EMPTY_LIST_OPTION_CHECKER)
+                                .build())
+                .hintStrategy(
+                        JoinStrategy.SHUFFLE_HASH.getJoinHintName(),
+                        HintStrategy.builder(HintPredicates.JOIN)
+                                .optionChecker(NON_EMPTY_LIST_OPTION_CHECKER)
+                                .build())
+                .hintStrategy(
+                        JoinStrategy.SHUFFLE_MERGE.getJoinHintName(),
+                        HintStrategy.builder(HintPredicates.JOIN)
+                                .optionChecker(NON_EMPTY_LIST_OPTION_CHECKER)
+                                .build())
+                .hintStrategy(
+                        JoinStrategy.NEST_LOOP.getJoinHintName(),
+                        HintStrategy.builder(HintPredicates.JOIN)
+                                .optionChecker(NON_EMPTY_LIST_OPTION_CHECKER)
+                                .build())
                 .build();
     }
+
+    private static HintOptionChecker fixedSizeListOptionChecker(int size) {
+        return (hint, errorHandler) ->
+                errorHandler.check(
+                        hint.listOptions.size() == size,
+                        "Invalid hint: {}, expecting {} table or view {} "
+                                + "specified in hint {}.",
+                        FlinkHints.stringifyHints(Collections.singletonList(hint)),
+                        size,
+                        size > 1 ? "names" : "name",
+                        hint.hintName);
+    }
+
+    // ~ hint option checker ------------------------------------------------------------
+
+    private static final HintOptionChecker NON_EMPTY_LIST_OPTION_CHECKER =
+            (hint, errorHandler) ->
+                    errorHandler.check(
+                            hint.listOptions.size() > 0,
+                            "Invalid hint: {}, expecting at least "
+                                    + "one table or view specified in hint {}.",
+                            FlinkHints.stringifyHints(Collections.singletonList(hint)),
+                            hint.hintName);
+
+    // ~ hint predicate ------------------------------------------------------------
+
+    // For hint used as tag, and tag predicate never propagate.
+    private static final HintPredicate TAG_PREDICATE = (hint, node) -> false;
 }

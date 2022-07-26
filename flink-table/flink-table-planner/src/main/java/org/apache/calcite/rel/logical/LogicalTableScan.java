@@ -18,6 +18,8 @@
 
 package org.apache.calcite.rel.logical;
 
+import org.apache.flink.table.planner.hint.FlinkHints;
+
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
@@ -103,7 +105,9 @@ public final class LogicalTableScan extends TableScan {
     // This file should be remove once CALCITE-4581 is fixed.
     @Override
     public RelWriter explainTerms(RelWriter pw) {
-        return super.explainTerms(pw).itemIf("hints", getHints(), !getHints().isEmpty());
+        List<RelHint> hintWithoutAlias = FlinkHints.getHintsWithoutAlias(getHints());
+        return super.explainTerms(pw)
+                .itemIf("hints", hintWithoutAlias, !hintWithoutAlias.isEmpty());
     }
     // END FLINK MODIFICATION
 

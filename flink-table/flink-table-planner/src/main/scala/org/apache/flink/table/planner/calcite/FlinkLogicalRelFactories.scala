@@ -165,7 +165,7 @@ object FlinkLogicalRelFactories {
         variablesSet: util.Set[CorrelationId],
         joinType: JoinRelType,
         semiJoinDone: Boolean): RelNode = {
-      FlinkLogicalJoin.create(left, right, condition, joinType)
+      FlinkLogicalJoin.create(left, right, condition, hints, joinType)
     }
   }
 

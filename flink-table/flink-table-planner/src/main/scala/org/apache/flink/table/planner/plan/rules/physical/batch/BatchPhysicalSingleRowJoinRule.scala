@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalNestedLoopJoin
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.volcano.RelSubset
@@ -42,13 +43,21 @@ class BatchPhysicalSingleRowJoinRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: Join = call.rel(0)
-    join.getJoinType match {
-      case JoinRelType.INNER | JoinRelType.FULL =>
-        isSingleRow(join.getLeft) || isSingleRow(join.getRight)
-      case JoinRelType.LEFT => isSingleRow(join.getRight)
-      case JoinRelType.RIGHT => isSingleRow(join.getLeft)
-      case JoinRelType.SEMI | JoinRelType.ANTI => isSingleRow(join.getRight)
-      case _ => false
+    val tableConfig = unwrapTableConfig(call)
+    val validJoinHints = collectValidJoinHints(join, tableConfig)
+
+    // the valid join hint keeps higher priority
+    if (!validJoinHints.isEmpty) {
+      false
+    } else {
+      join.getJoinType match {
+        case JoinRelType.INNER | JoinRelType.FULL =>
+          isSingleRow(join.getLeft) || isSingleRow(join.getRight)
+        case JoinRelType.LEFT => isSingleRow(join.getRight)
+        case JoinRelType.RIGHT => isSingleRow(join.getLeft)
+        case JoinRelType.SEMI | JoinRelType.ANTI => isSingleRow(join.getRight)
+        case _ => false
+      }
     }
   }
 
