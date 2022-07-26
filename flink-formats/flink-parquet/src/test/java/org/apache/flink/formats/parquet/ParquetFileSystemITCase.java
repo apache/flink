@@ -94,7 +94,7 @@ public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
                                         + "g boolean,"
                                         + "h string,"
                                         + "i varbinary,"
-                                        + "j decimal(5,0),"
+                                        + "j decimal(5,1),"
                                         + "k date,"
                                         + "l time,"
                                         + "m timestamp,"
@@ -205,8 +205,8 @@ public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
 
         // test decimal
         check(
-                "select a, j from parquetFilterTable where j >= 8 and j <= 9  ",
-                Arrays.asList(Row.of(8, 8), Row.of(9, 9)));
+                "select a, j from parquetFilterTable where j >= 8.0 and j <= 9.0  ",
+                Arrays.asList(Row.of(8, 8.0), Row.of(9, 9.0)));
 
         // test date
         String sql =
@@ -281,6 +281,34 @@ public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
         // test false and is not false
     }
 
+    @Test
+    public void t1() throws Exception {
+        final LocalDateTime localDateTime = LocalDateTime.now();
+        final DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE;
+        final DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_TIME;
+        final DateTimeFormatter dateTimeFormatter =
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        final Table table =
+                super.tableEnv()
+                        .fromValues(getTestRows(localDateTime))
+                        .as("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "o");
+        super.tableEnv().createTemporaryView("parquetSource", table);
+
+        super.tableEnv()
+                .executeSql("INSERT INTO parquetFilterTable SELECT * from parquetSource")
+                .await();
+
+        // test decimal
+        check(
+                "select a, j from parquetFilterTable where j >= 8.0 and j <= 9.0  ",
+                Arrays.asList(Row.of(8, 8.0), Row.of(9, 9.0)));
+
+        // test boolean
+        check(
+                "select a, g from parquetFilterTable where g and a >= 6",
+                Arrays.asList(Row.of(6, true), Row.of(8, true)));
+    }
+
     private List<Row> getTestRows(LocalDateTime localDateTime) {
         int n = 10;
         List<Row> rows = new ArrayList<>(n);
@@ -297,7 +325,7 @@ public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
                             v % 2 == 0,
                             String.valueOf(v),
                             String.valueOf(v).getBytes(StandardCharsets.UTF_8),
-                            BigDecimal.valueOf(v),
+                            BigDecimal.valueOf(i * 1.0),
                             localDateTime.plusDays(v).toLocalDate(),
                             localDateTime.plusSeconds(v).toLocalTime(),
                             localDateTime.plusSeconds(v),

@@ -40,7 +40,7 @@ import static org.junit.Assert.assertNotNull;
 
 /** Unit Tests for {@link ParquetFilters}. */
 public class ParquetFiltersTest {
-    private final ParquetFilters parquetFilters = new ParquetFilters(true);
+    private final ParquetFilters parquetFilters = new ParquetFilters(true, null);
 
     @Test
     public void testApplyBinaryOperationPredicate() {
@@ -144,8 +144,7 @@ public class ParquetFiltersTest {
                 FilterApi.and(
                         FilterApi.gt(FilterApi.longColumn("long1"), 10L),
                         FilterApi.eq(
-                                FilterApi.binaryColumn("string1"),
-                                Binary.fromReusedByteArray("string1".getBytes())));
+                                FilterApi.binaryColumn("string1"), Binary.fromString("string1")));
         FilterPredicate actualPredicate = parquetFilters.toParquetPredicate(callExpression);
         assertNotNull(actualPredicate);
         assertEquals(expectPredicate.toString(), actualPredicate.toString());
@@ -161,8 +160,7 @@ public class ParquetFiltersTest {
                 FilterApi.or(
                         FilterApi.gt(FilterApi.longColumn("long1"), 10L),
                         FilterApi.eq(
-                                FilterApi.binaryColumn("string1"),
-                                Binary.fromReusedByteArray("string1".getBytes())));
+                                FilterApi.binaryColumn("string1"), Binary.fromString("string1")));
         assertNotNull(actualPredicate);
         assertEquals(expectPredicate.toString(), actualPredicate.toString());
     }

@@ -58,7 +58,6 @@ import org.apache.parquet.column.statistics.FloatStatistics;
 import org.apache.parquet.column.statistics.IntStatistics;
 import org.apache.parquet.column.statistics.LongStatistics;
 import org.apache.parquet.column.statistics.Statistics;
-import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
@@ -74,13 +73,11 @@ import java.nio.ByteOrder;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -172,15 +169,6 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
                 DynamicTableSource.Context sourceContext,
                 DataType producedDataType,
                 int[][] projections) {
-            List<FilterPredicate> parquetPredicates = new ArrayList<>();
-            ParquetFilters parquetFilters = new ParquetFilters(formatOptions.get(UTC_TIMEZONE));
-
-            if (filters != null) {
-                filters.forEach(
-                        filter ->
-                                Optional.ofNullable(parquetFilters.toParquetPredicate(filter))
-                                        .ifPresent((parquetPredicates::add)));
-            }
 
             return ParquetColumnarRowInputFormat.createPartitionedFormat(
                     getParquetConfiguration(formatOptions),
@@ -188,7 +176,7 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
                     sourceContext.createTypeInformation(producedDataType),
                     Collections.emptyList(),
                     null,
-                    parquetPredicates,
+                    filters,
                     VectorizedColumnBatch.DEFAULT_SIZE,
                     formatOptions.get(UTC_TIMEZONE),
                     true);

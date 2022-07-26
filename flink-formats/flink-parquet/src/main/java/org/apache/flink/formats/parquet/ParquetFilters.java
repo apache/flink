@@ -18,17 +18,17 @@
 
 package org.apache.flink.formats.parquet;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ExpressionVisitor;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
@@ -37,23 +37,29 @@ import org.apache.parquet.filter2.predicate.FilterApi;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.filter2.predicate.Operators;
 import org.apache.parquet.io.api.Binary;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static org.apache.flink.formats.parquet.row.ParquetRowDataWriter.timestampToInt96;
-import static org.apache.flink.formats.parquet.utils.ParquetSchemaConverter.computeMinBytesForDecimalPrecision;
-import static org.apache.flink.formats.parquet.utils.ParquetSchemaConverter.is32BitDecimal;
-import static org.apache.flink.formats.parquet.utils.ParquetSchemaConverter.is64BitDecimal;
 import static org.apache.parquet.filter2.predicate.Operators.Column;
 
 /**
@@ -63,54 +69,57 @@ import static org.apache.parquet.filter2.predicate.Operators.Column;
 public class ParquetFilters {
     private static final Logger LOG = LoggerFactory.getLogger(ParquetFilters.class);
 
-    private final ImmutableMap<FunctionDefinition, Function<CallExpression, FilterPredicate>>
+    private final ImmutableMap<String, Function<ParquetFilterCallExpression, FilterPredicate>>
             filters =
                     new ImmutableMap.Builder<
-                                    FunctionDefinition, Function<CallExpression, FilterPredicate>>()
+                                    String,
+                                    Function<ParquetFilterCallExpression, FilterPredicate>>()
                             .put(
-                                    BuiltInFunctionDefinitions.AND,
+                                    BuiltInFunctionDefinitions.AND.getName(),
                                     call -> convertBinaryLogical(call, FilterApi::and))
                             .put(
-                                    BuiltInFunctionDefinitions.OR,
+                                    BuiltInFunctionDefinitions.OR.getName(),
                                     call -> convertBinaryLogical(call, FilterApi::or))
-                            .put(BuiltInFunctionDefinitions.NOT, this::not)
-                            .put(BuiltInFunctionDefinitions.IS_NULL, this::isNull)
-                            .put(BuiltInFunctionDefinitions.IS_NOT_NULL, this::isNotNull)
-                            .put(BuiltInFunctionDefinitions.IS_TRUE, this::isTrue)
-                            .put(BuiltInFunctionDefinitions.IS_NOT_TRUE, this::isNotTrue)
-                            .put(BuiltInFunctionDefinitions.IS_FALSE, this::isFalse)
-                            .put(BuiltInFunctionDefinitions.IS_NOT_FALSE, this::isNotFalse)
+                            .put(BuiltInFunctionDefinitions.NOT.getName(), this::not)
+                            .put(BuiltInFunctionDefinitions.IS_NULL.getName(), this::isNull)
+                            .put(BuiltInFunctionDefinitions.IS_NOT_NULL.getName(), this::isNotNull)
+                            .put(BuiltInFunctionDefinitions.IS_TRUE.getName(), this::isTrue)
+                            .put(BuiltInFunctionDefinitions.IS_NOT_TRUE.getName(), this::isNotTrue)
+                            .put(BuiltInFunctionDefinitions.IS_FALSE.getName(), this::isFalse)
                             .put(
-                                    BuiltInFunctionDefinitions.EQUALS,
+                                    BuiltInFunctionDefinitions.IS_NOT_FALSE.getName(),
+                                    this::isNotFalse)
+                            .put(
+                                    BuiltInFunctionDefinitions.EQUALS.getName(),
                                     call ->
                                             convertBinaryOperation(
                                                     call, ParquetFilters::eq, ParquetFilters::eq))
                             .put(
-                                    BuiltInFunctionDefinitions.NOT_EQUALS,
+                                    BuiltInFunctionDefinitions.NOT_EQUALS.getName(),
                                     call ->
                                             convertBinaryOperation(
                                                     call,
                                                     ParquetFilters::notEq,
                                                     ParquetFilters::notEq))
                             .put(
-                                    BuiltInFunctionDefinitions.LESS_THAN,
+                                    BuiltInFunctionDefinitions.LESS_THAN.getName(),
                                     call ->
                                             convertBinaryOperation(
                                                     call, ParquetFilters::lt, ParquetFilters::lt))
                             .put(
-                                    BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL,
+                                    BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL.getName(),
                                     call ->
                                             convertBinaryOperation(
                                                     call,
                                                     ParquetFilters::ltEq,
                                                     ParquetFilters::ltEq))
                             .put(
-                                    BuiltInFunctionDefinitions.GREATER_THAN,
+                                    BuiltInFunctionDefinitions.GREATER_THAN.getName(),
                                     call ->
                                             convertBinaryOperation(
                                                     call, ParquetFilters::gt, ParquetFilters::gt))
                             .put(
-                                    BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL,
+                                    BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL.getName(),
                                     call ->
                                             convertBinaryOperation(
                                                     call,
@@ -119,24 +128,30 @@ public class ParquetFilters {
                             .build();
 
     private final boolean utcTimestamp;
+    private final MessageType schema;
 
-    public ParquetFilters(boolean utcTimestamp) {
+    public ParquetFilters(boolean utcTimestamp, MessageType schema) {
         this.utcTimestamp = utcTimestamp;
+        this.schema = schema;
     }
 
-    public FilterPredicate toParquetPredicate(Expression expression) {
-        if (expression instanceof CallExpression) {
-            CallExpression callExp = (CallExpression) expression;
-            if (filters.get(callExp.getFunctionDefinition()) == null) {
+    @VisibleForTesting
+    FilterPredicate toParquetPredicate(Expression expression) {
+        return toParquetPredicate(toParquetFilterExpression(expression));
+    }
+
+    public FilterPredicate toParquetPredicate(ParquetFilterExpression expression) {
+        if (expression instanceof ParquetFilterCallExpression) {
+            ParquetFilterCallExpression callExpression = (ParquetFilterCallExpression) expression;
+            if (filters.get(callExpression.functionName) == null) {
                 // unsupported predicate
                 LOG.debug(
                         "Unsupported predicate [{}] cannot be pushed into ParquetFileFormatFactory.",
-                        expression);
+                        callExpression);
                 return null;
             }
-            return filters.get(callExp.getFunctionDefinition()).apply(callExp);
+            return filters.get(callExpression.functionName).apply(callExpression);
         } else {
-            // unsupported predicate
             LOG.debug(
                     "Unsupported predicate [{}] cannot be pushed into ParquetFileFormatFactory.",
                     expression);
@@ -145,20 +160,20 @@ public class ParquetFilters {
     }
 
     private FilterPredicate convertBinaryLogical(
-            CallExpression callExp,
+            ParquetFilterExpression callExp,
             BiFunction<FilterPredicate, FilterPredicate, FilterPredicate> func) {
         if (callExp.getChildren().size() < 2) {
             return null;
         }
-        Expression left = callExp.getChildren().get(0);
-        Expression right = callExp.getChildren().get(1);
+        ParquetFilterExpression left = callExp.getChildren().get(0);
+        ParquetFilterExpression right = callExp.getChildren().get(1);
         FilterPredicate c1 = toParquetPredicate(left);
         FilterPredicate c2 = toParquetPredicate(right);
         return (c1 == null || c2 == null) ? null : func.apply(c1, c2);
     }
 
     private FilterPredicate convertBinaryOperation(
-            CallExpression callExp,
+            ParquetFilterCallExpression callExp,
             Function<Tuple2<Column<?>, Comparable<?>>, FilterPredicate> func,
             Function<Tuple2<Column<?>, Comparable<?>>, FilterPredicate> reverseFunc) {
         if (!isBinaryValid(callExp)) {
@@ -191,7 +206,7 @@ public class ParquetFilters {
                 : reverseFunc.apply(columnLiteralPair);
     }
 
-    private FilterPredicate not(CallExpression callExp) {
+    private FilterPredicate not(ParquetFilterExpression callExp) {
         if (callExp.getChildren().size() != 1) {
             // not a valid predicate
             LOG.debug(
@@ -203,7 +218,7 @@ public class ParquetFilters {
         return predicate != null ? FilterApi.not(predicate) : null;
     }
 
-    private FilterPredicate isNull(CallExpression callExp) {
+    private FilterPredicate isNull(ParquetFilterCallExpression callExp) {
         if (!isUnaryValid(callExp)) {
             // not a valid predicate
             LOG.debug(
@@ -213,7 +228,8 @@ public class ParquetFilters {
         }
         String colName = getColumnName(callExp);
         DataType colType =
-                ((FieldReferenceExpression) callExp.getChildren().get(0)).getOutputDataType();
+                ((ParquetFilterFieldReferenceExpression) callExp.getChildren().get(0))
+                        .getOutputDataType();
         if (colType == null) {
             // unsupported type
             LOG.debug(
@@ -232,32 +248,34 @@ public class ParquetFilters {
         return eq(new Tuple2<>(column, null));
     }
 
-    private FilterPredicate isNotNull(CallExpression callExp) {
+    private FilterPredicate isNotNull(ParquetFilterCallExpression callExp) {
         FilterPredicate isNullPredicate = isNull(callExp);
         return isNullPredicate == null ? null : FilterApi.not(isNullPredicate);
     }
 
-    private FilterPredicate isTrue(CallExpression callExp) {
+    private FilterPredicate isTrue(ParquetFilterCallExpression callExp) {
         DataType colType =
-                ((FieldReferenceExpression) callExp.getChildren().get(0)).getOutputDataType();
+                ((ParquetFilterFieldReferenceExpression) callExp.getChildren().get(0))
+                        .getOutputDataType();
         String colName = getColumnName(callExp);
         Column<?> column = getColumn(colName, colType);
         return eq(Tuple2.of(column, true));
     }
 
-    private FilterPredicate isNotTrue(CallExpression callExp) {
+    private FilterPredicate isNotTrue(ParquetFilterCallExpression callExp) {
         return FilterApi.not(isTrue(callExp));
     }
 
-    private FilterPredicate isFalse(CallExpression callExp) {
+    private FilterPredicate isFalse(ParquetFilterCallExpression callExp) {
         DataType colType =
-                ((FieldReferenceExpression) callExp.getChildren().get(0)).getOutputDataType();
+                ((ParquetFilterFieldReferenceExpression) callExp.getChildren().get(0))
+                        .getOutputDataType();
         String colName = getColumnName(callExp);
         Column<?> column = getColumn(colName, colType);
         return eq(Tuple2.of(column, false));
     }
 
-    private FilterPredicate isNotFalse(CallExpression callExp) {
+    private FilterPredicate isNotFalse(ParquetFilterCallExpression callExp) {
         return FilterApi.not(isFalse(callExp));
     }
 
@@ -342,7 +360,8 @@ public class ParquetFilters {
         // we first cast the literal to the value expected by parquet filter, then cast the value
         // to make it match the column type. the reason is in some case, the literal's type maybe
         // int, but the col's type is float
-        Comparable<?> literal = castToColumnType(castLiteral(litType, literalValue), column);
+        Comparable<?> literal =
+                castToColumnType(castLiteral(colName, litType, literalValue), column);
         if (literal == null) {
             return null;
         }
@@ -353,7 +372,7 @@ public class ParquetFilters {
      * Return the {@link Column} for parquet format according to the column's name and data type.
      * Return null if encounter unsupported data type.
      */
-    private static Column<?> getColumn(String colName, DataType colType) {
+    private Column<?> getColumn(String colName, DataType colType) {
         LogicalTypeRoot ltype = colType.getLogicalType().getTypeRoot();
         switch (ltype) {
             case TINYINT:
@@ -374,10 +393,26 @@ public class ParquetFilters {
             case VARCHAR:
             case BINARY:
             case VARBINARY:
-            case DECIMAL:
             case TIMESTAMP_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 return FilterApi.binaryColumn(colName);
+            case DECIMAL:
+                PrimitiveType.PrimitiveTypeName typeName =
+                        getColumnParquetType(colName).asPrimitiveType().getPrimitiveTypeName();
+                switch (typeName) {
+                    case INT32:
+                        return FilterApi.intColumn(colName);
+                    case INT64:
+                        return FilterApi.longColumn(colName);
+                    case FIXED_LEN_BYTE_ARRAY:
+                    case BINARY:
+                        return FilterApi.binaryColumn(colName);
+                    default:
+                        LOG.warn(
+                                "The column is declared as DECIMAL in Flink, but the actual type stored in parquet is %s,"
+                                        + " which is not supported to do parquet filter. ");
+                        return null;
+                }
             default:
                 LOG.warn(
                         "Unsupported filter data type {} for column {} in parquet format .",
@@ -415,7 +450,7 @@ public class ParquetFilters {
      * @param literal the literal value of the column needed to cast
      * @return the cast value, return null if the data type is not supported to do parquet filter.
      */
-    private Comparable<?> castLiteral(DataType litType, Object literal) {
+    private Comparable<?> castLiteral(String columnName, DataType litType, Object literal) {
         LogicalTypeRoot ltype = litType.getLogicalType().getTypeRoot();
         switch (ltype) {
             case TINYINT:
@@ -437,24 +472,70 @@ public class ParquetFilters {
             case VARBINARY:
                 return Binary.fromConstantByteArray((byte[]) literal);
             case DECIMAL:
-                final int precision = ((DecimalType) litType.getLogicalType()).getPrecision();
-                final int scale = ((DecimalType) litType.getLogicalType()).getScale();
-                final DecimalData value =
-                        DecimalData.fromBigDecimal((BigDecimal) literal, precision, scale);
-                if (value == null) {
-                    LOG.warn("The precision overflows for decimal {} in parquet format.", literal);
-                    return null;
+                BigDecimal decimal = (BigDecimal) literal;
+                PrimitiveType type = getColumnParquetType(columnName).asPrimitiveType();
+                switch (type.getPrimitiveTypeName()) {
+                    case INT32:
+                        return decimal.unscaledValue().intValue();
+                    case INT64:
+                        return decimal.unscaledValue().longValue();
+                    case FIXED_LEN_BYTE_ARRAY:
+                    case BINARY:
+                        return castDecimalToBinary((BigDecimal) literal, type.getTypeLength());
+                    default:
+                        LOG.warn(
+                                "The column {} is declared as DECIMAL in Flink, but the actual type stored in parquet is {},"
+                                        + " which is not supported to do parquet filter. ",
+                                columnName,
+                                type);
+                        return null;
                 }
-                return castDecimalToBinary(value);
             case DATE:
                 return ((LocalDate) literal).toEpochDay();
             case TIME_WITHOUT_TIME_ZONE:
-                return ((LocalTime) literal).toNanoOfDay() / 1_000_000L;
+                type = getColumnParquetType(columnName).asPrimitiveType();
+                if (type.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.INT32) {
+                    return ((LocalTime) literal).toNanoOfDay() / 1_000_000L;
+                } else {
+                    // not to support filter push down for time annotated with INT64  since Flink's
+                    // parquet format reader also doesn't support it
+                    LOG.warn(
+                            "The column {} is stored as parquet's type {},"
+                                    + " which is not supported to do parquet filter. ",
+                            columnName,
+                            type);
+                    return null;
+                }
             case TIMESTAMP_WITHOUT_TIME_ZONE:
-                return timestampToInt96(
-                        TimestampData.fromLocalDateTime((LocalDateTime) literal), utcTimestamp);
+                type = getColumnParquetType(columnName).asPrimitiveType();
+                if (type.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.INT96) {
+                    return timestampToInt96(
+                            TimestampData.fromLocalDateTime((LocalDateTime) literal), utcTimestamp);
+                } else {
+                    // not to support filter push down for timestamp annotated with INT64/INT32
+                    // since Flink's parquet format reader also doesn't support it
+                    LOG.warn(
+                            "The column {} is stored as parquet's type {},"
+                                    + " which is not supported to do parquet filter. ",
+                            columnName,
+                            type);
+                    return null;
+                }
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                return timestampToInt96(TimestampData.fromInstant((Instant) literal), utcTimestamp);
+                type = getColumnParquetType(columnName).asPrimitiveType();
+                if (type.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.INT96) {
+                    return timestampToInt96(
+                            TimestampData.fromInstant((Instant) literal), utcTimestamp);
+                } else {
+                    // not to support filter push down for timestamp annotated with INT64/INT32
+                    // since Flink's parquet format reader also doesn't support it
+                    LOG.warn(
+                            "The column {} is stored as parquet's type {},"
+                                    + " which is not supported to do parquet filter. ",
+                            columnName,
+                            type);
+                    return null;
+                }
             default:
                 LOG.warn(
                         "Encounter an unsupported literal value {} to do parquet filter, whose data type is {}.",
@@ -464,41 +545,19 @@ public class ParquetFilters {
         }
     }
 
-    private Binary castDecimalToBinary(DecimalData decimalData) {
-        int precision = decimalData.precision();
-        int numBytes = computeMinBytesForDecimalPrecision(precision);
-        byte[] decimalBytes;
-        // 1 <= precision <= 18, writes as FIXED_LEN_BYTE_ARRAY
-        // optimizer for UnscaledBytesWriter
-        if (is32BitDecimal(precision) || is64BitDecimal(precision)) {
-            decimalBytes = longUnscaledBytesEncode(decimalData, numBytes);
-        } else {
-            // 19 <= precision <= 38, writes as FIXED_LEN_BYTE_ARRAY
-            decimalBytes = unscaledBytesEncode(decimalData, numBytes);
-        }
-        return Binary.fromConstantByteArray(decimalBytes, 0, numBytes);
+    private Type getColumnParquetType(String colName) {
+        return schema.getFields().get(schema.getFieldIndex(colName));
     }
 
-    private byte[] longUnscaledBytesEncode(DecimalData decimalData, int numBytes) {
-        byte[] decimalBuffer = new byte[numBytes];
-        int initShift = 8 * (numBytes - 1);
-        long unscaledLong = decimalData.toUnscaledLong();
-        int i = 0;
-        int shift = initShift;
-        while (i < numBytes) {
-            decimalBuffer[i] = (byte) (unscaledLong >> shift);
-            i += 1;
-            shift -= 8;
-        }
-        return decimalBuffer;
+    private Binary castDecimalToBinary(BigDecimal bigDecimal, int numBytes) {
+        return Binary.fromConstantByteArray(decimalToBytes(bigDecimal, numBytes));
     }
 
-    private byte[] unscaledBytesEncode(DecimalData decimalData, int numBytes) {
+    private byte[] decimalToBytes(BigDecimal bigDecimal, int numBytes) {
         byte[] decimalBuffer = new byte[numBytes];
-        byte[] bytes = decimalData.toUnscaledBytes();
+        byte[] bytes = bigDecimal.unscaledValue().toByteArray();
         if (bytes.length == numBytes) {
-            // Avoid copy.
-            return decimalData.toUnscaledBytes();
+            return bytes;
         } else {
             byte signByte = bytes[0] < 0 ? (byte) -1 : (byte) 0;
             Arrays.fill(decimalBuffer, 0, numBytes - bytes.length, signByte);
@@ -507,34 +566,32 @@ public class ParquetFilters {
         }
     }
 
-    private static Optional<?> getLiteral(CallExpression comp) {
+    private static Optional<?> getLiteral(ParquetFilterCallExpression comp) {
         if (literalOnRight(comp)) {
-            ValueLiteralExpression valueLiteralExpression =
-                    (ValueLiteralExpression) comp.getChildren().get(1);
-            return valueLiteralExpression.getValueAs(
-                    valueLiteralExpression.getOutputDataType().getConversionClass());
+            ParquetFilterValueLiteralExpression valueLiteralExpression =
+                    (ParquetFilterValueLiteralExpression) comp.getChildren().get(1);
+            return Optional.ofNullable(valueLiteralExpression.value);
         } else {
-            ValueLiteralExpression valueLiteralExpression =
-                    (ValueLiteralExpression) comp.getChildren().get(0);
-            return valueLiteralExpression.getValueAs(
-                    valueLiteralExpression.getOutputDataType().getConversionClass());
+            ParquetFilterValueLiteralExpression valueLiteralExpression =
+                    (ParquetFilterValueLiteralExpression) comp.getChildren().get(0);
+            return Optional.ofNullable(valueLiteralExpression.value);
         }
     }
 
-    private static String getColumnName(CallExpression comp) {
+    private static String getColumnName(ParquetFilterCallExpression comp) {
         if (literalOnRight(comp)) {
-            return ((FieldReferenceExpression) comp.getChildren().get(0)).getName();
+            return ((ParquetFilterFieldReferenceExpression) comp.getChildren().get(0)).name;
         } else {
-            return ((FieldReferenceExpression) comp.getChildren().get(1)).getName();
+            return ((ParquetFilterFieldReferenceExpression) comp.getChildren().get(1)).name;
         }
     }
 
-    private static boolean isUnaryValid(CallExpression callExpression) {
+    private static boolean isUnaryValid(ParquetFilterCallExpression callExpression) {
         return callExpression.getChildren().size() == 1
                 && isRef(callExpression.getChildren().get(0));
     }
 
-    private static boolean isBinaryValid(CallExpression callExpression) {
+    private static boolean isBinaryValid(ParquetFilterCallExpression callExpression) {
         return callExpression.getChildren().size() == 2
                 && (isRef(callExpression.getChildren().get(0))
                                 && isLit(callExpression.getChildren().get(1))
@@ -542,25 +599,29 @@ public class ParquetFilters {
                                 && isRef(callExpression.getChildren().get(1)));
     }
 
-    private static DataType getLiteralType(CallExpression callExp) {
+    private static DataType getLiteralType(ParquetFilterCallExpression callExp) {
         if (literalOnRight(callExp)) {
-            return ((ValueLiteralExpression) callExp.getChildren().get(1)).getOutputDataType();
+            return ((ParquetFilterValueLiteralExpression) callExp.getChildren().get(1))
+                    .getOutputDataType();
         } else {
-            return ((ValueLiteralExpression) callExp.getChildren().get(0)).getOutputDataType();
+            return ((ParquetFilterValueLiteralExpression) callExp.getChildren().get(0))
+                    .getOutputDataType();
         }
     }
 
-    private static DataType getColType(CallExpression callExp) {
+    private static DataType getColType(ParquetFilterCallExpression callExp) {
         if (literalOnRight(callExp)) {
-            return ((FieldReferenceExpression) callExp.getChildren().get(0)).getOutputDataType();
+            return ((ParquetFilterFieldReferenceExpression) callExp.getChildren().get(0))
+                    .getOutputDataType();
         } else {
-            return ((FieldReferenceExpression) callExp.getChildren().get(1)).getOutputDataType();
+            return ((ParquetFilterFieldReferenceExpression) callExp.getChildren().get(1))
+                    .getOutputDataType();
         }
     }
 
-    private static boolean literalOnRight(CallExpression comp) {
+    private static boolean literalOnRight(ParquetFilterCallExpression comp) {
         if (comp.getChildren().size() == 1
-                && comp.getChildren().get(0) instanceof FieldReferenceExpression) {
+                && comp.getChildren().get(0) instanceof ParquetFilterFieldReferenceExpression) {
             return true;
         } else if (isLit(comp.getChildren().get(0)) && isRef(comp.getChildren().get(1))) {
             return false;
@@ -571,11 +632,129 @@ public class ParquetFilters {
         }
     }
 
-    private static boolean isLit(Expression expression) {
-        return expression instanceof ValueLiteralExpression;
+    private static boolean isLit(ParquetFilterExpression expression) {
+        return expression instanceof ParquetFilterValueLiteralExpression;
     }
 
-    private static boolean isRef(Expression expression) {
-        return expression instanceof FieldReferenceExpression;
+    private static boolean isRef(ParquetFilterExpression expression) {
+        return expression instanceof ParquetFilterFieldReferenceExpression;
+    }
+
+    /** A visitor to convert {@link Expression} to {@link ParquetFilterExpression}. */
+    private static class ParquetExpressionVisitor
+            implements ExpressionVisitor<ParquetFilterExpression> {
+
+        @Override
+        public ParquetFilterExpression visit(CallExpression call) {
+            String functionName = call.getFunctionName();
+            List<ParquetFilterExpression> args = new ArrayList<>();
+            for (Expression expression : call.getChildren()) {
+                args.add(expression.accept(this));
+            }
+            return new ParquetFilterCallExpression(functionName, args);
+        }
+
+        @Override
+        public ParquetFilterExpression visit(ValueLiteralExpression valueLiteral) {
+            return new ParquetFilterValueLiteralExpression(
+                    valueLiteral
+                            .getValueAs(valueLiteral.getOutputDataType().getConversionClass())
+                            .orElse(null),
+                    valueLiteral.getOutputDataType());
+        }
+
+        @Override
+        public ParquetFilterExpression visit(FieldReferenceExpression fieldReference) {
+            return new ParquetFilterFieldReferenceExpression(
+                    fieldReference.getName(), fieldReference.getOutputDataType());
+        }
+
+        @Override
+        public ParquetFilterExpression visit(TypeLiteralExpression typeLiteral) {
+            return null;
+        }
+
+        @Override
+        public ParquetFilterExpression visit(Expression other) {
+            return null;
+        }
+    }
+
+    /** Convert {@link Expression} to {@link ParquetFilterExpression}. */
+    public static ParquetFilterExpression toParquetFilterExpression(Expression expression) {
+        if (expression instanceof CallExpression) {
+            CallExpression callExp = (CallExpression) expression;
+            return callExp.accept(new ParquetExpressionVisitor());
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Counterpart of {@link Expression}. The filter {@link Expression} to be pushed down isn't
+     * serializable, so we can't keep it as a field in {@link ParquetColumnarRowInputFormat} which
+     * requires all field to be serializable. Also, we can't keep the generated {@link
+     * FilterPredicate} in {@link ParquetColumnarRowInputFormat} for the {@link FilterPredicate}
+     * should be generated during running for we need to know the parquet's schema info which is
+     * available in running is to create correct {@link FilterPredicate}.
+     *
+     * <p>So, we introduce the intermediate class which is serializable and keeps the needed
+     * information to generate correct parquet's {@link FilterPredicate}.
+     */
+    public interface ParquetFilterExpression extends Serializable {
+        default List<ParquetFilterExpression> getChildren() {
+            return Collections.emptyList();
+        }
+    }
+
+    /** Counterpart of {@link CallExpression}. */
+    public static class ParquetFilterCallExpression implements ParquetFilterExpression {
+        private final String functionName;
+        private final List<ParquetFilterExpression> args;
+
+        public ParquetFilterCallExpression(
+                String functionName, List<ParquetFilterExpression> args) {
+            this.functionName = functionName;
+            this.args = args;
+        }
+
+        @Override
+        public List<ParquetFilterExpression> getChildren() {
+            return args;
+        }
+    }
+
+    /** Counterpart of {@link ValueLiteralExpression}. */
+    public static class ParquetFilterValueLiteralExpression implements ParquetFilterExpression {
+        private final @Nullable Object value;
+        private final DataType dataType;
+
+        public ParquetFilterValueLiteralExpression(@Nullable Object value, DataType dataType) {
+            this.value = value; // can be null
+            this.dataType = dataType;
+        }
+
+        public DataType getOutputDataType() {
+            return dataType;
+        }
+    }
+
+    /** Counterpart of {@link FieldReferenceExpression}. */
+    public static class ParquetFilterFieldReferenceExpression implements ParquetFilterExpression {
+        private final String name;
+        private final DataType dataType;
+
+        public ParquetFilterFieldReferenceExpression(String name, DataType dataType) {
+            this.name = name;
+            this.dataType = dataType;
+        }
+
+        public DataType getOutputDataType() {
+            return dataType;
+        }
+
+        public String getName() {
+            return name;
+        }
     }
 }
