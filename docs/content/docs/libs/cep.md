@@ -852,7 +852,7 @@ Pattern.begin("start").where(_.getName().equals("c"))
 {{< /tabs >}}
 
 Will generate the following matches for an input sequence: `C D A1 A2 A3 D A4 B`.
-with combinations enabled: `{C A1 B}`, `{C A1 A2 B}`, `{C A1 A3 B}`, `{C A1 A4 B}`, `{C A1 A2 A3 B}`, `{C A1 A2 A4 B}`, `{C A1 A3 A4 B}`, `{C A1 A2 A3 A4 B}`, `{C A2 B}`, `{C A2 A3 B}`, `{C A2 A4 B}`, `{C A2 A3 A4 B}`, `{C A3 B}`, `{C A3 A4 B}`, `{C A4 B}`
+with combinations enabled: `{C A1 B}`, `{C A1 A2 B}`, `{C A1 A3 B}`, `{C A1 A4 B}`, `{C A1 A2 A3 B}`, `{C A1 A2 A4 B}`, `{C A1 A3 A4 B}`, `{C A1 A2 A3 A4 B}`
 without combinations enabled: `{C A1 B}`, `{C A1 A2 B}`, `{C A1 A2 A3 B}`, `{C A1 A2 A3 A4 B}`.
 
 ### Groups of patterns

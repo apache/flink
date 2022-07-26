@@ -821,7 +821,7 @@ Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
 ```
                <p>输入：C D A1 A2 A3 D A4 B，会产生如下的输出：</p>
 
-               <p>如果使用不确定松散连续： {C A1 B}，{C A1 A2 B}，{C A1 A3 B}，{C A1 A4 B}，{C A1 A2 A3 B}，{C A1 A2 A4 B}，{C A1 A3 A4 B}，{C A1 A2 A3 A4 B}，{C A2 B}，{C A2 A3 B}，{C A2 A4 B}，{C A2 A3 A4 B}，{C A3 B}，{C A3 A4 B}，{C A4 B}</p>
+               <p>如果使用不确定松散连续： {C A1 B}，{C A1 A2 B}，{C A1 A3 B}，{C A1 A4 B}，{C A1 A2 A3 B}，{C A1 A2 A4 B}，{C A1 A3 A4 B}，{C A1 A2 A3 A4 B}</p>
                <p>如果不使用：{C A1 B}，{C A1 A2 B}，{C A1 A2 A3 B}，{C A1 A2 A3 A4 B}</p>
        </td>
        </tr>
@@ -875,7 +875,7 @@ Pattern.begin("start").where(_.getName().equals("c"))
 
                           <p>输入：C D A1 A2 A3 D A4 B，会产生如下的输出：</p>
 
-                          <p>如果使用不确定松散连续： {C A1 B}，{C A1 A2 B}，{C A1 A3 B}，{C A1 A4 B}，{C A1 A2 A3 B}，{C A1 A2 A4 B}，{C A1 A3 A4 B}，{C A1 A2 A3 A4 B}，{C A2 B}，{C A2 A3 B}，{C A2 A4 B}，{C A2 A3 A4 B}，{C A3 B}，{C A3 A4 B}，{C A4 B}</p>
+                          <p>如果使用不确定松散连续： {C A1 B}，{C A1 A2 B}，{C A1 A3 B}，{C A1 A4 B}，{C A1 A2 A3 B}，{C A1 A2 A4 B}，{C A1 A3 A4 B}，{C A1 A2 A3 A4 B}</p>
                           <p>如果不使用：{C A1 B}，{C A1 A2 B}，{C A1 A2 A3 B}，{C A1 A2 A3 A4 B}</p>
                   </td>
                   </tr>
