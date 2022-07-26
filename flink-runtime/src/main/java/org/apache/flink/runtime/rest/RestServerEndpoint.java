@@ -558,6 +558,9 @@ public abstract class RestServerEndpoint implements RestService {
             case PATCH:
                 router.addPatch(handlerURL, handler);
                 break;
+            case PUT:
+                router.addPut(handlerURL, handler);
+                break;
             default:
                 throw new RuntimeException("Unsupported http method: " + httpMethod + '.');
         }
