@@ -27,6 +27,7 @@ import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.core.Values;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMdCollation;
 import org.apache.calcite.rel.metadata.RelMdDistribution;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
@@ -35,11 +36,40 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 
-/** Sub-class of {@link Values} not targeted at any particular engine or calling convention. */
+/**
+ * Sub-class of {@link org.apache.calcite.rel.core.Values} not targeted at any particular engine or
+ * calling convention.
+ *
+ * <p>Temporarily copy from calcite to cherry-pick [CALCITE-5107] and will be removed when upgrade
+ * the latest calcite.
+ */
 public class LogicalValues extends Values {
     // ~ Constructors -----------------------------------------------------------
+
+    /**
+     * Creates a LogicalValues.
+     *
+     * <p>Use {@link #create} unless you know what you're doing.
+     *
+     * @param cluster Cluster that this relational expression belongs to
+     * @param hints Hints for this node
+     * @param rowType Row type for tuples produced by this rel
+     * @param tuples 2-dimensional array of tuple values to be produced; outer list contains tuples;
+     *     each inner list is one tuple; all tuples must be of same length, conforming to rowType
+     */
+    public LogicalValues(
+            RelOptCluster cluster,
+            RelTraitSet traitSet,
+            List<RelHint> hints,
+            RelDataType rowType,
+            com.google.common.collect.ImmutableList<
+                            com.google.common.collect.ImmutableList<RexLiteral>>
+                    tuples) {
+        super(cluster, hints, rowType, tuples, traitSet);
+    }
 
     /**
      * Creates a LogicalValues.
@@ -58,7 +88,7 @@ public class LogicalValues extends Values {
             com.google.common.collect.ImmutableList<
                             com.google.common.collect.ImmutableList<RexLiteral>>
                     tuples) {
-        super(cluster, rowType, tuples, traitSet);
+        this(cluster, traitSet, Collections.emptyList(), rowType, tuples);
     }
 
     @Deprecated // to be removed before 2.0
@@ -130,5 +160,10 @@ public class LogicalValues extends Values {
     @Override
     public RelNode accept(RelShuttle shuttle) {
         return shuttle.visit(this);
+    }
+
+    @Override
+    public RelNode withHints(List<RelHint> hintList) {
+        return new LogicalValues(getCluster(), traitSet, hintList, rowType, tuples);
     }
 }

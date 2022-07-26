@@ -22,15 +22,20 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMdUtil;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.sql.SqlKind;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
  * Relational expression that returns the rows of its first input minus any matching rows from its
  * other inputs.
+ *
+ * <p>Temporarily copy from calcite to cherry-pick [CALCITE-5107] and will be removed when upgrade
+ * the latest calcite.
  *
  * <p>Corresponds to the SQL {@code EXCEPT} operator.
  *
@@ -38,8 +43,18 @@ import java.util.List;
  * performed (implying no duplicates in the results).
  */
 public abstract class Minus extends SetOp {
+
+    public Minus(
+            RelOptCluster cluster,
+            RelTraitSet traits,
+            List<RelHint> hints,
+            List<RelNode> inputs,
+            boolean all) {
+        super(cluster, traits, hints, inputs, SqlKind.EXCEPT, all);
+    }
+
     public Minus(RelOptCluster cluster, RelTraitSet traits, List<RelNode> inputs, boolean all) {
-        super(cluster, traits, inputs, SqlKind.EXCEPT, all);
+        this(cluster, traits, Collections.emptyList(), inputs, all);
     }
 
     /** Creates a Minus by parsing serialized output. */

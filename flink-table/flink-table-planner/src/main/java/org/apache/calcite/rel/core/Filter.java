@@ -27,6 +27,8 @@ import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
+import org.apache.calcite.rel.hint.Hintable;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMdUtil;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexChecker;
@@ -44,16 +46,45 @@ import java.util.Objects;
  * Relational expression that iterates over its input and returns elements for which <code>condition
  * </code> evaluates to <code>true</code>.
  *
+ * <p>Temporarily copy from calcite to cherry-pick [CALCITE-5107] and will be removed when upgrade
+ * the latest calcite.
+ *
  * <p>If the condition allows nulls, then a null value is treated the same as false.
  *
  * @see org.apache.calcite.rel.logical.LogicalFilter
  */
-public abstract class Filter extends SingleRel {
+public abstract class Filter extends SingleRel implements Hintable {
     // ~ Instance fields --------------------------------------------------------
 
     protected final RexNode condition;
 
+    protected final com.google.common.collect.ImmutableList<RelHint> hints;
+
     // ~ Constructors -----------------------------------------------------------
+
+    /**
+     * Creates a filter.
+     *
+     * @param cluster Cluster that this relational expression belongs to
+     * @param traits the traits of this rel
+     * @param hints Hints for this node
+     * @param child input relational expression
+     * @param condition boolean expression which determines whether a row is allowed to pass
+     */
+    protected Filter(
+            RelOptCluster cluster,
+            RelTraitSet traits,
+            List<RelHint> hints,
+            RelNode child,
+            RexNode condition) {
+        super(cluster, traits, child);
+        assert condition != null;
+        assert RexUtil.isFlat(condition) : condition;
+        this.condition = condition;
+        // Too expensive for everyday use:
+        assert !CalciteSystemProperty.DEBUG.value() || isValid(Litmus.THROW, null);
+        this.hints = com.google.common.collect.ImmutableList.copyOf(hints);
+    }
 
     /**
      * Creates a filter.
@@ -64,12 +95,7 @@ public abstract class Filter extends SingleRel {
      * @param condition boolean expression which determines whether a row is allowed to pass
      */
     protected Filter(RelOptCluster cluster, RelTraitSet traits, RelNode child, RexNode condition) {
-        super(cluster, traits, child);
-        assert condition != null;
-        assert RexUtil.isFlat(condition) : condition;
-        this.condition = condition;
-        // Too expensive for everyday use:
-        assert !CalciteSystemProperty.DEBUG.value() || isValid(Litmus.THROW, null);
+        this(cluster, traits, com.google.common.collect.ImmutableList.of(), child, condition);
     }
 
     /** Creates a Filter by parsing serialized output. */
@@ -158,12 +184,18 @@ public abstract class Filter extends SingleRel {
         }
         Filter o = (Filter) obj;
         return traitSet.equals(o.traitSet)
+                && hints.equals(o.hints)
                 && input.deepEquals(o.input)
                 && condition.equals(o.condition)
                 && getRowType().equalsSansFieldNames(o.getRowType());
     }
 
     protected int deepHashCode0() {
-        return Objects.hash(traitSet, input.deepHashCode(), condition);
+        return Objects.hash(traitSet, hints, input.deepHashCode(), condition);
+    }
+
+    @Override
+    public com.google.common.collect.ImmutableList<RelHint> getHints() {
+        return hints;
     }
 }

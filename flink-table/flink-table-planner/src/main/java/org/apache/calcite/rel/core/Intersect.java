@@ -22,21 +22,36 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.sql.SqlKind;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
  * Relational expression that returns the intersection of the rows of its inputs.
+ *
+ * <p>Temporarily copy from calcite to cherry-pick [CALCITE-5107] and will be removed when upgrade
+ * the latest calcite.
  *
  * <p>If "all" is true, performs then multiset intersection; otherwise, performs set set
  * intersection (implying no duplicates in the results).
  */
 public abstract class Intersect extends SetOp {
     /** Creates an Intersect. */
+    public Intersect(
+            RelOptCluster cluster,
+            RelTraitSet traits,
+            List<RelHint> hints,
+            List<RelNode> inputs,
+            boolean all) {
+        super(cluster, traits, hints, inputs, SqlKind.INTERSECT, all);
+    }
+
+    /** Creates an Intersect. */
     public Intersect(RelOptCluster cluster, RelTraitSet traits, List<RelNode> inputs, boolean all) {
-        super(cluster, traits, inputs, SqlKind.INTERSECT, all);
+        this(cluster, traits, Collections.emptyList(), inputs, all);
     }
 
     /** Creates an Intersect by parsing serialized output. */

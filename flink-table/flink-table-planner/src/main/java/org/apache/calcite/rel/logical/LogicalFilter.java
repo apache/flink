@@ -29,16 +29,24 @@ import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.Filter;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMdCollation;
 import org.apache.calcite.rel.metadata.RelMdDistribution;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.Litmus;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-/** Sub-class of {@link Filter} not targeted at any particular engine or calling convention. */
+/**
+ * Sub-class of {@link org.apache.calcite.rel.core.Filter} not targeted at any particular engine or
+ * calling convention.
+ *
+ * <p>Temporarily copy from calcite to cherry-pick [CALCITE-5107] and will be removed when upgrade
+ * the latest calcite.
+ */
 public final class LogicalFilter extends Filter {
     private final com.google.common.collect.ImmutableSet<CorrelationId> variablesSet;
 
@@ -50,6 +58,7 @@ public final class LogicalFilter extends Filter {
      * <p>Use {@link #create} unless you know what you're doing.
      *
      * @param cluster Cluster that this relational expression belongs to
+     * @param hints Hints for this node
      * @param child Input relational expression
      * @param condition Boolean expression which determines whether a row is allowed to pass
      * @param variablesSet Correlation variables set by this relational expression to be used by
@@ -58,12 +67,28 @@ public final class LogicalFilter extends Filter {
     public LogicalFilter(
             RelOptCluster cluster,
             RelTraitSet traitSet,
+            List<RelHint> hints,
             RelNode child,
             RexNode condition,
             com.google.common.collect.ImmutableSet<CorrelationId> variablesSet) {
-        super(cluster, traitSet, child, condition);
+        super(cluster, traitSet, hints, child, condition);
         this.variablesSet = Objects.requireNonNull(variablesSet);
         assert isValid(Litmus.THROW, null);
+    }
+
+    public LogicalFilter(
+            RelOptCluster cluster,
+            RelTraitSet traitSet,
+            RelNode child,
+            RexNode condition,
+            com.google.common.collect.ImmutableSet<CorrelationId> variablesSet) {
+        this(
+                cluster,
+                traitSet,
+                com.google.common.collect.ImmutableList.of(),
+                child,
+                condition,
+                variablesSet);
     }
 
     @Deprecated // to be removed before 2.0
@@ -120,7 +145,7 @@ public final class LogicalFilter extends Filter {
 
     public LogicalFilter copy(RelTraitSet traitSet, RelNode input, RexNode condition) {
         assert traitSet.containsIfApplicable(Convention.NONE);
-        return new LogicalFilter(getCluster(), traitSet, input, condition, variablesSet);
+        return new LogicalFilter(getCluster(), traitSet, hints, input, condition, variablesSet);
     }
 
     @Override
@@ -141,5 +166,10 @@ public final class LogicalFilter extends Filter {
     @Override
     public int deepHashCode() {
         return Objects.hash(deepHashCode0(), variablesSet);
+    }
+
+    @Override
+    public RelNode withHints(List<RelHint> hintList) {
+        return new LogicalFilter(getCluster(), traitSet, hintList, input, condition, variablesSet);
     }
 }

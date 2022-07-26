@@ -26,23 +26,30 @@ import org.apache.calcite.rel.AbstractRelNode;
 import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.hint.Hintable;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.Util;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
  * <code>SetOp</code> is an abstract base for relational set operators such as UNION, MINUS (aka
  * EXCEPT), and INTERSECT.
+ *
+ * <p>Temporarily copy from calcite to cherry-pick [CALCITE-5107] and will be removed when upgrade
+ * the latest calcite.
  */
-public abstract class SetOp extends AbstractRelNode {
+public abstract class SetOp extends AbstractRelNode implements Hintable {
     // ~ Instance fields --------------------------------------------------------
 
     protected com.google.common.collect.ImmutableList<RelNode> inputs;
     public final SqlKind kind;
     public final boolean all;
+    protected final com.google.common.collect.ImmutableList<RelHint> hints;
 
     // ~ Constructors -----------------------------------------------------------
 
@@ -50,6 +57,7 @@ public abstract class SetOp extends AbstractRelNode {
     protected SetOp(
             RelOptCluster cluster,
             RelTraitSet traits,
+            List<RelHint> hints,
             List<RelNode> inputs,
             SqlKind kind,
             boolean all) {
@@ -59,6 +67,17 @@ public abstract class SetOp extends AbstractRelNode {
         this.kind = kind;
         this.inputs = com.google.common.collect.ImmutableList.copyOf(inputs);
         this.all = all;
+        this.hints = com.google.common.collect.ImmutableList.copyOf(hints);
+    }
+
+    /** Creates a SetOp. */
+    protected SetOp(
+            RelOptCluster cluster,
+            RelTraitSet traits,
+            List<RelNode> inputs,
+            SqlKind kind,
+            boolean all) {
+        this(cluster, traits, Collections.emptyList(), inputs, kind, all);
     }
 
     /** Creates a SetOp by parsing serialized output. */
@@ -66,6 +85,7 @@ public abstract class SetOp extends AbstractRelNode {
         this(
                 input.getCluster(),
                 input.getTraitSet(),
+                Collections.emptyList(),
                 input.getInputs(),
                 SqlKind.UNION,
                 input.getBoolean("all", false));
@@ -129,5 +149,10 @@ public abstract class SetOp extends AbstractRelNode {
             }
         }
         return true;
+    }
+
+    @Override
+    public com.google.common.collect.ImmutableList<RelHint> getHints() {
+        return hints;
     }
 }
