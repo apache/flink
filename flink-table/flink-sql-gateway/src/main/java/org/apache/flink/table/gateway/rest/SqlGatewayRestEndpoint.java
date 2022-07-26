@@ -24,10 +24,16 @@ import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
+import org.apache.flink.table.gateway.rest.handler.operation.CancelOperationHandler;
+import org.apache.flink.table.gateway.rest.handler.operation.CloseOperationHandler;
+import org.apache.flink.table.gateway.rest.handler.operation.GetOperationStatusHandler;
 import org.apache.flink.table.gateway.rest.handler.session.CloseSessionHandler;
 import org.apache.flink.table.gateway.rest.handler.session.GetSessionConfigHandler;
 import org.apache.flink.table.gateway.rest.handler.session.OpenSessionHandler;
 import org.apache.flink.table.gateway.rest.handler.session.TriggerSessionHeartbeatHandler;
+import org.apache.flink.table.gateway.rest.header.operation.CancelOperationHeaders;
+import org.apache.flink.table.gateway.rest.header.operation.CloseOperationHeaders;
+import org.apache.flink.table.gateway.rest.header.operation.GetOperationStatusHeaders;
 import org.apache.flink.table.gateway.rest.header.session.CloseSessionHeaders;
 import org.apache.flink.table.gateway.rest.header.session.GetSessionConfigHeaders;
 import org.apache.flink.table.gateway.rest.header.session.OpenSessionHeaders;
@@ -57,6 +63,7 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
             CompletableFuture<String> localAddressFuture) {
         List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>();
         addSessionRelatedHandlers(handlers);
+        addOperationRelatedHandlers(handlers);
         return handlers;
     }
 
@@ -87,6 +94,28 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
                 Tuple2.of(
                         TriggerSessionHeartbeatHeaders.getInstance(),
                         triggerSessionHeartbeatHandler));
+    }
+
+    protected void addOperationRelatedHandlers(
+            List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers) {
+
+        // Get the status of operation
+        GetOperationStatusHandler getOperationStatusHandler =
+                new GetOperationStatusHandler(
+                        service, responseHeaders, GetOperationStatusHeaders.getInstance());
+        handlers.add(Tuple2.of(GetOperationStatusHeaders.getInstance(), getOperationStatusHandler));
+
+        // Cancel the operation
+        CancelOperationHandler cancelOperationHandler =
+                new CancelOperationHandler(
+                        service, responseHeaders, CancelOperationHeaders.getInstance());
+        handlers.add(Tuple2.of(CancelOperationHeaders.getInstance(), cancelOperationHandler));
+
+        // Close the operation
+        CloseOperationHandler closeOperationHandler =
+                new CloseOperationHandler(
+                        service, responseHeaders, CloseOperationHeaders.getInstance());
+        handlers.add(Tuple2.of(CloseOperationHeaders.getInstance(), closeOperationHandler));
     }
 
     @Override
