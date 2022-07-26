@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.api.endpoint;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
@@ -66,17 +67,24 @@ public class SqlGatewayEndpointFactoryUtils {
                             SqlGatewayEndpointFactory.class,
                             identifier);
 
-            Map<String, String> endpointConfig =
-                    new DelegatingConfiguration(
-                                    configuration,
-                                    String.format("%s.%s.", GATEWAY_ENDPOINT_PREFIX, identifier))
-                            .toMap();
             endpoints.add(
                     factory.createSqlGatewayEndpoint(
                             new DefaultEndpointFactoryContext(
-                                    service, configuration, endpointConfig)));
+                                    service,
+                                    configuration,
+                                    getEndpointConfig(configuration, identifier))));
         }
         return endpoints;
+    }
+
+    public static Map<String, String> getEndpointConfig(
+            Configuration flinkConf, String identifier) {
+        return new DelegatingConfiguration(flinkConf, getSqlGatewayOptionPrefix(identifier))
+                .toMap();
+    }
+
+    public static String getSqlGatewayOptionPrefix(String identifier) {
+        return String.format("%s.%s.", GATEWAY_ENDPOINT_PREFIX, identifier);
     }
 
     /**
@@ -106,8 +114,9 @@ public class SqlGatewayEndpointFactoryUtils {
         }
     }
 
-    private static class DefaultEndpointFactoryContext
-            implements SqlGatewayEndpointFactory.Context {
+    /** The default context of {@link SqlGatewayEndpointFactory}. */
+    @Internal
+    public static class DefaultEndpointFactoryContext implements SqlGatewayEndpointFactory.Context {
 
         private final SqlGatewayService service;
         private final Configuration flinkConfiguration;
