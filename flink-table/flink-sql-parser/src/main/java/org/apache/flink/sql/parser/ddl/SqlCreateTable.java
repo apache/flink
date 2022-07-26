@@ -85,17 +85,18 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             @Nullable SqlCharStringLiteral comment,
             boolean isTemporary,
             boolean ifNotExists) {
-        super(OPERATOR, pos, false, ifNotExists);
-        this.tableName = requireNonNull(tableName, "tableName should not be null");
-        this.columnList = requireNonNull(columnList, "columnList should not be null");
-        this.tableConstraints =
-                requireNonNull(tableConstraints, "table constraints should not be null");
-        this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
-        this.partitionKeyList =
-                requireNonNull(partitionKeyList, "partitionKeyList should not be null");
-        this.watermark = watermark;
-        this.comment = comment;
-        this.isTemporary = isTemporary;
+        this(
+                OPERATOR,
+                pos,
+                tableName,
+                columnList,
+                tableConstraints,
+                propertyList,
+                partitionKeyList,
+                watermark,
+                comment,
+                isTemporary,
+                ifNotExists);
     }
 
     protected SqlCreateTable(

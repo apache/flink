@@ -40,10 +40,10 @@ import java.util.List;
 import static java.util.Objects.requireNonNull;
 
 /**
- * {@link SqlNode} to describe the CREATE TABLE LIKE syntax. CREATE TABLE LIKE syntax is the same as
- * CREATE TABLE syntax, both are just metadata operations.
+ * {@link SqlNode} to describe the CREATE TABLE LIKE syntax. CREATE TABLE LIKE syntax is similar as
+ * CREATE TABLE syntax, besides it has LIKE sub-clause to inherits property of an existed table.
  *
- * <p>Example: A DDL like the one below for creating a `derived_table`
+ * <p>Example:
  *
  * <pre>{@code
  * CREATE TABLE base_table (
@@ -99,7 +99,8 @@ public class SqlCreateTableLike extends SqlCreateTable {
                 comment,
                 isTemporary,
                 ifNotExists);
-        this.tableLike = requireNonNull(tableLike, "tableLike should not be null");
+        this.tableLike =
+                requireNonNull(tableLike, "LIKE clause is required for CREATE TABLE LIKE DDL");
     }
 
     @Override

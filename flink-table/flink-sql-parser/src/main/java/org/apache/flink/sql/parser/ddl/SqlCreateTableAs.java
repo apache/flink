@@ -40,11 +40,10 @@ import java.util.List;
 import static java.util.Objects.requireNonNull;
 
 /**
- * {@link SqlNode} to describe the CREATE TABLE AS syntax. The CTAS syntax is different from CREATE
- * TABLE syntax, which also create the pipeline to sync the data from the source to the derived
- * table.
+ * {@link SqlNode} to describe the CREATE TABLE AS syntax. The CTAS would create a pipeline to
+ * compute the result of the given query and insert data into the derived table.
  *
- * <p>Example: A DDL like the one below for creating a `derived_table`
+ * <p>Example:
  *
  * <pre>{@code
  * CREATE TABLE base_table (
@@ -98,7 +97,8 @@ public class SqlCreateTableAs extends SqlCreateTable {
                 comment,
                 isTemporary,
                 ifNotExists);
-        this.asQuery = requireNonNull(asQuery, "asQuery should not be null");
+        this.asQuery =
+                requireNonNull(asQuery, "As clause is required for CREATE TABLE AS SELECT DDL");
     }
 
     @Override
