@@ -31,9 +31,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -50,8 +47,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * blocked nodes.
  */
 public class BlocklistDeclarativeSlotPool extends DefaultDeclarativeSlotPool {
-
-    private static final Logger LOG = LoggerFactory.getLogger(BlocklistDeclarativeSlotPool.class);
 
     private final BlockedTaskManagerChecker blockedTaskManagerChecker;
 
@@ -109,7 +104,7 @@ public class BlocklistDeclarativeSlotPool extends DefaultDeclarativeSlotPool {
             }
         }
 
-        LOG.debug(
+        log.debug(
                 "Received {} slots from a blocked TaskManager {}, {} was accepted before: {}, {} was rejected: {}.",
                 offers.size(),
                 taskManagerLocation,
@@ -134,7 +129,7 @@ public class BlocklistDeclarativeSlotPool extends DefaultDeclarativeSlotPool {
         if (!isBlockedTaskManager(taskManagerId)) {
             return super.freeReservedSlot(allocationId, cause, currentTime);
         } else {
-            LOG.debug("Free reserved slot {}.", allocationId);
+            log.debug("Free reserved slot {}.", allocationId);
             return releaseSlot(
                     allocationId,
                     new FlinkRuntimeException(
