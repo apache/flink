@@ -25,10 +25,14 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
+import org.apache.curator.test.InstanceSpec;
+import org.apache.curator.test.TestingServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -36,6 +40,33 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ZooKeeperTestUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperTestUtils.class);
+
+    /**
+     * Creates a new {@link TestingServer}, setting additional configuration properties for
+     * stability purposes.
+     */
+    public static TestingServer createZookeeperTestingServer() throws Exception {
+        return new TestingServer(getZookeeperInstanceSpecWithIncreasedSessionTimeout(), true);
+    }
+
+    private static InstanceSpec getZookeeperInstanceSpecWithIncreasedSessionTimeout() {
+        final InstanceSpec instanceSpec = InstanceSpec.newInstanceSpec();
+
+        final Map<String, Object> properties = new HashMap<>();
+        properties.put("maxSessionTimeout", 60_000);
+
+        return new InstanceSpec(
+                instanceSpec.getDataDirectory(),
+                instanceSpec.getPort(),
+                instanceSpec.getElectionPort(),
+                instanceSpec.getQuorumPort(),
+                instanceSpec.deleteDataDirectoryOnClose(),
+                instanceSpec.getServerId(),
+                instanceSpec.getTickTime(),
+                instanceSpec.getMaxClientCnxns(),
+                properties,
+                instanceSpec.getHostname());
+    }
 
     /**
      * Creates a configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.

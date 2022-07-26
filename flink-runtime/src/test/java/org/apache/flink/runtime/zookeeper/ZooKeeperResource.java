@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.zookeeper;
 
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.curator.test.TestingServer;
@@ -48,7 +49,7 @@ public class ZooKeeperResource extends ExternalResource {
     @Override
     protected void before() throws Throwable {
         terminateZooKeeperServer();
-        zooKeeperServer = new TestingServer(true);
+        zooKeeperServer = ZooKeeperTestUtils.createZookeeperTestingServer();
     }
 
     private void terminateZooKeeperServer() throws IOException {
