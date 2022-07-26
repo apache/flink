@@ -25,10 +25,18 @@ import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.core.Minus;
+import org.apache.calcite.rel.hint.RelHint;
 
+import java.util.Collections;
 import java.util.List;
 
-/** Sub-class of {@link Minus} not targeted at any particular engine or calling convention. */
+/**
+ * Sub-class of {@link org.apache.calcite.rel.core.Minus} not targeted at any particular engine or
+ * calling convention.
+ *
+ * <p>Temporarily copy from calcite to cherry-pick [CALCITE-5107] and will be removed when upgrade
+ * the latest calcite.
+ */
 public final class LogicalMinus extends Minus {
     // ~ Constructors -----------------------------------------------------------
 
@@ -38,8 +46,22 @@ public final class LogicalMinus extends Minus {
      * <p>Use {@link #create} unless you know what you're doing.
      */
     public LogicalMinus(
+            RelOptCluster cluster,
+            RelTraitSet traitSet,
+            List<RelHint> hints,
+            List<RelNode> inputs,
+            boolean all) {
+        super(cluster, traitSet, hints, inputs, all);
+    }
+
+    /**
+     * Creates a LogicalMinus.
+     *
+     * <p>Use {@link #create} unless you know what you're doing.
+     */
+    public LogicalMinus(
             RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
-        super(cluster, traitSet, inputs, all);
+        this(cluster, traitSet, Collections.emptyList(), inputs, all);
     }
 
     @Deprecated // to be removed before 2.0
@@ -64,11 +86,16 @@ public final class LogicalMinus extends Minus {
     @Override
     public LogicalMinus copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
         assert traitSet.containsIfApplicable(Convention.NONE);
-        return new LogicalMinus(getCluster(), traitSet, inputs, all);
+        return new LogicalMinus(getCluster(), traitSet, hints, inputs, all);
     }
 
     @Override
     public RelNode accept(RelShuttle shuttle) {
         return shuttle.visit(this);
+    }
+
+    @Override
+    public RelNode withHints(List<RelHint> hintList) {
+        return new LogicalMinus(getCluster(), traitSet, hintList, inputs, all);
     }
 }

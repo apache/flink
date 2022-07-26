@@ -22,23 +22,37 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMdUtil;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.sql.SqlKind;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
  * Relational expression that returns the union of the rows of its inputs, optionally eliminating
  * duplicates.
  *
+ * <p>Temporarily copy from calcite to cherry-pick [CALCITE-5107] and will be removed when upgrade
+ * the latest calcite.
+ *
  * <p>Corresponds to SQL {@code UNION} and {@code UNION ALL}.
  */
 public abstract class Union extends SetOp {
     // ~ Constructors -----------------------------------------------------------
 
+    protected Union(
+            RelOptCluster cluster,
+            RelTraitSet traits,
+            List<RelHint> hints,
+            List<RelNode> inputs,
+            boolean all) {
+        super(cluster, traits, hints, inputs, SqlKind.UNION, all);
+    }
+
     protected Union(RelOptCluster cluster, RelTraitSet traits, List<RelNode> inputs, boolean all) {
-        super(cluster, traits, inputs, SqlKind.UNION, all);
+        super(cluster, traits, Collections.emptyList(), inputs, SqlKind.UNION, all);
     }
 
     /** Creates a Union by parsing serialized output. */

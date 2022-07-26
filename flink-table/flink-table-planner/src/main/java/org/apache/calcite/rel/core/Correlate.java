@@ -27,18 +27,24 @@ import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.hint.Hintable;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Litmus;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
 /**
  * A relational operator that performs nested-loop joins.
+ *
+ * <p>Temporarily copy from calcite to cherry-pick [CALCITE-5107] and will be removed when upgrade
+ * the latest calcite.
  *
  * <p>It behaves like a kind of {@link org.apache.calcite.rel.core.Join}, but works by setting
  * variables in its environment and restarting its right-hand input.
@@ -63,14 +69,43 @@ import java.util.Set;
  *
  * @see CorrelationId
  */
-public abstract class Correlate extends BiRel {
+public abstract class Correlate extends BiRel implements Hintable {
     // ~ Instance fields --------------------------------------------------------
 
     protected final CorrelationId correlationId;
     protected final ImmutableBitSet requiredColumns;
     protected final JoinRelType joinType;
+    protected final com.google.common.collect.ImmutableList<RelHint> hints;
 
     // ~ Constructors -----------------------------------------------------------
+
+    /**
+     * Creates a Correlate.
+     *
+     * @param cluster Cluster this relational expression belongs to
+     * @param hints Hints for this node
+     * @param left Left input relational expression
+     * @param right Right input relational expression
+     * @param correlationId Variable name for the row of left input
+     * @param requiredColumns Set of columns that are used by correlation
+     * @param joinType Join type
+     */
+    protected Correlate(
+            RelOptCluster cluster,
+            RelTraitSet traitSet,
+            List<RelHint> hints,
+            RelNode left,
+            RelNode right,
+            CorrelationId correlationId,
+            ImmutableBitSet requiredColumns,
+            JoinRelType joinType) {
+        super(cluster, traitSet, left, right);
+        assert !joinType.generatesNullsOnLeft() : "Correlate has invalid join type " + joinType;
+        this.joinType = Objects.requireNonNull(joinType);
+        this.correlationId = Objects.requireNonNull(correlationId);
+        this.requiredColumns = Objects.requireNonNull(requiredColumns);
+        this.hints = com.google.common.collect.ImmutableList.copyOf(hints);
+    }
 
     /**
      * Creates a Correlate.
@@ -90,11 +125,15 @@ public abstract class Correlate extends BiRel {
             CorrelationId correlationId,
             ImmutableBitSet requiredColumns,
             JoinRelType joinType) {
-        super(cluster, traitSet, left, right);
-        assert !joinType.generatesNullsOnLeft() : "Correlate has invalid join type " + joinType;
-        this.joinType = Objects.requireNonNull(joinType);
-        this.correlationId = Objects.requireNonNull(correlationId);
-        this.requiredColumns = Objects.requireNonNull(requiredColumns);
+        this(
+                cluster,
+                traitSet,
+                Collections.emptyList(),
+                left,
+                right,
+                correlationId,
+                requiredColumns,
+                joinType);
     }
 
     /**
@@ -230,5 +269,10 @@ public abstract class Correlate extends BiRel {
                         0,
                         0)
                 .plus(rescanCost);
+    }
+
+    @Override
+    public com.google.common.collect.ImmutableList<RelHint> getHints() {
+        return hints;
     }
 }

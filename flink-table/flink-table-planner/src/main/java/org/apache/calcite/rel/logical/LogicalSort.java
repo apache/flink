@@ -27,9 +27,19 @@ import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rex.RexNode;
 
-/** Sub-class of {@link Sort} not targeted at any particular engine or calling convention. */
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Sub-class of {@link org.apache.calcite.rel.core.Sort} not targeted at any particular engine or
+ * calling convention.
+ *
+ * <p>Temporarily copy from calcite to cherry-pick [CALCITE-5107] and will be removed when upgrade
+ * the latest calcite.
+ */
 public final class LogicalSort extends Sort {
     private LogicalSort(
             RelOptCluster cluster,
@@ -38,7 +48,18 @@ public final class LogicalSort extends Sort {
             RelCollation collation,
             RexNode offset,
             RexNode fetch) {
-        super(cluster, traitSet, input, collation, offset, fetch);
+        this(cluster, traitSet, Collections.emptyList(), input, collation, offset, fetch);
+    }
+
+    private LogicalSort(
+            RelOptCluster cluster,
+            RelTraitSet traitSet,
+            List<RelHint> hints,
+            RelNode input,
+            RelCollation collation,
+            RexNode offset,
+            RexNode fetch) {
+        super(cluster, traitSet, hints, input, collation, offset, fetch);
         assert traitSet.containsIfApplicable(Convention.NONE);
     }
 
@@ -72,11 +93,17 @@ public final class LogicalSort extends Sort {
             RelCollation newCollation,
             RexNode offset,
             RexNode fetch) {
-        return new LogicalSort(getCluster(), traitSet, newInput, newCollation, offset, fetch);
+        return new LogicalSort(
+                getCluster(), traitSet, hints, newInput, newCollation, offset, fetch);
     }
 
     @Override
     public RelNode accept(RelShuttle shuttle) {
         return shuttle.visit(this);
+    }
+
+    @Override
+    public RelNode withHints(List<RelHint> hintList) {
+        return new LogicalSort(getCluster(), traitSet, hintList, input, collation, offset, fetch);
     }
 }

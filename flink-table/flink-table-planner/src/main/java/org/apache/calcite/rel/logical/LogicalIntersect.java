@@ -25,7 +25,9 @@ import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.core.Intersect;
+import org.apache.calcite.rel.hint.RelHint;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -41,8 +43,22 @@ public final class LogicalIntersect extends Intersect {
      * <p>Use {@link #create} unless you know what you're doing.
      */
     public LogicalIntersect(
+            RelOptCluster cluster,
+            RelTraitSet traitSet,
+            List<RelHint> hints,
+            List<RelNode> inputs,
+            boolean all) {
+        super(cluster, traitSet, hints, inputs, all);
+    }
+
+    /**
+     * Creates a LogicalIntersect.
+     *
+     * <p>Use {@link #create} unless you know what you're doing.
+     */
+    public LogicalIntersect(
             RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
-        super(cluster, traitSet, inputs, all);
+        this(cluster, traitSet, Collections.emptyList(), inputs, all);
     }
 
     @Deprecated // to be removed before 2.0
@@ -66,11 +82,16 @@ public final class LogicalIntersect extends Intersect {
 
     @Override
     public LogicalIntersect copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
-        return new LogicalIntersect(getCluster(), traitSet, inputs, all);
+        return new LogicalIntersect(getCluster(), traitSet, hints, inputs, all);
     }
 
     @Override
     public RelNode accept(RelShuttle shuttle) {
         return shuttle.visit(this);
+    }
+
+    @Override
+    public RelNode withHints(List<RelHint> hintList) {
+        return new LogicalIntersect(getCluster(), traitSet, hintList, inputs, all);
     }
 }

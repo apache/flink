@@ -18,7 +18,12 @@
 
 package org.apache.calcite.rel.hint;
 
-/** A collection of hint predicates. */
+/**
+ * A collection of hint predicates.
+ *
+ * <p>Temporarily copy from calcite to cherry-pick [CALCITE-5107] and will be removed when upgrade *
+ * the latest calcite.
+ */
 public abstract class HintPredicates {
     /**
      * A hint predicate that indicates a hint can only be used to the whole query(no specific
@@ -43,10 +48,38 @@ public abstract class HintPredicates {
 
     /**
      * A hint predicate that indicates a hint can only be used to {@link
+     * org.apache.calcite.rel.core.Filter} nodes.
+     */
+    public static final HintPredicate FILTER =
+            new NodeTypeHintPredicate(NodeTypeHintPredicate.NodeType.FILTER);
+
+    /**
+     * A hint predicate that indicates a hint can only be used to {@link
      * org.apache.calcite.rel.core.Project} nodes.
      */
     public static final HintPredicate PROJECT =
             new NodeTypeHintPredicate(NodeTypeHintPredicate.NodeType.PROJECT);
+
+    /**
+     * A hint predicate that indicates a hint can only be used to {@link
+     * org.apache.calcite.rel.core.Correlate} nodes.
+     */
+    public static final HintPredicate CORRELATE =
+            new NodeTypeHintPredicate(NodeTypeHintPredicate.NodeType.CORRELATE);
+
+    /**
+     * A hint predicate that indicates a hint can only be used to {@link
+     * org.apache.calcite.rel.core.SetOp} nodes.
+     */
+    public static final HintPredicate SETOP =
+            new NodeTypeHintPredicate(NodeTypeHintPredicate.NodeType.SETOP);
+
+    /**
+     * A hint predicate that indicates a hint can only be used to {@link
+     * org.apache.calcite.rel.core.Sort} nodes.
+     */
+    public static final HintPredicate SORT =
+            new NodeTypeHintPredicate(NodeTypeHintPredicate.NodeType.SORT);
 
     /**
      * A hint predicate that indicates a hint can only be used to {@link
@@ -61,6 +94,20 @@ public abstract class HintPredicates {
      */
     public static final HintPredicate CALC =
             new NodeTypeHintPredicate(NodeTypeHintPredicate.NodeType.CALC);
+
+    /**
+     * A hint predicate that indicates a hint can only be used to {@link
+     * org.apache.calcite.rel.core.Values} nodes.
+     */
+    public static final HintPredicate VALUES =
+            new NodeTypeHintPredicate(NodeTypeHintPredicate.NodeType.VALUES);
+
+    /**
+     * A hint predicate that indicates a hint can only be used to {@link
+     * org.apache.calcite.rel.core.Window} nodes.
+     */
+    public static final HintPredicate WINDOW =
+            new NodeTypeHintPredicate(NodeTypeHintPredicate.NodeType.WINDOW);
 
     /**
      * Returns a composed hint predicate that represents a short-circuiting logical AND of an array

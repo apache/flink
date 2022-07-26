@@ -30,24 +30,31 @@ import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
+import org.apache.calcite.rel.hint.Hintable;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.util.Util;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 /**
  * Relational expression that imposes a particular sort order on its input without otherwise
  * changing its content.
+ *
+ * <p>Temporarily copy from calcite to cherry-pick [CALCITE-5107] and will be removed when upgrade
+ * the latest calcite.
  */
-public abstract class Sort extends SingleRel {
+public abstract class Sort extends SingleRel implements Hintable {
     // ~ Instance fields --------------------------------------------------------
 
     public final RelCollation collation;
     public final RexNode offset;
     public final RexNode fetch;
+    protected final com.google.common.collect.ImmutableList<RelHint> hints;
 
     // ~ Constructors -----------------------------------------------------------
 
@@ -60,7 +67,7 @@ public abstract class Sort extends SingleRel {
      * @param collation array of sort specifications
      */
     public Sort(RelOptCluster cluster, RelTraitSet traits, RelNode child, RelCollation collation) {
-        this(cluster, traits, child, collation, null, null);
+        this(cluster, traits, Collections.emptyList(), child, collation, null, null);
     }
 
     /**
@@ -80,10 +87,33 @@ public abstract class Sort extends SingleRel {
             RelCollation collation,
             RexNode offset,
             RexNode fetch) {
+        this(cluster, traits, Collections.emptyList(), child, collation, offset, fetch);
+    }
+
+    /**
+     * Creates a Sort.
+     *
+     * @param cluster Cluster this relational expression belongs to
+     * @param traits Traits
+     * @param hints Hints for this node
+     * @param child input relational expression
+     * @param collation array of sort specifications
+     * @param offset Expression for number of rows to discard before returning first row
+     * @param fetch Expression for number of rows to fetch
+     */
+    public Sort(
+            RelOptCluster cluster,
+            RelTraitSet traits,
+            List<RelHint> hints,
+            RelNode child,
+            RelCollation collation,
+            RexNode offset,
+            RexNode fetch) {
         super(cluster, traits, child);
         this.collation = collation;
         this.offset = offset;
         this.fetch = fetch;
+        this.hints = com.google.common.collect.ImmutableList.copyOf(hints);
 
         assert traits.containsIfApplicable(collation)
                 : "traits=" + traits + ", collation=" + collation;
@@ -193,5 +223,10 @@ public abstract class Sort extends SingleRel {
         pw.itemIf("offset", offset, offset != null);
         pw.itemIf("fetch", fetch, fetch != null);
         return pw;
+    }
+
+    @Override
+    public com.google.common.collect.ImmutableList<RelHint> getHints() {
+        return hints;
     }
 }

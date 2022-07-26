@@ -29,6 +29,8 @@ import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
+import org.apache.calcite.rel.hint.Hintable;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
@@ -46,24 +48,56 @@ import org.apache.calcite.util.Litmus;
 import org.apache.calcite.util.Util;
 
 import java.util.AbstractList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 /**
  * A relational expression representing a set of window aggregates.
  *
+ * <p>Temporarily copy from calcite to cherry-pick [CALCITE-5107] and will be removed when upgrade
+ * the latest calcite.
+ *
  * <p>A Window can handle several window aggregate functions, over several partitions, with pre- and
  * post-expressions, and an optional post-filter. Each of the partitions is defined by a partition
  * key (zero or more columns) and a range (logical or physical). The partitions expect the data to
  * be sorted correctly on input to the relational expression.
  *
- * <p>Each {@link Group} has a set of {@link org.apache.calcite.rex.RexOver} objects.
+ * <p>Each {@link Window.Group} has a set of {@link org.apache.calcite.rex.RexOver} objects.
  *
  * <p>Created by {@link org.apache.calcite.rel.rules.ProjectToWindowRule}.
  */
-public abstract class Window extends SingleRel {
+public abstract class Window extends SingleRel implements Hintable {
     public final com.google.common.collect.ImmutableList<Group> groups;
     public final com.google.common.collect.ImmutableList<RexLiteral> constants;
+    protected final com.google.common.collect.ImmutableList<RelHint> hints;
+
+    /**
+     * Creates a window relational expression.
+     *
+     * @param cluster Cluster
+     * @param traitSet Trait set
+     * @param hints Hints for this node
+     * @param input Input relational expression
+     * @param constants List of constants that are additional inputs
+     * @param rowType Output row type
+     * @param groups Windows
+     */
+    public Window(
+            RelOptCluster cluster,
+            RelTraitSet traitSet,
+            List<RelHint> hints,
+            RelNode input,
+            List<RexLiteral> constants,
+            RelDataType rowType,
+            List<Group> groups) {
+        super(cluster, traitSet, input);
+        this.constants = com.google.common.collect.ImmutableList.copyOf(constants);
+        assert rowType != null;
+        this.rowType = rowType;
+        this.groups = com.google.common.collect.ImmutableList.copyOf(groups);
+        this.hints = com.google.common.collect.ImmutableList.copyOf(hints);
+    }
 
     /**
      * Creates a window relational expression.
@@ -82,11 +116,7 @@ public abstract class Window extends SingleRel {
             List<RexLiteral> constants,
             RelDataType rowType,
             List<Group> groups) {
-        super(cluster, traitSet, input);
-        this.constants = com.google.common.collect.ImmutableList.copyOf(constants);
-        assert rowType != null;
-        this.rowType = rowType;
-        this.groups = com.google.common.collect.ImmutableList.copyOf(groups);
+        this(cluster, traitSet, Collections.emptyList(), input, constants, rowType, groups);
     }
 
     @Override
@@ -223,8 +253,8 @@ public abstract class Window extends SingleRel {
         private final String digest;
 
         /**
-         * List of {@link RexWinAggCall} objects, each of which is a call to a {@link
-         * SqlAggFunction}.
+         * List of {@link Window.RexWinAggCall} objects, each of which is a call to a {@link
+         * org.apache.calcite.sql.SqlAggFunction}.
          */
         public final com.google.common.collect.ImmutableList<RexWinAggCall> aggCalls;
 
@@ -355,10 +385,11 @@ public abstract class Window extends SingleRel {
     /**
      * A call to a windowed aggregate function.
      *
-     * <p>Belongs to a {@link Group}.
+     * <p>Belongs to a {@link Window.Group}.
      *
-     * <p>It's a bastard son of a {@link RexCall}; similar enough that it gets visited by a {@link
-     * org.apache.calcite.rex.RexVisitor}, but it also has some extra data members.
+     * <p>It's a bastard son of a {@link org.apache.calcite.rex.RexCall}; similar enough that it
+     * gets visited by a {@link org.apache.calcite.rex.RexVisitor}, but it also has some extra data
+     * members.
      */
     public static class RexWinAggCall extends RexCall {
         /** Ordinal of this aggregate within its partition. */
@@ -431,5 +462,10 @@ public abstract class Window extends SingleRel {
         public RexCall clone(RelDataType type, List<RexNode> operands) {
             return super.clone(type, operands);
         }
+    }
+
+    @Override
+    public com.google.common.collect.ImmutableList<RelHint> getHints() {
+        return hints;
     }
 }
