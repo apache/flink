@@ -77,6 +77,7 @@ class JobVertexBackPressureHandlerTest {
                 new TaskQueryScopeInfo(
                         TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
                         TEST_JOB_VERTEX_ID.toString(),
+                        0,
                         0);
         dumps.add(new GaugeDump(task0, MetricNames.TASK_BACK_PRESSURED_TIME, "1000"));
         dumps.add(new GaugeDump(task0, MetricNames.TASK_IDLE_TIME, "0"));
@@ -86,7 +87,8 @@ class JobVertexBackPressureHandlerTest {
                 new TaskQueryScopeInfo(
                         TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
                         TEST_JOB_VERTEX_ID.toString(),
-                        1);
+                        1,
+                        0);
         dumps.add(new GaugeDump(task1, MetricNames.TASK_BACK_PRESSURED_TIME, "500"));
         dumps.add(new GaugeDump(task1, MetricNames.TASK_IDLE_TIME, "100"));
         dumps.add(new GaugeDump(task1, MetricNames.TASK_BUSY_TIME, "900"));
@@ -97,7 +99,8 @@ class JobVertexBackPressureHandlerTest {
                 new TaskQueryScopeInfo(
                         TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
                         TEST_JOB_VERTEX_ID.toString(),
-                        3);
+                        3,
+                        0);
         dumps.add(new GaugeDump(task3, MetricNames.TASK_BACK_PRESSURED_TIME, "100"));
         dumps.add(new GaugeDump(task3, MetricNames.TASK_IDLE_TIME, "200"));
         dumps.add(new GaugeDump(task3, MetricNames.TASK_BUSY_TIME, "700"));

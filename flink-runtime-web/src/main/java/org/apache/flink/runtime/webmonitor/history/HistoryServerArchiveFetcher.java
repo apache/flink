@@ -425,7 +425,8 @@ class HistoryServerArchiveFetcher {
                         state,
                         lastMod,
                         tasksPerState,
-                        numTasks);
+                        numTasks,
+                        new HashMap<>());
         MultipleJobsDetails multipleJobsDetails =
                 new MultipleJobsDetails(Collections.singleton(jobDetails));
 

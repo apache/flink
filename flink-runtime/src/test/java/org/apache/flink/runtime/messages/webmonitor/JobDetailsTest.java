@@ -29,6 +29,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -99,6 +101,35 @@ class JobDetailsTest {
 
         final JobDetails unmarshalled =
                 objectMapper.readValue(COMPATIBLE_JOB_DETAILS, JobDetails.class);
+
+        assertThat(unmarshalled).isEqualTo(expected);
+    }
+
+    @Test
+    void testJobDetailsWithExecutionAttemptsMarshalling() throws JsonProcessingException {
+        Map<String, Map<Integer, Integer>> currentExecutionAttempts = new HashMap<>();
+        currentExecutionAttempts.computeIfAbsent("a", k -> new HashMap<>()).put(1, 2);
+        currentExecutionAttempts.computeIfAbsent("a", k -> new HashMap<>()).put(2, 4);
+        currentExecutionAttempts.computeIfAbsent("b", k -> new HashMap<>()).put(3, 1);
+
+        final JobDetails expected =
+                new JobDetails(
+                        new JobID(),
+                        "foobar",
+                        1L,
+                        10L,
+                        9L,
+                        JobStatus.RUNNING,
+                        8L,
+                        new int[] {1, 3, 3, 4, 7, 4, 2, 7, 3, 3},
+                        42,
+                        currentExecutionAttempts);
+
+        final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
+
+        final JsonNode marshalled = objectMapper.valueToTree(expected);
+
+        final JobDetails unmarshalled = objectMapper.treeToValue(marshalled, JobDetails.class);
 
         assertThat(unmarshalled).isEqualTo(expected);
     }
