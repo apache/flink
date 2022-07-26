@@ -998,9 +998,6 @@ class KafkaRecordSerializationSchema(SerializationSchema):
         super().__init__(j_serialization_schema)
         self._topic_selector = topic_selector
 
-    def require_row_type(self) -> bool:
-        return False
-
     @staticmethod
     def builder() -> 'KafkaRecordSerializationSchemaBuilder':
         """

@@ -15,8 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from abc import abstractmethod, ABC
-
 from py4j.java_gateway import java_import
 from pyflink.common import typeinfo
 from pyflink.common.typeinfo import TypeInformation
@@ -31,7 +29,7 @@ __all__ = ['SerializationSchema', 'DeserializationSchema', 'SimpleStringSchema',
            'AvroRowSerializationSchema', 'AvroRowDeserializationSchema', 'Encoder']
 
 
-class SerializationSchema(ABC):
+class SerializationSchema(object):
     """
     Base class for SerializationSchema. The serialization schema describes how to turn a data object
     into a different serialized representation. Most data sinks (for example Apache Kafka) require
@@ -39,10 +37,6 @@ class SerializationSchema(ABC):
     """
     def __init__(self, j_serialization_schema=None):
         self._j_serialization_schema = j_serialization_schema
-
-    @abstractmethod
-    def require_row_type(self) -> bool:
-        pass
 
 
 class DeserializationSchema(object):
@@ -73,9 +67,6 @@ class SimpleStringSchema(SerializationSchema, DeserializationSchema):
                                      j_serialization_schema=j_simple_string_serialization_schema)
         DeserializationSchema.__init__(
             self, j_deserialization_schema=j_simple_string_serialization_schema)
-
-    def require_row_type(self) -> bool:
-        return False
 
 
 class JsonRowDeserializationSchema(DeserializationSchema):
@@ -170,9 +161,6 @@ class JsonRowSerializationSchema(SerializationSchema):
 
     def __init__(self, j_serialization_schema):
         super(JsonRowSerializationSchema, self).__init__(j_serialization_schema)
-
-    def require_row_type(self) -> bool:
-        return True
 
     @staticmethod
     def builder():
@@ -272,9 +260,6 @@ class CsvRowSerializationSchema(SerializationSchema):
     """
     def __init__(self, j_csv_row_serialization_schema):
         super(CsvRowSerializationSchema, self).__init__(j_csv_row_serialization_schema)
-
-    def require_row_type(self) -> bool:
-        return True
 
     class Builder(object):
         """
@@ -386,9 +371,6 @@ class AvroRowSerializationSchema(SerializationSchema):
             j_serialization_schema = JAvroRowSerializationSchema(avro_schema_string)
 
         super(AvroRowSerializationSchema, self).__init__(j_serialization_schema)
-
-    def require_row_type(self) -> bool:
-        return True
 
 
 class Encoder(object):
