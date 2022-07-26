@@ -113,8 +113,16 @@ public class DefaultBlocklistHandler implements BlocklistHandler, AutoCloseable 
     public void addNewBlockedNodes(Collection<BlockedNode> newNodes) {
         assertRunningInMainThread();
 
+        if (newNodes.isEmpty()) {
+            return;
+        }
+
         BlockedNodeAdditionResult result = blocklistTracker.addNewBlockedNodes(newNodes);
         Collection<BlockedNode> newlyAddedNodes = result.getNewlyAddedNodes();
+        Collection<BlockedNode> allNodes =
+                Stream.concat(newlyAddedNodes.stream(), result.getMergedNodes().stream())
+                        .collect(Collectors.toList());
+
         if (!newlyAddedNodes.isEmpty()) {
             if (log.isDebugEnabled()) {
                 log.debug(
@@ -131,14 +139,10 @@ public class DefaultBlocklistHandler implements BlocklistHandler, AutoCloseable 
                         blocklistTracker.getAllBlockedNodes().size());
             }
 
-            blocklistListeners.forEach(
-                    listener ->
-                            listener.notifyNewBlockedNodes(
-                                    Stream.concat(
-                                                    newlyAddedNodes.stream(),
-                                                    result.getMergedNodes().stream())
-                                            .collect(Collectors.toList())));
+            blocklistListeners.forEach(listener -> listener.notifyNewBlockedNodes(allNodes));
             blocklistContext.blockResources(newlyAddedNodes);
+        } else if (!allNodes.isEmpty()) {
+            blocklistListeners.forEach(listener -> listener.notifyNewBlockedNodes(allNodes));
         }
     }
 
