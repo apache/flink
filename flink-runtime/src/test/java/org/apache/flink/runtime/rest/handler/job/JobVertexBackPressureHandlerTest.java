@@ -38,8 +38,8 @@ import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexMessageParameters;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -52,12 +52,10 @@ import java.util.stream.Collectors;
 import static org.apache.flink.runtime.rest.messages.JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH;
 import static org.apache.flink.runtime.rest.messages.JobVertexBackPressureInfo.VertexBackPressureLevel.LOW;
 import static org.apache.flink.runtime.rest.messages.JobVertexBackPressureInfo.VertexBackPressureLevel.OK;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JobVertexBackPressureHandler}. */
-public class JobVertexBackPressureHandlerTest {
+class JobVertexBackPressureHandlerTest {
 
     /** Job ID for which back pressure stats exist. */
     private static final JobID TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE = new JobID();
@@ -107,8 +105,8 @@ public class JobVertexBackPressureHandlerTest {
         return dumps;
     }
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         metricStore = new MetricStore();
         for (MetricDump metricDump : getMetricDumps()) {
             metricStore.add(metricDump);
@@ -141,7 +139,7 @@ public class JobVertexBackPressureHandlerTest {
     }
 
     @Test
-    public void testGetBackPressure() throws Exception {
+    void testGetBackPressure() throws Exception {
         final Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(
                 JobIDPathParameter.KEY, TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString());
@@ -161,42 +159,42 @@ public class JobVertexBackPressureHandlerTest {
         final JobVertexBackPressureInfo jobVertexBackPressureInfo =
                 jobVertexBackPressureInfoCompletableFuture.get();
 
-        assertThat(jobVertexBackPressureInfo.getStatus(), equalTo(VertexBackPressureStatus.OK));
-        assertThat(jobVertexBackPressureInfo.getBackpressureLevel(), equalTo(HIGH));
+        assertThat(jobVertexBackPressureInfo.getStatus()).isEqualTo(VertexBackPressureStatus.OK);
+        assertThat(jobVertexBackPressureInfo.getBackpressureLevel()).isEqualTo(HIGH);
 
         assertThat(
-                jobVertexBackPressureInfo.getSubtasks().stream()
-                        .map(SubtaskBackPressureInfo::getBackPressuredRatio)
-                        .collect(Collectors.toList()),
-                contains(1.0, 0.5, 0.1));
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getBackPressuredRatio)
+                                .collect(Collectors.toList()))
+                .containsExactly(1.0, 0.5, 0.1);
 
         assertThat(
-                jobVertexBackPressureInfo.getSubtasks().stream()
-                        .map(SubtaskBackPressureInfo::getIdleRatio)
-                        .collect(Collectors.toList()),
-                contains(0.0, 0.1, 0.2));
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getIdleRatio)
+                                .collect(Collectors.toList()))
+                .containsExactly(0.0, 0.1, 0.2);
 
         assertThat(
-                jobVertexBackPressureInfo.getSubtasks().stream()
-                        .map(SubtaskBackPressureInfo::getBusyRatio)
-                        .collect(Collectors.toList()),
-                contains(0.0, 0.9, 0.7));
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getBusyRatio)
+                                .collect(Collectors.toList()))
+                .containsExactly(0.0, 0.9, 0.7);
 
         assertThat(
-                jobVertexBackPressureInfo.getSubtasks().stream()
-                        .map(SubtaskBackPressureInfo::getBackpressureLevel)
-                        .collect(Collectors.toList()),
-                contains(HIGH, LOW, OK));
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getBackpressureLevel)
+                                .collect(Collectors.toList()))
+                .containsExactly(HIGH, LOW, OK);
 
         assertThat(
-                jobVertexBackPressureInfo.getSubtasks().stream()
-                        .map(SubtaskBackPressureInfo::getSubtask)
-                        .collect(Collectors.toList()),
-                contains(0, 1, 3));
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getSubtask)
+                                .collect(Collectors.toList()))
+                .containsExactly(0, 1, 3);
     }
 
     @Test
-    public void testAbsentBackPressure() throws Exception {
+    void testAbsentBackPressure() throws Exception {
         final Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(
                 JobIDPathParameter.KEY, TEST_JOB_ID_BACK_PRESSURE_STATS_ABSENT.toString());
@@ -216,8 +214,7 @@ public class JobVertexBackPressureHandlerTest {
         final JobVertexBackPressureInfo jobVertexBackPressureInfo =
                 jobVertexBackPressureInfoCompletableFuture.get();
 
-        assertThat(
-                jobVertexBackPressureInfo.getStatus(),
-                equalTo(VertexBackPressureStatus.DEPRECATED));
+        assertThat(jobVertexBackPressureInfo.getStatus())
+                .isEqualTo(VertexBackPressureStatus.DEPRECATED);
     }
 }

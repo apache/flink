@@ -21,20 +21,19 @@ package org.apache.flink.runtime.messages.webmonitor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link JobDetails}. */
-public class JobDetailsTest extends TestLogger {
+class JobDetailsTest {
     private static final String COMPATIBLE_JOB_DETAILS =
             "{"
                     + "  \"jid\" : \"7a7c3291accebd10b6be8d4f8c8d8dfc\","
@@ -60,7 +59,7 @@ public class JobDetailsTest extends TestLogger {
 
     /** Tests that we can marshal and unmarshal JobDetails instances. */
     @Test
-    public void testJobDetailsMarshalling() throws JsonProcessingException {
+    void testJobDetailsMarshalling() throws JsonProcessingException {
         final JobDetails expected =
                 new JobDetails(
                         new JobID(),
@@ -79,11 +78,11 @@ public class JobDetailsTest extends TestLogger {
 
         final JobDetails unmarshalled = objectMapper.treeToValue(marshalled, JobDetails.class);
 
-        assertEquals(expected, unmarshalled);
+        assertThat(unmarshalled).isEqualTo(expected);
     }
 
     @Test
-    public void testJobDetailsCompatibleUnmarshalling() throws IOException {
+    void testJobDetailsCompatibleUnmarshalling() throws IOException {
         final JobDetails expected =
                 new JobDetails(
                         JobID.fromHexString("7a7c3291accebd10b6be8d4f8c8d8dfc"),
@@ -101,6 +100,6 @@ public class JobDetailsTest extends TestLogger {
         final JobDetails unmarshalled =
                 objectMapper.readValue(COMPATIBLE_JOB_DETAILS, JobDetails.class);
 
-        assertEquals(expected, unmarshalled);
+        assertThat(unmarshalled).isEqualTo(expected);
     }
 }
