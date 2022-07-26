@@ -44,6 +44,7 @@ import java.io.IOException;
 @Internal
 public class MapDataSerializer extends TypeSerializer<MapData> {
 
+    private static final long serialVersionUID = 1L;
     private final LogicalType keyType;
     private final LogicalType valueType;
 
