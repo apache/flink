@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.config;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
@@ -219,6 +220,15 @@ public class ExecutionConfigOptions {
                             "The memory size used to do compress when spilling data. "
                                     + "The larger the memory, the higher the compression ratio, "
                                     + "but more memory resource will be consumed by the job.");
+
+    @Experimental
+    public static final ConfigOption<Long> TABLE_EXEC_HASH_JOIN_SPILL_THRESHOLD =
+            key("table.exec.hash-join.spill-threshold")
+                    .longType()
+                    .defaultValue(8 * 1024 * 1024 * 1024L)
+                    .withDescription(
+                            "The threshold of spilled data in byte during build hash table for hash-join, "
+                                    + "if spilled data more than the threshold, switch hash-join to sort-merge-join automatically.");
 
     // ------------------------------------------------------------------------
     //  Resource Options

@@ -124,7 +124,7 @@ object OperatorCodeGenerator extends Logging {
     new GeneratedOperator(operatorName, operatorCode, ctx.references.toArray, ctx.tableConfig)
   }
 
-  def generateTwoInputStreamOperator[IN1 <: Any, IN2 <: Any, OUT <: Any](
+  def generateTwoInputStreamOperatorBase[IN1 <: Any, IN2 <: Any, OUT <: Any](
       ctx: CodeGeneratorContext,
       name: String,
       processCode1: String,
@@ -134,8 +134,7 @@ object OperatorCodeGenerator extends Logging {
       input1Term: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       input2Term: String = CodeGenUtils.DEFAULT_INPUT2_TERM,
       nextSelectionCode: Option[String] = None,
-      endInputCode1: Option[String] = None,
-      endInputCode2: Option[String] = None,
+      endInputCode: Option[String] = None,
       useTimeCollect: Boolean = false): GeneratedOperator[TwoInputStreamOperator[IN1, IN2, OUT]] = {
     addReuseOutElement(ctx)
     val operatorName = newName(name)
@@ -147,8 +146,6 @@ object OperatorCodeGenerator extends Logging {
     val (nextSel, nextSelImpl) = nextSelectionCode match {
       case None => ("", "")
       case Some(code) =>
-        val end1 = endInputCode1.getOrElse("")
-        val end2 = endInputCode2.getOrElse("")
         (
           s"""
              |@Override
@@ -159,34 +156,10 @@ object OperatorCodeGenerator extends Logging {
           s", ${className[InputSelectable]}")
     }
 
-    val (endInput, endInputImpl) = (endInputCode1, endInputCode2) match {
-      case (None, None) => ("", "")
-      case (_, _) =>
-        val end1 = endInputCode1.getOrElse("")
-        val end2 = endInputCode2.getOrElse("")
-        (
-          s"""
-             |private void endInput1() throws Exception {
-             |  $end1
-             |}
-             |
-             |private void endInput2() throws Exception {
-             |  $end2
-             |}
-             |
-             |@Override
-             |public void endInput(int inputId) throws Exception {
-             |  switch (inputId) {
-             |    case 1:
-             |      endInput1();
-             |      break;
-             |    case 2:
-             |      endInput2();
-             |      break;
-             |  }
-             |}
-         """.stripMargin,
-          s", ${className[BoundedMultiInput]}")
+    val (endInput, endInputImpl) = endInputCode match {
+      case None => ("", "")
+      case Some(code) =>
+        (code, s", ${className[BoundedMultiInput]}")
     }
 
     val operatorCode =
@@ -253,6 +226,60 @@ object OperatorCodeGenerator extends Logging {
     LOG.debug(s"Compiling TwoInputStreamOperator Code:\n$name")
     LOG.trace(s"Code: \n$operatorCode")
     new GeneratedOperator(operatorName, operatorCode, ctx.references.toArray, ctx.tableConfig)
+  }
+
+  def generateTwoInputStreamOperator[IN1 <: Any, IN2 <: Any, OUT <: Any](
+      ctx: CodeGeneratorContext,
+      name: String,
+      processCode1: String,
+      processCode2: String,
+      input1Type: LogicalType,
+      input2Type: LogicalType,
+      input1Term: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
+      input2Term: String = CodeGenUtils.DEFAULT_INPUT2_TERM,
+      nextSelectionCode: Option[String] = None,
+      endInputCode1: Option[String] = None,
+      endInputCode2: Option[String] = None,
+      useTimeCollect: Boolean = false): GeneratedOperator[TwoInputStreamOperator[IN1, IN2, OUT]] = {
+    val endInput = (endInputCode1, endInputCode2) match {
+      case (None, None) => None
+      case (_, _) =>
+        val end1 = endInputCode1.getOrElse("")
+        val end2 = endInputCode2.getOrElse("")
+        Some(s"""
+                |private void endInput1() throws Exception {
+                |  $end1
+                |}
+                |
+                |private void endInput2() throws Exception {
+                |  $end2
+                |}
+                |
+                |@Override
+                |public void endInput(int inputId) throws Exception {
+                |  switch (inputId) {
+                |    case 1:
+                |      endInput1();
+                |      break;
+                |    case 2:
+                |      endInput2();
+                |      break;
+                |  }
+                |}
+         """.stripMargin)
+    }
+    generateTwoInputStreamOperatorBase(
+      ctx,
+      name,
+      processCode1,
+      processCode2,
+      input1Type,
+      input2Type,
+      input1Term,
+      input2Term,
+      nextSelectionCode,
+      endInput,
+      useTimeCollect)
   }
 
   private def generateInputTerm(inputTypeTerm: String): String = {

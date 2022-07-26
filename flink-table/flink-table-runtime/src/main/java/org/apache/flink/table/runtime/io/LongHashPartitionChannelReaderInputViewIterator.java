@@ -21,43 +21,30 @@ package org.apache.flink.table.runtime.io;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
 import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.runtime.hashtable.LongHashPartition;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
-import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
  * A simple iterator over the input read though an I/O channel. Use {@link
- * BinaryRowDataSerializer#deserializeFromPages}.
+ * LongHashPartition#deserializeFromPages}
  */
-public class BinaryRowChannelInputViewIterator implements MutableObjectIterator<BinaryRowData> {
-    protected final ChannelReaderInputView inView;
+public class LongHashPartitionChannelReaderInputViewIterator
+        extends BinaryRowChannelInputViewIterator {
 
-    protected final BinaryRowDataSerializer serializer;
-
-    protected final List<MemorySegment> freeMemTarget;
-
-    public BinaryRowChannelInputViewIterator(
+    public LongHashPartitionChannelReaderInputViewIterator(
             ChannelReaderInputView inView, BinaryRowDataSerializer serializer) {
-        this(inView, new ArrayList<>(), serializer);
-    }
-
-    public BinaryRowChannelInputViewIterator(
-            ChannelReaderInputView inView,
-            List<MemorySegment> freeMemTarget,
-            BinaryRowDataSerializer serializer) {
-        this.inView = inView;
-        this.freeMemTarget = freeMemTarget;
-        this.serializer = serializer;
+        super(inView, serializer);
     }
 
     @Override
     public BinaryRowData next(BinaryRowData reuse) throws IOException {
         try {
-            return this.serializer.deserializeFromPages(reuse, this.inView);
+            LongHashPartition.deserializeFromPages(reuse, inView, serializer);
+            return reuse;
         } catch (EOFException eofex) {
             final List<MemorySegment> freeMem = this.inView.close();
             if (this.freeMemTarget != null) {
@@ -65,11 +52,5 @@ public class BinaryRowChannelInputViewIterator implements MutableObjectIterator<
             }
             return null;
         }
-    }
-
-    @Override
-    public BinaryRowData next() throws IOException {
-        throw new UnsupportedOperationException(
-                "This method is disabled due to performance issue!");
     }
 }

@@ -56,6 +56,8 @@ import static org.assertj.core.api.Fail.fail;
 public class LongHashTableTest {
 
     private static final int PAGE_SIZE = 32 * 1024;
+    private static final long BUILD_SPILL_THRESHOLD = 100 * 1024 * 1024L;
+
     private IOManager ioManager;
     private BinaryRowDataSerializer buildSideSerializer;
     private BinaryRowDataSerializer probeSideSerializer;
@@ -433,7 +435,7 @@ public class LongHashTableTest {
      * fits into memory by itself and needs to be repartitioned in the recursion again.
      */
     @TestTemplate
-    void testFailingHashJoinTooManyRecursions() throws IOException {
+    void testSpillingHashJoinWithTooManyRecursions() throws IOException {
         // the following two values are known to have a hash-code collision on the first recursion
         // level.
         // we use them to make sure one partition grows over-proportionally large
@@ -477,12 +479,126 @@ public class LongHashTableTest {
         MutableObjectIterator<BinaryRowData> probeInput = new UnionIterator<>(probes);
         final MyHashTable table = new MyHashTable(896 * PAGE_SIZE);
 
-        try {
-            join(table, buildInput, probeInput);
-            fail("Hash Join must have failed due to too many recursions.");
-        } catch (Exception ex) {
-            // expected
+        // create the map for validating the results
+        HashMap<Integer, Long> map = new HashMap<>(numKeys);
+
+        BinaryRowData buildRow = buildSideSerializer.createInstance();
+        while ((buildRow = buildInput.next(buildRow)) != null) {
+            table.putBuildRow(buildRow);
         }
+        table.endBuild();
+
+        BinaryRowData probeRow = probeSideSerializer.createInstance();
+        while ((probeRow = probeInput.next(probeRow)) != null) {
+            if (table.tryProbe(probeRow)) {
+                testJoin(table, map);
+            }
+        }
+
+        while (table.nextMatching()) {
+            testJoin(table, map);
+        }
+
+        // The partition which spill to disk more than 3 can't be joined
+        assertThat(map.size()).as("Wrong number of records in join result.").isLessThan(numKeys);
+
+        // Here exists two partition which spill to disk more than 3
+        assertThat(table.getPartitionsPendingForSMJ().size())
+                .as("Wrong number of spilled partition.")
+                .isEqualTo(2);
+
+        Map<Integer, Integer> spilledPartitionBuildSideKeys = new HashMap<>();
+        Map<Integer, Integer> spilledPartitionProbeSideKeys = new HashMap<>();
+        for (LongHashPartition p : table.getPartitionsPendingForSMJ()) {
+            RowIterator<BinaryRowData> buildIter = table.getSpilledPartitionBuildSideIter(p);
+            while (buildIter.advanceNext()) {
+                Integer key = buildIter.getRow().getInt(0);
+                spilledPartitionBuildSideKeys.put(
+                        key, spilledPartitionBuildSideKeys.getOrDefault(key, 0) + 1);
+            }
+
+            ProbeIterator probeIter = table.getSpilledPartitionProbeSideIter(p);
+            BinaryRowData rowData;
+            while ((rowData = probeIter.next()) != null) {
+                Integer key = rowData.getInt(0);
+                spilledPartitionProbeSideKeys.put(
+                        key, spilledPartitionProbeSideKeys.getOrDefault(key, 0) + 1);
+            }
+        }
+
+        // assert spilled partition contains key repeatedValue1 and repeatedValue2
+        Integer buildKeyCnt = repeatedValueCount + buildValsPerKey;
+        assertThat(spilledPartitionBuildSideKeys).containsEntry(repeatedValue1, buildKeyCnt);
+        assertThat(spilledPartitionBuildSideKeys).containsEntry(repeatedValue2, buildKeyCnt);
+
+        Integer probeKeyCnt = repeatedValueCount + probeValsPerKey;
+        assertThat(spilledPartitionProbeSideKeys).containsEntry(repeatedValue1, probeKeyCnt);
+        assertThat(spilledPartitionProbeSideKeys).containsEntry(repeatedValue2, probeKeyCnt);
+
+        table.close();
+
+        // ----------------------------------------------------------------------------------------
+
+        table.free();
+    }
+
+    @TestTemplate
+    public void testBuildSpillDataMoreThanThreshold() throws IOException {
+        // the following two values are known to have a hash-code collision on the first recursion
+        // level.
+        // we use them to make sure one partition grows over-proportionally large
+        final int repeatedValue1 = 40559;
+        final int repeatedValue2 = 92882;
+        final int repeatedValueCount = 3000000;
+
+        final int numKeys = 1000000;
+        final int buildValsPerKey = 3;
+
+        // create a build input that gives 3 million pairs with 3 values sharing the same key, plus
+        // 400k pairs with two colliding keys
+        MutableObjectIterator<BinaryRowData> build1 =
+                new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
+        MutableObjectIterator<BinaryRowData> build2 =
+                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
+                        repeatedValue1, 17, repeatedValueCount);
+        MutableObjectIterator<BinaryRowData> build3 =
+                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
+                        repeatedValue2, 23, repeatedValueCount);
+        List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
+        builds.add(build1);
+        builds.add(build2);
+        builds.add(build3);
+        MutableObjectIterator<BinaryRowData> buildInput = new UnionIterator<>(builds);
+        final MyHashTable table = new MyHashTable(896 * PAGE_SIZE);
+
+        // ----------------------------------------------------------------------------------------
+
+        int buildRecordNums = 0;
+        BinaryRowData buildRow = buildSideSerializer.createInstance();
+        while ((buildRow = buildInput.next(buildRow)) != null) {
+            table.putBuildRow(buildRow);
+            buildRecordNums++;
+            if (table.getBuildSideSpilledDataInBytes() > BUILD_SPILL_THRESHOLD) {
+                break;
+            }
+        }
+
+        // spill all in memory partition to disk
+        table.spillAllInMemoryPartition();
+
+        // read all spilled partitions
+        int spilledBuildRecordNums = 0;
+        for (LongHashPartition p : table.getPartitionsPendingForSMJ()) {
+            RowIterator<BinaryRowData> buildIter = table.getSpilledPartitionBuildSideIter(p);
+            while (buildIter.advanceNext()) {
+                spilledBuildRecordNums++;
+            }
+        }
+
+        // assert spilled record nums
+        assertThat(spilledBuildRecordNums)
+                .as("Wrong number of spilled build record.")
+                .isEqualTo(buildRecordNums);
 
         table.close();
 

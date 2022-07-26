@@ -60,7 +60,15 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
     final int partitionNumber; // the number of the partition
 
     long probeSideRecordCounter; // number of probe-side records in this partition
+
+    /**
+     * These buffers are null when create the BinaryHashPartition first, it will be assigned value
+     * in two case: 1) when build stage end, if this partition in memory, all the segments occupied
+     * by this partition will be returned to it; 2) when build stage end, if this partition has
+     * spilled to disk, the data read from disk next time will be assigned to it.
+     */
     private MemorySegment[] partitionBuffers;
+
     private int currentBufferNum;
     private int finalBufferLimit;
 
@@ -164,7 +172,7 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
      *
      * @return This partition's number.
      */
-    int getPartitionNumber() {
+    public int getPartitionNumber() {
         return this.partitionNumber;
     }
 
@@ -207,6 +215,13 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
                 : this.partitionBuffers.length;
     }
 
+    int getBuildSideSpilledBlockCount() {
+        if (isInMemory()) {
+            return 0;
+        }
+        return this.buildSideWriteBuffer.getBlockCount();
+    }
+
     RandomAccessInputView getBuildStateInputView() {
         return this.buildSideWriteBuffer.getBuildStageInputView();
     }
@@ -227,7 +242,7 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
         return bloomFilter == null || bloomFilter.testHash(hash);
     }
 
-    private void freeBloomFilter() {
+    void freeBloomFilter() {
         memPool.returnAll(Arrays.asList(bloomFilter.getBuffers()));
         bloomFilter = null;
     }
@@ -347,13 +362,8 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
      */
     int finalizeBuildPhase(IOManager ioAccess, FileIOChannel.Enumerator probeChannelEnumerator)
             throws IOException {
-        this.finalBufferLimit = this.buildSideWriteBuffer.getCurrentPositionInSegment();
-        this.partitionBuffers = this.buildSideWriteBuffer.close();
-
+        finalizePartitionBuffer();
         if (!isInMemory()) {
-            // close the channel.
-            this.buildSideChannel.close();
-
             this.probeSideBuffer =
                     FileChannelUtil.createOutputView(
                             ioAccess,
@@ -365,6 +375,15 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
             return 1;
         } else {
             return 0;
+        }
+    }
+
+    void finalizePartitionBuffer() throws IOException {
+        this.finalBufferLimit = this.buildSideWriteBuffer.getCurrentPositionInSegment();
+        this.partitionBuffers = this.buildSideWriteBuffer.close();
+        if (!isInMemory()) {
+            // close the channel.
+            this.buildSideChannel.close();
         }
     }
 

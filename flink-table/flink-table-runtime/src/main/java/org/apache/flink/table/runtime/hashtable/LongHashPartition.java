@@ -407,6 +407,13 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
                 : this.partitionBuffers.length;
     }
 
+    int getBuildSideSpilledBlockCount() {
+        if (isInMemory()) {
+            return 0;
+        }
+        return this.buildSideWriteBuffer.getBlockCount();
+    }
+
     int getProbeSideBlockCount() {
         return this.probeSideBuffer == null ? -1 : this.probeSideBuffer.getBlockCount();
     }
@@ -476,13 +483,8 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
      */
     int finalizeBuildPhase(IOManager ioAccess, FileIOChannel.Enumerator probeChannelEnumerator)
             throws IOException {
-        this.finalBufferLimit = this.buildSideWriteBuffer.getCurrentPositionInSegment();
-        this.partitionBuffers = this.buildSideWriteBuffer.close();
-
+        finalizePartitionBuffer();
         if (!isInMemory()) {
-            // close the channel.
-            this.buildSideChannel.close();
-
             this.probeSideBuffer =
                     FileChannelUtil.createOutputView(
                             ioAccess,
@@ -494,6 +496,15 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
             return 1;
         } else {
             return 0;
+        }
+    }
+
+    void finalizePartitionBuffer() throws IOException {
+        this.finalBufferLimit = this.buildSideWriteBuffer.getCurrentPositionInSegment();
+        this.partitionBuffers = this.buildSideWriteBuffer.close();
+        if (!isInMemory()) {
+            // close the channel.
+            this.buildSideChannel.close();
         }
     }
 
@@ -849,7 +860,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
             }
         }
 
-        final long getPointer() {
+        long getPointer() {
             return this.currentPointer;
         }
 
@@ -879,7 +890,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
         return available < 8 + serializer.getFixedLengthPartSize();
     }
 
-    static void deserializeFromPages(
+    public static void deserializeFromPages(
             BinaryRowData reuse,
             ChannelReaderInputView inView,
             BinaryRowDataSerializer buildSideSerializer)

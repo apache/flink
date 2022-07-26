@@ -96,6 +96,12 @@ public class BinaryHashTable extends BaseHybridHashTable {
     final ArrayList<BinaryHashPartition> partitionsBeingBuilt;
 
     /**
+     * The partitions that have been spilled previously and are pending to be processed by sort
+     * merge join operator.
+     */
+    private final List<BinaryHashPartition> partitionsPendingForSMJ;
+
+    /**
      * BitSet which used to mark whether the element(int build side) has successfully matched during
      * probe phase. As there are 9 elements in each bucket, we assign 2 bytes to BitSet.
      */
@@ -193,6 +199,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 
         this.partitionsBeingBuilt = new ArrayList<>();
         this.partitionsPending = new ArrayList<>();
+        this.partitionsPendingForSMJ = new ArrayList<>();
 
         createPartitions(initPartitionFanOut, 0);
     }
@@ -399,10 +406,37 @@ public class BinaryHashTable extends BaseHybridHashTable {
         this.probeMatchedPhase = true;
         this.buildIterVisited = false;
 
+        final int nextRecursionLevel = p.getRecursionLevel() + 1;
+        if (nextRecursionLevel == 2) {
+            LOG.info("Recursive hash join: partition number is " + p.getPartitionNumber());
+        } else if (nextRecursionLevel > MAX_RECURSION_DEPTH) {
+            LOG.info(
+                    String.format(
+                            "Partition number [%s] recursive level more than %s.",
+                            p.getPartitionNumber(), MAX_RECURSION_DEPTH));
+            // if the partition has spilled to disk more than three times, process it by sort merge
+            // join later
+            this.partitionsPendingForSMJ.add(p);
+            // also need to remove it from pending list
+            this.partitionsPending.remove(0);
+            // recursively get the next partition
+            return prepareNextPartition();
+        }
         // build the next table; memory must be allocated after this call
-        buildTableFromSpilledPartition(p);
+        buildTableFromSpilledPartition(p, nextRecursionLevel);
 
         // set the probe side
+        setPartitionProbeReader(p);
+
+        // unregister the pending partition
+        this.partitionsPending.remove(0);
+        this.currentRecursionDepth = p.getRecursionLevel() + 1;
+
+        // recursively get the next
+        return nextMatching();
+    }
+
+    private void setPartitionProbeReader(BinaryHashPartition p) throws IOException {
         ChannelWithMeta channelWithMeta =
                 new ChannelWithMeta(
                         p.probeSideBuffer.getChannel().getChannelID(),
@@ -424,27 +458,11 @@ public class BinaryHashTable extends BaseHybridHashTable {
                         new ArrayList<>(),
                         this.binaryProbeSideSerializer);
         this.probeIterator.set(probeReader);
-        this.probeIterator.setReuse(binaryProbeSideSerializer.createInstance());
-
-        // unregister the pending partition
-        this.partitionsPending.remove(0);
-        this.currentRecursionDepth = p.getRecursionLevel() + 1;
-
-        // recursively get the next
-        return nextMatching();
+        this.probeIterator.setReuse(this.binaryProbeSideSerializer.createInstance());
     }
 
-    private void buildTableFromSpilledPartition(final BinaryHashPartition p) throws IOException {
-
-        final int nextRecursionLevel = p.getRecursionLevel() + 1;
-        if (nextRecursionLevel == 2) {
-            LOG.info("Recursive hash join: partition number is " + p.getPartitionNumber());
-        } else if (nextRecursionLevel > MAX_RECURSION_DEPTH) {
-            throw new RuntimeException(
-                    "Hash join exceeded maximum number of recursions, without reducing "
-                            + "partitions enough to be memory resident. Probably cause: Too many duplicate keys.");
-        }
-
+    private void buildTableFromSpilledPartition(
+            final BinaryHashPartition p, final int nextRecursionLevel) throws IOException {
         if (p.getBuildSideBlockCount() > p.getProbeSideBlockCount()) {
             LOG.info(
                     String.format(
@@ -630,6 +648,16 @@ public class BinaryHashTable extends BaseHybridHashTable {
         for (final BinaryHashPartition p : this.partitionsPending) {
             p.clearAllMemory(this.internalPool);
         }
+
+        // clear the partitions that processed by sort merge join operator
+        for (final BinaryHashPartition p : this.partitionsPendingForSMJ) {
+            try {
+                p.clearAllMemory(this.internalPool);
+            } catch (Exception e) {
+                LOG.error("Error during partition cleanup.", e);
+            }
+        }
+        this.partitionsPendingForSMJ.clear();
     }
 
     /**
@@ -653,18 +681,62 @@ public class BinaryHashTable extends BaseHybridHashTable {
         final BinaryHashPartition p = partitionsBeingBuilt.get(largestPartNum);
 
         // spill the partition
+        int numBuffersFreed = spillPartition(p);
+        LOG.info(
+                String.format(
+                        "Grace hash join: Ran out memory, choosing partition "
+                                + "[%d] to spill, %d memory segments being freed",
+                        largestPartNum, numBuffersFreed));
+
+        // The bloomFilter is built by bucket area after the data is spilled, so that we can use
+        // enough memory.
+        p.buildBloomFilterAndFreeBucket();
+        return largestPartNum;
+    }
+
+    /** Spilling all in-memory partitions, then clear the occupied memory. */
+    @Override
+    public void spillAllInMemoryPartition() throws IOException {
+        for (BinaryHashPartition p : this.partitionsBeingBuilt) {
+            if (p.isInMemory()) {
+                // spill the partition
+                int numBuffersFreed = spillPartition(p);
+                LOG.info(
+                        String.format(
+                                "Spill partition [%d] to disk, %d memory segments being freed",
+                                p.getPartitionNumber(), numBuffersFreed));
+
+                // free the memory used by bucket area(hash table)
+                p.bucketArea.freeMemory();
+                p.bucketArea = null;
+            } else {
+                // free bloom filter of spilled partition
+                if (p.bloomFilter != null) {
+                    p.freeBloomFilter();
+                }
+            }
+
+            // finalize the build partition buffer, if the spilled partition also has some records
+            // in memory, here should trigger spill them to disk
+            p.finalizePartitionBuffer();
+            // returns the current write buffer, because it was used all the time in build phase, so
+            // it can only be returned at this time.
+            this.buildSpillRetBufferNumbers++;
+
+            // add partition to smj pending list
+            this.partitionsPendingForSMJ.add(p);
+        }
+
+        this.partitionsBeingBuilt.clear();
+    }
+
+    private int spillPartition(BinaryHashPartition p) throws IOException {
         int numBuffersFreed =
                 p.spillPartition(
                         this.ioManager,
                         this.currentEnumerator.next(),
                         this.buildSpillReturnBuffers);
         this.buildSpillRetBufferNumbers += numBuffersFreed;
-
-        LOG.info(
-                String.format(
-                        "Grace hash join: Ran out memory, choosing partition "
-                                + "[%d] to spill, %d memory segments being freed",
-                        largestPartNum, numBuffersFreed));
 
         // grab as many buffers as are available directly
         MemorySegment currBuff;
@@ -675,9 +747,70 @@ public class BinaryHashTable extends BaseHybridHashTable {
         }
         numSpillFiles++;
         spillInBytes += numBuffersFreed * segmentSize;
-        // The bloomFilter is built after the data is spilled, so that we can use enough memory.
-        p.buildBloomFilterAndFreeBucket();
-        return largestPartNum;
+        return numBuffersFreed;
+    }
+
+    /**
+     * Get all spilled partitions data size of build side in this table, This size represents the
+     * amount of memory occupied by the data, not the actual amount of disk space occupied.
+     */
+    @Override
+    public long getBuildSideSpilledDataInBytes() {
+        int spilledBlockCounts =
+                this.partitionsBeingBuilt.stream()
+                        .mapToInt(BinaryHashPartition::getBuildSideSpilledBlockCount)
+                        .sum();
+        return spilledBlockCounts * segmentSize;
+    }
+
+    public List<BinaryHashPartition> getPartitionsPendingForSMJ() {
+        return this.partitionsPendingForSMJ;
+    }
+
+    public RowIterator getSpilledPartitionBuildSideIter(BinaryHashPartition p) throws IOException {
+        // close build side channel of last processed partition
+        if (this.currentSpilledBuildSide != null) {
+            try {
+                this.currentSpilledBuildSide.getChannel().closeAndDelete();
+            } catch (Throwable t) {
+                LOG.warn(
+                        "Could not close and delete the temp file for the current spilled partition build side.",
+                        t);
+            }
+            this.currentSpilledBuildSide = null;
+        }
+
+        this.currentSpilledBuildSide =
+                createInputView(
+                        p.getBuildSideChannel().getChannelID(),
+                        p.getBuildSideBlockCount(),
+                        p.getLastSegmentLimit());
+        this.buildIterator =
+                new WrappedRowIterator<>(
+                        new BinaryRowChannelInputViewIterator(
+                                this.currentSpilledBuildSide, this.binaryBuildSideSerializer),
+                        this.binaryBuildSideSerializer.createInstance());
+        return this.buildIterator;
+    }
+
+    public ProbeIterator getSpilledPartitionProbeSideIter(BinaryHashPartition p)
+            throws IOException {
+        // close probe side channel of last processed partition
+        if (this.currentSpilledProbeSide != null) {
+            try {
+                this.currentSpilledProbeSide.getChannel().closeAndDelete();
+            } catch (Throwable t) {
+                LOG.warn(
+                        "Could not close and delete the temp file for the current spilled partition probe side.",
+                        t);
+            }
+            this.currentSpilledProbeSide = null;
+        }
+
+        // get the probe side iterator
+        this.probeIterator = new ProbeIterator(this.binaryProbeSideSerializer.createInstance());
+        setPartitionProbeReader(p);
+        return this.probeIterator;
     }
 
     boolean applyCondition(BinaryRowData candidate) {

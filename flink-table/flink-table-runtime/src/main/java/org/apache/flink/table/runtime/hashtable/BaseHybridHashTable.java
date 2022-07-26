@@ -350,6 +350,10 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 
     protected abstract int spillPartition() throws IOException;
 
+    public abstract void spillAllInMemoryPartition() throws IOException;
+
+    public abstract long getBuildSideSpilledDataInBytes();
+
     /**
      * This method makes sure that at least a certain number of memory segments is in the list of
      * free segments. Free memory can be in the list of free segments, or in the return-queue where
@@ -385,6 +389,17 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
         // make sure that we close only once
         if (!this.closed.compareAndSet(false, true)) {
             return;
+        }
+
+        // clear the current build side channel, if there exist one
+        if (this.currentSpilledBuildSide != null) {
+            try {
+                this.currentSpilledBuildSide.getChannel().closeAndDelete();
+            } catch (Throwable t) {
+                LOG.warn(
+                        "Could not close and delete the temp file for the current spilled partition build side.",
+                        t);
+            }
         }
 
         // clear the current probe side channel, if there is one
