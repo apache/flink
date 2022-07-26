@@ -26,7 +26,7 @@ import java.util.Collections;
 import java.util.Set;
 
 /** A Parser factory that creates {@link ParserImpl}. */
-public class DefaultParserFactory implements ParserFactory {
+public class DefaultDialectFactory implements DialectFactory {
 
     @Override
     public String factoryIdentifier() {

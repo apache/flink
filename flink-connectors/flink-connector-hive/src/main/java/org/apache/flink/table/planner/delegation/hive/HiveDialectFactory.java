@@ -20,14 +20,15 @@ package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.planner.delegation.ParserFactory;
+import org.apache.flink.table.planner.delegation.DialectFactory;
 
 import java.util.Collections;
 import java.util.Set;
 
 /** A Parser factory that creates {@link HiveParser}. */
-public class HiveParserFactory implements ParserFactory {
+public class HiveDialectFactory implements DialectFactory {
 
     @Override
     public String factoryIdentifier() {
@@ -51,5 +52,10 @@ public class HiveParserFactory implements ParserFactory {
                 context.getPlannerContext()::createFlinkPlanner,
                 context.getPlannerContext()::createCalciteParser,
                 context.getPlannerContext());
+    }
+
+    @Override
+    public ExtendedOperationExecutor createExtendedOperationExecutor(Context context) {
+        return new HiveOperationExecutor();
     }
 }
