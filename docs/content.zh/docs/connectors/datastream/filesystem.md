@@ -161,8 +161,8 @@ FileSource<SomePojo> source =
 如果需要对 CSV 模式或解析选项进行更细粒度的控制，可以使用 `CsvReaderFormat` 的更底层的 `forSchema` 静态工厂方法：
 
 ```java
-CsvReaderFormat<T> forSchema(CsvMapper mapper, 
-                             CsvSchema schema, 
+CsvReaderFormat<T> forSchema(Supplier<CsvMapper> mapperFactory, 
+                             Function<CsvMapper, CsvSchema> schemaGenerator, 
                              TypeInformation<T> typeInformation) 
 ```
 

@@ -17,11 +17,9 @@
 ################################################################################
 from typing import Optional, cast
 
-from py4j.java_gateway import get_java_class
 from pyflink.datastream.connectors import StreamFormat
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, DataTypes, _to_java_data_type, RowType, NumericType
-from pyflink.util.java_utils import to_jarray
 
 
 class CsvSchema(object):
@@ -295,29 +293,9 @@ class CsvReaderFormat(StreamFormat):
         Builds a :class:`CsvReaderFormat` using `CsvSchema`.
         """
         jvm = get_gateway().jvm
-        jackson = jvm.org.apache.flink.shaded.jackson2.com.fasterxml.jackson
-        constructor = get_java_class(jvm.org.apache.flink.formats.csv.CsvReaderFormat) \
-            .getDeclaredConstructor(
-            to_jarray(jvm.Class, [
-                get_java_class(jackson.dataformat.csv.CsvMapper),
-                get_java_class(jackson.dataformat.csv.CsvSchema),
-                get_java_class(jvm.Class),
-                get_java_class(jvm.org.apache.flink.formats.common.Converter),
-                get_java_class(jvm.org.apache.flink.api.common.typeinfo.TypeInformation),
-                get_java_class(jvm.boolean)
-            ])
-        )
-        constructor.setAccessible(True)
-        j_csv_format = constructor.newInstance(
-            to_jarray(jvm.Object, [
-                jackson.dataformat.csv.CsvMapper(),
+        j_csv_format = jvm.org.apache.flink.formats.csv.CsvReaderFormatFactory \
+            .createCsvReaderFormat(
                 schema._j_schema,
-                get_java_class(jackson.databind.JsonNode),
-                jvm.org.apache.flink.formats.csv.CsvToRowDataConverters(False).createRowConverter(
-                    _to_java_data_type(schema._data_type).getLogicalType(), True),
-                jvm.org.apache.flink.table.runtime.typeutils.InternalTypeInfo.of(
-                    _to_java_data_type(schema._data_type).getLogicalType()),
-                False
-            ])
-        )
+                _to_java_data_type(schema._data_type)
+            )
         return CsvReaderFormat(j_csv_format)

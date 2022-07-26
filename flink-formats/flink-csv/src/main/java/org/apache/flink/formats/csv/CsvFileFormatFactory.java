@@ -138,8 +138,8 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                                     .createRowConverter(projectedRowType, true);
             CsvReaderFormat<RowData> csvReaderFormat =
                     new CsvReaderFormat<>(
-                            new CsvMapper(),
-                            schema,
+                            () -> new CsvMapper(),
+                            ignored -> schema,
                             JsonNode.class,
                             converter,
                             context.createTypeInformation(projectedDataType),
