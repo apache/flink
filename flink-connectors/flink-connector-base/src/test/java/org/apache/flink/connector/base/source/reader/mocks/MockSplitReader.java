@@ -52,7 +52,7 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
     private boolean wokenUp;
     private Set<MockSourceSplit> pausedSplits = new HashSet<>();
 
-    private MockSplitReader(
+    protected MockSplitReader(
             int numRecordsPerSplitPerFetch,
             boolean separatedFinishedRecord,
             boolean blockingFetch) {
@@ -160,9 +160,17 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 
     /** Builder for {@link MockSplitReader}. */
     public static class Builder {
-        private int numRecordsPerSplitPerFetch = 2;
-        private boolean separatedFinishedRecord = false;
-        private boolean blockingFetch = false;
+        protected int numRecordsPerSplitPerFetch = 2;
+        protected boolean separatedFinishedRecord = false;
+        protected boolean blockingFetch = false;
+
+        protected Builder() {}
+
+        protected Builder(Builder other) {
+            this.numRecordsPerSplitPerFetch = other.numRecordsPerSplitPerFetch;
+            this.separatedFinishedRecord = other.separatedFinishedRecord;
+            this.blockingFetch = other.blockingFetch;
+        }
 
         public Builder setNumRecordsPerSplitPerFetch(int numRecordsPerSplitPerFetch) {
             this.numRecordsPerSplitPerFetch = numRecordsPerSplitPerFetch;
