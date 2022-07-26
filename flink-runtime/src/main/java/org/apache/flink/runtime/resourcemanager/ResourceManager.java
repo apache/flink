@@ -688,15 +688,34 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
         final int numberSlots = slotManager.getNumberRegisteredSlots();
-        final int numberFreeSlots = slotManager.getNumberFreeSlots();
         final ResourceProfile totalResource = slotManager.getRegisteredResource();
-        final ResourceProfile freeResource = slotManager.getFreeResource();
 
+        int numberFreeSlots = slotManager.getNumberFreeSlots();
+        ResourceProfile freeResource = slotManager.getFreeResource();
+
+        int blockedTaskManagers = 0;
+        int totalBlockedFreeSlots = 0;
+        if (!blocklistHandler.getAllBlockedNodeIds().isEmpty()) {
+            for (WorkerRegistration<WorkerType> registration : taskExecutors.values()) {
+                if (blocklistHandler.isBlockedTaskManager(registration.getResourceID())) {
+                    blockedTaskManagers++;
+                    int blockedFreeSlots =
+                            slotManager.getNumberFreeSlotsOf(registration.getInstanceID());
+                    totalBlockedFreeSlots += blockedFreeSlots;
+                    numberFreeSlots -= blockedFreeSlots;
+                    freeResource =
+                            freeResource.subtract(
+                                    slotManager.getFreeResourceOf(registration.getInstanceID()));
+                }
+            }
+        }
         return CompletableFuture.completedFuture(
                 new ResourceOverview(
                         taskExecutors.size(),
                         numberSlots,
                         numberFreeSlots,
+                        blockedTaskManagers,
+                        totalBlockedFreeSlots,
                         totalResource,
                         freeResource));
     }
@@ -866,7 +885,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     //  Internal methods
     // ------------------------------------------------------------------------
 
-    private String getNodeIdOfTaskManager(ResourceID taskManagerId) {
+    @VisibleForTesting
+    String getNodeIdOfTaskManager(ResourceID taskManagerId) {
         checkState(taskExecutors.containsKey(taskManagerId));
         return taskExecutors.get(taskManagerId).getNodeId();
     }
