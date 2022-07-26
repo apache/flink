@@ -41,7 +41,7 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * {@link SqlNode} to describe the CREATE TABLE LIKE syntax. CREATE TABLE LIKE syntax is similar as
- * CREATE TABLE syntax, besides it has LIKE sub-clause to inherits property of an existed table.
+ * CREATE TABLE syntax, besides it has LIKE sub-clause to inherit property of an existed table.
  *
  * <p>Example:
  *
