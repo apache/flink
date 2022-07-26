@@ -17,6 +17,15 @@
 
 package org.apache.flink.connector.base.sink.writer;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.ProcessingTimeService;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.StatefulSink;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
+import org.apache.flink.util.Preconditions;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayDeque;
@@ -27,14 +36,6 @@ import java.util.Deque;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.function.Consumer;
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.api.common.operators.ProcessingTimeService;
-import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.StatefulSink;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
-import org.apache.flink.util.Preconditions;
 
 /**
  * A generic sink writer that handles the general behaviour of a sink such as batching and flushing,
