@@ -18,36 +18,22 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * Message headers for a web handler request.
+ * Message headers for a web handler request that belongs to runtime module.
  *
  * @param <R> type of the request
  * @param <M> type of the message parameters
  */
-public interface UntypedResponseMessageHeaders<R extends RequestBody, M extends MessageParameters>
-        extends RestHandlerSpecification {
-    /**
-     * Returns the class of the request message.
-     *
-     * @return class of the request message
-     */
-    Class<R> getRequestClass();
-
-    /**
-     * Returns a new {@link MessageParameters} object.
-     *
-     * @return new message parameters object
-     */
-    M getUnresolvedMessageParameters();
-
-    /**
-     * Returns whether this header allows file uploads.
-     *
-     * @return whether this header allows file uploads
-     */
-    default boolean acceptsFileUploads() {
-        return false;
+public interface RuntimeUntypedResponseMessageHeaders<
+                R extends RequestBody, M extends MessageParameters>
+        extends UntypedResponseMessageHeaders<R, M> {
+    @Override
+    default Collection<RuntimeRestAPIVersion> getSupportedAPIVersions() {
+        return Collections.singleton(RuntimeRestAPIVersion.V1);
     }
 }

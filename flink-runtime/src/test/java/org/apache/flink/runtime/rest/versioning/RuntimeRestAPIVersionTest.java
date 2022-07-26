@@ -28,19 +28,20 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/** Tests for {@link RestAPIVersion}. */
-public class RestAPIVersionTest extends TestLogger {
+/** Tests for {@link RuntimeRestAPIVersion}. */
+public class RuntimeRestAPIVersionTest extends TestLogger {
     @Test
     public void testGetLatest() {
-        Collection<RestAPIVersion> candidates = Arrays.asList(RestAPIVersion.V0, RestAPIVersion.V1);
-        Assert.assertEquals(RestAPIVersion.V1, RestAPIVersion.getLatestVersion(candidates));
+        Collection<RuntimeRestAPIVersion> candidates =
+                Arrays.asList(RuntimeRestAPIVersion.V0, RuntimeRestAPIVersion.V1);
+        Assert.assertEquals(RuntimeRestAPIVersion.V1, RestAPIVersion.getLatestVersion(candidates));
     }
 
     @Test
     public void testSingleDefaultVersion() {
-        final List<RestAPIVersion> defaultVersions =
-                Arrays.stream(RestAPIVersion.values())
-                        .filter(RestAPIVersion::isDefaultVersion)
+        final List<RuntimeRestAPIVersion> defaultVersions =
+                Arrays.stream(RuntimeRestAPIVersion.values())
+                        .filter(RuntimeRestAPIVersion::isDefaultVersion)
                         .collect(Collectors.toList());
 
         Assert.assertEquals(

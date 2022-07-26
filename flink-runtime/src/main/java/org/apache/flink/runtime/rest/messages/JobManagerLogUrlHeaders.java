@@ -24,7 +24,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Headers for the log url retriever of JobManager. */
 public class JobManagerLogUrlHeaders
-        implements MessageHeaders<EmptyRequestBody, LogUrlResponse, JobMessageParameters> {
+        implements RuntimeMessageHeaders<EmptyRequestBody, LogUrlResponse, JobMessageParameters> {
     private static final JobManagerLogUrlHeaders INSTANCE = new JobManagerLogUrlHeaders();
 
     private static final String URL = "/jobs/:" + JobIDPathParameter.KEY + "/jobmanager/log-url";

@@ -25,7 +25,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Message headers for the {@link JobVertexBackPressureHandler}. */
 public class JobVertexBackPressureHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 EmptyRequestBody, JobVertexBackPressureInfo, JobVertexMessageParameters> {
 
     private static final JobVertexBackPressureHeaders INSTANCE = new JobVertexBackPressureHeaders();

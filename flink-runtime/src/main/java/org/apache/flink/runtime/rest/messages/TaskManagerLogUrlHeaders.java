@@ -25,7 +25,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Headers for the log url retriever of TaskManager. */
 public class TaskManagerLogUrlHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 EmptyRequestBody, LogUrlResponse, JobTaskManagerMessageParameters> {
     private static final TaskManagerLogUrlHeaders INSTANCE = new TaskManagerLogUrlHeaders();
 

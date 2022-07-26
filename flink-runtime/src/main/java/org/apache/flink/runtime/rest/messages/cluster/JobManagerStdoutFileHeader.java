@@ -21,11 +21,11 @@ package org.apache.flink.runtime.rest.messages.cluster;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeUntypedResponseMessageHeaders;
 
 /** Headers for the {@link JobManagerStdoutFileHandler}. */
 public class JobManagerStdoutFileHeader
-        implements UntypedResponseMessageHeaders<EmptyRequestBody, EmptyMessageParameters> {
+        implements RuntimeUntypedResponseMessageHeaders<EmptyRequestBody, EmptyMessageParameters> {
 
     private static final JobManagerStdoutFileHeader INSTANCE = new JobManagerStdoutFileHeader();
 

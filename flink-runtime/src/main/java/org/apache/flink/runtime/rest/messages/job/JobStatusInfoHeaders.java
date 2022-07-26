@@ -24,6 +24,7 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -31,7 +32,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
  * {@link MessageHeaders} for {@link org.apache.flink.runtime.rest.handler.job.JobStatusHandler}.
  */
 public class JobStatusInfoHeaders
-        implements MessageHeaders<EmptyRequestBody, JobStatusInfo, JobMessageParameters> {
+        implements RuntimeMessageHeaders<EmptyRequestBody, JobStatusInfo, JobMessageParameters> {
     private static final JobStatusInfoHeaders INSTANCE = new JobStatusInfoHeaders();
 
     @Override

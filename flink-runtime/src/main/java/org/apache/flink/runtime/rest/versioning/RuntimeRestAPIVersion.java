@@ -18,38 +18,57 @@
 
 package org.apache.flink.runtime.rest.versioning;
 
-import java.util.Collection;
-import java.util.Collections;
+/**
+ * An enum for all versions of the REST API.
+ *
+ * <p>REST API versions are global and thus apply to every REST component.
+ *
+ * <p>Changes that must result in an API version increment include but are not limited to: -
+ * modification of a handler url - addition of new mandatory parameters - removal of a
+ * handler/request - modifications to request/response bodies (excluding additions)
+ */
+public enum RuntimeRestAPIVersion implements RestAPIVersion<RuntimeRestAPIVersion> {
+    // The bigger the ordinal(its position in enum declaration), the higher the level of the
+    // version.
+    V0(false, false), // strictly for testing purposes
+    V1(true, true);
 
-/** Interface for all versions of the REST API. */
-public interface RestAPIVersion<T extends RestAPIVersion<T>> extends Comparable<T> {
+    private final boolean isDefaultVersion;
+
+    private final boolean isStable;
+
+    RuntimeRestAPIVersion(boolean isDefaultVersion, boolean isStable) {
+        this.isDefaultVersion = isDefaultVersion;
+        this.isStable = isStable;
+    }
+
     /**
      * Returns the URL version prefix (e.g. "v1") for this version.
      *
      * @return URL version prefix
      */
-    String getURLVersionPrefix();
+    @Override
+    public String getURLVersionPrefix() {
+        return name().toLowerCase();
+    }
 
     /**
      * Returns whether this version is the default REST API version.
      *
      * @return whether this version is the default
      */
-    boolean isDefaultVersion();
+    @Override
+    public boolean isDefaultVersion() {
+        return isDefaultVersion;
+    }
 
     /**
      * Returns whether this version is considered stable.
      *
      * @return whether this version is stable
      */
-    boolean isStableVersion();
-
-    /**
-     * Accept versions and one of them as a comparator, and get the latest one.
-     *
-     * @return latest version that implement RestAPIVersion interface>
-     */
-    static <E extends RestAPIVersion<E>> E getLatestVersion(Collection<E> versions) {
-        return Collections.max(versions);
+    @Override
+    public boolean isStableVersion() {
+        return isStable;
     }
 }

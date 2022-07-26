@@ -22,7 +22,7 @@ import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EnvironmentInfo;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -31,7 +31,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
  * org.apache.flink.runtime.rest.handler.job.JobManagerJobEnvironmentHandler}.
  */
 public class JobManagerJobEnvironmentHeaders
-        implements MessageHeaders<EmptyRequestBody, EnvironmentInfo, JobMessageParameters> {
+        implements RuntimeMessageHeaders<EmptyRequestBody, EnvironmentInfo, JobMessageParameters> {
     private static final JobManagerJobEnvironmentHeaders INSTANCE =
             new JobManagerJobEnvironmentHeaders();
 

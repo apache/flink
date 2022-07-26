@@ -25,7 +25,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Message headers for the {@link JobManagerEnvironmentHandler}. */
 public class JobManagerEnvironmentHeaders
-        implements MessageHeaders<EmptyRequestBody, EnvironmentInfo, EmptyMessageParameters> {
+        implements RuntimeMessageHeaders<
+                EmptyRequestBody, EnvironmentInfo, EmptyMessageParameters> {
     private static final JobManagerEnvironmentHeaders INSTANCE = new JobManagerEnvironmentHeaders();
 
     public static final String JOB_MANAGER_ENV_REST_PATH = "/jobmanager/environment";
