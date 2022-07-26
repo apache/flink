@@ -99,8 +99,11 @@ public class MutableIOMetrics extends IOMetrics {
                 fetcher.update();
                 MetricStore.ComponentMetricStore metrics =
                         fetcher.getMetricStore()
-                                .getSubtaskMetricStore(
-                                        jobID, taskID, attempt.getParallelSubtaskIndex());
+                                .getSubtaskAttemptMetricStore(
+                                        jobID,
+                                        taskID,
+                                        attempt.getParallelSubtaskIndex(),
+                                        attempt.getAttemptNumber());
                 if (metrics != null) {
                     /**
                      * We want to keep track of missing metrics to be able to make a difference

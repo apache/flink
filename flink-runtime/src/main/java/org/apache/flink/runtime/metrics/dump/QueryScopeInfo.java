@@ -142,22 +142,30 @@ public abstract class QueryScopeInfo {
         public final String jobID;
         public final String vertexID;
         public final int subtaskIndex;
+        public final int attemptNumber;
 
-        public TaskQueryScopeInfo(String jobID, String vertexid, int subtaskIndex) {
-            this(jobID, vertexid, subtaskIndex, "");
+        public TaskQueryScopeInfo(
+                String jobID, String vertexid, int subtaskIndex, int attemptNumber) {
+            this(jobID, vertexid, subtaskIndex, attemptNumber, "");
         }
 
-        public TaskQueryScopeInfo(String jobID, String vertexid, int subtaskIndex, String scope) {
+        public TaskQueryScopeInfo(
+                String jobID, String vertexid, int subtaskIndex, int attemptNumber, String scope) {
             super(scope);
             this.jobID = jobID;
             this.vertexID = vertexid;
             this.subtaskIndex = subtaskIndex;
+            this.attemptNumber = attemptNumber;
         }
 
         @Override
         public TaskQueryScopeInfo copy(String additionalScope) {
             return new TaskQueryScopeInfo(
-                    this.jobID, this.vertexID, this.subtaskIndex, concatScopes(additionalScope));
+                    this.jobID,
+                    this.vertexID,
+                    this.subtaskIndex,
+                    this.attemptNumber,
+                    concatScopes(additionalScope));
         }
 
         @Override
@@ -174,23 +182,30 @@ public abstract class QueryScopeInfo {
         public final String jobID;
         public final String vertexID;
         public final int subtaskIndex;
+        public final int attemptNumber;
         public final String operatorName;
 
         public OperatorQueryScopeInfo(
-                String jobID, String vertexid, int subtaskIndex, String operatorName) {
-            this(jobID, vertexid, subtaskIndex, operatorName, "");
+                String jobID,
+                String vertexid,
+                int subtaskIndex,
+                int attemptNumber,
+                String operatorName) {
+            this(jobID, vertexid, subtaskIndex, attemptNumber, operatorName, "");
         }
 
         public OperatorQueryScopeInfo(
                 String jobID,
                 String vertexid,
                 int subtaskIndex,
+                int attemptNumber,
                 String operatorName,
                 String scope) {
             super(scope);
             this.jobID = jobID;
             this.vertexID = vertexid;
             this.subtaskIndex = subtaskIndex;
+            this.attemptNumber = attemptNumber;
             this.operatorName = operatorName;
         }
 
@@ -200,6 +215,7 @@ public abstract class QueryScopeInfo {
                     this.jobID,
                     this.vertexID,
                     this.subtaskIndex,
+                    this.attemptNumber,
                     this.operatorName,
                     concatScopes(additionalScope));
         }

@@ -94,7 +94,7 @@ class QueryScopeInfoTest {
     @Test
     void testTaskQueryScopeInfo() {
         QueryScopeInfo.TaskQueryScopeInfo info =
-                new QueryScopeInfo.TaskQueryScopeInfo("jobid", "taskid", 2);
+                new QueryScopeInfo.TaskQueryScopeInfo("jobid", "taskid", 2, 0);
         assertThat(info.getCategory()).isEqualTo(QueryScopeInfo.INFO_CATEGORY_TASK);
         assertThat(info.scope).isEmpty();
         assertThat(info.jobID).isEqualTo("jobid");
@@ -108,7 +108,7 @@ class QueryScopeInfoTest {
         assertThat(info.vertexID).isEqualTo("taskid");
         assertThat(info.subtaskIndex).isEqualTo(2);
 
-        info = new QueryScopeInfo.TaskQueryScopeInfo("jobid", "taskid", 2, "hello");
+        info = new QueryScopeInfo.TaskQueryScopeInfo("jobid", "taskid", 2, 0, "hello");
         assertThat(info.getCategory()).isEqualTo(QueryScopeInfo.INFO_CATEGORY_TASK);
         assertThat(info.scope).isEqualTo("hello");
         assertThat(info.jobID).isEqualTo("jobid");
@@ -126,7 +126,7 @@ class QueryScopeInfoTest {
     @Test
     void testOperatorQueryScopeInfo() {
         QueryScopeInfo.OperatorQueryScopeInfo info =
-                new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 2, "opname");
+                new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 2, 0, "opname");
         assertThat(info.getCategory()).isEqualTo(QueryScopeInfo.INFO_CATEGORY_OPERATOR);
         assertThat(info.scope).isEmpty();
         assertThat(info.jobID).isEqualTo("jobid");
@@ -142,7 +142,9 @@ class QueryScopeInfoTest {
         assertThat(info.operatorName).isEqualTo("opname");
         assertThat(info.subtaskIndex).isEqualTo(2);
 
-        info = new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 2, "opname", "hello");
+        info =
+                new QueryScopeInfo.OperatorQueryScopeInfo(
+                        "jobid", "taskid", 2, 0, "opname", "hello");
         assertThat(info.getCategory()).isEqualTo(QueryScopeInfo.INFO_CATEGORY_OPERATOR);
         assertThat(info.scope).isEqualTo("hello");
         assertThat(info.jobID).isEqualTo("jobid");

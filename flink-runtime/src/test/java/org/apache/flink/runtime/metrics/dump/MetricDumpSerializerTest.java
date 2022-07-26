@@ -159,11 +159,12 @@ class MetricDumpSerializerTest {
         gauges.put(
                 g1,
                 new Tuple2<QueryScopeInfo, String>(
-                        new QueryScopeInfo.TaskQueryScopeInfo("jid", "vid", 2, "D"), "g1"));
+                        new QueryScopeInfo.TaskQueryScopeInfo("jid", "vid", 2, 0, "D"), "g1"));
         histograms.put(
                 h1,
                 new Tuple2<QueryScopeInfo, String>(
-                        new QueryScopeInfo.OperatorQueryScopeInfo("jid", "vid", 2, "opname", "E"),
+                        new QueryScopeInfo.OperatorQueryScopeInfo(
+                                "jid", "vid", 2, 0, "opname", "E"),
                         "h1"));
 
         MetricDumpSerialization.MetricSerializationResult serialized =

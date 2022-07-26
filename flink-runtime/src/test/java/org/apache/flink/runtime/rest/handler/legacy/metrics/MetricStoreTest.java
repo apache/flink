@@ -24,6 +24,9 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -41,7 +44,18 @@ class MetricStoreTest {
         assertThat(store.getJobMetricStore("jobid").getMetric("abc.metric4", "-1")).isEqualTo("3");
 
         assertThat(store.getTaskMetricStore("jobid", "taskid").getMetric("8.abc.metric5", "-1"))
+                .isEqualTo("14");
+        assertThat(store.getSubtaskMetricStore("jobid", "taskid", 8).getMetric("abc.metric5", "-1"))
+                .isEqualTo("14");
+        assertThat(
+                        store.getSubtaskAttemptMetricStore("jobid", "taskid", 8, 1)
+                                .getMetric("abc.metric5", "-1"))
                 .isEqualTo("4");
+        assertThat(
+                        store.getSubtaskAttemptMetricStore("jobid", "taskid", 8, 2)
+                                .getMetric("abc.metric5", "-1"))
+                .isEqualTo("14");
+
         assertThat(
                         store.getTaskMetricStore("jobid", "taskid")
                                 .getMetric("8.opname.abc.metric6", "-1"))
@@ -50,6 +64,27 @@ class MetricStoreTest {
                         store.getTaskMetricStore("jobid", "taskid")
                                 .getMetric("8.opname.abc.metric7", "-1"))
                 .isEqualTo("6");
+        assertThat(
+                        store.getTaskMetricStore("jobid", "taskid")
+                                .getMetric("1.opname.abc.metric7", "-1"))
+                .isEqualTo("6");
+        assertThat(
+                        store.getSubtaskMetricStore("jobid", "taskid", 1)
+                                .getMetric("opname.abc.metric7", "-1"))
+                .isEqualTo("6");
+        assertThat(store.getSubtaskAttemptMetricStore("jobid", "taskid", 1, 2)).isNull();
+        assertThat(
+                        store.getSubtaskAttemptMetricStore("jobid", "taskid", 1, 3)
+                                .getMetric("opname.abc.metric7", "-1"))
+                .isEqualTo("6");
+        assertThat(
+                        store.getSubtaskAttemptMetricStore("jobid", "taskid", 8, 2)
+                                .getMetric("opname.abc.metric7", "-1"))
+                .isEqualTo("6");
+        assertThat(
+                        store.getSubtaskAttemptMetricStore("jobid", "taskid", 8, 4)
+                                .getMetric("opname.abc.metric7", "-1"))
+                .isEqualTo("16");
     }
 
     @Test
@@ -72,6 +107,11 @@ class MetricStoreTest {
     }
 
     static MetricStore setupStore(MetricStore store) {
+        Map<Integer, Integer> currentExecutionAttempts = new HashMap<>();
+        currentExecutionAttempts.put(8, 2);
+        store.getCurrentExecutionAttempts()
+                .put("jobid", Collections.singletonMap("taskid", currentExecutionAttempts));
+
         QueryScopeInfo.JobManagerQueryScopeInfo jm =
                 new QueryScopeInfo.JobManagerQueryScopeInfo("abc");
         MetricDump.CounterDump cd1 = new MetricDump.CounterDump(jm, "metric1", 0);
@@ -96,18 +136,29 @@ class MetricStoreTest {
         MetricDump.CounterDump cd42 = new MetricDump.CounterDump(job2, "metric4", 3);
 
         QueryScopeInfo.TaskQueryScopeInfo task =
-                new QueryScopeInfo.TaskQueryScopeInfo("jobid", "taskid", 8, "abc");
+                new QueryScopeInfo.TaskQueryScopeInfo("jobid", "taskid", 8, 1, "abc");
         MetricDump.CounterDump cd5 = new MetricDump.CounterDump(task, "metric5", 4);
 
+        QueryScopeInfo.TaskQueryScopeInfo speculativeTask =
+                new QueryScopeInfo.TaskQueryScopeInfo("jobid", "taskid", 8, 2, "abc");
+        MetricDump.CounterDump cd52 = new MetricDump.CounterDump(speculativeTask, "metric5", 14);
+
         QueryScopeInfo.OperatorQueryScopeInfo operator =
-                new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 8, "opname", "abc");
+                new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 8, 2, "opname", "abc");
         MetricDump.CounterDump cd6 = new MetricDump.CounterDump(operator, "metric6", 5);
         MetricDump.CounterDump cd7 = new MetricDump.CounterDump(operator, "metric7", 6);
 
         QueryScopeInfo.OperatorQueryScopeInfo operator2 =
-                new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 1, "opname", "abc");
+                new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 1, 3, "opname", "abc");
         MetricDump.CounterDump cd62 = new MetricDump.CounterDump(operator2, "metric6", 5);
         MetricDump.CounterDump cd72 = new MetricDump.CounterDump(operator2, "metric7", 6);
+
+        QueryScopeInfo.OperatorQueryScopeInfo speculativeOperator2 =
+                new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 8, 4, "opname", "abc");
+        MetricDump.CounterDump cd63 =
+                new MetricDump.CounterDump(speculativeOperator2, "metric6", 15);
+        MetricDump.CounterDump cd73 =
+                new MetricDump.CounterDump(speculativeOperator2, "metric7", 16);
 
         store.add(cd1);
         store.add(cd2);
@@ -124,6 +175,10 @@ class MetricStoreTest {
         store.add(cd22a);
         store.add(cd32);
         store.add(cd42);
+
+        store.add(cd52);
+        store.add(cd63);
+        store.add(cd73);
 
         return store;
     }
