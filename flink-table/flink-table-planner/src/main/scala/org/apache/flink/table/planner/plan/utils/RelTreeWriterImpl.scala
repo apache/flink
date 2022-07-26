@@ -17,11 +17,14 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.{Join, TableScan}
 import org.apache.calcite.rel.externalize.RelWriterImpl
+import org.apache.calcite.rel.hint.Hintable
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.util.Pair
 
@@ -38,7 +41,9 @@ class RelTreeWriterImpl(
     withChangelogTraits: Boolean = false,
     withRowType: Boolean = false,
     withTreeStyle: Boolean = true,
-    withUpsertKey: Boolean = false)
+    withUpsertKey: Boolean = false,
+    withJoinHint: Boolean = true,
+    withQueryBlockAlias: Boolean = false)
   extends RelWriterImpl(pw, explainLevel, withIdPrefix) {
 
   var lastChildren: Seq[Boolean] = Nil
@@ -101,6 +106,35 @@ class RelTreeWriterImpl(
                 .mkString(", ")))
         }
       case _ => // ignore
+    }
+
+    if (withJoinHint) {
+      rel match {
+        case join: Join =>
+          val joinHints = FlinkHints.getAllJoinHints(join.getHints)
+          if (joinHints.nonEmpty) {
+            printValues.add(Pair.of("joinHints", RelExplainUtil.hintsToString(joinHints)))
+          }
+        case _ => // ignore
+      }
+    }
+
+    if (withQueryBlockAlias) {
+      rel match {
+        case node: Hintable =>
+          node match {
+            case _: TableScan =>
+            // We don't need to pint hints about TableScan because TableScan will always
+            // print hints if exist. See more in such as LogicalTableScan#explainTerms
+            case _ =>
+              val queryBlockAliasHints = FlinkHints.getQueryBlockAliasHints(node.getHints)
+              if (queryBlockAliasHints.nonEmpty) {
+                printValues.add(
+                  Pair.of("hints", RelExplainUtil.hintsToString(queryBlockAliasHints)))
+              }
+          }
+        case _ => // ignore
+      }
     }
 
     if (!printValues.isEmpty) {

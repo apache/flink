@@ -18,8 +18,8 @@
 
 package org.apache.calcite.sql2rel;
 
-import org.apache.flink.table.planner.alias.SubQueryAliasNodeClearShuttle;
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSubQueryAlias;
+import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle;
+import org.apache.flink.table.planner.hint.FlinkHints;
 
 import org.apache.calcite.avatica.util.Spaces;
 import org.apache.calcite.linq4j.Ord;
@@ -598,8 +598,18 @@ public class SqlToRelConverter {
                 hints = SqlUtil.getRelHint(hintStrategies, select.getHints());
             }
         }
-        // propagate the hints.
+
         result = RelOptUtil.propagateRelHints(result, false);
+
+        // ----- FLINK MODIFICATION BEGIN -----
+
+        // clear join hints which are propagated into wrong query block
+        // The hint QueryBlockAlias will be added when building a RelNode tree before. It is used to
+        // distinguish the query block in the SQL.
+        result = result.accept(new ClearJoinHintWithInvalidPropagationShuttle());
+
+        // ----- FLINK MODIFICATION END -----
+
         return RelRoot.of(result, validatedRowType, query.getKind())
                 .withCollation(collation)
                 .withHints(hints);
@@ -2025,6 +2035,25 @@ public class SqlToRelConverter {
         convertFrom(bb, from, Collections.emptyList());
     }
 
+    // ----- FLINK MODIFICATION BEGIN -----
+
+    private boolean containsJoinHint = false;
+
+    /**
+     * To tell this converter that this SqlNode tree contains join hint and then a query block alias
+     * will be attached to the root node of the query block.
+     *
+     * <p>The `containsJoinHint` is false default to be compatible with previous behavior and then
+     * planner can reuse some node.
+     *
+     * <p>TODO At present, it is a relatively hacked way
+     */
+    public void containsJoinHint() {
+        containsJoinHint = true;
+    }
+
+    // ----- FLINK MODIFICATION END -----
+
     /**
      * Converts a FROM clause into a relational expression.
      *
@@ -2061,6 +2090,36 @@ public class SqlToRelConverter {
                     }
                 }
                 convertFrom(bb, firstOperand, fieldNameList);
+
+                // ----- FLINK MODIFICATION BEGIN -----
+
+                // Add a query-block alias hint to distinguish different query levels
+                // Due to Calcite will expand the whole SQL Rel Node tree that contains query block,
+                // but sometimes the query block should be perceived such as join hint propagation.
+                // TODO add query-block alias hint in SqlNode instead of here
+                if (containsJoinHint) {
+                    RelNode root = bb.root;
+
+                    if (root instanceof Hintable) {
+                        RelHint queryBlockAliasHint =
+                                RelHint.builder(FlinkHints.HINT_ALIAS)
+                                        .hintOption(call.operand(1).toString())
+                                        .build();
+                        RelNode newRoot =
+                                ((Hintable) root)
+                                        .attachHints(
+                                                Collections.singletonList(queryBlockAliasHint));
+                        boolean isLeaf = leaves.containsKey(root);
+                        if (isLeaf) {
+                            // remove old root node
+                            leaves.remove(root);
+                        }
+
+                        bb.setRoot(newRoot, isLeaf);
+                    }
+                }
+
+                // ----- FLINK MODIFICATION END -----
                 return;
 
             case MATCH_RECOGNIZE:

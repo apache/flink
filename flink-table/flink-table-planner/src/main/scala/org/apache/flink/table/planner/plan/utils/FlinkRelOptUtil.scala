@@ -70,7 +70,8 @@ object FlinkRelOptUtil {
       withIdPrefix: Boolean = false,
       withChangelogTraits: Boolean = false,
       withRowType: Boolean = false,
-      withUpsertKey: Boolean = false): String = {
+      withUpsertKey: Boolean = false,
+      withQueryBlockAlias: Boolean = false): String = {
     if (rel == null) {
       return null
     }
@@ -82,7 +83,9 @@ object FlinkRelOptUtil {
       withChangelogTraits,
       withRowType,
       withTreeStyle = true,
-      withUpsertKey)
+      withUpsertKey,
+      withJoinHint = true,
+      withQueryBlockAlias)
     rel.explain(planWriter)
     sw.toString
   }
@@ -143,7 +146,8 @@ object FlinkRelOptUtil {
         // expressions have different types
         withRowType = true,
         // ignore tree style, only contains RelNode's attributes
-        withTreeStyle = false))
+        withTreeStyle = false,
+        withJoinHint = true))
     sw.toString
   }
 
