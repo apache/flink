@@ -189,16 +189,15 @@ public class HiveCatalog extends AbstractCatalog {
             @Nullable String hiveVersion) {
         this(
                 catalogName,
-                defaultDatabase == null ? DEFAULT_DB : defaultDatabase,
+                defaultDatabase,
                 hiveConf,
                 isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion,
                 false);
     }
 
-    @VisibleForTesting
-    protected HiveCatalog(
+    public HiveCatalog(
             String catalogName,
-            String defaultDatabase,
+            @Nullable String defaultDatabase,
             @Nullable HiveConf hiveConf,
             String hiveVersion,
             boolean allowEmbedded) {
@@ -221,8 +220,8 @@ public class HiveCatalog extends AbstractCatalog {
         LOG.info("Created HiveCatalog '{}'", catalogName);
     }
 
-    @VisibleForTesting
-    static HiveConf createHiveConf(@Nullable String hiveConfDir, @Nullable String hadoopConfDir) {
+    public static HiveConf createHiveConf(
+            @Nullable String hiveConfDir, @Nullable String hadoopConfDir) {
         // create HiveConf from hadoop configuration with hadoop conf directory configured.
         Configuration hadoopConf = null;
         if (isNullOrWhitespaceOnly(hadoopConfDir)) {

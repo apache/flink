@@ -36,7 +36,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createRowTypeCoderInfoDescriptorProto;
+import static org.apache.flink.python.util.ProtoUtils.createRowTypeCoderInfoDescriptorProto;
 
 /**
  * A {@link PassThroughStreamAggregatePythonFunctionRunner} runner that help to test the Python

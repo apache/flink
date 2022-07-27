@@ -16,11 +16,6 @@
  * limitations under the License.
  */
 
-export interface JobManagerConfig {
-  key: string;
-  value: string;
-}
-
 export interface JobManagerLogItem {
   name: string;
   size: number;

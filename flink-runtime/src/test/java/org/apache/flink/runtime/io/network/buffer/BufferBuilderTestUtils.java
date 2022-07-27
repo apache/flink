@@ -27,7 +27,7 @@ import java.nio.ByteOrder;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 
-/** Utility class for create not-pooled {@link BufferBuilder}. */
+/** Utility class for create {@link BufferBuilder}, {@link BufferConsumer} and {@link Buffer}. */
 public class BufferBuilderTestUtils {
     public static final int BUFFER_SIZE = 32 * 1024;
 
@@ -121,6 +121,26 @@ public class BufferBuilderTestUtils {
 
         for (int i = 0; i < numInts; i++) {
             assertEquals(nextValue++, bb.getInt());
+        }
+    }
+
+    public static Buffer buildBufferWithAscendingLongs(
+            int bufferSize, int numLongs, long nextValue) {
+        final MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
+        for (int i = 0; i < numLongs; i++) {
+            seg.putLongLittleEndian(8 * i, nextValue++);
+        }
+
+        return new NetworkBuffer(
+                seg, MemorySegment::free, Buffer.DataType.DATA_BUFFER, 8 * numLongs);
+    }
+
+    public static void validateBufferWithAscendingLongs(
+            Buffer buffer, int numLongs, long nextValue) {
+        final ByteBuffer bb = buffer.getNioBufferReadable().order(ByteOrder.LITTLE_ENDIAN);
+
+        for (int i = 0; i < numLongs; i++) {
+            assertEquals(nextValue++, bb.getLong());
         }
     }
 

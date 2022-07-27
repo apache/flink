@@ -415,6 +415,11 @@ class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks[MyEvent] 
 }
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+目前在python中不支持该api
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 <a name="writing-a-punctuated-watermarkgenerator"></a>
@@ -460,6 +465,11 @@ class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks[MyEvent] {
 }
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+Python API 中尚不支持该特性。
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 {{< hint warning >}}
@@ -497,6 +507,17 @@ kafkaSource.assignTimestampsAndWatermarks(
     .forBoundedOutOfOrderness(Duration.ofSeconds(20)))
 
 val stream: DataStream[MyType] = env.addSource(kafkaSource)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+kafka_source = FlinkKafkaConsumer("timer-stream-source", schema, props)
+
+stream = env
+    .add_source(kafka_source)
+    .assign_timestamps_and_watermarks(
+        WatermarkStrategy
+            .for_bounded_out_of_orderness(Duration.of_seconds(20)))
 ```
 {{< /tab >}}
 {{< /tabs >}}

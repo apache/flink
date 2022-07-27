@@ -25,6 +25,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
@@ -108,6 +109,10 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
                 configuration.get(ResourceManagerOptions.START_WORKER_RETRY_INTERVAL);
         final Duration workerRegistrationTimeout =
                 configuration.get(ResourceManagerOptions.TASK_MANAGER_REGISTRATION_TIMEOUT);
+        final Duration previousWorkerRecoverTimeout =
+                configuration.get(
+                        ResourceManagerOptions.RESOURCE_MANAGER_PREVIOUS_WORKER_RECOVERY_TIMEOUT);
+
         return new ActiveResourceManager<>(
                 createResourceManagerDriver(
                         configuration, webInterfaceUrl, rpcService.getAddress()),
@@ -119,6 +124,7 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
                 delegationTokenManager,
                 resourceManagerRuntimeServices.getSlotManager(),
                 ResourceManagerPartitionTrackerImpl::new,
+                BlocklistUtils.loadBlocklistHandlerFactory(configuration),
                 resourceManagerRuntimeServices.getJobLeaderIdService(),
                 clusterInformation,
                 fatalErrorHandler,
@@ -126,6 +132,7 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
                 failureRater,
                 retryInterval,
                 workerRegistrationTimeout,
+                previousWorkerRecoverTimeout,
                 ioExecutor);
     }
 

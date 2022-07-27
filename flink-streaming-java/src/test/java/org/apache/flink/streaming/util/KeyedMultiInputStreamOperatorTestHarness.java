@@ -39,6 +39,7 @@ public class KeyedMultiInputStreamOperatorTestHarness<KEY, OUT>
             StreamOperatorFactory<OUT> operator, TypeInformation<KEY> keyType) throws Exception {
         this(operator, 1, 1, 0);
         config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+        config.serializeAllConfigs();
     }
 
     public KeyedMultiInputStreamOperatorTestHarness(
@@ -53,5 +54,6 @@ public class KeyedMultiInputStreamOperatorTestHarness<KEY, OUT>
     public void setKeySelector(int idx, KeySelector<?, KEY> keySelector) {
         ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
         config.setStatePartitioner(idx, keySelector);
+        config.serializeAllConfigs();
     }
 }

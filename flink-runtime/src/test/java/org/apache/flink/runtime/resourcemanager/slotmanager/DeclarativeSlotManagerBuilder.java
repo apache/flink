@@ -22,6 +22,7 @@ import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -181,8 +182,18 @@ public class DeclarativeSlotManagerBuilder {
             ResourceManagerId resourceManagerId,
             Executor executor,
             ResourceActions resourceManagerActions) {
+        return buildAndStart(
+                resourceManagerId, executor, resourceManagerActions, resourceID -> false);
+    }
+
+    public DeclarativeSlotManager buildAndStart(
+            ResourceManagerId resourceManagerId,
+            Executor executor,
+            ResourceActions resourceManagerActions,
+            BlockedTaskManagerChecker blockedTaskManagerChecker) {
         final DeclarativeSlotManager slotManager = build();
-        slotManager.start(resourceManagerId, executor, resourceManagerActions);
+        slotManager.start(
+                resourceManagerId, executor, resourceManagerActions, blockedTaskManagerChecker);
         return slotManager;
     }
 }

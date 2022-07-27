@@ -444,6 +444,21 @@ object ScalarOperatorGens {
     }
   }
 
+  def generateIsDistinctFrom(
+      ctx: CodeGeneratorContext,
+      left: GeneratedExpression,
+      right: GeneratedExpression,
+      resultType: LogicalType): GeneratedExpression = {
+    generateAnd(
+      generateOr(
+        generateIsNotNull(left, new BooleanType(false)),
+        generateIsNotNull(right, new BooleanType(false)),
+        resultType),
+      generateIsNotTrue(generateEquals(ctx, left, right, resultType), new BooleanType(false)),
+      resultType
+    )
+  }
+
   def generateIsNotDistinctFrom(
       ctx: CodeGeneratorContext,
       left: GeneratedExpression,
@@ -454,7 +469,7 @@ object ScalarOperatorGens {
         generateIsNull(left, new BooleanType(false)),
         generateIsNull(right, new BooleanType(false)),
         resultType),
-      generateEquals(ctx, left, right, resultType),
+      generateIsTrue(generateEquals(ctx, left, right, resultType), new BooleanType(false)),
       resultType
     )
   }

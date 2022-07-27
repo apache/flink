@@ -24,8 +24,8 @@ from pyflink.table.types import RowType, _to_java_data_type
 
 class AvroParquetReaders(object):
     """
-    A convenience builder to create AvroParquetRecordFormat instances for the different kinds of
-    Avro record types. Only GenericRecord is supported in PyFlink.
+    A convenience builder to create reader format that reads individual Avro records from a
+    Parquet stream. Only GenericRecord is supported in PyFlink.
 
     .. versionadded:: 1.16.0
     """

@@ -76,7 +76,10 @@ import java.util.function.Supplier;
  *     .build();
  * }</pre>
  *
- * <p>See {@link KafkaSourceBuilder} for more details.
+ * <p>{@link org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumerator} only supports
+ * adding new splits and not removing splits in split discovery.
+ *
+ * <p>See {@link KafkaSourceBuilder} for more details on how to configure this source.
  *
  * @param <OUT> the output type of the source.
  */
@@ -224,5 +227,10 @@ public class KafkaSource<OUT>
     @VisibleForTesting
     Configuration getConfiguration() {
         return toConfiguration(props);
+    }
+
+    @VisibleForTesting
+    KafkaSubscriber getKafkaSubscriber() {
+        return subscriber;
     }
 }

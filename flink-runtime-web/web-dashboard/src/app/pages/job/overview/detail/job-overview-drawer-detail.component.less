@@ -17,37 +17,51 @@
  */
 @import "theme";
 
-nz-form-label {
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
   ::ng-deep {
-    label {
-      font-size: 12px;
+    .ant-divider-horizontal {
+      margin: 0;
     }
   }
-}
 
-:host {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
+  .name {
+    overflow: auto;
+    max-height: 120px;
+    padding: @padding-xs @padding-sm;
+    font-size: @font-size-sm;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
 
-.name {
-  margin-bottom: 12px;
-  padding: 12px;
-  border-bottom: solid 1px @border-color-split;
-  background: @background-color-light;
-  font-size: 12px;
-  word-break: break-all;
-}
+  .wrapper {
+    flex: 1;
 
-.name-multi-line {
-  white-space: pre;
-}
+    dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      grid-gap: 0.75rem 2rem;
+      margin-bottom: 0;
+      padding: @padding-lg;
+      font-size: @font-size-sm;
 
-nz-form-item {
-  margin-bottom: @margin-sm;
-}
+      dd {
+        font-weight: 500;
+      }
 
-nz-form-text {
-  font-size: 12px;
+      dt {
+        position: relative;
+        font-weight: normal;
+
+        &::before {
+          content: ":";
+          position: absolute;
+          left: -1rem;
+        }
+      }
+    }
+  }
 }

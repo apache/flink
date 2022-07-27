@@ -27,7 +27,6 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
-import org.apache.flink.util.function.QuadConsumer;
 import org.apache.flink.util.function.QuadFunction;
 import org.apache.flink.util.function.TriFunction;
 
@@ -57,8 +56,12 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
                     Collection<SlotOffer>>
             offerSlotsFunction;
 
-    private final QuadConsumer<
-                    Collection<? extends SlotOffer>, TaskManagerLocation, TaskManagerGateway, Long>
+    private final QuadFunction<
+                    Collection<? extends SlotOffer>,
+                    TaskManagerLocation,
+                    TaskManagerGateway,
+                    Long,
+                    Collection<SlotOffer>>
             registerSlotsFunction;
 
     private final Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier;
@@ -93,11 +96,12 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
                             Long,
                             Collection<SlotOffer>>
                     offerSlotsFunction,
-            QuadConsumer<
+            QuadFunction<
                             Collection<? extends SlotOffer>,
                             TaskManagerLocation,
                             TaskManagerGateway,
-                            Long>
+                            Long,
+                            Collection<SlotOffer>>
                     registerSlotsFunction,
             Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier,
             Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier,
@@ -157,12 +161,13 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
-    public void registerSlots(
+    public Collection<SlotOffer> registerSlots(
             Collection<? extends SlotOffer> slots,
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,
             long currentTime) {
-        registerSlotsFunction.accept(slots, taskManagerLocation, taskManagerGateway, currentTime);
+        return registerSlotsFunction.apply(
+                slots, taskManagerLocation, taskManagerGateway, currentTime);
     }
 
     @Override

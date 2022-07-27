@@ -15,32 +15,42 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import abc
 import warnings
+from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Dict, Union, List, Set
+from typing import Dict, Union, List, Set, Callable, Any, Optional
 
 from py4j.java_gateway import JavaObject, get_java_class
 
-from pyflink.common import DeserializationSchema, TypeInformation, typeinfo, SerializationSchema
-from pyflink.datastream.connectors import Source
+from pyflink.common import DeserializationSchema, TypeInformation, typeinfo, SerializationSchema, \
+    Types, Row
+from pyflink.datastream.connectors import Source, Sink
+from pyflink.datastream.connectors.base import DeliveryGuarantee, SupportPreprocessing, \
+    TransformAppender
 from pyflink.datastream.functions import SinkFunction, SourceFunction
 from pyflink.java_gateway import get_gateway
-from pyflink.util.java_utils import to_jarray
-
+from pyflink.util.java_utils import to_jarray, get_field, get_field_value
 
 __all__ = [
-    'KafkaOffsetResetStrategy',
-    'KafkaOffsetsInitializer',
+    'FlinkKafkaConsumer',
+    'FlinkKafkaProducer',
+    'Semantic',
     'KafkaSource',
     'KafkaSourceBuilder',
     'KafkaTopicPartition',
+    'KafkaOffsetsInitializer',
+    'KafkaOffsetResetStrategy',
+    'KafkaSink',
+    'KafkaSinkBuilder',
+    'KafkaRecordSerializationSchema',
+    'KafkaRecordSerializationSchemaBuilder',
+    'KafkaTopicSelector',
 ]
 
 
 # ---- FlinkKafkaConsumer ----
 
-class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
+class FlinkKafkaConsumerBase(SourceFunction, ABC):
     """
     Base class of all Flink Kafka Consumer data sources. This implements the common behavior across
     all kafka versions.
@@ -241,7 +251,7 @@ class Semantic(Enum):
         return getattr(JSemantic, self.name)
 
 
-class FlinkKafkaProducerBase(SinkFunction, abc.ABC):
+class FlinkKafkaProducerBase(SinkFunction, ABC):
     """
     Flink Sink to produce data into a Kafka topic.
 
@@ -816,3 +826,337 @@ class KafkaOffsetsInitializer(object):
             enumerator.initializer.OffsetsInitializer
         return KafkaOffsetsInitializer(JOffsetsInitializer.offsets(
             j_map_wrapper.asMap(), offset_reset_strategy._to_j_offset_reset_strategy()))
+
+
+class KafkaSink(Sink, SupportPreprocessing):
+    """
+    Flink Sink to produce data into a Kafka topic. The sink supports all delivery guarantees
+    described by :class:`DeliveryGuarantee`.
+
+    * :attr:`DeliveryGuarantee.NONE` does not provide any guarantees: messages may be lost in case
+      of issues on the Kafka broker and messages may be duplicated in case of a Flink failure.
+    * :attr:`DeliveryGuarantee.AT_LEAST_ONCE` the sink will wait for all outstanding records in the
+      Kafka buffers to be acknowledged by the Kafka producer on a checkpoint. No messages will be
+      lost in case of any issue with the Kafka brokers but messages may be duplicated when Flink
+      restarts.
+    * :attr:`DeliveryGuarantee.EXACTLY_ONCE`: In this mode the KafkaSink will write all messages in
+      a Kafka transaction that will be committed to Kafka on a checkpoint. Thus, if the consumer
+      reads only committed data (see Kafka consumer config ``isolation.level``), no duplicates
+      will be seen in case of a Flink restart. However, this delays record writing effectively
+      until a checkpoint is written, so adjust the checkpoint duration accordingly. Please ensure
+      that you use unique transactional id prefixes across your applications running on the same
+      Kafka cluster such that multiple running jobs do not interfere in their transactions!
+      Additionally, it is highly recommended to tweak Kafka transaction timeout (link) >> maximum
+      checkpoint duration + maximum restart duration or data loss may happen when Kafka expires an
+      uncommitted transaction.
+
+    .. versionadded:: 1.16.0
+    """
+
+    def __init__(self, j_kafka_sink, preprocessing: TransformAppender = None):
+        super().__init__(j_kafka_sink)
+        self._preprocessing = preprocessing
+
+    @staticmethod
+    def builder() -> 'KafkaSinkBuilder':
+        """
+        Create a :class:`KafkaSinkBuilder` to construct :class:`KafkaSink`.
+        """
+        return KafkaSinkBuilder()
+
+    def need_preprocessing(self) -> bool:
+        return self._preprocessing is not None
+
+    def get_preprocessing(self) -> TransformAppender:
+        return self._preprocessing
+
+
+class KafkaSinkBuilder(object):
+    """
+    Builder to construct :class:`KafkaSink`.
+
+    The following example shows the minimum setup to create a KafkaSink that writes String values
+    to a Kafka topic.
+
+    ::
+
+        >>> record_serializer = KafkaRecordSerializationSchema.builder() \\
+        ...     .set_topic(MY_SINK_TOPIC) \\
+        ...     .set_value_serialization_schema(SimpleStringSchema()) \\
+        ...     .build()
+        >>> sink = KafkaSink.builder() \\
+        ...     .set_bootstrap_servers(MY_BOOTSTRAP_SERVERS) \\
+        ...     .set_record_serializer(record_serializer) \\
+        ...     .build()
+
+    One can also configure different :class:`DeliveryGuarantee` by using
+    :meth:`set_delivery_guarantee` but keep in mind when using
+    :attr:`DeliveryGuarantee.EXACTLY_ONCE`, one must set the transactional id prefix
+    :meth:`set_transactional_id_prefix`.
+
+    .. versionadded:: 1.16.0
+    """
+
+    def __init__(self):
+        jvm = get_gateway().jvm
+        self._j_builder = jvm.org.apache.flink.connector.kafka.sink.KafkaSink.builder()
+        self._preprocessing = None
+
+    def build(self) -> 'KafkaSink':
+        """
+        Constructs the :class:`KafkaSink` with the configured properties.
+        """
+        return KafkaSink(self._j_builder.build(), self._preprocessing)
+
+    def set_bootstrap_servers(self, bootstrap_servers: str) -> 'KafkaSinkBuilder':
+        """
+        Sets the Kafka bootstrap servers.
+
+        :param bootstrap_servers: A comma separated list of valid URIs to reach the Kafka broker.
+        """
+        self._j_builder.setBootstrapServers(bootstrap_servers)
+        return self
+
+    def set_delivery_guarantee(self, delivery_guarantee: DeliveryGuarantee) -> 'KafkaSinkBuilder':
+        """
+        Sets the wanted :class:`DeliveryGuarantee`. The default delivery guarantee is
+        :attr:`DeliveryGuarantee.NONE`.
+
+        :param delivery_guarantee: The wanted :class:`DeliveryGuarantee`.
+        """
+        self._j_builder.setDeliveryGuarantee(delivery_guarantee._to_j_delivery_guarantee())
+        return self
+
+    def set_transactional_id_prefix(self, transactional_id_prefix: str) -> 'KafkaSinkBuilder':
+        """
+        Sets the prefix for all created transactionalIds if :attr:`DeliveryGuarantee.EXACTLY_ONCE`
+        is configured.
+
+        It is mandatory to always set this value with :attr:`DeliveryGuarantee.EXACTLY_ONCE` to
+        prevent corrupted transactions if multiple jobs using the KafkaSink run against the same
+        Kafka Cluster. The default prefix is ``"kafka-sink"``.
+
+        The size of the prefix is capped by MAXIMUM_PREFIX_BYTES (6400) formatted with UTF-8.
+
+        It is important to keep the prefix stable across application restarts. If the prefix changes
+        it might happen that lingering transactions are not correctly aborted and newly written
+        messages are not immediately consumable until transactions timeout.
+
+        :param transactional_id_prefix: The transactional id prefix.
+        """
+        self._j_builder.setTransactionalIdPrefix(transactional_id_prefix)
+        return self
+
+    def set_record_serializer(self, record_serializer: 'KafkaRecordSerializationSchema') \
+            -> 'KafkaSinkBuilder':
+        """
+        Sets the :class:`KafkaRecordSerializationSchema` that transforms incoming records to kafka
+        producer records.
+
+        :param record_serializer: The :class:`KafkaRecordSerializationSchema`.
+        """
+        # NOTE: If topic selector is a generated first-column selector, do extra preprocessing
+        j_topic_selector = get_field_value(record_serializer._j_serialization_schema,
+                                           'topicSelector')
+        if (
+            j_topic_selector.getClass().getCanonicalName() ==
+            'org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchemaBuilder.'
+            'CachingTopicSelector'
+        ) and (
+            get_field_value(j_topic_selector, 'topicSelector').getClass().getCanonicalName()
+                .startswith('com.sun.proxy')
+        ):
+            record_serializer._wrap_serialization_schema()
+            self._preprocessing = record_serializer._build_preprocessing()
+
+        self._j_builder.setRecordSerializer(record_serializer._j_serialization_schema)
+        return self
+
+    def set_property(self, key: str, value: str) -> 'KafkaSinkBuilder':
+        """
+        Sets kafka producer config.
+
+        :param key: Kafka producer config key.
+        :param value: Kafka producer config value.
+        """
+        self._j_builder.setProperty(key, value)
+        return self
+
+
+class KafkaRecordSerializationSchema(SerializationSchema):
+    """
+    A serialization schema which defines how to convert the stream record to kafka producer record.
+
+    .. versionadded:: 1.16.0
+    """
+
+    def __init__(self, j_serialization_schema,
+                 topic_selector: Optional['KafkaTopicSelector'] = None):
+        super().__init__(j_serialization_schema)
+        self._topic_selector = topic_selector
+
+    @staticmethod
+    def builder() -> 'KafkaRecordSerializationSchemaBuilder':
+        """
+        Creates a default schema builder to provide common building blocks i.e. key serialization,
+        value serialization, topic selection.
+        """
+        return KafkaRecordSerializationSchemaBuilder()
+
+    def _wrap_serialization_schema(self):
+        jvm = get_gateway().jvm
+
+        def _wrap_schema(field_name):
+            j_schema_field = get_field(self._j_serialization_schema.getClass(), field_name)
+            if j_schema_field.get(self._j_serialization_schema) is not None:
+                j_schema_field.set(
+                    self._j_serialization_schema,
+                    jvm.org.apache.flink.python.util.PythonConnectorUtils
+                    .SecondColumnSerializationSchema(
+                        j_schema_field.get(self._j_serialization_schema)
+                    )
+                )
+
+        _wrap_schema('keySerializationSchema')
+        _wrap_schema('valueSerializationSchema')
+
+    def _build_preprocessing(self) -> TransformAppender:
+        class TopicSelectorTransformAppender(TransformAppender):
+
+            def __init__(self, topic_selector: KafkaTopicSelector):
+                self._topic_selector = topic_selector
+
+            def apply(self, ds):
+                output_type = Types.ROW([Types.STRING(), ds.get_type()])
+                return ds.map(lambda v: Row(self._topic_selector.apply(v), v),
+                              output_type=output_type)
+
+        return TopicSelectorTransformAppender(self._topic_selector)
+
+
+class KafkaRecordSerializationSchemaBuilder(object):
+    """
+    Builder to construct :class:`KafkaRecordSerializationSchema`.
+
+    Example:
+    ::
+
+        >>> KafkaRecordSerializationSchema.builder() \\
+        ...     .set_topic('topic') \\
+        ...     .set_key_serialization_schema(SimpleStringSchema()) \\
+        ...     .set_value_serialization_schema(SimpleStringSchema()) \\
+        ...     .build()
+
+    And the sink topic can be calculated dynamically from each record:
+    ::
+
+        >>> KafkaRecordSerializationSchema.builder() \\
+        ...     .set_topic_selector(lambda row: 'topic-' + row['category']) \\
+        ...     .set_value_serialization_schema(
+        ...         JsonRowSerializationSchema.builder().with_type_info(ROW_TYPE).build()) \\
+        ...     .build()
+
+    It is necessary to configure exactly one serialization method for the value and a topic.
+
+    .. versionadded:: 1.16.0
+    """
+
+    def __init__(self):
+        jvm = get_gateway().jvm
+        self._j_builder = jvm.org.apache.flink.connector.kafka.sink \
+            .KafkaRecordSerializationSchemaBuilder()
+        self._fixed_topic = True  # type: bool
+        self._topic_selector = None  # type: Optional[KafkaTopicSelector]
+        self._key_serialization_schema = None  # type: Optional[SerializationSchema]
+        self._value_serialization_schema = None  # type: Optional[SerializationSchema]
+
+    def build(self) -> 'KafkaRecordSerializationSchema':
+        """
+        Constructs the :class:`KafkaRecordSerializationSchemaBuilder` with the configured
+        properties.
+        """
+        if self._fixed_topic:
+            return KafkaRecordSerializationSchema(self._j_builder.build())
+        else:
+            return KafkaRecordSerializationSchema(self._j_builder.build(), self._topic_selector)
+
+    def set_topic(self, topic: str) -> 'KafkaRecordSerializationSchemaBuilder':
+        """
+        Sets a fixed topic which used as destination for all records.
+
+        :param topic: The fixed topic.
+        """
+        self._j_builder.setTopic(topic)
+        self._fixed_topic = True
+        return self
+
+    def set_topic_selector(self, topic_selector: Union[Callable[[Any], str], 'KafkaTopicSelector'])\
+            -> 'KafkaRecordSerializationSchemaBuilder':
+        """
+        Sets a topic selector which computes the target topic for every incoming record.
+
+        :param topic_selector: A :class:`KafkaTopicSelector` implementation or a function that
+            consumes each incoming record and return the topic string.
+        """
+        if not isinstance(topic_selector, KafkaTopicSelector) and not callable(topic_selector):
+            raise TypeError('topic_selector must be KafkaTopicSelector or a callable')
+        if not isinstance(topic_selector, KafkaTopicSelector):
+            class TopicSelectorFunctionAdapter(KafkaTopicSelector):
+
+                def __init__(self, f: Callable[[Any], str]):
+                    self._f = f
+
+                def apply(self, data) -> str:
+                    return self._f(data)
+
+            topic_selector = TopicSelectorFunctionAdapter(topic_selector)
+
+        jvm = get_gateway().jvm
+        self._j_builder.setTopicSelector(
+            jvm.org.apache.flink.python.util.PythonConnectorUtils.createFirstColumnTopicSelector(
+                get_java_class(jvm.org.apache.flink.connector.kafka.sink.TopicSelector)
+            )
+        )
+        self._fixed_topic = False
+        self._topic_selector = topic_selector
+        return self
+
+    def set_key_serialization_schema(self, key_serialization_schema: SerializationSchema) \
+            -> 'KafkaRecordSerializationSchemaBuilder':
+        """
+        Sets a :class:`SerializationSchema` which is used to serialize the incoming element to the
+        key of the producer record. The key serialization is optional, if not set, the key of the
+        producer record will be null.
+
+        :param key_serialization_schema: The :class:`SerializationSchema` to serialize each incoming
+            record as the key of producer record.
+        """
+        self._key_serialization_schema = key_serialization_schema
+        self._j_builder.setKeySerializationSchema(key_serialization_schema._j_serialization_schema)
+        return self
+
+    def set_value_serialization_schema(self, value_serialization_schema: SerializationSchema) \
+            -> 'KafkaRecordSerializationSchemaBuilder':
+        """
+        Sets a :class:`SerializationSchema` which is used to serialize the incoming element to the
+        value of the producer record. The value serialization is required.
+
+        :param value_serialization_schema: The :class:`SerializationSchema` to serialize each data
+            record as the key of producer record.
+        """
+        self._value_serialization_schema = value_serialization_schema
+        self._j_builder.setValueSerializationSchema(
+            value_serialization_schema._j_serialization_schema)
+        return self
+
+
+class KafkaTopicSelector(ABC):
+    """
+    Select topic for an incoming record
+
+    .. versionadded:: 1.16.0
+    """
+
+    @abstractmethod
+    def apply(self, data) -> str:
+        pass

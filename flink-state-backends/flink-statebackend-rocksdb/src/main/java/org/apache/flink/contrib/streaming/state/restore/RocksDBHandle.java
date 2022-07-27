@@ -143,7 +143,8 @@ class RocksDBHandle implements AutoCloseable {
         // init native metrics monitor if configured
         nativeMetricMonitor =
                 nativeMetricOptions.isEnabled()
-                        ? new RocksDBNativeMetricMonitor(nativeMetricOptions, metricGroup, db)
+                        ? new RocksDBNativeMetricMonitor(
+                                nativeMetricOptions, metricGroup, db, dbOptions.statistics())
                         : null;
     }
 

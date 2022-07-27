@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -27,6 +28,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +44,11 @@ import static org.apache.flink.util.Preconditions.checkState;
 /** The ExecutionVertex which supports speculative execution. */
 public class SpeculativeExecutionVertex extends ExecutionVertex {
 
-    private final Map<ExecutionAttemptID, Execution> currentExecutions;
+    private final Map<Integer, Execution> currentExecutions;
+
+    private int originalAttemptNumber;
+
+    final Map<Integer, Integer> nextInputSplitIndexToConsumeByAttempts;
 
     public SpeculativeExecutionVertex(
             ExecutionJobVertex jobVertex,
@@ -62,7 +68,9 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
                 initialAttemptCount);
 
         this.currentExecutions = new LinkedHashMap<>();
-        this.currentExecutions.put(currentExecution.getAttemptId(), currentExecution);
+        this.currentExecutions.put(currentExecution.getAttemptNumber(), currentExecution);
+        this.originalAttemptNumber = currentExecution.getAttemptNumber();
+        this.nextInputSplitIndexToConsumeByAttempts = new HashMap<>();
     }
 
     public boolean containsSources() {
@@ -76,13 +84,26 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
     public Execution createNewSpeculativeExecution(final long timestamp) {
         final Execution newExecution = createNewExecution(timestamp);
         getExecutionGraphAccessor().registerExecution(newExecution);
-        currentExecutions.put(newExecution.getAttemptId(), newExecution);
+        currentExecutions.put(newExecution.getAttemptNumber(), newExecution);
         return newExecution;
+    }
+
+    /**
+     * Returns whether the given attempt is the original execution attempt of the execution vertex,
+     * i.e. it is created along with the creation of resetting of the execution vertex.
+     */
+    public boolean isOriginalAttempt(int attemptNumber) {
+        return attemptNumber == originalAttemptNumber;
     }
 
     @Override
     public Collection<Execution> getCurrentExecutions() {
         return Collections.unmodifiableCollection(currentExecutions.values());
+    }
+
+    @Override
+    public Execution getCurrentExecution(int attemptNumber) {
+        return checkNotNull(currentExecutions.get(attemptNumber));
     }
 
     @Override
@@ -137,7 +158,9 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
         super.resetForNewExecution();
 
         currentExecutions.clear();
-        currentExecutions.put(currentExecution.getAttemptId(), currentExecution);
+        currentExecutions.put(currentExecution.getAttemptNumber(), currentExecution);
+        originalAttemptNumber = currentExecution.getAttemptNumber();
+        nextInputSplitIndexToConsumeByAttempts.clear();
     }
 
     @Override
@@ -161,7 +184,9 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
             return;
         }
 
-        final Execution removedExecution = this.currentExecutions.remove(executionAttemptId);
+        final Execution removedExecution =
+                this.currentExecutions.remove(executionAttemptId.getAttemptNumber());
+        nextInputSplitIndexToConsumeByAttempts.remove(executionAttemptId.getAttemptNumber());
         checkNotNull(
                 removedExecution,
                 "Cannot remove execution %s which does not exist.",
@@ -217,6 +242,23 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
                 return 8;
             default:
                 throw new IllegalStateException("Execution state " + state + " is not supported.");
+        }
+    }
+
+    @Override
+    public Optional<InputSplit> getNextInputSplit(String host, int attemptNumber) {
+        final int index = nextInputSplitIndexToConsumeByAttempts.getOrDefault(attemptNumber, 0);
+        checkState(index <= inputSplits.size());
+
+        if (index < inputSplits.size()) {
+            nextInputSplitIndexToConsumeByAttempts.put(attemptNumber, index + 1);
+            return Optional.of(inputSplits.get(index));
+        } else {
+            final Optional<InputSplit> split = super.getNextInputSplit(host, attemptNumber);
+            if (split.isPresent()) {
+                nextInputSplitIndexToConsumeByAttempts.put(attemptNumber, index + 1);
+            }
+            return split;
         }
     }
 

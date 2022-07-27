@@ -49,6 +49,7 @@ public class InsensitiveOverFrame implements OverWindowFrame {
 
     @Override
     public void prepare(ResettableExternalBuffer rows) throws Exception {
+        processor.setWindowSize(rows.size());
         // reset the accumulator value
         processor.setAccumulators(processor.createAccumulators());
     }

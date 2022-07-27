@@ -17,14 +17,17 @@
   -->
 
 <nz-table
-  class="no-border small full-height"
-  [nzSize]="'small'"
+  nzSize="small"
   [nzLoading]="isLoading"
   [nzData]="listOfSubTaskBackpressure"
-  [nzScroll]="{ y: 'calc( 100vh - 72px )' }"
+  [nzScroll]="{ y: 'calc( 100% - 90px )' }"
   [nzWidthConfig]="['33.33%', '33.33%', '33.33%']"
   [nzFrontPagination]="false"
   [nzShowPagination]="false"
+  [nzVirtualItemSize]="36"
+  [nzVirtualMinBufferPx]="300"
+  [nzVirtualMaxBufferPx]="300"
+  [nzVirtualForTrackBy]="trackBySubtask"
 >
   <thead>
     <tr>
@@ -41,9 +44,10 @@
           <nz-divider [nzType]="'vertical'"></nz-divider>
           Back Pressure Status:
           <span>
-            <flink-backpressure-badge
-              [state]="backpressure['backpressure-level']"
-            ></flink-backpressure-badge>
+            <flink-dynamic-host
+              [data]="{ state: backpressure['backpressure-level'] }"
+              [component]="stateBadgeComponent"
+            ></flink-dynamic-host>
           </span>
         </span>
         <span *ngIf="selectedVertex?.detail?.status !== 'RUNNING'">
@@ -58,17 +62,23 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let subtask of listOfSubTaskBackpressure; trackBy: trackBySubtask">
-      <td>{{ subtask['subtask'] }}</td>
-      <td>
-        {{ this.prettyPrint(subtask['ratio']) }} / {{ this.prettyPrint(subtask['idleRatio']) }} /
-        {{ this.prettyPrint(subtask['busyRatio']) }}
-      </td>
-      <td>
-        <flink-backpressure-badge
-          [state]="subtask['backpressure-level']"
-        ></flink-backpressure-badge>
-      </td>
-    </tr>
+    <ng-template nz-virtual-scroll let-data>
+      <ng-container *ngIf="narrowLogData(data) as subtask">
+        <tr>
+          <td>{{ subtask['subtask'] }}</td>
+          <td>
+            {{ this.prettyPrint(subtask['ratio']) }} /
+            {{ this.prettyPrint(subtask['idleRatio']) }} /
+            {{ this.prettyPrint(subtask['busyRatio']) }}
+          </td>
+          <td>
+            <flink-dynamic-host
+              [data]="{ state: subtask['backpressure-level'] }"
+              [component]="stateBadgeComponent"
+            ></flink-dynamic-host>
+          </td>
+        </tr>
+      </ng-container>
+    </ng-template>
   </tbody>
 </nz-table>

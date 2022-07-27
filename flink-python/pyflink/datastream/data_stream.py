@@ -18,8 +18,9 @@
 import typing
 import uuid
 from enum import Enum
-from py4j.java_collections import ListConverter
 from typing import Callable, Union, List, cast, Optional, overload
+
+from pyflink.util.java_utils import get_j_env_configuration
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
 from pyflink.common.typeinfo import RowTypeInfo, Types, TypeInformation, _from_java_type
@@ -41,7 +42,11 @@ from pyflink.datastream.functions import (_get_python_env, FlatMapFunction, MapF
                                           InternalIterableAllWindowFunction,
                                           ProcessAllWindowFunction,
                                           InternalIterableProcessAllWindowFunction,
-                                          BroadcastProcessFunction)
+                                          BroadcastProcessFunction,
+                                          KeyedBroadcastProcessFunction,
+                                          InternalSingleValueAllWindowFunction,
+                                          PassThroughAllWindowFunction,
+                                          InternalSingleValueProcessAllWindowFunction)
 from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
@@ -52,6 +57,7 @@ from pyflink.datastream.window import (CountTumblingWindowAssigner, CountSliding
                                        WindowAssigner, WindowOperationDescriptor,
                                        GlobalWindowSerializer, MergingWindowAssigner)
 from pyflink.java_gateway import get_gateway
+from pyflink.util.java_utils import to_jarray
 
 __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
            'DataStreamSink', 'CloseableIterator', 'BroadcastStream', 'BroadcastConnectedStream']
@@ -510,7 +516,7 @@ class DataStream(object):
         :return: The ConnectedStreams or BroadcastConnectedStream.
 
         .. versionchanged:: 1.16.0
-            Support connect BroadcastStream
+           Support connect BroadcastStream
         """
         if isinstance(ds, BroadcastStream):
             return BroadcastConnectedStream(
@@ -620,7 +626,7 @@ class DataStream(object):
             the elements.
 
         .. versionchanged:: 1.16.0
-            Support return BroadcastStream
+           Support return BroadcastStream
         """
         if broadcast_state_descriptor is not None:
             args = [broadcast_state_descriptor]
@@ -785,8 +791,6 @@ class DataStream(object):
         stream_with_partition_info = self.process(
             CustomPartitioner(partitioner, key_selector),
             output_type=Types.ROW([Types.INT(), original_type_info]))
-        stream_with_partition_info._j_data_stream.getTransformation().getOperatorFactory() \
-            .getOperator().setContainsPartitionCustom(True)
 
         stream_with_partition_info.name(
             gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
@@ -824,7 +828,15 @@ class DataStream(object):
         :param sink: The user defined sink.
         :return: The closed DataStream.
         """
-        return DataStreamSink(self._j_data_stream.sinkTo(sink.get_java_function()))
+        ds = self
+
+        from pyflink.datastream.connectors.base import SupportPreprocessing
+        if isinstance(sink, SupportPreprocessing):
+            preprocessing_sink = cast(SupportPreprocessing, sink)
+            if preprocessing_sink.need_preprocessing():
+                ds = preprocessing_sink.get_preprocessing().apply(self)
+
+        return DataStreamSink(ds._j_data_stream.sinkTo(sink.get_java_function()))
 
     def execute_and_collect(self, job_execution_name: str = None, limit: int = None) \
             -> Union['CloseableIterator', list]:
@@ -1209,7 +1221,8 @@ class KeyedStream(DataStream):
 
                 self._reduce_value_state = runtime_context.get_state(
                     ValueStateDescriptor("_reduce_state" + str(uuid.uuid4()), output_type))
-                from pyflink.fn_execution.datastream.runtime_context import StreamingRuntimeContext
+                from pyflink.fn_execution.datastream.process.runtime_context import (
+                    StreamingRuntimeContext)
                 self._in_batch_execution_mode = \
                     cast(StreamingRuntimeContext, runtime_context)._in_batch_execution_mode
 
@@ -1648,10 +1661,16 @@ class KeyedStream(DataStream):
         DataStream outputs of (possible) different types with each other. The DataStreams connected
         using this operator can be used with CoFunctions to apply joint transformations.
 
-        Currently, connect(BroadcastStream) is not supported.
+        If ds is a :class:`BroadcastStream`, creates a new :class:`BroadcastConnectedStream` by
+        connecting the current :class:`DataStream` with a :class:`BroadcastStream`. The latter can
+        be created using the :meth:`broadcast` method. The resulting stream can be further processed
+        using the :meth:`BroadcastConnectedStream.process` method.
 
-        :param ds: The DataStream with which this stream will be connected.
-        :return: The ConnectedStreams.
+        :param ds: The DataStream or BroadcastStream with which this stream will be connected.
+        :return: The ConnectedStreams or BroadcastConnectedStream.
+
+        .. versionchanged:: 1.16.0
+           Support connect BroadcastStream
         """
         return super().connect(ds)
 
@@ -2074,6 +2093,127 @@ class AllWindowedStream(object):
         self._late_data_output_tag = output_tag
         return self
 
+    def reduce(self,
+               reduce_function: Union[Callable, ReduceFunction],
+               window_function: Union[AllWindowFunction, ProcessAllWindowFunction] = None,
+               output_type: TypeInformation = None) -> DataStream:
+        """
+        Applies the given window function to each window. The window function is called for each
+        evaluation of the window for each key individually. The output of the window function is
+        interpreted as a regular non-windowed stream.
+
+        Arriving data is incrementally aggregated using the given reducer.
+
+        Example:
+        ::
+
+            >>> ds.window_all(TumblingEventTimeWindows.of(Time.seconds(5))) \\
+            ...   .reduce(lambda a, b: a[0] + b[0], b[1])
+
+        :param reduce_function: The reduce function.
+        :param window_function: The window function.
+        :param output_type: Type information for the result type of the window function.
+        :return: The data stream that is the result of applying the reduce function to the window.
+
+        .. versionadded:: 1.16.0
+        """
+        if window_function is None:
+            internal_window_function = InternalSingleValueAllWindowFunction(
+                PassThroughAllWindowFunction())  # type: InternalWindowFunction
+            if output_type is None:
+                output_type = self.get_input_type()
+        elif isinstance(window_function, AllWindowFunction):
+            internal_window_function = InternalSingleValueAllWindowFunction(window_function)
+        elif isinstance(window_function, ProcessAllWindowFunction):
+            internal_window_function = InternalSingleValueProcessAllWindowFunction(window_function)
+        else:
+            raise TypeError("window_function should be a AllWindowFunction or "
+                            "ProcessAllWindowFunction")
+
+        reducing_state_descriptor = ReducingStateDescriptor(WINDOW_STATE_NAME,
+                                                            reduce_function,
+                                                            self.get_input_type())
+        func_desc = type(reduce_function).__name__
+        if window_function is not None:
+            func_desc = "%s, %s" % (func_desc, type(window_function).__name__)
+
+        return self._get_result_data_stream(internal_window_function,
+                                            reducing_state_descriptor,
+                                            func_desc,
+                                            output_type)
+
+    def aggregate(self,
+                  aggregate_function: AggregateFunction,
+                  window_function: Union[AllWindowFunction, ProcessAllWindowFunction] = None,
+                  accumulator_type: TypeInformation = None,
+                  output_type: TypeInformation = None) -> DataStream:
+        """
+        Applies the given window function to each window. The window function is called for each
+        evaluation of the window for each key individually. The output of the window function is
+        interpreted as a regular non-windowed stream.
+
+        Arriving data is incrementally aggregated using the given aggregate function. This means
+        that the window function typically has only a single value to process when called.
+
+        Example:
+        ::
+
+            >>> class AverageAggregate(AggregateFunction):
+            ...     def create_accumulator(self) -> Tuple[int, int]:
+            ...         return 0, 0
+            ...
+            ...     def add(self, value: Tuple[str, int], accumulator: Tuple[int, int]) \\
+            ...             -> Tuple[int, int]:
+            ...         return accumulator[0] + value[1], accumulator[1] + 1
+            ...
+            ...     def get_result(self, accumulator: Tuple[int, int]) -> float:
+            ...         return accumulator[0] / accumulator[1]
+            ...
+            ...     def merge(self, a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+            ...         return a[0] + b[0], a[1] + b[1]
+            ...
+            >>> ds.window_all(TumblingEventTimeWindows.of(Time.seconds(5))) \\
+            ...   .aggregate(AverageAggregate(),
+            ...              accumulator_type=Types.TUPLE([Types.LONG(), Types.LONG()]),
+            ...              output_type=Types.DOUBLE())
+
+        :param aggregate_function: The aggregation function that is used for incremental
+                                   aggregation.
+        :param window_function: The window function.
+        :param accumulator_type: Type information for the internal accumulator type of the
+                                 aggregation function.
+        :param output_type: Type information for the result type of the window function.
+        :return: The data stream that is the result of applying the window function to the window.
+
+        .. versionadded:: 1.16.0
+        """
+        if window_function is None:
+            internal_window_function = InternalSingleValueAllWindowFunction(
+                PassThroughAllWindowFunction())  # type: InternalWindowFunction
+        elif isinstance(window_function, AllWindowFunction):
+            internal_window_function = InternalSingleValueAllWindowFunction(window_function)
+        elif isinstance(window_function, ProcessAllWindowFunction):
+            internal_window_function = InternalSingleValueProcessAllWindowFunction(window_function)
+        else:
+            raise TypeError("window_function should be a AllWindowFunction or "
+                            "ProcessAllWindowFunction")
+
+        if accumulator_type is None:
+            accumulator_type = Types.PICKLED_BYTE_ARRAY()
+        elif isinstance(accumulator_type, list):
+            accumulator_type = RowTypeInfo(accumulator_type)
+
+        aggregating_state_descriptor = AggregatingStateDescriptor(WINDOW_STATE_NAME,
+                                                                  aggregate_function,
+                                                                  accumulator_type)
+        func_desc = type(aggregate_function).__name__
+        if window_function is not None:
+            func_desc = "%s, %s" % (func_desc, type(window_function).__name__)
+        return self._get_result_data_stream(internal_window_function,
+                                            aggregating_state_descriptor,
+                                            func_desc,
+                                            output_type)
+
     def apply(self,
               window_function: AllWindowFunction,
               output_type: TypeInformation = None) -> DataStream:
@@ -2370,15 +2510,18 @@ class BroadcastStream(object):
     stream using the :meth:`DataStream.broadcast` method and implicitly creates states where the
     user can store elements of the created :class:`BroadcastStream`. (see
     :class:`BroadcastConnectedStream`).
+
     Note that no further operation can be applied to these streams. The only available option is
     to connect them with a keyed or non-keyed stream, using the :meth:`KeyedStream.connect` and the
     :meth:`DataStream.connect` respectively. Applying these methods will result it a
     :class:`BroadcastConnectedStream` for further processing.
+
+    .. versionadded:: 1.16.0
     """
 
     def __init__(
         self,
-        input_stream: "DataStream",
+        input_stream: Union['DataStream', 'KeyedStream'],
         broadcast_state_descriptors: List[MapStateDescriptor],
     ):
         self.input_stream = input_stream
@@ -2392,35 +2535,56 @@ class BroadcastConnectedStream(object):
     :class:`ConnectedStreams` these streams are useful for cases where operations on one stream
     directly affect the operations on the other stream, usually via shared state between the
     streams.
+
     An example for the use of such connected streams would be to apply rules that change over time
     onto another, possibly keyed stream. The stream with the broadcast state has the rules, and will
     store them in the broadcast state, while the other stream will contain the elements to apply the
     rules to. By broadcasting the rules, these will be available in all parallel instances, and can
     be applied to all partitions of the other stream.
+
+    .. versionadded:: 1.16.0
     """
 
     def __init__(
         self,
-        non_broadcast_stream: "DataStream",
-        broadcast_stream: "BroadcastStream",
+        non_broadcast_stream: Union['DataStream', 'KeyedStream'],
+        broadcast_stream: 'BroadcastStream',
         broadcast_state_descriptors: List[MapStateDescriptor],
     ):
         self.non_broadcast_stream = non_broadcast_stream
         self.broadcast_stream = broadcast_stream
         self.broadcast_state_descriptors = broadcast_state_descriptors
 
+    @overload
     def process(
         self,
         func: BroadcastProcessFunction,
         output_type: TypeInformation = None,
-    ) -> "DataStream":
+    ) -> 'DataStream':
+        pass
+
+    @overload
+    def process(
+        self,
+        func: KeyedBroadcastProcessFunction,
+        output_type: TypeInformation = None
+    ) -> 'DataStream':
+        pass
+
+    def process(
+        self,
+        func: Union[BroadcastProcessFunction, KeyedBroadcastProcessFunction],
+        output_type: TypeInformation = None,
+    ) -> 'DataStream':
         """
         Assumes as inputs a :class:`BroadcastStream` and a :class:`DataStream` or
-        :class:`KeyedStream` and applies the given :class:`BroadcastProcessFunction` or on them,
-        thereby creating a transformed output stream.
+        :class:`KeyedStream` and applies the given :class:`BroadcastProcessFunction` or
+        :class:`KeyedBroadcastProcessFunction` on them, thereby creating a transformed output
+        stream.
 
         :param func: The :class:`BroadcastProcessFunction` that is called for each element in the
-            stream.
+            non-broadcasted :class:`DataStream`, or the :class:`KeyedBroadcastProcessFunction` that
+            is called for each element in the non-broadcasted :class:`KeyedStream`.
         :param output_type: The type of the output elements, should be
             :class:`common.TypeInformation` or list (implicit :class:`RowTypeInfo`) or None (
             implicit :meth:`Types.PICKLED_BYTE_ARRAY`).
@@ -2428,6 +2592,8 @@ class BroadcastConnectedStream(object):
         """
         if isinstance(func, BroadcastProcessFunction) and self._is_keyed_stream():
             raise TypeError("BroadcastProcessFunction should be applied to non-keyed DataStream")
+        if isinstance(func, KeyedBroadcastProcessFunction) and (not self._is_keyed_stream()):
+            raise TypeError("KeyedBroadcastProcessFunction should be applied to keyed DataStream")
 
         j_input_transformation1 = self.non_broadcast_stream._j_data_stream.getTransformation()
         j_input_transformation2 = (
@@ -2445,22 +2611,21 @@ class BroadcastConnectedStream(object):
         j_output_type = output_type_info.get_java_type_info()
 
         from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
+        jvm = get_gateway().jvm
+        JPythonConfigUtil = jvm.org.apache.flink.python.util.PythonConfigUtil
 
-        func_type = UserDefinedDataStreamFunction.CO_BROADCAST_PROCESS  # type: ignore
-        func_name = "Co-Process-Broadcast"
+        if self._is_keyed_stream():
+            func_type = UserDefinedDataStreamFunction.KEYED_CO_BROADCAST_PROCESS  # type: ignore
+            func_name = "Keyed-Co-Process-Broadcast"
+        else:
+            func_type = UserDefinedDataStreamFunction.CO_BROADCAST_PROCESS  # type: ignore
+            func_name = "Co-Process-Broadcast"
 
-        gateway = get_gateway()
-        JPythonBroadcastStateTransformation = (
-            gateway.jvm.org.apache.flink.streaming.api.transformations.python
-        ).PythonBroadcastStateTransformation
-        j_state_names = ListConverter().convert(
-            [i.get_name() for i in self.broadcast_state_descriptors], gateway._gateway_client
+        j_state_names = to_jarray(
+            jvm.String, [i.get_name() for i in self.broadcast_state_descriptors]
         )
-        j_state_descriptors = (
-            JPythonBroadcastStateTransformation.convertStateNamesToStateDescriptors(j_state_names)
-        )
-
-        j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
+        j_state_descriptors = JPythonConfigUtil.convertStateNamesToStateDescriptors(j_state_names)
+        j_conf = jvm.org.apache.flink.configuration.Configuration()
         j_data_stream_python_function_info = _create_j_data_stream_python_function_info(
             func, func_type
         )
@@ -2468,18 +2633,35 @@ class BroadcastConnectedStream(object):
             self.non_broadcast_stream.get_execution_environment()._j_stream_execution_environment
         )
 
-        j_transformation = JPythonBroadcastStateTransformation(
-            func_name,
-            j_conf,
-            j_data_stream_python_function_info,
-            j_input_transformation1,
-            j_input_transformation2,
-            j_state_descriptors,
-            j_output_type,
-            j_env.getParallelism(),
-        )
+        if self._is_keyed_stream():
+            JTransformation = jvm.org.apache.flink.streaming.api.transformations.python \
+                .PythonKeyedBroadcastStateTransformation
+            j_transformation = JTransformation(
+                func_name,
+                j_conf,
+                j_data_stream_python_function_info,
+                j_input_transformation1,
+                j_input_transformation2,
+                j_state_descriptors,
+                self.non_broadcast_stream._j_data_stream.getKeyType(),
+                self.non_broadcast_stream._j_data_stream.getKeySelector(),
+                j_output_type,
+                j_env.getParallelism(),
+            )
+        else:
+            JTransformation = jvm.org.apache.flink.streaming.api.transformations.python \
+                .PythonBroadcastStateTransformation
+            j_transformation = JTransformation(
+                func_name,
+                j_conf,
+                j_data_stream_python_function_info,
+                j_input_transformation1,
+                j_input_transformation2,
+                j_state_descriptors,
+                j_output_type,
+                j_env.getParallelism(),
+            )
         j_env.addOperator(j_transformation)
-        JPythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
         j_data_stream = JPythonConfigUtil.createSingleOutputStreamOperator(j_env, j_transformation)
 
         return DataStream(j_data_stream)
@@ -2515,13 +2697,18 @@ def _get_one_input_stream_operator(data_stream: DataStream,
 
     j_data_stream_python_function_info = _create_j_data_stream_python_function_info(func, func_type)
     j_output_type_info = output_type_info.get_java_type_info()
-    j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
+    j_conf = get_j_env_configuration(data_stream._j_data_stream.getExecutionEnvironment())
+    python_execution_mode = (
+        j_conf.getString(gateway.jvm.org.apache.flink.python.PythonOptions.PYTHON_EXECUTION_MODE))
 
     from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
     if func_type == UserDefinedDataStreamFunction.PROCESS:  # type: ignore
-        JDataStreamPythonFunctionOperator = gateway.jvm.PythonProcessOperator
+        if python_execution_mode == 'thread':
+            JDataStreamPythonFunctionOperator = gateway.jvm.EmbeddedPythonProcessOperator
+        else:
+            JDataStreamPythonFunctionOperator = gateway.jvm.ExternalPythonProcessOperator
     elif func_type == UserDefinedDataStreamFunction.KEYED_PROCESS:  # type: ignore
-        JDataStreamPythonFunctionOperator = gateway.jvm.PythonKeyedProcessOperator
+        JDataStreamPythonFunctionOperator = gateway.jvm.ExternalPythonKeyedProcessOperator
     elif func_type == UserDefinedDataStreamFunction.WINDOW:  # type: ignore
         window_serializer = typing.cast(WindowOperationDescriptor, func).window_serializer
         if isinstance(window_serializer, TimeWindowSerializer):
@@ -2537,7 +2724,7 @@ def _get_one_input_stream_operator(data_stream: DataStream,
         else:
             j_namespace_serializer = \
                 gateway.jvm.org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer()
-        j_python_function_operator = gateway.jvm.PythonKeyedProcessOperator(
+        j_python_function_operator = gateway.jvm.ExternalPythonKeyedProcessOperator(
             j_conf,
             j_data_stream_python_function_info,
             j_input_types,
@@ -2586,9 +2773,9 @@ def _get_two_input_stream_operator(connected_streams: ConnectedStreams,
 
     from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
     if func_type == UserDefinedDataStreamFunction.CO_PROCESS:  # type: ignore
-        JTwoInputPythonFunctionOperator = gateway.jvm.PythonCoProcessOperator
+        JTwoInputPythonFunctionOperator = gateway.jvm.ExternalPythonCoProcessOperator
     elif func_type == UserDefinedDataStreamFunction.KEYED_CO_PROCESS:  # type: ignore
-        JTwoInputPythonFunctionOperator = gateway.jvm.PythonKeyedCoProcessOperator
+        JTwoInputPythonFunctionOperator = gateway.jvm.ExternalPythonKeyedCoProcessOperator
     else:
         raise TypeError("Unsupported function type: %s" % func_type)
 

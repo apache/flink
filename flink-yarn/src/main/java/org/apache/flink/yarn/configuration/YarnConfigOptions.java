@@ -340,6 +340,21 @@ public class YarnConfigOptions {
                                     + "they doesn't need to be downloaded every time for each application. An example could be "
                                     + "hdfs://$namenode_address/path/of/flink/lib");
 
+    /**
+     * Allows users to directly utilize usrlib directory in HDFS for YARN application mode. The
+     * classloader for loading jars under the usrlib will be controlled by {@link
+     * YarnConfigOptions#CLASSPATH_INCLUDE_USER_JAR}.
+     */
+    public static final ConfigOption<String> PROVIDED_USRLIB_DIR =
+            key("yarn.provided.usrlib.dir")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The provided usrlib directory in remote. It should be pre-uploaded and "
+                                    + "world-readable. Flink will use it to exclude the local usrlib directory(i.e. usrlib/ under the parent directory of FLINK_LIB_DIR)."
+                                    + " Unlike yarn.provided.lib.dirs, YARN will not cache it on the nodes as it is for each application. An example could be "
+                                    + "hdfs://$namenode_address/path/of/flink/usrlib");
+
     @SuppressWarnings("unused")
     public static final ConfigOption<String> HADOOP_CONFIG_KEY =
             key("flink.hadoop.<key>")

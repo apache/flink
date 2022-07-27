@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.ExecutionConfigOptions.AsyncOutputMode
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
@@ -41,7 +43,8 @@ import scala.collection.JavaConversions._
 class AsyncLookupJoinITCase(
     legacyTableSource: Boolean,
     backend: StateBackendMode,
-    objectReuse: Boolean)
+    objectReuse: Boolean,
+    asyncOutputMode: AsyncOutputMode)
   extends StreamingWithStateTestBase(backend) {
 
   val data = List(
@@ -61,6 +64,8 @@ class AsyncLookupJoinITCase(
     } else {
       env.getConfig.disableObjectReuse()
     }
+
+    tEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE, asyncOutputMode)
 
     createScanTable("src", data)
     createLookupTable("user_table", userData)
@@ -303,13 +308,16 @@ class AsyncLookupJoinITCase(
 }
 
 object AsyncLookupJoinITCase {
-  @Parameterized.Parameters(name = "LegacyTableSource={0}, StateBackend={1}, ObjectReuse={2}")
+  @Parameterized.Parameters(
+    name = "LegacyTableSource={0}, StateBackend={1}, ObjectReuse={2}, AsyncOutputMode={3}")
   def parameters(): JCollection[Array[Object]] = {
     Seq[Array[AnyRef]](
-      Array(JBoolean.TRUE, HEAP_BACKEND, JBoolean.TRUE),
-      Array(JBoolean.TRUE, ROCKSDB_BACKEND, JBoolean.FALSE),
-      Array(JBoolean.FALSE, HEAP_BACKEND, JBoolean.FALSE),
-      Array(JBoolean.FALSE, ROCKSDB_BACKEND, JBoolean.TRUE)
+      Array(JBoolean.TRUE, HEAP_BACKEND, JBoolean.TRUE, AsyncOutputMode.ALLOW_UNORDERED),
+      Array(JBoolean.TRUE, ROCKSDB_BACKEND, JBoolean.FALSE, AsyncOutputMode.ORDERED),
+      Array(JBoolean.FALSE, HEAP_BACKEND, JBoolean.FALSE, AsyncOutputMode.ORDERED),
+      Array(JBoolean.FALSE, HEAP_BACKEND, JBoolean.TRUE, AsyncOutputMode.ORDERED),
+      Array(JBoolean.FALSE, ROCKSDB_BACKEND, JBoolean.FALSE, AsyncOutputMode.ALLOW_UNORDERED),
+      Array(JBoolean.FALSE, ROCKSDB_BACKEND, JBoolean.TRUE, AsyncOutputMode.ALLOW_UNORDERED)
     )
   }
 }

@@ -34,7 +34,7 @@ import java.util.List;
  * class tests `accumulate` method with order argument.
  */
 public abstract class FirstLastValueAggFunctionWithOrderTestBase<T, ACC>
-        extends AggFunctionTestBase<T, ACC> {
+        extends AggFunctionTestBase<T, T, ACC> {
 
     protected Method getAccumulateFunc() throws NoSuchMethodException {
         return getAggregator()
@@ -129,7 +129,8 @@ public abstract class FirstLastValueAggFunctionWithOrderTestBase<T, ACC>
     }
 
     @Override
-    protected ACC accumulateValues(List<T> values) {
+    protected void accumulateValues(
+            AggregateFunction<T, ACC> aggregator, ACC accumulator, List<T> values) {
         throw new TableException("Should not call this method");
     }
 

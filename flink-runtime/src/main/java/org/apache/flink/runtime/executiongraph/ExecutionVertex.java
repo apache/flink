@@ -49,6 +49,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -237,16 +238,14 @@ public class ExecutionVertex
         return allConsumedPartitions.get(input);
     }
 
-    public InputSplit getNextInputSplit(String host) {
-        final int taskId = getParallelSubtaskIndex();
-        synchronized (inputSplits) {
-            final InputSplit nextInputSplit =
-                    jobVertex.getSplitAssigner().getNextInputSplit(host, taskId);
-            if (nextInputSplit != null) {
-                inputSplits.add(nextInputSplit);
-            }
-            return nextInputSplit;
+    public Optional<InputSplit> getNextInputSplit(String host, int attemptNumber) {
+        final int subtaskIndex = getParallelSubtaskIndex();
+        final InputSplit nextInputSplit =
+                jobVertex.getSplitAssigner().getNextInputSplit(host, subtaskIndex);
+        if (nextInputSplit != null) {
+            inputSplits.add(nextInputSplit);
         }
+        return Optional.ofNullable(nextInputSplit);
     }
 
     @Override
@@ -256,6 +255,11 @@ public class ExecutionVertex
 
     public Collection<Execution> getCurrentExecutions() {
         return Collections.singleton(currentExecution);
+    }
+
+    public Execution getCurrentExecution(int attemptNumber) {
+        checkArgument(attemptNumber == currentExecution.getAttemptNumber());
+        return currentExecution;
     }
 
     @Override

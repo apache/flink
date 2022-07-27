@@ -23,14 +23,17 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateChangelogOptionsInternal;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.executiongraph.JobStatusHook;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
 
 import javax.annotation.Nullable;
 
@@ -115,6 +118,9 @@ public class JobGraph implements Serializable {
 
     /** List of classpaths required to run this job. */
     private List<URL> classpaths = Collections.emptyList();
+
+    /** List of user-defined job status change hooks. */
+    private List<JobStatusHook> jobStatusHooks = Collections.emptyList();
 
     // --------------------------------------------------------------------------------------------
 
@@ -627,5 +633,24 @@ public class JobGraph implements Serializable {
             DistributedCache.writeFileInfoToConfig(
                     userArtifact.getKey(), userArtifact.getValue(), jobConfiguration);
         }
+    }
+
+    public void setChangelogStateBackendEnabled(TernaryBoolean changelogStateBackendEnabled) {
+        if (changelogStateBackendEnabled == null
+                || TernaryBoolean.UNDEFINED.equals(changelogStateBackendEnabled)) {
+            return;
+        }
+        this.jobConfiguration.setBoolean(
+                StateChangelogOptionsInternal.ENABLE_CHANGE_LOG_FOR_APPLICATION,
+                changelogStateBackendEnabled.getAsBoolean());
+    }
+
+    public void setJobStatusHooks(List<JobStatusHook> hooks) {
+        checkNotNull(hooks, "Setting the JobStatusHook list to null is not allowed.");
+        this.jobStatusHooks = hooks;
+    }
+
+    public List<JobStatusHook> getJobStatusHooks() {
+        return this.jobStatusHooks;
     }
 }

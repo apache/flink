@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -79,11 +80,13 @@ public interface SlotManager extends AutoCloseable {
      * @param newResourceManagerId to use for communication with the task managers
      * @param newMainThreadExecutor to use to run code in the ResourceManager's main thread
      * @param newResourceActions to use for resource (de-)allocations
+     * @param newBlockedTaskManagerChecker to query whether a task manager is blocked
      */
     void start(
             ResourceManagerId newResourceManagerId,
             Executor newMainThreadExecutor,
-            ResourceActions newResourceActions);
+            ResourceActions newResourceActions,
+            BlockedTaskManagerChecker newBlockedTaskManagerChecker);
 
     /** Suspends the component. This clears the internal state of the slot manager. */
     void suspend();
@@ -149,4 +152,10 @@ public interface SlotManager extends AutoCloseable {
     void freeSlot(SlotID slotId, AllocationID allocationId);
 
     void setFailUnfulfillableRequest(boolean failUnfulfillableRequest);
+
+    /**
+     * Trigger the resource requirement check. This method will be called when some slot statuses
+     * changed.
+     */
+    void triggerResourceRequirementsCheck();
 }

@@ -21,8 +21,8 @@ from pyflink.table import DataTypes
 from pyflink.table.expression import TimeIntervalUnit, TimePointUnit, JsonExistsOnError, \
     JsonValueOnEmptyOrError, JsonType, JsonQueryWrapper, JsonQueryOnEmptyOrError
 from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date,
-                                       current_time, current_timestamp, local_time,
-                                       local_timestamp, temporal_overlaps, date_format,
+                                       current_time, current_timestamp, current_database,
+                                       local_timestamp, local_time, temporal_overlaps, date_format,
                                        timestamp_diff, array, row, map_, row_interval, pi, e,
                                        rand, rand_integer, atan2, negative, concat, concat_ws, uuid,
                                        null_of, log, if_then_else, with_columns, call,
@@ -162,6 +162,10 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('rtrim(a)', str(expr1.rtrim))
         self.assertEqual('repeat(a, 3)', str(expr1.repeat(3)))
         self.assertEqual("over(a, 'w')", str(expr1.over('w')))
+        self.assertEqual('reverse(a)', str(expr1.reverse))
+        self.assertEqual("splitIndex(a, ',', 3)", str(expr1.split_index(',', 3)))
+        self.assertEqual("strToMap(a)", str(expr1.str_to_map()))
+        self.assertEqual("strToMap(a, ';', ':')", str(expr1.str_to_map(';', ':')))
 
         # temporal functions
         self.assertEqual('cast(a, DATE)', str(expr1.to_date))
@@ -245,6 +249,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('unboundedRange()', str(UNBOUNDED_RANGE))
         self.assertEqual('currentRow()', str(CURRENT_ROW))
         self.assertEqual('currentRange()', str(CURRENT_RANGE))
+        self.assertEqual('currentDatabase()', str(current_database()))
 
         self.assertEqual('currentDate()', str(current_date()))
         self.assertEqual('currentTime()', str(current_time()))

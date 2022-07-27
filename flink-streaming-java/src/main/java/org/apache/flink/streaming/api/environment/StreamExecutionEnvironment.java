@@ -97,6 +97,7 @@ import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -142,6 +143,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Public
 public class StreamExecutionEnvironment {
+
+    private static final List<CollectResultIterator<?>> collectIterators = new ArrayList<>();
+
+    @Internal
+    public void registerCollectIterator(CollectResultIterator<?> iterator) {
+        collectIterators.add(iterator);
+    }
 
     /**
      * The default name to use for a streaming job if no other name has been specified.
@@ -2168,6 +2176,8 @@ public class StreamExecutionEnvironment {
         try {
             JobClient jobClient = jobClientFuture.get();
             jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
+            collectIterators.forEach(iterator -> iterator.setJobClient(jobClient));
+            collectIterators.clear();
             return jobClient;
         } catch (ExecutionException executionException) {
             final Throwable strippedException =

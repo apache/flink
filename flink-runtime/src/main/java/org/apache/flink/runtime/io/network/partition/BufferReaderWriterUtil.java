@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferHeader;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.FileRegionBuffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -82,21 +83,20 @@ public final class BufferReaderWriterUtil {
             return null;
         }
 
-        final boolean isEvent = memory.getShort() == HEADER_VALUE_IS_EVENT;
-        final boolean isCompressed = memory.getShort() == BUFFER_IS_COMPRESSED;
-        final int size = memory.getInt();
+        final BufferHeader header = parseBufferHeader(memory);
 
-        memory.limit(memory.position() + size);
+        memory.limit(memory.position() + header.getLength());
         ByteBuffer buf = memory.slice();
         memory.position(memory.limit());
         memory.limit(memory.capacity());
 
         MemorySegment memorySegment = MemorySegmentFactory.wrapOffHeapMemory(buf);
-
-        Buffer.DataType dataType =
-                isEvent ? Buffer.DataType.EVENT_BUFFER : Buffer.DataType.DATA_BUFFER;
         return new NetworkBuffer(
-                memorySegment, FreeingBufferRecycler.INSTANCE, dataType, isCompressed, size);
+                memorySegment,
+                FreeingBufferRecycler.INSTANCE,
+                header.getDataType(),
+                header.isCompressed(),
+                header.getLength());
     }
 
     // ------------------------------------------------------------------------
@@ -147,19 +147,16 @@ public final class BufferReaderWriterUtil {
         }
         headerBuffer.flip();
 
-        final boolean isEvent = headerBuffer.getShort() == HEADER_VALUE_IS_EVENT;
-        final Buffer.DataType dataType =
-                isEvent ? Buffer.DataType.EVENT_BUFFER : Buffer.DataType.DATA_BUFFER;
-        final boolean isCompressed = headerBuffer.getShort() == BUFFER_IS_COMPRESSED;
-        final int size = headerBuffer.getInt();
+        final BufferHeader header = parseBufferHeader(headerBuffer);
 
         // the file region does not advance position. it must not, because it gets written
         // interleaved with these calls, which would completely mess up the reading.
         // so we advance the positions always and only here.
         final long position = channel.position();
-        channel.position(position + size);
+        channel.position(position + header.getLength());
 
-        return new FileRegionBuffer(channel, position, size, dataType, isCompressed);
+        return new FileRegionBuffer(
+                channel, position, header.getLength(), header.getDataType(), header.isCompressed());
     }
 
     @Nullable
@@ -177,15 +174,11 @@ public final class BufferReaderWriterUtil {
         headerBuffer.flip();
 
         final ByteBuffer targetBuf;
-        final boolean isEvent;
-        final boolean isCompressed;
-        final int size;
+        final BufferHeader header;
 
         try {
-            isEvent = headerBuffer.getShort() == HEADER_VALUE_IS_EVENT;
-            isCompressed = headerBuffer.getShort() == BUFFER_IS_COMPRESSED;
-            size = headerBuffer.getInt();
-            targetBuf = memorySegment.wrap(0, size);
+            header = parseBufferHeader(headerBuffer);
+            targetBuf = memorySegment.wrap(0, header.getLength());
         } catch (BufferUnderflowException | IllegalArgumentException e) {
             // buffer underflow if header buffer is undersized
             // IllegalArgumentException if size is outside memory segment size
@@ -195,9 +188,9 @@ public final class BufferReaderWriterUtil {
 
         readByteBufferFully(channel, targetBuf);
 
-        Buffer.DataType dataType =
-                isEvent ? Buffer.DataType.EVENT_BUFFER : Buffer.DataType.DATA_BUFFER;
-        return new NetworkBuffer(memorySegment, bufferRecycler, dataType, isCompressed, size);
+        Buffer.DataType dataType = header.getDataType();
+        return new NetworkBuffer(
+                memorySegment, bufferRecycler, dataType, header.isCompressed(), header.getLength());
     }
 
     public static ByteBuffer allocatedHeaderBuffer() {
@@ -284,6 +277,18 @@ public final class BufferReaderWriterUtil {
                 writeBuffer(channel, buffer);
             }
         }
+    }
+
+    static BufferHeader parseBufferHeader(ByteBuffer headerBuffer) {
+        configureByteBuffer(headerBuffer);
+
+        boolean isEvent = headerBuffer.getShort() == HEADER_VALUE_IS_EVENT;
+        boolean isCompressed = headerBuffer.getShort() == BUFFER_IS_COMPRESSED;
+        int length = headerBuffer.getInt();
+        return new BufferHeader(
+                isCompressed,
+                length,
+                isEvent ? Buffer.DataType.EVENT_BUFFER : Buffer.DataType.DATA_BUFFER);
     }
 
     private static void throwPrematureEndOfFile() throws IOException {

@@ -17,10 +17,7 @@
 <div class="breadcrumb">
   <nz-breadcrumb>
     <nz-breadcrumb-item>
-      <a
-        *ngIf="taskManagerDetail"
-        [routerLink]="['/', 'task-manager', this.taskManagerDetail.id, 'log-list']"
-      >
+      <a [routerLink]="['/', 'task-manager', this.taskManagerId, 'log-list']">
         <i nz-icon nzType="rollback" nzTheme="outline"></i>
         Log List
       </a>
@@ -29,13 +26,13 @@
       {{ logName }}
     </nz-breadcrumb-item>
   </nz-breadcrumb>
-  <flink-refresh-download
+  <flink-addon-inline
     [isLoading]="isLoading"
     [downloadHref]="downloadUrl"
     [downloadName]="logName"
     (reload)="reloadLog()"
     (fullScreen)="toggleFullScreen($event)"
-  ></flink-refresh-download>
+  ></flink-addon-inline>
 </div>
 <div class="editor-container">
   <nz-code-editor

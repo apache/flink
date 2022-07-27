@@ -31,6 +31,7 @@ import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeAddressBuilder;
 import io.fabric8.kubernetes.api.model.NodeBuilder;
 import io.fabric8.kubernetes.api.model.NodeListBuilder;
+import io.fabric8.kubernetes.api.model.NodeSpecBuilder;
 import io.fabric8.kubernetes.api.model.NodeStatusBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
@@ -43,6 +44,7 @@ import io.fabric8.mockwebserver.dsl.HttpMethodable;
 import io.fabric8.mockwebserver.dsl.MockServerExpectation;
 import io.fabric8.mockwebserver.dsl.ReturnOrWebsocketable;
 import io.fabric8.mockwebserver.dsl.TimesOnceableOrHttpHeaderable;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nullable;
 
@@ -66,9 +68,17 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
         for (String address : addresses) {
             final String[] parts = address.split(":");
             Preconditions.checkState(
-                    parts.length == 2, "Address should be in format \"<type>:<ip>\".");
+                    parts.length == 3,
+                    "Address should be in format \"<type>:<ip>:<unschedulable>\".");
             nodes.add(
                     new NodeBuilder()
+                            .withSpec(
+                                    new NodeSpecBuilder()
+                                            .withUnschedulable(
+                                                    StringUtils.isBlank(parts[2])
+                                                            ? null
+                                                            : Boolean.parseBoolean(parts[2]))
+                                            .build())
                             .withStatus(
                                     new NodeStatusBuilder()
                                             .withAddresses(

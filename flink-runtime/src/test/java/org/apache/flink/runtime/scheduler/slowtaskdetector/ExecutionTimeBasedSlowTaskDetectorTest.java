@@ -31,9 +31,9 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
-import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerTestUtils;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
@@ -221,11 +221,11 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(jobVertices);
 
         final SchedulerBase scheduler =
-                new AdaptiveBatchSchedulerTestUtils.AdaptiveBatchSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 jobGraph,
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                                 EXECUTOR_RESOURCE.getExecutor())
-                        .build();
+                        .buildAdaptiveBatchJobScheduler();
 
         final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
 

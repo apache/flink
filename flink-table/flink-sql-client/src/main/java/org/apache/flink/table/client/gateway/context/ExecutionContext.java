@@ -34,11 +34,10 @@ import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.util.TemporaryClassLoaderContext;
+import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.util.MutableURLClassLoader;
 
 import java.lang.reflect.Method;
-import java.net.URLClassLoader;
-import java.util.function.Supplier;
 
 import static org.apache.flink.table.client.gateway.context.SessionContext.SessionState;
 
@@ -53,16 +52,17 @@ public class ExecutionContext {
     // Members that should be reused in the same session.
     private final Configuration flinkConfig;
     private final SessionState sessionState;
-    private final URLClassLoader classLoader;
+    private final MutableURLClassLoader classLoader;
 
     private final StreamTableEnvironment tableEnv;
 
     public ExecutionContext(
-            Configuration flinkConfig, URLClassLoader classLoader, SessionState sessionState) {
+            Configuration flinkConfig,
+            MutableURLClassLoader classLoader,
+            SessionState sessionState) {
         this.flinkConfig = flinkConfig;
         this.sessionState = sessionState;
         this.classLoader = classLoader;
-
         this.tableEnv = createTableEnvironment();
     }
 
@@ -78,15 +78,6 @@ public class ExecutionContext {
         this.classLoader = context.classLoader;
 
         this.tableEnv = createTableEnvironment();
-    }
-
-    /**
-     * Executes the given supplier using the execution context's classloader as thread classloader.
-     */
-    public <R> R wrapClassLoader(Supplier<R> supplier) {
-        try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
-            return supplier.get();
-        }
     }
 
     public StreamTableEnvironment getTableEnvironment() {
@@ -108,28 +99,26 @@ public class ExecutionContext {
         StreamExecutionEnvironment streamExecEnv =
                 new StreamExecutionEnvironment(new Configuration(flinkConfig), classLoader);
 
-        final Executor executor = lookupExecutor(streamExecEnv);
+        final Executor executor = lookupExecutor(streamExecEnv, classLoader);
 
-        // Updates the classloader of FunctionCatalog by the new classloader to solve ClassNotFound
-        // exception when use an udf created by add jar syntax, temporary solution until FLINK-14055
-        // is fixed
-        sessionState.functionCatalog.updateClassLoader(classLoader);
         return createStreamTableEnvironment(
                 streamExecEnv,
                 settings,
                 executor,
                 sessionState.catalogManager,
                 sessionState.moduleManager,
+                sessionState.resourceManager,
                 sessionState.functionCatalog,
                 classLoader);
     }
 
-    private StreamTableEnvironment createStreamTableEnvironment(
+    private static StreamTableEnvironment createStreamTableEnvironment(
             StreamExecutionEnvironment env,
             EnvironmentSettings settings,
             Executor executor,
             CatalogManager catalogManager,
             ModuleManager moduleManager,
+            ResourceManager resourceManager,
             FunctionCatalog functionCatalog,
             ClassLoader userClassLoader) {
 
@@ -149,20 +138,23 @@ public class ExecutionContext {
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
+                resourceManager,
                 functionCatalog,
                 tableConfig,
                 env,
                 planner,
                 executor,
-                settings.isStreamingMode(),
-                userClassLoader);
+                settings.isStreamingMode());
     }
 
-    private Executor lookupExecutor(StreamExecutionEnvironment executionEnvironment) {
+    private static Executor lookupExecutor(
+            StreamExecutionEnvironment executionEnvironment, ClassLoader userClassLoader) {
         try {
             final ExecutorFactory executorFactory =
                     FactoryUtil.discoverFactory(
-                            classLoader, ExecutorFactory.class, ExecutorFactory.DEFAULT_IDENTIFIER);
+                            userClassLoader,
+                            ExecutorFactory.class,
+                            ExecutorFactory.DEFAULT_IDENTIFIER);
             final Method createMethod =
                     executorFactory
                             .getClass()

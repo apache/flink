@@ -71,6 +71,7 @@
     "org.apache.flink.sql.parser.ddl.SqlUseDatabase"
     "org.apache.flink.sql.parser.ddl.SqlUseModules"
     "org.apache.flink.sql.parser.ddl.SqlWatermark"
+    "org.apache.flink.sql.parser.ddl.SqlAnalyzeTable"
     "org.apache.flink.sql.parser.dml.RichSqlInsert"
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword"
     "org.apache.flink.sql.parser.dml.SqlBeginStatementSet"
@@ -107,6 +108,7 @@
     "org.apache.flink.sql.parser.utils.ParserResource"
     "org.apache.flink.sql.parser.validate.FlinkSqlConformance"
     "org.apache.flink.sql.parser.SqlProperty"
+    "org.apache.flink.sql.parser.SqlPartitionSpecProperty"
     "org.apache.calcite.sql.SqlAlienSystemTypeNameSpec"
     "org.apache.calcite.sql.SqlCreate"
     "org.apache.calcite.sql.SqlDrop"
@@ -159,6 +161,9 @@
     "WATERMARKS"
     "TIMESTAMP_LTZ"
     "TRY_CAST"
+    "ANALYZE"
+    "COMPUTE"
+    "STATISTICS"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -501,6 +506,9 @@
     "PARTITIONS"
     "TRY_CAST"
     "VIRTUAL"
+    "ANALYZE"
+    "COMPUTE"
+    "STATISTICS"
   ]
 
   # List of non-reserved keywords to remove;
@@ -546,6 +554,7 @@
     "SqlShowJars()"
     "SqlSet()"
     "SqlReset()"
+    "SqlAnalyzeTable()"
   ]
 
   # List of methods for parsing custom literals.

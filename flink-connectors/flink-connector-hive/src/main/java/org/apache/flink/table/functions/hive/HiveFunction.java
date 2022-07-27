@@ -86,7 +86,7 @@ public interface HiveFunction<UDFType> {
                 if (throwOnFailure) {
                     throw callContext.newValidationError(
                             "Cannot find a suitable Hive function from %s for the input arguments",
-                            hiveFunction.getFunctionWrapper().getClassName());
+                            hiveFunction.getFunctionWrapper().getUDFClassName());
                 } else {
                     return Optional.empty();
                 }

@@ -29,9 +29,9 @@ public interface BlocklistTracker {
      * added one will be merged with the existing one.
      *
      * @param newNodes the new blocked node records
-     * @return the changes of blocklist after execution, which will be synchronized to other JMs/RM
+     * @return the addition result
      */
-    Collection<BlockedNode> addNewBlockedNodes(Collection<BlockedNode> newNodes);
+    BlockedNodeAdditionResult addNewBlockedNodes(Collection<BlockedNode> newNodes);
 
     /**
      * Returns whether the given node is blocked.

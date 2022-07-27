@@ -20,7 +20,10 @@ package org.apache.flink.table.gateway.api.session;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
+import org.apache.flink.table.module.Module;
 
 import javax.annotation.Nullable;
 
@@ -37,15 +40,27 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class SessionEnvironment {
     private final @Nullable String sessionName;
     private final EndpointVersion version;
+    private final Map<String, Catalog> registeredCatalogs;
+    private final Map<String, Module> registeredModules;
+    private final @Nullable String defaultCatalog;
+    private final @Nullable String defaultDatabase;
     private final Map<String, String> sessionConfig;
 
     @VisibleForTesting
     SessionEnvironment(
             @Nullable String sessionName,
             EndpointVersion version,
+            Map<String, Catalog> registeredCatalogs,
+            Map<String, Module> registeredModules,
+            @Nullable String defaultCatalog,
+            @Nullable String defaultDatabase,
             Map<String, String> sessionConfig) {
         this.sessionName = sessionName;
         this.version = version;
+        this.registeredCatalogs = registeredCatalogs;
+        this.registeredModules = registeredModules;
+        this.defaultCatalog = defaultCatalog;
+        this.defaultDatabase = defaultDatabase;
         this.sessionConfig = sessionConfig;
     }
 
@@ -65,6 +80,22 @@ public class SessionEnvironment {
         return Collections.unmodifiableMap(sessionConfig);
     }
 
+    public Map<String, Catalog> getRegisteredCatalogs() {
+        return Collections.unmodifiableMap(registeredCatalogs);
+    }
+
+    public Map<String, Module> getRegisteredModules() {
+        return Collections.unmodifiableMap(registeredModules);
+    }
+
+    public Optional<String> getDefaultCatalog() {
+        return Optional.ofNullable(defaultCatalog);
+    }
+
+    public Optional<String> getDefaultDatabase() {
+        return Optional.ofNullable(defaultDatabase);
+    }
+
     // -------------------------------------------------------------------------------------------
 
     @Override
@@ -78,12 +109,23 @@ public class SessionEnvironment {
         SessionEnvironment that = (SessionEnvironment) o;
         return Objects.equals(sessionName, that.sessionName)
                 && Objects.equals(version, that.version)
+                && Objects.equals(registeredCatalogs, that.registeredCatalogs)
+                && Objects.equals(registeredModules, that.registeredModules)
+                && Objects.equals(defaultCatalog, that.defaultCatalog)
+                && Objects.equals(defaultDatabase, that.defaultDatabase)
                 && Objects.equals(sessionConfig, that.sessionConfig);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(sessionName, version, sessionConfig);
+        return Objects.hash(
+                sessionName,
+                version,
+                registeredCatalogs,
+                registeredModules,
+                defaultCatalog,
+                defaultDatabase,
+                sessionConfig);
     }
 
     // -------------------------------------------------------------------------------------------
@@ -95,10 +137,15 @@ public class SessionEnvironment {
     }
 
     /** Builder to build the {@link SessionEnvironment}. */
+    @PublicEvolving
     public static class Builder {
         private @Nullable String sessionName;
         private EndpointVersion version;
         private final Map<String, String> sessionConfig = new HashMap<>();
+        private final Map<String, Catalog> registeredCatalogs = new HashMap<>();
+        private final Map<String, Module> registeredModules = new HashMap<>();
+        private @Nullable String defaultCatalog;
+        private @Nullable String defaultDatabase;
 
         public Builder setSessionName(String sessionName) {
             this.sessionName = sessionName;
@@ -115,8 +162,44 @@ public class SessionEnvironment {
             return this;
         }
 
+        public Builder setDefaultCatalog(@Nullable String defaultCatalog) {
+            this.defaultCatalog = defaultCatalog;
+            return this;
+        }
+
+        public Builder setDefaultDatabase(@Nullable String defaultDatabase) {
+            this.defaultDatabase = defaultDatabase;
+            return this;
+        }
+
+        public Builder registerCatalog(String catalogName, Catalog catalog) {
+            if (registeredCatalogs.containsKey(catalogName)) {
+                throw new ValidationException(
+                        String.format("A catalog with name '%s' already exists.", catalogName));
+            }
+            this.registeredCatalogs.put(catalogName, catalog);
+            return this;
+        }
+
+        public Builder registerModule(String moduleName, Module module) {
+            if (registeredModules.containsKey(moduleName)) {
+                throw new ValidationException(
+                        String.format("A module with name '%s' already exists", moduleName));
+            }
+
+            this.registeredModules.put(moduleName, module);
+            return this;
+        }
+
         public SessionEnvironment build() {
-            return new SessionEnvironment(sessionName, checkNotNull(version), sessionConfig);
+            return new SessionEnvironment(
+                    sessionName,
+                    checkNotNull(version),
+                    registeredCatalogs,
+                    registeredModules,
+                    defaultCatalog,
+                    defaultDatabase,
+                    sessionConfig);
         }
     }
 }

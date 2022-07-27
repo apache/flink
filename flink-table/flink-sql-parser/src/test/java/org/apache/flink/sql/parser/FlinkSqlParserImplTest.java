@@ -1856,6 +1856,38 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         "TRY_CAST(`A` AS ROW(`F0` INTEGER ARRAY, `F1` MAP< STRING, DECIMAL(10, 2) >, `F2` STRING NOT NULL))");
     }
 
+    @Test
+    void testAnalyzeTable() {
+        sql("analyze table emp^s^").fails("(?s).*Encountered \"<EOF>\" at line 1, column 18.\n.*");
+        sql("analyze table emps compute statistics").ok("ANALYZE TABLE `EMPS` COMPUTE STATISTICS");
+        sql("analyze table emps partition ^compute^ statistics")
+                .fails("(?s).*Encountered \"compute\" at line 1, column 30.\n.*");
+        sql("analyze table emps partition(^)^ compute statistics")
+                .fails("(?s).*Encountered \"\\)\" at line 1, column 30.\n.*");
+        sql("analyze table emps partition(x='ab') compute statistics")
+                .ok("ANALYZE TABLE `EMPS` PARTITION (`X` = 'ab') COMPUTE STATISTICS");
+        sql("analyze table emps partition(x='ab', y='bc') compute statistics")
+                .ok("ANALYZE TABLE `EMPS` PARTITION (`X` = 'ab', `Y` = 'bc') COMPUTE STATISTICS");
+        sql("analyze table emps compute statistics for column^s^")
+                .fails("(?s).*Encountered \"<EOF>\" at line 1, column 49.\n.*");
+        sql("analyze table emps compute statistics for columns a")
+                .ok("ANALYZE TABLE `EMPS` COMPUTE STATISTICS FOR COLUMNS `A`");
+        sql("analyze table emps compute statistics for columns a, b")
+                .ok("ANALYZE TABLE `EMPS` COMPUTE STATISTICS FOR COLUMNS `A`, `B`");
+        sql("analyze table emps compute statistics for all columns")
+                .ok("ANALYZE TABLE `EMPS` COMPUTE STATISTICS FOR ALL COLUMNS");
+        sql("analyze table emps partition(x, y) compute statistics for all columns")
+                .ok("ANALYZE TABLE `EMPS` PARTITION (`X`, `Y`) COMPUTE STATISTICS FOR ALL COLUMNS");
+        sql("analyze table emps partition(x='ab', y) compute statistics for all columns")
+                .ok(
+                        "ANALYZE TABLE `EMPS` PARTITION (`X` = 'ab', `Y`) COMPUTE STATISTICS FOR ALL COLUMNS");
+        sql("analyze table emps partition(x, y='cd') compute statistics for all columns")
+                .ok(
+                        "ANALYZE TABLE `EMPS` PARTITION (`X`, `Y` = 'cd') COMPUTE STATISTICS FOR ALL COLUMNS");
+        sql("analyze table emps partition(x=^,^ y) compute statistics for all columns")
+                .fails("(?s).*Encountered \"\\,\" at line 1, column 32.\n.*");
+    }
+
     public static BaseMatcher<SqlNode> validated(String validatedSql) {
         return new TypeSafeDiagnosingMatcher<SqlNode>() {
             @Override

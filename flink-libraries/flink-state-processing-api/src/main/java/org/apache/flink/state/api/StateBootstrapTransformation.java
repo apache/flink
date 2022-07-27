@@ -41,7 +41,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.util.TernaryBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -220,9 +219,8 @@ public class StateBootstrapTransformation<T> {
         config.setOperatorName(operatorID.toHexString());
         config.setOperatorID(operatorID);
         config.setStateBackend(stateBackend);
-        // This means leaving this stateBackend unwrapped.
-        config.setChangelogStateBackendEnabled(TernaryBoolean.FALSE);
         config.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.STATE_BACKEND, 1.0);
+        config.serializeAllConfigs();
         return config;
     }
 

@@ -28,30 +28,30 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Test {@link SqlGatewayEndpointFactoryUtils}. */
 public class SqlGatewayEndpointFactoryUtilsTest {
 
     @Test
     public void testCreateEndpoints() {
-        Map<String, String> config = getDefaultConfig();
+        String id = UUID.randomUUID().toString();
+        Map<String, String> config = getDefaultConfig(id);
         config.put("sql-gateway.endpoint.type", "mocked;fake");
         List<SqlGatewayEndpoint> actual =
                 createSqlGatewayEndpoint(
                         new MockedSqlGatewayService(), Configuration.fromMap(config));
         MockedSqlGatewayEndpoint expectedMocked =
-                new MockedSqlGatewayEndpoint("localhost", 9999, "Hello World.");
-        assertEquals(
-                new HashSet<>(Arrays.asList(expectedMocked, FakeSqlGatewayEndpoint.INSTANCE)),
-                new HashSet<>(actual));
+                new MockedSqlGatewayEndpoint(id, "localhost", 9999, "Hello World.");
+        assertThat(actual)
+                .isEqualTo(Arrays.asList(expectedMocked, FakeSqlGatewayEndpoint.INSTANCE));
     }
 
     @Test
@@ -110,6 +110,7 @@ public class SqlGatewayEndpointFactoryUtilsTest {
                         + "Supported options:\n\n"
                         + "description\n"
                         + "host\n"
+                        + "id\n"
                         + "port");
     }
 
@@ -125,7 +126,12 @@ public class SqlGatewayEndpointFactoryUtilsTest {
     }
 
     private Map<String, String> getDefaultConfig() {
+        return getDefaultConfig(UUID.randomUUID().toString());
+    }
+
+    private Map<String, String> getDefaultConfig(String id) {
         Map<String, String> config = new HashMap<>();
+        config.put("sql-gateway.endpoint.mocked.id", id);
         config.put("sql-gateway.endpoint.type", "mocked");
         config.put("sql-gateway.endpoint.mocked.host", "localhost");
         config.put("sql-gateway.endpoint.mocked.port", "9999");

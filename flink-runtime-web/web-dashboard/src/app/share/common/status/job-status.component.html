@@ -1,0 +1,84 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<ng-template #extraTpl>
+  <div class="operate-action">
+    <span *ngIf="statusTips">{{ statusTips }}</span>
+    <ng-container *ngIf="!statusTips">
+      <a
+        nz-popconfirm
+        nzPopconfirmTitle="Cancel Job?"
+        nzOkText="Yes"
+        nzCancelText="No"
+        (nzOnConfirm)="cancelJob()"
+        *ngIf="
+          webCancelEnabled &&
+          (jobDetail.state === 'RUNNING' ||
+            jobDetail.state === 'CREATED' ||
+            jobDetail.state === 'RESTARTING')
+        "
+      >
+        Cancel Job
+      </a>
+    </ng-container>
+  </div>
+</ng-template>
+
+<ng-container *ngIf="jobDetail && !isLoading">
+  <nz-descriptions
+    [nzTitle]="jobDetail.name"
+    [nzExtra]="extraTpl"
+    nzBordered
+    nzSize="small"
+    [nzColumn]="{ xxl: 3, xl: 3, lg: 2, md: 2, sm: 1, xs: 1 }"
+  >
+    <nz-descriptions-item nzTitle="Job ID">{{ jobDetail.jid }}</nz-descriptions-item>
+    <nz-descriptions-item nzTitle="Job State">
+      <div class="status-wrapper">
+        <flink-job-badge [state]="jobDetail.state"></flink-job-badge>
+        <nz-divider nzType="vertical"></nz-divider>
+        <flink-task-badge [tasks]="jobDetail['status-counts']"></flink-task-badge>
+      </div>
+    </nz-descriptions-item>
+    <nz-descriptions-item nzTitle="Actions">
+      <a
+        *ngIf="!isHistoryServer; else historyServerActions"
+        [routerLink]="['/job-manager', 'logs']"
+        [queryParamsHandling]="'preserve'"
+      >
+        Job Manager Log
+      </a>
+      <ng-template #historyServerActions>
+        <a [href]="jmLogUrl" *ngIf="!urlLoading">Job Manager Log</a>
+        <span *ngIf="urlLoading">-</span>
+      </ng-template>
+    </nz-descriptions-item>
+    <nz-descriptions-item nzTitle="Start Time">
+      {{ jobDetail['start-time'] | date: 'yyyy-MM-dd HH:mm:ss' }}
+    </nz-descriptions-item>
+    <nz-descriptions-item nzTitle="End Time" *ngIf="jobDetail['end-time'] > -1">
+      {{ jobDetail['end-time'] | date: 'yyyy-MM-dd HH:mm:ss' }}
+    </nz-descriptions-item>
+    <nz-descriptions-item nzTitle="Duration">
+      {{ jobDetail.duration | humanizeDuration }}
+    </nz-descriptions-item>
+  </nz-descriptions>
+
+  <flink-navigation [listOfNavigation]="listOfNavigation"></flink-navigation>
+</ng-container>
+<nz-skeleton [nzActive]="true" *ngIf="isLoading"></nz-skeleton>

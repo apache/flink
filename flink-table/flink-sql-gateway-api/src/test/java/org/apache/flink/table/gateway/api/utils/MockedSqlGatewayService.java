@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.api.utils;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationType;
@@ -76,6 +77,16 @@ public class MockedSqlGatewayService implements SqlGatewayService {
     @Override
     public OperationInfo getOperationInfo(
             SessionHandle sessionHandle, OperationHandle operationHandle) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public OperationHandle executeStatement(
+            SessionHandle sessionHandle,
+            String statement,
+            long executionTimeoutMs,
+            Configuration executionConfig)
+            throws SqlGatewayException {
         throw new UnsupportedOperationException();
     }
 }

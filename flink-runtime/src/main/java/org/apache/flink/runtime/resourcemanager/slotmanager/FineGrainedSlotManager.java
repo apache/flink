@@ -23,7 +23,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -112,6 +114,9 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Nullable private CompletableFuture<Void> requirementsCheckFuture;
 
+    /** Blocked task manager checker. */
+    @Nullable private BlockedTaskManagerChecker blockedTaskManagerChecker;
+
     /** True iff the component has been started. */
     private boolean started;
 
@@ -167,6 +172,11 @@ public class FineGrainedSlotManager implements SlotManager {
         }
     }
 
+    @Override
+    public void triggerResourceRequirementsCheck() {
+        checkResourceRequirementsWithDelay();
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Component lifecycle methods
     // ---------------------------------------------------------------------------------------------
@@ -177,12 +187,14 @@ public class FineGrainedSlotManager implements SlotManager {
      * @param newResourceManagerId to use for communication with the task managers
      * @param newMainThreadExecutor to use to run code in the ResourceManager's main thread
      * @param newResourceActions to use for resource (de-)allocations
+     * @param newBlockedTaskManagerChecker to query whether a task manager is blocked
      */
     @Override
     public void start(
             ResourceManagerId newResourceManagerId,
             Executor newMainThreadExecutor,
-            ResourceActions newResourceActions) {
+            ResourceActions newResourceActions,
+            BlockedTaskManagerChecker newBlockedTaskManagerChecker) {
         LOG.info("Starting the slot manager.");
 
         resourceManagerId = Preconditions.checkNotNull(newResourceManagerId);
@@ -190,6 +202,7 @@ public class FineGrainedSlotManager implements SlotManager {
         resourceActions = Preconditions.checkNotNull(newResourceActions);
         slotStatusSyncer.initialize(
                 taskManagerTracker, resourceTracker, resourceManagerId, mainThreadExecutor);
+        blockedTaskManagerChecker = Preconditions.checkNotNull(newBlockedTaskManagerChecker);
 
         started = true;
 
@@ -532,7 +545,7 @@ public class FineGrainedSlotManager implements SlotManager {
 
         final ResourceAllocationResult result =
                 resourceAllocationStrategy.tryFulfillRequirements(
-                        missingResources, taskManagerTracker);
+                        missingResources, taskManagerTracker, this::isBlockedTaskManager);
 
         // Allocate slots according to the result
         allocateSlotsAccordingTo(result.getAllocationsOnRegisteredResources());
@@ -768,5 +781,10 @@ public class FineGrainedSlotManager implements SlotManager {
                         .merge(taskManagerTracker.getPendingResource());
         return totalResourceAfterAdding.getCpuCores().compareTo(maxTotalCpu) > 0
                 || totalResourceAfterAdding.getTotalMemory().compareTo(maxTotalMem) > 0;
+    }
+
+    private boolean isBlockedTaskManager(ResourceID resourceID) {
+        Preconditions.checkNotNull(blockedTaskManagerChecker);
+        return blockedTaskManagerChecker.isBlockedTaskManager(resourceID);
     }
 }

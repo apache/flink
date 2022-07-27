@@ -27,6 +27,7 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
@@ -40,6 +41,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 
 import org.apache.hadoop.hive.common.type.HiveChar;
@@ -183,6 +185,10 @@ public class HiveTypeUtil {
                 DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) hiveType;
                 return DataTypes.DECIMAL(
                         decimalTypeInfo.getPrecision(), decimalTypeInfo.getScale());
+            case INTERVAL_YEAR_MONTH:
+                return DataTypes.INTERVAL(DataTypes.MONTH());
+            case INTERVAL_DAY_TIME:
+                return DataTypes.INTERVAL(DataTypes.SECOND(3));
             default:
                 throw new UnsupportedOperationException(
                         String.format(
@@ -319,6 +325,16 @@ public class HiveTypeUtil {
                         "HiveCatalog currently only supports timestamp of precision 9");
             }
             return TypeInfoFactory.timestampTypeInfo;
+        }
+
+        @Override
+        public TypeInfo visit(YearMonthIntervalType yearMonthIntervalType) {
+            return TypeInfoFactory.intervalYearMonthTypeInfo;
+        }
+
+        @Override
+        public TypeInfo visit(DayTimeIntervalType dayTimeIntervalType) {
+            return TypeInfoFactory.intervalDayTimeTypeInfo;
         }
 
         @Override

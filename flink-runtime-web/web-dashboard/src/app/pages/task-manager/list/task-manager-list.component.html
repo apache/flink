@@ -19,7 +19,6 @@
 <nz-card [nzBordered]="false" [nzTitle]="'Task Managers'" [nzLoading]="isLoading">
   <nz-table
     #table
-    class="small"
     [nzSize]="'small'"
     [nzScroll]="{ x: '1250px', y: 'calc(100vh - 260px)' }"
     [nzData]="listOfTaskManager"
@@ -28,7 +27,7 @@
   >
     <thead>
       <tr>
-        <th nzLeft="0px" [nzWidth]="'280px'">Path, ID</th>
+        <th nzLeft [nzWidth]="'280px'">Path, ID</th>
         <th [nzSortFn]="sortDataPortFn" [nzWidth]="'100px'">Data Port</th>
         <th [nzSortFn]="sortHeartBeatFn" [nzWidth]="'160px'">Last Heartbeat</th>
         <th [nzSortFn]="sortSlotsNumberFn" [nzWidth]="'90px'">All Slots</th>
@@ -36,15 +35,13 @@
         <th [nzSortFn]="sortCpuCoresFn" [nzWidth]="'110px'">CPU Cores</th>
         <th [nzSortFn]="sortPhysicalMemoryFn" [nzWidth]="'120px'">Physical MEM</th>
         <th [nzSortFn]="sortFreeMemoryFn" [nzWidth]="'130px'">JVM Heap Size</th>
-        <th nzRight="0px" [nzSortFn]="sortManagedMemoryFn" [nzWidth]="'160px'">
-          Flink Managed MEM
-        </th>
+        <th nzRight [nzSortFn]="sortManagedMemoryFn" [nzWidth]="'160px'">Flink Managed MEM</th>
       </tr>
     </thead>
     <tbody>
-      <ng-container *ngFor="let manager of table.data; trackBy: trackById">
+      <ng-container *ngFor="let manager of narrowType(table.data); trackBy: trackById">
         <tr class="clickable" (click)="navigateTo(manager)">
-          <td nzLeft="0px">
+          <td nzLeft>
             <em class="break-word">
               <a>{{ manager.id }}</a>
             </em>
@@ -62,7 +59,7 @@
           <td [attr.title]="manager.hardware.freeMemory + ' bytes'">
             {{ manager.hardware.freeMemory | humanizeBytes }}
           </td>
-          <td [attr.title]="manager.hardware.managedMemory + ' bytes'" nzRight="0px">
+          <td [attr.title]="manager.hardware.managedMemory + ' bytes'" nzRight>
             {{ manager.hardware.managedMemory | humanizeBytes }}
           </td>
         </tr>

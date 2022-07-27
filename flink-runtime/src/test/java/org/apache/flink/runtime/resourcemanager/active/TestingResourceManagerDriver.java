@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager.active;
 
+import org.apache.flink.runtime.blocklist.BlockedNodeRetriever;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -69,7 +70,8 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
     public void initialize(
             ResourceEventHandler<ResourceID> resourceEventHandler,
             ScheduledExecutor mainThreadExecutor,
-            Executor ioExecutor)
+            Executor ioExecutor,
+            BlockedNodeRetriever blockedNodeRetriever)
             throws Exception {
         initializeFunction.apply(resourceEventHandler, mainThreadExecutor, ioExecutor);
     }

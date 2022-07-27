@@ -39,6 +39,10 @@ public class HandleIdentifier {
         return publicId;
     }
 
+    public UUID getSecretId() {
+        return secretId;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {

@@ -31,6 +31,8 @@ import java.util.Set;
 /** Factory to create the {@link SqlGatewayEndpoint}. */
 public class MockedSqlGatewayEndpointFactory implements SqlGatewayEndpointFactory {
 
+    public static final ConfigOption<String> ID =
+            ConfigOptions.key("id").stringType().noDefaultValue();
     public static final ConfigOption<String> HOST =
             ConfigOptions.key("host").stringType().noDefaultValue();
     public static final ConfigOption<Integer> PORT =
@@ -45,6 +47,7 @@ public class MockedSqlGatewayEndpointFactory implements SqlGatewayEndpointFactor
         helper.validate();
 
         return new MockedSqlGatewayEndpoint(
+                helper.getOptions().get(ID),
                 helper.getOptions().get(HOST),
                 helper.getOptions().get(PORT),
                 helper.getOptions().get(DESCRIPTION));
@@ -58,6 +61,7 @@ public class MockedSqlGatewayEndpointFactory implements SqlGatewayEndpointFactor
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(ID);
         options.add(HOST);
         options.add(PORT);
         return options;

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateChangelogOptionsInternal;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -1462,14 +1463,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private StateBackend createStateBackend() throws Exception {
         final StateBackend fromApplication =
                 configuration.getStateBackend(getUserCodeClassLoader());
+        final Optional<Boolean> isChangelogEnabledOptional =
+                environment
+                        .getJobConfiguration()
+                        .getOptional(
+                                StateChangelogOptionsInternal.ENABLE_CHANGE_LOG_FOR_APPLICATION);
         final TernaryBoolean isChangelogStateBackendEnableFromApplication =
-                configuration.isChangelogStateBackendEnabled(getUserCodeClassLoader());
+                isChangelogEnabledOptional.isPresent()
+                        ? TernaryBoolean.fromBoolean(isChangelogEnabledOptional.get())
+                        : TernaryBoolean.UNDEFINED;
 
         return StateBackendLoader.fromApplicationOrConfigOrDefault(
                 fromApplication,
-                isChangelogStateBackendEnableFromApplication == null
-                        ? TernaryBoolean.UNDEFINED
-                        : isChangelogStateBackendEnableFromApplication,
+                isChangelogStateBackendEnableFromApplication,
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),
                 LOG);

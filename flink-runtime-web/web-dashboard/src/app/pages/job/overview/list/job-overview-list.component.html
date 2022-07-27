@@ -27,7 +27,7 @@
 >
   <thead>
     <tr>
-      <th nzLeft="0px" [nzWidth]="left + 'px'">Name</th>
+      <th nzLeft [nzWidth]="left + 'px'">Name</th>
       <th [nzSortFn]="sortStatusFn" nzWidth="120px">Status</th>
       <th [nzSortFn]="sortReadBytesFn" nzWidth="150px">Bytes Received</th>
       <th [nzSortFn]="sortReadRecordsFn" nzWidth="150px">Records Received</th>
@@ -37,7 +37,7 @@
       <th [nzSortFn]="sortStartTimeFn" nzWidth="150px">Start Time</th>
       <th [nzSortFn]="sortDurationFn" nzWidth="150px">Duration</th>
       <th [nzSortFn]="sortEndTimeFn" nzWidth="150px">End Time</th>
-      <th nzWidth="100px" nzRight="0px">Tasks</th>
+      <th nzWidth="100px" nzRight>Tasks</th>
     </tr>
   </thead>
   <tbody>
@@ -47,7 +47,7 @@
       (click)="clickNode(node)"
       [class.selected]="selectedNode?.id === node.id"
     >
-      <td nzLeft="0px" class="name" [class.selected]="selectedNode?.id === node.id">
+      <td nzLeft class="name" [class.selected]="selectedNode?.id === node.id">
         <a nzTooltipPlacement="topLeft" nz-tooltip [nzTooltipTitle]="node.detail?.name">
           {{ node.detail?.name }}
         </a>
@@ -99,7 +99,7 @@
       <td>{{ node.detail['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
       <td>{{ node.detail?.duration | humanizeDuration }}</td>
       <td>{{ node.detail['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
-      <td nzRight="0px" [class.selected]="selectedNode?.id === node.id">
+      <td nzRight [class.selected]="selectedNode?.id === node.id">
         <flink-task-badge [tasks]="node.detail?.tasks"></flink-task-badge>
       </td>
     </tr>

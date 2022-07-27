@@ -19,12 +19,68 @@ under the License.
 Generates the PyFlink download connector page.
 */}}
 {{ $name := .Get 0 }}
-{{ $text := .Get 1 }}
 {{ $connectors := .Site.Data.sql_connectors }}
 {{ $connector := index $connectors $name }}
 
-<p>In order to use the {{ $connector.name }} {{ $connector.category }} in PyFlink jobs, the following
-dependencies are required: <a href="{{- partial "docs/interpolate" $connector.sql_url -}}">{{ $text }}</a>.
+<p>
+{{ if eq $.Site.Language.Lang "en" }}
+In order to use the {{ $connector.name }} {{ $connector.category }} in PyFlink jobs, the following
+dependencies are required:
+{{ else if eq $.Site.Language.Lang "zh" }}
+为了在 PyFlink 作业中使用 {{ $connector.name }} {{ $connector.category }} ，需要添加下列依赖：
+{{ end }}
+{{ if eq $connector.versions nil }}
+<table>
+    <thead>
+    <th style="text-align:left">PyFlink JAR</th>
+    </thead>
+    <tbody>
+    <tr>
+        {{ if eq $connector.builtin true }}
+        <td style="text-align: left">Built-in</td>
+        {{ else if $.Site.Params.IsStable }}
+        {{ if eq $connector.sql_url nil }}
+        <td style="text-align:left">There is no sql jar available yet.</td>
+        {{ else }}
+        <td style="text-align: left"><a href="{{- partial "docs/interpolate" $connector.sql_url -}}">Download</a></td>
+        {{ end }}
+        {{ else }}
+        <td style="text-align: left">Only available for stable releases.</td>
+        {{ end }}
+    </tr>
+    </tbody>
+</table>
+{{ else }}
+<table>
+    <thead>
+    <th style="text-align: left">{{ $connector.name }} version</th>
+    <th style="text-align: left">PyFlink JAR</th>
+    </thead>
+    <tbody>
+    {{ range $connector.versions }}
+    <tr>
+        <td style="text-align: left">{{ .version }}</td>
+        {{ if eq .builtin true }}
+        <td style="text-align: left">Built-in</td>
+        {{ else if eq .nosqljar true}}
+        {{ else if $.Site.Params.IsStable }}
+        {{ if eq .sql_url nil}}
+        <td style="text-align:left">There is no sql jar available yet.</td>
+        {{ else }}
+        <td style="text-align:left"><a href="{{- partial "docs/interpolate" .sql_url -}}">Download</a></td>
+        {{ end }}
+        {{ else }}
+        <td>Only available for stable releases.</td>
+        {{ end }}
+    </tr>
+    {{ end }}
+    </tbody>
+</table>
+{{ end }}
+{{ if eq .Site.Language.Lang "en" }}
 See <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/python/dependency_management/#jar-dependencies">Python dependency management</a>
 for more details on how to use JARs in PyFlink.
+{{ else if eq .Site.Language.Lang "zh" }}
+在 PyFlink 中如何添加 JAR 包依赖参见 <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/python/dependency_management/#jar-dependencies">Python 依赖管理</a>。
+{{ end }}
 </p>

@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 /** This deployer is responsible for deploying executions. */
-interface ExecutionDeployer {
+public interface ExecutionDeployer {
 
     /**
      * Allocate slots and deploy executions.

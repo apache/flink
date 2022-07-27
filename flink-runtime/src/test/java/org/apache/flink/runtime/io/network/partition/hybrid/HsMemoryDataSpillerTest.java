@@ -33,10 +33,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,7 +44,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,24 +69,6 @@ class HsMemoryDataSpillerTest {
                         StandardOpenOption.WRITE,
                         StandardOpenOption.READ);
         this.memoryDataSpiller = new HsMemoryDataSpiller(dataFileChannel);
-    }
-
-    @Test
-    void testSpillExceptionally() throws IOException {
-        int targetChannel = 0;
-        List<BufferWithIdentity> bufferWithIdentityList =
-                createBufferWithIdentityList(
-                        targetChannel,
-                        Arrays.asList(Tuple2.of(0, 0), Tuple2.of(1, 1), Tuple2.of(2, 2)));
-        // close data file channel to trigger exception when spill data into disk.
-        dataFileChannel.close();
-
-        CompletableFuture<List<SpilledBuffer>> future =
-                memoryDataSpiller.spillAsync(bufferWithIdentityList);
-        assertThat(future)
-                .failsWithin(60, TimeUnit.SECONDS)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(ClosedChannelException.class);
     }
 
     @Test

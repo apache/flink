@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.blocklist;
 
+import org.apache.flink.runtime.messages.Acknowledge;
+
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 /** A listener that want to be notified when blocklist changes. */
 public interface BlocklistListener {
@@ -27,6 +30,7 @@ public interface BlocklistListener {
      * Notify new blocked node records.
      *
      * @param newNodes the new blocked node records
+     * @return Future acknowledge once the new nodes have successfully notified.
      */
-    void notifyNewBlockedNodes(Collection<BlockedNode> newNodes);
+    CompletableFuture<Acknowledge> notifyNewBlockedNodes(Collection<BlockedNode> newNodes);
 }

@@ -79,6 +79,9 @@ Functions used to transform a :class:`DataStream` into another :class:`DataStrea
       A function to be applied to a :class:`BroadcastConnectedStream` that connects
       :class:`BroadcastStream`, i.e. a stream with broadcast state, with a non-keyed
       :class:`DataStream`.
+    - :class:`KeyedBroadcastProcessFunction`:
+      A function to be applied to a :class:`BroadcastConnectedStream` that connects
+      :class:`BroadcastStream`, i.e. a stream with broadcast state, with a :class:`KeyedStream`.
     - :class:`RuntimeContext`:
       Contains information about the context in which functions are executed. Each
       parallel instance of the function will have a context through which it can access static
@@ -166,6 +169,10 @@ Classes to define source & sink:
       A streaming data source that pulls a parallel data stream from Apache Kafka.
     - :class:`connectors.FlinkKafkaProducer`:
       A streaming data sink to produce data into a Kafka topic.
+    - :class:`connectors.KafkaSource`:
+      The new API to read data in parallel from Apache Kafka.
+    - :class:`connectors.KafkaSink`:
+      The new API to write data into to Apache Kafka topics.
     - :class:`connectors.FileSource`:
       A unified data source that reads files - both in batch and in streaming mode.
       This source supports all (distributed) file systems and object stores that can be accessed via
@@ -189,6 +196,19 @@ Classes to define source & sink:
       A streaming data source that pulls a parallel data stream from RabbitMQ.
     - :class:`connectors.RMQSink`:
       A Sink for publishing data into RabbitMQ.
+
+Classes to define formats used together with source & sink:
+
+    - :class:`formats.CsvReaderFormat`:
+      A :class:`connectors.StreamFormat` to read csv files into Row data.
+    - :class:`formats.AvroInputFormat`:
+      An :class:`formats.InputFormat` to read avro files.
+    - :class:`formats.ParquetColumnarRowInputFormat`:
+      A :class:`connectors.BulkFormat` to read columnar parquet files into Row data in a
+      batch-processing fashion.
+    - :class:`formats.AvroParquetReaders`:
+      A convenience builder to create reader format that reads individual Avro records from a
+      Parquet stream. Only GenericRecord is supported in PyFlink.
 
 Other important classes:
 
@@ -218,7 +238,8 @@ from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFun
                                           KeySelector, FilterFunction, Partitioner, SourceFunction,
                                           SinkFunction, CoProcessFunction, KeyedProcessFunction,
                                           KeyedCoProcessFunction, AggregateFunction, WindowFunction,
-                                          ProcessWindowFunction, BroadcastProcessFunction)
+                                          ProcessWindowFunction, BroadcastProcessFunction,
+                                          KeyedBroadcastProcessFunction)
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup, MemorySize
 from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
                                               RocksDBStateBackend, CustomStateBackend,
@@ -259,6 +280,7 @@ __all__ = [
     'ProcessWindowFunction',
     'AggregateFunction',
     'BroadcastProcessFunction',
+    'KeyedBroadcastProcessFunction',
     'RuntimeContext',
     'TimerService',
     'CheckpointingMode',

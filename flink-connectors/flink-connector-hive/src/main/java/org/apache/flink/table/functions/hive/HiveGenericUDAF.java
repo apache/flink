@@ -172,7 +172,7 @@ public class HiveGenericUDAF
             throw new FlinkHiveUDFException(
                     String.format(
                             "Failed to create accumulator for %s",
-                            hiveFunctionWrapper.getClassName()),
+                            hiveFunctionWrapper.getUDFClassName()),
                     e);
         }
     }
@@ -206,7 +206,8 @@ public class HiveGenericUDAF
         } catch (HiveException e) {
             throw new FlinkHiveUDFException(
                     String.format(
-                            "Failed to get final result on %s", hiveFunctionWrapper.getClassName()),
+                            "Failed to get final result on %s",
+                            hiveFunctionWrapper.getUDFClassName()),
                     e);
         }
     }
@@ -247,7 +248,7 @@ public class HiveGenericUDAF
             throw new FlinkHiveUDFException(
                     String.format(
                             "Failed to get Hive result type from %s",
-                            hiveFunctionWrapper.getClassName()),
+                            hiveFunctionWrapper.getUDFClassName()),
                     e);
         }
     }

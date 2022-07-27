@@ -31,9 +31,6 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IterableUtils;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,10 +49,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * defined by this strategy as tasks that communicate via pipelined data exchange.
  */
 public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy {
-
-    /** The log object used for debugging. */
-    private static final Logger LOG =
-            LoggerFactory.getLogger(RestartPipelinedRegionFailoverStrategy.class);
 
     /** The topology containing info about all the vertices and result partitions. */
     private final SchedulingTopology topology;
@@ -112,7 +105,6 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
     @Override
     public Set<ExecutionVertexID> getTasksNeedingRestart(
             ExecutionVertexID executionVertexId, Throwable cause) {
-        LOG.info("Calculating tasks to restart to recover the failed task {}.", executionVertexId);
 
         final SchedulingPipelinedRegion failedRegion =
                 topology.getPipelinedRegionOfVertex(executionVertexId);
@@ -149,10 +141,6 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
                     dataConsumptionException.get().getPartitionId().getPartitionId());
         }
 
-        LOG.info(
-                "{} tasks should be restarted to recover the failed task {}. ",
-                tasksToRestart.size(),
-                executionVertexId);
         return tasksToRestart;
     }
 

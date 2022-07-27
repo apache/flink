@@ -22,6 +22,9 @@ from py4j.java_gateway import JavaObject
 from pyflink.datastream.functions import JavaFunctionWrapper
 
 
+__all__ = ['InputFormat']
+
+
 class InputFormat(JavaFunctionWrapper):
     """
     The Python wrapper of Java InputFormat interface, which is the base interface for data sources

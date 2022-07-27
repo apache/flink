@@ -109,4 +109,9 @@ public class MetricNames {
     public static final String MAILBOX_THROUGHPUT = "mailboxMailsPerSecond";
     public static final String MAILBOX_LATENCY = "mailboxLatencyMs";
     public static final String MAILBOX_SIZE = "mailboxQueueSize";
+
+    // speculative execution
+    public static final String NUM_SLOW_EXECUTION_VERTICES = "numSlowExecutionVertices";
+    public static final String NUM_EFFECTIVE_SPECULATIVE_EXECUTIONS =
+            "numEffectiveSpeculativeExecutions";
 }

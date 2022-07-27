@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.python.AbstractEmbeddedPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.AbstractEmbeddedPythonFunctionOperator;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowDataWrappingCollector;
@@ -100,10 +100,5 @@ public abstract class AbstractEmbeddedStatelessFunctionOperator
                         .map(RowType.RowField::getType)
                         .map(PythonTypeUtils::toDataConverter)
                         .toArray(PythonTypeUtils.DataConverter[]::new);
-    }
-
-    @Override
-    protected void invokeFinishBundle() throws Exception {
-        // TODO: Support batches invoking.
     }
 }

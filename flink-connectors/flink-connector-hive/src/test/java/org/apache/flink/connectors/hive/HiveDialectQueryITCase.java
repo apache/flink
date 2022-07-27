@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test hive query compatibility. */
 public class HiveDialectQueryITCase {
@@ -359,6 +360,79 @@ public class HiveDialectQueryITCase {
         } finally {
             tableEnv.executeSql("drop table t");
         }
+    }
+
+    @Test
+    public void testCurrentDatabase() {
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select current_database()").collect());
+        assertThat(result.toString()).isEqualTo("[+I[default]]");
+        tableEnv.executeSql("create database db1");
+        tableEnv.executeSql("use db1");
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select current_database()").collect());
+        assertThat(result.toString()).isEqualTo("[+I[db1]]");
+        // switch to default database for following test use default database
+        tableEnv.executeSql("use default");
+        tableEnv.executeSql("drop database db1");
+    }
+
+    @Test
+    public void testDistinctFrom() throws Exception {
+        try {
+            tableEnv.executeSql("create table test(x string, y string)");
+            tableEnv.executeSql(
+                            "insert into test values ('q', 'q'), ('q', 'w'), (NULL, 'q'), ('q', NULL), (NULL, NULL)")
+                    .await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select x <=> y, (x <=> y) = false from test")
+                                    .collect());
+            assertThat(result.toString())
+                    .isEqualTo(
+                            "[+I[true, false], +I[false, true], +I[false, true], +I[false, true], +I[true, false]]");
+        } finally {
+            tableEnv.executeSql("drop table test");
+        }
+    }
+
+    @Test
+    public void testTableSample() throws Exception {
+        tableEnv.executeSql("create table test_sample(a int)");
+        try {
+            tableEnv.executeSql("insert into test_sample values (2), (1), (3)").await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from test_sample tablesample (2 rows)")
+                                    .collect());
+            assertThat(result.toString()).isEqualTo("[+I[2], +I[1]]");
+            // test unsupported table sample
+            String expectedMessage = "Only TABLESAMPLE (n ROWS) is supported.";
+            assertSqlException(
+                    "select * from test_sample tablesample (0.1 PERCENT)",
+                    UnsupportedOperationException.class,
+                    expectedMessage);
+            assertSqlException(
+                    "select * from test_sample tablesample (100M)",
+                    UnsupportedOperationException.class,
+                    expectedMessage);
+            assertSqlException(
+                    "select * from test_sample tablesample (BUCKET 3 OUT OF 64 ON a)",
+                    UnsupportedOperationException.class,
+                    expectedMessage);
+        } finally {
+            tableEnv.executeSql("drop table test_sample");
+        }
+    }
+
+    private void assertSqlException(
+            String sql, Class<?> expectedExceptionClz, String expectedMessage) {
+        assertThatThrownBy(() -> tableEnv.executeSql(sql))
+                .rootCause()
+                .isInstanceOf(expectedExceptionClz)
+                .hasMessage(expectedMessage);
     }
 
     private void runQFile(File qfile) throws Exception {

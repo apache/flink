@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import warnings
+
 from pyflink.common import Duration, Encoder
 from pyflink.datastream.functions import SinkFunction
 from pyflink.datastream.connectors import Source, Sink
@@ -550,6 +552,7 @@ class StreamingFileSink(SinkFunction):
     """
 
     def __init__(self, j_obj):
+        warnings.warn("Deprecated in 1.15. Use FileSink instead.", DeprecationWarning)
         super(StreamingFileSink, self).__init__(j_obj)
 
     class DefaultRowFormatBuilder(object):

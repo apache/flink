@@ -39,13 +39,22 @@ public class SessionEnvironmentTest {
         configMap.put("key2", "value2");
 
         SessionEnvironment expectedEnvironment =
-                new SessionEnvironment(sessionName, MockedEndpointVersion.V1, configMap);
+                new SessionEnvironment(
+                        sessionName,
+                        MockedEndpointVersion.V1,
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        "default",
+                        "default_db",
+                        configMap);
 
         SessionEnvironment actualEnvironment =
                 SessionEnvironment.newBuilder()
                         .setSessionName(sessionName)
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)
                         .addSessionConfig(configMap)
+                        .setDefaultCatalog("default")
+                        .setDefaultDatabase("default_db")
                         .build();
         assertEquals(expectedEnvironment, actualEnvironment);
     }

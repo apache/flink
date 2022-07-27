@@ -41,6 +41,7 @@ public interface SqlGatewayEndpointFactory extends Factory {
     SqlGatewayEndpoint createSqlGatewayEndpoint(Context context);
 
     /** Provides information describing the endpoint to be accessed. */
+    @PublicEvolving
     interface Context {
 
         /** Get the service to execute the request. */

@@ -95,6 +95,8 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
         this.allocationTimeout = checkNotNull(allocationTimeout);
         this.resourceProfileRetriever = checkNotNull(resourceProfileRetriever);
         this.sharedSlots = new IdentityHashMap<>();
+
+        this.slotProvider.disableBatchSlotRequestTimeoutCheck();
     }
 
     @Override

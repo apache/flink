@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Union
 
@@ -50,6 +51,24 @@ class Sink(JavaFunctionWrapper):
         :param sink: The java Sink object.
         """
         super(Sink, self).__init__(sink)
+
+
+class TransformAppender(ABC):
+
+    @abstractmethod
+    def apply(self, ds):
+        pass
+
+
+class SupportPreprocessing(ABC):
+
+    @abstractmethod
+    def need_preprocessing(self) -> bool:
+        pass
+
+    @abstractmethod
+    def get_preprocessing(self) -> 'TransformAppender':
+        pass
 
 
 class DeliveryGuarantee(Enum):

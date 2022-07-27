@@ -52,6 +52,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestableKeyedStateBackend;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendLocalHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
@@ -92,7 +93,6 @@ import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static java.util.Collections.unmodifiableList;
 import static org.apache.flink.state.changelog.PeriodicMaterializationManager.MaterializationRunnable;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -382,11 +382,12 @@ public class ChangelogKeyedStateBackend<K>
         changelogTruncateHelper.checkpoint(checkpointId, lastUploadedTo);
 
         LOG.info(
-                "snapshot of {} for checkpoint {}, change range: {}..{}",
+                "snapshot of {} for checkpoint {}, change range: {}..{}, materialization ID {}",
                 subtaskName,
                 checkpointId,
                 lastUploadedFrom,
-                lastUploadedTo);
+                lastUploadedTo,
+                changelogSnapshotState.getMaterializationID());
 
         ChangelogSnapshotState changelogStateBackendStateCopy = changelogSnapshotState;
 
@@ -405,10 +406,12 @@ public class ChangelogKeyedStateBackend<K>
                         .whenComplete(
                                 (snapshotResult, throwable) ->
                                         metrics.reportSnapshotResult(snapshotResult))
-                        .thenApply(
-                                snapshotResult ->
-                                        SnapshotResult.of(
-                                                snapshotResult.getJobManagerOwnedSnapshot())));
+                        .thenApply(this::castSnapshotResult));
+    }
+
+    @SuppressWarnings("unchecked")
+    private SnapshotResult<KeyedStateHandle> castSnapshotResult(SnapshotResult<?> snapshotResult) {
+        return (SnapshotResult<KeyedStateHandle>) snapshotResult;
     }
 
     private SnapshotResult<ChangelogStateBackendHandle> buildSnapshotResult(
@@ -428,6 +431,21 @@ public class ChangelogKeyedStateBackend<K>
         if (prevDeltaCopy.isEmpty()
                 && changelogStateBackendStateCopy.getMaterializedSnapshot().isEmpty()) {
             return SnapshotResult.empty();
+        } else if (!changelogStateBackendStateCopy.getLocalMaterializedSnapshot().isEmpty()) {
+            ChangelogStateBackendHandleImpl jmHandle =
+                    new ChangelogStateBackendHandleImpl(
+                            changelogStateBackendStateCopy.getMaterializedSnapshot(),
+                            prevDeltaCopy,
+                            getKeyGroupRange(),
+                            checkpointId,
+                            changelogStateBackendStateCopy.materializationID,
+                            persistedSizeOfThisCheckpoint);
+            return SnapshotResult.withLocalState(
+                    jmHandle,
+                    new ChangelogStateBackendLocalHandle(
+                            changelogStateBackendStateCopy.getLocalMaterializedSnapshot(),
+                            prevDeltaCopy,
+                            jmHandle));
         } else {
             return SnapshotResult.of(
                     new ChangelogStateBackendHandleImpl(
@@ -609,16 +627,39 @@ public class ChangelogKeyedStateBackend<K>
         List<KeyedStateHandle> materialized = new ArrayList<>();
         List<ChangelogStateHandle> restoredNonMaterialized = new ArrayList<>();
 
+        List<KeyedStateHandle> localMaterialized = new ArrayList<>();
+        List<ChangelogStateHandle> localRestoredNonMaterialized = new ArrayList<>();
+
         for (ChangelogStateBackendHandle h : stateHandles) {
             if (h != null) {
-                materialized.addAll(h.getMaterializedStateHandles());
-                restoredNonMaterialized.addAll(h.getNonMaterializedStateHandles());
+                if (h instanceof ChangelogStateBackendLocalHandle) {
+                    ChangelogStateBackendLocalHandle localHandle =
+                            (ChangelogStateBackendLocalHandle) h;
+                    materialized.addAll(localHandle.getRemoteMaterializedStateHandles());
+                    restoredNonMaterialized.addAll(
+                            localHandle.getRemoteNonMaterializedStateHandles());
+                    localMaterialized.addAll(localHandle.getMaterializedStateHandles());
+                    localRestoredNonMaterialized.addAll(
+                            localHandle.getNonMaterializedStateHandles());
+                } else {
+                    materialized.addAll(h.getMaterializedStateHandles());
+                    restoredNonMaterialized.addAll(h.getNonMaterializedStateHandles());
+                }
                 // choose max materializationID to handle rescaling
                 materializationId = Math.max(materializationId, h.getMaterializationID());
             }
         }
         this.materializedId = materializationId + 1;
 
+        if (!localMaterialized.isEmpty() || !localRestoredNonMaterialized.isEmpty()) {
+            return new ChangelogSnapshotState(
+                    materialized,
+                    localMaterialized,
+                    restoredNonMaterialized,
+                    localRestoredNonMaterialized,
+                    stateChangelogWriter.initialSequenceNumber(),
+                    materializationId);
+        }
         return new ChangelogSnapshotState(
                 materialized,
                 restoredNonMaterialized,
@@ -693,11 +734,20 @@ public class ChangelogKeyedStateBackend<K>
                 upTo,
                 materializedSnapshot);
         changelogSnapshotState =
-                new ChangelogSnapshotState(
-                        getMaterializedResult(materializedSnapshot),
-                        Collections.emptyList(),
-                        upTo,
-                        materializationID);
+                materializedSnapshot.getTaskLocalSnapshot() == null
+                        ? new ChangelogSnapshotState(
+                                getMaterializedResult(materializedSnapshot),
+                                Collections.emptyList(),
+                                upTo,
+                                materializationID)
+                        : new ChangelogSnapshotState(
+                                getMaterializedResult(materializedSnapshot),
+                                getLocalMaterializedResult(materializedSnapshot),
+                                Collections.emptyList(),
+                                Collections.emptyList(),
+                                upTo,
+                                materializationID);
+
         changelogTruncateHelper.materialized(upTo);
     }
 
@@ -706,6 +756,12 @@ public class ChangelogKeyedStateBackend<K>
             @Nonnull SnapshotResult<KeyedStateHandle> materializedSnapshot) {
         KeyedStateHandle jobManagerOwned = materializedSnapshot.getJobManagerOwnedSnapshot();
         return jobManagerOwned == null ? emptyList() : singletonList(jobManagerOwned);
+    }
+
+    private List<KeyedStateHandle> getLocalMaterializedResult(
+            @Nonnull SnapshotResult<KeyedStateHandle> materializedSnapshot) {
+        KeyedStateHandle taskLocalSnapshot = materializedSnapshot.getTaskLocalSnapshot();
+        return taskLocalSnapshot == null ? emptyList() : singletonList(taskLocalSnapshot);
     }
 
     @Override
@@ -791,30 +847,22 @@ public class ChangelogKeyedStateBackend<K>
     }
 
     /**
-     * Snapshot State for ChangelogKeyedStatebackend.
+     * Snapshot State for ChangelogKeyedStatebackend, a wrapper over {@link SnapshotResult}.
      *
      * <p>It includes three parts: - materialized snapshot from the underlying delegated state
      * backend - non-materialized part in the current changelog - non-materialized changelog, from
      * previous logs (before failover or rescaling)
      */
-    private static class ChangelogSnapshotState {
-        /**
-         * Materialized snapshot from the underlying delegated state backend. Set initially on
-         * restore and later upon materialization.
-         */
-        private final List<KeyedStateHandle> materializedSnapshot;
+    private class ChangelogSnapshotState {
+
+        /** Set initially on restore and later upon materialization. */
+        private final SnapshotResult<ChangelogStateBackendHandle> changelogSnapshot;
 
         /**
          * The {@link SequenceNumber} up to which the state is materialized, exclusive. This
          * indicates the non-materialized part of the current changelog.
          */
         private final SequenceNumber materializedTo;
-
-        /**
-         * Non-materialized changelog, from previous logs. Set initially on restore and later
-         * cleared upon materialization.
-         */
-        private final List<ChangelogStateHandle> restoredNonMaterialized;
 
         /** ID of this materialization corresponding to the nested backend checkpoint ID. */
         private final long materializationID;
@@ -824,22 +872,73 @@ public class ChangelogKeyedStateBackend<K>
                 List<ChangelogStateHandle> restoredNonMaterialized,
                 SequenceNumber materializedTo,
                 long materializationID) {
-            this.materializedSnapshot = unmodifiableList((materializedSnapshot));
-            this.restoredNonMaterialized = unmodifiableList(restoredNonMaterialized);
+            this.changelogSnapshot =
+                    SnapshotResult.of(
+                            new ChangelogStateBackendHandleImpl(
+                                    materializedSnapshot,
+                                    restoredNonMaterialized,
+                                    getKeyGroupRange(),
+                                    lastCheckpointId,
+                                    materializationID,
+                                    0L));
+            this.materializedTo = materializedTo;
+            this.materializationID = materializationID;
+        }
+
+        public ChangelogSnapshotState(
+                List<KeyedStateHandle> materializedSnapshot,
+                List<KeyedStateHandle> localMaterializedSnapshot,
+                List<ChangelogStateHandle> restoredNonMaterialized,
+                List<ChangelogStateHandle> localRestoredNonMaterialized,
+                SequenceNumber materializedTo,
+                long materializationID) {
+            ChangelogStateBackendHandleImpl jmHandle =
+                    new ChangelogStateBackendHandleImpl(
+                            materializedSnapshot,
+                            restoredNonMaterialized,
+                            getKeyGroupRange(),
+                            lastCheckpointId,
+                            materializationID,
+                            0L);
+            this.changelogSnapshot =
+                    SnapshotResult.withLocalState(
+                            jmHandle,
+                            new ChangelogStateBackendLocalHandle(
+                                    localMaterializedSnapshot,
+                                    localRestoredNonMaterialized,
+                                    jmHandle));
             this.materializedTo = materializedTo;
             this.materializationID = materializationID;
         }
 
         public List<KeyedStateHandle> getMaterializedSnapshot() {
-            return materializedSnapshot;
+            return changelogSnapshot.getJobManagerOwnedSnapshot() != null
+                    ? changelogSnapshot.getJobManagerOwnedSnapshot().getMaterializedStateHandles()
+                    : Collections.emptyList();
+        }
+
+        public List<KeyedStateHandle> getLocalMaterializedSnapshot() {
+            return changelogSnapshot.getTaskLocalSnapshot() != null
+                    ? changelogSnapshot.getTaskLocalSnapshot().getMaterializedStateHandles()
+                    : Collections.emptyList();
+        }
+
+        public List<ChangelogStateHandle> getRestoredNonMaterialized() {
+            return changelogSnapshot.getJobManagerOwnedSnapshot() != null
+                    ? changelogSnapshot
+                            .getJobManagerOwnedSnapshot()
+                            .getNonMaterializedStateHandles()
+                    : Collections.emptyList();
+        }
+
+        public List<ChangelogStateHandle> getLocalRestoredNonMaterialized() {
+            return changelogSnapshot.getTaskLocalSnapshot() != null
+                    ? changelogSnapshot.getTaskLocalSnapshot().getNonMaterializedStateHandles()
+                    : Collections.emptyList();
         }
 
         public SequenceNumber lastMaterializedTo() {
             return materializedTo;
-        }
-
-        public List<ChangelogStateHandle> getRestoredNonMaterialized() {
-            return restoredNonMaterialized;
         }
 
         public long getMaterializationID() {

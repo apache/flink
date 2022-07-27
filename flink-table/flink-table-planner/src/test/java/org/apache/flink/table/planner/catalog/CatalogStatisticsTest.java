@@ -48,8 +48,8 @@ import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.planner.utils.TestPartitionableSourceFactory;
 import org.apache.flink.table.planner.utils.TestTableSource;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.DateTimeUtils;
 
-import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.junit.Before;
@@ -381,8 +381,8 @@ public class CatalogStatisticsTest {
         assertThat(mq.getColumnInterval(rel, 3))
                 .isEqualTo(
                         ValueInterval$.MODULE$.apply(
-                                java.sql.Date.valueOf(DateTimeUtils.unixDateToString(71)),
-                                java.sql.Date.valueOf(DateTimeUtils.unixDateToString(17923)),
+                                java.sql.Date.valueOf(DateTimeUtils.formatDate(71)),
+                                java.sql.Date.valueOf(DateTimeUtils.formatDate(17923)),
                                 true,
                                 true));
 

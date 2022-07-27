@@ -364,10 +364,13 @@ string:
     table: STRING1.regexp(STRING2)
     description: Returns TRUE if any (possibly empty) substring of string1 matches the Java regular expression string2, otherwise FALSE. Returns NULL if any of arguments is NULL.
   - sql: REVERSE(string)
+    table: STRING.reverse()
     description: Returns the reversed string. Returns NULL if string is NULL.
   - sql: SPLIT_INDEX(string1, string2, integer1)
+    table: STRING1.splitIndex(STRING2, INTEGER1)
     description: Splits string1 by the delimiter string2, returns the integerth (zero-based) string of the split strings. Returns NULL if integer is negative. Returns NULL if any of arguments is NULL.
   - sql: STR_TO_MAP(string1[, string2, string3])
+    table: STRING1.strToMap([STRING2, STRING3])
     description: |
       Returns a map after splitting the string1 into key/value pairs using delimiters. string2 is the pair delimiter, default is ','. And string3 is the key-value delimiter, default is '='.
       Both pair delimiter and key-value delimiter are treated as regular expressions. So special characters (e.g. `<([{\^-=$!|]})?*+.>`) need to be properly escaped before using as a delimiter literally.
@@ -1002,3 +1005,10 @@ aggregate:
     description: Returns the last value in an ordered set of values.
   - sql: LISTAGG(expression [, separator])
     description: Concatenates the values of string expressions and places separator values between them. The separator is not added at the end of string. The default value of separator is ','.
+  - sql: CUME_DIST()
+    description: Return the cumulative distribution of a value in a group of values. The result is the number of rows preceding or equal to the current row in the ordering of the partition divided by the number of rows in the window partition.
+
+catalog:
+  - sql: CURRENT_DATABASE()
+    table: currentDatabase()
+    description: Return the current database.

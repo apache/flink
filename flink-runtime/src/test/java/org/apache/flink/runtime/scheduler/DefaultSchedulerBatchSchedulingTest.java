@@ -205,7 +205,7 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
             Time slotRequestTimeout,
             JobStatusListener jobStatusListener)
             throws Exception {
-        return new SchedulerTestingUtils.DefaultSchedulerBuilder(
+        return new DefaultSchedulerBuilder(
                         jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                 .setExecutionSlotAllocatorFactory(
                         SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(

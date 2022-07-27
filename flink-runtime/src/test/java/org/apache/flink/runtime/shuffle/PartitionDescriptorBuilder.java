@@ -55,7 +55,9 @@ public class PartitionDescriptorBuilder {
                 partitionId,
                 partitionType,
                 1,
-                0);
+                0,
+                false,
+                true);
     }
 
     public static PartitionDescriptorBuilder newBuilder() {

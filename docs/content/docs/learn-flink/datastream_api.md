@@ -199,7 +199,7 @@ The output looks something like this
 
 where 1> and 2> indicate which sub-task (i.e., thread) produced the output.
 
-In production, commonly used sinks include the StreamingFileSink, various databases,
+In production, commonly used sinks include the FileSink, various databases,
 and several pub-sub systems.
 
 ### Debugging
