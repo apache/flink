@@ -778,6 +778,6 @@ def from_type_info(type_info: TypeInformation) -> FieldCoder:
     elif isinstance(type_info, ExternalTypeInfo):
         return from_type_info(type_info._type_info)
     elif isinstance(type_info, GenericRecordAvroTypeInfo):
-        return AvroCoder(type_info._schema._j_schema)
+        return AvroCoder(type_info._schema)
     else:
         raise ValueError("Unsupported type_info %s." % type_info)

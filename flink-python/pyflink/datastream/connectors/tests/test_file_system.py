@@ -30,8 +30,12 @@ from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream.formats.csv import CsvSchema, CsvReaderFormat
 from pyflink.datastream.functions import MapFunction
 from pyflink.datastream.connectors.file_system import FileSource, FileSink
-from pyflink.datastream.formats.avro import AvroSchema, AvroInputFormat, GenericRecordAvroTypeInfo, \
-    AvroWriters
+from pyflink.datastream.formats.avro import (
+    AvroInputFormat,
+    AvroSchema,
+    AvroWriters,
+    GenericRecordAvroTypeInfo,
+)
 from pyflink.datastream.formats.parquet import AvroParquetReaders, ParquetColumnarRowInputFormat
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway

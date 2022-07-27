@@ -712,6 +712,6 @@ class StreamingFileSink(SinkFunction):
     def for_bulk_format(base_path: str, writer_factory: BulkWriterFactory):
         jvm = get_gateway().jvm
         j_path = jvm.org.apache.flink.core.fs.Path(base_path)
-        j_default_bulk_format_builder = jvm.org.apache.flink.streaming.api.functions.sink.filesystem \
-            .StreamingFileSink.forBulkFormat(j_path, writer_factory.get_java_object())
+        j_default_bulk_format_builder = jvm.org.apache.flink.streaming.api.functions.sink \
+            .filesystem.StreamingFileSink.forBulkFormat(j_path, writer_factory.get_java_object())
         return StreamingFileSink.DefaultBulkFormatBuilder(j_default_bulk_format_builder)
