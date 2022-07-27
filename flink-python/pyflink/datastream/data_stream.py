@@ -50,7 +50,8 @@ from pyflink.datastream.functions import (_get_python_env, FlatMapFunction, MapF
 from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
-    StateDescriptor, ReducingStateDescriptor, AggregatingStateDescriptor, MapStateDescriptor
+    StateDescriptor, ReducingStateDescriptor, AggregatingStateDescriptor, MapStateDescriptor, \
+    ReducingState
 from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.datastream.window import (CountTumblingWindowAssigner, CountSlidingWindowAssigner,
                                        CountWindowSerializer, TimeWindowSerializer, Trigger,
@@ -1194,53 +1195,107 @@ class KeyedStream(DataStream):
 
         output_type = _from_java_type(self._original_data_type_info.get_java_type_info())
 
-        class ReduceProcessKeyedProcessFunctionAdapter(KeyedProcessFunction):
+        gateway = get_gateway()
+        j_conf = get_j_env_configuration(self._j_data_stream.getExecutionEnvironment())
+        python_execution_mode = (
+            j_conf.getString(
+                gateway.jvm.org.apache.flink.python.PythonOptions.PYTHON_EXECUTION_MODE))
 
-            def __init__(self, reduce_function):
-                if isinstance(reduce_function, ReduceFunction):
-                    self._open_func = reduce_function.open
-                    self._close_func = reduce_function.close
-                    self._reduce_function = reduce_function.reduce
-                else:
-                    self._open_func = None
-                    self._close_func = None
-                    self._reduce_function = reduce_function
-                self._reduce_value_state = None  # type: ValueState
+        if python_execution_mode == 'process':
+            class ReduceProcessKeyedProcessFunctionAdapter(KeyedProcessFunction):
 
-            def open(self, runtime_context: RuntimeContext):
-                if self._open_func:
-                    self._open_func(runtime_context)
+                def __init__(self, reduce_function):
+                    if isinstance(reduce_function, ReduceFunction):
+                        self._open_func = reduce_function.open
+                        self._close_func = reduce_function.close
+                        self._reduce_function = reduce_function.reduce
+                    else:
+                        self._open_func = None
+                        self._close_func = None
+                        self._reduce_function = reduce_function
+                    self._reduce_value_state = None  # type: ValueState
 
-                self._reduce_value_state = runtime_context.get_state(
-                    ValueStateDescriptor("_reduce_state" + str(uuid.uuid4()), output_type))
-                from pyflink.fn_execution.datastream.process.runtime_context import (
-                    StreamingRuntimeContext)
-                self._in_batch_execution_mode = \
-                    cast(StreamingRuntimeContext, runtime_context)._in_batch_execution_mode
+                def open(self, runtime_context: RuntimeContext):
+                    if self._open_func:
+                        self._open_func(runtime_context)
 
-            def close(self):
-                if self._close_func:
-                    self._close_func()
+                    self._reduce_value_state = runtime_context.get_state(
+                        ValueStateDescriptor("_reduce_state" + str(uuid.uuid4()), output_type))
+                    from pyflink.fn_execution.datastream.process.runtime_context import (
+                        StreamingRuntimeContext)
+                    self._in_batch_execution_mode = \
+                        cast(StreamingRuntimeContext, runtime_context)._in_batch_execution_mode
 
-            def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
-                reduce_value = self._reduce_value_state.value()
-                if reduce_value is not None:
-                    reduce_value = self._reduce_function(reduce_value, value)
-                else:
-                    # register a timer for emitting the result at the end when this is the
-                    # first input for this key
+                def close(self):
+                    if self._close_func:
+                        self._close_func()
+
+                def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
+                    reduce_value = self._reduce_value_state.value()
+                    if reduce_value is not None:
+                        reduce_value = self._reduce_function(reduce_value, value)
+                    else:
+                        # register a timer for emitting the result at the end when this is the
+                        # first input for this key
+                        if self._in_batch_execution_mode:
+                            ctx.timer_service().register_event_time_timer(0x7fffffffffffffff)
+                        reduce_value = value
+                    self._reduce_value_state.update(reduce_value)
+                    if not self._in_batch_execution_mode:
+                        # only emitting the result when all the data for a key is received
+                        yield reduce_value
+
+                def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext'):
+                    current_value = self._reduce_value_state.value()
+                    if current_value is not None:
+                        yield current_value
+        else:
+            class ReduceProcessKeyedProcessFunctionAdapter(KeyedProcessFunction):
+
+                def __init__(self, reduce_function):
+                    if isinstance(reduce_function, ReduceFunction):
+                        self._open_func = reduce_function.open
+                        self._close_func = reduce_function.close
+                        self._reduce_function = reduce_function.reduce
+                    else:
+                        self._open_func = None
+                        self._close_func = None
+                        self._reduce_function = reduce_function
+                    self._reduce_state = None  # type: ReducingState
+                    self._in_batch_execution_mode = True
+                    self._has_started_key_set = set()
+
+                def open(self, runtime_context: RuntimeContext):
+                    if self._open_func:
+                        self._open_func(runtime_context)
+
+                    self._reduce_state = runtime_context.get_reducing_state(
+                        ReducingStateDescriptor(
+                            "_reduce_state" + str(uuid.uuid4()),
+                            self._reduce_function,
+                            output_type))
+
+                    self._in_batch_execution_mode = runtime_context.get_job_parameter(
+                        "inBatchExecutionMode", "false") == "true"
+
+                def close(self):
+                    if self._close_func:
+                        self._close_func()
+
+                def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
+                    self._reduce_state.add(value)
                     if self._in_batch_execution_mode:
-                        ctx.timer_service().register_event_time_timer(0x7fffffffffffffff)
-                    reduce_value = value
-                self._reduce_value_state.update(reduce_value)
-                if not self._in_batch_execution_mode:
-                    # only emitting the result when all the data for a key is received
-                    yield reduce_value
+                        key = ctx.get_current_key()
+                        if key not in self._has_started_key_set:
+                            ctx.timer_service().register_event_time_timer(0x7fffffffffffffff)
+                            self._has_started_key_set.add(key)
+                    else:
+                        yield self._reduce_state.get()
 
-            def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext'):
-                current_value = self._reduce_value_state.value()
-                if current_value is not None:
-                    yield current_value
+                def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext'):
+                    current_value = self._reduce_state.get()
+                    if current_value is not None:
+                        yield current_value
 
         return self.process(ReduceProcessKeyedProcessFunctionAdapter(func), output_type) \
             .name("Reduce")
@@ -2700,7 +2755,10 @@ def _get_one_input_stream_operator(data_stream: DataStream,
         else:
             JDataStreamPythonFunctionOperator = gateway.jvm.ExternalPythonProcessOperator
     elif func_type == UserDefinedDataStreamFunction.KEYED_PROCESS:  # type: ignore
-        JDataStreamPythonFunctionOperator = gateway.jvm.ExternalPythonKeyedProcessOperator
+        if python_execution_mode == 'thread':
+            JDataStreamPythonFunctionOperator = gateway.jvm.EmbeddedPythonKeyedProcessOperator
+        else:
+            JDataStreamPythonFunctionOperator = gateway.jvm.ExternalPythonKeyedProcessOperator
     elif func_type == UserDefinedDataStreamFunction.WINDOW:  # type: ignore
         window_serializer = typing.cast(WindowOperationDescriptor, func).window_serializer
         if isinstance(window_serializer, TimeWindowSerializer):

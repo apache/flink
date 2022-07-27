@@ -88,6 +88,11 @@ public class EmbeddedPythonProcessOperator<IN, OUT>
     }
 
     @Override
+    public Object getTimerContext() {
+        return null;
+    }
+
+    @Override
     public <T> AbstractEmbeddedDataStreamPythonFunctionOperator<T> copy(
             DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
         return new EmbeddedPythonProcessOperator<>(

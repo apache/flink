@@ -899,14 +899,14 @@ class StateTtlConfig(object):
             Configuration of cleanup strategy while taking the full snapshot.
             """
 
-            def __init__(self, cleanup_size: int, run_cleanup_for_every_record: int):
+            def __init__(self, cleanup_size: int, run_cleanup_for_every_record: bool):
                 self._cleanup_size = cleanup_size
                 self._run_cleanup_for_every_record = run_cleanup_for_every_record
 
             def get_cleanup_size(self) -> int:
                 return self._cleanup_size
 
-            def run_cleanup_for_every_record(self) -> int:
+            def run_cleanup_for_every_record(self) -> bool:
                 return self._run_cleanup_for_every_record
 
         class RocksdbCompactFilterCleanupStrategy(CleanupStrategy):

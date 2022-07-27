@@ -53,9 +53,9 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
 
     private transient PythonTypeUtils.DataConverter<IN, Object> inputDataConverter;
 
-    private transient PythonTypeUtils.DataConverter<OUT, Object> outputDataConverter;
+    transient PythonTypeUtils.DataConverter<OUT, Object> outputDataConverter;
 
-    private transient TimestampedCollector<OUT> collector;
+    protected transient TimestampedCollector<OUT> collector;
 
     protected transient long timestamp;
 
@@ -127,6 +127,7 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
 
         interpreter.set("runtime_context", getRuntimeContext());
         interpreter.set("function_context", getFunctionContext());
+        interpreter.set("timer_context", getTimerContext());
         interpreter.set("job_parameters", getJobParameters());
 
         interpreter.exec(
@@ -140,6 +141,7 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
                         + "output_coder_info,"
                         + "runtime_context,"
                         + "function_context,"
+                        + "timer_context,"
                         + "job_parameters)");
 
         interpreter.invokeMethod("operation", "open");
@@ -153,7 +155,7 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
     }
 
     @Override
-    public void processElement(StreamRecord<IN> element) {
+    public void processElement(StreamRecord<IN> element) throws Exception {
         collector.setTimestamp(element);
         timestamp = element.getTimestamp();
 
@@ -169,6 +171,7 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
             OUT result = outputDataConverter.toInternal(results.next());
             collector.collect(result);
         }
+        results.close();
     }
 
     TypeInformation<IN> getInputTypeInfo() {
@@ -181,4 +184,7 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
 
     /** Gets The function context. */
     public abstract Object getFunctionContext();
+
+    /** Gets The Timer context. */
+    public abstract Object getTimerContext();
 }

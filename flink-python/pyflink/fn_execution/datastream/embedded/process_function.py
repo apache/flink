@@ -15,7 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.datastream import ProcessFunction, TimerService
+from pyflink.datastream import ProcessFunction, TimerService, KeyedProcessFunction, TimeDomain
+from pyflink.fn_execution.datastream.embedded.timerservice_impl import TimerServiceImpl
 
 
 class InternalProcessFunctionContext(ProcessFunction.Context, TimerService):
@@ -45,3 +46,39 @@ class InternalProcessFunctionContext(ProcessFunction.Context, TimerService):
 
     def delete_event_time_timer(self, t: int):
         raise Exception("Deleting timers is only supported on a keyed streams.")
+
+
+class InternalKeyedProcessFunctionContext(KeyedProcessFunction.Context):
+
+    def __init__(self, context):
+        self._context = context
+        self._timer_service = TimerServiceImpl(self._context.timerService())
+
+    def get_current_key(self):
+        return self._context.getCurrentKey()
+
+    def timer_service(self) -> TimerService:
+        return self._timer_service
+
+    def timestamp(self) -> int:
+        return self._context.timestamp()
+
+
+class InternalKeyedProcessFunctionOnTimerContext(KeyedProcessFunction.OnTimerContext,
+                                                 KeyedProcessFunction.Context):
+
+    def __init__(self, context):
+        self._context = context
+        self._timer_service = TimerServiceImpl(self._context.timerService())
+
+    def timer_service(self) -> TimerService:
+        return self._timer_service
+
+    def timestamp(self) -> int:
+        return self._context.timestamp()
+
+    def time_domain(self) -> TimeDomain:
+        return TimeDomain(self._context.timeDomain())
+
+    def get_current_key(self):
+        return self._context.getCurrentKey()

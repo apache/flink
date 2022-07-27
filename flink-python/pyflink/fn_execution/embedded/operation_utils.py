@@ -102,7 +102,7 @@ def create_table_operation_from_proto(proto, input_coder_info, output_coder_into
 
 def create_one_input_user_defined_data_stream_function_from_protos(
         function_urn, function_infos, input_coder_info, output_coder_info, runtime_context,
-        function_context, job_parameters):
+        function_context, timer_context, job_parameters):
     serialized_fns = [pare_user_defined_data_stream_function_proto(proto)
                       for proto in function_infos]
     input_data_converter = (
@@ -117,6 +117,7 @@ def create_one_input_user_defined_data_stream_function_from_protos(
         output_data_converter,
         runtime_context,
         function_context,
+        timer_context,
         job_parameters)
 
     return function_operation
