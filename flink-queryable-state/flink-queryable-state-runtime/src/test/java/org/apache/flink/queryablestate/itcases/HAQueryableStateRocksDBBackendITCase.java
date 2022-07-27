@@ -63,7 +63,7 @@ public class HAQueryableStateRocksDBBackendITCase extends AbstractQueryableState
 
     @BeforeClass
     public static void setup() throws Exception {
-        zkServer = ZooKeeperTestUtils.createZookeeperTestingServer();
+        zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
 
         // we have to manage this manually because we have to create the ZooKeeper server
         // ahead of this
@@ -88,7 +88,6 @@ public class HAQueryableStateRocksDBBackendITCase extends AbstractQueryableState
 
         client.shutdownAndWait();
 
-        zkServer.stop();
         zkServer.close();
     }
 

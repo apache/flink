@@ -186,7 +186,7 @@ public class LeaderElectionTest extends TestLogger {
         @Override
         public void setup(FatalErrorHandler fatalErrorHandler) throws Exception {
             try {
-                testingServer = ZooKeeperTestUtils.createZookeeperTestingServer();
+                testingServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
             } catch (Exception e) {
                 throw new RuntimeException("Could not start ZooKeeper testing cluster.", e);
             }
@@ -209,7 +209,7 @@ public class LeaderElectionTest extends TestLogger {
             }
 
             if (testingServer != null) {
-                testingServer.stop();
+                testingServer.close();
                 testingServer = null;
             }
         }

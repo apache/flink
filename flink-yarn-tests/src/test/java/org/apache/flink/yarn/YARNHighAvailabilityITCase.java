@@ -111,7 +111,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
 
     @BeforeAll
     static void setup(@TempDir File tempDir) throws Exception {
-        zkServer = ZooKeeperTestUtils.createZookeeperTestingServer();
+        zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
 
         storageDir = tempDir.getAbsolutePath();
 
@@ -129,7 +129,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
             YarnTestBase.teardown();
         } finally {
             if (zkServer != null) {
-                zkServer.stop();
+                zkServer.close();
                 zkServer = null;
             }
         }

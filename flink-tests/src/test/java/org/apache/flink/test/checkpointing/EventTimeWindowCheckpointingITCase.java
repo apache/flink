@@ -163,7 +163,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         // Testing HA Scenario / ZKCompletedCheckpointStore with incremental checkpoints
         StateBackendEnum stateBackendEnum = getStateBackend();
         if (ROCKSDB_INCREMENTAL_ZK.equals(stateBackendEnum)) {
-            zkServer = ZooKeeperTestUtils.createZookeeperTestingServer();
+            zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
         }
 
         Configuration config = createClusterConfig();
@@ -261,7 +261,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         }
 
         if (zkServer != null) {
-            zkServer.stop();
+            zkServer.close();
             zkServer = null;
         }
 

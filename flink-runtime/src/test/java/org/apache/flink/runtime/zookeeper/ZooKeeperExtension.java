@@ -53,7 +53,7 @@ public class ZooKeeperExtension implements CustomExtension {
     @Override
     public void before(ExtensionContext context) throws Exception {
         close();
-        zooKeeperServer = ZooKeeperTestUtils.createZookeeperTestingServer();
+        zooKeeperServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
     }
 
     @Override

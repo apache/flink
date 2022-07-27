@@ -153,7 +153,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 
     @Test
     public void testExternalizedIncrementalRocksDBCheckpointsZookeeper() throws Exception {
-        try (TestingServer zkServer = ZooKeeperTestUtils.createZookeeperTestingServer()) {
+        try (TestingServer zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer()) {
             final File checkpointDir = temporaryFolder.newFolder();
             testExternalizedCheckpoints(
                     checkpointDir,
@@ -166,7 +166,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 
     @Test
     public void testExternalizedFullRocksDBCheckpointsZookeeper() throws Exception {
-        try (TestingServer zkServer = ZooKeeperTestUtils.createZookeeperTestingServer()) {
+        try (TestingServer zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer()) {
             final File checkpointDir = temporaryFolder.newFolder();
             testExternalizedCheckpoints(
                     checkpointDir,
@@ -180,7 +180,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
     @Test
     public void testExternalizedIncrementalRocksDBCheckpointsWithLocalRecoveryZookeeper()
             throws Exception {
-        try (TestingServer zkServer = ZooKeeperTestUtils.createZookeeperTestingServer()) {
+        try (TestingServer zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer()) {
             final File checkpointDir = temporaryFolder.newFolder();
             testExternalizedCheckpoints(
                     checkpointDir,
@@ -194,7 +194,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
     @Test
     public void testExternalizedFullRocksDBCheckpointsWithLocalRecoveryZookeeper()
             throws Exception {
-        try (TestingServer zkServer = ZooKeeperTestUtils.createZookeeperTestingServer()) {
+        try (TestingServer zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer()) {
             final File checkpointDir = temporaryFolder.newFolder();
             testExternalizedCheckpoints(
                     checkpointDir,
@@ -207,7 +207,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 
     @Test
     public void testExternalizedFSCheckpointsZookeeper() throws Exception {
-        try (TestingServer zkServer = ZooKeeperTestUtils.createZookeeperTestingServer()) {
+        try (TestingServer zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer()) {
             final File checkpointDir = temporaryFolder.newFolder();
             testExternalizedCheckpoints(
                     checkpointDir,
@@ -220,7 +220,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 
     @Test
     public void testExternalizedFSCheckpointsWithLocalRecoveryZookeeper() throws Exception {
-        try (TestingServer zkServer = ZooKeeperTestUtils.createZookeeperTestingServer()) {
+        try (TestingServer zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer()) {
             final File checkpointDir = temporaryFolder.newFolder();
             testExternalizedCheckpoints(
                     checkpointDir,

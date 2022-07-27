@@ -70,7 +70,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
     @BeforeClass
     public static void setup() throws Exception {
-        zkServer = ZooKeeperTestUtils.createZookeeperTestingServer();
+        zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
     }
 
     @AfterClass

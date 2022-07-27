@@ -114,7 +114,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
     @Before
     public void before() {
         try {
-            testingServer = ZooKeeperTestUtils.createZookeeperTestingServer();
+            testingServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
         } catch (Exception e) {
             throw new RuntimeException("Could not start ZooKeeper testing cluster.", e);
         }
@@ -138,7 +138,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
         }
 
         if (testingServer != null) {
-            testingServer.stop();
+            testingServer.close();
             testingServer = null;
         }
     }

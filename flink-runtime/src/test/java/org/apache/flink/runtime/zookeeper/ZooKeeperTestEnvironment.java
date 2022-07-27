@@ -62,7 +62,7 @@ public class ZooKeeperTestEnvironment {
 
         try {
             if (numberOfZooKeeperQuorumPeers == 1) {
-                zooKeeperServer = ZooKeeperTestUtils.createZookeeperTestingServer();
+                zooKeeperServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
                 zooKeeperCluster = null;
 
                 conf.setString(

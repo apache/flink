@@ -45,22 +45,25 @@ public class ZooKeeperTestUtils {
      * Creates a new {@link TestingServer}, setting additional configuration properties for
      * stability purposes.
      */
-    public static TestingServer createZookeeperTestingServer() throws Exception {
+    public static TestingServer createAndStartZookeeperTestingServer() throws Exception {
         return new TestingServer(getZookeeperInstanceSpecWithIncreasedSessionTimeout(), true);
     }
 
     private static InstanceSpec getZookeeperInstanceSpecWithIncreasedSessionTimeout() {
+        // this gives us the default settings
         final InstanceSpec instanceSpec = InstanceSpec.newInstanceSpec();
 
         final Map<String, Object> properties = new HashMap<>();
         properties.put("maxSessionTimeout", 60_000);
+
+        final boolean deleteDataDirectoryOnClose = true;
 
         return new InstanceSpec(
                 instanceSpec.getDataDirectory(),
                 instanceSpec.getPort(),
                 instanceSpec.getElectionPort(),
                 instanceSpec.getQuorumPort(),
-                instanceSpec.deleteDataDirectoryOnClose(),
+                deleteDataDirectoryOnClose,
                 instanceSpec.getServerId(),
                 instanceSpec.getTickTime(),
                 instanceSpec.getMaxClientCnxns(),

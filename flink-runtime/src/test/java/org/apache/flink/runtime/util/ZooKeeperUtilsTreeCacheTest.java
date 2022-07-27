@@ -63,7 +63,7 @@ public class ZooKeeperUtilsTreeCacheTest extends TestLogger {
     public void setUp() throws Exception {
         closer = Closer.create();
         final TestingServer testingServer =
-                closer.register(ZooKeeperTestUtils.createZookeeperTestingServer());
+                closer.register(ZooKeeperTestUtils.createAndStartZookeeperTestingServer());
 
         Configuration configuration = new Configuration();
         configuration.set(

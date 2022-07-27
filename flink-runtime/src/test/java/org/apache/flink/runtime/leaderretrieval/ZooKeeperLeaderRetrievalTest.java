@@ -76,7 +76,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
 
     @Before
     public void before() throws Exception {
-        testingServer = ZooKeeperTestUtils.createZookeeperTestingServer();
+        testingServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
 
         config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
@@ -102,7 +102,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
         }
 
         if (testingServer != null) {
-            testingServer.stop();
+            testingServer.close();
 
             testingServer = null;
         }

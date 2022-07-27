@@ -49,7 +49,7 @@ public class ZooKeeperResource extends ExternalResource {
     @Override
     protected void before() throws Throwable {
         terminateZooKeeperServer();
-        zooKeeperServer = ZooKeeperTestUtils.createZookeeperTestingServer();
+        zooKeeperServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
     }
 
     private void terminateZooKeeperServer() throws IOException {
