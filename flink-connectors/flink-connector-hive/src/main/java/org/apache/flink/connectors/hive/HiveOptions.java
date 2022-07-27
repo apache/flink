@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.DescribedEnum;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.InlineElement;
 
@@ -76,6 +77,22 @@ public class HiveOptions {
                     .defaultValue(3)
                     .withDescription(
                             "The thread number to split hive's partitions to splits. It should be bigger than 0.");
+
+    public static final ConfigOption<MemorySize> TABLE_EXEC_HIVE_SPLIT_MAX_BYTES =
+            key("table.exec.hive.split-max-size")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("128mb"))
+                    .withDescription(
+                            "The maximum number of bytes (default is 128MB) to pack into a split while reading Hive table. A split will be assigned to a reader.");
+
+    public static final ConfigOption<MemorySize> TABLE_EXEC_HIVE_FILE_OPEN_COST =
+            key("table.exec.hive.file-open-cost")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("4mb"))
+                    .withDescription(
+                            "The estimated cost (default is 4MB) to open a file. Used to split Hive's files to splits."
+                                    + " When the value is over estimated, Flink wll tend to pack Hive's data into less splits, which will help when Hive's table contains many some files."
+                                    + " And vice versa.");
 
     public static final ConfigOption<Boolean> STREAMING_SOURCE_ENABLE =
             key("streaming-source.enable")

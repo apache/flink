@@ -169,8 +169,6 @@ public class HiveTableSource
                             catalogTable.getPartitionKeys(),
                             remainingPartitions);
 
-            int threadNum =
-                    flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM);
             int parallelism =
                     new HiveParallelismInference(tablePath, flinkConf)
                             .infer(
@@ -179,10 +177,7 @@ public class HiveTableSource
                                                     hivePartitionsToRead, jobConf),
                                     () ->
                                             HiveSourceFileEnumerator.createInputSplits(
-                                                            0,
-                                                            hivePartitionsToRead,
-                                                            threadNum,
-                                                            jobConf)
+                                                            0, hivePartitionsToRead, jobConf, true)
                                                     .size())
                             .limit(limit);
             return toDataStreamSource(
