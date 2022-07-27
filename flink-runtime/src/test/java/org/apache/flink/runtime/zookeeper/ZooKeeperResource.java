@@ -54,7 +54,7 @@ public class ZooKeeperResource extends ExternalResource {
 
     private void terminateZooKeeperServer() throws IOException {
         if (zooKeeperServer != null) {
-            zooKeeperServer.stop();
+            zooKeeperServer.close();
             zooKeeperServer = null;
         }
     }
