@@ -35,6 +35,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.ComponentClosingUtils;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -249,7 +250,8 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 new EnumeratorCreatingSource<>(() -> splitEnumerator),
                                 context,
                                 new CoordinatorStoreImpl(),
-                                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED)) {
+                                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                                null)) {
 
             coordinator.start();
             waitUtil(
@@ -273,7 +275,8 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 }),
                         context,
                         new CoordinatorStoreImpl(),
-                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                        null);
 
         coordinator.start();
 
@@ -299,7 +302,8 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 new EnumeratorCreatingSource<>(() -> splitEnumerator),
                                 context,
                                 new CoordinatorStoreImpl(),
-                                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED)) {
+                                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                                null)) {
 
             coordinator.start();
             coordinator.handleEventFromOperator(1, 0, new SourceEventWrapper(new SourceEvent() {}));
@@ -382,7 +386,8 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                         context.getOperatorId(),
                         source,
                         1,
-                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                        null);
 
         final OperatorCoordinator coordinator = provider.getCoordinator(context);
         coordinator.start();
@@ -409,7 +414,8 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                         context.getOperatorId(),
                         source,
                         1,
-                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                        null);
 
         final OperatorCoordinator coordinator = provider.getCoordinator(context);
         coordinator.resetToCheckpoint(1L, createEmptyCheckpoint());
@@ -503,6 +509,24 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 
         assertThat(events.get(2)).isInstanceOf(NoMoreSplitsEvent.class);
         assertThat(events.get(5)).isInstanceOf(NoMoreSplitsEvent.class);
+    }
+
+    @Test
+    public void testListeningEventsFromOtherCoordinators() throws Exception {
+        final String listeningID = "testListeningID";
+
+        CoordinatorStore store = new CoordinatorStoreImpl();
+        final SourceCoordinator<?, ?> coordinator =
+                new SourceCoordinator<>(
+                        OPERATOR_NAME,
+                        createMockSource(),
+                        context,
+                        store,
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                        listeningID);
+        coordinator.start();
+
+        assertThat(store.get(listeningID)).isNotNull().isSameAs(coordinator);
     }
 
     // ------------------------------------------------------------------------

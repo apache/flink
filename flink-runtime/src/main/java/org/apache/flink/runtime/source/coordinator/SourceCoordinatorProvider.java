@@ -43,6 +43,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
     private final Source<?, SplitT, ?> source;
     private final int numWorkerThreads;
     private final WatermarkAlignmentParams alignmentParams;
+    @Nullable private final String coordinatorListeningID;
 
     /**
      * Construct the {@link SourceCoordinatorProvider}.
@@ -60,12 +61,14 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
             OperatorID operatorID,
             Source<?, SplitT, ?> source,
             int numWorkerThreads,
-            WatermarkAlignmentParams alignmentParams) {
+            WatermarkAlignmentParams alignmentParams,
+            @Nullable String coordinatorListeningID) {
         super(operatorID);
         this.operatorName = operatorName;
         this.source = source;
         this.numWorkerThreads = numWorkerThreads;
         this.alignmentParams = alignmentParams;
+        this.coordinatorListeningID = coordinatorListeningID;
     }
 
     @Override
@@ -87,7 +90,8 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
                 source,
                 sourceCoordinatorContext,
                 context.getCoordinatorStore(),
-                alignmentParams);
+                alignmentParams,
+                coordinatorListeningID);
     }
 
     /** A thread factory class that provides some helper methods. */
