@@ -44,12 +44,20 @@ export interface AggregatedStatistics {
   p95: number;
 }
 
+export enum JobVertexStatus {
+  CREATED = 'CREATED',
+  SCHEDULED = 'SCHEDULED',
+  DEPLOYING = 'DEPLOYING',
+  INITIALIZING = 'INITIALIZING',
+  RUNNING = 'RUNNING'
+}
+
 export interface JobVertexStatusDuration<T> {
-  CREATED: T;
-  INITIALIZING: T;
-  RUNNING: T;
-  SCHEDULED: T;
-  DEPLOYING: T;
+  [JobVertexStatus.CREATED]: T;
+  [JobVertexStatus.INITIALIZING]: T;
+  [JobVertexStatus.RUNNING]: T;
+  [JobVertexStatus.SCHEDULED]: T;
+  [JobVertexStatus.DEPLOYING]: T;
 }
 
 export interface JobVertexAggregated {

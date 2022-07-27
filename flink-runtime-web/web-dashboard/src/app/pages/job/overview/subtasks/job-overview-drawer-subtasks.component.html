@@ -97,7 +97,7 @@
                 <ng-template #badges>
                   <flink-dynamic-host
                     *ngFor="let duration of convertStatusDuration(subtask['status-duration'])"
-                    [data]="{ state: duration.key, duration: duration.value }"
+                    [data]="duration"
                     [component]="durationBadgeComponent"
                   ></flink-dynamic-host>
                 </ng-template>
