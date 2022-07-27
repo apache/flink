@@ -906,10 +906,7 @@ class KafkaSinkBuilder(object):
         """
         Constructs the :class:`KafkaSink` with the configured properties.
         """
-        if self._preprocessing is None:
-            return KafkaSink(self._j_builder.build())
-        else:
-            return KafkaSink(self._j_builder.build(), self._preprocessing)
+        return KafkaSink(self._j_builder.build(), self._preprocessing)
 
     def set_bootstrap_servers(self, bootstrap_servers: str) -> 'KafkaSinkBuilder':
         """
