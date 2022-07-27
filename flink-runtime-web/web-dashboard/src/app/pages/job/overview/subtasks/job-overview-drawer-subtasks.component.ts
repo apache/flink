@@ -20,7 +20,12 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestro
 import { of, Subject } from 'rxjs';
 import { catchError, mergeMap, takeUntil } from 'rxjs/operators';
 
-import { JobVertexAggregated, JobVertexStatusDuration, JobVertexSubTask } from '@flink-runtime-web/interfaces';
+import {
+  JobVertexAggregated,
+  JobVertexStatus,
+  JobVertexStatusDuration,
+  JobVertexSubTask
+} from '@flink-runtime-web/interfaces';
 import {
   JOB_OVERVIEW_MODULE_CONFIG,
   JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
@@ -106,10 +111,15 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  convertStatusDuration(duration: JobVertexStatusDuration<number>): Array<{ key: string; value: number }> {
-    return Object.keys(duration || {}).map(key => ({
-      key,
-      value: duration[key as keyof JobVertexStatusDuration<number>]
-    }));
+  convertStatusDuration(statusDuration: JobVertexStatusDuration<number>): Array<{ state: string; duration: number }> {
+    const orderedKeys = [
+      JobVertexStatus.CREATED,
+      JobVertexStatus.SCHEDULED,
+      JobVertexStatus.DEPLOYING,
+      JobVertexStatus.INITIALIZING,
+      JobVertexStatus.RUNNING
+    ];
+
+    return orderedKeys.map(key => ({ state: key, duration: statusDuration[key] }));
   }
 }
