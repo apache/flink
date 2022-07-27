@@ -15,29 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 @import "theme";
 
 :host {
-  display: block;
-  padding: 16px 24px 0;
-  border-bottom: 1px solid @border-color-split;
-  background: @component-background;
-
-  .title-wrapper {
-    display: flex;
+  .badge {
+    display: inline-flex;
     align-items: center;
-    margin-bottom: @margin-sm;
+    padding: 0 @padding-xss;
+    background-color: @error-color;
+    color: #fff;
+    font-weight: 500;
+    cursor: default;
+    transform: scale(0.8);
 
-    .title {
-      overflow: hidden;
-      font-weight: 500;
-      font-size: 18px;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    &.small {
+      font-size: @font-size-sm;
     }
-  }
 
-  flink-blocked-badge {
-    margin-left: @margin-xss;
+    &.default {
+      font-size: @font-size-base;
+    }
   }
 }

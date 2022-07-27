@@ -15,29 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "theme";
 
-:host {
-  display: block;
-  padding: 16px 24px 0;
-  border-bottom: 1px solid @border-color-split;
-  background: @component-background;
+import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
 
-  .title-wrapper {
-    display: flex;
-    align-items: center;
-    margin-bottom: @margin-sm;
+import { NzSizeDSType } from 'ng-zorro-antd/core/types';
 
-    .title {
-      overflow: hidden;
-      font-weight: 500;
-      font-size: 18px;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
+@Component({
+  selector: 'flink-blocked-badge',
+  templateUrl: './blocked-badge.component.html',
+  styleUrls: ['./blocked-badge.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class BlockedBadgeComponent {
+  @Input() size: NzSizeDSType = 'default';
 
-  flink-blocked-badge {
-    margin-left: @margin-xss;
-  }
+  constructor() {}
 }

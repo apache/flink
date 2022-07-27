@@ -17,8 +17,9 @@
   -->
 
 <ng-container *ngIf="!loading; else loadingContent">
-  <div class="name" [attr.title]="taskManagerDetail?.id">
-    <h3>{{ taskManagerDetail?.id }}</h3>
+  <div class="title-wrapper" [attr.title]="taskManagerDetail?.id">
+    <span class="title">{{ taskManagerDetail?.id }}</span>
+    <flink-blocked-badge *ngIf="taskManagerDetail?.blocked"></flink-blocked-badge>
   </div>
   <nz-descriptions *ngIf="taskManagerDetail" nzBordered nzSize="small">
     <nz-descriptions-item [nzSpan]="2" nzTitle="Path">
