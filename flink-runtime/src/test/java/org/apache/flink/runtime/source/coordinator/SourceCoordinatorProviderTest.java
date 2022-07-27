@@ -55,7 +55,8 @@ public class SourceCoordinatorProviderTest {
                         OPERATOR_ID,
                         new MockSource(Boundedness.BOUNDED, NUM_SPLITS),
                         1,
-                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                        null);
     }
 
     @Test

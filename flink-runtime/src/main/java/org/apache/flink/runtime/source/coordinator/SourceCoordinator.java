@@ -111,6 +111,12 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     /** A flag marking whether the coordinator has started. */
     private boolean started;
 
+    /**
+     * An ID that the coordinator will register self in the coordinator store with. Other
+     * coordinators may send events to this coordinator by the ID.
+     */
+    @Nullable private final String coordinatorListeningID;
+
     public SourceCoordinator(
             String operatorName,
             Source<?, SplitT, EnumChkT> source,
@@ -121,7 +127,8 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                 source,
                 context,
                 coordinatorStore,
-                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
+                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                null);
     }
 
     public SourceCoordinator(
@@ -129,13 +136,15 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
             Source<?, SplitT, EnumChkT> source,
             SourceCoordinatorContext<SplitT> context,
             CoordinatorStore coordinatorStore,
-            WatermarkAlignmentParams watermarkAlignmentParams) {
+            WatermarkAlignmentParams watermarkAlignmentParams,
+            @Nullable String coordinatorListeningID) {
         this.operatorName = operatorName;
         this.source = source;
         this.enumCheckpointSerializer = source.getEnumeratorCheckpointSerializer();
         this.context = context;
         this.coordinatorStore = coordinatorStore;
         this.watermarkAlignmentParams = watermarkAlignmentParams;
+        this.coordinatorListeningID = coordinatorListeningID;
 
         if (watermarkAlignmentParams.isEnabled()) {
             if (context.isConcurrentExecutionAttemptsSupported()) {
@@ -214,6 +223,16 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         // We rely on the single-threaded coordinator executor to guarantee
         // the other methods are invoked after the enumerator has started.
         runInEventLoop(() -> enumerator.start(), "starting the SplitEnumerator.");
+
+        if (coordinatorListeningID != null) {
+            if (coordinatorStore.containsKey(coordinatorListeningID)) {
+                // The coordinator will be recreated after global failover. It should be registered
+                // again replacing the previous one.
+                coordinatorStore.computeIfPresent(coordinatorListeningID, (id, origin) -> this);
+            } else {
+                coordinatorStore.putIfAbsent(coordinatorListeningID, this);
+            }
+        }
     }
 
     @Override
