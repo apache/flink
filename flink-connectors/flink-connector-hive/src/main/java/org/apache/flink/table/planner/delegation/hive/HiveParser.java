@@ -31,9 +31,11 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFGrouping;
 import org.apache.flink.table.operations.ExplainOperation;
+import org.apache.flink.table.operations.HiveSetOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.delegation.ParserImpl;
@@ -43,7 +45,6 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQueryState;
-import org.apache.flink.table.planner.delegation.hive.copy.HiveSetProcessor;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
@@ -81,6 +82,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import static org.apache.flink.table.planner.delegation.hive.copy.HiveSetProcessor.startWithHiveSpecialVariablePrefix;
+
 /** A Parser that uses Hive's planner to parse a statement. */
 public class HiveParser extends ParserImpl {
 
@@ -92,7 +95,6 @@ public class HiveParser extends ParserImpl {
     private static final Method getCurrentTSMethod =
             HiveReflectionUtils.tryGetMethod(
                     SessionState.class, "getQueryCurrentTimestamp", new Class[0]);
-    private static final String HIVE_VARIABLE_PREFIX = "__hive.variable__";
 
     // need to maintain the HiveParserASTNode types for DDLs
     private static final Set<Integer> DDL_NODES;
@@ -235,35 +237,30 @@ public class HiveParser extends ParserImpl {
         if (hiveCommand != null) {
             if (hiveCommand == HiveCommand.SET) {
                 return Optional.of(
-                        processSetCmd(
-                                hiveConf, statement.substring(commandTokens[0].length()).trim()));
+                        processSetCmd(statement.substring(commandTokens[0].length()).trim()));
+            } else if (hiveCommand == HiveCommand.RESET) {
+                return Optional.of(super.parse(statement).get(0));
             } else {
-                throw new UnsupportedOperationException();
+                throw new UnsupportedOperationException(
+                        String.format("The Hive command %s is not supported.", hiveCommand));
             }
         }
         return Optional.empty();
     }
 
-    private Operation processSetCmd(HiveConf hiveConf, String setCmdArgs) {
+    private Operation processSetCmd(String setCmdArgs) {
         String nwcmd = setCmdArgs.trim();
-        // the set command may end with ";" as it won't be removed by Flink SQL CLI,
+        // the set command may end with ";" since it won't be removed by Flink SQL CLI,
         // so, we need to remove ";"
         if (nwcmd.endsWith(";")) {
             nwcmd = nwcmd.substring(0, nwcmd.length() - 1);
         }
 
         if (nwcmd.equals("")) {
-            String options =
-                    HiveSetProcessor.dumpOptions(
-                            hiveConf.getChangedProperties(), hiveConf, hiveVariables);
-            // todo show the options
-            throw new UnsupportedOperationException("Command 'set' isn't supported currently.");
+            return new HiveSetOperation();
         }
         if (nwcmd.equals("-v")) {
-            String options =
-                    HiveSetProcessor.dumpOptions(
-                            hiveConf.getAllProperties(), hiveConf, hiveVariables);
-            throw new UnsupportedOperationException("Command 'set -v' isn't supported currently.");
+            return new HiveSetOperation(true);
         }
 
         String[] part = new String[2];
@@ -275,18 +272,28 @@ public class HiveParser extends ParserImpl {
             } else { // x=y
                 part[0] = nwcmd.substring(0, eqIndex).trim();
                 part[1] = nwcmd.substring(eqIndex + 1).trim();
+                if (!startWithHiveSpecialVariablePrefix(part[0])) {
+                    // TODO:
+                    // currently, for the command set key=value, we will fall to
+                    // Flink's implementation, otherwise, user will have no way to switch dialect.
+                    // need to figure out whether we should also set the value in HiveConf which is
+                    // Hive's implementation
+                    LOG.warn(
+                            "The command 'set {}={}' will only set Flink's table config,"
+                                    + " and if you want to set the variable to Hive's conf, please use the command like 'set hiveconf:{}={}'.",
+                            part[0],
+                            part[1],
+                            part[0],
+                            part[1]);
+                    return new SetOperation(part[0], part[1]);
+                }
             }
             if (part[0].equals("silent")) {
                 throw new UnsupportedOperationException("Unsupported command 'set silent'.");
             }
-            HiveSetProcessor.setVariable(hiveConf, tableConfig, hiveVariables, part[0], part[1]);
-            return new NopOperation();
+            return new HiveSetOperation(part[0], part[1]);
         }
-
-        // todo show the option
-        String option = HiveSetProcessor.getVariable(hiveConf, hiveVariables, nwcmd);
-        // for the variable
-        throw new UnsupportedOperationException("Unsupported SET command which misses '='.");
+        return new HiveSetOperation(nwcmd);
     }
 
     private List<Operation> processCmd(

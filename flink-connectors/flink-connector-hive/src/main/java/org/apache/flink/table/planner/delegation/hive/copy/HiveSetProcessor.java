@@ -43,13 +43,11 @@ import static org.apache.hadoop.hive.conf.SystemVariables.SYSTEM_PREFIX;
 public class HiveSetProcessor {
 
     private static final String[] PASSWORD_STRINGS = new String[] {"password", "paswd", "pswd"};
+    private static final String FLINK_PREFIX = "flink:";
 
+    /** Set variable following Hive's implementation. */
     public static void setVariable(
-            HiveConf hiveConf,
-            TableConfig tableConfig,
-            Map<String, String> hiveVariables,
-            String varname,
-            String varvalue) {
+            HiveConf hiveConf, Map<String, String> hiveVariables, String varname, String varvalue) {
         if (varname.startsWith(ENV_PREFIX)) {
             throw new UnsupportedOperationException("env:* variables can not be set.");
         } else if (varname.startsWith(SYSTEM_PREFIX)) {
@@ -81,12 +79,24 @@ public class HiveSetProcessor {
             }
         } else {
             setConf(hiveConf, hiveVariables, varname, varname, varvalue);
-            // we also try to set the value to Flink's table config. Otherwise, we have no way to
-            // change the table config of Flink when using Hive dialect.
-            String value =
-                    new VariableSubstitution(() -> hiveVariables).substitute(hiveConf, varvalue);
-            tableConfig.set(varname, value);
         }
+    }
+
+    /**
+     * check whether the variable's name is started with the special variable prefix that Hive
+     * reserves.
+     */
+    public static boolean startWithHiveSpecialVariablePrefix(String varname) {
+        String[] hiveSpecialVariablePrefix =
+                new String[] {
+                    ENV_PREFIX, SYSTEM_PREFIX, HIVECONF_PREFIX, HIVEVAR_PREFIX, METACONF_PREFIX
+                };
+        for (String prefix : hiveSpecialVariablePrefix) {
+            if (varname.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void setConf(
@@ -211,8 +221,11 @@ public class HiveSetProcessor {
         }
     }
 
-    public static String dumpOptions(
-            Properties p, HiveConf hiveConf, Map<String, String> hiveVariables) {
+    public static List<String> dumpOptions(
+            Properties p,
+            HiveConf hiveConf,
+            Map<String, String> hiveVariables,
+            TableConfig tableConfig) {
         SortedMap<String, String> sortedMap = new TreeMap<>();
         List<String> optionsList = new ArrayList<>();
         for (Object one : p.keySet()) {
@@ -247,7 +260,14 @@ public class HiveSetProcessor {
             }
             optionsList.add(SYSTEM_PREFIX + entry.getKey() + "=" + entry.getValue());
         }
-        return String.join(System.lineSeparator(), optionsList);
+
+        // Insert Flink table config variable
+        for (Map.Entry<String, String> entry :
+                mapToSortedMap(tableConfig.getConfiguration().toMap()).entrySet()) {
+            optionsList.add(FLINK_PREFIX + entry.getKey() + "=" + entry.getValue());
+        }
+
+        return optionsList;
     }
 
     private static SortedMap<String, String> mapToSortedMap(Map<String, String> data) {
