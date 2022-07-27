@@ -1618,15 +1618,15 @@ Note that the metrics are only available via reporters.
   </tbody>
 </table>
 
-#### Kinesis Connectors
+#### Kinesis 源
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 15%">Scope</th>
-      <th class="text-left" style="width: 18%">Metrics</th>
-      <th class="text-left" style="width: 18%">User Variables</th>
-      <th class="text-left" style="width: 39%">Description</th>
-      <th class="text-left" style="width: 10%">Type</th>
+      <th class="text-left" style="width: 15%">范围</th>
+      <th class="text-left" style="width: 18%">指标</th>
+      <th class="text-left" style="width: 18%">用户变量</th>
+      <th class="text-left" style="width: 39%">描述</th>
+      <th class="text-left" style="width: 10%">类型</th>
     </tr>
   </thead>
   <tbody>
@@ -1634,11 +1634,11 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>millisBehindLatest</td>
       <td>stream, shardId</td>
-      <td>The number of milliseconds the consumer is behind the head of the stream,
-      indicating how far behind current time the consumer is, for each Kinesis shard.
-      A particular shard's metric can be specified by stream name and shard id.
-      A value of 0 indicates record processing is caught up, and there are no new records
-      to process at this moment. A value of -1 indicates that there is no reported value for the metric, yet.
+      <td>消费者落后于流头部的毫秒数，
+	  对每个Kinesis分片，表示费者落后当前时间多久。
+	  可以通过流名称和分片id指定一个特定分片的指标值。
+	  值为0表示记录处理已完成，并且没有新记录在此时处理。
+	  值为-1表示尚未报告指标值。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1646,8 +1646,8 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>sleepTimeMillis</td>
       <td>stream, shardId</td>
-      <td>The number of milliseconds the consumer spends sleeping before fetching records from Kinesis.
-      A particular shard's metric can be specified by stream name and shard id.
+      <td>消费者在从Kinesis获取记录之前睡眠的毫秒数。
+      可以通过流名称和分片id指定特定分片的指标值。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1655,8 +1655,8 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>maxNumberOfRecordsPerFetch</td>
       <td>stream, shardId</td>
-      <td>The maximum number of records requested by the consumer in a single getRecords call to Kinesis. If ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS
-      is set to true, this value is adaptively calculated to maximize the 2 Mbps read limits from Kinesis.
+      <td>消费者在对Kinesis的单个getRecords调用中请求的最大记录数。如果ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS
+	  设置为true，自适应计算该值，以最大化来自Kinesis的2Mbps读取限制。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1664,7 +1664,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>numberOfAggregatedRecordsPerFetch</td>
       <td>stream, shardId</td>
-      <td>The number of aggregated Kinesis records fetched by the consumer in a single getRecords call to Kinesis.
+      <td>消费者在对Kinesis的单个getRecords调用中获取的聚合的Kinesis记录数。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1672,7 +1672,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>numberOfDeggregatedRecordsPerFetch</td>
       <td>stream, shardId</td>
-      <td>The number of deaggregated Kinesis records fetched by the consumer in a single getRecords call to Kinesis.
+      <td>消费者在对Kinesis的单个getRecords调用中获取的非聚合的Kinesis记录数。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1680,7 +1680,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>averageRecordSizeBytes</td>
       <td>stream, shardId</td>
-      <td>The average size of a Kinesis record in bytes, fetched by the consumer in a single getRecords call.
+      <td>以字节为单位的Kinesis记录的平均大小，由消费者在单个getRecords调用中获取。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1688,7 +1688,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>runLoopTimeNanos</td>
       <td>stream, shardId</td>
-      <td>The actual time taken, in nanoseconds, by the consumer in the run loop.
+      <td>消费者在运行循环中花费的实际时间（纳秒）。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1696,7 +1696,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>loopFrequencyHz</td>
       <td>stream, shardId</td>
-      <td>The number of calls to getRecords in one second. 
+      <td>一秒钟内调用getRecords的次数。 
       </td>
       <td>Gauge</td>
     </tr>
@@ -1704,8 +1704,44 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>bytesRequestedPerFetch</td>
       <td>stream, shardId</td>
-      <td>The bytes requested (2 Mbps / loopFrequencyHz) in a single call to getRecords.
+      <td>在对getRecords的单个调用中请求的字节数（2 Mbps / loopFrequencyHz）。
       </td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
+#### Kinesis 接收器
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">范围</th>
+      <th class="text-left" style="width: 18%">指标</th>
+      <th class="text-left" style="width: 39%">描述</th>
+      <th class="text-left" style="width: 10%">类型</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>numRecordsOutErrors (已弃用, 请使用numRecordsSendErrors)</td>
+      <td>被拒绝的记录写入数。</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>numRecordsSendErrors</td>
+      <td>被拒绝的记录写入数。</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>CurrentSendTime</td>
+      <td>最后一批请求的1次往返所用的毫秒数。</td>
       <td>Gauge</td>
     </tr>
   </tbody>
