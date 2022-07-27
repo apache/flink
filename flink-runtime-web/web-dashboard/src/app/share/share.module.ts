@@ -49,6 +49,7 @@ import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
+import { BlockedBadgeComponent } from './common/blocked-badge/blocked-badge.component';
 import { ConfigurationCardsComponent } from './common/configuration-cards/configuration-cards.component';
 import { TableDisplayComponent } from './common/configuration-cards/table-display/table-display.component';
 import { DurationBadgeComponent } from './customize/duration-badge/duration-badge.component';
@@ -91,7 +92,8 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     TableDisplayComponent,
     ConfigurationCardsComponent,
     TableAggregatedMetricsComponent,
-    DurationBadgeComponent
+    DurationBadgeComponent,
+    BlockedBadgeComponent
   ],
   exports: [
     JobListComponent,
@@ -113,7 +115,8 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     TableDisplayComponent,
     ConfigurationCardsComponent,
     TableAggregatedMetricsComponent,
-    DurationBadgeComponent
+    DurationBadgeComponent,
+    BlockedBadgeComponent
   ]
 })
 export class ShareModule {}
