@@ -20,7 +20,10 @@ from abc import ABC, abstractmethod
 import pickle
 from typing import TypeVar, List, Tuple
 
-from pyflink.common import Row, RowKind
+from pyflink.common import Row, RowKind, TypeInformation
+from pyflink.common.typeinfo import (PickledBytesTypeInfo, PrimitiveArrayTypeInfo,
+                                     BasicArrayTypeInfo, ObjectArrayTypeInfo, RowTypeInfo,
+                                     TupleTypeInfo, MapTypeInfo, ListTypeInfo)
 
 IN = TypeVar('IN')
 OUT = TypeVar('OUT')
@@ -70,13 +73,15 @@ class FlattenRowDataConverter(DataConverter):
         if value is None:
             return None
 
-        return [self._field_data_converters[i].to_internal(item) for i, item in enumerate(value)]
+        return tuple([self._field_data_converters[i].to_internal(item)
+                      for i, item in enumerate(value)])
 
     def to_external(self, value) -> OUT:
         if value is None:
             return None
 
-        return [self._field_data_converters[i].to_external(item) for i, item in enumerate(value)]
+        return tuple([self._field_data_converters[i].to_external(item)
+                      for i, item in enumerate(value)])
 
 
 class RowDataConverter(DataConverter):
@@ -84,8 +89,6 @@ class RowDataConverter(DataConverter):
     def __init__(self, field_data_converters: List[DataConverter], field_names: List[str]):
         self._field_data_converters = field_data_converters
         self._reuse_row = Row()
-        self._reuse_external_row_data = [None for _ in range(len(field_data_converters))]
-        self._reuse_external_row = [None, self._reuse_external_row_data]
         self._reuse_row.set_field_names(field_names)
 
     def to_internal(self, value) -> IN:
@@ -102,11 +105,10 @@ class RowDataConverter(DataConverter):
         if value is None:
             return None
 
-        self._reuse_external_row[0] = value.get_row_kind().value
         values = value._values
-        for i in range(len(values)):
-            self._reuse_external_row_data[i] = self._field_data_converters[i].to_external(values[i])
-        return self._reuse_external_row
+        fields = tuple([self._field_data_converters[i].to_external(values[i])
+                        for i in range(len(values))])
+        return value.get_row_kind().value, fields
 
 
 class TupleDataConverter(DataConverter):
@@ -125,8 +127,8 @@ class TupleDataConverter(DataConverter):
         if value is None:
             return None
 
-        return [self._field_data_converters[i].to_external(item)
-                for i, item in enumerate(value)]
+        return tuple([self._field_data_converters[i].to_external(item)
+                      for i, item in enumerate(value)])
 
 
 class ListDataConverter(DataConverter):
@@ -145,6 +147,17 @@ class ListDataConverter(DataConverter):
             return None
 
         return [self._field_converter.to_external(item) for item in value]
+
+
+class ArrayDataConverter(ListDataConverter):
+    def __init__(self, field_converter: DataConverter):
+        super(ArrayDataConverter, self).__init__(field_converter)
+
+    def to_internal(self, value) -> IN:
+        return tuple(super(ArrayDataConverter, self).to_internal(value))
+
+    def to_external(self, value) -> OUT:
+        return tuple(super(ArrayDataConverter, self).to_external(value))
 
 
 class DictDataConverter(DataConverter):
@@ -185,8 +198,9 @@ def from_type_info_proto(type_info):
             [from_type_info_proto(field_type)
              for field_type in type_info.tuple_type_info.field_types])
     elif type_name in (type_info_name.BASIC_ARRAY,
-                       type_info_name.OBJECT_ARRAY,
-                       type_info_name.LIST):
+                       type_info_name.OBJECT_ARRAY):
+        return ArrayDataConverter(from_type_info_proto(type_info.collection_element_type))
+    elif type_info == type_info_name.LIST:
         return ListDataConverter(from_type_info_proto(type_info.collection_element_type))
     elif type_name == type_info_name.MAP:
         return DictDataConverter(from_type_info_proto(type_info.map_type_info.key_type),
@@ -214,9 +228,23 @@ def from_field_type_proto(field_type):
             [from_field_type_proto(f.type) for f in field_type.row_schema.fields],
             [f.name for f in field_type.row_schema.fields])
     elif type_name == schema_type_name.BASIC_ARRAY:
-        return ListDataConverter(from_field_type_proto(field_type.collection_element_type))
+        return ArrayDataConverter(from_field_type_proto(field_type.collection_element_type))
     elif type_name == schema_type_name.MAP:
         return DictDataConverter(from_field_type_proto(field_type.map_info.key_type),
                                  from_field_type_proto(field_type.map_info.value_type))
+
+    return IdentityDataConverter()
+
+
+def from_type_info(type_info: TypeInformation):
+    if isinstance(type_info, (PickledBytesTypeInfo, RowTypeInfo, TupleTypeInfo)):
+        return PickleDataConverter()
+    elif isinstance(type_info, (PrimitiveArrayTypeInfo, BasicArrayTypeInfo, ObjectArrayTypeInfo)):
+        return ArrayDataConverter(from_type_info(type_info._element_type))
+    elif isinstance(type_info, ListTypeInfo):
+        return ListDataConverter(from_type_info(type_info.elem_type))
+    elif isinstance(type_info, MapTypeInfo):
+        return DictDataConverter(from_type_info(type_info._key_type_info),
+                                 from_type_info(type_info._value_type_info))
 
     return IdentityDataConverter()

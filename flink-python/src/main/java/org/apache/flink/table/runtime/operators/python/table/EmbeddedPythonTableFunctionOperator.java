@@ -138,7 +138,7 @@ public class EmbeddedPythonTableFunctionOperator extends AbstractEmbeddedStatele
 
     @SuppressWarnings("unchecked")
     @Override
-    public void processElement(StreamRecord<RowData> element) {
+    public void processElement(StreamRecord<RowData> element) throws Exception {
         RowData value = element.getValue();
 
         for (int i = 0; i < userDefinedFunctionInputArgs.length; i++) {
@@ -165,5 +165,6 @@ public class EmbeddedPythonTableFunctionOperator extends AbstractEmbeddedStatele
         } else if (joinType == FlinkJoinType.LEFT) {
             rowDataWrapper.collect(reuseJoinedRow.replace(value, reuseNullResultRowData));
         }
+        udtfResults.close();
     }
 }

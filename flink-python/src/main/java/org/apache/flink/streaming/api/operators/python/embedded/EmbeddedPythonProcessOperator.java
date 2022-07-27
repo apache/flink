@@ -31,7 +31,6 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import java.util.HashMap;
 import java.util.List;
 
-import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
 import static org.apache.flink.python.PythonOptions.MAP_STATE_READ_CACHE_SIZE;
 import static org.apache.flink.python.PythonOptions.MAP_STATE_WRITE_CACHE_SIZE;
 import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
@@ -57,7 +56,7 @@ public class EmbeddedPythonProcessOperator<IN, OUT>
             DataStreamPythonFunctionInfo pythonFunctionInfo,
             TypeInformation<IN> inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo) {
-        super(STATELESS_FUNCTION_URN, config, pythonFunctionInfo, inputTypeInfo, outputTypeInfo);
+        super(config, pythonFunctionInfo, inputTypeInfo, outputTypeInfo);
     }
 
     @Override
@@ -85,6 +84,11 @@ public class EmbeddedPythonProcessOperator<IN, OUT>
     @Override
     public Object getFunctionContext() {
         return context;
+    }
+
+    @Override
+    public Object getTimerContext() {
+        return null;
     }
 
     @Override

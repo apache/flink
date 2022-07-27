@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators.python.embedded;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.python.DataStreamPythonFunctionOperator;
 import org.apache.flink.util.Preconditions;
@@ -28,8 +29,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.python.Constants.STATEFUL_FUNCTION_URN;
-import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /** Base class for all Python DataStream operators executed in embedded Python environment. */
 @Internal
@@ -47,23 +47,14 @@ public abstract class AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
     /** The TypeInformation of output data. */
     protected final TypeInformation<OUT> outputTypeInfo;
 
-    /** The function urn. */
-    final String functionUrn;
-
     /** The number of partitions for the partition custom function. */
     private Integer numPartitions;
 
     public AbstractEmbeddedDataStreamPythonFunctionOperator(
-            String functionUrn,
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
             TypeInformation<OUT> outputTypeInfo) {
         super(config);
-        Preconditions.checkArgument(
-                STATELESS_FUNCTION_URN.equals(functionUrn)
-                        || STATEFUL_FUNCTION_URN.equals(functionUrn),
-                "The function urn should be `STATELESS_FUNCTION_URN` or `STATEFUL_FUNCTION_URN`.");
-        this.functionUrn = functionUrn;
         this.pythonFunctionInfo = Preconditions.checkNotNull(pythonFunctionInfo);
         this.outputTypeInfo = Preconditions.checkNotNull(outputTypeInfo);
     }
@@ -87,6 +78,13 @@ public abstract class AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
         Map<String, String> jobParameters = new HashMap<>();
         if (numPartitions != null) {
             jobParameters.put(NUM_PARTITIONS, String.valueOf(numPartitions));
+        }
+
+        KeyedStateBackend<Object> keyedStateBackend = getKeyedStateBackend();
+        if (keyedStateBackend != null) {
+            jobParameters.put(
+                    "inBatchExecutionMode",
+                    String.valueOf(inBatchExecutionMode(keyedStateBackend)));
         }
         return jobParameters;
     }

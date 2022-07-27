@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.fn_execution.datastream.embedded.operations import OneInputOperation
+from pyflink.fn_execution.datastream.embedded.operations import extract_process_function
 from pyflink.fn_execution.embedded.converters import DataConverter
 
 
@@ -36,22 +36,27 @@ class FunctionOperation(object):
         for operation in self._operations:
             operation.close()
 
+    def on_timer(self, timestamp):
+        for operation in self._operations:
+            for item in operation.on_timer(timestamp):
+                yield self._output_data_converter.to_external(item)
+
 
 class OneInputFunctionOperation(FunctionOperation):
     def __init__(self,
-                 function_urn,
                  serialized_fns,
                  input_data_converter: DataConverter,
                  output_data_converter: DataConverter,
                  runtime_context,
                  function_context,
+                 timer_context,
                  job_parameters):
         operations = (
-            [OneInputOperation(
-                function_urn,
+            [extract_process_function(
                 serialized_fn,
                 runtime_context,
                 function_context,
+                timer_context,
                 job_parameters)
                 for serialized_fn in serialized_fns])
         super(OneInputFunctionOperation, self).__init__(
