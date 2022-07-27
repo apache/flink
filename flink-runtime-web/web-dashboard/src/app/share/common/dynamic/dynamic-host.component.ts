@@ -24,7 +24,8 @@ import {
   Type,
   OnChanges,
   SimpleChanges,
-  ComponentRef
+  ComponentRef,
+  ChangeDetectorRef
 } from '@angular/core';
 
 import { DynamicDirective } from '@flink-runtime-web/share/common/dynamic/dynamic.directive';
@@ -56,6 +57,9 @@ export class DynamicHostComponent implements OnChanges {
         Object.keys(this.data).forEach(k => {
           instance[k] = this.data[k];
         });
+        // https://github.com/angular/angular/issues/36667
+        // OnPush dynamic component never refresh by ComponentRef.changeDetectorRef
+        this.componentRef!.injector.get(ChangeDetectorRef).markForCheck();
       }
     }
   }
