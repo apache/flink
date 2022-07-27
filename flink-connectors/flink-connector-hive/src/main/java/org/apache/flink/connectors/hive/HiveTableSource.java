@@ -332,7 +332,7 @@ public class HiveTableSource
                     return new TableStats(newRowCount);
                 }
             } else {
-                return TableStats.UNKNOWN;
+                return new TableStats(0);
             }
 
         } catch (Exception e) {
@@ -353,7 +353,7 @@ public class HiveTableSource
                         .toLowerCase();
         List<Path> files =
                 inputSplits.stream().map(FileSourceSplit::path).collect(Collectors.toList());
-        // Now we only support Csv, Parquet, Orc formats.
+        // Now we only support Parquet, Orc formats.
         if (serializationLib.contains("parquet")) {
             return ParquetFormatStatisticsReportUtil.getTableStatistics(
                     files, producedDataType, jobConf, hiveVersion.startsWith("3"));

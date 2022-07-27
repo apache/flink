@@ -201,9 +201,10 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
         String binaryTypeName = ddlTypesMap.remove("binary(1)");
         ddlTypesMap.remove("varbinary(1)");
         ddlTypesMap.remove("time");
-        ddlTypesMap.remove("row<col1 string, col2 int>");
+        String rowName = ddlTypesMap.remove("row<col1 string, col2 int>");
         ddlTypesMap.put("timestamp", timestampTypeName);
         ddlTypesMap.put("binary", binaryTypeName);
+        ddlTypesMap.put("STRUCT<col1 : string, col2 : int>", rowName);
 
         return ddlTypesMap;
     }
@@ -213,16 +214,17 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
         // hive table ddl now don't support type: TIMESTAMP(3), TIMESTAMP(9), TIMESTAMP WITHOUT TIME
         // ZONE, TIMESTAMP WITH LOCAL TIME ZONE AND ROW. So we remove these types related data.
         Map<String, List<Object>> dataMap = super.getDataMap();
-        List<Object> timestampDate = dataMap.remove("timestamp(3)");
+        List<Object> timestampData = dataMap.remove("timestamp(3)");
         dataMap.remove("timestamp(9)");
         dataMap.remove("timestamp without time zone");
         dataMap.remove("timestamp with local time zone");
-        List<Object> binaryDate = dataMap.remove("binary(1)");
+        List<Object> binaryData = dataMap.remove("binary(1)");
         dataMap.remove("varbinary(1)");
         dataMap.remove("time");
-        dataMap.remove("row<col1 string, col2 int>");
-        dataMap.put("timestamp", timestampDate);
-        dataMap.put("binary", binaryDate);
+        List<Object> rowData = dataMap.remove("row<col1 string, col2 int>");
+        dataMap.put("timestamp", timestampData);
+        dataMap.put("binary", binaryData);
+        dataMap.put("row<col1 string, col2 int>", rowData);
 
         return dataMap;
     }
@@ -307,6 +309,7 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
         expectedColumnStatsMap.put("f_binary", null);
         expectedColumnStatsMap.put("f_array", null);
         expectedColumnStatsMap.put("f_map", null);
+        expectedColumnStatsMap.put("f_row", null);
 
         assertThat(tableStats).isEqualTo(new TableStats(expectedRowCount, expectedColumnStatsMap));
     }
@@ -384,6 +387,7 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
         expectedColumnStatsMap.put("f_binary", new ColumnStats.Builder().setNullCount(0L).build());
         expectedColumnStatsMap.put("f_array", null);
         expectedColumnStatsMap.put("f_map", null);
+        expectedColumnStatsMap.put("f_row", null);
         assertThat(tableStats).isEqualTo(new TableStats(expectedRowCount, expectedColumnStatsMap));
     }
 }
