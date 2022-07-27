@@ -169,7 +169,6 @@ class HiveSourceDynamicFileEnumeratorTest {
                                         new HiveTablePartition(
                                                 new StorageDescriptor(), spec, new Properties()))
                         .collect(Collectors.toList()),
-                1,
                 HiveShimLoader.getHiveVersion(),
                 new JobConf());
     }

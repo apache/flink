@@ -150,6 +150,41 @@ Flink 允许你灵活的配置并发推断策略。你可以在 `TableConfig` �
   </tbody>
 </table>
 
+### 读 Hive 表时调整数据分片（Split） 大小
+读 Hive 表时, 数据文件将会被切分为若干个分片（split）, 每一个分片是要读取的数据的一部分。
+分片是 Flink 进行任务分配和数据并行读取的基本粒度。
+用户可以通过下面的参数来调整每个分片的大小来做一定的读性能调优。
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 15%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 55%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>table.exec.hive.split-max-size</h5></td>
+        <td style="word-wrap: break-word;">128mb</td>
+        <td>MemorySize</td>
+        <td>读 Hive 表时，每个分片最大可以包含的字节数 (默认是 128MB) 
+    </tr>
+    <tr>
+        <td><h5>table.exec.hive.file-open-cost</h5></td>
+        <td style="word-wrap: break-word;">4mb</td>
+        <td>MemorySize</td>
+        <td> 打开一个文件预估的开销，以字节为单位，默认是 4MB。
+             如果这个值比较大，Flink 则将会倾向于将 Hive 表切分为更少的分片，这在 Hive 表中包含大量小文件的时候很有用。
+             反之，Flink 将会倾向于将 Hive 表切分为更多的分片，这有利于提升数据读取的并行度。
+        </td>
+    </tr>
+  </tbody>
+</table>
+
+**注意：** 目前上述参数仅适用于 ORC 格式的 Hive 表。
+
 ### 加载分区切片
 
 Flink 使用多个线程并发将 Hive 分区切分成多个 split 进行读取。你可以使用 `table.exec.hive.load-partition-splits.thread-num` 去配置线程数。默认值是3，你配置的值应该大于0。

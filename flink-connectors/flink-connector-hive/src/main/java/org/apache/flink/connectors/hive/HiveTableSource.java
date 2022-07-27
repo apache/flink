@@ -169,8 +169,6 @@ public class HiveTableSource
                             catalogTable.getPartitionKeys(),
                             remainingPartitions);
 
-            int threadNum =
-                    flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM);
             int parallelism =
                     new HiveParallelismInference(tablePath, flinkConf)
                             .infer(
@@ -179,10 +177,7 @@ public class HiveTableSource
                                                     hivePartitionsToRead, jobConf),
                                     () ->
                                             HiveSourceFileEnumerator.createInputSplits(
-                                                            0,
-                                                            hivePartitionsToRead,
-                                                            threadNum,
-                                                            jobConf)
+                                                            0, hivePartitionsToRead, jobConf, true)
                                                     .size())
                             .limit(limit);
             return toDataStreamSource(
@@ -346,8 +341,6 @@ public class HiveTableSource
             HiveSourceBuilder sourceBuilder =
                     new HiveSourceBuilder(jobConf, flinkConf, tablePath, hiveVersion, catalogTable)
                             .setProjectedFields(projectedFields);
-            int threadNum =
-                    flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM);
             List<HiveTablePartition> hivePartitionsToRead =
                     getAllPartitions(
                             jobConf,
@@ -359,7 +352,7 @@ public class HiveTableSource
                     sourceBuilder.createDefaultBulkFormat();
             List<HiveSourceSplit> inputSplits =
                     HiveSourceFileEnumerator.createInputSplits(
-                            0, hivePartitionsToRead, threadNum, jobConf);
+                            1, hivePartitionsToRead, jobConf, false);
             if (inputSplits.size() != 0) {
                 TableStats tableStats;
                 if (defaultBulkFormat instanceof FileBasedStatisticsReportableInputFormat) {

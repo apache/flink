@@ -79,7 +79,7 @@ public class HiveSourceBuilder {
     private static final Duration DEFAULT_SCAN_MONITOR_INTERVAL = Duration.ofMinutes(1L);
 
     private final JobConf jobConf;
-    private final int threadNum;
+    private final ReadableConfig flinkConf;
     private final boolean fallbackMappedReader;
 
     private final ObjectPath tablePath;
@@ -113,8 +113,7 @@ public class HiveSourceBuilder {
             @Nonnull String tableName,
             @Nonnull Map<String, String> tableOptions) {
         this.jobConf = jobConf;
-        this.threadNum =
-                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM);
+        this.flinkConf = flinkConf;
         this.fallbackMappedReader = flinkConf.get(TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER);
         this.tablePath = new ObjectPath(dbName, tableName);
         this.hiveVersion = hiveVersion == null ? HiveShimLoader.getHiveVersion() : hiveVersion;
@@ -133,6 +132,7 @@ public class HiveSourceBuilder {
         }
         validateScanConfigurations(this.tableOptions);
         checkAcidTable(this.tableOptions, tablePath);
+        setFlinkConfigurationToJobConf();
     }
 
     /**
@@ -152,8 +152,7 @@ public class HiveSourceBuilder {
             @Nullable String hiveVersion,
             @Nonnull CatalogTable catalogTable) {
         this.jobConf = jobConf;
-        this.threadNum =
-                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM);
+        this.flinkConf = flinkConf;
         this.fallbackMappedReader = flinkConf.get(TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER);
         this.tablePath = tablePath;
         this.hiveVersion = hiveVersion == null ? HiveShimLoader.getHiveVersion() : hiveVersion;
@@ -162,6 +161,7 @@ public class HiveSourceBuilder {
         this.tableOptions = catalogTable.getOptions();
         validateScanConfigurations(tableOptions);
         checkAcidTable(tableOptions, tablePath);
+        setFlinkConfigurationToJobConf();
     }
 
     /**
@@ -238,12 +238,10 @@ public class HiveSourceBuilder {
                 new Path[1],
                 new HiveSourceFileEnumerator.Provider(
                         partitions != null ? partitions : Collections.emptyList(),
-                        threadNum,
                         new JobConfWrapper(jobConf)),
                 splitAssigner,
                 bulkFormat,
                 continuousSourceSettings,
-                threadNum,
                 jobConf,
                 tablePath,
                 partitionKeys,
@@ -295,6 +293,26 @@ public class HiveSourceBuilder {
                 String.format(
                         "The only supported '%s' is 'all' in hive table scan, but is '%s'",
                         STREAMING_SOURCE_PARTITION_INCLUDE.key(), partitionInclude));
+    }
+
+    private void setFlinkConfigurationToJobConf() {
+        jobConf.set(
+                HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM.key(),
+                flinkConf
+                        .get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM)
+                        .toString());
+        jobConf.set(
+                HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX.key(),
+                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX).toString());
+
+        jobConf.set(
+                HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES.key(),
+                String.valueOf(
+                        flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES).getBytes()));
+        jobConf.set(
+                HiveOptions.TABLE_EXEC_HIVE_FILE_OPEN_COST.key(),
+                String.valueOf(
+                        flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FILE_OPEN_COST).getBytes()));
     }
 
     private boolean isStreamingSource() {

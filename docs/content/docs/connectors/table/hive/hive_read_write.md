@@ -166,6 +166,41 @@ following parameters in `TableConfig` (note that these parameters affect all sou
   </tbody>
 </table>
 
+### Tuning Split Size While Reading Hive Table
+While reading Hive table, the data files will be enumerated into splits, one of which is a portion of data consumed by the source.
+Splits are granularity by which the source distributes the work and parallelize the data reading.
+Users can do some performance tuning by tuning the split's size with the follow configurations.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 15%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 55%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>table.exec.hive.split-max-size</h5></td>
+        <td style="word-wrap: break-word;">128mb</td>
+        <td>MemorySize</td>
+        <td>The maximum number of bytes (default is 128MB) to pack into a split while reading Hive table.</td>
+    </tr>
+    <tr>
+        <td><h5>table.exec.hive.file-open-cost</h5></td>
+        <td style="word-wrap: break-word;">4mb</td>
+        <td>MemorySize</td>
+        <td>The estimated cost (default is 4MB) to open a file. Used to enumerate Hive's files to splits.
+            If the value is overestimated, Flink will tend to pack Hive's data into less splits, which will helpful when Hive's table contains many small files.
+            If the value is underestimated, Flink will tend to pack Hive's data into more splits, which will help improve parallelism.
+        </td>
+    </tr>
+  </tbody>
+</table>
+
+**NOTE**: Currently, these two configurations only works for the Hive table stored as ORC format.
+
 ### Load Partition Splits
 
 Multi-thread is used to split hive's partitions. You can use `table.exec.hive.load-partition-splits.thread-num` to configure the thread number. The default value is 3 and the configured value should be bigger than 0.
