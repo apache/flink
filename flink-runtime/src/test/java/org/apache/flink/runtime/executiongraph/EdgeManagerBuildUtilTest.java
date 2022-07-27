@@ -25,11 +25,11 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,20 +38,20 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.POINTWISE;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link EdgeManagerBuildUtil} to verify the max number of connecting edges between
  * vertices for pattern of both {@link DistributionPattern#POINTWISE} and {@link
  * DistributionPattern#ALL_TO_ALL}.
  */
-public class EdgeManagerBuildUtilTest {
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+class EdgeManagerBuildUtilTest {
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     @Test
-    public void testGetMaxNumEdgesToTargetInPointwiseConnection() throws Exception {
+    void testGetMaxNumEdgesToTargetInPointwiseConnection() throws Exception {
         testGetMaxNumEdgesToTarget(17, 17, POINTWISE);
         testGetMaxNumEdgesToTarget(17, 23, POINTWISE);
         testGetMaxNumEdgesToTarget(17, 34, POINTWISE);
@@ -60,7 +60,7 @@ public class EdgeManagerBuildUtilTest {
     }
 
     @Test
-    public void testGetMaxNumEdgesToTargetInAllToAllConnection() throws Exception {
+    void testGetMaxNumEdgesToTargetInAllToAllConnection() throws Exception {
         testGetMaxNumEdgesToTarget(17, 17, ALL_TO_ALL);
         testGetMaxNumEdgesToTarget(17, 23, ALL_TO_ALL);
         testGetMaxNumEdgesToTarget(17, 34, ALL_TO_ALL);
@@ -81,7 +81,7 @@ public class EdgeManagerBuildUtilTest {
                         upstream, downstream, pattern);
         int actualMaxForUpstream = -1;
         for (ExecutionVertex ev : upstreamEJV.getTaskVertices()) {
-            assertEquals(1, ev.getProducedPartitions().size());
+            assertThat(ev.getProducedPartitions()).hasSize(1);
 
             IntermediateResultPartition partition =
                     ev.getProducedPartitions().values().iterator().next();
@@ -91,21 +91,21 @@ public class EdgeManagerBuildUtilTest {
                 actualMaxForUpstream = actual;
             }
         }
-        assertEquals(actualMaxForUpstream, calculatedMaxForUpstream);
+        assertThat(actualMaxForUpstream).isEqualTo(calculatedMaxForUpstream);
 
         int calculatedMaxForDownstream =
                 EdgeManagerBuildUtil.computeMaxEdgesToTargetExecutionVertex(
                         downstream, upstream, pattern);
         int actualMaxForDownstream = -1;
         for (ExecutionVertex ev : downstreamEJV.getTaskVertices()) {
-            assertEquals(1, ev.getNumberOfInputs());
+            assertThat(ev.getNumberOfInputs()).isEqualTo(1);
 
             int actual = ev.getConsumedPartitionGroup(0).size();
             if (actual > actualMaxForDownstream) {
                 actualMaxForDownstream = actual;
             }
         }
-        assertEquals(actualMaxForDownstream, calculatedMaxForDownstream);
+        assertThat(actualMaxForDownstream).isEqualTo(calculatedMaxForDownstream);
     }
 
     private Pair<ExecutionJobVertex, ExecutionJobVertex> setupExecutionGraph(

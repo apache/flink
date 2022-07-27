@@ -29,117 +29,89 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SuppressWarnings("serial")
-public class JobTaskVertexTest {
+class JobTaskVertexTest {
 
     @Test
-    public void testConnectDirectly() {
+    void testConnectDirectly() {
         JobVertex source = new JobVertex("source");
         JobVertex target = new JobVertex("target");
         target.connectNewDataSetAsInput(
                 source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-        assertTrue(source.isInputVertex());
-        assertFalse(source.isOutputVertex());
-        assertFalse(target.isInputVertex());
-        assertTrue(target.isOutputVertex());
+        assertThat(source.isInputVertex()).isTrue();
+        assertThat(source.isOutputVertex()).isFalse();
+        assertThat(target.isInputVertex()).isFalse();
+        assertThat(target.isOutputVertex()).isTrue();
 
-        assertEquals(1, source.getNumberOfProducedIntermediateDataSets());
-        assertEquals(1, target.getNumberOfInputs());
+        assertThat(source.getNumberOfProducedIntermediateDataSets()).isEqualTo(1);
+        assertThat(target.getNumberOfInputs()).isEqualTo(1);
 
-        assertEquals(target.getInputs().get(0).getSource(), source.getProducedDataSets().get(0));
+        assertThat(source.getProducedDataSets().get(0))
+                .isEqualTo(target.getInputs().get(0).getSource());
 
-        assertEquals(target, source.getProducedDataSets().get(0).getConsumer().getTarget());
+        assertThat(source.getProducedDataSets().get(0).getConsumer().getTarget()).isEqualTo(target);
     }
 
     @Test
-    public void testOutputFormat() {
-        try {
-            final InputOutputFormatVertex vertex = new InputOutputFormatVertex("Name");
+    void testOutputFormat() throws Exception {
+        final InputOutputFormatVertex vertex = new InputOutputFormatVertex("Name");
 
-            OperatorID operatorID = new OperatorID();
-            Configuration parameters = new Configuration();
-            parameters.setString("test_key", "test_value");
-            new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader())
-                    .addOutputFormat(operatorID, new TestingOutputFormat(parameters))
-                    .addParameters(operatorID, parameters)
-                    .write(new TaskConfig(vertex.getConfiguration()));
+        OperatorID operatorID = new OperatorID();
+        Configuration parameters = new Configuration();
+        parameters.setString("test_key", "test_value");
+        new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader())
+                .addOutputFormat(operatorID, new TestingOutputFormat(parameters))
+                .addParameters(operatorID, parameters)
+                .write(new TaskConfig(vertex.getConfiguration()));
 
-            final ClassLoader cl = new TestClassLoader();
+        final ClassLoader cl = new TestClassLoader();
 
-            try {
-                vertex.initializeOnMaster(cl);
-                fail("Did not throw expected exception.");
-            } catch (TestException e) {
-                // all good
-            }
+        assertThatThrownBy(() -> vertex.initializeOnMaster(cl)).isInstanceOf(TestException.class);
 
-            InputOutputFormatVertex copy = InstantiationUtil.clone(vertex);
-            ClassLoader ctxCl = Thread.currentThread().getContextClassLoader();
-            try {
-                copy.initializeOnMaster(cl);
-                fail("Did not throw expected exception.");
-            } catch (TestException e) {
-                // all good
-            }
-            assertEquals(
-                    "Previous classloader was not restored.",
-                    ctxCl,
-                    Thread.currentThread().getContextClassLoader());
+        InputOutputFormatVertex copy = InstantiationUtil.clone(vertex);
+        ClassLoader ctxCl = Thread.currentThread().getContextClassLoader();
+        assertThatThrownBy(() -> copy.initializeOnMaster(cl)).isInstanceOf(TestException.class);
 
-            try {
-                copy.finalizeOnMaster(cl);
-                fail("Did not throw expected exception.");
-            } catch (TestException e) {
-                // all good
-            }
-            assertEquals(
-                    "Previous classloader was not restored.",
-                    ctxCl,
-                    Thread.currentThread().getContextClassLoader());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(Thread.currentThread().getContextClassLoader())
+                .as("Previous classloader was not restored.")
+                .isEqualTo(ctxCl);
+
+        assertThatThrownBy(() -> copy.finalizeOnMaster(cl)).isInstanceOf(TestException.class);
+        assertThat(Thread.currentThread().getContextClassLoader())
+                .as("Previous classloader was not restored.")
+                .isEqualTo(ctxCl);
     }
 
     @Test
-    public void testInputFormat() {
-        try {
-            final InputOutputFormatVertex vertex = new InputOutputFormatVertex("Name");
+    void testInputFormat() throws Exception {
+        final InputOutputFormatVertex vertex = new InputOutputFormatVertex("Name");
 
-            OperatorID operatorID = new OperatorID();
-            Configuration parameters = new Configuration();
-            parameters.setString("test_key", "test_value");
-            new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader())
-                    .addInputFormat(operatorID, new TestInputFormat(parameters))
-                    .addParameters(operatorID, "test_key", "test_value")
-                    .write(new TaskConfig(vertex.getConfiguration()));
+        OperatorID operatorID = new OperatorID();
+        Configuration parameters = new Configuration();
+        parameters.setString("test_key", "test_value");
+        new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader())
+                .addInputFormat(operatorID, new TestInputFormat(parameters))
+                .addParameters(operatorID, "test_key", "test_value")
+                .write(new TaskConfig(vertex.getConfiguration()));
 
-            final ClassLoader cl = new TestClassLoader();
+        final ClassLoader cl = new TestClassLoader();
 
-            vertex.initializeOnMaster(cl);
-            InputSplit[] splits = vertex.getInputSplitSource().createInputSplits(77);
+        vertex.initializeOnMaster(cl);
+        InputSplit[] splits = vertex.getInputSplitSource().createInputSplits(77);
 
-            assertNotNull(splits);
-            assertEquals(1, splits.length);
-            assertEquals(TestSplit.class, splits[0].getClass());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(splits).isNotNull();
+        assertThat(splits).hasSize(1);
+        assertThat(splits[0].getClass()).isEqualTo(TestSplit.class);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -191,8 +163,8 @@ public class JobTaskVertexTest {
                 throw new IllegalStateException("Context ClassLoader was not correctly switched.");
             }
             for (String key : expectedParameters.keySet()) {
-                assertEquals(
-                        expectedParameters.getString(key, null), parameters.getString(key, null));
+                assertThat(parameters.getString(key, null))
+                        .isEqualTo(expectedParameters.getString(key, null));
             }
             isConfigured = true;
         }
@@ -244,8 +216,8 @@ public class JobTaskVertexTest {
                 throw new IllegalStateException("Context ClassLoader was not correctly switched.");
             }
             for (String key : expectedParameters.keySet()) {
-                assertEquals(
-                        expectedParameters.getString(key, null), parameters.getString(key, null));
+                assertThat(parameters.getString(key, null))
+                        .isEqualTo(expectedParameters.getString(key, null));
             }
             isConfigured = true;
         }
