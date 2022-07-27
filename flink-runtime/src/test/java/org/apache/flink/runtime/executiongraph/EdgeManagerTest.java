@@ -29,25 +29,25 @@ import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link EdgeManager}. */
-public class EdgeManagerTest {
+class EdgeManagerTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     @Test
-    public void testGetConsumedPartitionGroup() throws Exception {
+    void testGetConsumedPartitionGroup() throws Exception {
         JobVertex v1 = new JobVertex("source");
         JobVertex v2 = new JobVertex("sink");
 
@@ -82,7 +82,8 @@ public class EdgeManagerTest {
         ConsumedPartitionGroup groupRetrievedByIntermediateResultPartition =
                 consumedPartition.getConsumedPartitionGroups().get(0);
 
-        assertEquals(groupRetrievedByDownstreamVertex, groupRetrievedByIntermediateResultPartition);
+        assertThat(groupRetrievedByIntermediateResultPartition)
+                .isEqualTo(groupRetrievedByDownstreamVertex);
 
         ConsumedPartitionGroup groupRetrievedByScheduledResultPartition =
                 scheduler
@@ -92,6 +93,7 @@ public class EdgeManagerTest {
                         .getConsumedPartitionGroups()
                         .get(0);
 
-        assertEquals(groupRetrievedByDownstreamVertex, groupRetrievedByScheduledResultPartition);
+        assertThat(groupRetrievedByScheduledResultPartition)
+                .isEqualTo(groupRetrievedByDownstreamVertex);
     }
 }

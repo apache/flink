@@ -43,13 +43,12 @@ import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -62,28 +61,27 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactoryTest.deserializeShuffleDescriptors;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for removing cached {@link ShuffleDescriptor}s when the related partitions are no longer
  * valid. Currently, there are two scenarios as illustrated in {@link
  * IntermediateResult#clearCachedInformationForPartitionGroup}.
  */
-public class RemoveCachedShuffleDescriptorTest extends TestLogger {
+class RemoveCachedShuffleDescriptorTest {
 
     private static final int PARALLELISM = 4;
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     private ScheduledExecutorService scheduledExecutorService;
     private ComponentMainThreadExecutor mainThreadExecutor;
     private ManuallyTriggeredScheduledExecutorService ioExecutor;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
         mainThreadExecutor =
                 ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
@@ -91,21 +89,21 @@ public class RemoveCachedShuffleDescriptorTest extends TestLogger {
         ioExecutor = new ManuallyTriggeredScheduledExecutorService();
     }
 
-    @After
-    public void teardown() {
+    @AfterEach
+    void teardown() {
         if (scheduledExecutorService != null) {
             scheduledExecutorService.shutdownNow();
         }
     }
 
     @Test
-    public void testRemoveNonOffloadedCacheForAllToAllEdgeAfterFinished() throws Exception {
+    void testRemoveNonOffloadedCacheForAllToAllEdgeAfterFinished() throws Exception {
         // Here we expect no offloaded BLOB.
         testRemoveCacheForAllToAllEdgeAfterFinished(new TestingBlobWriter(Integer.MAX_VALUE), 0, 0);
     }
 
     @Test
-    public void testRemoveOffloadedCacheForAllToAllEdgeAfterFinished() throws Exception {
+    void testRemoveOffloadedCacheForAllToAllEdgeAfterFinished() throws Exception {
         // Here we expect 4 offloaded BLOBs:
         // JobInformation (1) + TaskInformation (2) + Cache of ShuffleDescriptors for the ALL-TO-ALL
         // edge (1).
@@ -129,8 +127,8 @@ public class RemoveCachedShuffleDescriptorTest extends TestLogger {
         final ShuffleDescriptor[] shuffleDescriptors =
                 deserializeShuffleDescriptors(
                         getConsumedCachedShuffleDescriptor(executionGraph, v2), jobId, blobWriter);
-        assertEquals(PARALLELISM, shuffleDescriptors.length);
-        assertEquals(expectedBefore, blobWriter.numberOfBlobs());
+        assertThat(shuffleDescriptors).hasSize(PARALLELISM);
+        assertThat(blobWriter.numberOfBlobs()).isEqualTo(expectedBefore);
 
         // For the all-to-all edge, we transition all downstream tasks to finished
         CompletableFuture.runAsync(
@@ -140,17 +138,17 @@ public class RemoveCachedShuffleDescriptorTest extends TestLogger {
         ioExecutor.triggerAll();
 
         // Cache should be removed since partitions are released
-        assertNull(getConsumedCachedShuffleDescriptor(executionGraph, v2));
-        assertEquals(expectedAfter, blobWriter.numberOfBlobs());
+        assertThat(getConsumedCachedShuffleDescriptor(executionGraph, v2)).isNull();
+        assertThat(blobWriter.numberOfBlobs()).isEqualTo(expectedAfter);
     }
 
     @Test
-    public void testRemoveNonOffloadedCacheForAllToAllEdgeAfterFailover() throws Exception {
+    void testRemoveNonOffloadedCacheForAllToAllEdgeAfterFailover() throws Exception {
         testRemoveCacheForAllToAllEdgeAfterFailover(new TestingBlobWriter(Integer.MAX_VALUE), 0, 0);
     }
 
     @Test
-    public void testRemoveOffloadedCacheForAllToAllEdgeAfterFailover() throws Exception {
+    void testRemoveOffloadedCacheForAllToAllEdgeAfterFailover() throws Exception {
         // Here we expect 4 offloaded BLOBs:
         // JobInformation (1) + TaskInformation (2) + Cache of ShuffleDescriptors for the ALL-TO-ALL
         // edge (1).
@@ -174,25 +172,25 @@ public class RemoveCachedShuffleDescriptorTest extends TestLogger {
         final ShuffleDescriptor[] shuffleDescriptors =
                 deserializeShuffleDescriptors(
                         getConsumedCachedShuffleDescriptor(executionGraph, v2), jobId, blobWriter);
-        assertEquals(PARALLELISM, shuffleDescriptors.length);
-        assertEquals(expectedBefore, blobWriter.numberOfBlobs());
+        assertThat(shuffleDescriptors).hasSize(PARALLELISM);
+        assertThat(blobWriter.numberOfBlobs()).isEqualTo(expectedBefore);
 
         triggerGlobalFailoverAndComplete(scheduler, v1);
         ioExecutor.triggerAll();
 
         // Cache should be removed during ExecutionVertex#resetForNewExecution
-        assertNull(getConsumedCachedShuffleDescriptor(executionGraph, v2));
-        assertEquals(expectedAfter, blobWriter.numberOfBlobs());
+        assertThat(getConsumedCachedShuffleDescriptor(executionGraph, v2)).isNull();
+        assertThat(blobWriter.numberOfBlobs()).isEqualTo(expectedAfter);
     }
 
     @Test
-    public void testRemoveNonOffloadedCacheForPointwiseEdgeAfterFinished() throws Exception {
+    void testRemoveNonOffloadedCacheForPointwiseEdgeAfterFinished() throws Exception {
         testRemoveCacheForPointwiseEdgeAfterFinished(
                 new TestingBlobWriter(Integer.MAX_VALUE), 0, 0);
     }
 
     @Test
-    public void testRemoveOffloadedCacheForPointwiseEdgeAfterFinished() throws Exception {
+    void testRemoveOffloadedCacheForPointwiseEdgeAfterFinished() throws Exception {
         // Here we expect 7 offloaded BLOBs:
         // JobInformation (1) + TaskInformation (2) + Cache of ShuffleDescriptors for the POINTWISE
         // edges (4).
@@ -216,8 +214,8 @@ public class RemoveCachedShuffleDescriptorTest extends TestLogger {
         final ShuffleDescriptor[] shuffleDescriptors =
                 deserializeShuffleDescriptors(
                         getConsumedCachedShuffleDescriptor(executionGraph, v2), jobId, blobWriter);
-        assertEquals(1, shuffleDescriptors.length);
-        assertEquals(expectedBefore, blobWriter.numberOfBlobs());
+        assertThat(shuffleDescriptors).hasSize(1);
+        assertThat(blobWriter.numberOfBlobs()).isEqualTo(expectedBefore);
 
         // For the pointwise edge, we just transition the first downstream task to FINISHED
         ExecutionVertex ev21 =
@@ -229,7 +227,7 @@ public class RemoveCachedShuffleDescriptorTest extends TestLogger {
         ioExecutor.triggerAll();
 
         // The cache of the first upstream task should be removed since its partition is released
-        assertNull(getConsumedCachedShuffleDescriptor(executionGraph, v2, 0));
+        assertThat(getConsumedCachedShuffleDescriptor(executionGraph, v2, 0)).isNull();
 
         // The cache of the other upstream tasks should stay
         final ShuffleDescriptor[] shuffleDescriptorsForOtherVertex =
@@ -237,19 +235,19 @@ public class RemoveCachedShuffleDescriptorTest extends TestLogger {
                         getConsumedCachedShuffleDescriptor(executionGraph, v2, 1),
                         jobId,
                         blobWriter);
-        assertEquals(1, shuffleDescriptorsForOtherVertex.length);
+        assertThat(shuffleDescriptorsForOtherVertex).hasSize(1);
 
-        assertEquals(expectedAfter, blobWriter.numberOfBlobs());
+        assertThat(blobWriter.numberOfBlobs()).isEqualTo(expectedAfter);
     }
 
     @Test
-    public void testRemoveNonOffloadedCacheForPointwiseEdgeAfterFailover() throws Exception {
+    void testRemoveNonOffloadedCacheForPointwiseEdgeAfterFailover() throws Exception {
         testRemoveCacheForPointwiseEdgeAfterFailover(
                 new TestingBlobWriter(Integer.MAX_VALUE), 0, 0);
     }
 
     @Test
-    public void testRemoveOffloadedCacheForPointwiseEdgeAfterFailover() throws Exception {
+    void testRemoveOffloadedCacheForPointwiseEdgeAfterFailover() throws Exception {
         // Here we expect 7 offloaded BLOBs:
         // JobInformation (1) + TaskInformation (2) + Cache of ShuffleDescriptors for the POINTWISE
         // edges (4).
@@ -273,15 +271,15 @@ public class RemoveCachedShuffleDescriptorTest extends TestLogger {
         final ShuffleDescriptor[] shuffleDescriptors =
                 deserializeShuffleDescriptors(
                         getConsumedCachedShuffleDescriptor(executionGraph, v2), jobId, blobWriter);
-        assertEquals(1, shuffleDescriptors.length);
-        assertEquals(expectedBefore, blobWriter.numberOfBlobs());
+        assertThat(shuffleDescriptors).hasSize(1);
+        assertThat(blobWriter.numberOfBlobs()).isEqualTo(expectedBefore);
 
         triggerExceptionAndComplete(executionGraph, v1, v2);
         ioExecutor.triggerAll();
 
         // The cache of the first upstream task should be removed during
         // ExecutionVertex#resetForNewExecution
-        assertNull(getConsumedCachedShuffleDescriptor(executionGraph, v2, 0));
+        assertThat(getConsumedCachedShuffleDescriptor(executionGraph, v2, 0)).isNull();
 
         // The cache of the other upstream tasks should stay
         final ShuffleDescriptor[] shuffleDescriptorsForOtherVertex =
@@ -289,9 +287,9 @@ public class RemoveCachedShuffleDescriptorTest extends TestLogger {
                         getConsumedCachedShuffleDescriptor(executionGraph, v2, 1),
                         jobId,
                         blobWriter);
-        assertEquals(1, shuffleDescriptorsForOtherVertex.length);
+        assertThat(shuffleDescriptorsForOtherVertex).hasSize(1);
 
-        assertEquals(expectedAfter, blobWriter.numberOfBlobs());
+        assertThat(blobWriter.numberOfBlobs()).isEqualTo(expectedAfter);
     }
 
     private DefaultScheduler createSchedulerAndDeploy(
