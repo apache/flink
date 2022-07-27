@@ -36,11 +36,16 @@ public class HybridShuffleConfiguration {
 
     private static final float DEFAULT_FULL_STRATEGY_RELEASE_BUFFER_RATIO = 0.4f;
 
+    private static final SpillingStrategyType DEFAULT_SPILLING_STRATEGY_NAME =
+            SpillingStrategyType.FULL;
+
     private final int maxBuffersReadAhead;
 
     private final Duration bufferRequestTimeout;
 
     private final int maxRequestedBuffers;
+
+    private final SpillingStrategyType spillingStrategyType;
 
     // ----------------------------------------
     //        Selective Spilling Strategy
@@ -66,7 +71,8 @@ public class HybridShuffleConfiguration {
             float selectiveStrategySpillBufferRatio,
             int fullStrategyNumBuffersTriggerSpilling,
             float fullStrategyReleaseThreshold,
-            float fullStrategyReleaseBufferRatio) {
+            float fullStrategyReleaseBufferRatio,
+            SpillingStrategyType spillingStrategyType) {
         this.maxBuffersReadAhead = maxBuffersReadAhead;
         this.bufferRequestTimeout = bufferRequestTimeout;
         this.maxRequestedBuffers = maxRequestedBuffers;
@@ -75,10 +81,16 @@ public class HybridShuffleConfiguration {
         this.fullStrategyNumBuffersTriggerSpilling = fullStrategyNumBuffersTriggerSpilling;
         this.fullStrategyReleaseThreshold = fullStrategyReleaseThreshold;
         this.fullStrategyReleaseBufferRatio = fullStrategyReleaseBufferRatio;
+        this.spillingStrategyType = spillingStrategyType;
     }
 
     public static Builder builder(int numSubpartitions, int numBuffersPerRequest) {
         return new Builder(numSubpartitions, numBuffersPerRequest);
+    }
+
+    /** Get {@link SpillingStrategyType} for hybrid shuffle mode. */
+    public SpillingStrategyType getSpillingStrategyType() {
+        return spillingStrategyType;
     }
 
     public int getMaxRequestedBuffers() {
@@ -135,8 +147,14 @@ public class HybridShuffleConfiguration {
         return fullStrategyReleaseBufferRatio;
     }
 
+    /** Type of {@link HsSpillingStrategy}. */
+    public enum SpillingStrategyType {
+        FULL,
+        SELECTIVE
+    }
+
     /** Builder for {@link HybridShuffleConfiguration}. */
-    static class Builder {
+    public static class Builder {
         private int maxBuffersReadAhead = DEFAULT_MAX_BUFFERS_READ_AHEAD;
 
         private Duration bufferRequestTimeout = DEFAULT_BUFFER_REQUEST_TIMEOUT;
@@ -152,6 +170,8 @@ public class HybridShuffleConfiguration {
         private float fullStrategyReleaseThreshold = DEFAULT_FULL_STRATEGY_RELEASE_THRESHOLD;
 
         private float fullStrategyReleaseBufferRatio = DEFAULT_FULL_STRATEGY_RELEASE_BUFFER_RATIO;
+
+        private SpillingStrategyType spillingStrategyType = DEFAULT_SPILLING_STRATEGY_NAME;
 
         private final int numSubpartitions;
 
@@ -199,6 +219,11 @@ public class HybridShuffleConfiguration {
             return this;
         }
 
+        public Builder setSpillingStrategyType(SpillingStrategyType spillingStrategyType) {
+            this.spillingStrategyType = spillingStrategyType;
+            return this;
+        }
+
         public HybridShuffleConfiguration build() {
             return new HybridShuffleConfiguration(
                     maxBuffersReadAhead,
@@ -208,7 +233,8 @@ public class HybridShuffleConfiguration {
                     selectiveStrategySpillBufferRatio,
                     fullStrategyNumBuffersTriggerSpilling,
                     fullStrategyReleaseThreshold,
-                    fullStrategyReleaseBufferRatio);
+                    fullStrategyReleaseBufferRatio,
+                    spillingStrategyType);
         }
     }
 }
