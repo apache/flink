@@ -40,17 +40,6 @@
   </thead>
   <tbody>
     <tr>
-      <td nzLeft>INITIALIZING Duration</td>
-      <td>{{ aggregated?.['status-duration'].INITIALIZING.min | humanizeDuration }}</td>
-      <td>{{ aggregated?.['status-duration'].INITIALIZING.max | humanizeDuration }}</td>
-      <td>{{ aggregated?.['status-duration'].INITIALIZING.avg | humanizeDuration }}</td>
-      <td>{{ aggregated?.['status-duration'].INITIALIZING.sum | humanizeDuration }}</td>
-      <td>{{ aggregated?.['status-duration'].INITIALIZING.median | humanizeDuration }}</td>
-      <td>{{ aggregated?.['status-duration'].INITIALIZING.p25 | humanizeDuration }}</td>
-      <td>{{ aggregated?.['status-duration'].INITIALIZING.p75 | humanizeDuration }}</td>
-      <td>{{ aggregated?.['status-duration'].INITIALIZING.p95 | humanizeDuration }}</td>
-    </tr>
-    <tr>
       <td nzLeft>CREATED Duration</td>
       <td>{{ aggregated?.['status-duration'].CREATED.min | humanizeDuration }}</td>
       <td>{{ aggregated?.['status-duration'].CREATED.max | humanizeDuration }}</td>
@@ -71,17 +60,6 @@
       <td>{{ aggregated?.['status-duration'].SCHEDULED.p25 | humanizeDuration }}</td>
       <td>{{ aggregated?.['status-duration'].SCHEDULED.p75 | humanizeDuration }}</td>
       <td>{{ aggregated?.['status-duration'].SCHEDULED.p95 | humanizeDuration }}</td>
-    </tr>
-    <tr>
-      <td nzLeft>RUNNING Duration</td>
-      <td>{{ aggregated?.['status-duration'].RUNNING.min | humanizeDuration }}</td>
-      <td>{{ aggregated?.['status-duration'].RUNNING.max | humanizeDuration }}</td>
-      <td>{{ aggregated?.['status-duration'].RUNNING.avg | humanizeDuration }}</td>
-      <td>{{ aggregated?.['status-duration'].RUNNING.sum | humanizeDuration }}</td>
-      <td>{{ aggregated?.['status-duration'].RUNNING.median | humanizeDuration }}</td>
-      <td>{{ aggregated?.['status-duration'].RUNNING.p25 | humanizeDuration }}</td>
-      <td>{{ aggregated?.['status-duration'].RUNNING.p75 | humanizeDuration }}</td>
-      <td>{{ aggregated?.['status-duration'].RUNNING.p95 | humanizeDuration }}</td>
     </tr>
     <tr>
       <td nzLeft>DEPLOYING Duration</td>
@@ -109,6 +87,28 @@
       <td>
         {{ aggregated?.['status-duration'].DEPLOYING.p95 | humanizeDuration }}
       </td>
+    </tr>
+    <tr>
+      <td nzLeft>INITIALIZING Duration</td>
+      <td>{{ aggregated?.['status-duration'].INITIALIZING.min | humanizeDuration }}</td>
+      <td>{{ aggregated?.['status-duration'].INITIALIZING.max | humanizeDuration }}</td>
+      <td>{{ aggregated?.['status-duration'].INITIALIZING.avg | humanizeDuration }}</td>
+      <td>{{ aggregated?.['status-duration'].INITIALIZING.sum | humanizeDuration }}</td>
+      <td>{{ aggregated?.['status-duration'].INITIALIZING.median | humanizeDuration }}</td>
+      <td>{{ aggregated?.['status-duration'].INITIALIZING.p25 | humanizeDuration }}</td>
+      <td>{{ aggregated?.['status-duration'].INITIALIZING.p75 | humanizeDuration }}</td>
+      <td>{{ aggregated?.['status-duration'].INITIALIZING.p95 | humanizeDuration }}</td>
+    </tr>
+    <tr>
+      <td nzLeft>RUNNING Duration</td>
+      <td>{{ aggregated?.['status-duration'].RUNNING.min | humanizeDuration }}</td>
+      <td>{{ aggregated?.['status-duration'].RUNNING.max | humanizeDuration }}</td>
+      <td>{{ aggregated?.['status-duration'].RUNNING.avg | humanizeDuration }}</td>
+      <td>{{ aggregated?.['status-duration'].RUNNING.sum | humanizeDuration }}</td>
+      <td>{{ aggregated?.['status-duration'].RUNNING.median | humanizeDuration }}</td>
+      <td>{{ aggregated?.['status-duration'].RUNNING.p25 | humanizeDuration }}</td>
+      <td>{{ aggregated?.['status-duration'].RUNNING.p75 | humanizeDuration }}</td>
+      <td>{{ aggregated?.['status-duration'].RUNNING.p95 | humanizeDuration }}</td>
     </tr>
     <tr>
       <td nzLeft>Read Records</td>
