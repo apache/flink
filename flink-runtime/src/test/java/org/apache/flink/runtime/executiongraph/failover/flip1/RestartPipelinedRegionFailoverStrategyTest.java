@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.PartitionConnectionException;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
@@ -33,6 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -331,6 +333,54 @@ class RestartPipelinedRegionFailoverStrategyTest {
         verifyThatFailedExecution(strategy, v4).restarts(v4);
     }
 
+    /**
+     * Tests to verify region failover results of PIPELINED/BLOCKING/HYBRID_FULL/HYBRID_SELECTIVE
+     * type.
+     *
+     * <pre>
+     *
+     *     (v1)  -**- \
+     *                 \
+     *     (v2)  -//-  (v5) -**-(v6)
+     *                 / /
+     *     (v3) -##- / /
+     *               /
+     *     (v4)----/
+     *
+     *
+     *    ----: pipelined        edge
+     *    -**-: hybrid_full      edge
+     *    -##-: hybrid_selective edge
+     *    -//-: blocking         edge
+     *
+     * </pre>
+     *
+     * Except that v4 and v5 belong to the same region, each vertex is in an individual region.
+     */
+    @Test
+    void testRegionFailoverForHybridEdge() {
+        final TestingSchedulingTopology topology = new TestingSchedulingTopology();
+
+        TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.FINISHED);
+        TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex(ExecutionState.FINISHED);
+        TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex(ExecutionState.FINISHED);
+        TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex(ExecutionState.RUNNING);
+        TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex(ExecutionState.FINISHED);
+        TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex(ExecutionState.RUNNING);
+
+        topology.connect(v1, v5, ResultPartitionType.HYBRID_FULL);
+        topology.connect(v2, v5, ResultPartitionType.BLOCKING);
+        topology.connect(v3, v5, ResultPartitionType.HYBRID_SELECTIVE);
+        topology.connect(v4, v5, ResultPartitionType.PIPELINED);
+        topology.connect(v5, v6, ResultPartitionType.HYBRID_FULL);
+
+        RestartPipelinedRegionFailoverStrategy strategy =
+                new RestartPipelinedRegionFailoverStrategy(topology);
+
+        verifyThatFailedExecution(strategy, v5).restarts(v3, v4, v5, v6);
+        verifyThatFailedExecution(strategy, v6).restarts(v6);
+    }
+
     private static VerificationContext verifyThatFailedExecution(
             FailoverStrategy strategy, SchedulingExecutionVertex executionVertex) {
         return new VerificationContext(strategy, executionVertex);
@@ -364,7 +414,9 @@ class RestartPipelinedRegionFailoverStrategyTest {
         }
 
         private void restarts(SchedulingExecutionVertex... expectedResult) {
-            assertThat(strategy.getTasksNeedingRestart(executionVertex.getId(), cause))
+            Set<ExecutionVertexID> tasksNeedingRestart =
+                    strategy.getTasksNeedingRestart(executionVertex.getId(), cause);
+            assertThat(tasksNeedingRestart)
                     .containsExactlyInAnyOrderElementsOf(
                             Stream.of(expectedResult)
                                     .map(SchedulingExecutionVertex::getId)
