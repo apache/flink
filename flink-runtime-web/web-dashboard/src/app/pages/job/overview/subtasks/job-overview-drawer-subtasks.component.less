@@ -27,6 +27,14 @@
   }
 
   ::ng-deep {
+    .ant-table-row-indent {
+      padding-left: 0 !important;
+
+      & + .ant-table-row-expand-icon {
+        margin-top: 2px;
+      }
+    }
+
     .ant-table-cell {
       font-size: @font-size-sm;
     }
