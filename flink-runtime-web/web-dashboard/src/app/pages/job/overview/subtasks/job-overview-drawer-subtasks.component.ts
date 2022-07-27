@@ -24,7 +24,8 @@ import {
   JobVertexAggregated,
   JobVertexStatus,
   JobVertexStatusDuration,
-  JobVertexSubTask
+  JobVertexSubTask,
+  JobVertexSubTaskData
 } from '@flink-runtime-web/interfaces';
 import {
   JOB_OVERVIEW_MODULE_CONFIG,
@@ -49,6 +50,7 @@ function createSortFn(selector: (item: JobVertexSubTask) => number | string): Nz
 })
 export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
   readonly trackBySubtask = (_: number, node: JobVertexSubTask): number => node.subtask;
+  readonly trackBySubtaskAttempt = (_: number, node: JobVertexSubTaskData): string => `${node.subtask}-${node.attempt}`;
 
   readonly sortReadBytesFn = createSortFn(item => item.metrics?.['read-bytes']);
   readonly sortReadRecordsFn = createSortFn(item => item.metrics?.['read-records']);
@@ -61,15 +63,14 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
   readonly sortEndTimeFn = createSortFn(item => item['end-time']);
   readonly sortStatusFn = createSortFn(item => item.status);
 
+  expandSet = new Set<number>();
   listOfTask: JobVertexSubTask[] = [];
   aggregated?: JobVertexAggregated;
   isLoading = true;
-  virtualItemSize = 36;
   actionComponent: Type<unknown>;
   durationBadgeComponent: Type<unknown>;
   stateBadgeComponent: Type<unknown>;
-  readonly narrowLogData = typeDefinition<JobVertexSubTask>();
-
+  readonly narrowType = typeDefinition<JobVertexSubTask>();
   private readonly destroy$ = new Subject<void>();
 
   constructor(
@@ -109,6 +110,20 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  collapseAll(): void {
+    this.expandSet.clear();
+    this.cdr.markForCheck();
+  }
+
+  onExpandChange(subtask: JobVertexSubTask, checked: boolean): void {
+    if (checked) {
+      this.expandSet.add(subtask.subtask);
+    } else {
+      this.expandSet.delete(subtask.subtask);
+    }
+    this.cdr.markForCheck();
   }
 
   convertStatusDuration(statusDuration: JobVertexStatusDuration<number>): Array<{ state: string; duration: number }> {
