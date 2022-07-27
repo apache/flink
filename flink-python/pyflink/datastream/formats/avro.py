@@ -149,6 +149,7 @@ class AvroWriters(object):
             >>> ds = env.from_collection([{'array': [1, 2]}], type_info=Types.PICKLED_BYTE_ARRAY())
             >>> sink = FileSink.for_bulk_format(
             ...     OUTPUT_DIR, AvroWriters.for_generic_record(schema)).build()
+            >>> # A map to indicate its Avro type info is necessary for serialization
             >>> ds.map(lambda e: e, output_type=GenericRecordAvroTypeInfo(schema)) \\
             ...     .sink_to(sink)
 

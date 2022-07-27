@@ -385,58 +385,53 @@ class FileSinkAvroWritersTests(PyFlinkStreamingTestCase):
         super().setUp()
         # NOTE: parallelism == 1 is required to keep the order of results
         self.env.set_parallelism(1)
+        self.avro_dir_name = tempfile.mkdtemp(dir=self.tempdir)
 
     def test_avro_basic(self):
-        avro_dir_name = tempfile.mkdtemp(dir=self.tempdir)
         schema, objects = _create_basic_avro_schema_and_py_objects()
-        self._build_avro_job(schema, objects, avro_dir_name)
+        self._build_avro_job(schema, objects)
         self.env.execute()
-        results = self._read_avro_file(avro_dir_name)
+        results = self._read_avro_file()
         _check_basic_avro_schema_results(self, results)
 
     def test_avro_enum(self):
-        avro_dir_name = tempfile.mkdtemp(dir=self.tempdir)
         schema, objects = _create_enum_avro_schema_and_py_objects()
-        self._build_avro_job(schema, objects, avro_dir_name)
+        self._build_avro_job(schema, objects)
         self.env.execute()
-        results = self._read_avro_file(avro_dir_name)
+        results = self._read_avro_file()
         _check_enum_avro_schema_results(self, results)
 
     def test_avro_union(self):
-        avro_dir_name = tempfile.mkdtemp(dir=self.tempdir)
         schema, objects = _create_union_avro_schema_and_py_objects()
-        self._build_avro_job(schema, objects, avro_dir_name)
+        self._build_avro_job(schema, objects)
         self.env.execute()
-        results = self._read_avro_file(avro_dir_name)
+        results = self._read_avro_file()
         _check_union_avro_schema_results(self, results)
 
     def test_avro_array(self):
-        avro_dir_name = tempfile.mkdtemp(dir=self.tempdir)
         schema, objects = _create_array_avro_schema_and_py_objects()
-        self._build_avro_job(schema, objects, avro_dir_name)
+        self._build_avro_job(schema, objects)
         self.env.execute()
-        results = self._read_avro_file(avro_dir_name)
+        results = self._read_avro_file()
         _check_array_avro_schema_results(self, results)
 
     def test_avro_map(self):
-        avro_dir_name = tempfile.mkdtemp(dir=self.tempdir)
         schema, objects = _create_map_avro_schema_and_py_objects()
-        self._build_avro_job(schema, objects, avro_dir_name)
+        self._build_avro_job(schema, objects)
         self.env.execute()
-        results = self._read_avro_file(avro_dir_name)
+        results = self._read_avro_file()
         _check_map_avro_schema_results(self, results)
 
-    def _build_avro_job(self, schema, objects, avro_dir_name):
+    def _build_avro_job(self, schema, objects):
         ds = self.env.from_collection(objects)
         sink = FileSink.for_bulk_format(
-            avro_dir_name, AvroWriters.for_generic_record(schema)
+            self.avro_dir_name, AvroWriters.for_generic_record(schema)
         ).build()
         ds.map(lambda e: e, output_type=GenericRecordAvroTypeInfo(schema)).sink_to(sink)
 
-    @staticmethod
-    def _read_avro_file(dir_path: str) -> List[dict]:
+    def _read_avro_file(self) -> List[dict]:
         records = []
-        for file in glob.glob(os.path.join(dir_path, '**/*')):
+        for file in glob.glob(os.path.join(os.path.join(self.avro_dir_name, '**/*'))):
             for record in DataFileReader(open(file, 'rb'), DatumReader()):
                 records.append(record)
         return records

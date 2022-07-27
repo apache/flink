@@ -202,7 +202,10 @@ Classes to define formats used together with source & sink:
     - :class:`formats.CsvReaderFormat`:
       A :class:`connectors.StreamFormat` to read csv files into Row data.
     - :class:`formats.AvroInputFormat`:
-      An :class:`formats.InputFormat` to read avro files.
+      A :class:`connector.filesystem.InputFormat` to read avro files in a streaming fashion.
+    - :class:`formats.AvroWriters`:
+      A class to provide :class:`connector.filesystem.BulkWriterFactory` to write vanilla Python
+      objects into avro files in a batch fashion.
     - :class:`formats.ParquetColumnarRowInputFormat`:
       A :class:`connectors.BulkFormat` to read columnar parquet files into Row data in a
       batch-processing fashion.
