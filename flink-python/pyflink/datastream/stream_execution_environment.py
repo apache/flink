@@ -18,7 +18,7 @@
 import os
 import tempfile
 
-from typing import List, Any, Optional, cast
+from typing import List, Any, Optional, cast, TYPE_CHECKING
 
 from py4j.java_gateway import JavaObject
 
@@ -42,6 +42,9 @@ from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
 from pyflink.util.java_utils import load_java_class, add_jars_to_context_class_loader, \
     invoke_method, get_field_value, is_local_deployment, get_j_env_configuration
+
+if TYPE_CHECKING:
+    from pyflink.datastream.connectors.file_system import InputFormat
 
 __all__ = ['StreamExecutionEnvironment']
 
@@ -834,7 +837,8 @@ class StreamExecutionEnvironment(object):
 
         return StreamExecutionEnvironment(j_stream_exection_environment)
 
-    def create_input(self, input_format, type_info: Optional[TypeInformation] = None):
+    def create_input(self, input_format: 'InputFormat',
+                     type_info: Optional[TypeInformation] = None):
         """
         Create an input data stream with InputFormat.
 
@@ -854,11 +858,11 @@ class StreamExecutionEnvironment(object):
 
         if input_type_info is None:
             j_data_stream = self._j_stream_execution_environment.createInput(
-                input_format.get_java_function()
+                input_format.get_java_object()
             )
         else:
             j_data_stream = self._j_stream_execution_environment.createInput(
-                input_format.get_java_function(), input_type_info.get_java_type_info()
+                input_format.get_java_object(), input_type_info.get_java_type_info()
             )
         return DataStream(j_data_stream=j_data_stream)
 

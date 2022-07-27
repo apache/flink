@@ -318,61 +318,56 @@ class FileSourceAvroInputFormatTests(PyFlinkStreamingTestCase):
     def setUp(self):
         super().setUp()
         self.test_sink = DataStreamTestSinkFunction()
+        self.avro_file_name = tempfile.mktemp(suffix='.avro', dir=self.tempdir)
         _import_avro_classes()
 
-    def test_avro_basic(self):
-        avro_file_name = tempfile.mktemp(suffix='.avro', dir=self.tempdir)
+    def test_avro_basic_read(self):
         schema, records = _create_basic_avro_schema_and_records()
-        self._create_avro_file(avro_file_name, schema, records)
-        self._build_avro_job(schema, avro_file_name)
-        self.env.execute("test_avro_basic")
+        self._create_avro_file(schema, records)
+        self._build_avro_job(schema)
+        self.env.execute('test_avro_basic_read')
         results = self.test_sink.get_results(True, False)
         _check_basic_avro_schema_results(self, results)
 
-    def test_avro_enum(self):
-        avro_file_name = tempfile.mktemp(suffix='.avro', dir=self.tempdir)
+    def test_avro_enum_read(self):
         schema, records = _create_enum_avro_schema_and_records()
-        self._create_avro_file(avro_file_name, schema, records)
-        self._build_avro_job(schema, avro_file_name)
-        self.env.execute("test_avro_enum")
+        self._create_avro_file(schema, records)
+        self._build_avro_job(schema)
+        self.env.execute('test_avro_enum_read')
         results = self.test_sink.get_results(True, False)
         _check_enum_avro_schema_results(self, results)
 
-    def test_avro_union(self):
-        avro_file_name = tempfile.mktemp(suffix='.avro', dir=self.tempdir)
+    def test_avro_union_read(self):
         schema, records = _create_union_avro_schema_and_records()
-        self._create_avro_file(avro_file_name, schema, records)
-        self._build_avro_job(schema, avro_file_name)
-        self.env.execute("test_avro_union")
+        self._create_avro_file(schema, records)
+        self._build_avro_job(schema)
+        self.env.execute('test_avro_union_read')
         results = self.test_sink.get_results(True, False)
         _check_union_avro_schema_results(self, results)
 
-    def test_avro_array(self):
-        avro_file_name = tempfile.mktemp(suffix='.avro', dir=self.tempdir)
+    def test_avro_array_read(self):
         schema, records = _create_array_avro_schema_and_records()
-        self._create_avro_file(avro_file_name, schema, records)
-        self._build_avro_job(schema, avro_file_name)
-        self.env.execute("test_avro_array")
+        self._create_avro_file(schema, records)
+        self._build_avro_job(schema)
+        self.env.execute('test_avro_array_read')
         results = self.test_sink.get_results(True, False)
         _check_array_avro_schema_results(self, results)
 
-    def test_avro_map(self):
-        avro_file_name = tempfile.mktemp(suffix='.avro', dir=self.tempdir)
+    def test_avro_map_read(self):
         schema, records = _create_map_avro_schema_and_records()
-        self._create_avro_file(avro_file_name, schema, records)
-        self._build_avro_job(schema, avro_file_name)
-        self.env.execute("test_avro_map")
+        self._create_avro_file(schema, records)
+        self._build_avro_job(schema)
+        self.env.execute('test_avro_map_read')
         results = self.test_sink.get_results(True, False)
         _check_map_avro_schema_results(self, results)
 
-    def _build_avro_job(self, record_schema, avro_file_name):
-        ds = self.env.create_input(AvroInputFormat(avro_file_name, record_schema))
+    def _build_avro_job(self, record_schema):
+        ds = self.env.create_input(AvroInputFormat(self.avro_file_name, record_schema))
         ds.map(PassThroughMapFunction()).add_sink(self.test_sink)
 
-    @staticmethod
-    def _create_avro_file(file_path: str, schema: AvroSchema, records: list):
+    def _create_avro_file(self, schema: AvroSchema, records: list):
         jvm = get_gateway().jvm
-        j_file = jvm.java.io.File(file_path)
+        j_file = jvm.java.io.File(self.avro_file_name)
         j_datum_writer = jvm.org.apache.flink.avro.shaded.org.apache.avro.generic \
             .GenericDatumWriter()
         j_file_writer = jvm.org.apache.flink.avro.shaded.org.apache.avro.file \
@@ -391,38 +386,38 @@ class FileSinkAvroWritersTests(PyFlinkStreamingTestCase):
         self.env.set_parallelism(1)
         self.avro_dir_name = tempfile.mkdtemp(dir=self.tempdir)
 
-    def test_avro_basic(self):
+    def test_avro_basic_write(self):
         schema, objects = _create_basic_avro_schema_and_py_objects()
         self._build_avro_job(schema, objects)
-        self.env.execute()
+        self.env.execute('test_avro_basic_write')
         results = self._read_avro_file()
         _check_basic_avro_schema_results(self, results)
 
-    def test_avro_enum(self):
+    def test_avro_enum_write(self):
         schema, objects = _create_enum_avro_schema_and_py_objects()
         self._build_avro_job(schema, objects)
-        self.env.execute()
+        self.env.execute('test_avro_enum_write')
         results = self._read_avro_file()
         _check_enum_avro_schema_results(self, results)
 
-    def test_avro_union(self):
+    def test_avro_union_write(self):
         schema, objects = _create_union_avro_schema_and_py_objects()
         self._build_avro_job(schema, objects)
-        self.env.execute()
+        self.env.execute('test_avro_union_write')
         results = self._read_avro_file()
         _check_union_avro_schema_results(self, results)
 
-    def test_avro_array(self):
+    def test_avro_array_write(self):
         schema, objects = _create_array_avro_schema_and_py_objects()
         self._build_avro_job(schema, objects)
-        self.env.execute()
+        self.env.execute('test_avro_array_write')
         results = self._read_avro_file()
         _check_array_avro_schema_results(self, results)
 
-    def test_avro_map(self):
+    def test_avro_map_write(self):
         schema, objects = _create_map_avro_schema_and_py_objects()
         self._build_avro_job(schema, objects)
-        self.env.execute()
+        self.env.execute('test_avro_map_write')
         results = self._read_avro_file()
         _check_map_avro_schema_results(self, results)
 
