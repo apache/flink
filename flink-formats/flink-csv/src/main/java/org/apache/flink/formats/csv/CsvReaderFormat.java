@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.formats.common.Converter;
 import org.apache.flink.util.function.SerializableFunction;
 import org.apache.flink.util.function.SerializableSupplier;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.MappingIterator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
@@ -108,7 +109,7 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
      */
     public static <T> CsvReaderFormat<T> forSchema(
             CsvSchema schema, TypeInformation<T> typeInformation) {
-        return forSchema(() -> new CsvMapper(), ignored -> schema, typeInformation);
+        return forSchema(JacksonMapperFactory::createCsvMapper, ignored -> schema, typeInformation);
     }
 
     /**
@@ -163,7 +164,7 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
      */
     public static <T> CsvReaderFormat<T> forPojo(Class<T> pojoType) {
         return forSchema(
-                () -> new CsvMapper(),
+                () -> JacksonMapperFactory.createCsvMapper(),
                 mapper -> mapper.schemaFor(pojoType).withoutQuoteChar(),
                 TypeInformation.of(pojoType));
     }

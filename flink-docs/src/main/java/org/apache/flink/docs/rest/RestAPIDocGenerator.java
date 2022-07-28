@@ -32,6 +32,7 @@ import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.SerializableString;
@@ -99,7 +100,7 @@ public class RestAPIDocGenerator {
     private static final JsonSchemaGenerator schemaGen;
 
     static {
-        mapper = new ObjectMapper();
+        mapper = JacksonMapperFactory.createObjectMapper();
         mapper.getFactory().setCharacterEscapes(new HTMLCharacterEscapes());
         mapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
         schemaGen = new JsonSchemaGenerator(mapper);

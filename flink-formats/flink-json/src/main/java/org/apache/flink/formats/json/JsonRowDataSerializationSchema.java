@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -86,7 +87,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
     @Override
     public void open(InitializationContext context) throws Exception {
         mapper =
-                new ObjectMapper()
+                JacksonMapperFactory.createObjectMapper()
                         .configure(
                                 JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN,
                                 encodeDecimalAsPlainNumber);

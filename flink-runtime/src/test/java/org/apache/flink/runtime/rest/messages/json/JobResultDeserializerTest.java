@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.messages.json;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,7 +44,7 @@ public class JobResultDeserializerTest extends TestLogger {
         final SimpleModule simpleModule = new SimpleModule();
         simpleModule.addDeserializer(JobResult.class, new JobResultDeserializer());
 
-        objectMapper = new ObjectMapper();
+        objectMapper = JacksonMapperFactory.createObjectMapper();
         objectMapper.registerModule(simpleModule);
     }
 

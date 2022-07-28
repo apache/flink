@@ -21,6 +21,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -55,7 +56,7 @@ public class JSONKeyValueDeserializationSchema implements KafkaDeserializationSc
 
     @Override
     public void open(DeserializationSchema.InitializationContext context) throws Exception {
-        mapper = new ObjectMapper();
+        mapper = JacksonMapperFactory.createObjectMapper();
     }
 
     @Override
