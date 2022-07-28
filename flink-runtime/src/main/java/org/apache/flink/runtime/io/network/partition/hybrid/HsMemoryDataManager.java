@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategy.Decision;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
@@ -222,13 +223,13 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
                     // decrease numUnSpillBuffers as this subpartition's buffer is spill.
                     numUnSpillBuffers.getAndAdd(-bufferIndexAndChannels.size());
                 });
-
-        spiller.spillAsync(bufferWithIdentities)
-                .thenAccept(
-                        spilledBuffers -> {
-                            fileDataIndex.addBuffers(spilledBuffers);
-                            spillingCompleteFuture.complete(null);
-                        });
+        FutureUtils.assertNoException(
+                spiller.spillAsync(bufferWithIdentities)
+                        .thenAccept(
+                                spilledBuffers -> {
+                                    fileDataIndex.addBuffers(spilledBuffers);
+                                    spillingCompleteFuture.complete(null);
+                                }));
     }
 
     /**
