@@ -152,7 +152,7 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
         }
 
         if (loadedBuffers.size() <= numLoaded) {
-            operations.notifyDataAvailableFromDisk();
+            operations.notifyDataAvailable();
         }
     }
 
@@ -171,7 +171,7 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
         }
 
         loadedBuffers.add(BufferIndexOrError.newError(failureCause));
-        operations.notifyDataAvailableFromDisk();
+        operations.notifyDataAvailable();
     }
 
     /** Refresh downstream consumption progress for another round scheduling of reading. */

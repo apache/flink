@@ -35,16 +35,20 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
 
     private final Runnable onBufferFinishedRunnable;
 
+    private final Runnable onDataAvailableRunnable;
+
     private TestingMemoryDataManagerOperation(
             SupplierWithException<BufferBuilder, InterruptedException>
                     requestBufferFromPoolSupplier,
             BiConsumer<Integer, Integer> markBufferReadableConsumer,
             Consumer<BufferIndexAndChannel> onBufferConsumedConsumer,
-            Runnable onBufferFinishedRunnable) {
+            Runnable onBufferFinishedRunnable,
+            Runnable onDataAvailableRunnable) {
         this.requestBufferFromPoolSupplier = requestBufferFromPoolSupplier;
         this.markBufferReadableConsumer = markBufferReadableConsumer;
         this.onBufferConsumedConsumer = onBufferConsumedConsumer;
         this.onBufferFinishedRunnable = onBufferFinishedRunnable;
+        this.onDataAvailableRunnable = onDataAvailableRunnable;
     }
 
     @Override
@@ -67,6 +71,11 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
         onBufferFinishedRunnable.run();
     }
 
+    @Override
+    public void onDataAvailable(int subpartitionId) {
+        onDataAvailableRunnable.run();
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -81,6 +90,8 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
         private Consumer<BufferIndexAndChannel> onBufferConsumedConsumer = (ignore1) -> {};
 
         private Runnable onBufferFinishedRunnable = () -> {};
+
+        private Runnable onDataAvailableRunnable = () -> {};
 
         public Builder setRequestBufferFromPoolSupplier(
                 SupplierWithException<BufferBuilder, InterruptedException>
@@ -106,6 +117,11 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
             return this;
         }
 
+        public Builder setOnDataAvailableRunnable(Runnable onDataAvailableRunnable) {
+            this.onDataAvailableRunnable = onDataAvailableRunnable;
+            return this;
+        }
+
         private Builder() {}
 
         public TestingMemoryDataManagerOperation build() {
@@ -113,7 +129,8 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
                     requestBufferFromPoolSupplier,
                     markBufferReadableConsumer,
                     onBufferConsumedConsumer,
-                    onBufferFinishedRunnable);
+                    onBufferFinishedRunnable,
+                    onDataAvailableRunnable);
         }
     }
 }

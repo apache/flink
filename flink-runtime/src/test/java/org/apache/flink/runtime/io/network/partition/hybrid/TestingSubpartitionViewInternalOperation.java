@@ -27,7 +27,7 @@ public class TestingSubpartitionViewInternalOperation
     private Runnable notifyDataAvailableRunnable = () -> {};
 
     @Override
-    public void notifyDataAvailableFromDisk() {
+    public void notifyDataAvailable() {
         notifyDataAvailableRunnable.run();
     }
 

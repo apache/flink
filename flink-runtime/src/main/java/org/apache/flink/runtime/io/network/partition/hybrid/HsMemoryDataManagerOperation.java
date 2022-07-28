@@ -49,4 +49,11 @@ public interface HsMemoryDataManagerOperation {
 
     /** This method is called when buffer is finished. */
     void onBufferFinished();
+
+    /**
+     * This method is called when subpartition data become available.
+     *
+     * @param subpartitionId the subpartition need notify data available.
+     */
+    void onDataAvailable(int subpartitionId);
 }
