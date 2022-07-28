@@ -51,9 +51,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for {@link HsResultPartitionReadScheduler}. */
+/** Tests for {@link HsFileDataManager}. */
 @ExtendWith(TestLoggerExtension.class)
-class HsResultPartitionReadSchedulerTest {
+class HsFileDataManagerTest {
     private static final int BUFFER_SIZE = 1024;
 
     private static final int NUM_SUBPARTITIONS = 10;
@@ -70,7 +70,7 @@ class HsResultPartitionReadSchedulerTest {
 
     private Path dataFilePath;
 
-    private HsResultPartitionReadScheduler readScheduler;
+    private HsFileDataManager fileDataManager;
 
     private TestingSubpartitionViewInternalOperation subpartitionViewOperation;
 
@@ -85,8 +85,8 @@ class HsResultPartitionReadSchedulerTest {
         dataFilePath = Files.createFile(tempDir.resolve(".data"));
         dataFileChannel = openFileChannel(dataFilePath);
         factory = new TestingHsSubpartitionFileReader.Factory();
-        readScheduler =
-                new HsResultPartitionReadScheduler(
+        fileDataManager =
+                new HsFileDataManager(
                         bufferPool,
                         ioExecutor,
                         new HsFileDataIndexImpl(NUM_SUBPARTITIONS),
@@ -117,7 +117,7 @@ class HsResultPartitionReadSchedulerTest {
 
         assertThat(reader.readBuffers).isEmpty();
 
-        readScheduler.registerNewSubpartition(0, subpartitionViewOperation);
+        fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
 
         ioExecutor.trigger();
 
@@ -136,15 +136,15 @@ class HsResultPartitionReadSchedulerTest {
 
         factory.allReaders.add(reader);
 
-        readScheduler.registerNewSubpartition(0, subpartitionViewOperation);
+        fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
 
         ioExecutor.trigger();
 
         assertThat(reader.readBuffers).hasSize(BUFFER_POOL_SIZE);
         assertThat(bufferPool.getAvailableBuffers()).isZero();
 
-        readScheduler.recycle(reader.readBuffers.poll());
-        readScheduler.recycle(reader.readBuffers.poll());
+        fileDataManager.recycle(reader.readBuffers.poll());
+        fileDataManager.recycle(reader.readBuffers.poll());
 
         // recycle buffer will push new runnable to ioExecutor.
         ioExecutor.trigger();
@@ -163,12 +163,12 @@ class HsResultPartitionReadSchedulerTest {
                     assertThat(prepareForSchedulingFinished).isCompleted();
                     assertThat(requestedBuffers).hasSize(BUFFER_POOL_SIZE);
                     assertThat(bufferPool.getAvailableBuffers()).isEqualTo(0);
-                    // read one buffer, return another buffer to scheduler.
+                    // read one buffer, return another buffer to data manager.
                     readBuffers.add(requestedBuffers.poll());
                 });
         factory.allReaders.add(reader);
 
-        readScheduler.registerNewSubpartition(0, subpartitionViewOperation);
+        fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
 
         ioExecutor.trigger();
 
@@ -176,7 +176,7 @@ class HsResultPartitionReadSchedulerTest {
         assertThat(bufferPool.getAvailableBuffers()).isEqualTo(1);
     }
 
-    /** Test scheduler will schedule readers in order. */
+    /** Test file data manager will schedule readers in order. */
     @Test
     void testScheduleReadersOrdered() throws Exception {
         TestingHsSubpartitionFileReader reader1 = new TestingHsSubpartitionFileReader();
@@ -201,8 +201,8 @@ class HsResultPartitionReadSchedulerTest {
         factory.allReaders.add(reader1);
         factory.allReaders.add(reader2);
 
-        readScheduler.registerNewSubpartition(0, subpartitionViewOperation);
-        readScheduler.registerNewSubpartition(1, subpartitionViewOperation);
+        fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
+        fileDataManager.registerNewSubpartition(1, subpartitionViewOperation);
 
         // trigger run.
         ioExecutor.trigger();
@@ -218,8 +218,8 @@ class HsResultPartitionReadSchedulerTest {
         bufferPool.requestBuffers();
         assertThat(bufferPool.getAvailableBuffers()).isZero();
 
-        readScheduler =
-                new HsResultPartitionReadScheduler(
+        fileDataManager =
+                new HsFileDataManager(
                         bufferPool,
                         ioExecutor,
                         new HsFileDataIndexImpl(NUM_SUBPARTITIONS),
@@ -237,7 +237,7 @@ class HsResultPartitionReadSchedulerTest {
         reader.setFailConsumer((cause::complete));
         factory.allReaders.add(reader);
 
-        readScheduler.registerNewSubpartition(0, subpartitionViewOperation);
+        fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
 
         ioExecutor.trigger();
 
@@ -263,7 +263,7 @@ class HsResultPartitionReadSchedulerTest {
                 });
         factory.allReaders.add(reader);
 
-        readScheduler.registerNewSubpartition(0, subpartitionViewOperation);
+        fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
 
         ioExecutor.trigger();
 
@@ -275,7 +275,7 @@ class HsResultPartitionReadSchedulerTest {
 
     // ----------------------- test release ---------------------------------------
 
-    /** Test scheduler release when reader is reading buffers. */
+    /** Test file data manager release when reader is reading buffers. */
     @Test
     @Timeout(10)
     void testReleasedWhenReading() throws Exception {
@@ -284,14 +284,14 @@ class HsResultPartitionReadSchedulerTest {
         CompletableFuture<Throwable> cause = new CompletableFuture<>();
         reader.setFailConsumer((cause::complete));
         CompletableFuture<Void> readBufferStart = new CompletableFuture<>();
-        CompletableFuture<Void> schedulerReleasedFinish = new CompletableFuture<>();
+        CompletableFuture<Void> releasedFinish = new CompletableFuture<>();
         reader.setReadBuffersConsumer(
                 (requestedBuffers, readBuffers) -> {
                     try {
                         readBufferStart.complete(null);
-                        schedulerReleasedFinish.get();
+                        releasedFinish.get();
                     } catch (Exception e) {
-                        // re-throw all exception to IOException caught by read scheduler.
+                        // re-throw all exception to IOException caught by file data manager.
                         throw new IOException(e);
                     }
                 });
@@ -302,13 +302,13 @@ class HsResultPartitionReadSchedulerTest {
                     @Override
                     public void go() throws Exception {
                         readBufferStart.get();
-                        readScheduler.release();
-                        schedulerReleasedFinish.complete(null);
+                        fileDataManager.release();
+                        releasedFinish.complete(null);
                     }
                 };
         releaseThread.start();
 
-        readScheduler.registerNewSubpartition(0, subpartitionViewOperation);
+        fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
 
         ioExecutor.trigger();
 
@@ -320,20 +320,20 @@ class HsResultPartitionReadSchedulerTest {
                 .hasMessageContaining("Result partition has been already released.");
     }
 
-    /** Test scheduler was released, but receive new subpartition reader registration. */
+    /** Test file data manager was released, but receive new subpartition reader registration. */
     @Test
-    void testRegisterSubpartitionReaderAfterSchedulerReleased() {
+    void testRegisterSubpartitionReaderAfterReleased() {
         TestingHsSubpartitionFileReader reader = new TestingHsSubpartitionFileReader();
         factory.allReaders.add(reader);
 
-        readScheduler.release();
+        fileDataManager.release();
         assertThatThrownBy(
                         () -> {
-                            readScheduler.registerNewSubpartition(0, subpartitionViewOperation);
+                            fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
                             ioExecutor.trigger();
                         })
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("HsResultPartitionReadScheduler is already released.");
+                .hasMessageContaining("HsFileDataManager is already released.");
     }
 
     private static FileChannel openFileChannel(Path path) throws IOException {

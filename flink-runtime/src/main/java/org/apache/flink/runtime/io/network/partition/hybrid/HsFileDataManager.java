@@ -53,12 +53,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * IO scheduler for HsResultPartition, which schedules {@link HsSubpartitionFileReaderImpl} for
+ * File data manager for HsResultPartition, which schedules {@link HsSubpartitionFileReaderImpl} for
  * loading data w.r.t. their offset in the file.
  */
 @ThreadSafe
-public class HsResultPartitionReadScheduler implements Runnable, BufferRecycler {
-    private static final Logger LOG = LoggerFactory.getLogger(HsResultPartitionReadScheduler.class);
+public class HsFileDataManager implements Runnable, BufferRecycler {
+    private static final Logger LOG = LoggerFactory.getLogger(HsFileDataManager.class);
 
     /** Executor to run the shuffle data reading task. */
     private final Executor ioExecutor;
@@ -76,8 +76,8 @@ public class HsResultPartitionReadScheduler implements Runnable, BufferRecycler 
     private final Object lock = new Object();
 
     /**
-     * A {@link CompletableFuture} to be completed when this read scheduler including all resources
-     * is released.
+     * A {@link CompletableFuture} to be completed when this data manager including all resources is
+     * released.
      */
     @GuardedBy("lock")
     private final CompletableFuture<?> releaseFuture = new CompletableFuture<>();
@@ -112,14 +112,14 @@ public class HsResultPartitionReadScheduler implements Runnable, BufferRecycler 
     @GuardedBy("lock")
     private volatile int numRequestedBuffers;
 
-    /** Whether this read scheduler has been released or not. */
+    /** Whether this file data manager has been released or not. */
     @GuardedBy("lock")
     private volatile boolean isReleased;
 
     @GuardedBy("lock")
     private FileChannel dataFileChannel;
 
-    public HsResultPartitionReadScheduler(
+    public HsFileDataManager(
             BatchShuffleReadBufferPool bufferPool,
             Executor ioExecutor,
             HsFileDataIndex dataIndex,
@@ -149,7 +149,7 @@ public class HsResultPartitionReadScheduler implements Runnable, BufferRecycler 
     public HsSubpartitionFileReader registerNewSubpartition(
             int subpartitionId, HsSubpartitionViewInternalOperations operation) throws IOException {
         synchronized (lock) {
-            checkState(!isReleased, "HsResultPartitionReadScheduler is already released.");
+            checkState(!isReleased, "HsFileDataManager is already released.");
             lazyInitialize();
 
             HsSubpartitionFileReader subpartitionReader =
@@ -168,8 +168,8 @@ public class HsResultPartitionReadScheduler implements Runnable, BufferRecycler 
     }
 
     /**
-     * Releases this read scheduler and returns a {@link CompletableFuture} which will be completed
-     * when all resources are released.
+     * Releases this file data manager and returns a {@link CompletableFuture} which will be
+     * completed when all resources are released.
      */
     public CompletableFuture<?> release() {
         synchronized (lock) {
