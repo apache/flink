@@ -87,6 +87,23 @@ class MyMapper extends RichMapFunction[String,String] {
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+class MyMapper(MapFunction):
+    def __init__(self):
+        self.counter = None
+
+    def open(self, runtime_context: RuntimeContext):
+        self.counter = runtime_context \
+            .get_metrics_group() \
+            .counter("my_counter")
+
+    def map(self, value: str):
+        self.counter.inc()
+        return value
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Alternatively you can also use your own `Counter` implementation:
@@ -133,6 +150,11 @@ class MyMapper extends RichMapFunction[String,String] {
   }
 }
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -191,6 +213,24 @@ new class MyMapper extends RichMapFunction[String,String] {
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+class MyMapper(MapFunction):
+    def __init__(self):
+        self.value_to_expose = 0
+
+    def open(self, runtime_context: RuntimeContext):
+        runtime_context \
+            .get_metrics_group() \
+            .gauge("my_gauge", lambda: self.value_to_expose)
+
+    def map(self, value: str):
+        self.value_to_expose += 1
+        return value
+
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Note that reporters will turn the exposed object into a `String`, which means that a meaningful `toString()` implementation is required.
@@ -239,6 +279,11 @@ class MyMapper extends RichMapFunction[Long,Long] {
   }
 }
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -302,6 +347,11 @@ class MyMapper extends RichMapFunction[Long, Long] {
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 #### Meter
@@ -347,6 +397,25 @@ class MyMapper extends RichMapFunction[Long,Long] {
     value
   }
 }
+
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+class MyMapperMeter(MapFunction):
+    def __init__(self):
+        self.meter = None
+
+    def open(self, runtime_context: RuntimeContext):
+        # an average rate of events per second over 120s, default is 60s.
+        self.meter = runtime_context \
+            .get_metrics_group() \
+            .meter("my_meter", time_span_in_seconds=120)
+
+    def map(self, value: str):
+        self.meter.markEvent()
+        return value
 
 ```
 {{< /tab >}}
@@ -409,6 +478,11 @@ class MyMapper extends RichMapFunction[Long,Long] {
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ## Scope
@@ -453,6 +527,21 @@ counter = getRuntimeContext()
   .getMetricGroup()
   .addGroup("MyMetricsKey", "MyMetricsValue")
   .counter("myCounter")
+
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+counter = runtime_context \
+    .get_metric_group() \
+    .add_group("my_metrics") \
+    .counter("my_counter")
+
+counter = runtime_context \
+    .get_metric_group() \
+    .add_group("my_metrics_key", "my_metrics_value") \
+    .counter("my_counter")
 
 ```
 {{< /tab >}}
@@ -534,6 +623,14 @@ counter = getRuntimeContext()
   .addGroup("MyMetricsKey", "MyMetricsValue")
   .counter("myCounter")
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+counter = runtime_context
+    .get_metric_group() \
+    .add_group("my_metrics_key", "my_metrics_value") \
+    .counter("my_counter")
 ```
 {{< /tab >}}
 {{< /tabs >}}
