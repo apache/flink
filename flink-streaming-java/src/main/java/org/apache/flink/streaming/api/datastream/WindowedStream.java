@@ -43,6 +43,8 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorBuilder;
 import org.apache.flink.util.OutputTag;
 
+import java.util.HashMap;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -281,6 +283,12 @@ public class WindowedStream<T, K, W extends Window> {
      */
     @PublicEvolving
     public <ACC, R> SingleOutputStreamOperator<R> aggregate(AggregateFunction<T, ACC, R> function) {
+        return aggregate(function, (HashMap<String, Object>) null);
+    }
+
+    @PublicEvolving
+    public <ACC, R> SingleOutputStreamOperator<R> aggregate(
+            AggregateFunction<T, ACC, R> function, HashMap<String, Object> description) {
         checkNotNull(function, "function");
 
         if (function instanceof RichFunction) {
@@ -296,7 +304,7 @@ public class WindowedStream<T, K, W extends Window> {
                 TypeExtractor.getAggregateFunctionReturnType(
                         function, input.getType(), null, false);
 
-        return aggregate(function, accumulatorType, resultType);
+        return aggregate(function, accumulatorType, resultType, description);
     }
 
     /**
@@ -316,6 +324,15 @@ public class WindowedStream<T, K, W extends Window> {
             AggregateFunction<T, ACC, R> function,
             TypeInformation<ACC> accumulatorType,
             TypeInformation<R> resultType) {
+        return aggregate(function, accumulatorType, resultType, null);
+    }
+
+    @PublicEvolving
+    public <ACC, R> SingleOutputStreamOperator<R> aggregate(
+            AggregateFunction<T, ACC, R> function,
+            TypeInformation<ACC> accumulatorType,
+            TypeInformation<R> resultType,
+            HashMap<String, Object> description) {
 
         checkNotNull(function, "function");
         checkNotNull(accumulatorType, "accumulatorType");
@@ -326,7 +343,12 @@ public class WindowedStream<T, K, W extends Window> {
                     "This aggregation function cannot be a RichFunction.");
         }
 
-        return aggregate(function, new PassThroughWindowFunction<>(), accumulatorType, resultType);
+        return aggregate(
+                function,
+                new PassThroughWindowFunction<>(),
+                accumulatorType,
+                resultType,
+                description);
     }
 
     /**
@@ -384,12 +406,21 @@ public class WindowedStream<T, K, W extends Window> {
      * @param <R> The type of the elements in the resulting stream, equal to the WindowFunction's
      *     result type
      */
-    @PublicEvolving
     public <ACC, V, R> SingleOutputStreamOperator<R> aggregate(
             AggregateFunction<T, ACC, V> aggregateFunction,
             WindowFunction<V, R, K, W> windowFunction,
             TypeInformation<ACC> accumulatorType,
             TypeInformation<R> resultType) {
+        return aggregate(aggregateFunction, windowFunction, accumulatorType, resultType, null);
+    }
+
+    @PublicEvolving
+    public <ACC, V, R> SingleOutputStreamOperator<R> aggregate(
+            AggregateFunction<T, ACC, V> aggregateFunction,
+            WindowFunction<V, R, K, W> windowFunction,
+            TypeInformation<ACC> accumulatorType,
+            TypeInformation<R> resultType,
+            HashMap<String, Object> description) {
 
         checkNotNull(aggregateFunction, "aggregateFunction");
         checkNotNull(windowFunction, "windowFunction");
@@ -408,7 +439,7 @@ public class WindowedStream<T, K, W extends Window> {
         final String opName = builder.generateOperatorName(aggregateFunction, windowFunction);
 
         OneInputStreamOperator<T, R> operator =
-                builder.aggregate(aggregateFunction, windowFunction, accumulatorType);
+                builder.aggregate(aggregateFunction, windowFunction, accumulatorType, description);
 
         return input.transform(opName, resultType, operator);
     }
@@ -517,7 +548,7 @@ public class WindowedStream<T, K, W extends Window> {
         final String opName = builder.generateOperatorName(aggregateFunction, windowFunction);
 
         OneInputStreamOperator<T, R> operator =
-                builder.aggregate(aggregateFunction, windowFunction, accumulatorType);
+                builder.aggregate(aggregateFunction, windowFunction, accumulatorType, null);
 
         return input.transform(opName, resultType, operator);
     }

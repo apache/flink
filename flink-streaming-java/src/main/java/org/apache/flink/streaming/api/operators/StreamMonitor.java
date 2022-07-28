@@ -1,6 +1,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
@@ -36,7 +37,7 @@ public class StreamMonitor implements Serializable {
     // private final Map<String, Object> topoConf;
     private final ArrayList<Double> joinSelectivities;
     private final ArrayList<Integer> windowLengths;
-    private Logger logger;
+    private final Logger logger;
     // private MongoCollection<JSONObject> mongoCollection;
 
     public StreamMonitor(HashMap<String, Object> description, AbstractUdfStreamOperator operator) {
@@ -51,7 +52,7 @@ public class StreamMonitor implements Serializable {
         this.operator = operator;
         this.joinSelectivities = new ArrayList<>();
         this.windowLengths = new ArrayList<>();
-        if (this.operator instanceof StreamFilter || this.operator instanceof StreamFilter) {
+        if (this.operator instanceof StreamFilter || this.operator instanceof WindowOperator) {
             this.description.put("realSelectivity", 0.0);
         }
     }
@@ -91,20 +92,19 @@ public class StreamMonitor implements Serializable {
     //        }
     //    }
 
-    //    public <T> void reportWindowLength(T state) {
-    //        int length;
-    //        if (state instanceof Long || state instanceof Double || state instanceof Integer) {
-    //            length = 1;
-    //        } else {
-    //            try {
-    //                length = ((ArrayList<Values>) state).size();
-    //            } catch (ClassCastException e1) {
-    //                Pair<Object, Object> p = (Pair<Object, Object>) state;
-    //                length = ((ArrayList<Values>) p.getSecond()).size();
-    //            }
-    //        }
-    //        this.windowLengths.add(length);
-    //    }
+    public <T> void reportWindowLength(T state) {
+        int length;
+        if (state instanceof Long || state instanceof Double || state instanceof Integer) {
+            length = 1;
+        } else {
+            try {
+                length = ((ArrayList<DataTuple>) state).size();
+            } catch (ClassCastException e1) {
+                throw new IllegalStateException(e1);
+            }
+        }
+        this.windowLengths.add(length);
+    }
 
     private void checkIfObservationEnd() {
         if (!observationMade) {
@@ -123,13 +123,14 @@ public class StreamMonitor implements Serializable {
                     description.put(
                             "realSelectivity",
                             ((double) this.outputCounter / (double) this.inputCounter));
+                } else if (this.operator instanceof WindowOperator) {
+                    double averageWindowLength =
+                            this.windowLengths.stream()
+                                    .mapToDouble(val -> val)
+                                    .average()
+                                    .orElse(0.0);
+                    description.put("realSelectivity", ((double) 1 / averageWindowLength));
                 }
-                //                } else if (this.processor instanceof AggregateProcessor) {
-                //                    double averageWindowLength =
-                // this.windowLengths.stream().mapToDouble(val -> val).average().orElse(0.0);
-                //                    description.put("realSelectivity", ((double) 1 /
-                // averageWindowLength));
-                //                }
                 JSONObject json = new JSONObject();
                 json.putAll(description);
 

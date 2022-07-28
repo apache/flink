@@ -56,6 +56,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamMonitor;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.windowing.assigners.BaseAlignedWindowAssigner;
@@ -70,6 +71,7 @@ import org.apache.flink.util.OutputTag;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.HashMap;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -138,6 +140,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
     protected final OutputTag<IN> lateDataOutputTag;
 
     private static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
+    private final HashMap<String, Object> description;
 
     protected transient Counter numLateRecordsDropped;
 
@@ -169,11 +172,36 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
     protected transient WindowAssigner.WindowAssignerContext windowAssignerContext;
 
+    private StreamMonitor streamMonitor;
+
     // ------------------------------------------------------------------------
     // State that needs to be checkpointed
     // ------------------------------------------------------------------------
 
     protected transient InternalTimerService<W> internalTimerService;
+
+    public WindowOperator(
+            WindowAssigner<? super IN, W> windowAssigner,
+            TypeSerializer<W> windowSerializer,
+            KeySelector<IN, K> keySelector,
+            TypeSerializer<K> keySerializer,
+            StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
+            InternalWindowFunction<ACC, OUT, K, W> windowFunction,
+            Trigger<? super IN, ? super W> trigger,
+            long allowedLateness,
+            OutputTag<IN> lateDataOutputTag) {
+        this(
+                windowAssigner,
+                windowSerializer,
+                keySelector,
+                keySerializer,
+                windowStateDescriptor,
+                windowFunction,
+                trigger,
+                allowedLateness,
+                lateDataOutputTag,
+                null);
+    }
 
     /** Creates a new {@code WindowOperator} based on the given policies and user functions. */
     public WindowOperator(
@@ -185,7 +213,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
             InternalWindowFunction<ACC, OUT, K, W> windowFunction,
             Trigger<? super IN, ? super W> trigger,
             long allowedLateness,
-            OutputTag<IN> lateDataOutputTag) {
+            OutputTag<IN> lateDataOutputTag,
+            HashMap<String, Object> description) {
 
         super(windowFunction);
 
@@ -211,7 +240,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
         this.trigger = checkNotNull(trigger);
         this.allowedLateness = allowedLateness;
         this.lateDataOutputTag = lateDataOutputTag;
-
+        this.description = description;
+        this.streamMonitor = new StreamMonitor(this.description, this);
         setChainingStrategy(ChainingStrategy.ALWAYS);
     }
 
@@ -289,6 +319,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
+        this.streamMonitor.reportInput(element.getValue());
         final Collection<W> elementWindows =
                 windowAssigner.assignWindows(
                         element.getValue(), element.getTimestamp(), windowAssignerContext);
@@ -567,6 +598,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
         processContext.window = window;
         userFunction.process(
                 triggerContext.key, window, processContext, contents, timestampedCollector);
+        this.streamMonitor.reportWindowLength(windowState.getInternal());
+        this.streamMonitor.reportOutput(contents);
     }
 
     /**

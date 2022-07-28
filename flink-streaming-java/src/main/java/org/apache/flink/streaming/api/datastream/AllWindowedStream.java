@@ -63,6 +63,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
+import java.util.HashMap;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -500,6 +502,12 @@ public class AllWindowedStream<T, W extends Window> {
      */
     @PublicEvolving
     public <ACC, R> SingleOutputStreamOperator<R> aggregate(AggregateFunction<T, ACC, R> function) {
+        return aggregate(function, (HashMap<String, Object>) null);
+    }
+
+    @PublicEvolving
+    public <ACC, R> SingleOutputStreamOperator<R> aggregate(
+            AggregateFunction<T, ACC, R> function, HashMap<String, Object> description) {
         checkNotNull(function, "function");
 
         if (function instanceof RichFunction) {
@@ -515,7 +523,7 @@ public class AllWindowedStream<T, W extends Window> {
                 TypeExtractor.getAggregateFunctionReturnType(
                         function, input.getType(), null, false);
 
-        return aggregate(function, accumulatorType, resultType);
+        return aggregate(function, accumulatorType, resultType, description);
     }
 
     /**
@@ -535,6 +543,15 @@ public class AllWindowedStream<T, W extends Window> {
             AggregateFunction<T, ACC, R> function,
             TypeInformation<ACC> accumulatorType,
             TypeInformation<R> resultType) {
+        return aggregate(function, accumulatorType, resultType, null);
+    }
+
+    @PublicEvolving
+    public <ACC, R> SingleOutputStreamOperator<R> aggregate(
+            AggregateFunction<T, ACC, R> function,
+            TypeInformation<ACC> accumulatorType,
+            TypeInformation<R> resultType,
+            HashMap<String, Object> description) {
 
         checkNotNull(function, "function");
         checkNotNull(accumulatorType, "accumulatorType");
@@ -546,7 +563,11 @@ public class AllWindowedStream<T, W extends Window> {
         }
 
         return aggregate(
-                function, new PassThroughAllWindowFunction<W, R>(), accumulatorType, resultType);
+                function,
+                new PassThroughAllWindowFunction<W, R>(),
+                accumulatorType,
+                resultType,
+                description);
     }
 
     /**
@@ -583,7 +604,7 @@ public class AllWindowedStream<T, W extends Window> {
         TypeInformation<R> resultType =
                 getAllWindowFunctionReturnType(windowFunction, aggResultType);
 
-        return aggregate(aggFunction, windowFunction, accumulatorType, resultType);
+        return aggregate(aggFunction, windowFunction, accumulatorType, resultType, null);
     }
 
     private static <IN, OUT> TypeInformation<OUT> getAllWindowFunctionReturnType(
@@ -629,7 +650,8 @@ public class AllWindowedStream<T, W extends Window> {
             AggregateFunction<T, ACC, V> aggregateFunction,
             AllWindowFunction<V, R, W> windowFunction,
             TypeInformation<ACC> accumulatorType,
-            TypeInformation<R> resultType) {
+            TypeInformation<R> resultType,
+            HashMap<String, Object> description) {
 
         checkNotNull(aggregateFunction, "aggregateFunction");
         checkNotNull(windowFunction, "windowFunction");
@@ -726,7 +748,8 @@ public class AllWindowedStream<T, W extends Window> {
                             new InternalSingleValueAllWindowFunction<>(windowFunction),
                             trigger,
                             allowedLateness,
-                            lateDataOutputTag);
+                            lateDataOutputTag,
+                            description);
         }
 
         return input.transform(opName, resultType, operator).forceNonParallel();
