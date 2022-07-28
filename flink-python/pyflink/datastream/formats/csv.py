@@ -131,7 +131,7 @@ class CsvSchemaBuilder(object):
         :param schema: Another :class:`CsvSchema`.
         """
         self._j_schema_builder.addColumnsFrom(schema._j_schema)
-        for field in cast(schema._data_type, RowType):
+        for field in cast(RowType, schema._data_type):
             self._fields.append(field)
         return self
 
