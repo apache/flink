@@ -85,7 +85,7 @@ public class PulsarOrderedPartitionSplitReader<OUT> extends PulsarPartitionSplit
                 MessageId initialPosition;
                 if (latestConsumedId == MessageId.latest
                         || latestConsumedId == MessageId.earliest) {
-                    // This logic is added only the compatible.
+                    // for compatibility
                     initialPosition = latestConsumedId;
                 } else {
                     initialPosition = nextMessageId(latestConsumedId);

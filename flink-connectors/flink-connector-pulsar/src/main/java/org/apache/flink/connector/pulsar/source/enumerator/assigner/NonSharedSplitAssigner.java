@@ -36,11 +36,11 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * This assigner is used for {@link SubscriptionType#Failover} and {@link
- * SubscriptionType#Exclusive} subscriptions.
+ * This assigner is used for {@link SubscriptionType#Failover}, {@link SubscriptionType#Exclusive}
+ * and {@link SubscriptionType#Key_Shared} subscriptions.
  */
 @Internal
-public class NormalSplitAssigner implements SplitAssigner {
+public class NonSharedSplitAssigner implements SplitAssigner {
     private static final long serialVersionUID = 8412586087991597092L;
 
     private final StopCursor stopCursor;
@@ -52,7 +52,7 @@ public class NormalSplitAssigner implements SplitAssigner {
     private final Set<PulsarPartitionSplit> pendingPartitionSplits;
     private boolean initialized;
 
-    public NormalSplitAssigner(
+    public NonSharedSplitAssigner(
             StopCursor stopCursor,
             SourceConfiguration sourceConfiguration,
             PulsarSourceEnumState sourceEnumState) {

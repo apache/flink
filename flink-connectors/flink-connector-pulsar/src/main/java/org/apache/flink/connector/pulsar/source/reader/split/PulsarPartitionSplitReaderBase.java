@@ -26,6 +26,7 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor.StopCondition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
 import org.apache.flink.connector.pulsar.source.reader.message.PulsarMessage;
@@ -117,14 +118,18 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
                     break;
                 }
 
-                // Deserialize message.
-                collector.setMessage(message);
-                deserializationSchema.deserialize(message, collector);
+                StopCondition condition = stopCursor.shouldStop(message);
 
-                // Acknowledge message if need.
-                finishedPollMessage(message);
+                if (condition == StopCondition.CONTINUE || condition == StopCondition.EXACTLY) {
+                    // Deserialize message.
+                    collector.setMessage(message);
+                    deserializationSchema.deserialize(message, collector);
 
-                if (stopCursor.shouldStop(message)) {
+                    // Acknowledge message if need.
+                    finishedPollMessage(message);
+                }
+
+                if (condition == StopCondition.EXACTLY || condition == StopCondition.TERMINATE) {
                     builder.addFinishedSplit(splitId);
                     break;
                 }

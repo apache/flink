@@ -23,8 +23,6 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import org.apache.pulsar.client.api.MessageId;
 
-import javax.annotation.Nullable;
-
 import java.io.Serializable;
 
 /**
@@ -40,13 +38,13 @@ public final class CursorPosition implements Serializable {
 
     private final Long timestamp;
 
-    public CursorPosition(@Nullable MessageId messageId) {
+    public CursorPosition(MessageId messageId) {
         this.type = Type.MESSAGE_ID;
         this.messageId = messageId;
         this.timestamp = null;
     }
 
-    public CursorPosition(@Nullable Long timestamp) {
+    public CursorPosition(Long timestamp) {
         this.type = Type.TIMESTAMP;
         this.messageId = null;
         this.timestamp = timestamp;

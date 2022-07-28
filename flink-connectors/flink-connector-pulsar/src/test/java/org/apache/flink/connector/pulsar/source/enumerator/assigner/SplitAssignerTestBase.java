@@ -25,6 +25,7 @@ import org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumState
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 
@@ -42,7 +43,7 @@ import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRan
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test utils for split assigners. */
-abstract class SplitAssignerTestBase<T extends SplitAssigner> {
+abstract class SplitAssignerTestBase<T extends SplitAssigner> extends TestLogger {
 
     @Test
     void registerTopicPartitionsWillOnlyReturnNewPartitions() {

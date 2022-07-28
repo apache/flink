@@ -27,7 +27,7 @@ public class NeverStopCursor implements StopCursor {
     private static final long serialVersionUID = -3113601090292771786L;
 
     @Override
-    public boolean shouldStop(Message<?> message) {
-        return false;
+    public StopCondition shouldStop(Message<?> message) {
+        return StopCondition.CONTINUE;
     }
 }

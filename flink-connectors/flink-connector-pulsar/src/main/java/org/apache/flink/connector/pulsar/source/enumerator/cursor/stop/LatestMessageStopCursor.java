@@ -36,35 +36,23 @@ public class LatestMessageStopCursor implements StopCursor {
     private static final long serialVersionUID = 1702059838323965723L;
 
     private MessageId messageId;
+    private final boolean inclusive;
 
-    /**
-     * Set this to false would include the latest available message when the flink pipeline start.
-     */
-    private final boolean exclusive;
-
-    public LatestMessageStopCursor() {
-        this.exclusive = false;
+    public LatestMessageStopCursor(boolean inclusive) {
+        this.inclusive = inclusive;
     }
 
-    public LatestMessageStopCursor(boolean exclusive) {
-        this.exclusive = exclusive;
+    @Override
+    public StopCondition shouldStop(Message<?> message) {
+        MessageId current = message.getMessageId();
+        return StopCondition.compare(messageId, current, inclusive);
     }
 
     @Override
     public void open(PulsarAdmin admin, TopicPartition partition) {
         if (messageId == null) {
             String topic = partition.getFullTopicName();
-            messageId = sneakyAdmin(() -> admin.topics().getLastMessageId(topic));
-        }
-    }
-
-    @Override
-    public boolean shouldStop(Message<?> message) {
-        MessageId id = message.getMessageId();
-        if (exclusive) {
-            return id.compareTo(messageId) > 0;
-        } else {
-            return id.compareTo(messageId) >= 0;
+            this.messageId = sneakyAdmin(() -> admin.topics().getLastMessageId(topic));
         }
     }
 }

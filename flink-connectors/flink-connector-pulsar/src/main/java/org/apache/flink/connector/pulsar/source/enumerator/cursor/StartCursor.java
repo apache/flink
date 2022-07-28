@@ -82,11 +82,11 @@ public interface StartCursor extends Serializable {
      */
     @Deprecated
     static StartCursor fromMessageTime(long timestamp) {
-        return new TimestampStartCursor(timestamp);
+        return new TimestampStartCursor(timestamp, true);
     }
 
     /** Seek the start position by using message publish time. */
     static StartCursor fromPublishTime(long timestamp) {
-        return new TimestampStartCursor(timestamp);
+        return new TimestampStartCursor(timestamp, true);
     }
 }

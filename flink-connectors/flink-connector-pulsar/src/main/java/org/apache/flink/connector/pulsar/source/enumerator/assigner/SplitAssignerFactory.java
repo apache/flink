@@ -54,7 +54,7 @@ public final class SplitAssignerFactory {
         if (subscriptionType == Exclusive
                 || subscriptionType == Failover
                 || subscriptionType == Key_Shared) {
-            return new NormalSplitAssigner(stopCursor, sourceConfiguration, sourceEnumState);
+            return new NonSharedSplitAssigner(stopCursor, sourceConfiguration, sourceEnumState);
         } else if (subscriptionType == Shared) {
             return new SharedSplitAssigner(stopCursor, sourceConfiguration, sourceEnumState);
         } else {

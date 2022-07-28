@@ -35,12 +35,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Unit tests for {@link NormalSplitAssigner}. */
-class NormalSplitAssignerTest extends SplitAssignerTestBase<NormalSplitAssigner> {
+/** Unit tests for {@link NonSharedSplitAssigner}. */
+class NonSharedSplitAssignerTest extends SplitAssignerTestBase<NonSharedSplitAssigner> {
 
     @Test
     void noMoreSplits() {
-        NormalSplitAssigner assigner = splitAssigner(true);
+        NonSharedSplitAssigner assigner = splitAssigner(true);
         assertFalse(assigner.noMoreSplits(3));
 
         assigner = splitAssigner(false);
@@ -56,7 +56,7 @@ class NormalSplitAssignerTest extends SplitAssignerTestBase<NormalSplitAssigner>
 
     @Test
     void partitionsAssignment() {
-        NormalSplitAssigner assigner = splitAssigner(true);
+        NonSharedSplitAssigner assigner = splitAssigner(true);
         assigner.registerTopicPartitions(createPartitions("d", 4));
         List<Integer> readers = Arrays.asList(1, 3, 5, 7);
 
@@ -86,10 +86,10 @@ class NormalSplitAssignerTest extends SplitAssignerTestBase<NormalSplitAssigner>
     }
 
     @Override
-    protected NormalSplitAssigner createAssigner(
+    protected NonSharedSplitAssigner createAssigner(
             StopCursor stopCursor,
             SourceConfiguration sourceConfiguration,
             PulsarSourceEnumState sourceEnumState) {
-        return new NormalSplitAssigner(stopCursor, sourceConfiguration, sourceEnumState);
+        return new NonSharedSplitAssigner(stopCursor, sourceConfiguration, sourceEnumState);
     }
 }

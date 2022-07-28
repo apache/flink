@@ -35,9 +35,9 @@ public final class MessageIdUtils {
     }
 
     /**
-     * The implementation from the <a
+     * The implementation from <a
      * href="https://github.com/apache/pulsar/blob/7c8dc3201baad7d02d886dbc26db5c03abce77d6/managed-ledger/src/main/java/org/apache/bookkeeper/mledger/impl/PositionImpl.java#L85">this
-     * code</a> to get the next message id.
+     * code snippet</a> to get next message id.
      */
     public static MessageId nextMessageId(MessageId messageId) {
         MessageIdImpl idImpl = unwrapMessageId(messageId);

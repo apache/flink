@@ -38,13 +38,9 @@ public class MessageIdStopCursor implements StopCursor {
 
     private final MessageId messageId;
 
-    private final boolean exclusive;
+    private final boolean inclusive;
 
-    public MessageIdStopCursor(MessageId messageId) {
-        this(messageId, true);
-    }
-
-    public MessageIdStopCursor(MessageId messageId, boolean exclusive) {
+    public MessageIdStopCursor(MessageId messageId, boolean inclusive) {
         MessageIdImpl idImpl = unwrapMessageId(messageId);
         checkArgument(!earliest.equals(idImpl), "MessageId.earliest is not supported.");
         checkArgument(
@@ -52,16 +48,12 @@ public class MessageIdStopCursor implements StopCursor {
                 "MessageId.latest is not supported, use LatestMessageStopCursor instead.");
 
         this.messageId = idImpl;
-        this.exclusive = exclusive;
+        this.inclusive = inclusive;
     }
 
     @Override
-    public boolean shouldStop(Message<?> message) {
-        MessageId id = message.getMessageId();
-        if (exclusive) {
-            return id.compareTo(messageId) > 0;
-        } else {
-            return id.compareTo(messageId) >= 0;
-        }
+    public StopCondition shouldStop(Message<?> message) {
+        MessageId current = message.getMessageId();
+        return StopCondition.compare(messageId, current, inclusive);
     }
 }
