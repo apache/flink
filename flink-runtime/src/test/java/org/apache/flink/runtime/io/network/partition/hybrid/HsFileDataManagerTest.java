@@ -21,7 +21,9 @@ package org.apache.flink.runtime.io.network.partition.hybrid;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -40,6 +42,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -396,6 +399,27 @@ class HsFileDataManagerTest {
             this.failConsumer = failConsumer;
         }
 
+        @Override
+        public Optional<ResultSubpartition.BufferAndBacklog> consumeBuffer(
+                int nextBufferToConsume) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Buffer.DataType peekNextToConsumeDataType(int nextBufferToConsume) {
+            return Buffer.DataType.NONE;
+        }
+
+        @Override
+        public int getBacklog() {
+            return 0;
+        }
+
+        @Override
+        public void releaseDataView() {
+            // do nothing.
+        }
+
         /** Factory for {@link TestingHsSubpartitionFileReader}. */
         private static class Factory implements HsSubpartitionFileReader.Factory {
             private final Queue<HsSubpartitionFileReader> allReaders = new ArrayDeque<>();
@@ -406,7 +430,8 @@ class HsFileDataManagerTest {
                     FileChannel dataFileChannel,
                     HsSubpartitionViewInternalOperations operation,
                     HsFileDataIndex dataIndex,
-                    int maxBuffersReadAhead) {
+                    int maxBuffersReadAhead,
+                    Consumer<HsSubpartitionFileReader> fileReaderReleaser) {
                 return checkNotNull(allReaders.poll());
             }
         }

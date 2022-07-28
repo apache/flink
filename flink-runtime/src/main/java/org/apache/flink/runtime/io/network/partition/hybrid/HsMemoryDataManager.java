@@ -121,7 +121,7 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
      * #subpartitionViewOperationsMap}. It is used to obtain the consumption progress of the
      * subpartition.
      */
-    public void registerSubpartitionView(
+    public HsDataView registerSubpartitionView(
             int subpartitionId, HsSubpartitionViewInternalOperations viewOperations) {
         HsSubpartitionViewInternalOperations oldView =
                 subpartitionViewOperationsMap.put(subpartitionId, viewOperations);
@@ -130,6 +130,7 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
                     "subpartition : {} register subpartition view will replace old view. ",
                     subpartitionId);
         }
+        return getSubpartitionMemoryDataManager(subpartitionId);
     }
 
     /** Close this {@link HsMemoryDataManager}, it means no data can append to memory. */
@@ -316,26 +317,6 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
             return callable.get();
         } finally {
             lock.unlock();
-        }
-    }
-
-    /** Integrate the buffer and dataType of next buffer. */
-    public static class BufferAndNextDataType {
-        private final Buffer buffer;
-
-        private final Buffer.DataType nextDataType;
-
-        public BufferAndNextDataType(Buffer buffer, Buffer.DataType nextDataType) {
-            this.buffer = buffer;
-            this.nextDataType = nextDataType;
-        }
-
-        public Buffer getBuffer() {
-            return buffer;
-        }
-
-        public Buffer.DataType getNextDataType() {
-            return nextDataType;
         }
     }
 }

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatus;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.SpillStatus;
 import org.apache.flink.util.function.SupplierWithException;
@@ -54,7 +55,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * This class is responsible for managing the data in a single subpartition. One {@link
  * HsMemoryDataManager} will hold multiple {@link HsSubpartitionMemoryDataManager}.
  */
-public class HsSubpartitionMemoryDataManager {
+public class HsSubpartitionMemoryDataManager implements HsDataView {
     private final int targetChannel;
 
     private final int bufferSize;
@@ -108,22 +109,24 @@ public class HsSubpartitionMemoryDataManager {
     @SuppressWarnings("FieldAccessNotGuarded")
     // Note that: callWithLock ensure that code block guarded by resultPartitionReadLock and
     // subpartitionLock.
+    @Override
     public DataType peekNextToConsumeDataType(int nextToConsumeIndex) {
         return callWithLock(() -> peekNextToConsumeDataTypeInternal(nextToConsumeIndex));
     }
 
     /**
      * Check whether the head of {@link #unConsumedBuffers} is the buffer to be consumed. If so,
-     * return the buffer and next data type.
+     * return the buffer and backlog.
      *
      * @param toConsumeIndex index of buffer to be consumed.
      * @return If the head of {@link #unConsumedBuffers} is target, return optional of the buffer
-     *     and next data type. Otherwise, return {@link Optional#empty()}.
+     *     and backlog. Otherwise, return {@link Optional#empty()}.
      */
     @SuppressWarnings("FieldAccessNotGuarded")
     // Note that: callWithLock ensure that code block guarded by resultPartitionReadLock and
     // subpartitionLock.
-    public Optional<HsMemoryDataManager.BufferAndNextDataType> consumeBuffer(int toConsumeIndex) {
+    @Override
+    public Optional<BufferAndBacklog> consumeBuffer(int toConsumeIndex) {
         Optional<Tuple2<HsBufferContext, DataType>> bufferAndNextDataType =
                 callWithLock(
                         () -> {
@@ -145,8 +148,22 @@ public class HsSubpartitionMemoryDataManager {
                                 tuple.f0.getBufferIndexAndChannel()));
         return bufferAndNextDataType.map(
                 tuple ->
-                        new HsMemoryDataManager.BufferAndNextDataType(
-                                tuple.f0.getBuffer(), tuple.f1));
+                        new BufferAndBacklog(
+                                tuple.f0.getBuffer(), getBacklog(), tuple.f1, toConsumeIndex));
+    }
+
+    @SuppressWarnings("FieldAccessNotGuarded")
+    // Un-synchronized get unConsumedBuffers size to provide memory data backlog,this will make the
+    // result greater than or equal to the actual backlog, but obtaining an accurate backlog will
+    // bring too much extra overhead.
+    @Override
+    public int getBacklog() {
+        return unConsumedBuffers.size();
+    }
+
+    @Override
+    public void releaseDataView() {
+        // nothing to do for memory data.
     }
 
     // ------------------------------------------------------------------------
