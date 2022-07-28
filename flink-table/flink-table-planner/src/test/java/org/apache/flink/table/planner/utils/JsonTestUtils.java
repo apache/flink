@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,7 +30,8 @@ import java.io.IOException;
 /** This class contains a collection of generic utilities to deal with JSON in tests. */
 public final class JsonTestUtils {
 
-    private static final ObjectMapper OBJECT_MAPPER_INSTANCE = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER_INSTANCE =
+            JacksonMapperFactory.createObjectMapper();
 
     private JsonTestUtils() {}
 

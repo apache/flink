@@ -38,6 +38,7 @@ import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.InjectClusterRESTAddress;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -81,6 +82,7 @@ class WebFrontendITCase {
     private static final int NUM_TASK_MANAGERS = 2;
     private static final int NUM_SLOTS = 4;
 
+    private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
     private static final Configuration CLUSTER_CONFIGURATION = getClusterConfiguration();
 
     @RegisterExtension
@@ -170,8 +172,7 @@ class WebFrontendITCase {
     void getNumberOfTaskManagers(@InjectClusterRESTAddress URI restAddress) throws Exception {
         String json = getFromHTTP("http://localhost:" + restAddress.getPort() + "/taskmanagers/");
 
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode response = mapper.readTree(json);
+        JsonNode response = OBJECT_MAPPER.readTree(json);
         ArrayNode taskManagers = (ArrayNode) response.get("taskmanagers");
 
         assertThat(taskManagers).hasSize(NUM_TASK_MANAGERS);
@@ -181,8 +182,7 @@ class WebFrontendITCase {
     void getTaskManagers(@InjectClusterRESTAddress URI restAddress) throws Exception {
         String json = getFromHTTP("http://localhost:" + restAddress.getPort() + "/taskmanagers/");
 
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode parsed = mapper.readTree(json);
+        JsonNode parsed = OBJECT_MAPPER.readTree(json);
         ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
 
         assertThat(taskManagers).hasSize(NUM_TASK_MANAGERS);
@@ -231,8 +231,7 @@ class WebFrontendITCase {
             throws Exception {
         String json = getFromHTTP("http://localhost:" + restAddress.getPort() + "/taskmanagers/");
 
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode parsed = mapper.readTree(json);
+        JsonNode parsed = OBJECT_MAPPER.readTree(json);
         ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
         JsonNode taskManager = taskManagers.get(0);
         String id = taskManager.get("id").asText();
@@ -278,8 +277,7 @@ class WebFrontendITCase {
     private static Map<String, String> fromKeyValueJsonArray(String jsonString) {
         try {
             Map<String, String> map = new HashMap<>();
-            ObjectMapper m = new ObjectMapper();
-            ArrayNode array = (ArrayNode) m.readTree(jsonString);
+            ArrayNode array = (ArrayNode) OBJECT_MAPPER.readTree(jsonString);
 
             Iterator<JsonNode> elements = array.elements();
             while (elements.hasNext()) {
@@ -394,8 +392,7 @@ class WebFrontendITCase {
 
         String json = getFromHTTP("http://localhost:" + restAddress.getPort() + "/jobs/overview");
 
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode parsed = mapper.readTree(json);
+        JsonNode parsed = OBJECT_MAPPER.readTree(json);
         ArrayNode jsonJobs = (ArrayNode) parsed.get("jobs");
         assertThat(jsonJobs.size()).isEqualTo(1);
         assertThat(jsonJobs.get(0).get("duration").asInt()).isGreaterThan(0);

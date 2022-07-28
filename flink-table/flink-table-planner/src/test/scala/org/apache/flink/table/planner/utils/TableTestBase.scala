@@ -66,6 +66,7 @@ import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.{FlinkUserCodeClassLoaders, MutableURLClassLoader}
+import org.apache.flink.util.jackson.JacksonMapperFactory
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
@@ -1612,6 +1613,8 @@ object PlanKind extends Enumeration {
 
 object TableTestUtil {
 
+  private val objectMapper = JacksonMapperFactory.createObjectMapper()
+
   val STREAM_SETTING: EnvironmentSettings =
     EnvironmentSettings.newInstance().inStreamingMode().build()
   val BATCH_SETTING: EnvironmentSettings = EnvironmentSettings.newInstance().inBatchMode().build()
@@ -1706,14 +1709,14 @@ object TableTestUtil {
 
   @throws[IOException]
   def getFormattedJson(json: String): String = {
-    val parser = new ObjectMapper().getFactory.createParser(json)
+    val parser = objectMapper.getFactory.createParser(json)
     val jsonNode: JsonNode = parser.readValueAsTree[JsonNode]
     jsonNode.toString
   }
 
   @throws[IOException]
   def getPrettyJson(json: String): String = {
-    val parser = new ObjectMapper().getFactory.createParser(json)
+    val parser = objectMapper.getFactory.createParser(json)
     val jsonNode: JsonNode = parser.readValueAsTree[JsonNode]
     jsonNode.toPrettyString
   }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.compatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -137,7 +138,7 @@ enum CompatibilityRoutines {
                             REQUEST_ROUTINE,
                             RESPONSE_ROUTINE));
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
     private static final JsonSchemaGenerator SCHEMA_GENERATOR =
             new JsonSchemaGenerator(OBJECT_MAPPER);
 

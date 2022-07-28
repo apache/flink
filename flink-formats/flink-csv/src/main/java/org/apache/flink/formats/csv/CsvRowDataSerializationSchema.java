@@ -24,6 +24,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SerializableSupplier;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -152,7 +153,7 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
                     rowType,
                     csvSchema,
                     () -> {
-                        final CsvMapper csvMapper = new CsvMapper();
+                        final CsvMapper csvMapper = JacksonMapperFactory.createCsvMapper();
                         csvMapper.configure(
                                 JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN,
                                 !isScientificNotation);

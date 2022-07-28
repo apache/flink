@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLoggerExtension;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -45,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(TestLoggerExtension.class)
 public class FileSystemJobResultStoreTestInternal {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = JacksonMapperFactory.createObjectMapper();
 
     private FileSystemJobResultStore fileSystemJobResultStore;
 

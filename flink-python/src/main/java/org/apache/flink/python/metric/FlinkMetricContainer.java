@@ -26,6 +26,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -55,6 +56,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Helper class for forwarding Python metrics to Java accumulators and metrics. */
 @Internal
 public final class FlinkMetricContainer {
+
+    private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
     private static final String METRIC_KEY_SEPARATOR =
             GlobalConfiguration.loadConfiguration().getString(MetricOptions.SCOPE_DELIMITER);
@@ -206,7 +209,7 @@ public final class FlinkMetricContainer {
     static ArrayList getNameSpaceArray(MetricKey metricKey) {
         MetricName metricName = metricKey.metricName();
         try {
-            return new ObjectMapper().readValue(metricName.getNamespace(), ArrayList.class);
+            return OBJECT_MAPPER.readValue(metricName.getNamespace(), ArrayList.class);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(
                     String.format("Parse namespace[%s] error. ", metricName.getNamespace()), e);

@@ -28,6 +28,7 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
@@ -93,7 +94,7 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 
     @Override
     public void open(InitializationContext context) throws Exception {
-        this.csvMapper = new CsvMapper();
+        this.csvMapper = JacksonMapperFactory.createCsvMapper();
         this.objectWriter = csvMapper.writer(csvSchema);
     }
 

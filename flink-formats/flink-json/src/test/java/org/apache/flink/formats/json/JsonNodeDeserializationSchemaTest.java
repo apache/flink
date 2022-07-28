@@ -18,6 +18,7 @@
 package org.apache.flink.formats.json;
 
 import org.apache.flink.connector.testutils.formats.DummyInitializationContext;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
@@ -34,7 +35,7 @@ class JsonNodeDeserializationSchemaTest {
 
     @Test
     void testDeserialize() throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
         ObjectNode initialValue = mapper.createObjectNode();
         initialValue.put("key", 4).put("value", "world");
         byte[] serializedValue = mapper.writeValueAsBytes(initialValue);

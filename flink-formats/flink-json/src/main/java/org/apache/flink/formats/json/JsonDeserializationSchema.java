@@ -21,6 +21,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.AbstractDeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.function.SerializableSupplier;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -37,11 +38,11 @@ public class JsonDeserializationSchema<T> extends AbstractDeserializationSchema<
     protected transient ObjectMapper mapper;
 
     public JsonDeserializationSchema(Class<T> clazz) {
-        this(clazz, () -> new ObjectMapper());
+        this(clazz, JacksonMapperFactory::createObjectMapper);
     }
 
     public JsonDeserializationSchema(TypeInformation<T> typeInformation) {
-        this(typeInformation, () -> new ObjectMapper());
+        this(typeInformation, JacksonMapperFactory::createObjectMapper);
     }
 
     public JsonDeserializationSchema(

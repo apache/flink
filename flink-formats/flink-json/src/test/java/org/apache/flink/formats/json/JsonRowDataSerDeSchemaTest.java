@@ -31,6 +31,7 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
@@ -83,6 +84,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class JsonRowDataSerDeSchemaTest {
 
+    private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
+
     @Test
     void testSerDe() throws Exception {
         byte tinyint = 'c';
@@ -115,11 +118,10 @@ class JsonRowDataSerDeSchemaTest {
         innerMap.put("key", 234);
         nestedMap.put("inner_map", innerMap);
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        ArrayNode doubleNode = objectMapper.createArrayNode().add(1.1D).add(2.2D).add(3.3D);
+        ArrayNode doubleNode = OBJECT_MAPPER.createArrayNode().add(1.1D).add(2.2D).add(3.3D);
 
         // Root
-        ObjectNode root = objectMapper.createObjectNode();
+        ObjectNode root = OBJECT_MAPPER.createObjectNode();
         root.put("bool", true);
         root.put("tinyint", tinyint);
         root.put("smallint", smallint);
@@ -139,7 +141,7 @@ class JsonRowDataSerDeSchemaTest {
         root.putObject("multiSet").put("element", 2);
         root.putObject("map2map").putObject("inner_map").put("key", 234);
 
-        byte[] serializedJson = objectMapper.writeValueAsBytes(root);
+        byte[] serializedJson = OBJECT_MAPPER.writeValueAsBytes(root);
 
         DataType dataType =
                 ROW(
@@ -220,8 +222,7 @@ class JsonRowDataSerDeSchemaTest {
         double doubleValue = random.nextDouble();
         float floatValue = random.nextFloat();
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        ObjectNode root = objectMapper.createObjectNode();
+        ObjectNode root = OBJECT_MAPPER.createObjectNode();
         root.put("bool", String.valueOf(bool));
         root.put("int", String.valueOf(integer));
         root.put("bigint", String.valueOf(bigint));
@@ -230,7 +231,7 @@ class JsonRowDataSerDeSchemaTest {
         root.put("float1", String.valueOf(floatValue));
         root.put("float2", new BigDecimal(floatValue));
 
-        byte[] serializedJson = objectMapper.writeValueAsBytes(root);
+        byte[] serializedJson = OBJECT_MAPPER.writeValueAsBytes(root);
 
         DataType dataType =
                 ROW(
@@ -296,11 +297,9 @@ class JsonRowDataSerDeSchemaTest {
                         true);
         open(serializationSchema);
 
-        ObjectMapper objectMapper = new ObjectMapper();
-
         // the first row
         {
-            ObjectNode root = objectMapper.createObjectNode();
+            ObjectNode root = OBJECT_MAPPER.createObjectNode();
             root.put("f1", 1);
             root.put("f2", true);
             root.put("f3", "str");
@@ -312,7 +311,7 @@ class JsonRowDataSerDeSchemaTest {
             ObjectNode row = root.putObject("f6");
             row.put("f1", "this is row1");
             row.put("f2", 12);
-            byte[] serializedJson = objectMapper.writeValueAsBytes(root);
+            byte[] serializedJson = OBJECT_MAPPER.writeValueAsBytes(root);
             RowData rowData = deserializationSchema.deserialize(serializedJson);
             byte[] actual = serializationSchema.serialize(rowData);
             assertThat(serializedJson).containsExactly(actual);
@@ -320,7 +319,7 @@ class JsonRowDataSerDeSchemaTest {
 
         // the second row
         {
-            ObjectNode root = objectMapper.createObjectNode();
+            ObjectNode root = OBJECT_MAPPER.createObjectNode();
             root.put("f1", 10);
             root.put("f2", false);
             root.put("f3", "newStr");
@@ -332,7 +331,7 @@ class JsonRowDataSerDeSchemaTest {
             ObjectNode row = root.putObject("f6");
             row.put("f1", "this is row2");
             row.putNull("f2");
-            byte[] serializedJson = objectMapper.writeValueAsBytes(root);
+            byte[] serializedJson = OBJECT_MAPPER.writeValueAsBytes(root);
             RowData rowData = deserializationSchema.deserialize(serializedJson);
             byte[] actual = serializationSchema.serialize(rowData);
             assertThat(serializedJson).containsExactly(actual);
@@ -419,12 +418,10 @@ class JsonRowDataSerDeSchemaTest {
 
     @Test
     void testDeserializationMissingField() throws Exception {
-        ObjectMapper objectMapper = new ObjectMapper();
-
         // Root
-        ObjectNode root = objectMapper.createObjectNode();
+        ObjectNode root = OBJECT_MAPPER.createObjectNode();
         root.put("id", 123123123);
-        byte[] serializedJson = objectMapper.writeValueAsBytes(root);
+        byte[] serializedJson = OBJECT_MAPPER.writeValueAsBytes(root);
 
         DataType dataType = ROW(FIELD("name", STRING()));
         RowType schema = (RowType) dataType.getLogicalType();
@@ -504,14 +501,12 @@ class JsonRowDataSerDeSchemaTest {
                         true);
         open(serializationSchema);
 
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        ObjectNode root = objectMapper.createObjectNode();
+        ObjectNode root = OBJECT_MAPPER.createObjectNode();
         root.put("timestamp3", "1990-10-14 12:12:43.123");
         root.put("timestamp9", "1990-10-14 12:12:43.123456789");
         root.put("timestamp_with_local_timezone3", "1990-10-14 12:12:43.123Z");
         root.put("timestamp_with_local_timezone9", "1990-10-14 12:12:43.123456789Z");
-        byte[] serializedJson = objectMapper.writeValueAsBytes(root);
+        byte[] serializedJson = OBJECT_MAPPER.writeValueAsBytes(root);
         RowData rowData = deserializationSchema.deserialize(serializedJson);
         byte[] actual = serializationSchema.serialize(rowData);
         assertThat(serializedJson).containsExactly(actual);

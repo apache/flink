@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
@@ -73,6 +74,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** MiniCluster-based integration tests CSV data format. */
 @ExtendWith({TestLoggerExtension.class})
 public class DataStreamCsvITCase {
+
+    private static final CsvMapper CSV_MAPPER = JacksonMapperFactory.createCsvMapper();
 
     private static final int PARALLELISM = 4;
 
@@ -163,7 +166,7 @@ public class DataStreamCsvITCase {
 
         final CsvReaderFormat<CityPojo> csvFormat =
                 CsvReaderFormat.forSchema(
-                        () -> new CsvMapper(),
+                        () -> CSV_MAPPER,
                         mapper ->
                                 mapper.schemaFor(CityPojo.class)
                                         .withoutQuoteChar()
@@ -229,9 +232,8 @@ public class DataStreamCsvITCase {
 
     private static <T> BulkWriter.Factory<T> factoryForPojo(Class<T> pojoClass) {
         final Converter<T, T, Void> converter = (value, context) -> value;
-        final CsvMapper csvMapper = new CsvMapper();
-        final CsvSchema schema = csvMapper.schemaFor(pojoClass).withoutQuoteChar();
-        return (out) -> new CsvBulkWriter<>(csvMapper, schema, converter, null, out);
+        final CsvSchema schema = CSV_MAPPER.schemaFor(pojoClass).withoutQuoteChar();
+        return (out) -> new CsvBulkWriter<>(CSV_MAPPER, schema, converter, null, out);
     }
 
     private static Map<File, String> getFileContentByPath(File directory) throws IOException {

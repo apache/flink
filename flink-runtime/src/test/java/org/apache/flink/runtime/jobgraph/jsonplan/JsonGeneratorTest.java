@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -96,7 +97,7 @@ public class JsonGeneratorTest {
             assertNotNull(plan);
 
             // validate the produced JSON
-            ObjectMapper m = new ObjectMapper();
+            ObjectMapper m = JacksonMapperFactory.createObjectMapper();
             JsonNode rootNode = m.readTree(plan);
 
             // core fields
