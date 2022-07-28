@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.util.serialization;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 
@@ -53,10 +54,12 @@ public class JSONKeyValueDeserializationSchema implements KafkaDeserializationSc
     }
 
     @Override
+    public void open(DeserializationSchema.InitializationContext context) throws Exception {
+        mapper = new ObjectMapper();
+    }
+
+    @Override
     public ObjectNode deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
-        if (mapper == null) {
-            mapper = new ObjectMapper();
-        }
         ObjectNode node = mapper.createObjectNode();
         if (record.key() != null) {
             node.set("key", mapper.readValue(record.key(), JsonNode.class));

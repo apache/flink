@@ -67,10 +67,12 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
     private final JsonToRowDataConverters.JsonToRowDataConverter runtimeConverter;
 
     /** Object mapper for parsing the JSON. */
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private transient ObjectMapper objectMapper;
 
     /** Timestamp format specification which is used to parse timestamp. */
     private final TimestampFormat timestampFormat;
+
+    private final boolean hasDecimalType;
 
     public JsonRowDataDeserializationSchema(
             RowType rowType,
@@ -89,12 +91,19 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
                 new JsonToRowDataConverters(failOnMissingField, ignoreParseErrors, timestampFormat)
                         .createConverter(checkNotNull(rowType));
         this.timestampFormat = timestampFormat;
-        boolean hasDecimalType =
-                LogicalTypeChecks.hasNested(rowType, t -> t instanceof DecimalType);
+        this.hasDecimalType = LogicalTypeChecks.hasNested(rowType, t -> t instanceof DecimalType);
+    }
+
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        objectMapper =
+                new ObjectMapper()
+                        .configure(
+                                JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature(),
+                                true);
         if (hasDecimalType) {
             objectMapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
         }
-        objectMapper.configure(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature(), true);
     }
 
     @Override
