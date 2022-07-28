@@ -48,6 +48,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -62,7 +63,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /** A wrapper around a Flink distribution. */
-final class FlinkDistribution {
+public final class FlinkDistribution {
 
     private static final Logger LOG = LoggerFactory.getLogger(FlinkDistribution.class);
 
@@ -79,7 +80,7 @@ final class FlinkDistribution {
 
     private final Configuration defaultConfig;
 
-    FlinkDistribution(Path distributionDir) {
+    public FlinkDistribution(Path distributionDir) {
         bin = distributionDir.resolve("bin");
         opt = distributionDir.resolve("opt");
         lib = distributionDir.resolve("lib");
@@ -94,14 +95,33 @@ final class FlinkDistribution {
 
     public void startJobManager() throws IOException {
         LOG.info("Starting Flink JobManager.");
-        AutoClosableProcess.runBlocking(
-                bin.resolve("jobmanager.sh").toAbsolutePath().toString(), "start");
+        internalCallJobManagerScript("start");
+    }
+
+    public void callJobManagerScript(String... args) throws IOException {
+        LOG.info("Calling Flink JobManager script with {}.", Arrays.toString(args));
+        internalCallJobManagerScript(args);
+    }
+
+    private void internalCallJobManagerScript(String... args) throws IOException {
+        List<String> arguments = new ArrayList<>();
+        arguments.add(bin.resolve("jobmanager.sh").toAbsolutePath().toString());
+        arguments.addAll(Arrays.asList(args));
+        AutoClosableProcess.create(arguments.toArray(new String[0]))
+                // ignore the variable, we assume we log to the distribution directory
+                // and we copy the logs over in case of failure
+                .setEnv(env -> env.remove("FLINK_LOG_DIR"))
+                .runBlocking();
     }
 
     public void startTaskManager() throws IOException {
         LOG.info("Starting Flink TaskManager.");
-        AutoClosableProcess.runBlocking(
-                bin.resolve("taskmanager.sh").toAbsolutePath().toString(), "start");
+        AutoClosableProcess.create(
+                        bin.resolve("taskmanager.sh").toAbsolutePath().toString(), "start")
+                // ignore the variable, we assume we log to the distribution directory
+                // and we copy the logs over in case of failure
+                .setEnv(env -> env.remove("FLINK_LOG_DIR"))
+                .runBlocking();
     }
 
     public void setRootLogLevel(Level logLevel) throws IOException {
@@ -309,9 +329,9 @@ final class FlinkDistribution {
         Files.write(conf.resolve("workers"), taskExecutorHosts);
     }
 
-    public Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor)
+    public <T> Stream<T> searchAllLogs(Pattern pattern, Function<Matcher, T> matchProcessor)
             throws IOException {
-        final List<String> matches = new ArrayList<>(2);
+        final List<T> matches = new ArrayList<>(2);
 
         try (Stream<Path> logFilesStream = Files.list(log)) {
             final Iterator<Path> logFiles = logFilesStream.iterator();
