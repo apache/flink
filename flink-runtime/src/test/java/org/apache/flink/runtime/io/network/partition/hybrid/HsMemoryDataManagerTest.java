@@ -30,10 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -54,12 +51,11 @@ class HsMemoryDataManagerTest {
 
     private int bufferSize = Integer.BYTES;
 
-    private FileChannel dataFileChannel;
+    private Path dataFilePath;
 
     @BeforeEach
-    void before(@TempDir Path tempDir) throws Exception {
-        Path dataPath = Files.createFile(tempDir.resolve(".data"));
-        dataFileChannel = FileChannel.open(dataPath, StandardOpenOption.WRITE);
+    void before(@TempDir Path tempDir) {
+        this.dataFilePath = tempDir.resolve(".data");
     }
 
     @Test
@@ -179,6 +175,22 @@ class HsMemoryDataManagerTest {
         assertThat(globalDecisionFuture).isCompleted();
     }
 
+    @Test
+    void testResultPartitionClosed() throws Exception {
+        CompletableFuture<Void> resultPartitionReleaseFuture = new CompletableFuture<>();
+        HsSpillingStrategy spillingStrategy =
+                TestingSpillingStrategy.builder()
+                        .setOnResultPartitionClosedFunction(
+                                (ignore) -> {
+                                    resultPartitionReleaseFuture.complete(null);
+                                    return Decision.NO_ACTION;
+                                })
+                        .build();
+        HsMemoryDataManager memoryDataManager = createMemoryDataManager(spillingStrategy);
+        memoryDataManager.close();
+        assertThat(resultPartitionReleaseFuture).isCompleted();
+    }
+
     private HsMemoryDataManager createMemoryDataManager(HsSpillingStrategy spillStrategy)
             throws Exception {
         NetworkBufferPool networkBufferPool = new NetworkBufferPool(NUM_BUFFERS, bufferSize);
@@ -189,7 +201,7 @@ class HsMemoryDataManagerTest {
                 bufferPool,
                 spillStrategy,
                 new HsFileDataIndexImpl(NUM_SUBPARTITIONS),
-                dataFileChannel);
+                dataFilePath);
     }
 
     private HsMemoryDataManager createMemoryDataManager(
@@ -202,7 +214,7 @@ class HsMemoryDataManagerTest {
                 bufferPool,
                 spillStrategy,
                 fileDataIndex,
-                dataFileChannel);
+                dataFilePath);
     }
 
     private static ByteBuffer createRecord(int value) {

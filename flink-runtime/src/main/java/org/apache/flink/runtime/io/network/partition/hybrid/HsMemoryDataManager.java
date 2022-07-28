@@ -28,7 +28,7 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
@@ -68,10 +68,11 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
             BufferPool bufferPool,
             HsSpillingStrategy spillStrategy,
             HsFileDataIndex fileDataIndex,
-            FileChannel dataFileChannel) {
+            Path dataFilePath)
+            throws IOException {
         this.numSubpartitions = numSubpartitions;
         this.bufferPool = bufferPool;
-        this.spiller = new HsMemoryDataSpiller(dataFileChannel);
+        this.spiller = new HsMemoryDataSpiller(dataFilePath);
         this.spillStrategy = spillStrategy;
         this.fileDataIndex = fileDataIndex;
         this.subpartitionMemoryDataManagers = new HsSubpartitionMemoryDataManager[numSubpartitions];
@@ -105,6 +106,21 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
         } catch (InterruptedException e) {
             throw new IOException(e);
         }
+    }
+
+    /** Close this {@link HsMemoryDataManager}, it means no data can append to memory. */
+    public void close() {
+        Decision decision = callWithLock(() -> spillStrategy.onResultPartitionClosed(this));
+        handleDecision(Optional.of(decision));
+        spiller.close();
+    }
+
+    /**
+     * Release this {@link HsMemoryDataManager}, it means all memory taken by this class will
+     * recycle.
+     */
+    public void release() {
+        spiller.release();
     }
 
     // ------------------------------------

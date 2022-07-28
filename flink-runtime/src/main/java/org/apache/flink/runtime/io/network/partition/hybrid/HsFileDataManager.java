@@ -133,6 +133,11 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
                 checkNotNull(hybridShuffleConfiguration.getBufferRequestTimeout());
     }
 
+    /** Setup read buffer pool. */
+    public void setup() {
+        bufferPool.initialize();
+    }
+
     @Override
     // Note, this method is synchronized on `this`, not `lock`. The purpose here is to prevent
     // concurrent `run()` executions. Concurrent calls to other methods are allowed.
@@ -163,14 +168,15 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
         }
     }
 
-    /**
-     * Releases this file data manager and returns a {@link CompletableFuture} which will be
-     * completed when all resources are released.
-     */
-    public CompletableFuture<?> release() {
+    public void deleteShuffleFile() {
+        IOUtils.deleteFileQuietly(dataFilePath);
+    }
+
+    /** Releases this file data manager and delete shuffle data after all readers is removed. */
+    public void release() {
         synchronized (lock) {
             if (isReleased) {
-                return releaseFuture;
+                return;
             }
             isReleased = true;
 
@@ -179,7 +185,8 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
             failSubpartitionReaders(
                     pendingReaders,
                     new IllegalStateException("Result partition has been already released."));
-            return releaseFuture;
+            // delete the shuffle file only when no reader is reading now.
+            releaseFuture.thenRun(this::deleteShuffleFile);
         }
     }
 
