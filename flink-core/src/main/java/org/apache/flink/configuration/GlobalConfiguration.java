@@ -134,11 +134,24 @@ public final class GlobalConfiguration {
 
         Configuration configuration = loadYAMLResource(yamlConfigFile);
 
+        logConfiguration("Loading", configuration);
+
         if (dynamicProperties != null) {
+            logConfiguration("Loading dynamic", dynamicProperties);
             configuration.addAll(dynamicProperties);
         }
 
         return configuration;
+    }
+
+    private static void logConfiguration(String prefix, Configuration config) {
+        config.confData.forEach(
+                (key, value) ->
+                        LOG.info(
+                                "{} configuration property: {}, {}",
+                                prefix,
+                                key,
+                                isSensitive(key) ? HIDDEN_CONTENT : value));
     }
 
     /**
@@ -210,10 +223,6 @@ public final class GlobalConfiguration {
                         continue;
                     }
 
-                    LOG.info(
-                            "Loading configuration property: {}, {}",
-                            key,
-                            isSensitive(key) ? HIDDEN_CONTENT : value);
                     config.setString(key, value);
                 }
             }
