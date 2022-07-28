@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -181,5 +182,37 @@ class HsFullSpillingStrategyTest {
                 .containsOnly(entry(subpartitionId, subpartitionBuffers.subList(0, 4)))
                 .extractingByKey(subpartitionId)
                 .satisfies((buffers) -> assertThat(buffers).hasSizeGreaterThan(numReleaseBuffer));
+    }
+
+    @Test
+    void testOnResultPartitionClosed() {
+        final int subpartition1 = 0;
+        final int subpartition2 = 1;
+
+        List<BufferIndexAndChannel> subpartitionBuffer1 =
+                createBufferIndexAndChannelsList(subpartition1, 0, 1, 2, 3);
+        List<BufferIndexAndChannel> subpartitionBuffer2 =
+                createBufferIndexAndChannelsList(subpartition2, 0, 1, 2);
+        TestingSpillingInfoProvider spillInfoProvider =
+                TestingSpillingInfoProvider.builder()
+                        .setGetNumSubpartitionsSupplier(() -> 2)
+                        .addSubpartitionBuffers(subpartition1, subpartitionBuffer1)
+                        .addSubpartitionBuffers(subpartition2, subpartitionBuffer2)
+                        .addSpillBuffers(subpartition1, Arrays.asList(2, 3))
+                        .addConsumedBuffers(subpartition1, Collections.singletonList(0))
+                        .addSpillBuffers(subpartition2, Collections.singletonList(2))
+                        .build();
+
+        Decision decision = spillStrategy.onResultPartitionClosed(spillInfoProvider);
+
+        Map<Integer, List<BufferIndexAndChannel>> expectedToSpillBuffers = new HashMap<>();
+        expectedToSpillBuffers.put(subpartition1, subpartitionBuffer1.subList(0, 2));
+        expectedToSpillBuffers.put(subpartition2, subpartitionBuffer2.subList(0, 2));
+        assertThat(decision.getBufferToSpill()).isEqualTo(expectedToSpillBuffers);
+
+        Map<Integer, List<BufferIndexAndChannel>> expectedToReleaseBuffers = new HashMap<>();
+        expectedToReleaseBuffers.put(subpartition1, subpartitionBuffer1.subList(0, 4));
+        expectedToReleaseBuffers.put(subpartition2, subpartitionBuffer2.subList(0, 3));
+        assertThat(decision.getBufferToRelease()).isEqualTo(expectedToReleaseBuffers);
     }
 }

@@ -72,6 +72,15 @@ public interface HsSpillingStrategy {
     Decision decideActionWithGlobalInfo(HsSpillingInfoProvider spillingInfoProvider);
 
     /**
+     * Make a decision when result partition is closed. Because this method will directly touch the
+     * {@link HsSpillingInfoProvider}, the caller should take care of the thread safety.
+     *
+     * @param spillingInfoProvider that provides information about the current status.
+     * @return A {@link Decision} based on the global information.
+     */
+    Decision onResultPartitionClosed(HsSpillingInfoProvider spillingInfoProvider);
+
+    /**
      * This class represents the spill and release decision made by {@link HsSpillingStrategy}, in
      * other words, which data is to be spilled and which data is to be released.
      */
@@ -139,6 +148,12 @@ public interface HsSpillingStrategy {
 
             public Builder addBufferToRelease(
                     int subpartitionId, List<BufferIndexAndChannel> buffers) {
+                bufferToRelease.computeIfAbsent(subpartitionId, ArrayList::new).addAll(buffers);
+                return this;
+            }
+
+            public Builder addBufferToRelease(
+                    int subpartitionId, Deque<BufferIndexAndChannel> buffers) {
                 bufferToRelease.computeIfAbsent(subpartitionId, ArrayList::new).addAll(buffers);
                 return this;
             }
