@@ -76,6 +76,11 @@ rates = tEnv
 tEnv.registerFunction("rates", rates)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ## Temporal Table Function Join
@@ -124,6 +129,11 @@ Table result = orders
 val result = orders
     .joinLateral($"rates(order_time)", $"orders.currency = rates.currency")
     .select($"(o_amount * r_rate).sum as amount"))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
 ```
 {{< /tab >}}
 {{< /tabs >}}

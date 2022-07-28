@@ -154,6 +154,14 @@ val connectionConfig = new RMQConnectionConfig.Builder()
     .build
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+connection_config = RMQConnectionConfig.Builder() \
+    .set_prefetch_count(30000) \
+    ...
+    .build()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 RabbitMQ Source 默认情况下是不设置 prefetch count 的，这意味着 RabbitMQ 服务器将会无限制地向 source 发送消息。因此在生产环境中，最好要设置它。当消费海量数据的队列并且启用 checkpointing 时，消息只有在做完 checkpoint 后才会被确认，因此也许需要对 prefetch count 做一些调整来减少不必要的循环。
@@ -195,6 +203,22 @@ stream.addSink(new RMQSink[String](
     connectionConfig,         // config for the RabbitMQ connection
     "queueName",              // name of the RabbitMQ queue to send messages to
     new SimpleStringSchema))  // serialization schema to turn Java objects to messages
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+stream = ...
+
+connection_config = RMQConnectionConfig.Builder() \
+    .set_host("localhost") \
+    .set_port(5000) \
+    ...
+    .build()
+
+stream.add_sink(RMQSink(
+    connection_config,      # config for the RabbitMQ connection
+    'queueName',            # name of the RabbitMQ queue to send messages to
+    SimpleStringSchema()))  # serialization schema to turn Java objects to messages
 ```
 {{< /tab >}}
 {{< /tabs >}}
