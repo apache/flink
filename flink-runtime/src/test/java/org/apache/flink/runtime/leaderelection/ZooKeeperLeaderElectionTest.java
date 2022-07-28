@@ -29,6 +29,7 @@ import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandl
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
@@ -113,7 +114,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
     @Before
     public void before() {
         try {
-            testingServer = new TestingServer();
+            testingServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
         } catch (Exception e) {
             throw new RuntimeException("Could not start ZooKeeper testing cluster.", e);
         }
@@ -137,7 +138,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
         }
 
         if (testingServer != null) {
-            testingServer.stop();
+            testingServer.close();
             testingServer = null;
         }
     }

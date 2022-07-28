@@ -40,6 +40,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
@@ -162,8 +163,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         // Testing HA Scenario / ZKCompletedCheckpointStore with incremental checkpoints
         StateBackendEnum stateBackendEnum = getStateBackend();
         if (ROCKSDB_INCREMENTAL_ZK.equals(stateBackendEnum)) {
-            zkServer = new TestingServer();
-            zkServer.start();
+            zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
         }
 
         Configuration config = createClusterConfig();
@@ -261,7 +261,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         }
 
         if (zkServer != null) {
-            zkServer.stop();
+            zkServer.close();
             zkServer = null;
         }
 

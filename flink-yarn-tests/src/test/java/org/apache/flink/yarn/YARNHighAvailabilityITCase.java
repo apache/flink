@@ -39,6 +39,7 @@ import org.apache.flink.runtime.rest.messages.job.metrics.JobMetricsHeaders;
 import org.apache.flink.runtime.rest.messages.job.metrics.JobMetricsMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.metrics.Metric;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
@@ -110,7 +111,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
 
     @BeforeAll
     static void setup(@TempDir File tempDir) throws Exception {
-        zkServer = new TestingServer();
+        zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
 
         storageDir = tempDir.getAbsolutePath();
 
@@ -128,7 +129,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
             YarnTestBase.teardown();
         } finally {
             if (zkServer != null) {
-                zkServer.stop();
+                zkServer.close();
                 zkServer = null;
             }
         }
