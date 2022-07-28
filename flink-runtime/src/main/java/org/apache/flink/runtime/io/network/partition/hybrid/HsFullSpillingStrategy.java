@@ -79,6 +79,26 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
         return builder.build();
     }
 
+    @Override
+    public Decision onResultPartitionClosed(HsSpillingInfoProvider spillingInfoProvider) {
+        Decision.Builder builder = Decision.builder();
+        for (int subpartitionId = 0;
+                subpartitionId < spillingInfoProvider.getNumSubpartitions();
+                subpartitionId++) {
+            builder.addBufferToSpill(
+                            subpartitionId,
+                            // get all not start spilling buffers.
+                            spillingInfoProvider.getBuffersInOrder(
+                                    subpartitionId, SpillStatus.NOT_SPILL, ConsumeStatus.ALL))
+                    .addBufferToRelease(
+                            subpartitionId,
+                            // get all not released buffers.
+                            spillingInfoProvider.getBuffersInOrder(
+                                    subpartitionId, SpillStatus.ALL, ConsumeStatus.ALL));
+        }
+        return builder.build();
+    }
+
     private void checkSpill(HsSpillingInfoProvider spillingInfoProvider, Decision.Builder builder) {
         if (spillingInfoProvider.getNumTotalUnSpillBuffers() < numBuffersTriggerSpilling) {
             // In case situation changed since onBufferFinished() returns Optional#empty()
