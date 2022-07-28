@@ -139,12 +139,12 @@ public abstract class HivePartitionFetcherContextBase<P> implements HivePartitio
                                 tablePath.getDatabaseName(),
                                 tablePath.getObjectName(),
                                 Short.MAX_VALUE);
-                List<Partition> newPartitions =
+                List<Partition> partitions =
                         metaStoreClient.getPartitionsByNames(
                                 tablePath.getDatabaseName(),
                                 tablePath.getObjectName(),
                                 partitionNames);
-                for (Partition partition : newPartitions) {
+                for (Partition partition : partitions) {
                     partValuesToCreateTime.put(
                             partition.getValues(), getPartitionCreateTime(partition));
                 }
