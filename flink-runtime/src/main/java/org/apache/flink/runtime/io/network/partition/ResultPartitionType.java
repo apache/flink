@@ -89,7 +89,7 @@ public enum ResultPartitionType {
      *
      * <p>Hybrid partitions can be consumed any time, whether fully produced or not.
      */
-    HYBRID(true, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER);
+    HYBRID(false, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER);
 
     /** Does this partition use a limited number of (network) buffers? */
     private final boolean isBounded;
