@@ -24,7 +24,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-import org.apache.flink.runtime.io.network.partition.hybrid.HsMemoryDataManager.BufferAndNextDataType;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatus;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.SpillStatus;
 
@@ -372,14 +372,14 @@ class HsSubpartitionMemoryDataManagerTest {
 
     private static void checkConsumedBufferAndNextDataType(
             List<Tuple2<Integer, Buffer.DataType>> expectedRecords,
-            List<Optional<BufferAndNextDataType>> bufferAndNextDataTypesOpt) {
-        checkArgument(expectedRecords.size() == bufferAndNextDataTypesOpt.size());
-        for (int i = 0; i < bufferAndNextDataTypesOpt.size(); i++) {
+            List<Optional<BufferAndBacklog>> bufferAndBacklogOpt) {
+        checkArgument(expectedRecords.size() == bufferAndBacklogOpt.size());
+        for (int i = 0; i < bufferAndBacklogOpt.size(); i++) {
             final int index = i;
-            assertThat(bufferAndNextDataTypesOpt.get(index))
+            assertThat(bufferAndBacklogOpt.get(index))
                     .hasValueSatisfying(
-                            (bufferAndNextDataType -> {
-                                Buffer buffer = bufferAndNextDataType.getBuffer();
+                            (bufferAndBacklog -> {
+                                Buffer buffer = bufferAndBacklog.buffer();
                                 int value =
                                         buffer.getNioBufferReadable()
                                                 .order(ByteOrder.LITTLE_ENDIAN)
@@ -387,11 +387,11 @@ class HsSubpartitionMemoryDataManagerTest {
                                 Buffer.DataType dataType = buffer.getDataType();
                                 assertThat(value).isEqualTo(expectedRecords.get(index).f0);
                                 assertThat(dataType).isEqualTo(expectedRecords.get(index).f1);
-                                if (index != bufferAndNextDataTypesOpt.size() - 1) {
-                                    assertThat(bufferAndNextDataType.getNextDataType())
+                                if (index != bufferAndBacklogOpt.size() - 1) {
+                                    assertThat(bufferAndBacklog.getNextDataType())
                                             .isEqualTo(expectedRecords.get(index + 1).f1);
                                 } else {
-                                    assertThat(bufferAndNextDataType.getNextDataType())
+                                    assertThat(bufferAndBacklog.getNextDataType())
                                             .isEqualTo(Buffer.DataType.NONE);
                                 }
                             }));

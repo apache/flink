@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
@@ -360,6 +361,86 @@ class HsSubpartitionFileReaderImplTest {
         assertThat(fileReader1).isGreaterThan(fileReader2);
     }
 
+    @Test
+    void testConsumeBuffer() throws Throwable {
+        TestingSubpartitionViewInternalOperation viewNotifier =
+                new TestingSubpartitionViewInternalOperation();
+        HsSubpartitionFileReaderImpl subpartitionFileReader =
+                createSubpartitionFileReader(0, viewNotifier);
+
+        // if no preload data in file reader, return Optional.empty.
+        assertThat(subpartitionFileReader.consumeBuffer(0)).isNotPresent();
+
+        // buffers in file: (0-0, 0-1)
+        writeDataToFile(0, 0, 0, 2);
+
+        Queue<MemorySegment> memorySegments = createsMemorySegments(2);
+        // trigger reading, add buffer to queue.
+        subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
+
+        // if nextBufferToConsume is not equal to peek elements index, return Optional.empty.
+        assertThat(subpartitionFileReader.consumeBuffer(10)).isNotPresent();
+
+        assertThat(subpartitionFileReader.consumeBuffer(0))
+                .hasValueSatisfying(
+                        (bufferAndBacklog -> {
+                            assertThat(bufferAndBacklog.getNextDataType())
+                                    .isEqualTo(DataType.EVENT_BUFFER);
+                            assertThat(bufferAndBacklog.getSequenceNumber()).isEqualTo(0);
+                            // first buffer's data is 0.
+                            assertThat(
+                                            bufferAndBacklog
+                                                    .buffer()
+                                                    .getNioBufferReadable()
+                                                    .order(ByteOrder.nativeOrder())
+                                                    .getInt())
+                                    .isEqualTo(0);
+                        }));
+    }
+
+    @Test
+    void testPeekNextToConsumeDataTypeOrConsumeBufferThrowException() {
+        TestingSubpartitionViewInternalOperation viewNotifier =
+                new TestingSubpartitionViewInternalOperation();
+        HsSubpartitionFileReaderImpl subpartitionFileReader =
+                createSubpartitionFileReader(0, viewNotifier);
+
+        subpartitionFileReader.fail(new RuntimeException("expected exception."));
+
+        assertThatThrownBy(() -> subpartitionFileReader.peekNextToConsumeDataType(0))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("expected exception.");
+
+        assertThatThrownBy(() -> subpartitionFileReader.consumeBuffer(0))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("expected exception.");
+    }
+
+    @Test
+    void testPeekNextToConsumeDataType() throws Throwable {
+        TestingSubpartitionViewInternalOperation viewNotifier =
+                new TestingSubpartitionViewInternalOperation();
+        HsSubpartitionFileReaderImpl subpartitionFileReader =
+                createSubpartitionFileReader(0, viewNotifier);
+
+        // if no preload data in file reader, return DataType.NONE.
+        assertThat(subpartitionFileReader.peekNextToConsumeDataType(0)).isEqualTo(DataType.NONE);
+
+        // buffers in file: (0-0, 0-1)
+        writeDataToFile(0, 0, 2);
+
+        Queue<MemorySegment> memorySegments = createsMemorySegments(2);
+        // trigger reading, add buffer to queue.
+        subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
+
+        // if nextBufferToConsume is not equal to peek elements index, return DataType.NONE.
+        assertThat(subpartitionFileReader.peekNextToConsumeDataType(10)).isEqualTo(DataType.NONE);
+
+        // if nextBufferToConsume is equal to peek elements index, return the real DataType.
+        assertThat(subpartitionFileReader.peekNextToConsumeDataType(0))
+                .isEqualTo(DataType.DATA_BUFFER);
+    }
+
     private static void checkData(HsSubpartitionFileReaderImpl fileReader, int... expectedData) {
         assertThat(fileReader.getLoadedBuffers()).hasSameSizeAs(expectedData);
         for (int data : expectedData) {
@@ -383,7 +464,12 @@ class HsSubpartitionFileReaderImplTest {
     private HsSubpartitionFileReaderImpl createSubpartitionFileReader(
             int targetChannel, HsSubpartitionViewInternalOperations operations) {
         return new HsSubpartitionFileReaderImpl(
-                targetChannel, dataFileChannel, operations, diskIndex, MAX_BUFFERS_READ_AHEAD);
+                targetChannel,
+                dataFileChannel,
+                operations,
+                diskIndex,
+                MAX_BUFFERS_READ_AHEAD,
+                (ignore) -> {});
     }
 
     private static FileChannel openFileChannel(Path path) throws IOException {
