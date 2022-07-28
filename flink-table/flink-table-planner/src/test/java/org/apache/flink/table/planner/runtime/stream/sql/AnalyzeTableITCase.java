@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for `ANALYZE TABLE.` */
+/** Tests for `ANALYZE TABLE`. */
 public class AnalyzeTableITCase extends StreamingTestBase {
 
     TableEnvironment tEnv;
