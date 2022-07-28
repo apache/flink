@@ -59,7 +59,7 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
     private final CsvSchema csvSchema;
 
     /** Object reader used to read rows. It is configured by {@link CsvSchema}. */
-    private final ObjectReader objectReader;
+    private transient ObjectReader objectReader;
 
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
@@ -72,8 +72,12 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
         this.resultTypeInfo = resultTypeInfo;
         this.runtimeConverter = runtimeConverter;
         this.csvSchema = csvSchema;
-        this.objectReader = new CsvMapper().readerFor(JsonNode.class).with(csvSchema);
         this.ignoreParseErrors = ignoreParseErrors;
+    }
+
+    @Override
+    public void open(InitializationContext context) {
+        this.objectReader = new CsvMapper().readerFor(JsonNode.class).with(csvSchema);
     }
 
     /** A builder for creating a {@link CsvRowDataDeserializationSchema}. */

@@ -50,7 +50,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
     private final RowDataToJsonConverters.RowDataToJsonConverter runtimeConverter;
 
     /** Object mapper that is used to create output JSON objects. */
-    private final ObjectMapper mapper = new ObjectMapper();
+    private transient ObjectMapper mapper;
 
     /** Reusable object node. */
     private transient ObjectNode node;
@@ -81,9 +81,15 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
         this.runtimeConverter =
                 new RowDataToJsonConverters(timestampFormat, mapNullKeyMode, mapNullKeyLiteral)
                         .createConverter(rowType);
+    }
 
-        mapper.configure(
-                JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN, encodeDecimalAsPlainNumber);
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        mapper =
+                new ObjectMapper()
+                        .configure(
+                                JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN,
+                                encodeDecimalAsPlainNumber);
     }
 
     @Override

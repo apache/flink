@@ -79,7 +79,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
     private final RowTypeInfo typeInfo;
 
     /** Object mapper that is used to create output JSON objects. */
-    private final ObjectMapper mapper = new ObjectMapper();
+    private transient ObjectMapper mapper;
 
     private final SerializationRuntimeConverter runtimeConverter;
 
@@ -92,6 +92,11 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
                 typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
         this.typeInfo = (RowTypeInfo) typeInfo;
         this.runtimeConverter = createConverter(typeInfo);
+    }
+
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        mapper = new ObjectMapper();
     }
 
     /** Builder for {@link JsonRowSerializationSchema}. */
