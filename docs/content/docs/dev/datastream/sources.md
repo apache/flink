@@ -117,6 +117,8 @@ The `Source` implementation is expected to pass the `SplitEnumeratorContext` to 
 While a `SplitEnumerator` implementation can work well in a reactive way by only taking coordination actions when its method is invoked, some `SplitEnumerator` implementations might want to take actions actively. For example, a `SplitEnumerator` may want to periodically run split discovery and assign the new splits to the `SourceReaders`. 
 Such implementations may find that the `callAsync()` method `SplitEnumeratorContext` is handy. The code snippet below shows how the `SplitEnumerator` implementation can achieve that without maintaining its own threads.
 
+{{< tabs "066b6695-5bc3-4d7a-9033-ff6b1d15c3b1" >}}
+{{< tab "Java" >}}
 ```java
 class MySplitEnumerator implements SplitEnumerator<MySplit> {
     private final long DISCOVER_INTERVAL = 60_000L;
@@ -143,6 +145,13 @@ class MySplitEnumerator implements SplitEnumerator<MySplit> {
     ...
 }
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ### SourceReader
 
@@ -194,6 +203,18 @@ val stream = env.fromSource(
 ...
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+
+my_source = ...
+
+env.from_source(
+    my_source,
+    WatermarkStrategy.no_watermarks(),
+    "my_source_name")
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ----
@@ -240,6 +261,8 @@ As an example, as illustrated below, a `SplitFetcherManager` may have a fixed nu
 
 The following code snippet implements this threading model.
 
+{{< tabs "bde5ff60-4e61-4633-a6dc-50524acb7b33" >}}
+{{< tab "Java" >}}
 ```java
 /**
  * A SplitFetcherManager that has a fixed size of split fetchers and assign splits 
@@ -279,9 +302,18 @@ public class FixedSizeSplitFetcherManager<E, SplitT extends SourceSplit>
     }
 }
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 And a `SourceReader` using this threading model can be created like following:
 
+{{< tabs "bde5ff60-4e61-4633-a6dc-50524aca6c31" >}}
+{{< tab "Java" >}}
 ```java
 public class FixedFetcherSizeSourceReader<E, T, SplitT extends SourceSplit, SplitStateT>
         extends SourceReaderBase<E, T, SplitT, SplitStateT> {
@@ -322,6 +354,13 @@ public class FixedFetcherSizeSourceReader<E, T, SplitT extends SourceSplit, Spli
     }
 }
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 The `SourceReader` implementations can also implement their own threading model easily on top of the `SplitFetcherManager` and `SourceReaderBase`.
 
@@ -337,12 +376,25 @@ Applications based on the legacy [SourceFunction](https://github.com/apache/flin
 
 The `WatermarkStrategy` is passed to the Source during creation in the DataStream API and creates both the [TimestampAssigner](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/eventtime/TimestampAssigner.java) and [WatermarkGenerator](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/eventtime/WatermarkGenerator.java).
 
+{{< tabs "bde5ff60-4e61-4633-a6dc-50524acb7b36" >}}
+{{< tab "Java" >}}
 ```java
 environment.fromSource(
     Source<OUT, ?, ?> source,
     WatermarkStrategy<OUT> timestampsAndWatermarks,
     String sourceName);
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+environment.from_source(
+    source: Source,
+    watermark_strategy: WatermarkStrategy,
+    source_name: str,
+    type_info: TypeInformation = None) 
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 The `TimestampAssigner` and `WatermarkGenerator` run transparently as part of the `ReaderOutput`(or `SourceOutput`) so source implementors do not have to implement any timestamp extraction and watermark generation code.
 

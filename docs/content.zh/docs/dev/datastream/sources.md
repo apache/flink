@@ -126,6 +126,8 @@ SplitEnumerator 被认为是整个 Source 的“大脑”。SplitEnumerator 的�
 `SplitEnumerator` 的实现可以仅采用被动工作方式，即仅在其方法被调用时采取协调操作，但是一些 `SplitEnumerator` 的实现会采取主动性的工作方式。例如，`SplitEnumerator` 定期寻找分片并分配给 `SourceReader`。
 这类问题使用 `SplitEnumeratorContext` 类中的 `callAsync()` 方法比较方便。下面的代码片段展示了如何在 `SplitEnumerator` 不需要自己维护线程的条件下实现这一点。
 
+{{< tabs "066b6695-5bc3-4d7a-9032-ff6b1d15c3b1" >}}
+{{< tab "Java" >}}
 ```java
 class MySplitEnumerator implements SplitEnumerator<MySplit> {
     private final long DISCOVER_INTERVAL = 60_000L;
@@ -152,6 +154,13 @@ class MySplitEnumerator implements SplitEnumerator<MySplit> {
     ...
 }
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Python API 中尚不支持该特性。
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 <a name="SourceReader"></a>
 
@@ -207,6 +216,18 @@ val stream = env.fromSource(
 ...
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+
+my_source = ...
+
+env.from_source(
+    my_source,
+    WatermarkStrategy.no_watermarks(),
+    "my_source_name")
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ----
@@ -260,6 +281,8 @@ val stream = env.fromSource(
 
 以下代码片段实现了此线程模型。
 
+{{< tabs "bde5ff60-4e61-4644-a6dc-50524acb7b33" >}}
+{{< tab "Java" >}}
 ```java
 /**
  * 一个SplitFetcherManager，它具有固定数量的分片提取器，
@@ -299,9 +322,18 @@ public class FixedSizeSplitFetcherManager<E, SplitT extends SourceSplit>
     }
 }
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Python API 中尚不支持该特性。
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 使用这种线程模型的`SourceReader`可以像下面这样创建：
 
+{{< tabs "bde5ff60-4e61-4614-a6dc-50524aca6c31" >}}
+{{< tab "Java" >}}
 ```java
 public class FixedFetcherSizeSourceReader<E, T, SplitT extends SourceSplit, SplitStateT>
         extends SourceReaderBase<E, T, SplitT, SplitStateT> {
@@ -342,6 +374,13 @@ public class FixedFetcherSizeSourceReader<E, T, SplitT extends SourceSplit, Spli
     }
 }
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Python API 中尚不支持该特性。
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 `SourceReader` 的实现还可以在 `SplitFetcherManager` 和 `SourceReaderBase` 的基础上编写自己的线程模型。
 
@@ -359,12 +398,25 @@ Source 的实现需要完成一部分*事件时间*分配和*水印生成*的工
 
 在 DataStream API 创建期间， `WatermarkStrategy` 会被传递给 Source，并同时创建 [TimestampAssigner](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/eventtime/TimestampAssigner.java) 和 [WatermarkGenerator](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/eventtime/WatermarkGenerator.java)。
 
+{{< tabs "bde5ff60-4e62-4643-a6dc-50524acb7b34" >}}
+{{< tab "Java" >}}
 ```java
 environment.fromSource(
     Source<OUT, ?, ?> source,
     WatermarkStrategy<OUT> timestampsAndWatermarks,
     String sourceName);
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+environment.from_source(
+    source: Source,
+    watermark_strategy: WatermarkStrategy,
+    source_name: str,
+    type_info: TypeInformation = None) 
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 `TimestampAssigner` 和 `WatermarkGenerator` 作为 `ReaderOutput`（或 `SourceOutput`）的一部分透明地运行，因此 Source 实现者不必实现任何时间戳提取和水印生成的代码。 
 
