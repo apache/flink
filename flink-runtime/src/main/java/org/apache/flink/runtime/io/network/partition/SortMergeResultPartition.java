@@ -173,7 +173,7 @@ public class SortMergeResultPartition extends ResultPartition {
     }
 
     @Override
-    public void setup() throws IOException {
+    protected void setupInternal() throws IOException {
         synchronized (lock) {
             if (isReleased()) {
                 throw new IOException("Result partition has been released.");
@@ -189,8 +189,6 @@ public class SortMergeResultPartition extends ResultPartition {
 
         // initialize the buffer pool eagerly to avoid reporting errors such as OOM too late
         readBufferPool.initialize();
-        super.setup();
-
         LOG.info("Sort-merge partition {} initialized.", getPartitionId());
     }
 

@@ -94,9 +94,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @Override
-    public void setup() throws IOException {
-        super.setup();
-
+    protected void setupInternal() throws IOException {
         checkState(
                 bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
                 "Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for"
