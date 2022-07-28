@@ -24,8 +24,8 @@ package org.apache.flink.runtime.io.network.partition.hybrid;
  */
 public interface HsSubpartitionViewInternalOperations {
 
-    /** Callback for new data become available from disk. */
-    void notifyDataAvailableFromDisk();
+    /** Callback for new data become available. */
+    void notifyDataAvailable();
 
     /** Get the latest consuming offset of the subpartition. */
     int getConsumingOffset();

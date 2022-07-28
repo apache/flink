@@ -351,11 +351,10 @@ public class HsSubpartitionMemoryDataManager {
                                     bufferContext.getBufferIndexAndChannel().getBufferIndex(),
                                     bufferContext);
                             trimHeadingReleasedBuffers(unConsumedBuffers);
-                            return unConsumedBuffers.isEmpty();
+                            return unConsumedBuffers.size() <= 1;
                         });
         if (needNotify) {
-            // TODO notify data available, the notification mechanism may need further
-            // consideration.
+            memoryDataManagerOperation.onDataAvailable(targetChannel);
         }
     }
 
