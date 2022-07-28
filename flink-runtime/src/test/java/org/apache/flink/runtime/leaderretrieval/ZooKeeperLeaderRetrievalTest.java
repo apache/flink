@@ -28,6 +28,7 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingContender;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcSystem;
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
@@ -68,7 +69,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
 
     @Before
     public void before() throws Exception {
-        testingServer = new TestingServer();
+        testingServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
 
         config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
@@ -93,7 +94,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
         }
 
         if (testingServer != null) {
-            testingServer.stop();
+            testingServer.close();
 
             testingServer = null;
         }
