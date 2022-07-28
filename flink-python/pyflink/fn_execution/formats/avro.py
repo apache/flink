@@ -38,8 +38,8 @@ class FlinkAvroBufferWrapper(object):
     def __init__(self):
         self._stream = None
 
-    def switch_stream(self, in_stream):
-        self._stream = in_stream
+    def switch_stream(self, stream):
+        self._stream = stream
 
     def read(self, n=1):
         return self._stream.read(n)
