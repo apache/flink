@@ -102,9 +102,13 @@ public class HiveServer2EndpointExtension implements BeforeAllCallback, AfterAll
     }
 
     public Connection getConnection() throws Exception {
+        // In hive3, if "hive.metastore.schema.verification" is true, the
+        // "datanucleus.schema.autoCreateTables" is false during the creation of the HiveConf.
+        // So we need to manually enable datanucleus.schema.autoCreateAll
+        // Please cc FLINK-27999 for more details
         return DriverManager.getConnection(
                 String.format(
-                        "jdbc:hive2://%s:%s/default;auth=noSasl",
+                        "jdbc:hive2://%s:%s/default;auth=noSasl?datanucleus.schema.autoCreateAll=true",
                         InetAddress.getLocalHost().getHostAddress(), getPort()));
     }
 }
