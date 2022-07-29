@@ -18,26 +18,29 @@
 
 package org.apache.flink.runtime.io.compression;
 
+import io.airlift.compress.Compressor;
+import io.airlift.compress.Decompressor;
+
 /**
- * An {@code InsufficientBufferException} is thrown when there is no enough buffer to serialize or
- * deserialize a buffer to another buffer. When such exception being caught, user may enlarge the
- * output buffer and try again.
+ * {@link BlockCompressionFactory} to create wrapped {@link Compressor} and {@link Decompressor}.
  */
-public class InsufficientBufferException extends RuntimeException {
+public class AirCompressorFactory implements BlockCompressionFactory {
+    private final Compressor internalCompressor;
 
-    public InsufficientBufferException() {
-        super();
+    private final Decompressor internalDecompressor;
+
+    public AirCompressorFactory(Compressor internalCompressor, Decompressor internalDecompressor) {
+        this.internalCompressor = internalCompressor;
+        this.internalDecompressor = internalDecompressor;
     }
 
-    public InsufficientBufferException(String message) {
-        super(message);
+    @Override
+    public BlockCompressor getCompressor() {
+        return new AirBlockCompressor(internalCompressor);
     }
 
-    public InsufficientBufferException(String message, Throwable e) {
-        super(message, e);
-    }
-
-    public InsufficientBufferException(Throwable e) {
-        super(e);
+    @Override
+    public BlockDecompressor getDecompressor() {
+        return new AirBlockDecompressor(internalDecompressor);
     }
 }

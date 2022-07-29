@@ -18,15 +18,25 @@
 
 package org.apache.flink.runtime.io.compression;
 
-/** Implementation of {@link BlockCompressionFactory} for Lz4 codec. */
-public class Lz4BlockCompressionFactory implements BlockCompressionFactory {
-    @Override
-    public BlockCompressor getCompressor() {
-        return new Lz4BlockCompressor();
+/**
+ * A {@code BufferCompressionException} is thrown when the target data cannot be compressed, such as
+ * insufficient target buffer space for compression, etc.
+ */
+public class BufferCompressionException extends RuntimeException {
+
+    public BufferCompressionException() {
+        super();
     }
 
-    @Override
-    public BlockDecompressor getDecompressor() {
-        return new Lz4BlockDecompressor();
+    public BufferCompressionException(String message) {
+        super(message);
+    }
+
+    public BufferCompressionException(String message, Throwable e) {
+        super(message, e);
+    }
+
+    public BufferCompressionException(Throwable e) {
+        super(e);
     }
 }

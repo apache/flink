@@ -38,6 +38,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.util.Random;
@@ -63,12 +65,10 @@ class NettyMessageClientSideSerializationTest {
 
     private static final int BUFFER_SIZE = 1024;
 
-    private static final BufferCompressor COMPRESSOR = new BufferCompressor(BUFFER_SIZE, "LZ4");
-
-    private static final BufferDecompressor DECOMPRESSOR =
-            new BufferDecompressor(BUFFER_SIZE, "LZ4");
-
     private final Random random = new Random();
+    private static BufferCompressor compressor;
+
+    private static BufferDecompressor decompressor;
 
     private EmbeddedChannel channel;
 
@@ -143,8 +143,11 @@ class NettyMessageClientSideSerializationTest {
         testBufferResponse(true, false);
     }
 
-    @Test
-    void testCompressedBufferResponse() {
+    @ParameterizedTest
+    @ValueSource(strings = {"LZ4", "LZO", "ZSTD"})
+    void testCompressedBufferResponse(final String codecFactoryName) {
+        compressor = new BufferCompressor(BUFFER_SIZE, codecFactoryName);
+        decompressor = new BufferDecompressor(BUFFER_SIZE, codecFactoryName);
         testBufferResponse(false, true);
     }
 
@@ -178,7 +181,7 @@ class NettyMessageClientSideSerializationTest {
         if (testReadOnlyBuffer) {
             testBuffer = buffer.readOnlySlice();
         } else if (testCompressedBuffer) {
-            testBuffer = COMPRESSOR.compressToOriginalBuffer(buffer);
+            testBuffer = compressor.compressToOriginalBuffer(buffer);
         }
 
         BufferResponse expected =
@@ -221,6 +224,6 @@ class NettyMessageClientSideSerializationTest {
         Buffer compressedBuffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
         buffer.asByteBuf().readBytes(compressedBuffer.asByteBuf(), buffer.readableBytes());
         compressedBuffer.setCompressed(true);
-        return DECOMPRESSOR.decompressToOriginalBuffer(compressedBuffer);
+        return decompressor.decompressToOriginalBuffer(compressedBuffer);
     }
 }

@@ -18,8 +18,7 @@
 
 package org.apache.flink.runtime.io.compression;
 
-import net.jpountz.lz4.LZ4Compressor;
-import net.jpountz.lz4.LZ4Factory;
+import io.airlift.compress.Compressor;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -27,43 +26,36 @@ import java.nio.ByteOrder;
 import static org.apache.flink.runtime.io.compression.CompressorUtils.HEADER_LENGTH;
 import static org.apache.flink.runtime.io.compression.CompressorUtils.writeIntLE;
 
-/**
- * Encode data into LZ4 format (not compatible with the LZ4 Frame format). It reads from and writes
- * to byte arrays provided from the outside, thus reducing copy time.
- *
- * <p>This class is copied and modified from {@link net.jpountz.lz4.LZ4BlockOutputStream}.
- */
-public class Lz4BlockCompressor implements BlockCompressor {
+/** Flink compressor that wraps {@link Compressor}. */
+public class AirBlockCompressor implements BlockCompressor {
+    private final Compressor internalCompressor;
 
-    private final LZ4Compressor compressor;
-
-    public Lz4BlockCompressor() {
-        this.compressor = LZ4Factory.fastestInstance().fastCompressor();
+    public AirBlockCompressor(Compressor internalCompressor) {
+        this.internalCompressor = internalCompressor;
     }
 
     @Override
     public int getMaxCompressedSize(int srcSize) {
-        return HEADER_LENGTH + compressor.maxCompressedLength(srcSize);
+        return HEADER_LENGTH + internalCompressor.maxCompressedLength(srcSize);
     }
 
     @Override
     public int compress(ByteBuffer src, int srcOff, int srcLen, ByteBuffer dst, int dstOff)
             throws BufferCompressionException {
         try {
+            if (dst.remaining() < dstOff + getMaxCompressedSize(srcLen)) {
+                throw new ArrayIndexOutOfBoundsException();
+            }
+
             final int prevSrcOff = src.position() + srcOff;
             final int prevDstOff = dst.position() + dstOff;
 
-            int maxCompressedSize = compressor.maxCompressedLength(srcLen);
-            int compressedLength =
-                    compressor.compress(
-                            src,
-                            prevSrcOff,
-                            srcLen,
-                            dst,
-                            prevDstOff + HEADER_LENGTH,
-                            maxCompressedSize);
+            src.position(prevSrcOff);
+            dst.position(prevDstOff + HEADER_LENGTH);
 
-            src.position(prevSrcOff + srcLen);
+            internalCompressor.compress(src, dst);
+
+            int compressedLength = dst.position() - prevDstOff - HEADER_LENGTH;
 
             dst.position(prevDstOff);
             dst.order(ByteOrder.LITTLE_ENDIAN);
@@ -81,8 +73,18 @@ public class Lz4BlockCompressor implements BlockCompressor {
     public int compress(byte[] src, int srcOff, int srcLen, byte[] dst, int dstOff)
             throws BufferCompressionException {
         try {
+            if (dst.length < dstOff + getMaxCompressedSize(srcLen)) {
+                throw new ArrayIndexOutOfBoundsException();
+            }
+
             int compressedLength =
-                    compressor.compress(src, srcOff, srcLen, dst, dstOff + HEADER_LENGTH);
+                    internalCompressor.compress(
+                            src,
+                            srcOff,
+                            srcLen,
+                            dst,
+                            dstOff + HEADER_LENGTH,
+                            internalCompressor.maxCompressedLength(srcLen));
             writeIntLE(compressedLength, dst, dstOff);
             writeIntLE(srcLen, dst, dstOff + 4);
             return HEADER_LENGTH + compressedLength;

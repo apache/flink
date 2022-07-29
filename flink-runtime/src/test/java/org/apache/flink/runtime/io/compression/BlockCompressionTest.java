@@ -18,20 +18,28 @@
 
 package org.apache.flink.runtime.io.compression;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.ByteBuffer;
+import java.util.stream.Stream;
 
-import static org.apache.flink.runtime.io.compression.Lz4BlockCompressionFactory.HEADER_LENGTH;
+import static org.apache.flink.runtime.io.compression.CompressorUtils.HEADER_LENGTH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for block compression. */
 class BlockCompressionTest {
+    private static Stream<BlockCompressionFactory> compressCodecGenerator() {
+        return Stream.of(
+                BlockCompressionFactory.createBlockCompressionFactory("LZ4"),
+                BlockCompressionFactory.createBlockCompressionFactory("LZO"),
+                BlockCompressionFactory.createBlockCompressionFactory("ZSTD"));
+    }
 
-    @Test
-    void testLz4() {
-        BlockCompressionFactory factory = new Lz4BlockCompressionFactory();
+    @ParameterizedTest
+    @MethodSource("compressCodecGenerator")
+    void testBlockCompression(BlockCompressionFactory factory) {
         runArrayTest(factory, 32768);
         runArrayTest(factory, 16);
 
@@ -63,7 +71,7 @@ class BlockCompressionTest {
                                         originalLen,
                                         insufficientCompressArray,
                                         compressedOff))
-                .isInstanceOf(InsufficientBufferException.class);
+                .isInstanceOf(BufferCompressionException.class);
 
         // 2. test normal compress
         byte[] compressedData =
@@ -83,7 +91,7 @@ class BlockCompressionTest {
                                         compressedLen,
                                         insufficientDecompressArray,
                                         decompressedOff))
-                .isInstanceOf(InsufficientBufferException.class);
+                .isInstanceOf(BufferDecompressionException.class);
 
         // 4. test normal decompress
         byte[] decompressedData = new byte[decompressedOff + originalLen];
