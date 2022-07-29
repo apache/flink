@@ -28,20 +28,19 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the failure handling logic of the {@link RestartPipelinedRegionFailoverStrategy}. */
-public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
+class RestartPipelinedRegionFailoverStrategyTest {
 
     /**
      * Tests for scenes that a task fails for its own error, in which case the region containing the
@@ -62,7 +61,7 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
      * Each vertex is in an individual region.
      */
     @Test
-    public void testRegionFailoverForRegionInternalErrors() {
+    void testRegionFailoverForRegionInternalErrors() {
         final TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.FINISHED);
@@ -109,7 +108,7 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
      * Each vertex is in an individual region.
      */
     @Test
-    public void testRegionFailoverForDataConsumptionErrors() throws Exception {
+    void testRegionFailoverForDataConsumptionErrors() throws Exception {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.FINISHED);
@@ -171,8 +170,7 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
      * Each vertex is in an individual region. rp1, rp2 are result partitions.
      */
     @Test
-    public void testRegionFailoverForVariousResultPartitionAvailabilityCombinations()
-            throws Exception {
+    void testRegionFailoverForVariousResultPartitionAvailabilityCombinations() throws Exception {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.FINISHED);
@@ -245,7 +243,7 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
      * Component 1: 1,2; component 2: 3,4; component 3: 5,6
      */
     @Test
-    public void testRegionFailoverForMultipleVerticesRegions() throws Exception {
+    void testRegionFailoverForMultipleVerticesRegions() throws Exception {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.FINISHED);
@@ -286,7 +284,7 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
      * Component 1: 1; component 2: 2
      */
     @Test
-    public void testRegionFailoverDoesNotRestartCreatedExecutions() {
+    void testRegionFailoverDoesNotRestartCreatedExecutions() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.CREATED);
@@ -311,7 +309,7 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
      * </pre>
      */
     @Test
-    public void testRegionFailoverForPipelinedApproximate() {
+    void testRegionFailoverForPipelinedApproximate() {
         final TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.RUNNING);
@@ -366,12 +364,11 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
         }
 
         private void restarts(SchedulingExecutionVertex... expectedResult) {
-            assertThat(
-                    strategy.getTasksNeedingRestart(executionVertex.getId(), cause),
-                    containsInAnyOrder(
+            assertThat(strategy.getTasksNeedingRestart(executionVertex.getId(), cause))
+                    .containsExactlyInAnyOrderElementsOf(
                             Stream.of(expectedResult)
                                     .map(SchedulingExecutionVertex::getId)
-                                    .toArray()));
+                                    .collect(Collectors.toList()));
         }
     }
 
