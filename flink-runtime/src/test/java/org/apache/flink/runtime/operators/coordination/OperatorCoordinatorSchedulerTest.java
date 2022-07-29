@@ -290,11 +290,12 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                 triggerCheckpoint(scheduler);
         coordinator.getLastTriggeredCheckpoint().complete(checkpointData);
         executor.triggerAll();
-        OperatorEvent event =
-                new AcknowledgeCheckpointEvent(coordinator.getLastTriggeredCheckpointId());
         OperatorCoordinatorHolder holder = getCoordinatorHolder(scheduler);
         for (int i = 0; i < holder.currentParallelism(); i++) {
-            holder.handleEventFromOperator(i, 0, event);
+            holder.handleEventFromOperator(
+                    i,
+                    0,
+                    new AcknowledgeCheckpointEvent(coordinator.getLastTriggeredCheckpointId(), i));
         }
         acknowledgeCurrentCheckpoint(scheduler);
 
@@ -709,7 +710,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         return createSchedulerBuilder(
                 jobGraph,
                 mainThreadExecutor,
-                new SimpleAckingTaskManagerGateway(),
+                new RejectCloseEventGateway(),
                 scheduledExecutorService);
     }
 
@@ -902,12 +903,13 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         testingOperatorCoordinator.getLastTriggeredCheckpoint().complete(coordinatorState);
         executor.triggerAll();
-        OperatorEvent event =
-                new AcknowledgeCheckpointEvent(
-                        testingOperatorCoordinator.getLastTriggeredCheckpointId());
         OperatorCoordinatorHolder holder = getCoordinatorHolder(scheduler);
         for (int i = 0; i < holder.currentParallelism(); i++) {
-            holder.handleEventFromOperator(i, 0, event);
+            holder.handleEventFromOperator(
+                    i,
+                    0,
+                    new AcknowledgeCheckpointEvent(
+                            testingOperatorCoordinator.getLastTriggeredCheckpointId(), i));
         }
         acknowledgeCurrentCheckpoint(scheduler);
 
@@ -1052,6 +1054,30 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         public CompletableFuture<Acknowledge> sendOperatorEventToTask(
                 ExecutionAttemptID task, OperatorID operator, SerializedValue<OperatorEvent> evt) {
             return operatorGateway.sendOperatorEventToTask(task, operator, evt);
+        }
+    }
+
+    /**
+     * A subclass of {@link SimpleAckingTaskManagerGateway} that rejects {@link CloseGatewayEvent}s
+     * with {@link TaskNotRunningException}s instead of throwing {@link
+     * UnsupportedOperationException}s.
+     */
+    private static final class RejectCloseEventGateway extends SimpleAckingTaskManagerGateway {
+        @Override
+        public CompletableFuture<Acknowledge> sendOperatorEventToTask(
+                ExecutionAttemptID task, OperatorID operator, SerializedValue<OperatorEvent> evt) {
+            try {
+                if (evt.deserializeValue(Thread.currentThread().getContextClassLoader())
+                        instanceof CloseGatewayEvent) {
+                    CompletableFuture<Acknowledge> future = new CompletableFuture<>();
+                    future.completeExceptionally(
+                            new TaskNotRunningException("Task is not running."));
+                    return future;
+                }
+            } catch (IOException | ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+            return super.sendOperatorEventToTask(task, operator, evt);
         }
     }
 }

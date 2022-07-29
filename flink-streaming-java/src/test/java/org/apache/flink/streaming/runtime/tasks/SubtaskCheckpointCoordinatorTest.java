@@ -545,7 +545,6 @@ public class SubtaskCheckpointCoordinatorTest {
                                 ChannelStateWriter.ChannelStateWriteResult channelStateWriteResult,
                                 CheckpointStreamFactory storage) {
                             channelStateResult.set(channelStateWriteResult);
-                            sendAcknowledgeCheckpointEvent(checkpointMetaData.getCheckpointId());
                         }
                     };
 

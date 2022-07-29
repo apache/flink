@@ -21,10 +21,10 @@ package org.apache.flink.runtime.operators.coordination;
 import java.util.Objects;
 
 /**
- * An {@link OperatorEvent} sent from a subtask to its {@link OperatorCoordinator} to signal that
- * the checkpoint of an individual task is completed.
+ * An {@link OperatorEvent} sent from an {@link OperatorCoordinator} to its subtask to signal that
+ * the communication gateway needs to be temporarily closed for a specific checkpoint.
  */
-public class AcknowledgeCheckpointEvent implements OperatorEvent {
+public class CloseGatewayEvent implements OperatorEvent {
 
     /** The ID of the checkpoint that this event is related to. */
     private final long checkpointId;
@@ -32,7 +32,7 @@ public class AcknowledgeCheckpointEvent implements OperatorEvent {
     /** The index of the subtask that this event is related to. */
     private final int subtaskIndex;
 
-    public AcknowledgeCheckpointEvent(long checkpointId, int subtaskIndex) {
+    public CloseGatewayEvent(long checkpointId, int subtaskIndex) {
         this.checkpointId = checkpointId;
         this.subtaskIndex = subtaskIndex;
     }
@@ -52,16 +52,16 @@ public class AcknowledgeCheckpointEvent implements OperatorEvent {
 
     @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof AcknowledgeCheckpointEvent)) {
+        if (!(obj instanceof CloseGatewayEvent)) {
             return false;
         }
-        AcknowledgeCheckpointEvent event = (AcknowledgeCheckpointEvent) obj;
+        CloseGatewayEvent event = (CloseGatewayEvent) obj;
         return event.checkpointId == this.checkpointId && event.subtaskIndex == this.subtaskIndex;
     }
 
     @Override
     public String toString() {
-        return "AcknowledgeCheckpointEvent (checkpointId: "
+        return "CloseGatewayEvent (checkpointId: "
                 + checkpointId
                 + ", subtaskIndex: "
                 + subtaskIndex

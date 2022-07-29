@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 
 /**
  * Implementation of the {@link OperatorCoordinator.SubtaskGateway} interface that access to
@@ -86,6 +87,21 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
 
     @Override
     public CompletableFuture<Acknowledge> sendEvent(OperatorEvent evt) {
+        return sendEventWithCallBackOnCompletion(
+                evt, (success, failure) -> tryTriggerTaskFailover(evt, failure));
+    }
+
+    void tryTriggerTaskFailover(OperatorEvent evt, Throwable failure) {
+        if (failure != null && subtaskAccess.isStillRunning()) {
+            String msg = String.format(EVENT_LOSS_ERROR_MESSAGE, evt, subtaskAccess.subtaskName());
+            Runnables.assertNoException(
+                    () -> subtaskAccess.triggerTaskFailover(new FlinkException(msg, failure)));
+        }
+    }
+
+    CompletableFuture<Acknowledge> sendEventWithCallBackOnCompletion(
+            OperatorEvent evt,
+            BiConsumer<? super Acknowledge, ? super Throwable> callBackOnCompletion) {
         if (!isReady()) {
             throw new FlinkRuntimeException("SubtaskGateway is not ready, task not yet running.");
         }
@@ -104,21 +120,7 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
 
         final CompletableFuture<Acknowledge> sendResult = new CompletableFuture<>();
         final CompletableFuture<Acknowledge> result =
-                sendResult.whenCompleteAsync(
-                        (success, failure) -> {
-                            if (failure != null && subtaskAccess.isStillRunning()) {
-                                String msg =
-                                        String.format(
-                                                EVENT_LOSS_ERROR_MESSAGE,
-                                                evt,
-                                                subtaskAccess.subtaskName());
-                                Runnables.assertNoException(
-                                        () ->
-                                                subtaskAccess.triggerTaskFailover(
-                                                        new FlinkException(msg, failure)));
-                            }
-                        },
-                        mainThreadExecutor);
+                sendResult.whenCompleteAsync(callBackOnCompletion, mainThreadExecutor);
 
         mainThreadExecutor.execute(
                 () -> {

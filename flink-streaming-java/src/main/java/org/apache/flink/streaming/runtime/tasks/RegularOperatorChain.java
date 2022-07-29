@@ -28,6 +28,9 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
@@ -65,8 +68,14 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
             List<StreamOperatorWrapper<?, ?>> allOperatorWrappers,
             RecordWriterOutput<?>[] streamOutputs,
             WatermarkGaugeExposingOutput<StreamRecord<OUT>> mainOperatorOutput,
-            StreamOperatorWrapper<OUT, OP> mainOperatorWrapper) {
-        super(allOperatorWrappers, streamOutputs, mainOperatorOutput, mainOperatorWrapper);
+            StreamOperatorWrapper<OUT, OP> mainOperatorWrapper,
+            OperatorEventDispatcherImpl operatorEventDispatcher) {
+        super(
+                allOperatorWrappers,
+                streamOutputs,
+                mainOperatorOutput,
+                mainOperatorWrapper,
+                operatorEventDispatcher);
     }
 
     @Override
@@ -104,6 +113,10 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
         for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
             StreamOperator<?> operator = operatorWrapper.getStreamOperator();
             operator.initializeState(streamTaskStateInitializer);
+            if (operatorEventDispatcher.containsOperatorEventGateway(operator.getOperatorID())) {
+                operatorEventDispatcher.initializeOperatorEventGatewayState(
+                        operator.getOperatorID(), getOperatorStateBackend(operator));
+            }
             operator.open();
         }
     }
@@ -198,7 +211,25 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
                                 storage));
             }
         }
-        sendAcknowledgeCheckpointEvent(checkpointMetaData.getCheckpointId());
+    }
+
+    private OperatorStateBackend getOperatorStateBackend(StreamOperator<?> operator) {
+        OperatorStateBackend backend = null;
+        if (operator instanceof AbstractStreamOperator) {
+            backend = ((AbstractStreamOperator<?>) operator).getOperatorStateBackend();
+        } else if (operator instanceof AbstractStreamOperatorV2) {
+            backend = ((AbstractStreamOperatorV2<?>) operator).getOperatorStateBackend();
+        }
+
+        if (backend == null) {
+            throw new IllegalStateException(
+                    "Operator "
+                            + operator
+                            + " should extend AbstractStreamOperator or AbstractStreamOperatorV2"
+                            + " to provide OperatorStateBackend for OperatorEventGateway.");
+        }
+
+        return backend;
     }
 
     private OperatorSnapshotFutures buildOperatorSnapshotFutures(
@@ -217,7 +248,7 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
         return snapshotInProgress;
     }
 
-    private static OperatorSnapshotFutures checkpointStreamOperator(
+    private OperatorSnapshotFutures checkpointStreamOperator(
             StreamOperator<?> op,
             CheckpointMetaData checkpointMetaData,
             CheckpointOptions checkpointOptions,
@@ -225,16 +256,56 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
             Supplier<Boolean> isRunning)
             throws Exception {
         try {
-            return op.snapshotState(
-                    checkpointMetaData.getCheckpointId(),
-                    checkpointMetaData.getTimestamp(),
-                    checkpointOptions,
-                    storageLocation);
+            if (operatorEventDispatcher.containsOperatorEventGateway(op.getOperatorID())) {
+                operatorEventDispatcher.snapshotOperatorEventGatewayState(
+                        op.getOperatorID(), getOperatorStateBackend(op));
+            }
+
+            OperatorSnapshotFutures futures =
+                    op.snapshotState(
+                            checkpointMetaData.getCheckpointId(),
+                            checkpointMetaData.getTimestamp(),
+                            checkpointOptions,
+                            storageLocation);
+
+            if (operatorEventDispatcher.containsOperatorEventGateway(op.getOperatorID())) {
+                operatorEventDispatcher.notifyOperatorSnapshotStateCompleted(
+                        op.getOperatorID(),
+                        checkpointMetaData.getCheckpointId(),
+                        getSubtaskIndex(op));
+            }
+
+            return futures;
         } catch (Exception ex) {
             if (isRunning.get()) {
                 LOG.info(ex.getMessage(), ex);
             }
             throw ex;
         }
+    }
+
+    private int getSubtaskIndex(StreamOperator<?> operator) {
+        int index = -1;
+        if (operator instanceof AbstractStreamOperator) {
+            index =
+                    ((AbstractStreamOperator<?>) operator)
+                            .getRuntimeContext()
+                            .getIndexOfThisSubtask();
+        } else if (operator instanceof AbstractStreamOperatorV2) {
+            index =
+                    ((AbstractStreamOperatorV2<?>) operator)
+                            .getRuntimeContext()
+                            .getIndexOfThisSubtask();
+        }
+
+        if (index < 0) {
+            throw new IllegalStateException(
+                    "Operator "
+                            + operator
+                            + " should extend AbstractStreamOperator or AbstractStreamOperatorV2"
+                            + " to provide a RuntimeContext.");
+        }
+
+        return index;
     }
 }

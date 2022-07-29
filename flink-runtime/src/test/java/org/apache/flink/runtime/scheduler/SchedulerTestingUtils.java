@@ -74,7 +74,6 @@ import java.util.stream.StreamSupport;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.finishJobVertex;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** A utility class to create {@link DefaultScheduler} instances for testing. */
@@ -197,13 +196,12 @@ public class SchedulerTestingUtils {
     }
 
     public static void setAllExecutionsToCancelled(final DefaultScheduler scheduler) {
-        for (final ExecutionAttemptID attemptId : getAllCurrentExecutionAttempts(scheduler)) {
-            final boolean setToRunning =
-                    scheduler.updateTaskExecutionState(
-                            new TaskExecutionState(attemptId, ExecutionState.CANCELED));
-
-            assertTrue("could not switch task to RUNNING", setToRunning);
-        }
+        getAllCurrentExecutionAttempts(scheduler)
+                .forEach(
+                        (attemptId) -> {
+                            scheduler.updateTaskExecutionState(
+                                    new TaskExecutionState(attemptId, ExecutionState.CANCELED));
+                        });
     }
 
     public static void acknowledgePendingCheckpoint(

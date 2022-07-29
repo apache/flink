@@ -377,7 +377,6 @@ public abstract class AbstractStreamOperatorV2<OUT>
         return stateHandler.getKeyedStateBackend();
     }
 
-    @VisibleForTesting
     public OperatorStateBackend getOperatorStateBackend() {
         return stateHandler.getOperatorStateBackend();
     }

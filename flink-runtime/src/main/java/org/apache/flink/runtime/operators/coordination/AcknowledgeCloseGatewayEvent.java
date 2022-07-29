@@ -18,13 +18,16 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import java.util.Objects;
 
 /**
- * An {@link OperatorEvent} sent from a subtask to its {@link OperatorCoordinator} to signal that
- * the checkpoint of an individual task is completed.
+ * An {@link OperatorEvent} sent from a subtask to its {@link OperatorCoordinator} as a response to
+ * a corresponding {@link CloseGatewayEvent}. This is the last event a subtask would send to this
+ * coordinator before the subtask completes the checkpoint.
  */
-public class AcknowledgeCheckpointEvent implements OperatorEvent {
+public class AcknowledgeCloseGatewayEvent implements OperatorEvent {
 
     /** The ID of the checkpoint that this event is related to. */
     private final long checkpointId;
@@ -32,7 +35,12 @@ public class AcknowledgeCheckpointEvent implements OperatorEvent {
     /** The index of the subtask that this event is related to. */
     private final int subtaskIndex;
 
-    public AcknowledgeCheckpointEvent(long checkpointId, int subtaskIndex) {
+    public AcknowledgeCloseGatewayEvent(CloseGatewayEvent event) {
+        this(event.getCheckpointID(), event.getSubtaskIndex());
+    }
+
+    @VisibleForTesting
+    public AcknowledgeCloseGatewayEvent(long checkpointId, int subtaskIndex) {
         this.checkpointId = checkpointId;
         this.subtaskIndex = subtaskIndex;
     }
@@ -52,16 +60,16 @@ public class AcknowledgeCheckpointEvent implements OperatorEvent {
 
     @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof AcknowledgeCheckpointEvent)) {
+        if (!(obj instanceof AcknowledgeCloseGatewayEvent)) {
             return false;
         }
-        AcknowledgeCheckpointEvent event = (AcknowledgeCheckpointEvent) obj;
+        AcknowledgeCloseGatewayEvent event = (AcknowledgeCloseGatewayEvent) obj;
         return event.checkpointId == this.checkpointId && event.subtaskIndex == this.subtaskIndex;
     }
 
     @Override
     public String toString() {
-        return "AcknowledgeCheckpointEvent (checkpointId: "
+        return "AcknowledgeCloseGatewayEvent (checkpointId: "
                 + checkpointId
                 + ", subtaskIndex: "
                 + subtaskIndex

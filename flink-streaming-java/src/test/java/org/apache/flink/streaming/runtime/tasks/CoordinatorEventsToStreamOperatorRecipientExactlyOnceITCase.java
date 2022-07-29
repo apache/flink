@@ -57,12 +57,18 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Random;
 
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.EndEvent;
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.IntegerEvent;
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.StartEvent;
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.TestScript;
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.checkListContainsSequence;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration test case that validates the exactly-once mechanism for operator events sent around
- * checkpoint. This class is an extension to {@link CoordinatorEventsExactlyOnceITCase}, further
- * verifying the exactly-once semantics of events in the following conditions:
+ * Integration test case that validates the exactly-once mechanism for operator events sent from a
+ * coordinator to its subtask around checkpoint. This class is an extension to {@link
+ * CoordinatorEventsExactlyOnceITCase}, further verifying the exactly-once semantics of events in
+ * the following conditions:
  *
  * <h2>Stream operator recipient</h2>
  *
@@ -98,6 +104,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * sending operator events. Besides, it is additionally guaranteed that there must have been a
  * checkpoint completed before the failure is injected, and that there must be events sent from the
  * coordinator to its subtask during checkpoint.
+ *
+ * <p>See also {@link StreamOperatorEventsExactlyOnceITCase} for integration tests about operator
+ * events sent in the reversed direction.
  */
 public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         extends CoordinatorEventsExactlyOnceITCase {
