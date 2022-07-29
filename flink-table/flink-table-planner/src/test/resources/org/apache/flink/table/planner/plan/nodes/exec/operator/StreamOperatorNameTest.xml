@@ -24,7 +24,7 @@ LogicalSink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
+Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b], upsertMaterialize=[true])
 +- ChangelogNormalize(key=[a, b])
    +- Exchange(distribution=[hash[a, b]])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
@@ -99,7 +99,7 @@ LogicalSink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
+Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b], upsertMaterialize=[true])
 +- ChangelogNormalize(key=[a, b])
    +- Exchange(distribution=[hash[a, b]])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
