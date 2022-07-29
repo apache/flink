@@ -234,7 +234,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[a, c, rn])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[a, c, w0$o0], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.sink], fields=[a, c, w0$o0], upsertMaterialize=[true], changelogMode=[NONE])
 +- Calc(select=[a, c, w0$o0], changelogMode=[I,UB,UA,D])
    +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[b], orderBy=[c DESC], select=[a, b, c, w0$o0], changelogMode=[I,UB,UA,D])
       +- Exchange(distribution=[hash[b]], changelogMode=[I])
@@ -261,7 +261,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[a, b, c], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c], upsertMaterialize=[true], changelogMode=[NONE])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a], orderBy=[c DESC], select=[a, b, c], changelogMode=[I,UB,UA,D])
    +- Exchange(distribution=[hash[a]], changelogMode=[I])
       +- Calc(select=[a, b, c], changelogMode=[I])
@@ -286,7 +286,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[a, b, c], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c], upsertMaterialize=[true], changelogMode=[NONE])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[b], orderBy=[c DESC], select=[a, b, c], changelogMode=[I,UB,UA,D])
    +- Exchange(distribution=[hash[b]], changelogMode=[I])
       +- Calc(select=[a, b, c], changelogMode=[I])
