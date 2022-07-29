@@ -20,13 +20,13 @@ package org.apache.flink.table.planner.runtime.batch.sql
 import org.apache.flink.configuration.MemorySize
 import org.apache.flink.core.testutils.FlinkMatchers
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory
-import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{BatchAbstractTestBase, BatchTestBase}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData.smallData3
 import org.apache.flink.table.planner.utils.TableTestUtil
 
+import org.assertj.core.api.Assertions
 import org.hamcrest.MatcherAssert
 import org.junit.{Assert, Test}
 
@@ -93,5 +93,37 @@ class TableSinkITCase extends BatchTestBase {
 
     tEnv.getConfig.set(CollectSinkOperatorFactory.MAX_BATCH_SIZE, MemorySize.parse("1kb"))
     checkResult("SELECT 1", Seq(row(1)))
+  }
+
+  @Test
+  def testCreateTableAsSelect(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(smallData3)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE MyTable (
+                       |  `a` INT,
+                       |  `b` BIGINT,
+                       |  `c` STRING
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'true',
+                       |  'data-id' = '$dataId'
+                       |)
+       """.stripMargin)
+
+    val resultPath = BatchAbstractTestBase.TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    tEnv
+      .executeSql(s"""
+                     |CREATE TABLE MyCtasTable
+                     | WITH (
+                     |  'connector' = 'filesystem',
+                     |  'format' = 'testcsv',
+                     |  'path' = '$resultPath'
+                     |) AS
+                     | SELECT * FROM MyTable
+       """.stripMargin)
+      .await()
+    val expected = Seq("1,1,Hi", "2,2,Hello", "3,2,Hello world")
+    val result = TableTestUtil.readFromFile(resultPath)
+    Assertions.assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 }

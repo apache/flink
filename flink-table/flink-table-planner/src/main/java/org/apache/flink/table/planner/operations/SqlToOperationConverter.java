@@ -40,6 +40,7 @@ import org.apache.flink.sql.parser.ddl.SqlCreateCatalog;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateFunction;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
 import org.apache.flink.sql.parser.ddl.SqlCreateView;
 import org.apache.flink.sql.parser.ddl.SqlDropCatalog;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
@@ -280,6 +281,11 @@ public class SqlToOperationConverter {
         } else if (validated instanceof SqlUseDatabase) {
             return Optional.of(converter.convertUseDatabase((SqlUseDatabase) validated));
         } else if (validated instanceof SqlCreateTable) {
+            if (validated instanceof SqlCreateTableAs) {
+                return Optional.of(
+                        converter.createTableConverter.convertCreateTableAS(
+                                flinkPlanner, (SqlCreateTableAs) validated));
+            }
             return Optional.of(
                     converter.createTableConverter.convertCreateTable((SqlCreateTable) validated));
         } else if (validated instanceof SqlDropTable) {
