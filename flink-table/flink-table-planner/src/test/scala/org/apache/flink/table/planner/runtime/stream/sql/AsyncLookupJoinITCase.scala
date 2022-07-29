@@ -18,9 +18,9 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.api.{TableException, TableSchema, Types}
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.config.ExecutionConfigOptions.AsyncOutputMode
 import org.apache.flink.table.connector.source.lookup.LookupOptions
 import org.apache.flink.table.data.GenericRowData
@@ -267,6 +267,35 @@ class AsyncLookupJoinITCase(
 
   @Test
   def testAggAndAsyncLeftJoinTemporalTable(): Unit = {
+    val sql1 = "SELECT max(id) as id, PROCTIME() as proctime FROM src AS T group by len"
+
+    val table1 = tEnv.sqlQuery(sql1)
+    tEnv.registerTable("t1", table1)
+
+    val sql2 = "SELECT t1.id, D.name, D.age FROM t1 LEFT JOIN user_table " +
+      "for system_time as of t1.proctime AS D ON t1.id = D.id"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("3,Fabian,33", "8,null,null", "9,null,null")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testAggAndAsyncLeftJoinWithTryResolveMode(): Unit = {
+    // will require a sync lookup function because input has update on TRY_RESOLVE mode
+    // only legacy source can provide both sync and async functions
+    if (!legacyTableSource) {
+      thrown.expectMessage(
+        "Require a synchronous lookup function due to planner's requirement but no available functions")
+      thrown.expect(classOf[TableException])
+    }
+    tEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+      OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE)
+
     val sql1 = "SELECT max(id) as id, PROCTIME() as proctime FROM src AS T group by len"
 
     val table1 = tEnv.sqlQuery(sql1)

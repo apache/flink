@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
-import org.apache.flink.table.runtime.collector.TableFunctionCollector;
+import org.apache.flink.table.runtime.collector.ListenableCollector;
 import org.apache.flink.table.runtime.generated.GeneratedCollector;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.util.Collector;
@@ -35,18 +35,18 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
     private static final long serialVersionUID = -4521543015709964733L;
 
     private final GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedFetcher;
-    private final GeneratedCollector<TableFunctionCollector<RowData>> generatedCollector;
-    private final boolean isLeftOuterJoin;
-    private final int tableFieldsCount;
+    private final GeneratedCollector<ListenableCollector<RowData>> generatedCollector;
+    protected final boolean isLeftOuterJoin;
+    protected final int tableFieldsCount;
 
     private transient FlatMapFunction<RowData, RowData> fetcher;
-    protected transient TableFunctionCollector<RowData> collector;
+    protected transient ListenableCollector<RowData> collector;
+    protected transient JoinedRowData outRow;
     private transient GenericRowData nullRow;
-    private transient JoinedRowData outRow;
 
     public LookupJoinRunner(
             GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedFetcher,
-            GeneratedCollector<TableFunctionCollector<RowData>> generatedCollector,
+            GeneratedCollector<ListenableCollector<RowData>> generatedCollector,
             boolean isLeftOuterJoin,
             int tableFieldsCount) {
         this.generatedFetcher = generatedFetcher;
@@ -73,13 +73,26 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
 
     @Override
     public void processElement(RowData in, Context ctx, Collector<RowData> out) throws Exception {
+
+        prepareCollector(in, out);
+
+        doFetch(in);
+
+        padNullForLeftJoin(in, out);
+    }
+
+    public void prepareCollector(RowData in, Collector<RowData> out) {
         collector.setCollector(out);
         collector.setInput(in);
         collector.reset();
+    }
 
+    public void doFetch(RowData in) throws Exception {
         // fetcher has copied the input field when object reuse is enabled
         fetcher.flatMap(in, getFetcherCollector());
+    }
 
+    public void padNullForLeftJoin(RowData in, Collector<RowData> out) {
         if (isLeftOuterJoin && !collector.isCollected()) {
             outRow.replace(in, nullRow);
             outRow.setRowKind(in.getRowKind());
@@ -93,12 +106,12 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
 
     @Override
     public void close() throws Exception {
-        super.close();
         if (fetcher != null) {
             FunctionUtils.closeFunction(fetcher);
         }
         if (collector != null) {
             FunctionUtils.closeFunction(collector);
         }
+        super.close();
     }
 }

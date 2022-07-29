@@ -37,7 +37,8 @@ import org.apache.flink.table.planner.functions.inference.LookupCallContext
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.{ConstantLookupKey, FieldRefLookupKey, LookupKey}
 import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
-import org.apache.flink.table.runtime.collector.{TableFunctionCollector, TableFunctionResultFuture}
+import org.apache.flink.table.runtime.collector.{ListenableCollector, TableFunctionResultFuture}
+import org.apache.flink.table.runtime.collector.ListenableCollector.CollectListener
 import org.apache.flink.table.runtime.generated.{GeneratedCollector, GeneratedFunction, GeneratedResultFuture}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.ExtractionUtils.extractSimpleGeneric
@@ -299,7 +300,7 @@ object LookupJoinCodeGenerator {
       resultRowType: RowType,
       condition: Option[RexNode],
       pojoFieldMapping: Option[Array[Int]],
-      retainHeader: Boolean = true): GeneratedCollector[TableFunctionCollector[RowData]] = {
+      retainHeader: Boolean = true): GeneratedCollector[ListenableCollector[RowData]] = {
 
     val inputTerm = DEFAULT_INPUT1_TERM
     val rightInputTerm = DEFAULT_INPUT2_TERM
@@ -366,7 +367,7 @@ object LookupJoinCodeGenerator {
       collectedType: RowType,
       inputTerm: String = DEFAULT_INPUT1_TERM,
       collectedTerm: String = DEFAULT_INPUT2_TERM)
-      : GeneratedCollector[TableFunctionCollector[RowData]] = {
+      : GeneratedCollector[ListenableCollector[RowData]] = {
 
     val funcName = newName(name)
     val input1TypeClass = boxedTypeTermForType(inputType)
@@ -374,7 +375,7 @@ object LookupJoinCodeGenerator {
 
     val funcCode =
       s"""
-      public class $funcName extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
+      public class $funcName extends ${classOf[ListenableCollector[_]].getCanonicalName} {
 
         ${ctx.reuseMemberCode()}
 
@@ -391,6 +392,16 @@ object LookupJoinCodeGenerator {
         public void collect(Object record) throws Exception {
           $input1TypeClass $inputTerm = ($input1TypeClass) getInput();
           $input2TypeClass $collectedTerm = ($input2TypeClass) record;
+
+          // callback only when collectListener exists, equivalent to:
+          // getCollectListener().ifPresent(
+          //   listener -> ((CollectListener) listener).onCollect(record));
+          // TODO we should update code splitter's grammar file to accept lambda expressions.
+
+          if (getCollectListener().isPresent()) {
+             ((${classOf[CollectListener[_]].getCanonicalName}) getCollectListener().get()).onCollect(record);
+          }
+
           ${ctx.reuseLocalVariableCode()}
           ${ctx.reuseInputUnboxingCode()}
           ${ctx.reusePerRecordCode()}

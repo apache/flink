@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.runtime.utils.InMemoryLookupableTableSource;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -68,6 +69,16 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
                         + "  'bounded' = 'false')";
+        String sinkTable1 =
+                "CREATE TABLE Sink1 (\n"
+                        + "  a int,\n"
+                        + "  name varchar,"
+                        + "  age int"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false'\n"
+                        + ")";
+        tEnv.executeSql(sinkTable1);
         tEnv.executeSql(srcTableA);
         tEnv.executeSql(srcTableB);
     }
@@ -155,5 +166,20 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
                         anyCauseMatches(
                                 ValidationException.class,
                                 "TemporalTableSourceSpec can not be serialized."));
+    }
+
+    @Test
+    public void testAggAndLeftJoinWithTryResolveMode() {
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE);
+
+        util.verifyJsonPlan(
+                "INSERT INTO Sink1 "
+                        + "SELECT T.a, D.name, D.age "
+                        + "FROM (SELECT max(a) a, count(c) c, PROCTIME() proctime FROM MyTable GROUP BY b) T "
+                        + "LEFT JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
     }
 }

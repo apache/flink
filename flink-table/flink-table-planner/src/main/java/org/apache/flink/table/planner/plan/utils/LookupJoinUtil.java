@@ -181,11 +181,15 @@ public final class LookupJoinUtil {
             LookupTableSource.LookupRuntimeProvider provider =
                     tableSource.getLookupRuntimeProvider(providerContext);
 
-            if (requireSyncLookup && !(provider instanceof TableFunctionProvider)) {
+            // TODO this method will be refactored in FLINK-28848
+            if (requireSyncLookup
+                    && !(provider instanceof TableFunctionProvider)
+                    && !(provider instanceof LookupFunctionProvider)) {
                 throw new TableException(
                         String.format(
-                                "Require a synchronous TableFunction due to planner's requirement but no TableFunctionProvider "
-                                        + "found in TableSourceTable: %s, please check the code to ensure a proper TableFunctionProvider is specified.",
+                                "Require a synchronous lookup function due to planner's requirement but no "
+                                        + "available functions in TableSourceTable: %s, please check the code to ensure "
+                                        + "a proper LookupFunctionProvider or TableFunctionProvider is specified.",
                                 temporalTable.getQualifiedName()));
             }
             if (provider instanceof LookupFunctionProvider) {
