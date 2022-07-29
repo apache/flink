@@ -52,6 +52,8 @@
     "org.apache.flink.sql.parser.ddl.SqlCreateFunction"
     "org.apache.flink.sql.parser.ddl.SqlCreateTable"
     "org.apache.flink.sql.parser.ddl.SqlCreateTable.TableCreationContext"
+    "org.apache.flink.sql.parser.ddl.SqlCreateTableAs"
+    "org.apache.flink.sql.parser.ddl.SqlCreateTableLike"
     "org.apache.flink.sql.parser.ddl.SqlCreateView"
     "org.apache.flink.sql.parser.ddl.SqlDropCatalog"
     "org.apache.flink.sql.parser.ddl.SqlDropDatabase"
