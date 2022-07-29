@@ -20,6 +20,12 @@ package org.apache.flink.runtime.io.compression;
 
 /** Utils for {@link BlockCompressor}. */
 public class CompressorUtils {
+    /**
+     * We put two integers before each compressed block, the first integer represents the compressed
+     * length of the block, and the second one represents the original length of the block.
+     */
+    public static final int HEADER_LENGTH = 8;
+
     public static void writeIntLE(int i, byte[] buf, int offset) {
         buf[offset++] = (byte) i;
         buf[offset++] = (byte) (i >>> 8);
@@ -35,12 +41,12 @@ public class CompressorUtils {
     }
 
     public static void validateLength(int compressedLen, int originalLen)
-            throws DataCorruptionException {
+            throws BufferDecompressionException {
         if (originalLen < 0
                 || compressedLen < 0
                 || (originalLen == 0 && compressedLen != 0)
                 || (originalLen != 0 && compressedLen == 0)) {
-            throw new DataCorruptionException("Input is corrupted, invalid length.");
+            throw new BufferDecompressionException("Input is corrupted, invalid length.");
         }
     }
 }

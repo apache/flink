@@ -25,12 +25,6 @@ import io.airlift.compress.Decompressor;
  * {@link BlockCompressionFactory} to create wrapped {@link Compressor} and {@link Decompressor}.
  */
 public class AirCompressorFactory implements BlockCompressionFactory {
-    /**
-     * We put two integers before each compressed block, the first integer represents the compressed
-     * length of the block, and the second one represents the original length of the block.
-     */
-    public static final int HEADER_LENGTH = 8;
-
     private final Compressor internalCompressor;
 
     private final Decompressor internalDecompressor;
@@ -42,11 +36,11 @@ public class AirCompressorFactory implements BlockCompressionFactory {
 
     @Override
     public BlockCompressor getCompressor() {
-        return new AirCompressor(internalCompressor);
+        return new AirBlockCompressor(internalCompressor);
     }
 
     @Override
     public BlockDecompressor getDecompressor() {
-        return new AirDecompressor(internalDecompressor);
+        return new AirBlockDecompressor(internalDecompressor);
     }
 }

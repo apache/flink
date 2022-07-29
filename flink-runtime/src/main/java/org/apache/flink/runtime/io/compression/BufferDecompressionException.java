@@ -19,24 +19,24 @@
 package org.apache.flink.runtime.io.compression;
 
 /**
- * A {@code DataCorruptionException} is thrown when the decompressed data is corrupted and cannot be
- * decompressed.
+ * A {@code BufferDecompressionException} is thrown when the decompressed data cannot be
+ * decompressed, such as data corruption, insufficient target buffer space for decompression, etc.
  */
-public class DataCorruptionException extends RuntimeException {
+public class BufferDecompressionException extends RuntimeException {
 
-    public DataCorruptionException() {
+    public BufferDecompressionException() {
         super();
     }
 
-    public DataCorruptionException(String message) {
+    public BufferDecompressionException(String message) {
         super(message);
     }
 
-    public DataCorruptionException(String message, Throwable e) {
+    public BufferDecompressionException(String message, Throwable e) {
         super(message, e);
     }
 
-    public DataCorruptionException(Throwable e) {
+    public BufferDecompressionException(Throwable e) {
         super(e);
     }
 }

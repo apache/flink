@@ -19,15 +19,13 @@
 package org.apache.flink.runtime.io.compression;
 
 import net.jpountz.lz4.LZ4Compressor;
-import net.jpountz.lz4.LZ4Exception;
 import net.jpountz.lz4.LZ4Factory;
 
-import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import static org.apache.flink.runtime.io.compression.CompressorUtils.HEADER_LENGTH;
 import static org.apache.flink.runtime.io.compression.CompressorUtils.writeIntLE;
-import static org.apache.flink.runtime.io.compression.Lz4BlockCompressionFactory.HEADER_LENGTH;
 
 /**
  * Encode data into LZ4 format (not compatible with the LZ4 Frame format). It reads from and writes
@@ -50,7 +48,7 @@ public class Lz4BlockCompressor implements BlockCompressor {
 
     @Override
     public int compress(ByteBuffer src, int srcOff, int srcLen, ByteBuffer dst, int dstOff)
-            throws InsufficientBufferException {
+            throws BufferCompressionException {
         try {
             final int prevSrcOff = src.position() + srcOff;
             final int prevDstOff = dst.position() + dstOff;
@@ -74,22 +72,22 @@ public class Lz4BlockCompressor implements BlockCompressor {
             dst.position(prevDstOff + compressedLength + HEADER_LENGTH);
 
             return HEADER_LENGTH + compressedLength;
-        } catch (LZ4Exception | ArrayIndexOutOfBoundsException | BufferOverflowException e) {
-            throw new InsufficientBufferException(e);
+        } catch (Exception e) {
+            throw new BufferCompressionException(e);
         }
     }
 
     @Override
     public int compress(byte[] src, int srcOff, int srcLen, byte[] dst, int dstOff)
-            throws InsufficientBufferException {
+            throws BufferCompressionException {
         try {
             int compressedLength =
                     compressor.compress(src, srcOff, srcLen, dst, dstOff + HEADER_LENGTH);
             writeIntLE(compressedLength, dst, dstOff);
             writeIntLE(srcLen, dst, dstOff + 4);
             return HEADER_LENGTH + compressedLength;
-        } catch (LZ4Exception | BufferOverflowException | ArrayIndexOutOfBoundsException e) {
-            throw new InsufficientBufferException(e);
+        } catch (Exception e) {
+            throw new BufferCompressionException(e);
         }
     }
 }

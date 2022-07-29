@@ -36,16 +36,20 @@ public class BufferCompressor {
     /** The intermediate buffer for the compressed data. */
     private final NetworkBuffer internalBuffer;
 
+    /** The backup array of intermediate buffer. */
+    private final byte[] internalBufferArray;
+
     public BufferCompressor(int bufferSize, String factoryName) {
         checkArgument(bufferSize > 0);
         checkNotNull(factoryName);
         // the size of this intermediate heap buffer will be gotten from the
         // plugin configuration in the future, and currently, double size of
-        // the input buffer is enough for lz4-java compression library.
-        final byte[] heapBuffer = new byte[2 * bufferSize];
+        // the input buffer is enough for compression libraries we used.
+        this.internalBufferArray = new byte[2 * bufferSize];
         this.internalBuffer =
                 new NetworkBuffer(
-                        MemorySegmentFactory.wrap(heapBuffer), FreeingBufferRecycler.INSTANCE);
+                        MemorySegmentFactory.wrap(internalBufferArray),
+                        FreeingBufferRecycler.INSTANCE);
         this.blockCompressor =
                 BlockCompressionFactory.createBlockCompressionFactory(factoryName).getCompressor();
     }
@@ -86,7 +90,7 @@ public class BufferCompressor {
         // copy the compressed data back
         int memorySegmentOffset = buffer.getMemorySegmentOffset();
         MemorySegment segment = buffer.getMemorySegment();
-        segment.put(memorySegmentOffset, internalBuffer.array(), 0, compressedLen);
+        segment.put(memorySegmentOffset, internalBufferArray, 0, compressedLen);
 
         return new ReadOnlySlicedNetworkBuffer(
                 buffer.asByteBuf(), 0, compressedLen, memorySegmentOffset, true);
@@ -109,14 +113,20 @@ public class BufferCompressor {
         try {
             int compressedLen;
             int length = buffer.getSize();
-            // if buffer is in-heap, manipulate the underlying array directly.
-            if (!buffer.getMemorySegment().isOffHeap()) {
+            MemorySegment memorySegment = buffer.getMemorySegment();
+            // If buffer is in-heap, manipulate the underlying array directly. There are two main
+            // reasons why NIO buffer is not directly used here: One is that some compression
+            // libraries will use the underlying array for heap buffer, but our input buffer may be
+            // a read-only ByteBuffer, and it is illegal to access internal array. Another reason
+            // is that for the buffer in the heap directly operates the underlying array can reduce
+            // additional overhead compared to generating NIO buffer.
+            if (!memorySegment.isOffHeap()) {
                 compressedLen =
                         blockCompressor.compress(
-                                buffer.getMemorySegment().getArray(),
+                                memorySegment.getArray(),
                                 buffer.getMemorySegmentOffset(),
                                 length,
-                                internalBuffer.getNioBuffer(0, internalBuffer.capacity()).array(),
+                                internalBufferArray,
                                 0);
             } else {
                 // compress the given buffer into the internal heap buffer

@@ -200,7 +200,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
      * Verifies that {@link BufferResponse} of compressed {@link Buffer} can be handled correctly.
      */
     @ParameterizedTest
-    @ValueSource(strings = {"LZ4", "LZ4_JAVA", "LZO", "SNAPPY", "Z_STD"})
+    @ValueSource(strings = {"LZ4", "LZO", "Z_STD"})
     void testReceiveCompressedBuffer(final String compressionCodec) throws Exception {
         int bufferSize = 1024;
         BufferCompressor compressor = new BufferCompressor(bufferSize, compressionCodec);

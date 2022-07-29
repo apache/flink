@@ -144,7 +144,7 @@ class NettyMessageClientSideSerializationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"LZ4", "LZ4_JAVA", "LZO", "SNAPPY", "Z_STD"})
+    @ValueSource(strings = {"LZ4", "LZO", "Z_STD"})
     void testCompressedBufferResponse(final String codecFactoryName) {
         compressor = new BufferCompressor(BUFFER_SIZE, codecFactoryName);
         decompressor = new BufferDecompressor(BUFFER_SIZE, codecFactoryName);

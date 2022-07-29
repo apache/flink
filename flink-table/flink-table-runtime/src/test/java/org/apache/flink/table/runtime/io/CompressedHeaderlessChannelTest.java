@@ -18,22 +18,12 @@
 
 package org.apache.flink.table.runtime.io;
 
-import org.apache.flink.runtime.io.compression.AirCompressorFactory;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
-import org.apache.flink.runtime.io.compression.Lz4BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 
-import io.airlift.compress.lz4.Lz4Compressor;
-import io.airlift.compress.lz4.Lz4Decompressor;
-import io.airlift.compress.lzo.LzoCompressor;
-import io.airlift.compress.lzo.LzoDecompressor;
-import io.airlift.compress.snappy.SnappyCompressor;
-import io.airlift.compress.snappy.SnappyDecompressor;
-import io.airlift.compress.zstd.ZstdCompressor;
-import io.airlift.compress.zstd.ZstdDecompressor;
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -59,11 +49,9 @@ public class CompressedHeaderlessChannelTest {
     @Parameterized.Parameters(name = "compressionFactory = {0}")
     public static BlockCompressionFactory[] compressionFactory() {
         return new BlockCompressionFactory[] {
-            new Lz4BlockCompressionFactory(),
-            new AirCompressorFactory(new Lz4Compressor(), new Lz4Decompressor()),
-            new AirCompressorFactory(new LzoCompressor(), new LzoDecompressor()),
-            new AirCompressorFactory(new SnappyCompressor(), new SnappyDecompressor()),
-            new AirCompressorFactory(new ZstdCompressor(), new ZstdDecompressor())
+            BlockCompressionFactory.createBlockCompressionFactory("LZ4"),
+            BlockCompressionFactory.createBlockCompressionFactory("LZO"),
+            BlockCompressionFactory.createBlockCompressionFactory("Z_STD")
         };
     }
 

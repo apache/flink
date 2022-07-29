@@ -18,21 +18,13 @@
 
 package org.apache.flink.runtime.io.compression;
 
-import io.airlift.compress.lz4.Lz4Compressor;
-import io.airlift.compress.lz4.Lz4Decompressor;
-import io.airlift.compress.lzo.LzoCompressor;
-import io.airlift.compress.lzo.LzoDecompressor;
-import io.airlift.compress.snappy.SnappyCompressor;
-import io.airlift.compress.snappy.SnappyDecompressor;
-import io.airlift.compress.zstd.ZstdCompressor;
-import io.airlift.compress.zstd.ZstdDecompressor;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.ByteBuffer;
 import java.util.stream.Stream;
 
-import static org.apache.flink.runtime.io.compression.Lz4BlockCompressionFactory.HEADER_LENGTH;
+import static org.apache.flink.runtime.io.compression.CompressorUtils.HEADER_LENGTH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -40,11 +32,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class BlockCompressionTest {
     private static Stream<BlockCompressionFactory> compressCodecGenerator() {
         return Stream.of(
-                new Lz4BlockCompressionFactory(),
-                new AirCompressorFactory(new Lz4Compressor(), new Lz4Decompressor()),
-                new AirCompressorFactory(new LzoCompressor(), new LzoDecompressor()),
-                new AirCompressorFactory(new SnappyCompressor(), new SnappyDecompressor()),
-                new AirCompressorFactory(new ZstdCompressor(), new ZstdDecompressor()));
+                BlockCompressionFactory.createBlockCompressionFactory("LZ4"),
+                BlockCompressionFactory.createBlockCompressionFactory("LZO"),
+                BlockCompressionFactory.createBlockCompressionFactory("Z_STD"));
     }
 
     @ParameterizedTest
@@ -81,7 +71,7 @@ class BlockCompressionTest {
                                         originalLen,
                                         insufficientCompressArray,
                                         compressedOff))
-                .isInstanceOf(InsufficientBufferException.class);
+                .isInstanceOf(BufferCompressionException.class);
 
         // 2. test normal compress
         byte[] compressedData =
@@ -101,7 +91,7 @@ class BlockCompressionTest {
                                         compressedLen,
                                         insufficientDecompressArray,
                                         decompressedOff))
-                .isInstanceOf(InsufficientBufferException.class);
+                .isInstanceOf(BufferDecompressionException.class);
 
         // 4. test normal decompress
         byte[] decompressedData = new byte[decompressedOff + originalLen];

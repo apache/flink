@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 
@@ -88,12 +89,21 @@ public class NettyShuffleEnvironmentOptions {
                                     + "ratio is high.");
 
     /** The codec to be used when compressing shuffle data. */
-    @Documentation.ExcludeFromDocumentation("Currently, LZ4 is the only legal option.")
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    @Experimental
     public static final ConfigOption<String> SHUFFLE_COMPRESSION_CODEC =
             key("taskmanager.network.compression.codec")
                     .stringType()
-                    .defaultValue("Z_STD")
-                    .withDescription("The codec to be used when compressing shuffle data.");
+                    .defaultValue("LZ4")
+                    .withDescription(
+                            "The codec to be used when compressing shuffle data, only \"LZ4\", \"LZO\" "
+                                    + "and \"Z_STD\" are supported now. Through tpc-ds test of these "
+                                    + "three algorithms, the results show that \"LZ4\" algorithm has "
+                                    + "the highest compression and decompression speed, but the "
+                                    + "compression rate is the lowest. \"Z_STD\"has the highest "
+                                    + "compression rate, but the compression and decompression "
+                                    + "speed is the slowest, and LZO is between the two. Also note "
+                                    + "that this option is experimental and might be changed future.");
 
     /**
      * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue

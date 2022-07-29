@@ -20,29 +20,28 @@ package org.apache.flink.runtime.io.compression;
 
 import io.airlift.compress.Compressor;
 
-import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import static org.apache.flink.runtime.io.compression.CompressorUtils.HEADER_LENGTH;
 import static org.apache.flink.runtime.io.compression.CompressorUtils.writeIntLE;
-import static org.apache.flink.runtime.io.compression.Lz4BlockCompressionFactory.HEADER_LENGTH;
 
-/** Flink compressor that wrap {@link Compressor}. */
-public class AirCompressor implements BlockCompressor {
-    Compressor internalCompressor;
+/** Flink compressor that wraps {@link Compressor}. */
+public class AirBlockCompressor implements BlockCompressor {
+    private final Compressor internalCompressor;
 
-    public AirCompressor(Compressor internalCompressor) {
+    public AirBlockCompressor(Compressor internalCompressor) {
         this.internalCompressor = internalCompressor;
     }
 
     @Override
     public int getMaxCompressedSize(int srcSize) {
-        return AirCompressorFactory.HEADER_LENGTH + internalCompressor.maxCompressedLength(srcSize);
+        return HEADER_LENGTH + internalCompressor.maxCompressedLength(srcSize);
     }
 
     @Override
     public int compress(ByteBuffer src, int srcOff, int srcLen, ByteBuffer dst, int dstOff)
-            throws InsufficientBufferException {
+            throws BufferCompressionException {
         try {
             final int prevSrcOff = src.position() + srcOff;
             final int prevDstOff = dst.position() + dstOff;
@@ -61,24 +60,16 @@ public class AirCompressor implements BlockCompressor {
             dst.position(prevDstOff + compressedLength + HEADER_LENGTH);
 
             return HEADER_LENGTH + compressedLength;
-        } catch (IllegalArgumentException
-                | ArrayIndexOutOfBoundsException
-                | BufferOverflowException e) {
-            if (e instanceof IllegalArgumentException
-                    && !isInsufficientBuffer((IllegalArgumentException) e)) {
-                throw e;
-            }
-            throw new InsufficientBufferException(e);
+        } catch (Exception e) {
+            throw new BufferCompressionException(e);
         }
     }
 
     @Override
     public int compress(byte[] src, int srcOff, int srcLen, byte[] dst, int dstOff)
-            throws InsufficientBufferException {
+            throws BufferCompressionException {
         try {
-            int maxCompressedLength = internalCompressor.maxCompressedLength(srcLen);
-
-            if (dst.length < dstOff + maxCompressedLength - 1) {
+            if (dst.length < dstOff + getMaxCompressedSize(srcLen) - 1) {
                 throw new ArrayIndexOutOfBoundsException();
             }
 
@@ -93,25 +84,8 @@ public class AirCompressor implements BlockCompressor {
             writeIntLE(compressedLength, dst, dstOff);
             writeIntLE(srcLen, dst, dstOff + 4);
             return HEADER_LENGTH + compressedLength;
-        } catch (IllegalArgumentException
-                | BufferOverflowException
-                | ArrayIndexOutOfBoundsException e) {
-            if (e instanceof IllegalArgumentException
-                    && !isInsufficientBuffer((IllegalArgumentException) e)) {
-                throw e;
-            }
-            throw new InsufficientBufferException(e);
+        } catch (Exception e) {
+            throw new BufferCompressionException(e);
         }
-    }
-
-    public static boolean isInsufficientBuffer(IllegalArgumentException e) {
-        String message = e.getMessage();
-        String zStdMessage = "Output buffer too small";
-        String snappyMessage = "Output buffer must be at least";
-        String lzMessage = "Max output length must be larger than";
-
-        return message.contains(zStdMessage)
-                || message.contains(snappyMessage)
-                || message.contains(lzMessage);
     }
 }

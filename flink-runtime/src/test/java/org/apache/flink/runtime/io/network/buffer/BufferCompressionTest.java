@@ -68,12 +68,6 @@ public class BufferCompressionTest {
                     {false, "LZ4", true, false},
                     {false, "LZ4", false, true},
                     {false, "LZ4", false, false},
-                    {true, "LZ4_JAVA", true, false},
-                    {true, "LZ4_JAVA", false, true},
-                    {true, "LZ4_JAVA", false, false},
-                    {false, "LZ4_JAVA", true, false},
-                    {false, "LZ4_JAVA", false, true},
-                    {false, "LZ4_JAVA", false, false},
                     {true, "Z_STD", true, false},
                     {true, "Z_STD", false, true},
                     {true, "Z_STD", false, false},
@@ -85,13 +79,7 @@ public class BufferCompressionTest {
                     {true, "LZO", false, false},
                     {false, "LZO", true, false},
                     {false, "LZO", false, true},
-                    {false, "LZO", false, false},
-                    {true, "SNAPPY", true, false},
-                    {true, "SNAPPY", false, true},
-                    {true, "SNAPPY", false, false},
-                    {false, "SNAPPY", true, false},
-                    {false, "SNAPPY", false, true},
-                    {false, "SNAPPY", false, false}
+                    {false, "LZO", false, false}
                 });
     }
 
