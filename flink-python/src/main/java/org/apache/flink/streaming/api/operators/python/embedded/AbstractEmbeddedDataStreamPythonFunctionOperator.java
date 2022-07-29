@@ -29,8 +29,6 @@ import org.apache.flink.util.Preconditions;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.python.Constants.STATEFUL_FUNCTION_URN;
-import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /** Base class for all Python DataStream operators executed in embedded Python environment. */
@@ -49,23 +47,14 @@ public abstract class AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
     /** The TypeInformation of output data. */
     protected final TypeInformation<OUT> outputTypeInfo;
 
-    /** The function urn. */
-    final String functionUrn;
-
     /** The number of partitions for the partition custom function. */
     private Integer numPartitions;
 
     public AbstractEmbeddedDataStreamPythonFunctionOperator(
-            String functionUrn,
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
             TypeInformation<OUT> outputTypeInfo) {
         super(config);
-        Preconditions.checkArgument(
-                STATELESS_FUNCTION_URN.equals(functionUrn)
-                        || STATEFUL_FUNCTION_URN.equals(functionUrn),
-                "The function urn should be `STATELESS_FUNCTION_URN` or `STATEFUL_FUNCTION_URN`.");
-        this.functionUrn = functionUrn;
         this.pythonFunctionInfo = Preconditions.checkNotNull(pythonFunctionInfo);
         this.outputTypeInfo = Preconditions.checkNotNull(outputTypeInfo);
     }

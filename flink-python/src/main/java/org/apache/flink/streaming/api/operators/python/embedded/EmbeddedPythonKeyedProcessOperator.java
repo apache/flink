@@ -33,13 +33,13 @@ import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionI
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.types.Row;
 
 import pemja.core.object.PyIterator;
 
 import java.util.List;
 
-import static org.apache.flink.python.Constants.STATEFUL_FUNCTION_URN;
 import static org.apache.flink.python.PythonOptions.MAP_STATE_READ_CACHE_SIZE;
 import static org.apache.flink.python.PythonOptions.MAP_STATE_WRITE_CACHE_SIZE;
 import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
@@ -60,23 +60,27 @@ public class EmbeddedPythonKeyedProcessOperator<K, IN, OUT>
     private static final long serialVersionUID = 1L;
 
     /** The TypeInformation of the key. */
-    private transient TypeInformation<Row> keyTypeInfo;
+    private transient TypeInformation<K> keyTypeInfo;
 
     private transient ContextImpl context;
 
     private transient OnTimerContextImpl onTimerContext;
+
+    private transient PythonTypeUtils.DataConverter<K, Object> keyConverter;
 
     public EmbeddedPythonKeyedProcessOperator(
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
             TypeInformation<IN> inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo) {
-        super(STATEFUL_FUNCTION_URN, config, pythonFunctionInfo, inputTypeInfo, outputTypeInfo);
+        super(config, pythonFunctionInfo, inputTypeInfo, outputTypeInfo);
     }
 
     @Override
     public void open() throws Exception {
         keyTypeInfo = ((RowTypeInfo) this.getInputTypeInfo()).getTypeAt(0);
+
+        keyConverter = PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(keyTypeInfo);
 
         InternalTimerService<VoidNamespace> internalTimerService =
                 getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
@@ -170,8 +174,11 @@ public class EmbeddedPythonKeyedProcessOperator<K, IN, OUT>
         }
 
         @SuppressWarnings("unchecked")
-        public K getCurrentKey() {
-            return (K) ((Row) EmbeddedPythonKeyedProcessOperator.this.getCurrentKey()).getField(0);
+        public Object getCurrentKey() {
+            return keyConverter.toExternal(
+                    (K)
+                            ((Row) EmbeddedPythonKeyedProcessOperator.this.getCurrentKey())
+                                    .getField(0));
         }
     }
 
@@ -200,8 +207,8 @@ public class EmbeddedPythonKeyedProcessOperator<K, IN, OUT>
         }
 
         @SuppressWarnings("unchecked")
-        public K getCurrentKey() {
-            return (K) ((Row) timer.getKey()).getField(0);
+        public Object getCurrentKey() {
+            return keyConverter.toExternal((K) ((Row) timer.getKey()).getField(0));
         }
     }
 }

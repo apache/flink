@@ -22,45 +22,41 @@ from pyflink.fn_execution.datastream.embedded.process_function import (
     InternalProcessFunctionContext, InternalKeyedProcessFunctionContext,
     InternalKeyedProcessFunctionOnTimerContext)
 from pyflink.fn_execution.datastream.embedded.runtime_context import StreamingRuntimeContext
-from pyflink.fn_execution.datastream.operations import DATA_STREAM_STATELESS_FUNCTION_URN
 
 
 class OneInputOperation(operations.OneInputOperation):
-    def __init__(self,
-                 function_urn,
-                 serialized_fn,
-                 runtime_context,
-                 function_context,
-                 timer_context,
-                 job_parameters):
-        (self.open_func,
-         self.close_func,
-         self.process_element_func,
-         self.on_timer_func
-         ) = extract_one_input_process_function(
-            function_urn=function_urn,
-            user_defined_function_proto=serialized_fn,
-            runtime_context=StreamingRuntimeContext.of(runtime_context, job_parameters),
-            function_context=function_context,
-            timer_context=timer_context)
+    def __init__(self, open_func, close_func, process_element_func, on_timer_func=None):
+        self._open_func = open_func
+        self._close_func = close_func
+        self._process_element_func = process_element_func
+        self._on_timer_func = on_timer_func
 
     def open(self) -> None:
-        self.open_func()
+        self._open_func()
 
     def close(self) -> None:
-        self.close_func()
+        self._close_func()
 
     def process_element(self, value):
-        return self.process_element_func(value)
+        return self._process_element_func(value)
 
     def on_timer(self, timestamp):
-        return self.on_timer_func(timestamp)
+        if self._on_timer_func:
+            return self._on_timer_func(timestamp)
 
 
-def extract_one_input_process_function(
-        function_urn, user_defined_function_proto, runtime_context, function_context,
-        timer_context):
+def extract_process_function(
+        user_defined_function_proto, runtime_context, function_context, timer_context,
+        job_parameters):
+    from pyflink.fn_execution import flink_fn_execution_pb2
+
     user_defined_func = pickle.loads(user_defined_function_proto.payload)
+
+    func_type = user_defined_function_proto.function_type
+
+    UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
+
+    runtime_context = StreamingRuntimeContext.of(runtime_context, job_parameters)
 
     def open_func():
         if hasattr(user_defined_func, "open"):
@@ -70,18 +66,23 @@ def extract_one_input_process_function(
         if hasattr(user_defined_func, "close"):
             user_defined_func.close()
 
-    if function_urn == DATA_STREAM_STATELESS_FUNCTION_URN:
+    if func_type == UserDefinedDataStreamFunction.PROCESS:
         function_context = InternalProcessFunctionContext(function_context)
 
         process_element = user_defined_func.process_element
 
-        def on_timer_func(timestamp):
-            raise Exception("This method should not be called.")
-    else:
+        def process_element_func(value):
+            yield from process_element(value, function_context)
 
-        function_context = InternalKeyedProcessFunctionContext(function_context)
+        return OneInputOperation(open_func, close_func, process_element_func)
 
-        timer_context = InternalKeyedProcessFunctionOnTimerContext(timer_context)
+    elif func_type == UserDefinedDataStreamFunction.KEYED_PROCESS:
+
+        function_context = InternalKeyedProcessFunctionContext(
+            function_context, user_defined_function_proto.key_type_info)
+
+        timer_context = InternalKeyedProcessFunctionOnTimerContext(
+            timer_context, user_defined_function_proto.key_type_info)
 
         on_timer = user_defined_func.on_timer
 
@@ -91,7 +92,9 @@ def extract_one_input_process_function(
         def on_timer_func(timestamp):
             yield from on_timer(timestamp, timer_context)
 
-    def process_element_func(value):
-        yield from process_element(value, function_context)
+        def process_element_func(value):
+            yield from process_element(value, function_context)
 
-    return open_func, close_func, process_element_func, on_timer_func
+        return OneInputOperation(open_func, close_func, process_element_func, on_timer_func)
+    else:
+        raise Exception("Unknown function type {0}.".format(func_type))

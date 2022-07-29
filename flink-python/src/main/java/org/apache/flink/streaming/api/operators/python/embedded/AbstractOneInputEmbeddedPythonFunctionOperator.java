@@ -60,12 +60,11 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
     protected transient long timestamp;
 
     public AbstractOneInputEmbeddedPythonFunctionOperator(
-            String functionUrn,
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
             TypeInformation<IN> inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo) {
-        super(functionUrn, config, pythonFunctionInfo, outputTypeInfo);
+        super(config, pythonFunctionInfo, outputTypeInfo);
         this.inputTypeInfo = Preconditions.checkNotNull(inputTypeInfo);
     }
 
@@ -84,7 +83,6 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
 
     @Override
     public void openPythonInterpreter() {
-        // function_urn = ...
         // function_protos = ...
         // input_coder_info = ...
         // output_coder_info = ...
@@ -95,12 +93,10 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
         // from pyflink.fn_execution.embedded.operation_utils import
         // create_one_input_user_defined_data_stream_function_from_protos
         //
-        // operation = create_one_input_user_defined_data_stream_function_from_protos(function_urn,
+        // operation = create_one_input_user_defined_data_stream_function_from_protos(
         //     function_protos, input_coder_info, output_coder_info, runtime_context,
         //     function_context, job_parameters)
         // operation.open()
-
-        interpreter.set("function_urn", functionUrn);
 
         interpreter.set(
                 "function_protos",
@@ -135,7 +131,6 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
 
         interpreter.exec(
                 "operation = create_one_input_user_defined_data_stream_function_from_protos("
-                        + "function_urn,"
                         + "function_protos,"
                         + "input_coder_info,"
                         + "output_coder_info,"

@@ -336,62 +336,6 @@ class DataStreamTests(object):
 
 
 class DataStreamStreamingTests(DataStreamTests):
-    def test_timestamp_assigner_and_watermark_strategy(self):
-        self.env.set_parallelism(1)
-        self.env.get_config().set_auto_watermark_interval(2000)
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
-        data_stream = self.env.from_collection([(1, '1603708211000'),
-                                                (2, '1603708224000'),
-                                                (3, '1603708226000'),
-                                                (4, '1603708289000')],
-                                               type_info=Types.ROW([Types.INT(), Types.STRING()]))
-
-        class MyTimestampAssigner(TimestampAssigner):
-
-            def extract_timestamp(self, value, record_timestamp) -> int:
-                return int(value[1])
-
-        class MyProcessFunction(KeyedProcessFunction):
-
-            def __init__(self):
-                self.timer_registered = False
-
-            def open(self, runtime_context: RuntimeContext):
-                self.timer_registered = False
-
-            def process_element(self, value, ctx):
-                if not self.timer_registered:
-                    ctx.timer_service().register_event_time_timer(3)
-                    self.timer_registered = True
-                current_timestamp = ctx.timestamp()
-                current_watermark = ctx.timer_service().current_watermark()
-                current_key = ctx.get_current_key()
-                yield "current key: {}, current timestamp: {}, current watermark: {}, " \
-                      "current_value: {}".format(str(current_key), str(current_timestamp),
-                                                 str(current_watermark), str(value))
-
-            def on_timer(self, timestamp, ctx):
-                yield "on timer: " + str(timestamp)
-
-        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
-            .with_timestamp_assigner(MyTimestampAssigner())
-        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
-            .key_by(lambda x: x[0], key_type=Types.INT()) \
-            .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
-        self.env.execute('test time stamp assigner with keyed process function')
-        results = self.test_sink.get_results()
-        # Because the watermark interval is too long, no watermark was sent before processing these
-        # data. So all current watermarks are Long.MIN_VALUE.
-        expected = ["current key: 1, current timestamp: 1603708211000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
-                    "current key: 2, current timestamp: 1603708224000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
-                    "current key: 3, current timestamp: 1603708226000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
-                    "current key: 4, current timestamp: 1603708289000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')",
-                    "on timer: 3"]
-        self.assert_equals_sorted(expected, results)
 
     def test_reduce_with_state(self):
         ds = self.env.from_collection([('a', 0), ('c', 1), ('d', 1), ('b', 0), ('e', 1)],
@@ -409,50 +353,6 @@ class DataStreamStreamingTests(DataStreamTests):
 
 
 class DataStreamBatchTests(DataStreamTests):
-    def test_timestamp_assigner_and_watermark_strategy(self):
-        self.env.set_parallelism(1)
-        self.env.get_config().set_auto_watermark_interval(2000)
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
-        data_stream = self.env.from_collection([(1, '1603708211000'),
-                                                (2, '1603708224000'),
-                                                (3, '1603708226000'),
-                                                (4, '1603708289000')],
-                                               type_info=Types.ROW([Types.INT(), Types.STRING()]))
-
-        class MyTimestampAssigner(TimestampAssigner):
-
-            def extract_timestamp(self, value, record_timestamp) -> int:
-                return int(value[1])
-
-        class MyProcessFunction(KeyedProcessFunction):
-
-            def process_element(self, value, ctx):
-                current_timestamp = ctx.timestamp()
-                current_watermark = ctx.timer_service().current_watermark()
-                current_key = ctx.get_current_key()
-                yield "current key: {}, current timestamp: {}, current watermark: {}, " \
-                      "current_value: {}".format(str(current_key), str(current_timestamp),
-                                                 str(current_watermark), str(value))
-
-            def on_timer(self, timestamp, ctx):
-                pass
-
-        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
-            .with_timestamp_assigner(MyTimestampAssigner())
-        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
-            .key_by(lambda x: x[0], key_type=Types.INT()) \
-            .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
-        self.env.execute('test time stamp assigner with keyed process function')
-        results = self.test_sink.get_results()
-        expected = ["current key: 1, current timestamp: 1603708211000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
-                    "current key: 2, current timestamp: 1603708224000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
-                    "current key: 3, current timestamp: 1603708226000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
-                    "current key: 4, current timestamp: 1603708289000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')"]
-        self.assert_equals_sorted(expected, results)
 
     def test_reduce_with_state(self):
         ds = self.env.from_collection([('a', 0), ('c', 1), ('d', 1), ('b', 0), ('e', 1)],

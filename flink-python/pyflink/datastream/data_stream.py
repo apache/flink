@@ -1213,7 +1213,6 @@ class KeyedStream(DataStream):
                     self._reduce_function = reduce_function
                 self._reduce_state = None  # type: ReducingState
                 self._in_batch_execution_mode = True
-                self._has_started_key_set = set()
 
             def open(self, runtime_context: RuntimeContext):
                 if self._open_func:
@@ -1239,15 +1238,16 @@ class KeyedStream(DataStream):
                     self._close_func()
 
             def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
-                self._reduce_state.add(value)
                 if self._in_batch_execution_mode:
-                    key = ctx.get_current_key()
-                    if isinstance(key, list):
-                        key = tuple(key)
-                    if key not in self._has_started_key_set:
+                    reduce_value = self._reduce_state.get()
+                    if reduce_value is None:
+                        # register a timer for emitting the result at the end when this is the
+                        # first input for this key
                         ctx.timer_service().register_event_time_timer(0x7fffffffffffffff)
-                        self._has_started_key_set.add(key)
+                    self._reduce_state.add(value)
                 else:
+                    self._reduce_state.add(value)
+                    # only emitting the result when all the data for a key is received
                     yield self._reduce_state.get()
 
             def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext'):
