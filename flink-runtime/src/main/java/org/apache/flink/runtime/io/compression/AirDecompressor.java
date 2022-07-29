@@ -18,9 +18,8 @@
 
 package org.apache.flink.runtime.io.compression;
 
-import net.jpountz.lz4.LZ4Exception;
-import net.jpountz.lz4.LZ4Factory;
-import net.jpountz.lz4.LZ4FastDecompressor;
+import io.airlift.compress.Decompressor;
+import io.airlift.compress.MalformedInputException;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -29,29 +28,25 @@ import static org.apache.flink.runtime.io.compression.CompressorUtils.readIntLE;
 import static org.apache.flink.runtime.io.compression.CompressorUtils.validateLength;
 import static org.apache.flink.runtime.io.compression.Lz4BlockCompressionFactory.HEADER_LENGTH;
 
-/**
- * Decode data written with {@link Lz4BlockCompressor}. It reads from and writes to byte arrays
- * provided from the outside, thus reducing copy time.
- *
- * <p>This class is copied and modified from {@link net.jpountz.lz4.LZ4BlockInputStream}.
- */
-public class Lz4BlockDecompressor implements BlockDecompressor {
+/** Flink decompressor that wrap {@link io.airlift.compress.Decompressor}. */
+public class AirDecompressor implements BlockDecompressor {
+    Decompressor internalDecompressor;
 
-    private final LZ4FastDecompressor decompressor;
-
-    public Lz4BlockDecompressor() {
-        this.decompressor = LZ4Factory.fastestInstance().fastDecompressor();
+    public AirDecompressor(Decompressor internalDecompressor) {
+        this.internalDecompressor = internalDecompressor;
     }
 
     @Override
     public int decompress(ByteBuffer src, int srcOff, int srcLen, ByteBuffer dst, int dstOff)
-            throws DataCorruptionException {
+            throws DataCorruptionException, InsufficientBufferException {
         final int prevSrcOff = src.position() + srcOff;
         final int prevDstOff = dst.position() + dstOff;
 
+        src.position(prevSrcOff);
+        dst.position(prevDstOff);
         src.order(ByteOrder.LITTLE_ENDIAN);
-        final int compressedLen = src.getInt(prevSrcOff);
-        final int originalLen = src.getInt(prevSrcOff + 4);
+        final int compressedLen = src.getInt();
+        final int originalLen = src.getInt();
         validateLength(compressedLen, originalLen);
 
         if (dst.capacity() - prevDstOff < originalLen) {
@@ -61,18 +56,15 @@ public class Lz4BlockDecompressor implements BlockDecompressor {
         if (src.limit() - prevSrcOff - HEADER_LENGTH < compressedLen) {
             throw new DataCorruptionException("Source data is not integral for decompression.");
         }
-
+        src.limit(prevSrcOff + compressedLen + HEADER_LENGTH);
         try {
-            final int compressedLen2 =
-                    decompressor.decompress(
-                            src, prevSrcOff + HEADER_LENGTH, dst, prevDstOff, originalLen);
-            if (compressedLen != compressedLen2) {
+            internalDecompressor.decompress(src, dst);
+            int originalLen2 = dst.position() - prevDstOff;
+            if (originalLen != originalLen2) {
                 throw new DataCorruptionException(
-                        "Input is corrupted, unexpected compressed length.");
+                        "Input is corrupted, unexpected original length.");
             }
-            src.position(prevSrcOff + compressedLen + HEADER_LENGTH);
-            dst.position(prevDstOff + originalLen);
-        } catch (LZ4Exception e) {
+        } catch (MalformedInputException e) {
             throw new DataCorruptionException("Input is corrupted", e);
         }
 
@@ -81,9 +73,9 @@ public class Lz4BlockDecompressor implements BlockDecompressor {
 
     @Override
     public int decompress(byte[] src, int srcOff, int srcLen, byte[] dst, int dstOff)
-            throws InsufficientBufferException, DataCorruptionException {
-        final int compressedLen = readIntLE(src, srcOff);
-        final int originalLen = readIntLE(src, srcOff + 4);
+            throws DataCorruptionException, InsufficientBufferException {
+        int compressedLen = readIntLE(src, srcOff);
+        int originalLen = readIntLE(src, srcOff + 4);
         validateLength(compressedLen, originalLen);
 
         if (dst.length - dstOff < originalLen) {
@@ -95,12 +87,13 @@ public class Lz4BlockDecompressor implements BlockDecompressor {
         }
 
         try {
-            final int compressedLen2 =
-                    decompressor.decompress(src, srcOff + HEADER_LENGTH, dst, dstOff, originalLen);
-            if (compressedLen != compressedLen2) {
+            final int originalLen2 =
+                    internalDecompressor.decompress(
+                            src, srcOff + HEADER_LENGTH, compressedLen, dst, dstOff, originalLen);
+            if (originalLen != originalLen2) {
                 throw new DataCorruptionException("Input is corrupted");
             }
-        } catch (LZ4Exception e) {
+        } catch (MalformedInputException e) {
             throw new DataCorruptionException("Input is corrupted", e);
         }
 

@@ -58,6 +58,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.unix.Errors;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 
@@ -197,10 +199,10 @@ class CreditBasedPartitionRequestClientHandlerTest {
     /**
      * Verifies that {@link BufferResponse} of compressed {@link Buffer} can be handled correctly.
      */
-    @Test
-    void testReceiveCompressedBuffer() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"LZ4", "LZ4_JAVA", "LZO", "SNAPPY", "Z_STD"})
+    void testReceiveCompressedBuffer(final String compressionCodec) throws Exception {
         int bufferSize = 1024;
-        String compressionCodec = "LZ4";
         BufferCompressor compressor = new BufferCompressor(bufferSize, compressionCodec);
         BufferDecompressor decompressor = new BufferDecompressor(bufferSize, compressionCodec);
         NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize);

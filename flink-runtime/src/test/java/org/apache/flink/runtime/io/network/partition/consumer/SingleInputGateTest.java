@@ -73,6 +73,8 @@ import org.apache.flink.util.CompressedSerializedValue;
 import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -326,10 +328,10 @@ public class SingleInputGateTest extends InputGateTestBase {
      * Tests that the compressed buffer will be decompressed after calling {@link
      * SingleInputGate#getNext()}.
      */
-    @Test
-    void testGetCompressedBuffer() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"LZ4", "LZ4_JAVA", "LZO", "SNAPPY", "Z_STD"})
+    void testGetCompressedBuffer(final String compressionCodec) throws Exception {
         int bufferSize = 1024;
-        String compressionCodec = "LZ4";
         BufferCompressor compressor = new BufferCompressor(bufferSize, compressionCodec);
         BufferDecompressor decompressor = new BufferDecompressor(bufferSize, compressionCodec);
 

@@ -92,7 +92,7 @@ public class NettyShuffleEnvironmentOptions {
     public static final ConfigOption<String> SHUFFLE_COMPRESSION_CODEC =
             key("taskmanager.network.compression.codec")
                     .stringType()
-                    .defaultValue("LZ4")
+                    .defaultValue("Z_STD")
                     .withDescription("The codec to be used when compressing shuffle data.");
 
     /**

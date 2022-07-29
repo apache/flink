@@ -12,6 +12,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - commons-cli:commons-cli:1.5.0
 - commons-collections:commons-collections:3.2.2
 - commons-io:commons-io:2.11.0
+- io.airlift:aircompressor:0.21
 - org.apache.commons:commons-compress:1.21
 - org.apache.commons:commons-lang3:3.3.2
 - org.apache.commons:commons-math3:3.6.1

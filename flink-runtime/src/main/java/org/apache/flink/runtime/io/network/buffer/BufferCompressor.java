@@ -107,15 +107,28 @@ public class BufferCompressor {
                 "Illegal reference count, buffer need to be released.");
 
         try {
+            int compressedLen;
             int length = buffer.getSize();
-            // compress the given buffer into the internal heap buffer
-            int compressedLen =
-                    blockCompressor.compress(
-                            buffer.getNioBuffer(0, length),
-                            0,
-                            length,
-                            internalBuffer.getNioBuffer(0, internalBuffer.capacity()),
-                            0);
+            // if buffer is in-heap, manipulate the underlying array directly.
+            if (!buffer.getMemorySegment().isOffHeap()) {
+                compressedLen =
+                        blockCompressor.compress(
+                                buffer.getMemorySegment().getArray(),
+                                buffer.getMemorySegmentOffset(),
+                                length,
+                                internalBuffer.getNioBuffer(0, internalBuffer.capacity()).array(),
+                                0);
+            } else {
+                // compress the given buffer into the internal heap buffer
+                compressedLen =
+                        blockCompressor.compress(
+                                buffer.getNioBuffer(0, length),
+                                0,
+                                length,
+                                internalBuffer.getNioBuffer(0, internalBuffer.capacity()),
+                                0);
+            }
+
             return compressedLen < length ? compressedLen : 0;
         } catch (Throwable throwable) {
             // return the original buffer if failed to compress

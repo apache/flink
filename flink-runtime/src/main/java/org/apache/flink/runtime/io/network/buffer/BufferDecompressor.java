@@ -103,12 +103,22 @@ public class BufferDecompressor {
                 "Illegal reference count, buffer need to be released.");
 
         int length = buffer.getSize();
-        // decompress the given buffer into the internal heap buffer
-        return blockDecompressor.decompress(
-                buffer.getNioBuffer(0, length),
-                0,
-                length,
-                internalBuffer.getNioBuffer(0, internalBuffer.capacity()),
-                0);
+        // ByteBuffer nioBuffer = buffer.getNioBuffer(0, length);
+        if (!buffer.getMemorySegment().isOffHeap()) {
+            return blockDecompressor.decompress(
+                    buffer.getMemorySegment().getArray(),
+                    buffer.getMemorySegmentOffset(),
+                    length,
+                    internalBuffer.getNioBuffer(0, internalBuffer.capacity()).array(),
+                    0);
+        } else {
+            // decompress the given buffer into the internal heap buffer
+            return blockDecompressor.decompress(
+                    buffer.getNioBuffer(0, length),
+                    0,
+                    length,
+                    internalBuffer.getNioBuffer(0, internalBuffer.capacity()),
+                    0);
+        }
     }
 }
