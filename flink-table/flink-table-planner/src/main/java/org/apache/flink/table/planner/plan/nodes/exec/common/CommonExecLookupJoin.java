@@ -23,13 +23,18 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
+import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -57,23 +62,28 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSp
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.table.runtime.collector.TableFunctionCollector;
+import org.apache.flink.table.runtime.collector.ListenableCollector;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
 import org.apache.flink.table.runtime.generated.GeneratedCollector;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
+import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinWithCalcRunner;
+import org.apache.flink.table.runtime.operators.join.lookup.KeyedLookupJoinWrapper;
 import org.apache.flink.table.runtime.operators.join.lookup.LookupJoinRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.LookupJoinWithCalcRunner;
 import org.apache.flink.table.runtime.types.PlannerTypeUtils;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -96,6 +106,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
@@ -329,8 +340,59 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                         isLeftOuterJoin,
                         isObjectReuseEnabled);
 
-        // TODO then wrapper it into a keyed lookup function with state FLINK-28568
-        throw new UnsupportedOperationException("to be supported");
+        KeyedLookupJoinWrapper keyedLookupJoinWrapper =
+                new KeyedLookupJoinWrapper(
+                        (LookupJoinRunner) processFunction,
+                        StateConfigUtil.createTtlConfig(
+                                config.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis()),
+                        InternalSerializers.create(tableSourceRowType),
+                        lookupKeyContainsPrimaryKey);
+
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(keyedLookupJoinWrapper);
+
+        List<Integer> refKeys =
+                allLookupKeys.entrySet().stream()
+                        .filter(
+                                key ->
+                                        !(key.getValue()
+                                                instanceof LookupJoinUtil.ConstantLookupKey))
+                        .map(key -> ((LookupJoinUtil.FieldRefLookupKey) key.getValue()).index)
+                        .collect(Collectors.toList());
+        RowDataKeySelector keySelector;
+
+        int parallelism = inputTransformation.getParallelism();
+        if (refKeys.isEmpty()) {
+            // all lookup keys are constants, then use an empty key selector
+            keySelector = EmptyRowDataKeySelector.INSTANCE;
+            // single parallelism for empty key shuffle
+            parallelism = 1;
+        } else {
+            // make it a deterministic asc order
+            Collections.sort(refKeys);
+            keySelector =
+                    KeySelectorUtil.getRowDataSelector(
+                            classLoader,
+                            refKeys.stream().mapToInt(Integer::intValue).toArray(),
+                            InternalTypeInfo.of(inputRowType));
+        }
+        final KeyGroupStreamPartitioner<RowData, RowData> partitioner =
+                new KeyGroupStreamPartitioner<>(
+                        keySelector, KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
+        Transformation<RowData> partitionedTransform =
+                new PartitionTransformation<>(inputTransformation, partitioner);
+        partitionedTransform.setParallelism(parallelism);
+
+        OneInputTransformation<RowData, RowData> transform =
+                ExecNodeUtil.createOneInputTransformation(
+                        partitionedTransform,
+                        createTransformationMeta(LOOKUP_JOIN_TRANSFORMATION, config),
+                        operator,
+                        InternalTypeInfo.of(resultRowType),
+                        parallelism);
+        transform.setStateKeySelector(keySelector);
+        transform.setStateKeyType(keySelector.getProducedType());
+        return transform;
     }
 
     private LogicalType getLookupKeyLogicalType(
@@ -550,7 +612,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                 projectionOnTemporalTable != null
                         ? (RowType) toLogicalType(temporalTableOutputType.get())
                         : tableSourceRowType;
-        GeneratedCollector<TableFunctionCollector<RowData>> generatedCollector =
+        GeneratedCollector<ListenableCollector<RowData>> generatedCollector =
                 LookupJoinCodeGenerator.generateCollector(
                         new CodeGeneratorContext(config, classLoader),
                         inputRowType,
