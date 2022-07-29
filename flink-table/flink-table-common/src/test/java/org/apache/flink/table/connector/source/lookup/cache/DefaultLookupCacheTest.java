@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.connector.source.lookup.cache;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.CacheMetricGroup;
@@ -26,13 +27,21 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.ManualClock;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -51,7 +60,8 @@ class DefaultLookupCacheTest {
 
     @Test
     void testBasicReadWriteInCache() throws Exception {
-        try (DefaultLookupCache cache = createCache(DefaultLookupCache.newBuilder())) {
+        try (DefaultLookupCache cache =
+                createCache(DefaultLookupCache.newBuilder().maximumSize(Long.MAX_VALUE))) {
             cache.put(KEY, VALUE);
             assertThat(cache.getIfPresent(NON_EXIST_KEY)).isNull();
             assertThat(cache.getIfPresent(KEY)).containsExactlyElementsOf(VALUE);
@@ -119,7 +129,8 @@ class DefaultLookupCacheTest {
 
     @Test
     void testCacheMissingKey() throws Exception {
-        try (DefaultLookupCache cache = createCache(DefaultLookupCache.newBuilder())) {
+        try (DefaultLookupCache cache =
+                createCache(DefaultLookupCache.newBuilder().maximumSize(Long.MAX_VALUE))) {
             // Caching null key and value is not allowed
             assertThatThrownBy(() -> cache.put(null, VALUE))
                     .isInstanceOf(NullPointerException.class)
@@ -134,7 +145,10 @@ class DefaultLookupCacheTest {
 
         // Explicitly disable caching missing key
         try (DefaultLookupCache cache =
-                createCache(DefaultLookupCache.newBuilder().cacheMissingKey(false))) {
+                createCache(
+                        DefaultLookupCache.newBuilder()
+                                .cacheMissingKey(false)
+                                .maximumSize(Long.MAX_VALUE))) {
             cache.put(KEY, Collections.emptyList());
             assertThat(cache.getIfPresent(KEY)).isNull();
         }
@@ -144,7 +158,12 @@ class DefaultLookupCacheTest {
     void testCacheMetrics() throws Exception {
         InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
         try (DefaultLookupCache cache =
-                createCache(DefaultLookupCache.newBuilder(), null, metricGroup)) {
+                createCache(
+                        DefaultLookupCache.newBuilder()
+                                .maximumSize(Long.MAX_VALUE)
+                                .maximumSize(Long.MAX_VALUE),
+                        null,
+                        metricGroup)) {
             // These metrics are registered
             assertThat(metricGroup.hitCounter).isNotNull();
             assertThat(metricGroup.hitCounter.getCount()).isEqualTo(0);
@@ -165,6 +184,90 @@ class DefaultLookupCacheTest {
             assertThat(metricGroup.hitCounter.getCount()).isEqualTo(1);
             cache.getIfPresent(NON_EXIST_KEY);
             assertThat(metricGroup.missCounter.getCount()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void testCacheSerialization() throws Exception {
+        DefaultLookupCache cache =
+                DefaultLookupCache.newBuilder()
+                        .cacheMissingKey(true)
+                        .maximumSize(15213L)
+                        .expireAfterWrite(Duration.ofMillis(18213L))
+                        .expireAfterAccess(Duration.ofMillis(15513L))
+                        .build();
+
+        // Serialize and deserialize the cache
+        DefaultLookupCache cacheCopy = CommonTestUtils.createCopySerializable(cache);
+
+        // Validate configurations are kept in the copy as expected
+        assertThat(cacheCopy.isCacheMissingKey()).isEqualTo(true);
+        assertThat(cacheCopy.getMaximumSize()).isEqualTo(15213L);
+        assertThat(cacheCopy.getExpireAfterWriteDuration()).isEqualTo(Duration.ofMillis(18213L));
+        assertThat(cacheCopy.getExpireAfterAccessDuration()).isEqualTo(Duration.ofMillis(15513L));
+    }
+
+    @Test
+    void testConcurrentAccess() throws Exception {
+        int concurrency = 4;
+        ExecutorService executor = Executors.newFixedThreadPool(concurrency * 2);
+        InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
+        try (DefaultLookupCache cache =
+                DefaultLookupCache.newBuilder().maximumSize(Long.MAX_VALUE).build()) {
+            List<CompletableFuture<?>> futures = new ArrayList<>();
+
+            // Concurrently put entries into the cache
+            for (int i = 0; i < concurrency; i++) {
+                String key = "key-" + i;
+                String value = "value-" + i;
+                CompletableFuture<Void> future =
+                        runAsync(
+                                () -> {
+                                    cache.open(metricGroup);
+                                    cache.put(
+                                            GenericRowData.of(key),
+                                            Collections.singleton(GenericRowData.of(value)));
+                                },
+                                executor);
+                futures.add(future);
+            }
+            FutureUtils.waitForAll(futures).get();
+            futures.clear();
+
+            // Concurrently get entries from the cache
+            for (int i = 0; i < concurrency; i++) {
+                String key = "key-" + i;
+                String value = "value-" + i;
+                // cache hit
+                CompletableFuture<Void> hitFuture =
+                        runAsync(
+                                () -> {
+                                    cache.open(metricGroup);
+                                    assertThat(cache.getIfPresent(GenericRowData.of(key)))
+                                            .isEqualTo(
+                                                    Collections.singleton(
+                                                            GenericRowData.of(value)));
+                                },
+                                executor);
+                futures.add(hitFuture);
+                // Cache miss
+                CompletableFuture<Void> missFuture =
+                        runAsync(
+                                () -> {
+                                    cache.open(metricGroup);
+                                    assertThat(cache.getIfPresent(NON_EXIST_KEY)).isNull();
+                                },
+                                executor);
+                futures.add(missFuture);
+            }
+            FutureUtils.waitForAll(futures).get();
+
+            // Validate metrics after concurrent accesses
+            assertThat(metricGroup.hitCounter.getCount()).isEqualTo(concurrency);
+            assertThat(metricGroup.missCounter.getCount()).isEqualTo(concurrency);
+            assertThat(metricGroup.numCachedRecordsGauge.getValue()).isEqualTo(concurrency);
+        } finally {
+            executor.shutdownNow();
         }
     }
 
@@ -190,6 +293,16 @@ class DefaultLookupCacheTest {
             cache.open(metricGroup);
         }
         return cache;
+    }
+
+    private CompletableFuture<Void> runAsync(Runnable runnable, ExecutorService executor) {
+        return CompletableFuture.runAsync(
+                ThrowingRunnable.unchecked(
+                        () -> {
+                            Thread.sleep(ThreadLocalRandom.current().nextLong(0, 10));
+                            runnable.run();
+                        }),
+                executor);
     }
 
     // -------------------------- Helper classes ------------------------

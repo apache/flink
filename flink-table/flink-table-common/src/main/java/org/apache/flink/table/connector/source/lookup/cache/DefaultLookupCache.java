@@ -60,11 +60,11 @@ public class DefaultLookupCache implements LookupCache {
     private transient Cache<RowData, Collection<RowData>> guavaCache;
 
     // Guava Ticker for testing expiration
-    private Ticker ticker;
+    private transient Ticker ticker;
 
     // For tracking cache metrics
-    private Counter hitCounter;
-    private Counter missCounter;
+    private transient Counter hitCounter;
+    private transient Counter missCounter;
 
     private DefaultLookupCache(
             Duration expireAfterAccessDuration,
@@ -97,30 +97,36 @@ public class DefaultLookupCache implements LookupCache {
 
     @Override
     public void open(CacheMetricGroup metricGroup) {
-        // Initialize Guava cache
-        CacheBuilder<Object, Object> guavaCacheBuilder = CacheBuilder.newBuilder();
-        if (expireAfterAccessDuration != null) {
-            guavaCacheBuilder.expireAfterAccess(expireAfterAccessDuration);
-        }
-        if (expireAfterWriteDuration != null) {
-            guavaCacheBuilder.expireAfterWrite(expireAfterWriteDuration);
-        }
-        if (maximumSize != null) {
-            guavaCacheBuilder.maximumSize(maximumSize);
-        }
-        if (ticker != null) {
-            guavaCacheBuilder.ticker(ticker);
-        }
-        guavaCache = guavaCacheBuilder.build();
+        synchronized (this) {
+            // The cache should already been opened if guava cache is not null
+            if (guavaCache != null) {
+                return;
+            }
+            // Initialize Guava cache
+            CacheBuilder<Object, Object> guavaCacheBuilder = CacheBuilder.newBuilder();
+            if (expireAfterAccessDuration != null) {
+                guavaCacheBuilder.expireAfterAccess(expireAfterAccessDuration);
+            }
+            if (expireAfterWriteDuration != null) {
+                guavaCacheBuilder.expireAfterWrite(expireAfterWriteDuration);
+            }
+            if (maximumSize != null) {
+                guavaCacheBuilder.maximumSize(maximumSize);
+            }
+            if (ticker != null) {
+                guavaCacheBuilder.ticker(ticker);
+            }
+            guavaCache = guavaCacheBuilder.build();
 
-        // Initialize and register metrics
-        // Here we can't reuse Guava cache statistics because guavaCache#getIfPresent is not counted
-        // in the stat
-        hitCounter = new ThreadSafeSimpleCounter();
-        missCounter = new ThreadSafeSimpleCounter();
-        metricGroup.hitCounter(hitCounter);
-        metricGroup.missCounter(missCounter);
-        metricGroup.numCachedRecordsGauge(() -> guavaCache.size());
+            // Initialize and register metrics
+            // Here we can't reuse Guava cache statistics because guavaCache#getIfPresent is not
+            // counted in the stat
+            hitCounter = new ThreadSafeSimpleCounter();
+            missCounter = new ThreadSafeSimpleCounter();
+            metricGroup.hitCounter(hitCounter);
+            metricGroup.missCounter(missCounter);
+            metricGroup.numCachedRecordsGauge(() -> guavaCache.size());
+        }
     }
 
     @Nullable
@@ -178,6 +184,26 @@ public class DefaultLookupCache implements LookupCache {
                 };
     }
 
+    @VisibleForTesting
+    Duration getExpireAfterAccessDuration() {
+        return expireAfterAccessDuration;
+    }
+
+    @VisibleForTesting
+    Duration getExpireAfterWriteDuration() {
+        return expireAfterWriteDuration;
+    }
+
+    @VisibleForTesting
+    Long getMaximumSize() {
+        return maximumSize;
+    }
+
+    @VisibleForTesting
+    boolean isCacheMissingKey() {
+        return cacheMissingKey;
+    }
+
     /** Builder for {@link DefaultLookupCache}. */
     @PublicEvolving
     public static class Builder {
@@ -222,11 +248,23 @@ public class DefaultLookupCache implements LookupCache {
 
         /** Creates the cache. */
         public DefaultLookupCache build() {
+            sanityCheck();
             return new DefaultLookupCache(
                     expireAfterAccessDuration,
                     expireAfterWriteDuration,
                     maximumSize,
                     cacheMissingKey);
+        }
+
+        private void sanityCheck() {
+            if (expireAfterWriteDuration == null
+                    && expireAfterAccessDuration == null
+                    && maximumSize == null) {
+                throw new IllegalArgumentException(
+                        "Expiration duration and maximum size are not set for the cache. "
+                                + "This could lead to potential memory issues as the cache size "
+                                + "may grow infinitely.");
+            }
         }
     }
 }

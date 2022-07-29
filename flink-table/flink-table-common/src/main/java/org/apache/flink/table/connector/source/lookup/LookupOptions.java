@@ -20,8 +20,11 @@ package org.apache.flink.table.connector.source.lookup;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.description.Description;
 
 import java.time.Duration;
+
+import static org.apache.flink.configuration.description.TextElement.code;
 
 /** Predefined options for lookup cache. */
 public class LookupOptions {
@@ -29,7 +32,14 @@ public class LookupOptions {
             ConfigOptions.key("lookup.cache")
                     .enumType(LookupCacheType.class)
                     .defaultValue(LookupCacheType.NONE)
-                    .withDescription("The caching strategy for this lookup table");
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The caching strategy for this lookup table, including %s, %s and %s",
+                                            code(LookupCacheType.NONE.toString()),
+                                            code(LookupCacheType.PARTIAL.toString()),
+                                            code(LookupCacheType.FULL.toString()))
+                                    .build());
 
     public static final ConfigOption<Integer> MAX_RETRIES =
             ConfigOptions.key("lookup.max-retries")
