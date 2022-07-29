@@ -1151,7 +1151,8 @@ public class HiveParserSemanticAnalyzer {
                     if (destination.getChildCount() == 2
                             && tab.getChildCount() == 2
                             && destination.getChild(1).getType() == HiveASTParser.TOK_IFNOTEXISTS) {
-                        String name = tab.getChild(0).getChild(0).getText();
+                        String name =
+                                getUnescapedName((HiveParserASTNode) tab.getChild(0)).toLowerCase();
 
                         Tree partitions = tab.getChild(1);
                         int numChildren = partitions.getChildCount();

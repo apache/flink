@@ -56,9 +56,10 @@ class DependencyTests(object):
 
         self.t_env.create_temporary_system_function(
             "add_two", udf(plus_two, DataTypes.BIGINT(), DataTypes.BIGINT()))
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
-        self.t_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+        CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
         t.select(expr.call("add_two", t.a), t.a).execute_insert("Results").wait()
 
@@ -82,9 +83,12 @@ class DependencyTests(object):
         self.t_env.create_temporary_system_function("add_from_file",
                                                     udf(add_from_file, DataTypes.BIGINT(),
                                                         DataTypes.BIGINT()))
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
-        self.t_env.register_table_sink("Results", table_sink)
+
+        sink_table_ddl = """
+        CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
+
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
         t.select(expr.call('add_from_file', t.a), t.a).execute_insert("Results").wait()
 
@@ -130,9 +134,11 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
         self.st_env.create_temporary_system_function(
             "check_requirements",
             udf(check_requirements, DataTypes.BIGINT(), DataTypes.BIGINT()))
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
-        self.st_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+                CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+                """
+        self.st_env.execute_sql(sink_table_ddl)
+
         t = self.st_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
         t.select(expr.call('check_requirements', t.a), t.a).execute_insert("Results").wait()
 
@@ -176,9 +182,10 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
         self.st_env.create_temporary_system_function(
             "add_one",
             udf(add_one, DataTypes.BIGINT(), DataTypes.BIGINT()))
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
-        self.st_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+        CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+        """
+        self.st_env.execute_sql(sink_table_ddl)
         t = self.st_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
         t.select(expr.call('add_one', t.a), t.a).execute_insert("Results").wait()
 
@@ -208,9 +215,10 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
             udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(),
                 DataTypes.BIGINT()))
 
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
-        self.st_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+        CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+        """
+        self.st_env.execute_sql(sink_table_ddl)
         t = self.st_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
         t.select(
             expr.call('check_python_exec', t.a),

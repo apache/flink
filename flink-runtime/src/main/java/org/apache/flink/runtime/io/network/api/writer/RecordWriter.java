@@ -217,6 +217,11 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
         }
     }
 
+    /** Sets the max overdraft buffer size of per gate. */
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {
+        targetPartition.setMaxOverdraftBuffersPerGate(maxOverdraftBuffersPerGate);
+    }
+
     // ------------------------------------------------------------------------
 
     /**

@@ -23,7 +23,8 @@ from typing import Tuple
 from pyflink.fn_execution.coders import DataViewFilterCoder, PickleCoder
 from pyflink.fn_execution.datastream.timerservice import InternalTimer
 from pyflink.fn_execution.datastream.operations import Operation
-from pyflink.fn_execution.datastream.timerservice_impl import TimerOperandType, InternalTimerImpl
+from pyflink.fn_execution.datastream.process.timerservice_impl import (
+    TimerOperandType, InternalTimerImpl)
 from pyflink.fn_execution.table.state_data_view import extract_data_view_specs
 
 from pyflink.fn_execution.table.window_assigner import TumblingWindowAssigner, \
@@ -33,6 +34,7 @@ from pyflink.fn_execution.table.window_trigger import EventTimeTrigger, Processi
     CountTrigger
 from pyflink.fn_execution.utils import operation_utils
 from pyflink.fn_execution.utils.operation_utils import extract_user_defined_aggregate_function
+from pyflink.metrics.metricbase import GenericMetricGroup
 
 try:
     from pyflink.fn_execution.table.aggregate_fast import RowKeySelector, \
@@ -76,8 +78,23 @@ class BundleOperation(object):
 
 class BaseOperation(Operation):
     def __init__(self, serialized_fn):
-        super(BaseOperation, self).__init__(serialized_fn)
+        if serialized_fn.metric_enabled:
+            self.base_metric_group = GenericMetricGroup(None, None)
+        else:
+            self.base_metric_group = None
         self.func, self.user_defined_funcs = self.generate_func(serialized_fn)
+
+    def finish(self):
+        self._update_gauge(self.base_metric_group)
+
+    def _update_gauge(self, base_metric_group):
+        if base_metric_group is not None:
+            for name in base_metric_group._flink_gauge:
+                flink_gauge = base_metric_group._flink_gauge[name]
+                beam_gauge = base_metric_group._beam_gauge[name]
+                beam_gauge.set(flink_gauge())
+            for sub_group in base_metric_group._sub_groups:
+                self._update_gauge(sub_group)
 
     def process_element(self, value):
         return self.func(value)

@@ -66,5 +66,6 @@ public class MockStreamConfig extends StreamConfig {
         }
         setOutEdgesInOrder(outEdgesInOrder);
         setNonChainedOutputs(outEdgesInOrder);
+        serializeAllConfigs();
     }
 }

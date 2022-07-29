@@ -19,6 +19,7 @@
 package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.ExtendedSqlNode;
+import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlComputedColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
@@ -267,25 +268,8 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         }
         tableName.unparse(writer, leftPrec, rightPrec);
         if (columnList.size() > 0 || tableConstraints.size() > 0 || watermark != null) {
-            SqlWriter.Frame frame =
-                    writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
-            for (SqlNode column : columnList) {
-                printIndent(writer);
-                column.unparse(writer, leftPrec, rightPrec);
-            }
-            if (tableConstraints.size() > 0) {
-                for (SqlTableConstraint constraint : tableConstraints) {
-                    printIndent(writer);
-                    constraint.unparse(writer, leftPrec, rightPrec);
-                }
-            }
-            if (watermark != null) {
-                printIndent(writer);
-                watermark.unparse(writer, leftPrec, rightPrec);
-            }
-
-            writer.newlineAndIndent();
-            writer.endList(frame);
+            SqlUnparseUtils.unparseTableSchema(
+                    writer, leftPrec, rightPrec, columnList, tableConstraints, watermark);
         }
 
         if (comment != null) {
@@ -307,7 +291,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             writer.keyword("WITH");
             SqlWriter.Frame withFrame = writer.startList("(", ")");
             for (SqlNode property : propertyList) {
-                printIndent(writer);
+                SqlUnparseUtils.printIndent(writer);
                 property.unparse(writer, leftPrec, rightPrec);
             }
             writer.newlineAndIndent();
@@ -318,12 +302,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             writer.newlineAndIndent();
             this.tableLike.unparse(writer, leftPrec, rightPrec);
         }
-    }
-
-    protected void printIndent(SqlWriter writer) {
-        writer.sep(",", false);
-        writer.newlineAndIndent();
-        writer.print("  ");
     }
 
     /** Table creation context. */

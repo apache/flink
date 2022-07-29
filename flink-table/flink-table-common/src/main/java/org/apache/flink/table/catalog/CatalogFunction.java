@@ -19,7 +19,9 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.resource.ResourceUri;
 
+import java.util.List;
 import java.util.Optional;
 
 /** Interface for a function in a catalog. */
@@ -70,4 +72,11 @@ public interface CatalogFunction {
      * @return the language type of the function definition
      */
     FunctionLanguage getFunctionLanguage();
+
+    /**
+     * Get a detailed resource description of the function.
+     *
+     * @return an {@link ResourceUri} list of the function
+     */
+    List<ResourceUri> getFunctionResources();
 }

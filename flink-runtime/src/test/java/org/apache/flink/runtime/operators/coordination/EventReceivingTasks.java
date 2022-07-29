@@ -28,9 +28,9 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -67,8 +67,6 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
 
     private final CompletableFuture<Acknowledge> eventSendingResult;
 
-    private final Map<Integer, TestSubtaskAccess> subtasks = new HashMap<>();
-
     private final boolean createdTasksAreRunning;
 
     private EventReceivingTasks(
@@ -102,33 +100,23 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
     // ------------------------------------------------------------------------
 
     @Override
-    public SubtaskAccess getAccessForSubtask(int subtask) {
-        return subtasks.computeIfAbsent(
-                subtask, (subtaskIdx) -> new TestSubtaskAccess(subtaskIdx, createdTasksAreRunning));
+    public Collection<SubtaskAccess> getAccessesForSubtask(int subtaskIndex) {
+        return Collections.singleton(getAccessForAttempt(subtaskIndex, 0));
     }
 
-    public OperatorCoordinator.SubtaskGateway createGatewayForSubtask(int subtask) {
-        final SubtaskAccess sta = getAccessForSubtask(subtask);
+    @Override
+    public SubtaskAccess getAccessForAttempt(int subtaskIndex, int attemptNumber) {
+        return new TestSubtaskAccess(subtaskIndex, attemptNumber, createdTasksAreRunning);
+    }
+
+    public OperatorCoordinator.SubtaskGateway createGatewayForSubtask(
+            int subtaskIndex, int attemptNumber) {
+        final SubtaskAccess sta = getAccessForAttempt(subtaskIndex, attemptNumber);
         return new SubtaskGatewayImpl(
                 sta,
                 new OperatorEventValve(),
                 Executors.directExecutor(),
                 new IncompleteFuturesTracker());
-    }
-
-    public void switchTaskToRunning(int subtask) {
-        final TestSubtaskAccess task = subtasks.get(subtask);
-        if (task != null) {
-            task.switchToRunning();
-        } else {
-            throw new IllegalArgumentException("No subtask created for " + subtask);
-        }
-    }
-
-    public void switchAllTasksToRunning() {
-        for (TestSubtaskAccess tsa : subtasks.values()) {
-            tsa.switchToRunning();
-        }
     }
 
     Callable<CompletableFuture<Acknowledge>> createSendAction(OperatorEvent event, int subtask) {
@@ -182,9 +170,10 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
         private final CompletableFuture<?> running;
         private final int subtaskIndex;
 
-        private TestSubtaskAccess(int subtaskIndex, boolean isRunning) {
+        private TestSubtaskAccess(int subtaskIndex, int attemptNumber, boolean isRunning) {
             this.subtaskIndex = subtaskIndex;
-            this.executionAttemptId = createExecutionAttemptId(new JobVertexID(), subtaskIndex, 0);
+            this.executionAttemptId =
+                    createExecutionAttemptId(new JobVertexID(), subtaskIndex, attemptNumber);
             this.running = new CompletableFuture<>();
             if (isRunning) {
                 switchToRunning();

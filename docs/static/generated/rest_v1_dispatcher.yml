@@ -11,12 +11,14 @@ paths:
   /cluster:
     delete:
       description: Shuts down the cluster
+      operationId: shutdownCluster
       responses:
         "200":
           description: The request was successful.
   /config:
     get:
       description: Returns the configuration of the WebUI.
+      operationId: getDashboardConfiguration
       responses:
         "200":
           description: The request was successful.
@@ -27,6 +29,7 @@ paths:
   /datasets:
     get:
       description: Returns all cluster data sets.
+      operationId: getClusterDataSetList
       responses:
         "200":
           description: The request was successful.
@@ -37,6 +40,7 @@ paths:
   /datasets/delete/{triggerid}:
     get:
       description: Returns the status for the delete operation of a cluster data set.
+      operationId: getClusterDataSetDeleteStatus
       parameters:
       - name: triggerid
         in: path
@@ -56,6 +60,7 @@ paths:
     delete:
       description: Triggers the deletion of a cluster data set. This async operation
         would return a 'triggerid' for further query identifier.
+      operationId: deleteClusterDataSet
       parameters:
       - name: datasetid
         in: path
@@ -74,6 +79,7 @@ paths:
   /jars:
     get:
       description: Returns a list of all jars previously uploaded via '/jars/upload'.
+      operationId: getJarList
       responses:
         "200":
           description: The request was successful.
@@ -88,6 +94,7 @@ paths:
         , as some http libraries do not add the header by default.\nUsing 'curl' you\
         \ can upload a jar via 'curl -X POST -H \"Expect:\" -F \"jarfile=@path/to/flink-job.jar\"\
         \ http://hostname:port/jars/upload'."
+      operationId: uploadJar
       requestBody:
         content:
           application/x-java-archive: {}
@@ -102,6 +109,7 @@ paths:
   /jars/{jarid}:
     delete:
       description: Deletes a jar previously uploaded via '/jars/upload'.
+      operationId: deleteJar
       parameters:
       - name: jarid
         in: path
@@ -115,62 +123,11 @@ paths:
         "200":
           description: The request was successful.
   /jars/{jarid}/plan:
-    get:
-      description: Returns the dataflow plan of a job contained in a jar previously
-        uploaded via '/jars/upload'. Program arguments can be passed both via the
-        JSON request (recommended) or query parameters.
-      parameters:
-      - name: jarid
-        in: path
-        description: "String value that identifies a jar. When uploading the jar a\
-          \ path is returned, where the filename is the ID. This value is equivalent\
-          \ to the `id` field in the list of uploaded jars (/jars)."
-        required: true
-        schema:
-          type: string
-      - name: program-args
-        in: query
-        description: "Deprecated, please use 'programArg' instead. String value that\
-          \ specifies the arguments for the program or plan"
-        required: false
-        style: form
-        schema:
-          type: string
-      - name: programArg
-        in: query
-        description: Comma-separated list of program arguments.
-        required: false
-        style: form
-        schema:
-          type: string
-      - name: entry-class
-        in: query
-        description: String value that specifies the fully qualified name of the entry
-          point class. Overrides the class defined in the jar file manifest.
-        required: false
-        style: form
-        schema:
-          type: string
-      - name: parallelism
-        in: query
-        description: Positive integer value that specifies the desired parallelism
-          for the job.
-        required: false
-        style: form
-        schema:
-          type: integer
-          format: int32
-      responses:
-        "200":
-          description: The request was successful.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/JobPlanInfo'
     post:
       description: Returns the dataflow plan of a job contained in a jar previously
         uploaded via '/jars/upload'. Program arguments can be passed both via the
         JSON request (recommended) or query parameters.
+      operationId: generatePlanFromJar
       parameters:
       - name: jarid
         in: path
@@ -229,6 +186,7 @@ paths:
       description: Submits a job by running a jar previously uploaded via '/jars/upload'.
         Program arguments can be passed both via the JSON request (recommended) or
         query parameters.
+      operationId: submitJobFromJar
       parameters:
       - name: jarid
         in: path
@@ -302,6 +260,7 @@ paths:
   /jobmanager/config:
     get:
       description: Returns the cluster configuration.
+      operationId: getClusterConfigurationInfo
       responses:
         "200":
           description: The request was successful.
@@ -313,10 +272,22 @@ paths:
                   empty:
                     type: boolean
                 items:
-                  $ref: '#/components/schemas/ClusterConfigurationInfoEntry'
+                  $ref: '#/components/schemas/ConfigurationInfoEntry'
+  /jobmanager/environment:
+    get:
+      description: Returns the jobmanager environment.
+      operationId: getJobManagerEnvironment
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentInfo'
   /jobmanager/logs:
     get:
       description: Returns the list of log files on the JobManager.
+      operationId: getJobManagerLogList
       responses:
         "200":
           description: The request was successful.
@@ -327,6 +298,7 @@ paths:
   /jobmanager/metrics:
     get:
       description: Provides access to job manager metrics.
+      operationId: getJobManagerMetrics
       parameters:
       - name: get
         in: query
@@ -345,6 +317,7 @@ paths:
   /jobmanager/thread-dump:
     get:
       description: Returns the thread dump of the JobManager.
+      operationId: getJobManagerThreadDump
       responses:
         "200":
           description: The request was successful.
@@ -355,6 +328,7 @@ paths:
   /jobs:
     get:
       description: Returns an overview over all jobs and their current state.
+      operationId: getJobIdsWithStatusesOverview
       responses:
         "200":
           description: The request was successful.
@@ -367,6 +341,7 @@ paths:
         \ Flink client. This call expects a multipart/form-data request that consists\
         \ of file uploads for the serialized JobGraph, jars and distributed cache\
         \ artifacts and an attribute named \"request\" for the JSON payload."
+      operationId: submitJob
       requestBody:
         content:
           multipart/form-data:
@@ -390,6 +365,7 @@ paths:
   /jobs/metrics:
     get:
       description: Provides access to aggregated job metrics.
+      operationId: getAggregatedJobMetrics
       parameters:
       - name: get
         in: query
@@ -424,6 +400,7 @@ paths:
   /jobs/overview:
     get:
       description: Returns an overview over all jobs.
+      operationId: getJobsOverview
       responses:
         "200":
           description: The request was successful.
@@ -434,6 +411,7 @@ paths:
   /jobs/{jobid}:
     get:
       description: Returns details of a job.
+      operationId: getJobDetails
       parameters:
       - name: jobid
         in: path
@@ -450,6 +428,7 @@ paths:
                 $ref: '#/components/schemas/JobDetailsInfo'
     patch:
       description: Terminates a job.
+      operationId: cancelJob
       parameters:
       - name: jobid
         in: path
@@ -472,6 +451,7 @@ paths:
     get:
       description: "Returns the accumulators for all tasks of a job, aggregated across\
         \ the respective subtasks."
+      operationId: getJobAccumulators
       parameters:
       - name: jobid
         in: path
@@ -497,6 +477,7 @@ paths:
   /jobs/{jobid}/checkpoints:
     get:
       description: Returns checkpointing statistics for a job.
+      operationId: getCheckpointingStatistics
       parameters:
       - name: jobid
         in: path
@@ -514,6 +495,7 @@ paths:
   /jobs/{jobid}/checkpoints/config:
     get:
       description: Returns the checkpointing configuration.
+      operationId: getCheckpointConfig
       parameters:
       - name: jobid
         in: path
@@ -531,6 +513,7 @@ paths:
   /jobs/{jobid}/checkpoints/details/{checkpointid}:
     get:
       description: Returns details for a checkpoint.
+      operationId: getCheckpointStatisticDetails
       parameters:
       - name: jobid
         in: path
@@ -555,6 +538,7 @@ paths:
   /jobs/{jobid}/checkpoints/details/{checkpointid}/subtasks/{vertexid}:
     get:
       description: Returns checkpoint statistics for a task and its subtasks.
+      operationId: getTaskCheckpointStatistics
       parameters:
       - name: jobid
         in: path
@@ -585,6 +569,7 @@ paths:
   /jobs/{jobid}/config:
     get:
       description: Returns the configuration of a job.
+      operationId: getJobConfig
       parameters:
       - name: jobid
         in: path
@@ -608,6 +593,7 @@ paths:
         \ through web.exception-history-size in the Flink configuration. The following\
         \ first-level members are deprecated: 'root-exception', 'timestamp', 'all-exceptions',\
         \ and 'truncated'. Use the data provided through 'exceptionHistory', instead."
+      operationId: getJobExceptions
       parameters:
       - name: jobid
         in: path
@@ -635,6 +621,7 @@ paths:
     get:
       description: Returns the result of a job execution. Gives access to the execution
         time of the job and to all accumulators created by this job.
+      operationId: getJobExecutionResult
       parameters:
       - name: jobid
         in: path
@@ -649,9 +636,69 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JobExecutionResultResponseBody'
+  /jobs/{jobid}/jobmanager/config:
+    get:
+      description: Returns the jobmanager's configuration of a specific job.
+      operationId: getJobManagerJobConfiguration
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                type: array
+                properties:
+                  empty:
+                    type: boolean
+                items:
+                  $ref: '#/components/schemas/ConfigurationInfoEntry'
+  /jobs/{jobid}/jobmanager/environment:
+    get:
+      description: Returns the jobmanager's environment variables of a specific job.
+      operationId: getJobManagerJobEnvironment
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentInfo'
+  /jobs/{jobid}/jobmanager/log-url:
+    get:
+      description: Returns the log url of jobmanager of a specific job.
+      operationId: getJobManagerLogUrl
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogUrlResponse'
   /jobs/{jobid}/metrics:
     get:
       description: Provides access to job metrics.
+      operationId: getJobMetrics
       parameters:
       - name: jobid
         in: path
@@ -676,6 +723,7 @@ paths:
   /jobs/{jobid}/plan:
     get:
       description: Returns the dataflow plan of a job.
+      operationId: getJobPlan
       parameters:
       - name: jobid
         in: path
@@ -694,6 +742,7 @@ paths:
     patch:
       description: Triggers the rescaling of a job. This async operation would return
         a 'triggerid' for further query identifier.
+      operationId: rescaleJob
       parameters:
       - name: jobid
         in: path
@@ -719,6 +768,7 @@ paths:
   /jobs/{jobid}/rescaling/{triggerid}:
     get:
       description: Returns the status of a rescaling operation.
+      operationId: getRescalingStatus
       parameters:
       - name: jobid
         in: path
@@ -744,6 +794,7 @@ paths:
     post:
       description: "Triggers a savepoint, and optionally cancels the job afterwards.\
         \ This async operation would return a 'triggerid' for further query identifier."
+      operationId: triggerSavepoint
       parameters:
       - name: jobid
         in: path
@@ -766,6 +817,7 @@ paths:
   /jobs/{jobid}/savepoints/{triggerid}:
     get:
       description: Returns the status of a savepoint operation.
+      operationId: getSavepointStatus
       parameters:
       - name: jobid
         in: path
@@ -790,6 +842,7 @@ paths:
   /jobs/{jobid}/status:
     get:
       description: Returns the current status of a job execution.
+      operationId: getJobStatusInfo
       parameters:
       - name: jobid
         in: path
@@ -810,6 +863,7 @@ paths:
         \ before taking the savepoint to flush out any state waiting for timers to\
         \ fire. This async operation would return a 'triggerid' for further query\
         \ identifier."
+      operationId: triggerStopWithSavepoint
       parameters:
       - name: jobid
         in: path
@@ -829,9 +883,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TriggerResponse'
+  /jobs/{jobid}/taskmanagers/{taskmanagerid}/log-url:
+    get:
+      description: Returns the log url of jobmanager of a specific job.
+      operationId: getTaskManagerLogUrl
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      - name: taskmanagerid
+        in: path
+        description: 32-character hexadecimal string that identifies a task manager.
+        required: true
+        schema:
+          $ref: '#/components/schemas/ResourceID'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogUrlResponse'
   /jobs/{jobid}/vertices/{vertexid}:
     get:
       description: "Returns details for a task, with a summary for each of its subtasks."
+      operationId: getJobVertexDetails
       parameters:
       - name: jobid
         in: path
@@ -856,6 +935,7 @@ paths:
     get:
       description: "Returns user-defined accumulators of a task, aggregated across\
         \ all subtasks."
+      operationId: getJobVertexAccumulators
       parameters:
       - name: jobid
         in: path
@@ -880,6 +960,7 @@ paths:
     get:
       description: "Returns back-pressure information for a job, and may initiate\
         \ back-pressure sampling if necessary."
+      operationId: getJobVertexBackPressure
       parameters:
       - name: jobid
         in: path
@@ -904,6 +985,7 @@ paths:
     get:
       description: "Returns flame graph information for a vertex, and may initiate\
         \ flame graph sampling if necessary."
+      operationId: getJobVertexFlameGraph
       parameters:
       - name: jobid
         in: path
@@ -935,6 +1017,7 @@ paths:
   /jobs/{jobid}/vertices/{vertexid}/metrics:
     get:
       description: Provides access to task metrics.
+      operationId: getJobVertexMetrics
       parameters:
       - name: jobid
         in: path
@@ -965,6 +1048,7 @@ paths:
   /jobs/{jobid}/vertices/{vertexid}/subtasks/accumulators:
     get:
       description: Returns all user-defined accumulators for all subtasks of a task.
+      operationId: getSubtasksAllAccumulators
       parameters:
       - name: jobid
         in: path
@@ -988,6 +1072,7 @@ paths:
   /jobs/{jobid}/vertices/{vertexid}/subtasks/metrics:
     get:
       description: Provides access to aggregated subtask metrics.
+      operationId: getAggregatedSubtaskMetrics
       parameters:
       - name: jobid
         in: path
@@ -1035,6 +1120,7 @@ paths:
     get:
       description: Returns details of the current or latest execution attempt of a
         subtask.
+      operationId: getSubtaskCurrentAttemptDetails
       parameters:
       - name: jobid
         in: path
@@ -1066,6 +1152,7 @@ paths:
     get:
       description: Returns details of an execution attempt of a subtask. Multiple
         execution attempts happen in case of failure/recovery.
+      operationId: getSubtaskExecutionAttemptDetails
       parameters:
       - name: jobid
         in: path
@@ -1104,6 +1191,7 @@ paths:
     get:
       description: Returns the accumulators of an execution attempt of a subtask.
         Multiple execution attempts happen in case of failure/recovery.
+      operationId: getSubtaskExecutionAttemptAccumulators
       parameters:
       - name: jobid
         in: path
@@ -1141,6 +1229,7 @@ paths:
   /jobs/{jobid}/vertices/{vertexid}/subtasks/{subtaskindex}/metrics:
     get:
       description: Provides access to subtask metrics.
+      operationId: getSubtaskMetrics
       parameters:
       - name: jobid
         in: path
@@ -1178,6 +1267,7 @@ paths:
   /jobs/{jobid}/vertices/{vertexid}/subtasktimes:
     get:
       description: Returns time-related information for all subtasks of a task.
+      operationId: getSubtasksTimes
       parameters:
       - name: jobid
         in: path
@@ -1201,6 +1291,7 @@ paths:
   /jobs/{jobid}/vertices/{vertexid}/taskmanagers:
     get:
       description: Returns task information aggregated by task manager.
+      operationId: getJobVertexTaskManagers
       parameters:
       - name: jobid
         in: path
@@ -1224,6 +1315,7 @@ paths:
   /jobs/{jobid}/vertices/{vertexid}/watermarks:
     get:
       description: Returns the watermarks for all subtasks of a task.
+      operationId: getJobVertexWatermarks
       parameters:
       - name: jobid
         in: path
@@ -1247,6 +1339,7 @@ paths:
   /overview:
     get:
       description: Returns an overview over the Flink cluster.
+      operationId: getClusterOverview
       responses:
         "200":
           description: The request was successful.
@@ -1258,6 +1351,7 @@ paths:
     post:
       description: Triggers the desposal of a savepoint. This async operation would
         return a 'triggerid' for further query identifier.
+      operationId: triggerSavepointDisposal
       requestBody:
         content:
           application/json:
@@ -1273,6 +1367,7 @@ paths:
   /savepoint-disposal/{triggerid}:
     get:
       description: Returns the status of a savepoint disposal operation.
+      operationId: getSavepointDisposalStatus
       parameters:
       - name: triggerid
         in: path
@@ -1291,6 +1386,7 @@ paths:
   /taskmanagers:
     get:
       description: Returns an overview over all task managers.
+      operationId: getTaskManagers
       responses:
         "200":
           description: The request was successful.
@@ -1301,6 +1397,7 @@ paths:
   /taskmanagers/metrics:
     get:
       description: Provides access to aggregated task manager metrics.
+      operationId: getAggregatedTaskManagerMetrics
       parameters:
       - name: get
         in: query
@@ -1337,6 +1434,7 @@ paths:
       description: Returns details for a task manager. "metrics.memorySegmentsAvailable"
         and "metrics.memorySegmentsTotal" are deprecated. Please use "metrics.nettyShuffleMemorySegmentsAvailable"
         and "metrics.nettyShuffleMemorySegmentsTotal" instead.
+      operationId: getTaskManagerDetails
       parameters:
       - name: taskmanagerid
         in: path
@@ -1354,6 +1452,7 @@ paths:
   /taskmanagers/{taskmanagerid}/logs:
     get:
       description: Returns the list of log files on a TaskManager.
+      operationId: getTaskManagerLogs
       parameters:
       - name: taskmanagerid
         in: path
@@ -1371,6 +1470,7 @@ paths:
   /taskmanagers/{taskmanagerid}/metrics:
     get:
       description: Provides access to task manager metrics.
+      operationId: getTaskManagerMetrics
       parameters:
       - name: taskmanagerid
         in: path
@@ -1395,6 +1495,7 @@ paths:
   /taskmanagers/{taskmanagerid}/thread-dump:
     get:
       description: Returns the thread dump of the requested TaskManager.
+      operationId: getTaskManagerThreadDump
       parameters:
       - name: taskmanagerid
         in: path
@@ -1411,6 +1512,23 @@ paths:
                 $ref: '#/components/schemas/ThreadDumpInfo'
 components:
   schemas:
+    AggregatedTaskDetailsInfo:
+      type: object
+      properties:
+        metrics:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: integer
+              format: int64
+        status-duration:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: integer
+              format: int64
     JarFileInfo:
       type: object
       properties:
@@ -1621,6 +1739,15 @@ components:
           format: int64
         write-records-complete:
           type: boolean
+        accumulated-backpressured-time:
+          type: integer
+          format: int64
+        accumulated-idle-time:
+          type: integer
+          format: int64
+        accumulated-busy-time:
+          type: number
+          format: double
     SavepointFormatType:
       type: string
       enum:
@@ -1671,6 +1798,11 @@ components:
           $ref: '#/components/schemas/IOMetricsInfo'
         taskmanager-id:
           type: string
+        status-duration:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
     JobResult:
       type: object
       properties:
@@ -1709,6 +1841,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SubtaskExecutionAttemptDetailsInfo'
+        aggregated:
+          $ref: '#/components/schemas/AggregatedTaskDetailsInfo'
     DistributedCacheFile:
       type: object
       properties:
@@ -1824,6 +1958,11 @@ components:
       properties:
         status:
           $ref: '#/components/schemas/JobStatus'
+    LogUrlResponse:
+      type: object
+      properties:
+        url:
+          type: string
     JobAccumulator:
       type: object
     Id:
@@ -1981,6 +2120,17 @@ components:
       type: object
       allOf:
       - $ref: '#/components/schemas/SubtaskCheckpointStatistics'
+    JVMInfo:
+      type: object
+      properties:
+        version:
+          type: string
+        arch:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
     LogInfo:
       type: object
       properties:
@@ -2097,19 +2247,19 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserAccumulator'
+    ConfigurationInfo:
+      type: array
+      properties:
+        empty:
+          type: boolean
+      items:
+        $ref: '#/components/schemas/ConfigurationInfoEntry'
     Type:
       type: string
       enum:
       - FULL
       - ON_CPU
       - OFF_CPU
-    ClusterConfigurationInfo:
-      type: array
-      properties:
-        empty:
-          type: boolean
-      items:
-        $ref: '#/components/schemas/ClusterConfigurationInfoEntry'
     UserAccumulator:
       type: object
       properties:
@@ -2332,7 +2482,7 @@ components:
           $ref: '#/components/schemas/JobID'
         status:
           $ref: '#/components/schemas/JobStatus'
-    ClusterConfigurationInfoEntry:
+    ConfigurationInfoEntry:
       type: object
       properties:
         key:
@@ -2665,6 +2815,8 @@ components:
           type: boolean
         web-cancel:
           type: boolean
+        web-history:
+          type: boolean
     JobVertexTaskManagersInfo:
       type: object
       properties:
@@ -2849,6 +3001,19 @@ components:
       - FAILED
       - CANCELED
       - UNKNOWN
+    EnvironmentInfo:
+      type: object
+      properties:
+        environment:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvironmentVariableItem'
+        jvm:
+          $ref: '#/components/schemas/JVMInfo'
+        classpath:
+          type: array
+          items:
+            type: string
     Summary:
       type: object
       properties:
@@ -2873,6 +3038,13 @@ components:
       type: object
       properties:
         id:
+          type: string
+        value:
+          type: string
+    EnvironmentVariableItem:
+      type: object
+      properties:
+        key:
           type: string
         value:
           type: string

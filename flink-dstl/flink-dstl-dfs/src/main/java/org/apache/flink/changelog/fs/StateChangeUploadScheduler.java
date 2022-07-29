@@ -18,6 +18,7 @@
 package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.io.AvailabilityProvider;
@@ -84,6 +85,7 @@ public interface StateChangeUploadScheduler extends AutoCloseable {
     }
 
     static StateChangeUploadScheduler fromConfig(
+            JobID jobID,
             ReadableConfig config,
             ChangelogStorageMetricGroup metricGroup,
             TaskChangelogRegistry changelogRegistry)
@@ -94,6 +96,7 @@ public interface StateChangeUploadScheduler extends AutoCloseable {
         int bufferSize = (int) bytes;
         StateChangeFsUploader store =
                 new StateChangeFsUploader(
+                        jobID,
                         basePath,
                         basePath.getFileSystem(),
                         config.get(COMPRESSION_ENABLED),

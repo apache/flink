@@ -107,9 +107,12 @@ under the License.
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<hadoop.version>2.8.5</hadoop.version>
-		<flink.XmxITCase>2048m</flink.XmxITCase>
-		<flink.XmxUnitTest>1024m</flink.XmxUnitTest>
+		<flink.hadoop.version>2.8.5</flink.hadoop.version>
+		<flink.XmxMax>3072m</flink.XmxMax>
+		<!-- XmxMax / forkCountITCase -->
+		<flink.XmxITCase>1536m</flink.XmxITCase>
+		<!-- XmxMax / forkCountUnitTest -->
+		<flink.XmxUnitTest>768m</flink.XmxUnitTest>
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
@@ -118,13 +121,14 @@ under the License.
 		<flink.forkCountITCase>2</flink.forkCountITCase>
 		<flink.forkCountUnitTest>4</flink.forkCountUnitTest>
 		<flink.reuseForks>true</flink.reuseForks>
+		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m</flink.surefire.baseArgLine>
 		<flink.shaded.version>15.0</flink.shaded.version>
 		<flink.shaded.jackson.version>2.12.4</flink.shaded.jackson.version>
 		<target.java.version>1.8</target.java.version>
 		<slf4j.version>1.7.32</slf4j.version>
 		<log4j.version>2.17.1</log4j.version>
 		<!-- Overwrite default values from parent pom.
-			 Intellij is (sometimes?) using those values to choose target language level
+			 IntelliJ IDEA is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
 		<maven.compiler.source>${target.java.version}</maven.compiler.source>
 		<maven.compiler.target>${target.java.version}</maven.compiler.target>
@@ -146,10 +150,10 @@ under the License.
 		<mockito.version>3.4.6</mockito.version>
 		<powermock.version>2.0.9</powermock.version>
 		<hamcrest.version>1.3</hamcrest.version>
-		<assertj.version>3.21.0</assertj.version>
+		<assertj.version>3.23.1</assertj.version>
 		<py4j.version>0.10.9.3</py4j.version>
 		<beam.version>2.38.0</beam.version>
-		<protoc.version>3.17.3</protoc.version>
+		<protoc.version>3.21.2</protoc.version>
 		<okhttp.version>3.14.9</okhttp.version>
 		<testcontainers.version>1.17.2</testcontainers.version>
 		<lz4.version>1.8.0</lz4.version>
@@ -374,7 +378,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-common</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -394,7 +398,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-hdfs</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -414,7 +418,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-mapreduce-client-core</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -434,7 +438,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-yarn-common</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -454,7 +458,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-yarn-client</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -1612,7 +1616,7 @@ under the License.
 						<!-- $$ ensures that surefire resolves this to the current forkNumber,
 						 	instead of maven during initialization -->
 						<mvn.forkNumber>$${surefire.forkNumber}</mvn.forkNumber>
-						<hadoop.version>${hadoop.version}</hadoop.version>
+						<hadoop.version>${flink.hadoop.version}</hadoop.version>
 						<checkpointing.randomization>true</checkpointing.randomization>
 						<buffer-debloat.randomization>true</buffer-debloat.randomization>
 						<user.country>US</user.country>
@@ -1651,7 +1655,7 @@ under the License.
 								<include>${test.unit.pattern}</include>
 							</includes>
 							<forkCount>${flink.forkCountUnitTest}</forkCount>
-							<argLine>-Xms256m -Xmx${flink.XmxUnitTest} -XX:+UseG1GC</argLine>
+							<argLine>${flink.surefire.baseArgLine} -Xmx${flink.XmxUnitTest}</argLine>
 						</configuration>
 					</execution>
 					<!--execute all the integration tests-->
@@ -1672,7 +1676,7 @@ under the License.
 								<exclude>**/*$*</exclude>
 							</excludes>
 							<forkCount>${flink.forkCountITCase}</forkCount>
-							<argLine>-Xms256m -Xmx${flink.XmxITCase} -XX:+UseG1GC</argLine>
+							<argLine>${flink.surefire.baseArgLine} -Xmx${flink.XmxITCase}</argLine>
 							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>
@@ -2167,6 +2171,8 @@ under the License.
 								<exclude>org.apache.flink.metrics.Meter#getMetricType()</exclude>
 								<exclude>org.apache.flink.metrics.Gauge#getMetricType()</exclude>
 								<exclude>org.apache.flink.metrics.Histogram#getMetricType()</exclude>
+								<exclude>org.apache.flink.api.connector.source.SplitEnumeratorContext#sendEventToSourceReader(int,int,org.apache.flink.api.connector.source.SourceEvent)</exclude>
+								<exclude>org.apache.flink.api.connector.source.SplitEnumeratorContext#registeredReadersOfAttempts()</exclude>
 							</excludes>
 							<accessModifier>public</accessModifier>
 							<breakBuildOnModifications>false</breakBuildOnModifications>

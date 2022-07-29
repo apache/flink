@@ -39,7 +39,7 @@ Usage
 -----
 
 By default, a DataGen table will create an unbounded number of rows with a random value for each column.
-For variable sized types, char/varchar/string/array/map/multiset, the length can be specified.
+For variable sized types, char/varchar/binary/varbinary/string/array/map/multiset, the length can be specified.
 Additionally, a total number of rows can be specified, resulting in a bounded table.
 
 There also exists a sequence generator, where users specify a sequence of start and end values.
@@ -101,6 +101,16 @@ Types
         </tr>
         <tr>
             <td>VARCHAR</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>BINARY</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>VARBINARY</td>
             <td>random / sequence</td>
             <td></td>
         </tr>
@@ -271,7 +281,7 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
-      <td>Size or length of the collection for generating char/varchar/string/array/map/multiset types.</td>
+      <td>Size or length of the collection for generating char/varchar/binary/varbinary/string/array/map/multiset types.</td>
     </tr>
     <tr>
       <td><h5>fields.#.start</h5></td>

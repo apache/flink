@@ -81,6 +81,28 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
   }
 
   @Test
+  def testFunctionWithBooleanExpression(): Unit = {
+    // this test is to check if the `resultType` of the `GeneratedExpression`
+    // of these boolean expression match their definition in `FlinkSqlOperatorTable`,
+    // if not, exceptions will be thrown from BridgingFunctionGenUtil#verifyArgumentTypes
+
+    // test comparison expression
+    testSqlApi("IFNULL(f18 > f19, false)", "TRUE")
+    testSqlApi("IFNULL(f18 >= f19, false)", "TRUE")
+    testSqlApi("IFNULL(f18 < f19, true)", "FALSE")
+    testSqlApi("IFNULL(f18 <= f19, true)", "FALSE")
+    testSqlApi("IFNULL(f18 = f18, false)", "TRUE")
+    // test logic expression
+    testSqlApi("IFNULL((f6 is false) and f11, true) ", "FALSE")
+    testSqlApi("IFNULL((f6 is true) or f11, false) ", "TRUE")
+    testSqlApi("IFNULL(not f11, false) ", "TRUE")
+    testSqlApi("IFNULL(f6 is true, false) ", "TRUE")
+    testSqlApi("IFNULL(f6 is not true, true) ", "FALSE")
+    testSqlApi("IFNULL(f6 is false, true) ", "FALSE")
+    testSqlApi("IFNULL(f6 is not false, false) ", "TRUE")
+  }
+
+  @Test
   def testOtherExpressions(): Unit = {
 
     // nested field null type

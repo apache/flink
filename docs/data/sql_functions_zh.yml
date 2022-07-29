@@ -411,57 +411,71 @@ string:
       返回字符串 string 的 base64 编码的结果；如果字符串为 `NULL`，则返回 `NULL`。
       例如 `TO_BASE64('hello world')` 返回 `"aGVsbG8gd29ybGQ="`。
   - sql: ASCII(string)
+    table: STRING.ascii()
     description: |
       返回字符串 string 第一个字符的数值。如果字符串为 `NULL` 则返回 `NULL`。
       例如 `ascii('abc')` 返回 `97`，`ascii(CAST(NULL AS VARCHAR))` 返回 `NULL`。
   - sql: CHR(integer)
+    table: INT.chr()
     description: |
       返回二进制等于 integer 的 ASCII 字符。如果整数 integer 大于 255，我们先将得到整数对 255 取模数，
       并返回模数的 CHR。如果整数为 `NULL`，则返回 `NULL`。例如 `chr(97)` 返回 `a`，`chr(353)` 返回 `a`，
       `ascii(CAST(NULL AS VARCHAR))` 返回 `NULL`。
   - sql: DECODE(binary, string)
+    table: BINARY.decode(STRING)
     description: |
       使用提供的字符集（'US-ASCII'，'ISO-8859-1'，'UTF-8'，'UTF-16BE'，'UTF-16LE'，'UTF-16'）解码。
       如果任一参数为空，则结果也将为空。
   - sql: ENCODE(string1, string2)
+    table: STRING1.encode(STRING2)
     description: |
       使用提供的字符集（'US-ASCII'，'ISO-8859-1'，'UTF-8'，'UTF-16BE'，'UTF-16LE'，'UTF-16'）编码。
       如果任一参数为空，则结果也将为空。
   - sql: INSTR(string1, string2)
+    table: STRING1.instr(STRING2)
     description:  返回 string2 在 string1 中第一次出现的位置。如果有任一参数为 `NULL`，则返回 `NULL`。
   - sql: LEFT(string, integer)
+    table: STRING.LEFT(INT)
     description: |
       返回字符串中最左边的长度为 integer 值的字符串。如果 integer 为负，则返回 `EMPTY` 字符串。如果有任一参数
       为 `NULL` 则返回 `NULL`。
   - sql: RIGHT(string, integer)
+    table: STRING.RIGHT(INT)
     description: |
       返回字符串中最右边的长度为 integer 值的字符串。如果 integer 为负，则返回 `EMPTY` 字符串。如果有任一参数
       为 `NULL` 则返回 `NULL`。
   - sql: LOCATE(string1, string2[, integer])
+    table: STRING1.locate(STRING2[, INTEGER])
     description: |
       返回 string2 中 string1 在位置 integer 之后第一次出现的位置。未找到返回 0。如果有任一参数为 `NULL` 则返回 `NULL`。
   - sql: PARSE_URL(string1, string2[, string3])
+    table: STRING1.parseUrl(STRING2[, STRING3])
     description: |
       从 URL 返回指定的部分。string2 的有效值包括“HOST”，“PATH”，“QUERY”，“REF”，“PROTOCOL”，“AUTHORITY”，“FILE”和“USERINFO”。
       如果有任一参数为 `NULL`，则返回 `NULL`。例如
-      `parse_url(' http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST')` 返回 `'facebook.com'`。
+      `parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST')` 返回 `'facebook.com'`。
       还可以通过提供关键词 string3 作为第三个参数来提取 QUERY 中特定键的值。例如
       `parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1')` 返回 `'v1'`。
   - sql: REGEXP(string1, string2)
+    table: STRING1.regexp(STRING2)
     description: |
       如果 string1 的任何（可能为空）子字符串与 Java 正则表达式 string2 匹配，则返回 TRUE，否则返回 FALSE。
       如果有任一参数为 `NULL`，则返回 `NULL`。
   - sql: REVERSE(string)
+    table: STRING.reverse()
     description: 返回反转的字符串。如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SPLIT_INDEX(string1, string2, integer1)
+    table: STRING1.splitIndex(STRING2, INTEGER1)
     description: |
-      通过分隔符 string2 拆分 string1，返回拆分字符串的第 integer（从零开始）个字符串。如果整数为负，则返回 `NULL`。
+      通过分隔符 string2 拆分 string1，返回分隔后这组字符串的第 integer（从零开始）个字符串。如果整数为负，则返回 `NULL`。
       如果有任一参数为 `NULL`，则返回 `NULL`。
   - sql: STR_TO_MAP(string1[, string2, string3])
+    table: STRING1.strToMap([STRING2, STRING3])
     description: |
       使用分隔符将 string1 拆分为键值对后返回一个 map。string2 是 pair 分隔符，默认为 ','。string3 是键值分隔符，默认为 '='。
       pair 分隔符与键值分隔符均为正则表达式，当使用特殊字符作为分隔符时请提前进行转义，例如 `<([{\^-=$!|]})?*+.>`。
-  - sql: SUBSTR(string[, integer1[, integer2]])
+  - sql: SUBSTR(string, integer1[, integer2])
+    table: STRING.substr(INTEGER1[, INTEGER2])
     description: 返回字符串的子字符串，从位置 integer1 开始，长度为 integer2（默认到末尾）。
 
 temporal:
@@ -596,6 +610,7 @@ temporal:
       时区的格式应该是缩写如“PST”，全名如“America/Los_Angeles”，或自定义 ID 如“GMT-08:00”。例如
       `CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles')` 返回 `'1969-12-31 16:00:00`'。
   - sql: FROM_UNIXTIME(numeric[, string])
+    table: fromUnixtime(NUMERIC[, STRING])
     description: |
       以字符串格式 string 返回数字参数 numberic 的表示形式（默认为 'yyyy-MM-dd HH:mm:ss'）。numeric 是一个内部
       时间戳值，表示自'1970-01-01 00:00:00' UTC 以来的秒数，由 UNIX_TIMESTAMP() 函数生成。返回值以会话时区表示
@@ -1074,8 +1089,17 @@ aggregate:
   - sql: LAG(expression [, offset] [, default])
     description: 返回窗口中当前行之前第 offset 行处的表达式值。offset 的默认值为 1，default 的默认值为 `NULL`。
   - sql: FIRST_VALUE(expression)
+    table: FIELD.firstValue
     description: 返回一组有序值中的第一个值。
   - sql: LAST_VALUE(expression)
+    table: FIELD.lastValue
     description: 返回一组有序值中的最后一个值。
   - sql: LISTAGG(expression [, separator])
     description: 连接字符串表达式的值并在它们之间放置分隔符值。字符串末尾不添加分隔符时则分隔符的默认值为“,”。
+  - sql: CUME_DIST()
+    description: 返回值在一组值的累积分布。结果是小于或等于当前行的值的行数除以窗口分区的总行数。
+
+catalog:
+  - sql: CURRENT_DATABASE()
+    table: currentDatabase()
+    description: 返回当前数据库。

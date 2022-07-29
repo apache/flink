@@ -258,6 +258,7 @@
     },
     "projectionOnTemporalTable" : null,
     "filterOnTemporalTable" : null,
+    "inputInsertOnly" : true,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

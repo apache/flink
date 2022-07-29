@@ -171,12 +171,33 @@ final class PythonEnvUtils {
                                         originalFileName = archivePath.getName();
                                     } else {
                                         archivePath = new Path(archive);
-                                        targetDirName = archivePath.getName();
-                                        originalFileName = targetDirName;
+                                        originalFileName = archivePath.getName();
+                                        targetDirName = originalFileName;
                                     }
+
+                                    Path localArchivePath = archivePath;
+                                    try {
+                                        if (archivePath.getFileSystem().isDistributedFS()) {
+                                            localArchivePath =
+                                                    new Path(
+                                                            env.tempDirectory,
+                                                            String.join(
+                                                                    File.separator,
+                                                                    UUID.randomUUID().toString(),
+                                                                    originalFileName));
+                                            FileUtils.copy(archivePath, localArchivePath, false);
+                                        }
+                                    } catch (IOException e) {
+                                        String msg =
+                                                String.format(
+                                                        "Error occurred when copying %s to %s.",
+                                                        archivePath, localArchivePath);
+                                        throw new RuntimeException(msg, e);
+                                    }
+
                                     try {
                                         CompressionUtils.extractFile(
-                                                archivePath.getPath(),
+                                                localArchivePath.getPath(),
                                                 String.join(
                                                         File.separator,
                                                         env.archivesDirectory,

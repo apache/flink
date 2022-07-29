@@ -20,13 +20,14 @@ from typing import Union
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit, JsonOnNull
-from pyflink.table.types import _to_java_data_type, DataType, _to_java_type
-from pyflink.table.udf import UserDefinedFunctionWrapper, UserDefinedTableFunctionWrapper
+from pyflink.table.types import _to_java_data_type, DataType
+from pyflink.table.udf import UserDefinedFunctionWrapper
 from pyflink.util.java_utils import to_jarray, load_java_class
 
 __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOUNDED_ROW',
-           'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_date', 'current_time',
-           'current_timestamp', 'current_watermark', 'local_time', 'local_timestamp',
+           'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_database',
+           'current_date', 'current_time', 'current_timestamp',
+           'current_watermark', 'local_time', 'local_timestamp',
            'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
@@ -208,6 +209,13 @@ all rows with the same sort key as the current row are included in the window.
 CURRENT_RANGE = Expression("CURRENT_RANGE")  # type: Expression
 
 
+def current_database() -> Expression:
+    """
+    Returns the current database
+    """
+    return _leaf_op("currentDatabase")
+
+
 def current_date() -> Expression:
     """
     Returns the current SQL date in local time zone.
@@ -337,6 +345,17 @@ def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2) -> 
     """
     return _ternary_op("timestampDiff", time_point_unit._to_j_time_point_unit(),
                        time_point1, time_point2)
+
+
+def from_unixtime(unixtime, format=None) -> Expression:
+    """
+    Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string the given
+    format. The default format is "yyyy-MM-dd HH:mm:ss".
+    """
+    if format is None:
+        return _unary_op("fromUnixtime", unixtime)
+    else:
+        return _binary_op("fromUnixtime", unixtime, format)
 
 
 def array(head, *tail) -> Expression:
@@ -767,21 +786,6 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
         return Expression(gateway.jvm.Expressions.call(
             f, to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])))
 
-    def get_function_definition(f):
-        if isinstance(f, UserDefinedTableFunctionWrapper):
-            """
-            TypeInference was not supported for TableFunction in the old planner. Use
-            TableFunctionDefinition to work around this issue.
-            """
-            j_result_types = to_jarray(gateway.jvm.TypeInformation,
-                                       [_to_java_type(i) for i in f._result_types])
-            j_result_type = gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(
-                j_result_types)
-            return gateway.jvm.org.apache.flink.table.functions.TableFunctionDefinition(
-                'f', f._java_user_defined_function(), j_result_type)
-        else:
-            return f._java_user_defined_function()
-
     expressions_clz = load_java_class("org.apache.flink.table.api.Expressions")
     function_definition_clz = load_java_class('org.apache.flink.table.functions.FunctionDefinition')
     j_object_array_type = to_jarray(gateway.jvm.Object, []).getClass()
@@ -794,7 +798,7 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
     return Expression(api_call_method.invoke(
         None,
         to_jarray(gateway.jvm.Object,
-                  [get_function_definition(f),
+                  [f._java_user_defined_function(),
                    to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])])))
 
 

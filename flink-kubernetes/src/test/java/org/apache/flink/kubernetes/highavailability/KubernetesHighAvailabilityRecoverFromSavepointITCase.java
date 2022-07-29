@@ -35,6 +35,7 @@ import org.apache.flink.kubernetes.KubernetesExtension;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
@@ -140,9 +141,7 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
     private static Configuration getConfiguration() {
         Configuration configuration = new Configuration();
         configuration.set(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
-        configuration.set(
-                HighAvailabilityOptions.HA_MODE,
-                KubernetesHaServicesFactory.class.getCanonicalName());
+        configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.KUBERNETES.name());
         try {
             temporaryPath = Files.createTempDirectory("haStorage");
         } catch (IOException e) {

@@ -41,8 +41,8 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_HTTP_CLIENT_MAX_CONCURRENCY;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /** Tests for KinesisConfigUtil. */
 @RunWith(PowerMockRunner.class)
@@ -74,12 +74,12 @@ public class KinesisConfigUtilTest {
         KinesisProducerConfiguration kpc =
                 KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
-        assertEquals(100, kpc.getRateLimit());
+        assertThat(kpc.getRateLimit()).isEqualTo(100);
 
         testConfig.setProperty(KinesisConfigUtil.RATE_LIMIT, "150");
         kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
-        assertEquals(150, kpc.getRateLimit());
+        assertThat(kpc.getRateLimit()).isEqualTo(150);
     }
 
     @Test
@@ -89,13 +89,14 @@ public class KinesisConfigUtilTest {
         KinesisProducerConfiguration kpc =
                 KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
-        assertEquals(KinesisProducerConfiguration.ThreadingModel.POOLED, kpc.getThreadingModel());
+        assertThat(kpc.getThreadingModel())
+                .isEqualTo(KinesisProducerConfiguration.ThreadingModel.POOLED);
 
         testConfig.setProperty(KinesisConfigUtil.THREADING_MODEL, "PER_REQUEST");
         kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
-        assertEquals(
-                KinesisProducerConfiguration.ThreadingModel.PER_REQUEST, kpc.getThreadingModel());
+        assertThat(kpc.getThreadingModel())
+                .isEqualTo(KinesisProducerConfiguration.ThreadingModel.PER_REQUEST);
     }
 
     @Test
@@ -105,12 +106,12 @@ public class KinesisConfigUtilTest {
         KinesisProducerConfiguration kpc =
                 KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
-        assertEquals(10, kpc.getThreadPoolSize());
+        assertThat(kpc.getThreadPoolSize()).isEqualTo(10);
 
         testConfig.setProperty(KinesisConfigUtil.THREAD_POOL_SIZE, "12");
         kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
-        assertEquals(12, kpc.getThreadPoolSize());
+        assertThat(kpc.getThreadPoolSize()).isEqualTo(12);
     }
 
     @Test
@@ -122,8 +123,10 @@ public class KinesisConfigUtilTest {
         testConfig.setProperty(ProducerConfigConstants.COLLECTION_MAX_COUNT, "2");
         Properties replacedConfig = KinesisConfigUtil.replaceDeprecatedProducerKeys(testConfig);
 
-        assertEquals("1", replacedConfig.getProperty(KinesisConfigUtil.AGGREGATION_MAX_COUNT));
-        assertEquals("2", replacedConfig.getProperty(KinesisConfigUtil.COLLECTION_MAX_COUNT));
+        assertThat(replacedConfig.getProperty(KinesisConfigUtil.AGGREGATION_MAX_COUNT))
+                .isEqualTo("1");
+        assertThat(replacedConfig.getProperty(KinesisConfigUtil.COLLECTION_MAX_COUNT))
+                .isEqualTo("2");
     }
 
     @Test
@@ -134,7 +137,7 @@ public class KinesisConfigUtilTest {
         KinesisProducerConfiguration kpc =
                 KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
-        assertEquals("incorrect region", region, kpc.getRegion());
+        assertThat(kpc.getRegion()).as("incorrect region").isEqualTo(region);
     }
 
     @Test
@@ -207,7 +210,8 @@ public class KinesisConfigUtilTest {
         Properties testConfig = TestUtils.getStandardProperties();
         ConsumerConfigConstants.RecordPublisherType recordPublisherType =
                 KinesisConfigUtil.validateRecordPublisherType(testConfig);
-        assertEquals(recordPublisherType, ConsumerConfigConstants.RecordPublisherType.POLLING);
+        assertThat(ConsumerConfigConstants.RecordPublisherType.POLLING)
+                .isEqualTo(recordPublisherType);
     }
 
     @Test
@@ -481,12 +485,8 @@ public class KinesisConfigUtilTest {
         testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
         testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, timestamp);
 
-        try {
-            KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail();
-        }
+        assertThatNoException()
+                .isThrownBy(() -> KinesisConfigUtil.validateConsumerConfiguration(testConfig));
     }
 
     @Test
@@ -498,12 +498,8 @@ public class KinesisConfigUtilTest {
         testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
         testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, unixTimestamp);
 
-        try {
-            KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail();
-        }
+        assertThatNoException()
+                .isThrownBy(() -> KinesisConfigUtil.validateConsumerConfiguration(testConfig));
     }
 
     @Test
@@ -743,7 +739,7 @@ public class KinesisConfigUtilTest {
         Date actualimestamp =
                 KinesisConfigUtil.parseStreamTimestampStartingPosition(consumerProperties);
 
-        assertEquals(expectedTimestamp, actualimestamp);
+        assertThat(actualimestamp).isEqualTo(expectedTimestamp);
     }
 
     @Test
@@ -759,7 +755,7 @@ public class KinesisConfigUtilTest {
         Date actualimestamp =
                 KinesisConfigUtil.parseStreamTimestampStartingPosition(consumerProperties);
 
-        assertEquals(expectedTimestamp, actualimestamp);
+        assertThat(actualimestamp).isEqualTo(expectedTimestamp);
     }
 
     @Test

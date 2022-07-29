@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
+import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -82,7 +83,9 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
                         .get();
 
         assertThat(jobClient.getJobID(), is(cancellableJobGraph.getJobID()));
-        assertThat(jobClient.getJobStatus().get(), is(JobStatus.RUNNING));
+        assertThat(
+                jobClient.getJobStatus().get(),
+                anyOf(is(JobStatus.CREATED), is(JobStatus.RUNNING)));
 
         jobClient.cancel().get();
 
@@ -101,6 +104,10 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
                 perJobMiniClusterFactory
                         .submitJob(getCancellableJobGraph(), ClassLoader.getSystemClassLoader())
                         .get();
+
+        while (jobClient.getJobStatus().get() != JobStatus.RUNNING) {
+            Thread.sleep(50);
+        }
 
         assertThrows(
                 "is not a streaming job.",

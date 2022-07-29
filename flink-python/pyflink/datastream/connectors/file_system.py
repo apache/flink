@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import warnings
+
 from pyflink.common import Duration, Encoder
 from pyflink.datastream.functions import SinkFunction
 from pyflink.datastream.connectors import Source, Sink
@@ -117,6 +119,25 @@ class StreamFormat(object):
         j_stream_format = get_gateway().jvm.org.apache.flink.connector.file.src.reader. \
             TextLineInputFormat(charset_name)
         return StreamFormat(j_stream_format)
+
+
+class BulkFormat(object):
+    """
+    The BulkFormat reads and decodes batches of records at a time. Examples of bulk formats are
+    formats like ORC or Parquet.
+
+    Internally in the file source, the readers pass batches of records from the reading threads
+    (that perform the typically blocking I/O operations) to the async mailbox threads that do the
+    streaming and batch data processing. Passing records in batches (rather than one-at-a-time) much
+    reduce the thread-to-thread handover overhead.
+
+    For the BulkFormat, one batch is handed over as one.
+
+    .. versionadded:: 1.16.0
+    """
+
+    def __init__(self, j_bulk_format):
+        self._j_bulk_format = j_bulk_format
 
 
 class FileSourceBuilder(object):
@@ -264,6 +285,14 @@ class FileSource(Source):
         j_paths = to_jarray(JPath, [JPath(p) for p in paths])
         return FileSourceBuilder(
             JFileSource.forRecordStreamFormat(stream_format._j_stream_format, j_paths))
+
+    @staticmethod
+    def for_bulk_file_format(bulk_format: BulkFormat, *paths: str) -> FileSourceBuilder:
+        JPath = get_gateway().jvm.org.apache.flink.core.fs.Path
+        JFileSource = get_gateway().jvm.org.apache.flink.connector.file.src.FileSource
+        j_paths = to_jarray(JPath, [JPath(p) for p in paths])
+        return FileSourceBuilder(
+            JFileSource.forBulkFileFormat(bulk_format._j_bulk_format, j_paths))
 
 
 # ---- FileSink ----
@@ -523,6 +552,7 @@ class StreamingFileSink(SinkFunction):
     """
 
     def __init__(self, j_obj):
+        warnings.warn("Deprecated in 1.15. Use FileSink instead.", DeprecationWarning)
         super(StreamingFileSink, self).__init__(j_obj)
 
     class DefaultRowFormatBuilder(object):

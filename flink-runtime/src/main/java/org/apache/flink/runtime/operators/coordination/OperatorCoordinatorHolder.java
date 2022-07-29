@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -200,14 +201,15 @@ public class OperatorCoordinatorHolder
         context.unInitialize();
     }
 
-    public void handleEventFromOperator(int subtask, OperatorEvent event) throws Exception {
+    public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event)
+            throws Exception {
         mainThreadExecutor.assertRunningInMainThread();
-        coordinator.handleEventFromOperator(subtask, event);
+        coordinator.handleEventFromOperator(subtask, attemptNumber, event);
     }
 
-    public void subtaskFailed(int subtask, @Nullable Throwable reason) {
+    public void executionAttemptFailed(int subtask, int attemptNumber, @Nullable Throwable reason) {
         mainThreadExecutor.assertRunningInMainThread();
-        coordinator.subtaskFailed(subtask, reason);
+        coordinator.executionAttemptFailed(subtask, attemptNumber, reason);
     }
 
     @Override
@@ -378,9 +380,18 @@ public class OperatorCoordinatorHolder
     }
 
     private void setupSubtaskGateway(int subtask) {
-        // this gets an access to the latest task execution attempt.
-        final SubtaskAccess sta = taskAccesses.getAccessForSubtask(subtask);
+        for (SubtaskAccess sta : taskAccesses.getAccessesForSubtask(subtask)) {
+            setupSubtaskGateway(sta);
+        }
+    }
 
+    public void setupSubtaskGatewayForAttempts(int subtask, Set<Integer> attemptNumbers) {
+        for (int attemptNumber : attemptNumbers) {
+            setupSubtaskGateway(taskAccesses.getAccessForAttempt(subtask, attemptNumber));
+        }
+    }
+
+    private void setupSubtaskGateway(final SubtaskAccess sta) {
         final OperatorCoordinator.SubtaskGateway gateway =
                 new SubtaskGatewayImpl(sta, eventValve, mainThreadExecutor, unconfirmedEvents);
 
@@ -402,14 +413,15 @@ public class OperatorCoordinatorHolder
 
                                     // see bigger comment above
                                     if (sta.isStillRunning()) {
-                                        notifySubtaskReady(subtask, gateway);
+                                        notifySubtaskReady(gateway);
                                     }
                                 }));
     }
 
-    private void notifySubtaskReady(int subtask, OperatorCoordinator.SubtaskGateway gateway) {
+    private void notifySubtaskReady(OperatorCoordinator.SubtaskGateway gateway) {
         try {
-            coordinator.subtaskReady(subtask, gateway);
+            coordinator.executionAttemptReady(
+                    gateway.getSubtask(), gateway.getExecution().getAttemptNumber(), gateway);
         } catch (Throwable t) {
             ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
             globalFailureHandler.handleGlobalFailure(
@@ -425,7 +437,8 @@ public class OperatorCoordinatorHolder
             SerializedValue<OperatorCoordinator.Provider> serializedProvider,
             ExecutionJobVertex jobVertex,
             ClassLoader classLoader,
-            CoordinatorStore coordinatorStore)
+            CoordinatorStore coordinatorStore,
+            boolean supportsConcurrentExecutionAttempts)
             throws Exception {
 
         try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
@@ -444,7 +457,8 @@ public class OperatorCoordinatorHolder
                     jobVertex.getGraph().getUserClassLoader(),
                     jobVertex.getParallelism(),
                     jobVertex.getMaxParallelism(),
-                    taskAccesses);
+                    taskAccesses,
+                    supportsConcurrentExecutionAttempts);
         }
     }
 
@@ -457,7 +471,8 @@ public class OperatorCoordinatorHolder
             final ClassLoader userCodeClassLoader,
             final int operatorParallelism,
             final int operatorMaxParallelism,
-            final SubtaskAccess.SubtaskAccessFactory taskAccesses)
+            final SubtaskAccess.SubtaskAccessFactory taskAccesses,
+            final boolean supportsConcurrentExecutionAttempts)
             throws Exception {
 
         final LazyInitializedCoordinatorContext context =
@@ -466,7 +481,8 @@ public class OperatorCoordinatorHolder
                         operatorName,
                         userCodeClassLoader,
                         operatorParallelism,
-                        coordinatorStore);
+                        coordinatorStore,
+                        supportsConcurrentExecutionAttempts);
 
         final OperatorCoordinator coordinator = coordinatorProvider.create(context);
 
@@ -503,6 +519,7 @@ public class OperatorCoordinatorHolder
         private final ClassLoader userCodeClassLoader;
         private final int operatorParallelism;
         private final CoordinatorStore coordinatorStore;
+        private final boolean supportsConcurrentExecutionAttempts;
 
         private GlobalFailureHandler globalFailureHandler;
         private Executor schedulerExecutor;
@@ -514,12 +531,14 @@ public class OperatorCoordinatorHolder
                 final String operatorName,
                 final ClassLoader userCodeClassLoader,
                 final int operatorParallelism,
-                final CoordinatorStore coordinatorStore) {
+                final CoordinatorStore coordinatorStore,
+                final boolean supportsConcurrentExecutionAttempts) {
             this.operatorId = checkNotNull(operatorId);
             this.operatorName = checkNotNull(operatorName);
             this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
             this.operatorParallelism = operatorParallelism;
             this.coordinatorStore = checkNotNull(coordinatorStore);
+            this.supportsConcurrentExecutionAttempts = supportsConcurrentExecutionAttempts;
         }
 
         void lazyInitialize(GlobalFailureHandler globalFailureHandler, Executor schedulerExecutor) {
@@ -587,6 +606,11 @@ public class OperatorCoordinatorHolder
         @Override
         public CoordinatorStore getCoordinatorStore() {
             return coordinatorStore;
+        }
+
+        @Override
+        public boolean isConcurrentExecutionAttemptsSupported() {
+            return supportsConcurrentExecutionAttempts;
         }
     }
 }

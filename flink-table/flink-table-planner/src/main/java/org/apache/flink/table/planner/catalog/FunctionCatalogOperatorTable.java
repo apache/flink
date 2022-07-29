@@ -35,7 +35,6 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
-import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
@@ -54,8 +53,6 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Optional;
-
-import static org.apache.flink.table.planner.functions.utils.HiveFunctionUtils.isHiveFunc;
 
 /** Thin adapter between {@link SqlOperatorTable} and {@link FunctionCatalog}. */
 @Internal
@@ -102,15 +99,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
         final FunctionIdentifier identifier = resolvedFunction.getIdentifier().orElse(null);
         // legacy
         if (definition instanceof AggregateFunctionDefinition) {
-            AggregateFunctionDefinition def = (AggregateFunctionDefinition) definition;
-            if (isHiveFunc(def.getAggregateFunction())) {
-                return Optional.of(
-                        new HiveAggSqlFunction(
-                                identifier, def.getAggregateFunction(), typeFactory));
-            } else {
-                return convertAggregateFunction(
-                        identifier, (AggregateFunctionDefinition) definition);
-            }
+            return convertAggregateFunction(identifier, (AggregateFunctionDefinition) definition);
         } else if (definition instanceof ScalarFunctionDefinition) {
             ScalarFunctionDefinition def = (ScalarFunctionDefinition) definition;
             return convertScalarFunction(identifier, def);

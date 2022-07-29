@@ -29,6 +29,8 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.postgresql.jdbc.PgArray;
 
 import java.lang.reflect.Array;
+import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Runtime converter that responsible to convert between JDBC object and Flink internal object for
@@ -37,6 +39,8 @@ import java.lang.reflect.Array;
 public class PostgresRowConverter extends AbstractJdbcRowConverter {
 
     private static final long serialVersionUID = 1L;
+    private static final Pattern UUID_REGEX_PATTERN =
+            Pattern.compile("^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$");
 
     @Override
     public String converterName() {
@@ -57,6 +61,25 @@ public class PostgresRowConverter extends AbstractJdbcRowConverter {
         } else {
             return createPrimitiveConverter(type);
         }
+    }
+
+    @Override
+    protected JdbcSerializationConverter createExternalConverter(LogicalType type) {
+        switch (type.getTypeRoot()) {
+            case CHAR:
+            case VARCHAR:
+                return (val, index, statement) -> {
+                    String valString = val.getString(index).toString();
+
+                    if (UUID_REGEX_PATTERN.matcher(valString).matches()) {
+                        statement.setObject(index, UUID.fromString(valString));
+                    } else {
+                        statement.setString(index, valString);
+                    }
+                };
+        }
+
+        return super.createExternalConverter(type);
     }
 
     @Override

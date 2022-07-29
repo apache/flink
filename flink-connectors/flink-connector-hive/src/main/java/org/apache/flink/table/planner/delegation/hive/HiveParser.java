@@ -224,7 +224,10 @@ public class HiveParser extends ParserImpl {
                                 this,
                                 hiveShim,
                                 context,
-                                dmlHelper);
+                                dmlHelper,
+                                frameworkConfig,
+                                plannerContext.getCluster(),
+                                plannerContext.getFlinkContext().getClassLoader());
                 operation = ddlAnalyzer.convertToOperation(node);
                 return Collections.singletonList(operation);
             } else {

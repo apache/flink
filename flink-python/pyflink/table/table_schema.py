@@ -18,7 +18,7 @@
 from typing import List, Optional, Union
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import _to_java_type, _from_java_type, DataType, RowType
+from pyflink.table.types import DataType, RowType, _to_java_data_type, _from_java_data_type
 from pyflink.util.java_utils import to_jarray
 
 __all__ = ['TableSchema']
@@ -34,9 +34,10 @@ class TableSchema(object):
         if j_table_schema is None:
             gateway = get_gateway()
             j_field_names = to_jarray(gateway.jvm.String, field_names)
-            j_data_types = to_jarray(gateway.jvm.TypeInformation,
-                                     [_to_java_type(item) for item in data_types])
-            self._j_table_schema = gateway.jvm.TableSchema(j_field_names, j_data_types)
+            j_data_types = to_jarray(gateway.jvm.DataType,
+                                     [_to_java_data_type(item) for item in data_types])
+            self._j_table_schema = gateway.jvm.TableSchema.builder()\
+                .fields(j_field_names, j_data_types).build()
         else:
             self._j_table_schema = j_table_schema
 
@@ -54,7 +55,7 @@ class TableSchema(object):
 
         :return: A list of all field data types.
         """
-        return [_from_java_type(item) for item in self._j_table_schema.getFieldDataTypes()]
+        return [_from_java_data_type(item) for item in self._j_table_schema.getFieldDataTypes()]
 
     def get_field_data_type(self, field: Union[int, str]) -> Optional[DataType]:
         """
@@ -67,7 +68,7 @@ class TableSchema(object):
             raise TypeError("Expected field index or field name, got %s" % type(field))
         optional_result = self._j_table_schema.getFieldDataType(field)
         if optional_result.isPresent():
-            return _from_java_type(optional_result.get())
+            return _from_java_data_type(optional_result.get())
         else:
             return None
 
@@ -107,7 +108,7 @@ class TableSchema(object):
 
         :return: The row data type.
         """
-        return _from_java_type(self._j_table_schema.toRowDataType())
+        return _from_java_data_type(self._j_table_schema.toRowDataType())
 
     def __repr__(self):
         return self._j_table_schema.toString()

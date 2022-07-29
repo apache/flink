@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.functions.source.datagen.SequenceGenerator
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -35,7 +36,10 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+
+import org.apache.flink.shaded.guava30.com.google.common.primitives.Longs;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -121,6 +125,22 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     }
 
     @Override
+    public DataGeneratorContainer visit(BinaryType binaryType) {
+        return DataGeneratorContainer.of(
+                getSequenceBytesGenerator(config.get(longStart), config.get(longEnd)),
+                longStart,
+                longEnd);
+    }
+
+    @Override
+    public DataGeneratorContainer visit(VarBinaryType varBinaryType) {
+        return DataGeneratorContainer.of(
+                getSequenceBytesGenerator(config.get(longStart), config.get(longEnd)),
+                longStart,
+                longEnd);
+    }
+
+    @Override
     public DataGeneratorContainer visit(TinyIntType tinyIntType) {
         return DataGeneratorContainer.of(
                 SequenceGenerator.byteGenerator(
@@ -188,6 +208,20 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
             @Override
             public StringData next() {
                 return StringData.fromString(valuesToEmit.poll().toString());
+            }
+        };
+    }
+
+    private static SequenceGenerator<byte[]> getSequenceBytesGenerator(long start, long end) {
+        return new SequenceGenerator<byte[]>(start, end) {
+            @Override
+            public byte[] next() {
+                Long value = valuesToEmit.poll();
+                if (value != null) {
+                    return Longs.toByteArray(value);
+                } else {
+                    return new byte[0];
+                }
             }
         };
     }

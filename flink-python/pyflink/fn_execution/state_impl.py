@@ -1266,7 +1266,14 @@ class SynchronousBroadcastRuntimeState(
         return SynchronousReadOnlyBroadcastRuntimeState(self._name, self._internal_map_state)
 
 
-class RemoteOperatorStateBackend(OperatorStateStore):
+class OperatorStateBackend(OperatorStateStore, ABC):
+
+    @abstractmethod
+    def commit(self):
+        pass
+
+
+class RemoteOperatorStateBackend(OperatorStateBackend):
     def __init__(
         self, state_handler, state_cache_size, map_state_read_cache_size, map_state_write_cache_size
     ):

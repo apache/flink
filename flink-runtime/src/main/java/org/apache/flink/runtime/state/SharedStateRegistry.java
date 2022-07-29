@@ -21,6 +21,8 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 
+import java.util.Set;
+
 /**
  * This registry manages state that is shared across (incremental) checkpoints, and is responsible
  * for deleting shared state that is no longer used in any valid checkpoint.
@@ -57,12 +59,14 @@ public interface SharedStateRegistry extends AutoCloseable {
      */
     StreamStateHandle registerReference(
             SharedStateRegistryKey registrationKey, StreamStateHandle state, long checkpointID);
+
     /**
      * Unregister state that is not referenced by the given checkpoint ID or any newer.
      *
-     * @param lowestCheckpointID which is still valid
+     * @param lowestCheckpointID which is still valid.
+     * @return a set of checkpointID which is still in use.
      */
-    void unregisterUnusedState(long lowestCheckpointID);
+    Set<Long> unregisterUnusedState(long lowestCheckpointID);
 
     /**
      * Register given shared states in the registry.

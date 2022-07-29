@@ -78,12 +78,22 @@ public class TestingAccessExecution implements AccessExecution {
     }
 
     @Override
+    public long[] getStateEndTimestamps() {
+        throw new UnsupportedOperationException("getStateTimestamps should not be called.");
+    }
+
+    @Override
     public ExecutionState getState() {
         return state;
     }
 
     @Override
     public long getStateTimestamp(ExecutionState state) {
+        throw new UnsupportedOperationException("getStateTimestamp should not be called.");
+    }
+
+    @Override
+    public long getStateEndTimestamp(ExecutionState state) {
         throw new UnsupportedOperationException("getStateTimestamp should not be called.");
     }
 

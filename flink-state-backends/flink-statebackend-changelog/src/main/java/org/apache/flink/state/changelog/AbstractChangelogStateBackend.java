@@ -21,19 +21,16 @@ package org.apache.flink.state.changelog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointBoundKeyedStateHandle;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.SavepointKeyedStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
@@ -50,9 +47,6 @@ import javax.annotation.Nonnull;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
-import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
 
 /**
  * An abstract base implementation of the {@link StateBackend} interface whose subclasses use
@@ -197,41 +191,11 @@ public abstract class AbstractChangelogStateBackend
     private Collection<ChangelogStateBackendHandle> castHandles(
             Collection<KeyedStateHandle> stateHandles) {
         if (stateHandles.stream().anyMatch(h -> !(h instanceof ChangelogStateBackendHandle))) {
-            LOG.warn(
-                    "Some state handles do not contain changelog: {} (ok if recovery from a savepoint)",
-                    stateHandles);
+            LOG.warn("Some state handles do not contain changelog: {}.", stateHandles);
         }
         return stateHandles.stream()
                 .filter(Objects::nonNull)
-                .map(this::getChangelogStateBackendHandle)
+                .map(ChangelogStateBackendHandleImpl::getChangelogStateBackendHandle)
                 .collect(Collectors.toList());
-    }
-
-    private ChangelogStateBackendHandle getChangelogStateBackendHandle(
-            KeyedStateHandle keyedStateHandle) {
-        if (keyedStateHandle instanceof ChangelogStateBackendHandle) {
-            return (ChangelogStateBackendHandle) keyedStateHandle;
-        } else if (keyedStateHandle instanceof SavepointKeyedStateHandle) {
-            return new ChangelogStateBackendHandleImpl(
-                    singletonList(keyedStateHandle),
-                    emptyList(),
-                    keyedStateHandle.getKeyGroupRange(),
-                    getMaterializationID(keyedStateHandle),
-                    getMaterializationID(keyedStateHandle),
-                    0L);
-        } else {
-            throw new IllegalStateException(
-                    String.format(
-                            "Recovery not supported from %s with Changelog enabled. Consider taking a savepoint in %s format.",
-                            keyedStateHandle.getClass(), SavepointFormatType.CANONICAL));
-        }
-    }
-
-    private long getMaterializationID(KeyedStateHandle keyedStateHandle) {
-        if (keyedStateHandle instanceof CheckpointBoundKeyedStateHandle) {
-            return ((CheckpointBoundKeyedStateHandle) keyedStateHandle).getCheckpointId();
-        } else {
-            return 0L;
-        }
     }
 }

@@ -192,6 +192,10 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     /** Returns the number of queued buffers of the given target subpartition. */
     public abstract int getNumberOfQueuedBuffers(int targetSubpartition);
 
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {
+        this.bufferPool.setMaxOverdraftBuffersPerGate(maxOverdraftBuffersPerGate);
+    }
+
     /**
      * Returns the type of this result partition.
      *

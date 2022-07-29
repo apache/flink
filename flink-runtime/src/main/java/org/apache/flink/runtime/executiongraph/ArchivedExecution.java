@@ -37,6 +37,8 @@ public class ArchivedExecution implements AccessExecution, Serializable {
 
     private final long[] stateTimestamps;
 
+    private final long[] stateEndTimestamps;
+
     private final ExecutionState state;
 
     @Nullable private final ErrorInfo failureInfo; // once assigned, never changes
@@ -59,7 +61,8 @@ public class ArchivedExecution implements AccessExecution, Serializable {
                 execution.getFailureInfo().orElse(null),
                 execution.getAssignedResourceLocation(),
                 execution.getAssignedAllocationID(),
-                execution.getStateTimestamps());
+                execution.getStateTimestamps(),
+                execution.getStateEndTimestamps());
     }
 
     public ArchivedExecution(
@@ -70,7 +73,8 @@ public class ArchivedExecution implements AccessExecution, Serializable {
             @Nullable ErrorInfo failureCause,
             TaskManagerLocation assignedResourceLocation,
             AllocationID assignedAllocationID,
-            long[] stateTimestamps) {
+            long[] stateTimestamps,
+            long[] stateEndTimestamps) {
         this.userAccumulators = userAccumulators;
         this.ioMetrics = ioMetrics;
         this.failureInfo = failureCause;
@@ -78,6 +82,7 @@ public class ArchivedExecution implements AccessExecution, Serializable {
         this.attemptId = attemptId;
         this.state = state;
         this.stateTimestamps = stateTimestamps;
+        this.stateEndTimestamps = stateEndTimestamps;
         this.assignedAllocationID = assignedAllocationID;
     }
 
@@ -98,6 +103,11 @@ public class ArchivedExecution implements AccessExecution, Serializable {
     @Override
     public long[] getStateTimestamps() {
         return stateTimestamps;
+    }
+
+    @Override
+    public long[] getStateEndTimestamps() {
+        return stateEndTimestamps;
     }
 
     @Override
@@ -122,6 +132,11 @@ public class ArchivedExecution implements AccessExecution, Serializable {
     @Override
     public long getStateTimestamp(ExecutionState state) {
         return this.stateTimestamps[state.ordinal()];
+    }
+
+    @Override
+    public long getStateEndTimestamp(ExecutionState state) {
+        return this.stateEndTimestamps[state.ordinal()];
     }
 
     @Override

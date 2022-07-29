@@ -418,7 +418,7 @@ Data sinks 使用 DataStream 并将它们转发到文件、套接字、外部系
 
 注意，DataStream 的 `write*()` 方法主要用于调试目的。它们不参与 Flink 的 checkpointing，这意味着这些函数通常具有至少有一次语义。刷新到目标系统的数据取决于 OutputFormat 的实现。这意味着并非所有发送到 OutputFormat 的元素都会立即显示在目标系统中。此外，在失败的情况下，这些记录可能会丢失。
 
-为了将流可靠地、精准一次地传输到文件系统中，请使用 `StreamingFileSink`。此外，通过 `.addSink(...)` 方法调用的自定义实现也可以参与 Flink 的 checkpointing，以实现精准一次的语义。
+为了将流可靠地、精准一次地传输到文件系统中，请使用 `FileSink`。此外，通过 `.addSink(...)` 方法调用的自定义实现也可以参与 Flink 的 checkpointing，以实现精准一次的语义。
 
 {{< top >}}
 
@@ -658,21 +658,16 @@ Flink 还提供了一个 sink 来收集 DataStream 的结果，它用于测试�
 {{< tab "Java" >}}
 
 ```java
-import org.apache.flink.streaming.experimental.DataStreamUtils
-
 DataStream<Tuple2<String, Integer>> myResult = ...
-Iterator<Tuple2<String, Integer>> myOutput = DataStreamUtils.collect(myResult)
+Iterator<Tuple2<String, Integer>> myOutput = myResult.collectAsync();
 ```
 
 {{< /tab >}}
 {{< tab "Scala" >}}
 
 ```scala
-import org.apache.flink.streaming.experimental.DataStreamUtils
-import scala.collection.JavaConverters.asScalaIteratorConverter
-
 val myResult: DataStream[(String, Int)] = ...
-val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.javaStream).asScala
+val myOutput: Iterator[(String, Int)] = myResult.collectAsync()
 ```
 {{< /tab >}}
 {{< /tabs >}}

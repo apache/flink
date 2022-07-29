@@ -20,13 +20,13 @@ package org.apache.flink.tests.util.kafka;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
-import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.TestLogger;
 
@@ -74,7 +74,7 @@ public class SQLClientKafkaITCase extends TestLogger {
 
     @Parameterized.Parameters(name = "{index}: kafka-version:{0} kafka-sql-version:{1}")
     public static Collection<Object[]> data() {
-        return Arrays.asList(new Object[][] {{"2.8.1", "universal", "kafka", ".*kafka.jar"}});
+        return Arrays.asList(new Object[][] {{"3.1.1", "universal", "kafka", ".*kafka.jar"}});
     }
 
     private static Configuration getConfiguration() {

@@ -266,7 +266,6 @@ class OverAggregateITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationRank2(): Unit = {
-
     checkResult(
       "SELECT d, e, rank() over (order by e desc), dense_rank() over (order by e desc) FROM Table5",
       Seq(
@@ -2758,6 +2757,55 @@ class OverAggregateITCase extends BatchTestBase {
     checkResult(
       "select dep,name,rank() over (partition by dep order by salary desc) as rnk from emp",
       Seq(row("1", "A", 2), row("1", "B", 1), row("2", "C", 1)))
+  }
+
+  @Test
+  def testCumeDist(): Unit = {
+    checkResult(
+      "SELECT f, CUME_DIST() over (order by e desc)," +
+        " CUME_DIST() over (partition by d order by e) " +
+        " FROM Table5",
+      Seq(
+        row(0, 1.0, 1.0),
+        row(1, 0.9333333333333333, 0.5),
+        row(2, 0.8666666666666667, 1.0),
+        row(3, 0.8, 0.3333333333333333),
+        row(4, 0.7333333333333333, 0.6666666666666666),
+        row(5, 0.6666666666666666, 1.0),
+        row(6, 0.6, 0.25),
+        row(7, 0.5333333333333333, 0.5),
+        row(8, 0.4666666666666667, 0.75),
+        row(9, 0.4, 1.0),
+        row(10, 0.3333333333333333, 0.2),
+        row(11, 0.26666666666666666, 0.4),
+        row(12, 0.2, 0.6),
+        row(13, 0.13333333333333333, 0.8),
+        row(14, 0.06666666666666667, 1.0)
+      )
+    )
+
+    // test values of order-key containing duplicates
+    checkResult(
+      "SELECT f, CUME_DIST() over (order by d), CUME_DIST() over (order by d desc)" +
+        " FROM Table5",
+      Seq(
+        row(13, 1.0, 0.3333333333333333),
+        row(12, 1.0, 0.3333333333333333),
+        row(14, 1.0, 0.3333333333333333),
+        row(11, 1.0, 0.3333333333333333),
+        row(10, 1.0, 0.3333333333333333),
+        row(9, 0.6666666666666666, 0.6),
+        row(6, 0.6666666666666666, 0.6),
+        row(8, 0.6666666666666666, 0.6),
+        row(7, 0.6666666666666666, 0.6),
+        row(4, 0.4, 0.8),
+        row(5, 0.4, 0.8),
+        row(3, 0.4, 0.8),
+        row(1, 0.2, 0.9333333333333333),
+        row(2, 0.2, 0.9333333333333333),
+        row(0, 0.06666666666666667, 1.0)
+      )
+    )
   }
 }
 

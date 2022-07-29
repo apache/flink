@@ -27,9 +27,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
@@ -40,21 +38,17 @@ import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.util.StreamCollector;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.SerializedThrowable;
 
-import org.hamcrest.Matcher;
-import org.hamcrest.Matchers;
-import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -64,9 +58,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT Test for writing savepoints to the {@code WindowOperator}. */
 @SuppressWarnings("unchecked")
@@ -78,13 +71,11 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
     private static final Collection<String> WORDS =
             Arrays.asList("hello", "world", "hello", "everyone");
 
-    private static final Matcher<Iterable<? extends Tuple2<String, Integer>>> STANDARD_MATCHER =
-            Matchers.containsInAnyOrder(
-                    Tuple2.of("hello", 2), Tuple2.of("world", 1), Tuple2.of("everyone", 1));
+    private static final Iterable<? extends Tuple2<String, Integer>> STANDARD_MATCHER =
+            Arrays.asList(Tuple2.of("hello", 2), Tuple2.of("world", 1), Tuple2.of("everyone", 1));
 
-    private static final Matcher<Iterable<? extends Tuple2<String, Integer>>> EVICTOR_MATCHER =
-            Matchers.containsInAnyOrder(
-                    Tuple2.of("hello", 1), Tuple2.of("world", 1), Tuple2.of("everyone", 1));
+    private static final Iterable<? extends Tuple2<String, Integer>> EVICTOR_MATCHER =
+            Arrays.asList(Tuple2.of("hello", 1), Tuple2.of("world", 1), Tuple2.of("everyone", 1));
 
     private static final TypeInformation<Tuple2<String, Integer>> TUPLE_TYPE_INFO =
             new TypeHint<Tuple2<String, Integer>>() {}.getTypeInfo();
@@ -129,8 +120,6 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
 
         return parameterList;
     }
-
-    @Rule public StreamCollector collector = new StreamCollector();
 
     private final WindowBootstrap windowBootstrap;
 
@@ -182,12 +171,14 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                         .window(TumblingEventTimeWindows.of(Time.milliseconds(5)));
 
         DataStream<Tuple2<String, Integer>> windowed = windowStream.window(stream).uid(UID);
-        CompletableFuture<Collection<Tuple2<String, Integer>>> future = collector.collect(windowed);
+        CloseableIterator<Tuple2<String, Integer>> future = windowed.collectAsync();
 
         submitJob(savepointPath, env);
 
-        Collection<Tuple2<String, Integer>> results = future.get();
-        Assert.assertThat("Incorrect results from bootstrapped windows", results, STANDARD_MATCHER);
+        assertThat(future)
+                .toIterable()
+                .as("Incorrect results from bootstrapped windows")
+                .containsAll(STANDARD_MATCHER);
     }
 
     @Test
@@ -225,12 +216,14 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                         .evictor(CountEvictor.of(1));
 
         DataStream<Tuple2<String, Integer>> windowed = windowStream.window(stream).uid(UID);
-        CompletableFuture<Collection<Tuple2<String, Integer>>> future = collector.collect(windowed);
+        CloseableIterator<Tuple2<String, Integer>> future = windowed.collectAsync();
 
         submitJob(savepointPath, env);
 
-        Collection<Tuple2<String, Integer>> results = future.get();
-        Assert.assertThat("Incorrect results from bootstrapped windows", results, EVICTOR_MATCHER);
+        assertThat(future)
+                .toIterable()
+                .as("Incorrect results from bootstrapped windows")
+                .containsAll(EVICTOR_MATCHER);
     }
 
     @Test
@@ -269,13 +262,14 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                                         Time.milliseconds(5), Time.milliseconds(1)));
 
         DataStream<Tuple2<String, Integer>> windowed = windowStream.window(stream).uid(UID);
-        CompletableFuture<Collection<Tuple2<String, Integer>>> future = collector.collect(windowed);
+        CloseableIterator<Tuple2<String, Integer>> future = windowed.collectAsync();
 
         submitJob(savepointPath, env);
 
-        Collection<Tuple2<String, Integer>> results =
-                future.get().stream().distinct().collect(Collectors.toList());
-        Assert.assertThat("Incorrect results from bootstrapped windows", results, STANDARD_MATCHER);
+        assertThat(future)
+                .toIterable()
+                .as("Incorrect results from bootstrapped windows")
+                .containsAll(STANDARD_MATCHER);
     }
 
     @Test
@@ -317,30 +311,22 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                         .evictor(CountEvictor.of(1));
 
         DataStream<Tuple2<String, Integer>> windowed = windowStream.window(stream).uid(UID);
-        CompletableFuture<Collection<Tuple2<String, Integer>>> future = collector.collect(windowed);
+        CloseableIterator<Tuple2<String, Integer>> future = windowed.collectAsync();
 
         submitJob(savepointPath, env);
 
-        Collection<Tuple2<String, Integer>> results =
-                future.get().stream().distinct().collect(Collectors.toList());
-        Assert.assertThat("Incorrect results from bootstrapped windows", results, EVICTOR_MATCHER);
+        assertThat(future)
+                .toIterable()
+                .as("Incorrect results from bootstrapped windows")
+                .containsAll(EVICTOR_MATCHER);
     }
 
-    private void submitJob(String savepointPath, StreamExecutionEnvironment sEnv) {
-        JobGraph jobGraph = sEnv.getStreamGraph().getJobGraph();
-        jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath, true));
+    private void submitJob(String savepointPath, StreamExecutionEnvironment sEnv) throws Exception {
+        StreamGraph streamGraph = sEnv.getStreamGraph();
+        streamGraph.setSavepointRestoreSettings(
+                SavepointRestoreSettings.forPath(savepointPath, true));
 
-        ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
-        try {
-            Optional<SerializedThrowable> serializedThrowable =
-                    client.submitJob(jobGraph)
-                            .thenCompose(client::requestJobResult)
-                            .get()
-                            .getSerializedThrowable();
-            Assert.assertFalse(serializedThrowable.isPresent());
-        } catch (Throwable t) {
-            Assert.fail("Failed to submit job");
-        }
+        sEnv.execute(streamGraph);
     }
 
     private static class Reducer implements ReduceFunction<Tuple2<String, Integer>> {

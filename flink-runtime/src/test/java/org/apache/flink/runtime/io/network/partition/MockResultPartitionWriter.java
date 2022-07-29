@@ -54,6 +54,9 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
     }
 
     @Override
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {}
+
+    @Override
     public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {}
 
     @Override

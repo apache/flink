@@ -31,8 +31,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.plan.stats.ColumnStats;
 import org.apache.flink.table.plan.stats.TableStats;
-
-import org.apache.calcite.avatica.util.DateTimeUtils;
+import org.apache.flink.table.utils.DateTimeUtils;
 
 import java.sql.Date;
 import java.util.HashMap;
@@ -132,13 +131,13 @@ public class CatalogTableStatisticsConverter {
             if (dateData.getMax() != null) {
                 max =
                         Date.valueOf(
-                                DateTimeUtils.unixDateToString(
+                                DateTimeUtils.formatDate(
                                         (int) dateData.getMax().getDaysSinceEpoch()));
             }
             if (dateData.getMin() != null) {
                 min =
                         Date.valueOf(
-                                DateTimeUtils.unixDateToString(
+                                DateTimeUtils.formatDate(
                                         (int) dateData.getMin().getDaysSinceEpoch()));
             }
         } else {

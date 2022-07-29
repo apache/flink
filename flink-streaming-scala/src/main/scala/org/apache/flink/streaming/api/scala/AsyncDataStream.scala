@@ -20,9 +20,13 @@ package org.apache.flink.streaming.api.scala
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.{AsyncDataStream => JavaAsyncDataStream}
-import org.apache.flink.streaming.api.functions.async.{AsyncFunction => JavaAsyncFunction, ResultFuture => JavaResultFuture}
+import org.apache.flink.streaming.api.functions.async.{AsyncFunction => JavaAsyncFunction, AsyncRetryPredicate => JavaAsyncRetryPredicate, AsyncRetryStrategy => JavaAsyncRetryStrategy, ResultFuture => JavaResultFuture}
 import org.apache.flink.streaming.api.scala.async._
 import org.apache.flink.util.Preconditions
+
+import java.util
+import java.util.Optional
+import java.util.function.Predicate
 
 import scala.concurrent.duration.TimeUnit
 
@@ -321,6 +325,363 @@ object AsyncDataStream {
     orderedWait(input, timeout, timeUnit, DEFAULT_QUEUE_CAPACITY)(asyncFunction)
   }
 
+  /**
+   * Adds an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
+   * order of output stream records may be reordered.
+   *
+   * @param input
+   *   Input {@link DataStream}
+   * @param asyncFunction
+   *   {@link AsyncFunction}
+   * @param timeout
+   *   from first invoke to final completion of asynchronous operation, may include multiple
+   *   retries, and will be reset in case of restart
+   * @param timeUnit
+   *   of the given timeout
+   * @param capacity
+   *   The max number of async i/o operation that can be triggered
+   * @param asyncRetryStrategy
+   *   The strategy of reattempt async i/o operation that can be triggered
+   * @tparam IN
+   *   Type of input record
+   * @tparam OUT
+   *   Type of output record
+   * @return
+   *   the resulting stream containing the asynchronous results
+   */
+  def unorderedWaitWithRetry[IN, OUT: TypeInformation](
+      input: DataStream[IN],
+      asyncFunction: AsyncFunction[IN, OUT],
+      timeout: Long,
+      timeUnit: TimeUnit,
+      capacity: Int,
+      asyncRetryStrategy: AsyncRetryStrategy[OUT]): DataStream[OUT] = {
+
+    Preconditions.checkArgument(timeout > 0)
+    Preconditions.checkNotNull(asyncFunction)
+
+    val javaAsyncFunction = wrapAsJavaAsyncFunction(asyncFunction)
+    val javaAsyncRetryStrategy = wrapAsJavaAsyncRetryStrategy(asyncRetryStrategy)
+
+    val outType: TypeInformation[OUT] = implicitly[TypeInformation[OUT]]
+
+    asScalaStream(
+      JavaAsyncDataStream
+        .unorderedWaitWithRetry[IN, OUT](
+          input.javaStream,
+          javaAsyncFunction,
+          timeout,
+          timeUnit,
+          capacity,
+          javaAsyncRetryStrategy)
+        .returns(outType))
+  }
+
+  /**
+   * Adds an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
+   * order of output stream records may be reordered.
+   *
+   * @param input
+   *   Input {@link DataStream}
+   * @param asyncFunction
+   *   {@link AsyncFunction}
+   * @param timeout
+   *   from first invoke to final completion of asynchronous operation, may include multiple
+   *   retries, and will be reset in case of restart
+   * @param timeUnit
+   *   of the given timeout
+   * @param asyncRetryStrategy
+   *   The strategy of reattempt async i/o operation that can be triggered
+   * @tparam IN
+   *   Type of input record
+   * @tparam OUT
+   *   Type of output record
+   * @return
+   *   the resulting stream containing the asynchronous results
+   */
+  def unorderedWaitWithRetry[IN, OUT: TypeInformation](
+      input: DataStream[IN],
+      asyncFunction: AsyncFunction[IN, OUT],
+      timeout: Long,
+      timeUnit: TimeUnit,
+      asyncRetryStrategy: AsyncRetryStrategy[OUT]): DataStream[OUT] = {
+
+    unorderedWaitWithRetry(
+      input,
+      asyncFunction,
+      timeout,
+      timeUnit,
+      DEFAULT_QUEUE_CAPACITY,
+      asyncRetryStrategy)
+  }
+
+  /**
+   * Apply an asynchronous function on the input data stream with an AsyncRetryStrategy to support
+   * retry. The output order is only maintained with respect to watermarks. Stream records which lie
+   * between the same two watermarks, can be re-ordered.
+   *
+   * @param input
+   *   to apply the async function on
+   * @param timeout
+   *   from first invoke to final completion of asynchronous operation, may include multiple
+   *   retries, and will be reset in case of restart
+   * @param timeUnit
+   *   of the timeout
+   * @param capacity
+   *   of the operator which is equivalent to the number of concurrent asynchronous operations
+   * @param asyncFunction
+   *   to use
+   * @tparam IN
+   *   Type of the input record
+   * @tparam OUT
+   *   Type of the output record
+   * @return
+   *   the resulting stream containing the asynchronous results
+   */
+  def unorderedWaitWithRetry[IN, OUT: TypeInformation](
+      input: DataStream[IN],
+      timeout: Long,
+      timeUnit: TimeUnit,
+      capacity: Int,
+      asyncRetryStrategy: AsyncRetryStrategy[OUT])(
+      asyncFunction: (IN, ResultFuture[OUT]) => Unit): DataStream[OUT] = {
+
+    Preconditions.checkNotNull(asyncFunction)
+    Preconditions.checkArgument(timeout > 0)
+
+    val cleanAsyncFunction = input.executionEnvironment.scalaClean(asyncFunction)
+
+    val func = new JavaAsyncFunction[IN, OUT] {
+      override def asyncInvoke(input: IN, resultFuture: JavaResultFuture[OUT]): Unit = {
+
+        cleanAsyncFunction(input, new JavaResultFutureWrapper[OUT](resultFuture))
+      }
+    }
+    val javaAsyncRetryStrategy = wrapAsJavaAsyncRetryStrategy(asyncRetryStrategy)
+
+    val outType: TypeInformation[OUT] = implicitly[TypeInformation[OUT]]
+
+    asScalaStream(
+      JavaAsyncDataStream
+        .unorderedWaitWithRetry[IN, OUT](
+          input.javaStream,
+          func,
+          timeout,
+          timeUnit,
+          capacity,
+          javaAsyncRetryStrategy)
+        .returns(outType))
+  }
+
+  /**
+   * Apply an asynchronous function on the input data stream with an AsyncRetryStrategy to support
+   * retry. The output order is only maintained with respect to watermarks. Stream records which lie
+   * between the same two watermarks, can be re-ordered.
+   *
+   * @param input
+   *   to apply the async function on
+   * @param timeout
+   *   from first invoke to final completion of asynchronous operation, may include multiple
+   *   retries, and will be reset in case of restart
+   * @param timeUnit
+   *   of the timeout
+   * @param asyncFunction
+   *   to use
+   * @tparam IN
+   *   Type of the input record
+   * @tparam OUT
+   *   Type of the output record
+   * @return
+   *   the resulting stream containing the asynchronous results
+   */
+  def unorderedWaitWithRetry[IN, OUT: TypeInformation](
+      input: DataStream[IN],
+      timeout: Long,
+      timeUnit: TimeUnit,
+      asyncRetryStrategy: AsyncRetryStrategy[OUT])(
+      asyncFunction: (IN, ResultFuture[OUT]) => Unit): DataStream[OUT] = {
+
+    unorderedWaitWithRetry(input, timeout, timeUnit, DEFAULT_QUEUE_CAPACITY, asyncRetryStrategy)(
+      asyncFunction)
+  }
+
+  /**
+   * Adds an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
+   * output order is the same as the input order of the elements.
+   *
+   * @param input
+   *   Input {@link DataStream}
+   * @param asyncFunction
+   *   {@link AsyncFunction}
+   * @param timeout
+   *   from first invoke to final completion of asynchronous operation, may include multiple
+   *   retries, and will be reset in case of restart
+   * @param timeUnit
+   *   of the given timeout
+   * @param capacity
+   *   The max number of async i/o operation that can be triggered
+   * @param asyncRetryStrategy
+   *   The strategy of reattempt async i/o operation that can be triggered
+   * @tparam IN
+   *   Type of input record
+   * @tparam OUT
+   *   Type of output record
+   * @return
+   *   the resulting stream containing the asynchronous results
+   */
+  def orderedWaitWithRetry[IN, OUT: TypeInformation](
+      input: DataStream[IN],
+      asyncFunction: AsyncFunction[IN, OUT],
+      timeout: Long,
+      timeUnit: TimeUnit,
+      capacity: Int,
+      asyncRetryStrategy: AsyncRetryStrategy[OUT]): DataStream[OUT] = {
+
+    Preconditions.checkArgument(timeout > 0)
+    Preconditions.checkNotNull(asyncFunction)
+
+    val javaAsyncFunction = wrapAsJavaAsyncFunction(asyncFunction)
+    val javaAsyncRetryStrategy = wrapAsJavaAsyncRetryStrategy(asyncRetryStrategy)
+
+    val outType: TypeInformation[OUT] = implicitly[TypeInformation[OUT]]
+
+    asScalaStream(
+      JavaAsyncDataStream
+        .orderedWaitWithRetry[IN, OUT](
+          input.javaStream,
+          javaAsyncFunction,
+          timeout,
+          timeUnit,
+          capacity,
+          javaAsyncRetryStrategy)
+        .returns(outType))
+  }
+
+  /**
+   * Adds an AsyncWaitOperator with an AsyncRetryStrategy to support retry of AsyncFunction. The
+   * output order is the same as the input order of the elements.
+   *
+   * @param input
+   *   Input {@link DataStream}
+   * @param asyncFunction
+   *   {@link AsyncFunction}
+   * @param timeout
+   *   from first invoke to final completion of asynchronous operation, may include multiple
+   *   retries, and will be reset in case of restart
+   * @param timeUnit
+   *   of the given timeout
+   * @param asyncRetryStrategy
+   *   The strategy of reattempt async i/o operation that can be triggered
+   * @tparam IN
+   *   Type of input record
+   * @tparam OUT
+   *   Type of output record
+   * @return
+   *   the resulting stream containing the asynchronous results
+   */
+  def orderedWaitWithRetry[IN, OUT: TypeInformation](
+      input: DataStream[IN],
+      asyncFunction: AsyncFunction[IN, OUT],
+      timeout: Long,
+      timeUnit: TimeUnit,
+      asyncRetryStrategy: AsyncRetryStrategy[OUT]): DataStream[OUT] = {
+
+    orderedWaitWithRetry(
+      input,
+      asyncFunction,
+      timeout,
+      timeUnit,
+      DEFAULT_QUEUE_CAPACITY,
+      asyncRetryStrategy)
+  }
+
+  /**
+   * Apply an asynchronous function on the input data stream with an AsyncRetryStrategy to support
+   * retry. The output order is the same as the input order of the elements.
+   *
+   * @param input
+   *   to apply the async function on
+   * @param timeout
+   *   from first invoke to final completion of asynchronous operation, may include multiple
+   *   retries, and will be reset in case of restart
+   * @param timeUnit
+   *   of the timeout
+   * @param capacity
+   *   of the operator which is equivalent to the number of concurrent asynchronous operations
+   * @param asyncFunction
+   *   to use
+   * @tparam IN
+   *   Type of the input record
+   * @tparam OUT
+   *   Type of the output record
+   * @return
+   *   the resulting stream containing the asynchronous results
+   */
+  def orderedWaitWithRetry[IN, OUT: TypeInformation](
+      input: DataStream[IN],
+      timeout: Long,
+      timeUnit: TimeUnit,
+      capacity: Int,
+      asyncRetryStrategy: AsyncRetryStrategy[OUT])(
+      asyncFunction: (IN, ResultFuture[OUT]) => Unit): DataStream[OUT] = {
+
+    Preconditions.checkArgument(timeout > 0)
+    Preconditions.checkNotNull(asyncFunction)
+
+    val cleanAsyncFunction = input.executionEnvironment.scalaClean(asyncFunction)
+
+    val func = new JavaAsyncFunction[IN, OUT] {
+      override def asyncInvoke(input: IN, resultFuture: JavaResultFuture[OUT]): Unit = {
+        cleanAsyncFunction(input, new JavaResultFutureWrapper[OUT](resultFuture))
+      }
+    }
+    val javaAsyncRetryStrategy = wrapAsJavaAsyncRetryStrategy(asyncRetryStrategy)
+
+    val outType: TypeInformation[OUT] = implicitly[TypeInformation[OUT]]
+
+    asScalaStream(
+      JavaAsyncDataStream
+        .orderedWaitWithRetry[IN, OUT](
+          input.javaStream,
+          func,
+          timeout,
+          timeUnit,
+          capacity,
+          javaAsyncRetryStrategy)
+        .returns(outType))
+  }
+
+  /**
+   * Apply an asynchronous function on the input data stream with an AsyncRetryStrategy to support
+   * retry. The output order is the same as the input order of the elements.
+   *
+   * @param input
+   *   to apply the async function on
+   * @param timeout
+   *   from first invoke to final completion of asynchronous operation, may include multiple
+   *   retries, and will be reset in case of restart
+   * @param timeUnit
+   *   of the timeout
+   * @param asyncFunction
+   *   to use
+   * @tparam IN
+   *   Type of the input record
+   * @tparam OUT
+   *   Type of the output record
+   * @return
+   *   the resulting stream containing the asynchronous results
+   */
+  def orderedWaitWithRetry[IN, OUT: TypeInformation](
+      input: DataStream[IN],
+      timeout: Long,
+      timeUnit: TimeUnit,
+      asyncRetryStrategy: AsyncRetryStrategy[OUT])(
+      asyncFunction: (IN, ResultFuture[OUT]) => Unit): DataStream[OUT] = {
+
+    orderedWaitWithRetry(input, timeout, timeUnit, DEFAULT_QUEUE_CAPACITY, asyncRetryStrategy)(
+      asyncFunction)
+  }
+
   private def wrapAsJavaAsyncFunction[IN, OUT: TypeInformation](
       asyncFunction: AsyncFunction[IN, OUT]): JavaAsyncFunction[IN, OUT] = asyncFunction match {
     case richAsyncFunction: RichAsyncFunction[IN, OUT] =>
@@ -335,5 +696,39 @@ object AsyncDataStream {
           asyncFunction.timeout(input, new JavaResultFutureWrapper[OUT](resultFuture))
         }
       }
+  }
+
+  private def wrapAsJavaAsyncRetryStrategy[OUT](
+      asyncRetryStrategy: AsyncRetryStrategy[OUT]): JavaAsyncRetryStrategy[OUT] = {
+    new JavaAsyncRetryStrategy[OUT] {
+
+      override def canRetry(currentAttempts: Int): Boolean =
+        asyncRetryStrategy.canRetry(currentAttempts)
+
+      override def getBackoffTimeMillis(currentAttempts: Int): Long =
+        asyncRetryStrategy.getBackoffTimeMillis(currentAttempts)
+
+      override def getRetryPredicate: JavaAsyncRetryPredicate[OUT] = {
+        new JavaAsyncRetryPredicate[OUT] {
+          override def resultPredicate(): Optional[Predicate[util.Collection[OUT]]] = {
+            asyncRetryStrategy.getRetryPredicate().resultPredicate match {
+              case Some(_) =>
+                Optional.of(asyncRetryStrategy.getRetryPredicate().resultPredicate.get)
+              case None =>
+                Optional.empty()
+            }
+          }
+
+          override def exceptionPredicate(): Optional[Predicate[Throwable]] = {
+            asyncRetryStrategy.getRetryPredicate().exceptionPredicate match {
+              case Some(_) =>
+                Optional.of(asyncRetryStrategy.getRetryPredicate().exceptionPredicate.get)
+              case None =>
+                Optional.empty()
+            }
+          }
+        }
+      }
+    }
   }
 }

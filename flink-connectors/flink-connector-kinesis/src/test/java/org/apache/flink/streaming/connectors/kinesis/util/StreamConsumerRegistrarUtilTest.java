@@ -31,7 +31,7 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.efoConsumerArn;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
@@ -52,8 +52,10 @@ public class StreamConsumerRegistrarUtilTest {
         StreamConsumerRegistrarUtil.registerStreamConsumers(
                 registrar, configProps, Arrays.asList("stream-1", "stream-2"));
 
-        assertEquals("stream-1-consumer-arn", configProps.getProperty(efoConsumerArn("stream-1")));
-        assertEquals("stream-2-consumer-arn", configProps.getProperty(efoConsumerArn("stream-2")));
+        assertThat(configProps.getProperty(efoConsumerArn("stream-1")))
+                .isEqualTo("stream-1-consumer-arn");
+        assertThat(configProps.getProperty(efoConsumerArn("stream-2")))
+                .isEqualTo("stream-2-consumer-arn");
     }
 
     @Test

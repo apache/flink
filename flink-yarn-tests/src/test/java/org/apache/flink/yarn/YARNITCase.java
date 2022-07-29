@@ -42,14 +42,13 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
@@ -90,13 +89,13 @@ class YARNITCase extends YarnTestBase {
     }
 
     @Test
-    void testPerJobModeWithDistributedCache() throws Exception {
+    void testPerJobModeWithDistributedCache(@TempDir File tempDir) throws Exception {
         runTest(
                 () ->
                         deployPerJob(
                                 createDefaultConfiguration(
                                         YarnConfigOptions.UserJarInclusion.DISABLED),
-                                YarnTestCacheJob.getDistributedCacheJobGraph(tmp),
+                                YarnTestCacheJob.getDistributedCacheJobGraph(tempDir),
                                 true));
     }
 
@@ -119,11 +118,9 @@ class YARNITCase extends YarnTestBase {
     }
 
     @Test
-    void testPerJobWithArchive() throws Exception {
+    void testPerJobWithArchive(@TempDir File tempDir) throws Exception {
         final Configuration flinkConfig =
                 createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED);
-        java.nio.file.Path tmpPath = tmp.toPath().resolve(UUID.randomUUID().toString());
-        File tempDir = Files.createDirectories(tmpPath).toFile();
         final JobGraph archiveJobGraph =
                 YarnTestArchiveJob.getArchiveJobGraph(tempDir, flinkConfig);
         runTest(() -> deployPerJob(flinkConfig, archiveJobGraph, true));

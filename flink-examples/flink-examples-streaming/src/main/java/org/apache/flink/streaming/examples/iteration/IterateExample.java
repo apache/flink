@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.examples.iteration;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -24,6 +25,8 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.connector.file.src.FileSource;
+import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
@@ -83,7 +86,13 @@ public class IterateExample {
         // create input stream of integer pairs
         DataStream<Tuple2<Integer, Integer>> inputStream;
         if (params.has("input")) {
-            inputStream = env.readTextFile(params.get("input")).map(new FibonacciInputMap());
+            FileSource<String> fileSource =
+                    FileSource.forRecordStreamFormat(
+                                    new TextLineInputFormat(), new Path(params.get("input")))
+                            .build();
+            inputStream =
+                    env.fromSource(fileSource, WatermarkStrategy.noWatermarks(), "Tuples Source")
+                            .map(new FibonacciInputMap());
         } else {
             System.out.println("Executing Iterate example with default input data set.");
             System.out.println("Use --input to specify file input.");

@@ -32,10 +32,10 @@ import org.mockito.Mockito;
 import sun.security.krb5.KrbException;
 
 import static org.apache.flink.runtime.util.HadoopUtils.HDFS_DELEGATION_TOKEN_KIND;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for Hadoop utils. */
 public class HadoopUtilsTest extends TestLogger {
@@ -49,7 +49,7 @@ public class HadoopUtilsTest extends TestLogger {
     }
 
     @AfterClass
-    public static void cleanupHadoopConfigs() throws KrbException {
+    public static void cleanupHadoopConfigs() {
         UserGroupInformation.setConfiguration(new Configuration());
     }
 

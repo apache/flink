@@ -60,11 +60,16 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private final TimerGauge hardBackPressuredTimePerSecond;
     private final Gauge<Long> maxSoftBackPressuredTime;
     private final Gauge<Long> maxHardBackPressuredTime;
+    private final Gauge<Long> accumulatedBackPressuredTime;
+    private final Gauge<Long> accumulatedIdleTime;
+    private final Gauge<Double> accumulatedBusyTime;
     private final Meter mailboxThroughput;
     private final Histogram mailboxLatency;
     private final SizeGauge mailboxSize;
 
     private volatile boolean busyTimeEnabled;
+
+    private long taskStartTime;
 
     private final Map<IntermediateResultPartitionID, Counter> numBytesProducedOfPartitions =
             new HashMap<>();
@@ -107,6 +112,15 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
         this.busyTimePerSecond = gauge(MetricNames.TASK_BUSY_TIME, this::getBusyTimePerSecond);
 
+        this.accumulatedBusyTime =
+                gauge(MetricNames.ACC_TASK_BUSY_TIME, this::getAccumulatedBusyTime);
+        this.accumulatedBackPressuredTime =
+                gauge(
+                        MetricNames.ACC_TASK_BACK_PRESSURED_TIME,
+                        this::getAccumulatedBackPressuredTimeMs);
+        this.accumulatedIdleTime =
+                gauge(MetricNames.ACC_TASK_IDLE_TIME, idleTimePerSecond::getAccumulatedCount);
+
         this.numMailsProcessed = new SimpleCounter();
         this.mailboxThroughput =
                 meter(MetricNames.MAILBOX_THROUGHPUT, new MeterView(numMailsProcessed));
@@ -121,7 +135,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                 numRecordsOutRate,
                 numBytesInRate,
                 numBytesOutRate,
-                numBytesProducedOfPartitions);
+                numBytesProducedOfPartitions,
+                accumulatedBackPressuredTime,
+                accumulatedIdleTime,
+                accumulatedBusyTime);
     }
 
     // ============================================================================================
@@ -169,6 +186,15 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                 + getHardBackPressuredTimePerSecond().getValue();
     }
 
+    public long getAccumulatedBackPressuredTimeMs() {
+        return getSoftBackPressuredTimePerSecond().getAccumulatedCount()
+                + getHardBackPressuredTimePerSecond().getAccumulatedCount();
+    }
+
+    public void markTaskStart() {
+        this.taskStartTime = System.currentTimeMillis();
+    }
+
     public void setEnableBusyTime(boolean enabled) {
         busyTimeEnabled = enabled;
     }
@@ -176,6 +202,17 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private double getBusyTimePerSecond() {
         double busyTime = idleTimePerSecond.getValue() + getBackPressuredTimeMsPerSecond();
         return busyTimeEnabled ? 1000.0 - Math.min(busyTime, 1000.0) : Double.NaN;
+    }
+
+    private double getAccumulatedBusyTime() {
+        return busyTimeEnabled
+                ? Math.max(
+                        System.currentTimeMillis()
+                                - taskStartTime
+                                - idleTimePerSecond.getAccumulatedCount()
+                                - getAccumulatedBackPressuredTimeMs(),
+                        0)
+                : Double.NaN;
     }
 
     public Meter getMailboxThroughput() {

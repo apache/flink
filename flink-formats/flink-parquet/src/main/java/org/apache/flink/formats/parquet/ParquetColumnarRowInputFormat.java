@@ -52,7 +52,7 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
     private final TypeInformation<RowData> producedTypeInfo;
 
     /** Constructor to create parquet format without extra fields. */
-    ParquetColumnarRowInputFormat(
+    public ParquetColumnarRowInputFormat(
             Configuration hadoopConfig,
             RowType projectedType,
             TypeInformation<RowData> producedTypeInfo,

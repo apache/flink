@@ -52,6 +52,7 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -96,6 +97,7 @@ import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -116,6 +118,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -140,6 +143,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Public
 public class StreamExecutionEnvironment {
+
+    private static final List<CollectResultIterator<?>> collectIterators = new ArrayList<>();
+
+    @Internal
+    public void registerCollectIterator(CollectResultIterator<?> iterator) {
+        collectIterators.add(iterator);
+    }
 
     /**
      * The default name to use for a streaming job if no other name has been specified.
@@ -1023,6 +1033,19 @@ public class StreamExecutionEnvironment {
                                                 .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
                                         flag));
 
+        // merge PipelineOptions.JARS, user maybe set this option in high level such as table
+        // module, so here need to merge the jars from both configuration object
+        configuration
+                .getOptional(PipelineOptions.JARS)
+                .ifPresent(
+                        jars ->
+                                ConfigUtils.mergeCollectionsToConfig(
+                                        this.configuration,
+                                        PipelineOptions.JARS,
+                                        Collections.unmodifiableCollection(jars),
+                                        String::toString,
+                                        String::toString));
+
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
     }
@@ -1345,7 +1368,17 @@ public class StreamExecutionEnvironment {
      * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or
      *     "hdfs://host:port/file/path").
      * @return The data stream that represents the data read from the given file as text lines
+     * @deprecated Use {@code
+     *     FileSource#forRecordStreamFormat()/forBulkFileFormat()/forRecordFileFormat() instead}. An
+     *     example of reading a file using a simple {@code TextLineInputFormat}:
+     *     <pre>{@code
+     * FileSource<String> source =
+     *        FileSource.forRecordStreamFormat(
+     *           new TextLineInputFormat(), new Path("/foo/bar"))
+     *        .build();
+     * }</pre>
      */
+    @Deprecated
     public DataStreamSource<String> readTextFile(String filePath) {
         return readTextFile(filePath, "UTF-8");
     }
@@ -1365,7 +1398,17 @@ public class StreamExecutionEnvironment {
      *     "hdfs://host:port/file/path")
      * @param charsetName The name of the character set used to read the file
      * @return The data stream that represents the data read from the given file as text lines
+     * @deprecated Use {@code
+     *     FileSource#forRecordStreamFormat()/forBulkFileFormat()/forRecordFileFormat() instead}. An
+     *     example of reading a file using a simple {@code TextLineInputFormat}:
+     *     <pre>{@code
+     * FileSource<String> source =
+     *        FileSource.forRecordStreamFormat(
+     *         new TextLineInputFormat("UTF-8"), new Path("/foo/bar"))
+     *        .build();
+     * }</pre>
      */
+    @Deprecated
     public DataStreamSource<String> readTextFile(String filePath, String charsetName) {
         Preconditions.checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(filePath),
@@ -1402,7 +1445,17 @@ public class StreamExecutionEnvironment {
      * @param inputFormat The input format used to create the data stream
      * @param <OUT> The type of the returned data stream
      * @return The data stream that represents the data read from the given file
+     * @deprecated Use {@code
+     *     FileSource#forRecordStreamFormat()/forBulkFileFormat()/forRecordFileFormat() instead}. An
+     *     example of reading a file using a simple {@code TextLineInputFormat}:
+     *     <pre>{@code
+     * FileSource<String> source =
+     *        FileSource.forRecordStreamFormat(
+     *           new TextLineInputFormat(), new Path("/foo/bar"))
+     *        .build();
+     * }</pre>
      */
+    @Deprecated
     public <OUT> DataStreamSource<OUT> readFile(FileInputFormat<OUT> inputFormat, String filePath) {
         return readFile(inputFormat, filePath, FileProcessingMode.PROCESS_ONCE, -1);
     }
@@ -1482,7 +1535,18 @@ public class StreamExecutionEnvironment {
      *     millis) between consecutive path scans
      * @param <OUT> The type of the returned data stream
      * @return The data stream that represents the data read from the given file
+     * @deprecated Use {@code
+     *     FileSource#forRecordStreamFormat()/forBulkFileFormat()/forRecordFileFormat() instead}. An
+     *     example of reading a file using a simple {@code TextLineInputFormat}:
+     *     <pre>{@code
+     * FileSource<String> source =
+     *        FileSource.forRecordStreamFormat(
+     *           new TextLineInputFormat(), new Path("/foo/bar"))
+     *        .monitorContinuously(Duration.of(10, SECONDS))
+     *        .build();
+     * }</pre>
      */
+    @Deprecated
     @PublicEvolving
     public <OUT> DataStreamSource<OUT> readFile(
             FileInputFormat<OUT> inputFormat,
@@ -1557,7 +1621,18 @@ public class StreamExecutionEnvironment {
      *     millis) between consecutive path scans
      * @param <OUT> The type of the returned data stream
      * @return The data stream that represents the data read from the given file
+     * @deprecated Use {@code
+     *     FileSource#forRecordStreamFormat()/forBulkFileFormat()/forRecordFileFormat() instead}. An
+     *     example of reading a file using a simple {@code TextLineInputFormat}:
+     *     <pre>{@code
+     * FileSource<String> source =
+     *        FileSource.forRecordStreamFormat(
+     *           new TextLineInputFormat(), new Path("/foo/bar"))
+     *        .monitorContinuously(Duration.of(10, SECONDS))
+     *        .build();
+     * }</pre>
      */
+    @Deprecated
     @PublicEvolving
     public <OUT> DataStreamSource<OUT> readFile(
             FileInputFormat<OUT> inputFormat,
@@ -1786,6 +1861,10 @@ public class StreamExecutionEnvironment {
 
         SingleOutputStreamOperator<OUT> source =
                 addSource(monitoringFunction, sourceName, null, boundedness)
+                        // Set the parallelism and maximum parallelism of
+                        // ContinuousFileMonitoringFunction to 1 in
+                        // case reactive mode changes it. See FLINK-28274 for more information.
+                        .forceNonParallel()
                         .transform("Split Reader: " + sourceName, typeInfo, factory);
 
         return new DataStreamSource<>(source);
@@ -2097,6 +2176,8 @@ public class StreamExecutionEnvironment {
         try {
             JobClient jobClient = jobClientFuture.get();
             jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
+            collectIterators.forEach(iterator -> iterator.setJobClient(jobClient));
+            collectIterators.clear();
             return jobClient;
         } catch (ExecutionException executionException) {
             final Throwable strippedException =

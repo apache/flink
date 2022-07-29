@@ -16,8 +16,11 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { forkJoin, of, Subject } from 'rxjs';
+import { catchError, takeUntil } from 'rxjs/operators';
 
+import { ClusterConfiguration, EnvironmentInfo } from '@flink-runtime-web/interfaces';
 import { JobManagerService } from '@flink-runtime-web/services';
 
 @Component({
@@ -26,15 +29,34 @@ import { JobManagerService } from '@flink-runtime-web/services';
   styleUrls: ['./job-manager-configuration.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class JobManagerConfigurationComponent implements OnInit {
-  public listOfConfig: Array<{ key: string; value: string }> = [];
+export class JobManagerConfigurationComponent implements OnInit, OnDestroy {
+  listOfConfig: ClusterConfiguration[] = [];
+  environmentInfo?: EnvironmentInfo;
+  loading = true;
+  private destroy$ = new Subject<void>();
+
+  readonly trackByConfig = (_: number, value: ClusterConfiguration): string => {
+    return value.key;
+  };
 
   constructor(private readonly jobManagerService: JobManagerService, private readonly cdr: ChangeDetectorRef) {}
 
-  public ngOnInit(): void {
-    this.jobManagerService.loadConfig().subscribe(data => {
-      this.listOfConfig = data.sort((pre, next) => (pre.key > next.key ? 1 : -1));
-      this.cdr.markForCheck();
-    });
+  ngOnInit(): void {
+    forkJoin([
+      this.jobManagerService.loadConfig().pipe(catchError(() => of([] as ClusterConfiguration[]))),
+      this.jobManagerService.loadEnvironment().pipe(catchError(() => of(undefined)))
+    ])
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(([config, env]) => {
+        this.loading = false;
+        this.listOfConfig = config.sort((pre, next) => (pre.key > next.key ? 1 : -1));
+        this.environmentInfo = env;
+        this.cdr.markForCheck();
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

@@ -74,6 +74,15 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 ))
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_restart_strategy(RestartStrategies.fixed_delay_restart(
+    3,  # 尝试重启的次数
+    10000  # 延时(毫秒)
+))
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 
@@ -119,6 +128,15 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // 尝试重启的次数
   Time.of(10, TimeUnit.SECONDS) // 延时
+))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_restart_strategy(RestartStrategies.fixed_delay_restart(
+    3,  # 尝试重启的次数
+    10000  # 延时(毫秒)
 ))
 ```
 {{< /tab >}}
@@ -169,6 +187,16 @@ env.setRestartStrategy(RestartStrategies.failureRateRestart(
 ))
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_restart_strategy(RestartStrategies.failure_rate_restart(
+    3,  # 每个时间间隔的最大故障次数
+    300000,  # 测量故障率的时间间隔
+    10000  # 延时(毫秒)
+))
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 
@@ -193,6 +221,12 @@ env.setRestartStrategy(RestartStrategies.noRestart());
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.noRestart())
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_restart_strategy(RestartStrategies.no_restart())
 ```
 {{< /tab >}}
 {{< /tabs >}}

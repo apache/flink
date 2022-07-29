@@ -27,7 +27,13 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 import java.io.IOException;
+import java.time.Clock;
+import java.time.ZoneId;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.time.Instant.ofEpochMilli;
+import static org.apache.flink.configuration.SecurityOptions.KERBEROS_TOKENS_RENEWAL_TIME_RATIO;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -95,14 +101,15 @@ public class KerberosDelegationTokenManagerITCase {
         KerberosDelegationTokenManager delegationTokenManager =
                 new KerberosDelegationTokenManager(configuration, null, null);
 
-        assertEquals(1, delegationTokenManager.delegationTokenProviders.size());
+        assertEquals(2, delegationTokenManager.delegationTokenProviders.size());
+        assertTrue(delegationTokenManager.isProviderLoaded("hadoopfs"));
         assertTrue(delegationTokenManager.isProviderLoaded("test"));
         assertTrue(ExceptionThrowingDelegationTokenProvider.constructed);
         assertFalse(delegationTokenManager.isProviderLoaded("throw"));
     }
 
     @Test
-    public void testStartTGTRenewalShouldScheduleRenewal() throws IOException {
+    public void startTGTRenewalShouldScheduleRenewal() throws IOException {
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final ManuallyTriggeredScheduledExecutorService scheduler =
@@ -126,5 +133,69 @@ public class KerberosDelegationTokenManagerITCase {
 
             verify(userGroupInformation, times(1)).checkTGTAndReloginFromKeytab();
         }
+    }
+
+    @Test
+    public void startTokensUpdateShouldScheduleRenewal() throws IOException {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService scheduler =
+                new ManuallyTriggeredScheduledExecutorService();
+
+        try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
+            UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
+            ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
+
+            ExceptionThrowingDelegationTokenProvider.enabled = false;
+            ExceptionThrowingDelegationTokenProvider.constructed = false;
+            Configuration configuration = new Configuration();
+            configuration.setBoolean("security.kerberos.token.provider.throw.enabled", false);
+            AtomicInteger startTokensUpdateCallCount = new AtomicInteger(0);
+            AtomicBoolean retryExceptionThrown = new AtomicBoolean(false);
+            KerberosLoginProvider kerberosLoginProvider =
+                    new KerberosLoginProvider(configuration) {
+                        @Override
+                        public UserGroupInformation doLogin() {
+                            if (startTokensUpdateCallCount.get() == 2) {
+                                retryExceptionThrown.set(true);
+                                throw new RuntimeException("Intended exception to test retry");
+                            }
+                            return userGroupInformation;
+                        }
+                    };
+            KerberosDelegationTokenManager delegationTokenManager =
+                    new KerberosDelegationTokenManager(
+                            configuration, scheduledExecutor, scheduler, kerberosLoginProvider) {
+                        @Override
+                        void startTokensUpdate() {
+                            startTokensUpdateCallCount.incrementAndGet();
+                            super.startTokensUpdate();
+                        }
+                    };
+
+            delegationTokenManager.startTokensUpdate();
+            scheduledExecutor.triggerScheduledTasks();
+            scheduler.triggerAll();
+            scheduledExecutor.triggerScheduledTasks();
+            scheduler.triggerAll();
+            delegationTokenManager.stopTokensUpdate();
+
+            assertTrue(retryExceptionThrown.get());
+            assertEquals(3, startTokensUpdateCallCount.get());
+        }
+    }
+
+    @Test
+    public void calculateRenewalDelayShouldConsiderRenewalRatio() {
+        ExceptionThrowingDelegationTokenProvider.enabled = false;
+        ExceptionThrowingDelegationTokenProvider.constructed = false;
+        Configuration configuration = new Configuration();
+        configuration.setBoolean("security.kerberos.token.provider.throw.enabled", false);
+        configuration.set(KERBEROS_TOKENS_RENEWAL_TIME_RATIO, 0.5);
+        KerberosDelegationTokenManager delegationTokenManager =
+                new KerberosDelegationTokenManager(configuration, null, null);
+
+        Clock constantClock = Clock.fixed(ofEpochMilli(100), ZoneId.systemDefault());
+        assertEquals(50, delegationTokenManager.calculateRenewalDelay(constantClock, 200));
     }
 }

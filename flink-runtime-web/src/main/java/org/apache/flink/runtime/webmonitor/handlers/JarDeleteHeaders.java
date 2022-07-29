@@ -66,6 +66,11 @@ public class JarDeleteHeaders
     }
 
     @Override
+    public String operationId() {
+        return "deleteJar";
+    }
+
+    @Override
     public String getDescription() {
         return "Deletes a jar previously uploaded via '" + JarUploadHeaders.URL + "'.";
     }

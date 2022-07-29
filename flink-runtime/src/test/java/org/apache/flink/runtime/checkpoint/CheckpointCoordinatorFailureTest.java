@@ -37,6 +37,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
@@ -116,7 +117,9 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
         final long checkpointId = coord.getPendingCheckpoints().keySet().iterator().next();
 
         KeyedStateHandle managedKeyedHandle = mock(KeyedStateHandle.class);
+        when(managedKeyedHandle.getStateHandleId()).thenReturn(StateHandleID.randomStateHandleId());
         KeyedStateHandle rawKeyedHandle = mock(KeyedStateHandle.class);
+        when(rawKeyedHandle.getStateHandleId()).thenReturn(StateHandleID.randomStateHandleId());
         OperatorStateHandle managedOpHandle = mock(OperatorStreamStateHandle.class);
         OperatorStateHandle rawOpHandle = mock(OperatorStreamStateHandle.class);
         InputChannelStateHandle inputChannelStateHandle =

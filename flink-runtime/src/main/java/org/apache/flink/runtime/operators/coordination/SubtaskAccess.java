@@ -23,6 +23,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.SerializedValue;
 
+import java.util.Collection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
@@ -90,9 +91,15 @@ interface SubtaskAccess {
     interface SubtaskAccessFactory {
 
         /**
-         * Creates an access to the current execution attempt of the subtask with the given
+         * Creates accesses to all the current execution attempt of the subtask with the given
          * subtaskIndex.
          */
-        SubtaskAccess getAccessForSubtask(int subtaskIndex);
+        Collection<SubtaskAccess> getAccessesForSubtask(int subtaskIndex);
+
+        /**
+         * Creates an access to the execution attempt with the given attemptNumber of the subtask
+         * with the given subtaskIndex.
+         */
+        SubtaskAccess getAccessForAttempt(int subtaskIndex, int attemptNumber);
     }
 }

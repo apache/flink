@@ -60,7 +60,7 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_BASE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_MAX;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -146,11 +146,11 @@ public class KinesisProxyV2Test {
 
         RegisterStreamConsumerResponse actual = proxy.registerStreamConsumer("arn", "name");
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
 
         RegisterStreamConsumerRequest request = requestCaptor.getValue();
-        assertEquals("arn", request.streamARN());
-        assertEquals("name", request.consumerName());
+        assertThat(request.streamARN()).isEqualTo("arn");
+        assertThat(request.consumerName()).isEqualTo("name");
     }
 
     @Test
@@ -198,10 +198,10 @@ public class KinesisProxyV2Test {
 
         DeregisterStreamConsumerResponse actual = proxy.deregisterStreamConsumer("arn");
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
 
         DeregisterStreamConsumerRequest request = requestCaptor.getValue();
-        assertEquals("arn", request.consumerARN());
+        assertThat(request.consumerARN()).isEqualTo("arn");
     }
 
     @Test
@@ -248,10 +248,10 @@ public class KinesisProxyV2Test {
 
         DescribeStreamConsumerResponse actual = proxy.describeStreamConsumer("arn");
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
 
         DescribeStreamConsumerRequest request = requestCaptor.getValue();
-        assertEquals("arn", request.consumerARN());
+        assertThat(request.consumerARN()).isEqualTo("arn");
     }
 
     @Test
@@ -273,11 +273,11 @@ public class KinesisProxyV2Test {
 
         DescribeStreamConsumerResponse actual = proxy.describeStreamConsumer("arn", "name");
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
 
         DescribeStreamConsumerRequest request = requestCaptor.getValue();
-        assertEquals("arn", request.streamARN());
-        assertEquals("name", request.consumerName());
+        assertThat(request.streamARN()).isEqualTo("arn");
+        assertThat(request.consumerName()).isEqualTo("name");
     }
 
     @Test
@@ -324,10 +324,10 @@ public class KinesisProxyV2Test {
 
         DescribeStreamSummaryResponse actual = proxy.describeStreamSummary("stream");
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
 
         DescribeStreamSummaryRequest request = requestCaptor.getValue();
-        assertEquals("stream", request.streamName());
+        assertThat(request.streamName()).isEqualTo("stream");
     }
 
     @Test

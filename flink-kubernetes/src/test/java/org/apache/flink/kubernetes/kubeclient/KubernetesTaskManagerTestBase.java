@@ -28,6 +28,10 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 /** Base test class for the TaskManager side. */
 public class KubernetesTaskManagerTestBase extends KubernetesPodTestBase {
 
@@ -47,6 +51,9 @@ public class KubernetesTaskManagerTestBase extends KubernetesPodTestBase {
     protected ContaineredTaskManagerParameters containeredTaskManagerParameters;
 
     protected KubernetesTaskManagerParameters kubernetesTaskManagerParameters;
+
+    protected static final Set<String> BLOCKED_NODES =
+            new HashSet<>(Arrays.asList("blockedNode1", "blockedNode2"));
 
     @Override
     protected void setupFlinkConfig() {
@@ -87,6 +94,7 @@ public class KubernetesTaskManagerTestBase extends KubernetesPodTestBase {
                         ExternalResourceUtils.getExternalResourceConfigurationKeys(
                                 flinkConfig,
                                 KubernetesConfigOptions
-                                        .EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX));
+                                        .EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX),
+                        BLOCKED_NODES);
     }
 }

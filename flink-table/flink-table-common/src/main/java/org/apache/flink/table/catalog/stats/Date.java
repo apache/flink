@@ -20,7 +20,7 @@ package org.apache.flink.table.catalog.stats;
 
 /** Class representing a date value in statistics. */
 public class Date {
-    private long daysSinceEpoch;
+    private final long daysSinceEpoch;
 
     public Date(long daysSinceEpoch) {
         this.daysSinceEpoch = daysSinceEpoch;

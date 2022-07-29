@@ -57,6 +57,8 @@ class AkkaRpcActorOversizedResponseMessageTest {
     @BeforeAll
     static void setupClass() throws Exception {
         final Configuration configuration = new Configuration();
+        // some tests explicitly test local communication where no serialization should occur
+        configuration.set(AkkaOptions.FORCE_RPC_INVOCATION_SERIALIZATION, false);
         configuration.setString(AkkaOptions.FRAMESIZE, FRAMESIZE + " b");
 
         rpcService1 =

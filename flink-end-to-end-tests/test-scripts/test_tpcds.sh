@@ -96,3 +96,10 @@ mkdir -p "$QUALIFIED_ANSWER_DIR"
 java -cp "$TARGET_DIR/TpcdsTestProgram.jar:$TARGET_DIR/lib/*" org.apache.flink.table.tpcds.utils.AnswerFormatter -originDir "$ORGIN_ANSWER_DIR" -destDir "$QUALIFIED_ANSWER_DIR"
 
 java -cp "$TARGET_DIR/TpcdsTestProgram.jar:$TARGET_DIR/lib/*" org.apache.flink.table.tpcds.utils.TpcdsResultComparator -expectedDir "$QUALIFIED_ANSWER_DIR" -actualDir "$RESULT_DIR"
+
+################################################################################
+# Clean-up generated data folder
+################################################################################
+
+rm -rf "${TPCDS_DATA_DIR}"
+echo "Deleted all files under $TPCDS_DATA_DIR"

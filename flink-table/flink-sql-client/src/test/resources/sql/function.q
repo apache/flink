@@ -210,6 +210,33 @@ org.apache.flink.table.api.ValidationException: Alter temporary catalog function
 
 
 # ==========================================================================
+# test create function using jar
+# ==========================================================================
+
+REMOVE JAR '$VAR_UDF_JAR_PATH';
+[INFO] The specified jar is removed from session classloader.
+!info
+
+create function upperudf AS 'UpperUDF' using jar '$VAR_UDF_JAR_PATH';
+[INFO] Execute statement succeed.
+!info
+
+# run a query to verify the registered UDF works
+SELECT id, upperudf(str) FROM (VALUES (1, 'hello world'), (2, 'hi')) as T(id, str);
++----+-------------+--------------------------------+
+| op |          id |                         EXPR$1 |
++----+-------------+--------------------------------+
+| +I |           1 |                    HELLO WORLD |
+| +I |           2 |                             HI |
++----+-------------+--------------------------------+
+Received a total of 2 rows
+!ok
+
+SHOW JARS;
+$VAR_UDF_JAR_PATH
+!ok
+
+# ==========================================================================
 # test function with hive catalog
 # ==========================================================================
 

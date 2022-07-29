@@ -40,6 +40,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class SecurityConfiguration {
 
+    private static final String KERBEROS_CONFIG_ERROR_PREFIX =
+            "Kerberos login configuration is invalid: ";
+
     private final List<String> securityContextFactory;
 
     private final List<String> securityModuleFactories;
@@ -82,6 +85,7 @@ public class SecurityConfiguration {
             Configuration flinkConf,
             List<String> securityContextFactory,
             List<String> securityModuleFactories) {
+        this.flinkConfig = checkNotNull(flinkConf);
         this.isZkSaslDisable = flinkConf.getBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
         this.keytab = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
         this.principal = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
@@ -93,7 +97,6 @@ public class SecurityConfiguration {
                 flinkConf.getString(SecurityOptions.ZOOKEEPER_SASL_LOGIN_CONTEXT_NAME);
         this.securityModuleFactories = Collections.unmodifiableList(securityModuleFactories);
         this.securityContextFactory = securityContextFactory;
-        this.flinkConfig = checkNotNull(flinkConf);
         validate();
     }
 
@@ -138,25 +141,20 @@ public class SecurityConfiguration {
     }
 
     private void validate() {
-        if (!StringUtils.isBlank(keytab)) {
-            // principal is required
-            if (StringUtils.isBlank(principal)) {
-                throw new IllegalConfigurationException(
-                        "Kerberos login configuration is invalid: keytab requires a principal.");
-            }
+        if (StringUtils.isBlank(keytab) != StringUtils.isBlank(principal)) {
+            throw new IllegalConfigurationException(
+                    KERBEROS_CONFIG_ERROR_PREFIX
+                            + "either both keytab and principal must be defined, or neither.");
+        }
 
-            // check the keytab is readable
+        if (!StringUtils.isBlank(keytab)) {
             File keytabFile = new File(keytab);
             if (!keytabFile.exists() || !keytabFile.isFile()) {
                 throw new IllegalConfigurationException(
-                        "Kerberos login configuration is invalid: keytab ["
-                                + keytab
-                                + "] doesn't exist!");
+                        KERBEROS_CONFIG_ERROR_PREFIX + "keytab [" + keytab + "] doesn't exist!");
             } else if (!keytabFile.canRead()) {
                 throw new IllegalConfigurationException(
-                        "Kerberos login configuration is invalid: keytab ["
-                                + keytab
-                                + "] is unreadable!");
+                        KERBEROS_CONFIG_ERROR_PREFIX + "keytab [" + keytab + "] is unreadable!");
             }
         }
     }

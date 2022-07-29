@@ -24,14 +24,18 @@ import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.Chan
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 import static junit.framework.TestCase.assertFalse;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.ChangelogStateHandleWrapper;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.IncrementalStateHandleWrapper;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.createDummyChangelogStateHandle;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.createDummyIncrementalStateHandle;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class SharedStateRegistryTest {
@@ -175,6 +179,23 @@ public class SharedStateRegistryTest {
         // the 2nd non-materialized state would not be discarded as 3rd changelog state backend
         // handle still use it.
         assertFalse(nonMaterializedState2.isDiscarded());
+    }
+
+    @Test
+    public void testUnregisterUnusedState() {
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
+        TestingStreamStateHandle handle = new TestingStreamStateHandle();
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("first"), handle, 1L);
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("first"), handle, 2L);
+        sharedStateRegistry.registerReference(new SharedStateRegistryKey("first"), handle, 3L);
+        sharedStateRegistry.registerReference(
+                new SharedStateRegistryKey("second"), new TestingStreamStateHandle(), 4L);
+        Set<Long> stillInUse = sharedStateRegistry.unregisterUnusedState(3);
+        Set<Long> expectedInUse = new HashSet<>(Arrays.asList(1L, 4L));
+        assertEquals(expectedInUse, stillInUse);
+
+        stillInUse = sharedStateRegistry.unregisterUnusedState(4);
+        assertEquals(Collections.singleton(4L), stillInUse);
     }
 
     private static class TestSharedState implements TestStreamStateHandle {

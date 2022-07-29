@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.sql.{SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.runtime.functions.aggregate.{BuiltInAggregateFunction, CollectAggFunction, FirstValueAggFunction, FirstValueWithRetractAggFunction, JsonArrayAggFunction, JsonObjectAggFunction, LagAggFunction, LastValueAggFunction, LastValueWithRetractAggFunction, ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction, MaxWithRetractAggFunction, MinWithRetractAggFunction}
+import org.apache.flink.table.runtime.functions.aggregate.BatchApproxCountDistinctAggFunctions._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 
@@ -80,7 +81,9 @@ class AggFunctionFactory(
       case _: SqlCountAggFunction if call.getArgList.size() > 1 =>
         throw new TableException("We now only support the count of one field.")
 
-      // TODO supports ApproximateCountDistinctAggFunction and CountDistinctAggFunction
+      // TODO supports CountDistinctAggFunction
+      case _: SqlCountAggFunction if call.isDistinct && call.isApproximate =>
+        createApproxCountDistinctAggFunction(argTypes, index)
 
       case _: SqlCountAggFunction if call.getArgList.isEmpty => createCount1AggFunction(argTypes)
 
@@ -94,6 +97,13 @@ class AggFunctionFactory(
 
       case a: SqlRankFunction if a.getKind == SqlKind.DENSE_RANK =>
         createDenseRankAggFunction(argTypes)
+
+      case a: SqlRankFunction if a.getKind == SqlKind.CUME_DIST =>
+        if (isBounded) {
+          createCumeDistAggFunction(argTypes)
+        } else {
+          throw new TableException("CUME_DIST Function is not supported in stream mode.")
+        }
 
       case func: SqlLeadLagAggFunction =>
         if (isBounded) {
@@ -405,6 +415,49 @@ class AggFunctionFactory(
     }
   }
 
+  private def createApproxCountDistinctAggFunction(
+      argTypes: Array[LogicalType],
+      index: Int): UserDefinedFunction = {
+    if (!isBounded) {
+      throw new TableException(
+        s"APPROX_COUNT_DISTINCT aggregate function does not support yet for streaming.")
+    }
+    argTypes(0).getTypeRoot match {
+      case TINYINT =>
+        new ByteApproxCountDistinctAggFunction
+      case SMALLINT =>
+        new ShortApproxCountDistinctAggFunction
+      case INTEGER =>
+        new IntApproxCountDistinctAggFunction
+      case BIGINT =>
+        new LongApproxCountDistinctAggFunction
+      case FLOAT =>
+        new FloatApproxCountDistinctAggFunction
+      case DOUBLE =>
+        new DoubleApproxCountDistinctAggFunction
+      case DATE =>
+        new DateApproxCountDistinctAggFunction
+      case TIME_WITHOUT_TIME_ZONE =>
+        new TimeApproxCountDistinctAggFunction
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        val d = argTypes(0).asInstanceOf[TimestampType]
+        new TimestampApproxCountDistinctAggFunction(d)
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val ltzType = argTypes(0).asInstanceOf[LocalZonedTimestampType]
+        new TimestampLtzApproxCountDistinctAggFunction(ltzType)
+      case DECIMAL =>
+        val d = argTypes(0).asInstanceOf[DecimalType]
+        new DecimalApproxCountDistinctAggFunction(d)
+      case CHAR | VARCHAR =>
+        new StringApproxCountDistinctAggFunction()
+
+      case t =>
+        throw new TableException(
+          s"APPROX_COUNT_DISTINCT aggregate function does not support type: ''$t''.\n" +
+            s"Please re-check the data type.")
+    }
+  }
+
   private def createCount1AggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
     new Count1AggFunction
   }
@@ -429,6 +482,9 @@ class AggFunctionFactory(
         new DoubleSingleValueAggFunction
       case BOOLEAN =>
         new BooleanSingleValueAggFunction
+      case CHAR =>
+        val d = argTypes(0).asInstanceOf[CharType]
+        new CharSingleValueAggFunction(d)
       case VARCHAR =>
         new StringSingleValueAggFunction
       case DATE =>
@@ -451,6 +507,10 @@ class AggFunctionFactory(
 
   private def createRowNumberAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
     new RowNumberAggFunction
+  }
+
+  private def createCumeDistAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
+    new CumeDistAggFunction
   }
 
   private def createRankAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {

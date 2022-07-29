@@ -64,6 +64,7 @@ public class ChangelogStorageMetricsTest {
 
         try (FsStateChangelogStorage storage =
                 new FsStateChangelogStorage(
+                        JobID.generate(),
                         Path.fromLocalFile(tempFolder.toFile()),
                         false,
                         100,
@@ -88,6 +89,7 @@ public class ChangelogStorageMetricsTest {
 
         try (FsStateChangelogStorage storage =
                 new FsStateChangelogStorage(
+                        JobID.generate(),
                         Path.fromLocalFile(tempFolder.toFile()),
                         false,
                         100,
@@ -120,6 +122,7 @@ public class ChangelogStorageMetricsTest {
                 new ChangelogStorageMetricGroup(createUnregisteredTaskManagerJobMetricGroup());
         try (FsStateChangelogStorage storage =
                 new FsStateChangelogStorage(
+                        JobID.generate(),
                         Path.fromLocalFile(file),
                         false,
                         100,
@@ -150,6 +153,7 @@ public class ChangelogStorageMetricsTest {
         Path basePath = Path.fromLocalFile(tempFolder.toFile());
         StateChangeFsUploader uploader =
                 new StateChangeFsUploader(
+                        JobID.generate(),
                         basePath,
                         basePath.getFileSystem(),
                         false,
@@ -287,6 +291,7 @@ public class ChangelogStorageMetricsTest {
 
     @Test
     void testQueueSize() throws Exception {
+        JobID jobID = JobID.generate();
         AtomicReference<Gauge<Integer>> queueSizeGauge = new AtomicReference<>();
         ChangelogStorageMetricGroup metrics =
                 new ChangelogStorageMetricGroup(
@@ -301,12 +306,13 @@ public class ChangelogStorageMetricsTest {
                                                 })
                                         .build(),
                                 createUnregisteredTaskManagerMetricGroup(),
-                                new JobID(),
+                                jobID,
                                 "test"));
 
         Path path = Path.fromLocalFile(tempFolder.toFile());
         StateChangeFsUploader delegate =
                 new StateChangeFsUploader(
+                        jobID,
                         path,
                         path.getFileSystem(),
                         false,

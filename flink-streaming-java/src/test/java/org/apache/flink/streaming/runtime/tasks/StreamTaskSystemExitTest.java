@@ -153,6 +153,7 @@ public class StreamTaskSystemExitTest extends TestLogger {
         streamConfig.setOperatorID(new OperatorID());
         streamConfig.setStreamOperator(operator);
         streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime); // for source run
+        streamConfig.serializeAllConfigs();
 
         final JobInformation jobInformation =
                 new JobInformation(

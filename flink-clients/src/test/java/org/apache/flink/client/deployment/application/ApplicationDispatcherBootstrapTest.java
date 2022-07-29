@@ -146,10 +146,12 @@ public class ApplicationDispatcherBootstrapTest {
     }
 
     @Test
-    public void testJobIdDefaultsToZeroWithHa() throws Throwable {
+    public void testJobIdDefaultsToClusterIdWithHa() throws Throwable {
         final Configuration configurationUnderTest = getConfiguration();
+        final String clusterId = "cluster";
         configurationUnderTest.set(
                 HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
+        configurationUnderTest.set(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
 
         final CompletableFuture<JobID> submittedJobId = new CompletableFuture<>();
 
@@ -166,7 +168,9 @@ public class ApplicationDispatcherBootstrapTest {
 
         applicationFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-        assertThat(submittedJobId.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(new JobID(0L, 0L)));
+        assertThat(
+                submittedJobId.get(TIMEOUT_SECONDS, TimeUnit.SECONDS),
+                is(new JobID(clusterId.hashCode(), 0L)));
     }
 
     @Test
@@ -763,13 +767,14 @@ public class ApplicationDispatcherBootstrapTest {
     @Test
     public void testSubmitFailedJobOnApplicationErrorInHASetup() throws Exception {
         final Configuration configuration = getConfiguration();
+        final JobID jobId = new JobID();
         configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
         configuration.set(DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR, true);
+        configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
         testSubmitFailedJobOnApplicationError(
                 configuration,
-                (jobId, t) -> {
-                    Assertions.assertThat(jobId)
-                            .isEqualTo(ApplicationDispatcherBootstrap.ZERO_JOB_ID);
+                (id, t) -> {
+                    Assertions.assertThat(id).isEqualTo(jobId);
                     Assertions.assertThat(t)
                             .isInstanceOf(ProgramInvocationException.class)
                             .hasRootCauseInstanceOf(RuntimeException.class)

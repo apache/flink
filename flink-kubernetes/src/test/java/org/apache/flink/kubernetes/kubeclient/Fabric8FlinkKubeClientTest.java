@@ -319,9 +319,15 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
         flinkConfig.set(
                 KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE, addressType);
         final List<String> internalAddresses =
-                Arrays.asList("InternalIP:10.0.0.1", "InternalIP:10.0.0.2", "InternalIP:10.0.0.3");
+                Arrays.asList(
+                        "InternalIP:10.0.0.1:true",
+                        "InternalIP:10.0.0.2:false",
+                        "InternalIP:10.0.0.3: ");
         final List<String> externalAddresses =
-                Arrays.asList("ExternalIP:7.7.7.7", "ExternalIP:8.8.8.8", "ExternalIP:9.9.9.9");
+                Arrays.asList(
+                        "ExternalIP:7.7.7.7:true",
+                        "ExternalIP:8.8.8.8:false",
+                        "ExternalIP:9.9.9.9: ");
         final List<String> addresses = new ArrayList<>();
         addresses.addAll(internalAddresses);
         addresses.addAll(externalAddresses);
@@ -339,12 +345,14 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                 case InternalIP:
                     expectedIps =
                             internalAddresses.stream()
+                                    .filter(s -> !"true".equals(s.split(":")[2]))
                                     .map(s -> s.split(":")[1])
                                     .collect(Collectors.toList());
                     break;
                 case ExternalIP:
                     expectedIps =
                             externalAddresses.stream()
+                                    .filter(s -> !"true".equals(s.split(":")[2]))
                                     .map(s -> s.split(":")[1])
                                     .collect(Collectors.toList());
                     break;
@@ -352,6 +360,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                     throw new IllegalArgumentException(
                             String.format("Unexpected address type %s.", addressType));
             }
+            assertThat(expectedIps.size()).isEqualTo(2);
             assertThat(resultEndpoint.get().getAddress()).isIn(expectedIps);
             assertThat(resultEndpoint.get().getPort()).isEqualTo(NODE_PORT);
         }

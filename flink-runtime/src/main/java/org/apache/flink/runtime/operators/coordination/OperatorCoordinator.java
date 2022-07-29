@@ -54,21 +54,24 @@ import java.util.concurrent.CompletableFuture;
  * In particular, the following methods are guaranteed to be called strictly in order:
  *
  * <ol>
- *   <li>{@link #subtaskReady(int, SubtaskGateway)}: Called once you can send events to the subtask.
- *       The provided gateway is bound to that specific task. This is the start of interaction with
- *       the operator subtasks.
- *   <li>{@link #subtaskFailed(int, Throwable)}: Called for each subtask as soon as the subtask
- *       execution failed or was cancelled. At this point, interaction with the subtask should stop.
+ *   <li>{@link #executionAttemptReady(int, int, SubtaskGateway)}: Called once you can send events
+ *       to the subtask execution attempt. The provided gateway is bound to that specific execution
+ *       attempt. This is the start of interaction with the operator subtask attempt.
+ *   <li>{@link #executionAttemptFailed(int, int, Throwable)}: Called for each subtask execution
+ *       attempt as soon as the attempt failed or was cancelled. At this point, interaction with the
+ *       subtask attempt should stop.
  *   <li>{@link #subtaskReset(int, long)} or {@link #resetToCheckpoint(long, byte[])}: Once the
  *       scheduler determined which checkpoint to restore, these methods notify the coordinator of
  *       that. The former method is called in case of a regional failure/recovery (affecting
  *       possible a subset of subtasks), the later method in case of a global failure/recovery. This
  *       method should be used to determine which actions to recover, because it tells you which
  *       checkpoint to fall back to. The coordinator implementation needs to recover the
- *       interactions with the relevant tasks since the checkpoint that is restored.
- *   <li>{@link #subtaskReady(int, SubtaskGateway)}: Called again, once the recovered tasks are
- *       ready to go. This is later than {@link #subtaskReset(int, long)}, because between those
- *       methods, the task are scheduled and deployed.
+ *       interactions with the relevant tasks since the checkpoint that is restored. It will be
+ *       called only after {@link #executionAttemptFailed(int, int, Throwable)} has been called on
+ *       all the attempts of the subtask.
+ *   <li>{@link #executionAttemptReady(int, int, SubtaskGateway)}: Called again, once the recovered
+ *       tasks (new attempts) are ready to go. This is later than {@link #subtaskReset(int, long)},
+ *       because between those methods, the new attempts are scheduled and deployed.
  * </ol>
  */
 @Internal
@@ -101,13 +104,14 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
     // ------------------------------------------------------------------------
 
     /**
-     * Hands an OperatorEvent coming from a parallel Operator instances (one of the parallel
+     * Hands an OperatorEvent coming from a parallel Operator instance (one attempt of the parallel
      * subtasks).
      *
      * @throws Exception Any exception thrown by this method results in a full job failure and
      *     recovery.
      */
-    void handleEventFromOperator(int subtask, OperatorEvent event) throws Exception;
+    void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event)
+            throws Exception;
 
     // ------------------------------------------------------------------------
 
@@ -195,35 +199,38 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
     // ------------------------------------------------------------------------
 
     /**
-     * Called when one of the subtasks of the task running the coordinated operator goes through a
-     * failover (failure / recovery cycle).
-     *
-     * <p>This method is called every time there is a failover of a subtasks, regardless of whether
-     * there it is a partial failover or a global failover.
-     */
-    void subtaskFailed(int subtask, @Nullable Throwable reason);
-
-    /**
-     * Called if a task is recovered as part of a <i>partial failover</i>, meaning a failover
+     * Called if a subtask is recovered as part of a <i>partial failover</i>, meaning a failover
      * handled by the scheduler's failover strategy (by default recovering a pipelined region). The
      * method is invoked for each subtask involved in that partial failover.
      *
      * <p>In contrast to this method, the {@link #resetToCheckpoint(long, byte[])} method is called
      * in the case of a global failover, which is the case when the coordinator (JobManager) is
      * recovered.
+     *
+     * <p>Note that this method will not be called if an execution attempt of a subtask failed, if
+     * the subtask is not entirely failed, i.e. if the subtask has other execution attempts that are
+     * not failed/canceled.
      */
     void subtaskReset(int subtask, long checkpointId);
 
     /**
-     * This is called when a subtask of the Operator becomes ready to receive events, both after
-     * initial startup and after task failover. The given {@code SubtaskGateway} can be used to send
-     * events to the executed subtask.
+     * Called when any subtask execution attempt of the task running the coordinated operator is
+     * failed/canceled.
+     *
+     * <p>This method is called every time an execution attempt is failed/canceled, regardless of
+     * whether there it is caused by a partial failover or a global failover.
+     */
+    void executionAttemptFailed(int subtask, int attemptNumber, @Nullable Throwable reason);
+
+    /**
+     * This is called when a subtask execution attempt of the Operator becomes ready to receive
+     * events. The given {@code SubtaskGateway} can be used to send events to the execution attempt.
      *
      * <p>The given {@code SubtaskGateway} is bound to that specific execution attempt that became
      * ready. All events sent through the gateway target that execution attempt; if the attempt is
      * no longer running by the time the event is sent, then the events are failed.
      */
-    void subtaskReady(int subtask, SubtaskGateway gateway);
+    void executionAttemptReady(int subtask, int attemptNumber, SubtaskGateway gateway);
 
     // ------------------------------------------------------------------------
     // ------------------------------------------------------------------------
@@ -256,10 +263,16 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
         ClassLoader getUserCodeClassloader();
 
         /**
-         * Get the {@link CoordinatorStore} instance for sharring information between {@link
+         * Gets the {@link CoordinatorStore} instance for sharing information between {@link
          * OperatorCoordinator}s.
          */
         CoordinatorStore getCoordinatorStore();
+
+        /**
+         * Gets that whether the coordinator supports an execution vertex to have multiple
+         * concurrent running execution attempts.
+         */
+        boolean isConcurrentExecutionAttemptsSupported();
     }
 
     // ------------------------------------------------------------------------

@@ -44,8 +44,10 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -117,8 +119,8 @@ public class HiveTestUtils {
             String warehouseDir = TEMPORARY_FOLDER.newFolder().getAbsolutePath() + "/metastore_db";
             String warehouseUri = String.format(HIVE_WAREHOUSE_URI_FORMAT, warehouseDir);
 
+            HiveConf.setHiveSiteLocation(classLoader.getResource(HiveCatalog.HIVE_SITE_FILE));
             HiveConf hiveConf = new HiveConf();
-            hiveConf.addResource(classLoader.getResource(HiveCatalog.HIVE_SITE_FILE));
             hiveConf.setVar(
                     HiveConf.ConfVars.METASTOREWAREHOUSE,
                     TEMPORARY_FOLDER.newFolder("hive_warehouse").getAbsolutePath());
@@ -127,6 +129,15 @@ public class HiveTestUtils {
         } catch (IOException e) {
             throw new CatalogException("Failed to create test HiveConf to HiveCatalog.", e);
         }
+    }
+
+    public static File createHiveSite() throws Exception {
+        HiveConf conf = createHiveConf();
+        File site = TEMPORARY_FOLDER.newFile("hive-site.xml");
+        try (OutputStream out = new FileOutputStream(site)) {
+            conf.writeXml(out);
+        }
+        return site;
     }
 
     // Gets a free port of localhost. Note that this method suffers the "time of check to time of

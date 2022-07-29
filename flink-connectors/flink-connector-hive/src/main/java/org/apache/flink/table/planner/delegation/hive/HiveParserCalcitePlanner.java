@@ -75,7 +75,6 @@ import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
-import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalIntersect;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalMinus;
@@ -117,6 +116,7 @@ import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
 import org.apache.hadoop.hive.ql.parse.ColumnAccessInfo;
 import org.apache.hadoop.hive.ql.parse.JoinType;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
+import org.apache.hadoop.hive.ql.parse.SplitSample;
 import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
@@ -778,25 +778,15 @@ public class HiveParserCalcitePlanner {
         HiveParserRowResolver rowResolver = new HiveParserRowResolver();
 
         try {
-            // 1. If the table has a Sample specified, bail from Calcite path.
-            // 2. if returnpath is on and hivetestmode is on bail
-            if (qb.getParseInfo().needTableSample(tableAlias)
-                    || semanticAnalyzer.getNameToSplitSampleMap().containsKey(tableAlias)
-                    || Boolean.parseBoolean(
-                                    semanticAnalyzer
-                                            .getConf()
-                                            .get("hive.cbo.returnpath.hiveop", "false"))
-                            && semanticAnalyzer
-                                    .getConf()
-                                    .getBoolVar(HiveConf.ConfVars.HIVETESTMODE)) {
-                String msg =
-                        String.format(
-                                "Table Sample specified for %s."
-                                        + " Currently we don't support Table Sample clauses in CBO,"
-                                        + " turn off cbo for queries on tableSamples.",
-                                tableAlias);
-                LOG.debug(msg);
-                throw new SemanticException(msg);
+            // 1. If the table has a split sample, and it isn't TABLESAMPLE (n ROWS), throw
+            // exception
+            // 2. if the table has a bucket sample, throw exception
+            SplitSample splitSample = semanticAnalyzer.getNameToSplitSampleMap().get(tableAlias);
+            if ((splitSample != null
+                            && (splitSample.getPercent() != null
+                                    || splitSample.getTotalLength() != null))
+                    || qb.getParseInfo().needTableSample(tableAlias)) {
+                throw new UnsupportedOperationException("Only TABLESAMPLE (n ROWS) is supported.");
             }
 
             // 2. Get Table Metadata
@@ -864,6 +854,17 @@ public class HiveParserCalcitePlanner {
                                         ViewExpanders.toRelContext(
                                                 flinkPlanner.createToRelContext(), cluster));
 
+                if (splitSample != null) {
+                    tableRel =
+                            LogicalSort.create(
+                                    tableRel,
+                                    cluster.traitSet().canonize(RelCollations.EMPTY),
+                                    null,
+                                    cluster.getRexBuilder()
+                                            .makeExactLiteral(
+                                                    BigDecimal.valueOf(splitSample.getRowCount())));
+                }
+
                 // 6. Add Schema(RR) to RelNode-Schema map
                 Map<String, Integer> hiveToCalciteColMap = buildHiveToCalciteColumnMap(rowResolver);
                 relToRowResolver.put(tableRel, rowResolver);
@@ -910,7 +911,12 @@ public class HiveParserCalcitePlanner {
         RexNode factoredFilterExpr =
                 RexUtil.pullFactors(cluster.getRexBuilder(), convertedFilterExpr)
                         .accept(funcConverter);
-        RelNode filterRel = LogicalFilter.create(srcRel, factoredFilterExpr);
+        RelNode filterRel =
+                HiveParserUtils.genFilterRelNode(
+                        srcRel,
+                        factoredFilterExpr,
+                        HiveParserBaseSemanticAnalyzer.getVariablesSetForFilter(
+                                factoredFilterExpr));
         relToRowResolver.put(filterRel, relToRowResolver.get(srcRel));
         relToHiveColNameCalcitePosMap.put(filterRel, hiveColNameToCalcitePos);
 
@@ -1070,7 +1076,12 @@ public class HiveParserCalcitePlanner {
                             .convert(subQueryExpr)
                             .accept(funcConverter);
 
-            RelNode filterRel = LogicalFilter.create(srcRel, convertedFilterLHS);
+            RelNode filterRel =
+                    HiveParserUtils.genFilterRelNode(
+                            srcRel,
+                            convertedFilterLHS,
+                            HiveParserBaseSemanticAnalyzer.getVariablesSetForFilter(
+                                    convertedFilterLHS));
 
             relToHiveColNameCalcitePosMap.put(filterRel, relToHiveColNameCalcitePosMap.get(srcRel));
             relToRowResolver.put(filterRel, relToRowResolver.get(srcRel));

@@ -1,5 +1,5 @@
 ---
-title: "Data Types"
+title: "数据类型"
 weight: 21
 type: docs
 aliases:
@@ -24,57 +24,57 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Data Types
+<a name="data-types"></a>
 
-Flink SQL has a rich set of native data types available to users.
+# 数据类型
 
-Data Type
+Flink SQL 为用户提供了一系列丰富的原始数据类型。
+
+<a name="data-type"></a>
+
+数据类型
 ---------
 
-A *data type* describes the logical type of a value in the table ecosystem.
-It can be used to declare input and/or output types of operations.
+在 Flink 的 Table 生态系统中，*数据类型* 描述了数据的逻辑类型，可以用来表示转换过程中输入、输出的类型。
 
-Flink's data types are similar to the SQL standard's *data type* terminology but also contain information
-about the nullability of a value for efficient handling of scalar expressions.
+Flink 的数据类型类似于 SQL 标准中的术语*数据类型*，但包含了值的可空性，以便于更好地处理标量表达式。
 
-Examples of data types are:
+以下是一些数据类型的例子：
 - `INT`
 - `INT NOT NULL`
 - `INTERVAL DAY TO SECOND(3)`
 - `ROW<myField ARRAY<BOOLEAN>, myOtherField TIMESTAMP(3)>`
 
-A list of all pre-defined data types can be found [below](#list-of-data-types).
+可在[下文](#list-of-data-types)中找到所有预先定义好的数据类型。
 
-### Data Types in the Table API
+<a name="data-types-in-the-table-api"></a>
+
+### Table API 中的数据类型
 
 {{< tabs "datatypes" >}}
 {{< tab "Java/Scala" >}}
-Users of the JVM-based API work with instances of `org.apache.flink.table.types.DataType` within the Table API or when
-defining connectors, catalogs, or user-defined functions. 
+在定义 connector、catalog、用户自定义函数时，使用 JVM 相关 API 的用户可能会使用到 Table API 中基于 `org.apache.flink.table.types.DataType` 的一些实例。
 
-A `DataType` instance has two responsibilities:
-- **Declaration of a logical type** which does not imply a concrete physical representation for transmission
-or storage but defines the boundaries between JVM-based/Python languages and the table ecosystem.
-- *Optional:* **Giving hints about the physical representation of data to the planner** which is useful at the edges to other APIs.
+`数据类型` 实例有两个职责：
+- **作为逻辑类型的表现形式**，定义 JVM 类语言或 Python 语言与 Table 生态系统的边界，而不是以具体的物理表现形式存在于数据的传输过程或存储中。
+- *可选的:* 在与其他 API 进行数据交换时，**为 Planner 提供这些数据物理层面的相关提示**。
 
-For JVM-based languages, all pre-defined data types are available in `org.apache.flink.table.api.DataTypes`.
+对于基于 JVM 的语言，所有预定义的数据类型都可以在 `org.apache.flink.table.api.DataTypes` 下找到。
 {{< /tab >}}
 {{< tab "Python" >}}
-Users of the Python API work with instances of `pyflink.table.types.DataType` within the Python Table API or when 
-defining Python user-defined functions.
+在 Python 语言定义用户自定义函数时，使用 Python API 的用户
+可能会使用到 Python API 中基于 `pyflink.table.types.DataType` 的一些实例。
 
-A `DataType` instance has such a responsibility:
-- **Declaration of a logical type** which does not imply a concrete physical representation for transmission
-or storage but defines the boundaries between Python languages and the table ecosystem.
+`数据类型` 实例有如下职责：
+- **作为逻辑类型的表现形式**，定义 JVM 类语言或 Python 语言与 Table 生态系统的边界，而不是以具体的物理表现形式存在于数据的传输过程或存储中。
 
-For Python language, those types are available in `pyflink.table.types.DataTypes`.
+对于 Python 语言，这些类型可以在 `pyflink.table.types.DataTypes` 下找到。
 {{< /tab >}}
 {{< /tabs >}}
 
 {{< tabs "84cf5e1c-c899-42cb-8fdf-6ae59fdd012c" >}}
 {{< tab "Java" >}}
-It is recommended to add a star import to your table programs for having a fluent API:
-
+使用 Table API 编程时，建议使用星号引入所有相关依赖，以获得更流畅的 API 使用体验：
 ```java
 import static org.apache.flink.table.api.DataTypes.*;
 
@@ -82,7 +82,7 @@ DataType t = INTERVAL(DAY(), SECOND(3));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-It is recommended to add a star import to your table programs for having a fluent API:
+使用 Table API 编程时，建议使用星号引入所有相关依赖，以获得更流畅的 API 使用体验：
 
 ```scala
 import org.apache.flink.table.api.DataTypes._
@@ -100,47 +100,38 @@ t = DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND(3))
 {{< /tab >}}
 {{< /tabs >}}
 
+<a name="physical-hints"></a>
 
-#### Physical Hints
+#### 物理提示
 
-Physical hints are required at the edges of the table ecosystem where the SQL-based type system ends and
-programming-specific data types are required. Hints indicate the data format that an implementation
-expects.
+在Table 生态系统中，当需要将 SQL 中的数据类型对应到实际编程语言中的数据类型时，就需要有物理提示。物理提示明确了对应过程中应该使用哪种数据格式。
 
-For example, a data source could express that it produces values for logical `TIMESTAMP`s using a `java.sql.Timestamp` class
-instead of using `java.time.LocalDateTime` which would be the default. With this information, the runtime is able to convert
-the produced class into its internal data format. In return, a data sink can declare the data format it consumes from the runtime.
+比如，在 source 端产生数据时，可以规定：`TIMESTAMP` 的逻辑类型，在底层要使用 `java.sql.Timestamp` 这个类表示，而不是使用默认的 `java.time.LocalDateTime` 类。有了物理提示，可以帮助 Flink 运行时根据提供的类将数据转换为其内部数据格式。同样在 sink 端，定义好数据格式，以便能从 Flink 运行时获取、转换数据。
 
-Here are some examples of how to declare a bridging conversion class:
+下面的例子展示了如何声明一个桥接转换类：
 
 {{< tabs "hints" >}}
 {{< tab "Java" >}}
 ```java
-// tell the runtime to not produce or consume java.time.LocalDateTime instances
-// but java.sql.Timestamp
+// 告诉 Flink 运行时使用 java.sql.Timestamp 处理数据，而不是 java.time.LocalDateTime
 DataType t = DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class);
 
-// tell the runtime to not produce or consume boxed integer arrays
-// but primitive int arrays
+// 告诉 Flink 运行时使用基本的 int 数组来处理数据，而不是用包装类 Integer 数组
 DataType t = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(int[].class);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// tell the runtime to not produce or consume java.time.LocalDateTime instances
-// but java.sql.Timestamp
+// 告诉 Flink 运行时使用 java.sql.Timestamp 处理数据，而不是 java.time.LocalDateTime
 val t: DataType = DataTypes.TIMESTAMP(3).bridgedTo(classOf[java.sql.Timestamp])
 
-// tell the runtime to not produce or consume boxed integer arrays
-// but primitive int arrays
+// 告诉 Flink 运行时使用基本的 int 数组来处理数据，而不是用包装类 Integer 数组
 val t: DataType = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(classOf[Array[Int]])
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-<span class="label label-danger">Attention</span> Please note that physical hints are usually only required if the
-API is extended. Users of predefined sources/sinks/functions do not need to define such hints. Hints within
-a table program (e.g. `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`) are ignored.
+<span class="label label-danger">注意</span> 请记住，只有在扩展 API 时才需要使用到物理提示。使用预定义的 source、sink 以及 Flink 函数时，不需要用到物理提示。在使用 Table API 编写程序时，Flink 会忽略物理提示（例如 `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`）。
 
 List of Data Types
 ------------------

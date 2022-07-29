@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test hive query compatibility. */
 public class HiveDialectQueryITCase {
@@ -82,6 +83,8 @@ public class HiveDialectQueryITCase {
         tableEnv.executeSql("CREATE TABLE src (key STRING, value STRING)");
         tableEnv.executeSql(
                 "CREATE TABLE srcpart (key STRING, `value` STRING) PARTITIONED BY (ds STRING, hr STRING)");
+        tableEnv.executeSql("create table binary_t (a int, ab array<binary>)");
+
         tableEnv.executeSql(
                 "CREATE TABLE nested (\n"
                         + "  a int,\n"
@@ -156,7 +159,8 @@ public class HiveDialectQueryITCase {
                                         + "(partition by dep order by salary desc) as rnk from employee) a where rnk=1",
                                 "select salary,sum(cnt) over (order by salary)/sum(cnt) over "
                                         + "(order by salary ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) from"
-                                        + " (select salary,count(*) as cnt from employee group by salary) a"));
+                                        + " (select salary,count(*) as cnt from employee group by salary) a",
+                                "select a, one from binary_t lateral view explode(ab) abs as one where a > 0"));
         if (HiveVersionTestUtil.HIVE_230_OR_LATER) {
             toRun.add(
                     "select weekofyear(current_timestamp()), dayofweek(current_timestamp()) from src limit 1");
@@ -328,6 +332,107 @@ public class HiveDialectQueryITCase {
             tableEnv.executeSql("drop table test2a");
             tableEnv.executeSql("drop table test2b");
         }
+    }
+
+    @Test
+    public void testWindowWithGrouping() throws Exception {
+        tableEnv.executeSql("create table t(category int, live int, comments int)");
+        try {
+            tableEnv.executeSql("insert into table t values (1, 0, 2), (2, 0, 2), (3, 0, 2)")
+                    .await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select grouping(category),"
+                                                    + " lag(live) over(partition by grouping(category)) "
+                                                    + "from t group by category, live")
+                                    .collect());
+            assertThat(result.toString()).isEqualTo("[+I[0, null], +I[0, 0], +I[0, 0]]");
+            // test grouping with multiple parameters
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select grouping(category, live),"
+                                                    + " lead(live) over(partition by grouping(category, live)) "
+                                                    + "from t group by category, live")
+                                    .collect());
+            assertThat(result.toString()).isEqualTo("[+I[0, 0], +I[0, 0], +I[0, null]]");
+        } finally {
+            tableEnv.executeSql("drop table t");
+        }
+    }
+
+    @Test
+    public void testCurrentDatabase() {
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select current_database()").collect());
+        assertThat(result.toString()).isEqualTo("[+I[default]]");
+        tableEnv.executeSql("create database db1");
+        tableEnv.executeSql("use db1");
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select current_database()").collect());
+        assertThat(result.toString()).isEqualTo("[+I[db1]]");
+        // switch to default database for following test use default database
+        tableEnv.executeSql("use default");
+        tableEnv.executeSql("drop database db1");
+    }
+
+    @Test
+    public void testDistinctFrom() throws Exception {
+        try {
+            tableEnv.executeSql("create table test(x string, y string)");
+            tableEnv.executeSql(
+                            "insert into test values ('q', 'q'), ('q', 'w'), (NULL, 'q'), ('q', NULL), (NULL, NULL)")
+                    .await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select x <=> y, (x <=> y) = false from test")
+                                    .collect());
+            assertThat(result.toString())
+                    .isEqualTo(
+                            "[+I[true, false], +I[false, true], +I[false, true], +I[false, true], +I[true, false]]");
+        } finally {
+            tableEnv.executeSql("drop table test");
+        }
+    }
+
+    @Test
+    public void testTableSample() throws Exception {
+        tableEnv.executeSql("create table test_sample(a int)");
+        try {
+            tableEnv.executeSql("insert into test_sample values (2), (1), (3)").await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from test_sample tablesample (2 rows)")
+                                    .collect());
+            assertThat(result.toString()).isEqualTo("[+I[2], +I[1]]");
+            // test unsupported table sample
+            String expectedMessage = "Only TABLESAMPLE (n ROWS) is supported.";
+            assertSqlException(
+                    "select * from test_sample tablesample (0.1 PERCENT)",
+                    UnsupportedOperationException.class,
+                    expectedMessage);
+            assertSqlException(
+                    "select * from test_sample tablesample (100M)",
+                    UnsupportedOperationException.class,
+                    expectedMessage);
+            assertSqlException(
+                    "select * from test_sample tablesample (BUCKET 3 OUT OF 64 ON a)",
+                    UnsupportedOperationException.class,
+                    expectedMessage);
+        } finally {
+            tableEnv.executeSql("drop table test_sample");
+        }
+    }
+
+    private void assertSqlException(
+            String sql, Class<?> expectedExceptionClz, String expectedMessage) {
+        assertThatThrownBy(() -> tableEnv.executeSql(sql))
+                .rootCause()
+                .isInstanceOf(expectedExceptionClz)
+                .hasMessage(expectedMessage);
     }
 
     private void runQFile(File qfile) throws Exception {

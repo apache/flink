@@ -51,6 +51,19 @@ class StatementSet(object):
         self._j_statement_set.addInsertSql(stmt)
         return self
 
+    def attach_as_datastream(self):
+        """
+        Optimizes all statements as one entity and adds them as transformations to the underlying
+        StreamExecutionEnvironment.
+
+        Use :func:`~pyflink.datastream.StreamExecutionEnvironment.execute` to execute them.
+
+        The added statements will be cleared after calling this method.
+
+        .. versionadded:: 1.16.0
+        """
+        self._j_statement_set.attachAsDataStream()
+
     def add_insert(self,
                    target_path_or_descriptor: Union[str, TableDescriptor],
                    table,

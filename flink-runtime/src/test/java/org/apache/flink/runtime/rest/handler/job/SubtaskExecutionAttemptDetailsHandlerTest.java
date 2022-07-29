@@ -28,6 +28,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionHistory;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -44,7 +45,6 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptPathParameter;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
-import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
@@ -52,6 +52,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
@@ -77,8 +78,19 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
         final long bytesOut = 10L;
         final long recordsIn = 20L;
         final long recordsOut = 30L;
+        final long accumulateIdleTime = 40L;
+        final long accumulateBusyTime = 50L;
+        final long accumulateBackPressuredTime = 60L;
 
-        final IOMetrics ioMetrics = new IOMetrics(bytesIn, bytesOut, recordsIn, recordsOut);
+        final IOMetrics ioMetrics =
+                new IOMetrics(
+                        bytesIn,
+                        bytesOut,
+                        recordsIn,
+                        recordsOut,
+                        accumulateIdleTime,
+                        accumulateBusyTime,
+                        accumulateBackPressuredTime);
 
         final ArchivedExecutionJobVertex archivedExecutionJobVertex =
                 new ArchivedExecutionJobVertex(
@@ -96,8 +108,9 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
                                             null,
                                             null,
                                             null,
+                                            new long[ExecutionState.values().length],
                                             new long[ExecutionState.values().length]),
-                                    new EvictingBoundedList<>(0))
+                                    new ExecutionHistory(0))
                         },
                         jobVertexId,
                         "test",
@@ -151,7 +164,25 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 
         // Verify
         final IOMetricsInfo ioMetricsInfo =
-                new IOMetricsInfo(bytesIn, true, bytesOut, true, recordsIn, true, recordsOut, true);
+                new IOMetricsInfo(
+                        bytesIn,
+                        true,
+                        bytesOut,
+                        true,
+                        recordsIn,
+                        true,
+                        recordsOut,
+                        true,
+                        accumulateBackPressuredTime,
+                        accumulateIdleTime,
+                        accumulateBusyTime);
+
+        final Map<ExecutionState, Long> statusDuration = new HashMap<>();
+        statusDuration.put(ExecutionState.CREATED, -1L);
+        statusDuration.put(ExecutionState.SCHEDULED, -1L);
+        statusDuration.put(ExecutionState.DEPLOYING, -1L);
+        statusDuration.put(ExecutionState.INITIALIZING, -1L);
+        statusDuration.put(ExecutionState.RUNNING, -1L);
 
         final SubtaskExecutionAttemptDetailsInfo expectedDetailsInfo =
                 new SubtaskExecutionAttemptDetailsInfo(
@@ -163,7 +194,8 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
                         0L,
                         -1L,
                         ioMetricsInfo,
-                        "(unassigned)");
+                        "(unassigned)",
+                        statusDuration);
 
         assertEquals(expectedDetailsInfo, detailsInfo);
     }

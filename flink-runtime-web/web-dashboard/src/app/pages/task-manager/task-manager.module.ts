@@ -24,6 +24,7 @@ import { ShareModule } from '@flink-runtime-web/share/share.module';
 import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
+import { NzDescriptionsModule } from 'ng-zorro-antd/descriptions';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzGridModule } from 'ng-zorro-antd/grid';
 import { NzIconModule } from 'ng-zorro-antd/icon';
@@ -39,7 +40,6 @@ import { TaskManagerLogsComponent } from './logs/task-manager-logs.component';
 import { TaskManagerMetricsComponent } from './metrics/task-manager-metrics.component';
 import { TaskManagerStatusComponent } from './status/task-manager-status.component';
 import { TaskManagerStdoutComponent } from './stdout/task-manager-stdout.component';
-import { TaskManagerLocalService } from './task-manager-local.service';
 import { TaskManagerRoutingModule } from './task-manager-routing.module';
 import { TaskManagerComponent } from './task-manager.component';
 import { TaskManagerThreadDumpComponent } from './thread-dump/task-manager-thread-dump.component';
@@ -59,7 +59,8 @@ import { TaskManagerThreadDumpComponent } from './thread-dump/task-manager-threa
     NzDividerModule,
     NzSkeletonModule,
     NzCodeEditorModule,
-    FormsModule
+    FormsModule,
+    NzDescriptionsModule
   ],
   declarations: [
     TaskManagerListComponent,
@@ -71,7 +72,6 @@ import { TaskManagerThreadDumpComponent } from './thread-dump/task-manager-threa
     TaskManagerThreadDumpComponent,
     TaskManagerLogsComponent,
     TaskManagerStdoutComponent
-  ],
-  providers: [TaskManagerLocalService]
+  ]
 })
 export class TaskManagerModule {}

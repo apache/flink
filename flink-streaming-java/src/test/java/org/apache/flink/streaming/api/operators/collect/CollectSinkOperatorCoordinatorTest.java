@@ -78,7 +78,7 @@ public class CollectSinkOperatorCoordinatorTest {
         ServerThread server = new ServerThread(expected, 3);
         server.start();
         coordinator.handleEventFromOperator(
-                0, new CollectSinkAddressEvent(server.getServerAddress()));
+                0, 0, new CollectSinkAddressEvent(server.getServerAddress()));
 
         // a normal response
         CollectCoordinationRequest request = new CollectCoordinationRequest("version1", 123);
@@ -96,14 +96,14 @@ public class CollectSinkOperatorCoordinatorTest {
         request = new CollectCoordinationRequest("version3", 789);
         CompletableFuture<CoordinationResponse> responseFuture =
                 coordinator.handleCoordinationRequest(request);
-        coordinator.subtaskFailed(0, null);
+        coordinator.executionAttemptFailed(0, 0, null);
 
         // new server comes
         expected = Collections.singletonList(Arrays.asList(Row.of(6, "fff"), Row.of(7, "ggg")));
         server = new ServerThread(expected, 2);
         server.start();
         coordinator.handleEventFromOperator(
-                0, new CollectSinkAddressEvent(server.getServerAddress()));
+                0, 0, new CollectSinkAddressEvent(server.getServerAddress()));
 
         // check failed request
         response = (CollectCoordinationResponse) responseFuture.get();

@@ -29,9 +29,9 @@ import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionI
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.operators.python.PythonKeyedCoProcessOperator;
-import org.apache.flink.streaming.api.operators.python.PythonKeyedProcessOperator;
-import org.apache.flink.streaming.api.operators.python.PythonProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonKeyedCoProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonKeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.python.process.ExternalPythonProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
@@ -49,10 +49,10 @@ class PythonOperatorChainingOptimizerTest {
 
     @Test
     void testChainedTransformationPropertiesCorrectlySet() {
-        PythonKeyedProcessOperator<?> keyedProcessOperator =
+        ExternalPythonKeyedProcessOperator<?> keyedProcessOperator =
                 createKeyedProcessOperator(
                         "f1", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
-        PythonProcessOperator<?, ?> processOperator =
+        ExternalPythonProcessOperator<?, ?> processOperator =
                 createProcessOperator("f2", Types.STRING(), Types.STRING());
 
         Transformation<?> sourceTransformation = mock(SourceTransformation.class);
@@ -124,21 +124,21 @@ class PythonOperatorChainingOptimizerTest {
                 .contains(ManagedMemoryUseCase.STATE_BACKEND);
 
         OneInputStreamOperator<?, ?> chainedOperator = chainedTransformation.getOperator();
-        assertThat(chainedOperator).isInstanceOf(PythonKeyedProcessOperator.class);
+        assertThat(chainedOperator).isInstanceOf(ExternalPythonKeyedProcessOperator.class);
         validateChainedPythonFunctions(
-                ((PythonKeyedProcessOperator<?>) chainedOperator).getPythonFunctionInfo(),
+                ((ExternalPythonKeyedProcessOperator<?>) chainedOperator).getPythonFunctionInfo(),
                 "f2",
                 "f1");
     }
 
     @Test
     void testChainingMultipleOperators() {
-        PythonKeyedProcessOperator<?> keyedProcessOperator =
+        ExternalPythonKeyedProcessOperator<?> keyedProcessOperator =
                 createKeyedProcessOperator(
                         "f1", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
-        PythonProcessOperator<?, ?> processOperator1 =
+        ExternalPythonProcessOperator<?, ?> processOperator1 =
                 createProcessOperator("f2", Types.STRING(), Types.LONG());
-        PythonProcessOperator<?, ?> processOperator2 =
+        ExternalPythonProcessOperator<?, ?> processOperator2 =
                 createProcessOperator("f3", Types.LONG(), Types.INT());
 
         Transformation<?> sourceTransformation = mock(SourceTransformation.class);
@@ -182,9 +182,9 @@ class PythonOperatorChainingOptimizerTest {
                 .isEqualTo(chainedTransformation.getOutputType());
 
         OneInputStreamOperator<?, ?> chainedOperator = chainedTransformation.getOperator();
-        assertThat(chainedOperator).isInstanceOf(PythonKeyedProcessOperator.class);
+        assertThat(chainedOperator).isInstanceOf(ExternalPythonKeyedProcessOperator.class);
         validateChainedPythonFunctions(
-                ((PythonKeyedProcessOperator<?>) chainedOperator).getPythonFunctionInfo(),
+                ((ExternalPythonKeyedProcessOperator<?>) chainedOperator).getPythonFunctionInfo(),
                 "f3",
                 "f2",
                 "f1");
@@ -192,10 +192,10 @@ class PythonOperatorChainingOptimizerTest {
 
     @Test
     void testChainingNonKeyedOperators() {
-        PythonProcessOperator<?, ?> processOperator1 =
+        ExternalPythonProcessOperator<?, ?> processOperator1 =
                 createProcessOperator(
                         "f1", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
-        PythonProcessOperator<?, ?> processOperator2 =
+        ExternalPythonProcessOperator<?, ?> processOperator2 =
                 createProcessOperator("f2", Types.STRING(), Types.INT());
 
         Transformation<?> sourceTransformation = mock(SourceTransformation.class);
@@ -231,21 +231,21 @@ class PythonOperatorChainingOptimizerTest {
                 .isEqualTo(chainedTransformation.getOutputType());
 
         OneInputStreamOperator<?, ?> chainedOperator = chainedTransformation.getOperator();
-        assertThat(chainedOperator).isInstanceOf(PythonProcessOperator.class);
+        assertThat(chainedOperator).isInstanceOf(ExternalPythonProcessOperator.class);
         validateChainedPythonFunctions(
-                ((PythonProcessOperator<?, ?>) chainedOperator).getPythonFunctionInfo(),
+                ((ExternalPythonProcessOperator<?, ?>) chainedOperator).getPythonFunctionInfo(),
                 "f2",
                 "f1");
     }
 
     @Test
     void testContinuousKeyedOperators() {
-        PythonKeyedProcessOperator<?> keyedProcessOperator1 =
+        ExternalPythonKeyedProcessOperator<?> keyedProcessOperator1 =
                 createKeyedProcessOperator(
                         "f1",
                         new RowTypeInfo(Types.INT(), Types.INT()),
                         new RowTypeInfo(Types.INT(), Types.INT()));
-        PythonKeyedProcessOperator<?> keyedProcessOperator2 =
+        ExternalPythonKeyedProcessOperator<?> keyedProcessOperator2 =
                 createKeyedProcessOperator(
                         "f2", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
 
@@ -280,20 +280,20 @@ class PythonOperatorChainingOptimizerTest {
 
     @Test
     void testMultipleChainedOperators() {
-        PythonKeyedProcessOperator<?> keyedProcessOperator1 =
+        ExternalPythonKeyedProcessOperator<?> keyedProcessOperator1 =
                 createKeyedProcessOperator(
                         "f1", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
-        PythonProcessOperator<?, ?> processOperator1 =
+        ExternalPythonProcessOperator<?, ?> processOperator1 =
                 createProcessOperator(
                         "f2", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
-        PythonProcessOperator<?, ?> processOperator2 =
+        ExternalPythonProcessOperator<?, ?> processOperator2 =
                 createProcessOperator(
                         "f3", new RowTypeInfo(Types.INT(), Types.INT()), Types.LONG());
 
-        PythonKeyedProcessOperator<?> keyedProcessOperator2 =
+        ExternalPythonKeyedProcessOperator<?> keyedProcessOperator2 =
                 createKeyedProcessOperator(
                         "f4", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
-        PythonProcessOperator<?, ?> processOperator3 =
+        ExternalPythonProcessOperator<?, ?> processOperator3 =
                 createProcessOperator(
                         "f5", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
 
@@ -362,40 +362,40 @@ class PythonOperatorChainingOptimizerTest {
                 .isEqualTo(chainedTransformation2.getOutputType());
 
         OneInputStreamOperator<?, ?> chainedOperator1 = chainedTransformation1.getOperator();
-        assertThat(chainedOperator1).isInstanceOf(PythonKeyedProcessOperator.class);
+        assertThat(chainedOperator1).isInstanceOf(ExternalPythonKeyedProcessOperator.class);
         validateChainedPythonFunctions(
-                ((PythonKeyedProcessOperator<?>) chainedOperator1).getPythonFunctionInfo(),
+                ((ExternalPythonKeyedProcessOperator<?>) chainedOperator1).getPythonFunctionInfo(),
                 "f3",
                 "f2",
                 "f1");
 
         OneInputStreamOperator<?, ?> chainedOperator2 = chainedTransformation2.getOperator();
-        assertThat(chainedOperator2).isInstanceOf(PythonKeyedProcessOperator.class);
+        assertThat(chainedOperator2).isInstanceOf(ExternalPythonKeyedProcessOperator.class);
         validateChainedPythonFunctions(
-                ((PythonKeyedProcessOperator<?>) chainedOperator2).getPythonFunctionInfo(),
+                ((ExternalPythonKeyedProcessOperator<?>) chainedOperator2).getPythonFunctionInfo(),
                 "f5",
                 "f4");
     }
 
     @Test
     void testChainingTwoInputOperators() {
-        PythonKeyedCoProcessOperator<?> keyedCoProcessOperator1 =
+        ExternalPythonKeyedCoProcessOperator<?> keyedCoProcessOperator1 =
                 createCoKeyedProcessOperator(
                         "f1",
                         new RowTypeInfo(Types.INT(), Types.STRING()),
                         new RowTypeInfo(Types.INT(), Types.INT()),
                         Types.STRING());
-        PythonProcessOperator<?, ?> processOperator1 =
+        ExternalPythonProcessOperator<?, ?> processOperator1 =
                 createProcessOperator(
                         "f2", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
-        PythonProcessOperator<?, ?> processOperator2 =
+        ExternalPythonProcessOperator<?, ?> processOperator2 =
                 createProcessOperator(
                         "f3", new RowTypeInfo(Types.INT(), Types.INT()), Types.LONG());
 
-        PythonKeyedProcessOperator<?> keyedProcessOperator2 =
+        ExternalPythonKeyedProcessOperator<?> keyedProcessOperator2 =
                 createKeyedProcessOperator(
                         "f4", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
-        PythonProcessOperator<?, ?> processOperator3 =
+        ExternalPythonProcessOperator<?, ?> processOperator3 =
                 createProcessOperator(
                         "f5", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
 
@@ -469,29 +469,30 @@ class PythonOperatorChainingOptimizerTest {
                 .isEqualTo(chainedTransformation2.getOutputType());
 
         TwoInputStreamOperator<?, ?, ?> chainedOperator1 = chainedTransformation1.getOperator();
-        assertThat(chainedOperator1).isInstanceOf(PythonKeyedCoProcessOperator.class);
+        assertThat(chainedOperator1).isInstanceOf(ExternalPythonKeyedCoProcessOperator.class);
         validateChainedPythonFunctions(
-                ((PythonKeyedCoProcessOperator<?>) chainedOperator1).getPythonFunctionInfo(),
+                ((ExternalPythonKeyedCoProcessOperator<?>) chainedOperator1)
+                        .getPythonFunctionInfo(),
                 "f3",
                 "f2",
                 "f1");
 
         OneInputStreamOperator<?, ?> chainedOperator2 = chainedTransformation2.getOperator();
-        assertThat(chainedOperator2).isInstanceOf(PythonKeyedProcessOperator.class);
+        assertThat(chainedOperator2).isInstanceOf(ExternalPythonKeyedProcessOperator.class);
         validateChainedPythonFunctions(
-                ((PythonKeyedProcessOperator<?>) chainedOperator2).getPythonFunctionInfo(),
+                ((ExternalPythonKeyedProcessOperator<?>) chainedOperator2).getPythonFunctionInfo(),
                 "f5",
                 "f4");
     }
 
     @Test
     void testChainingUnorderedTransformations() {
-        PythonKeyedProcessOperator<?> keyedProcessOperator =
+        ExternalPythonKeyedProcessOperator<?> keyedProcessOperator =
                 createKeyedProcessOperator(
                         "f1", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
-        PythonProcessOperator<?, ?> processOperator1 =
+        ExternalPythonProcessOperator<?, ?> processOperator1 =
                 createProcessOperator("f2", Types.STRING(), Types.LONG());
-        PythonProcessOperator<?, ?> processOperator2 =
+        ExternalPythonProcessOperator<?, ?> processOperator2 =
                 createProcessOperator("f3", Types.LONG(), Types.INT());
 
         Transformation<?> sourceTransformation = mock(SourceTransformation.class);
@@ -535,9 +536,9 @@ class PythonOperatorChainingOptimizerTest {
                 .isEqualTo(chainedTransformation.getOutputType());
 
         OneInputStreamOperator<?, ?> chainedOperator = chainedTransformation.getOperator();
-        assertThat(chainedOperator).isInstanceOf(PythonKeyedProcessOperator.class);
+        assertThat(chainedOperator).isInstanceOf(ExternalPythonKeyedProcessOperator.class);
         validateChainedPythonFunctions(
-                ((PythonKeyedProcessOperator<?>) chainedOperator).getPythonFunctionInfo(),
+                ((ExternalPythonKeyedProcessOperator<?>) chainedOperator).getPythonFunctionInfo(),
                 "f3",
                 "f2",
                 "f1");
@@ -545,12 +546,12 @@ class PythonOperatorChainingOptimizerTest {
 
     @Test
     void testSingleTransformation() {
-        PythonKeyedProcessOperator<?> keyedProcessOperator =
+        ExternalPythonKeyedProcessOperator<?> keyedProcessOperator =
                 createKeyedProcessOperator(
                         "f1", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
-        PythonProcessOperator<?, ?> processOperator1 =
+        ExternalPythonProcessOperator<?, ?> processOperator1 =
                 createProcessOperator("f2", Types.STRING(), Types.LONG());
-        PythonProcessOperator<?, ?> processOperator2 =
+        ExternalPythonProcessOperator<?, ?> processOperator2 =
                 createProcessOperator("f3", Types.LONG(), Types.INT());
 
         Transformation<?> sourceTransformation = mock(SourceTransformation.class);
@@ -591,9 +592,9 @@ class PythonOperatorChainingOptimizerTest {
                 .isEqualTo(chainedTransformation.getOutputType());
 
         OneInputStreamOperator<?, ?> chainedOperator = chainedTransformation.getOperator();
-        assertThat(chainedOperator).isInstanceOf(PythonKeyedProcessOperator.class);
+        assertThat(chainedOperator).isInstanceOf(ExternalPythonKeyedProcessOperator.class);
         validateChainedPythonFunctions(
-                ((PythonKeyedProcessOperator<?>) chainedOperator).getPythonFunctionInfo(),
+                ((ExternalPythonKeyedProcessOperator<?>) chainedOperator).getPythonFunctionInfo(),
                 "f3",
                 "f2",
                 "f1");
@@ -601,11 +602,11 @@ class PythonOperatorChainingOptimizerTest {
 
     @Test
     void testTransformationWithMultipleOutputs() {
-        PythonProcessOperator<?, ?> processOperator1 =
+        ExternalPythonProcessOperator<?, ?> processOperator1 =
                 createProcessOperator("f1", Types.STRING(), Types.LONG());
-        PythonProcessOperator<?, ?> processOperator2 =
+        ExternalPythonProcessOperator<?, ?> processOperator2 =
                 createProcessOperator("f2", Types.STRING(), Types.LONG());
-        PythonProcessOperator<?, ?> processOperator3 =
+        ExternalPythonProcessOperator<?, ?> processOperator3 =
                 createProcessOperator("f3", Types.LONG(), Types.INT());
 
         Transformation<?> sourceTransformation = mock(SourceTransformation.class);
@@ -661,11 +662,11 @@ class PythonOperatorChainingOptimizerTest {
         assertThat(pythonFunctionInfo).isNull();
     }
 
-    private static <OUT> PythonKeyedProcessOperator<OUT> createKeyedProcessOperator(
+    private static <OUT> ExternalPythonKeyedProcessOperator<OUT> createKeyedProcessOperator(
             String functionContent,
             RowTypeInfo inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo) {
-        return new PythonKeyedProcessOperator<>(
+        return new ExternalPythonKeyedProcessOperator<>(
                 new Configuration(),
                 new DataStreamPythonFunctionInfo(
                         new DataStreamPythonFunction(functionContent.getBytes(), null), -1),
@@ -673,12 +674,12 @@ class PythonOperatorChainingOptimizerTest {
                 outputTypeInfo);
     }
 
-    private static <OUT> PythonKeyedCoProcessOperator<OUT> createCoKeyedProcessOperator(
+    private static <OUT> ExternalPythonKeyedCoProcessOperator<OUT> createCoKeyedProcessOperator(
             String functionContent,
             RowTypeInfo inputTypeInfo1,
             RowTypeInfo inputTypeInfo2,
             TypeInformation<OUT> outputTypeInfo) {
-        return new PythonKeyedCoProcessOperator(
+        return new ExternalPythonKeyedCoProcessOperator(
                 new Configuration(),
                 new DataStreamPythonFunctionInfo(
                         new DataStreamPythonFunction(functionContent.getBytes(), null), -1),
@@ -687,11 +688,11 @@ class PythonOperatorChainingOptimizerTest {
                 outputTypeInfo);
     }
 
-    private static <IN, OUT> PythonProcessOperator<IN, OUT> createProcessOperator(
+    private static <IN, OUT> ExternalPythonProcessOperator<IN, OUT> createProcessOperator(
             String functionContent,
             TypeInformation<IN> inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo) {
-        return new PythonProcessOperator<>(
+        return new ExternalPythonProcessOperator<>(
                 new Configuration(),
                 new DataStreamPythonFunctionInfo(
                         new DataStreamPythonFunction(functionContent.getBytes(), null), -1),

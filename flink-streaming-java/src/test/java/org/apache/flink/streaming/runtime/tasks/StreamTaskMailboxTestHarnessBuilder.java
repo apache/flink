@@ -291,6 +291,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         streamConfig.setInPhysicalEdges(inPhysicalEdges);
         streamConfig.setNumberOfNetworkInputs(inputGates.length);
         streamConfig.setInputs(inputs.toArray(new InputConfig[inputs.size()]));
+        streamConfig.serializeAllConfigs();
     }
 
     private void initializeNetworkInput(
@@ -363,9 +364,9 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         sourceConfig.setTypeSerializerOut(sourceInput.getSourceSerializer());
         sourceConfig.setOperatorID(sourceInput.getOperatorId());
         sourceConfig.setStreamOperatorFactory(sourceInput.getSourceOperatorFactory());
-
+        sourceConfig.serializeAllConfigs();
         transitiveChainedTaskConfigs.put(sourceToMainEdge.getSourceId(), sourceConfig);
-        streamConfig.setTransitiveChainedTaskConfigs(transitiveChainedTaskConfigs);
+        streamConfig.setAndSerializeTransitiveChainedTaskConfigs(transitiveChainedTaskConfigs);
         return new SourceInputConfig(sourceToMainEdge);
     }
 
@@ -420,6 +421,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         checkState(!setupCalled, "This harness was already setup.");
         setupCalled = true;
         streamConfig.setStreamOperatorFactory(headOperatorFactory);
+        streamConfig.serializeAllConfigs();
 
         // There is always 1 default output other than the additional ones.
         return new StreamConfigChainer<>(

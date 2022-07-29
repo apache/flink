@@ -621,7 +621,7 @@ val start : Pattern[Event, _] = Pattern.begin("start")
 2. `notFollowedBy()`，如果不想一个特定事件发生在两个事件之间的任何地方。
 
 {{< hint warning >}}
-模式序列不能以`notFollowedBy()`结尾。
+如果模式序列没有定义时间约束，则不能以 `notFollowedBy()` 结尾。
 {{< /hint >}}
 
 {{< hint warning >}}
@@ -697,6 +697,35 @@ next.within(Time.seconds(10));
 {{< tab "Scala" >}}
 ```scala
 next.within(Time.seconds(10))
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+注意定义过时间约束的模式允许以 `notFollowedBy()` 结尾。
+例如，可以定义如下的模式:
+
+{{< tabs "df27eb6d-c532-430a-b56f-98ad4082e6d5" >}}
+{{< tab "Java" >}}
+```java
+Pattern.<Event>begin("start")
+    .next("middle").where(new SimpleCondition<Event>() {
+    @Override
+    public boolean filter(Event value) throws Exception {
+        return value.getName().equals("a");
+    }
+}).notFollowedBy("end").where(new SimpleCondition<Event>() {
+    @Override
+    public boolean filter(Event value) throws Exception {
+        return value.getName().equals("b");
+    }
+}).within(Time.seconds(10));
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+Pattern.begin("start").where(_.getName().equals("a"))
+.notFollowedBy("end").where(_.getName == "b")
+.within(Time.seconds(10))
 ```
 {{< /tab >}}
 {{< /tabs >}}

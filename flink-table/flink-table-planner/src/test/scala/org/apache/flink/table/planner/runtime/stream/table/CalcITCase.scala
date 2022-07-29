@@ -21,6 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.annotation.{DataTypeHint, InputGroup}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.catalog.CatalogDatabaseImpl
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink, UserDefinedFunctionTestUtils}
@@ -656,6 +657,39 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val expected = List("0,0,0", "1,1,1", "2,2,2")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testCurrentDatabase(): Unit = {
+    val result1 =
+      env
+        .fromCollection(tupleData3)
+        .toTable(tEnv)
+        .limit(1)
+        .select(currentDatabase())
+    val sink1 = new TestingAppendSink
+    result1.toAppendStream[Row].addSink(sink1)
+    env.execute()
+    assertEquals(List(tEnv.getCurrentDatabase), sink1.getAppendResults.sorted)
+
+    // switch to another database
+    tEnv
+      .getCatalog(tEnv.getCurrentCatalog)
+      .get()
+      .createDatabase(
+        "db1",
+        new CatalogDatabaseImpl(new util.HashMap[String, String](), "db1"),
+        false)
+    tEnv.useDatabase("db1")
+    val result2 = env
+      .fromCollection(tupleData3)
+      .toTable(tEnv)
+      .limit(1)
+      .select(currentDatabase())
+    val sink2 = new TestingAppendSink
+    result2.toAppendStream[Row].addSink(sink2)
+    env.execute()
+    assertEquals(List(tEnv.getCurrentDatabase), sink2.getAppendResults.sorted)
   }
 }
 

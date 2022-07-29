@@ -453,6 +453,142 @@ class WindowTests(PyFlinkStreamingTestCase):
         expected = ['(0,5,4)', '(15,20,1)', '(5,10,3)']
         self.assert_equals_sorted(expected, results)
 
+    def test_window_all_reduce(self):
+        self.env.set_parallelism(1)
+        data_stream = self.env.from_collection([
+            ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .window_all(EventTimeSessionWindows.with_gap(Time.milliseconds(2))) \
+            .reduce(lambda a, b: (a[0], a[1] + b[1]),
+                    output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_window_all_reduce')
+        results = self.test_sink.get_results()
+        expected = ['(a,15)', '(a,6)', '(a,23)']
+        self.assert_equals_sorted(expected, results)
+
+    def test_window_all_reduce_process(self):
+        self.env.set_parallelism(1)
+        data_stream = self.env.from_collection([
+            ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+
+        class MyProcessFunction(ProcessAllWindowFunction):
+
+            def process(self, context: 'ProcessAllWindowFunction.Context',
+                        elements: Iterable[Tuple[str, int]]) -> Iterable[str]:
+                yield "current window start at {}, reduce result {}".format(
+                    context.window().start,
+                    next(iter(elements)),
+                )
+
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .window_all(EventTimeSessionWindows.with_gap(Time.milliseconds(2))) \
+            .reduce(lambda a, b: (a[0], a[1] + b[1]),
+                    window_function=MyProcessFunction(),
+                    output_type=Types.STRING()) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_window_all_reduce_process')
+        results = self.test_sink.get_results()
+        expected = ["current window start at 1, reduce result ('a', 6)",
+                    "current window start at 6, reduce result ('a', 23)",
+                    "current window start at 15, reduce result ('a', 15)"]
+        self.assert_equals_sorted(expected, results)
+
+    def test_window_all_aggregate(self):
+        self.env.set_parallelism(1)
+        data_stream = self.env.from_collection([
+            ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+
+        class MyAggregateFunction(AggregateFunction):
+
+            def create_accumulator(self) -> Tuple[str, Dict[int, int]]:
+                return '', {0: 0, 1: 0}
+
+            def add(self, value: Tuple[str, int], accumulator: Tuple[str, Dict[int, int]]
+                    ) -> Tuple[str, Dict[int, int]]:
+                number_map = accumulator[1]
+                number_map[value[1] % 2] += 1
+                return value[0], number_map
+
+            def get_result(self, accumulator: Tuple[str, Dict[int, int]]) -> Tuple[str, int]:
+                number_map = accumulator[1]
+                return accumulator[0], number_map[0] - number_map[1]
+
+            def merge(self, acc_a: Tuple[str, Dict[int, int]], acc_b: Tuple[str, Dict[int, int]]
+                      ) -> Tuple[str, Dict[int, int]]:
+                number_map_a = acc_a[1]
+                number_map_b = acc_b[1]
+                new_number_map = {
+                    0: number_map_a[0] + number_map_b[0],
+                    1: number_map_a[1] + number_map_b[1]
+                }
+                return acc_a[0], new_number_map
+
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .window_all(EventTimeSessionWindows.with_gap(Time.milliseconds(2))) \
+            .aggregate(MyAggregateFunction(),
+                       output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_window_all_aggregate')
+        results = self.test_sink.get_results()
+        expected = ['(a,-1)', '(b,-1)', '(b,1)']
+        self.assert_equals_sorted(expected, results)
+
+    def test_window_all_aggregate_process(self):
+        self.env.set_parallelism(1)
+        data_stream = self.env.from_collection([
+            ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+
+        class MyAggregateFunction(AggregateFunction):
+            def create_accumulator(self) -> Tuple[int, str]:
+                return 0, ''
+
+            def add(self, value: Tuple[str, int], accumulator: Tuple[int, str]) -> Tuple[int, str]:
+                return value[1] + accumulator[0], value[0]
+
+            def get_result(self, accumulator: Tuple[str, int]):
+                return accumulator[1], accumulator[0]
+
+            def merge(self, acc_a: Tuple[int, str], acc_b: Tuple[int, str]):
+                return acc_a[0] + acc_b[0], acc_a[1]
+
+        class MyProcessWindowFunction(ProcessAllWindowFunction):
+
+            def process(self, context: ProcessAllWindowFunction.Context,
+                        elements: Iterable[Tuple[str, int]]) -> Iterable[str]:
+                agg_result = next(iter(elements))
+                yield "key {} timestamp sum {}".format(agg_result[0], agg_result[1])
+
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .window_all(EventTimeSessionWindows.with_gap(Time.milliseconds(2))) \
+            .aggregate(MyAggregateFunction(),
+                       window_function=MyProcessWindowFunction(),
+                       accumulator_type=Types.TUPLE([Types.INT(), Types.STRING()]),
+                       output_type=Types.STRING()) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_window_all_aggregate_process')
+        results = self.test_sink.get_results()
+        expected = ['key b timestamp sum 6',
+                    'key b timestamp sum 23',
+                    'key a timestamp sum 15']
+        self.assert_equals_sorted(expected, results)
+
 
 class SecondColumnTimestampAssigner(TimestampAssigner):
 

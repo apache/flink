@@ -13,7 +13,6 @@ The Apache Software Foundation (http://www.apache.org/).
 @angular/platform-browser 13.1.3 : MIT License
 @angular/platform-browser-dynamic 13.1.3 : MIT License
 @angular/router 13.1.3 : MIT License
-@ant-design/icons-angular 13.0.2 : MIT License
 @antv/adjust 0.2.3 : MIT License
 @antv/attr 0.3.2 : MIT License
 @antv/component 0.8.20 : MIT License
@@ -934,7 +933,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 ---
 
 MIT License
-(@angular/animations 13.1.3, @angular/cdk 13.1.3, @angular/common 13.1.3, @angular/compiler 13.1.3, @angular/core 13.1.3, @angular/forms 13.1.3, @angular/platform-browser 13.1.3, @angular/platform-browser-dynamic 13.1.3, @angular/router 13.1.3, @ant-design/icons-angular 13.0.2, @antv/adjust 0.1.1, @antv/attr 0.1.2, @antv/component 0.3.9, @antv/coord 0.1.0, @antv/g 3.4.10, @antv/g2 3.5.17, @antv/gl-matrix 2.7.1, @antv/scale 0.1.5, ant-design-palettes 1.2.13, contour_plot 0.0.1, core-js v2.6.12, cpettitt/graphlib 2.1.8, dagre 0.8.5, es-abstract 1.18.3, is-callable 1.2.3, kossnocorp/date-fns 2.130.1, monaco-editor 0.31.1, ng-zorro-antd 13.0.1, node-tape v4.14.0, object-keys 1.1.1, RESOLVE v1.20.0, Zone.js v0.11.4)
+(@angular/animations 13.1.3, @angular/cdk 13.1.3, @angular/common 13.1.3, @angular/compiler 13.1.3, @angular/core 13.1.3, @angular/forms 13.1.3, @angular/platform-browser 13.1.3, @angular/platform-browser-dynamic 13.1.3, @angular/router 13.1.3, @ant-design/icons-angular 13.0.2, @antv/adjust 0.1.1, @antv/attr 0.1.2, @antv/component 0.3.9, @antv/coord 0.1.0, @antv/g 3.4.10, @antv/g2 3.5.17, @antv/gl-matrix 2.7.1, @antv/scale 0.1.5, ant-design-palettes 1.2.13, contour_plot 0.0.1, core-js v2.6.12, cpettitt/graphlib 2.1.8, dagre 0.8.5, es-abstract 1.18.3, is-callable 1.2.3, kossnocorp/date-fns 2.130.1, monaco-editor 0.31.1, ng-zorro-antd 13.2.2, node-tape v4.14.0, object-keys 1.1.1, RESOLVE v1.20.0, Zone.js v0.11.4)
 
 The MIT License
 ===============

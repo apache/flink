@@ -42,6 +42,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -81,8 +82,10 @@ import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
+import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
@@ -96,6 +99,8 @@ import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.parse.ExtendedParser;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.planner.utils.PlannerMocks;
+import org.apache.flink.table.resource.ResourceType;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
@@ -1211,6 +1216,47 @@ public class SqlToOperationConverterTest {
                         .build();
 
         assertThat(actualSchema).isEqualTo(expectedSchema);
+    }
+
+    @Test
+    public void testCreateFunction() {
+        // test create catalog function
+        String sql =
+                "CREATE FUNCTION test_udf AS 'org.apache.fink.function.function1' "
+                        + "LANGUAGE JAVA USING JAR 'file:///path/to/test.jar'";
+        final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, getParserBySqlDialect(SqlDialect.DEFAULT));
+        assertThat(operation).isInstanceOf(CreateCatalogFunctionOperation.class);
+        CatalogFunction actualFunction =
+                ((CreateCatalogFunctionOperation) operation).getCatalogFunction();
+
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "CREATE CATALOG FUNCTION: (catalogFunction: [Optional[This is a user-defined function]], "
+                                + "identifier: [`builtin`.`default`.`test_udf`], ignoreIfExists: [false], isTemporary: [false])");
+
+        CatalogFunction expected =
+                new CatalogFunctionImpl(
+                        "org.apache.fink.function.function1",
+                        FunctionLanguage.JAVA,
+                        Collections.singletonList(
+                                new ResourceUri(ResourceType.JAR, "file:///path/to/test.jar")));
+        assertThat(actualFunction).isEqualTo(expected);
+
+        // test create temporary system function
+        sql =
+                "CREATE TEMPORARY SYSTEM FUNCTION test_udf2 AS 'org.apache.fink.function.function2' "
+                        + "LANGUAGE SCALA USING JAR 'file:///path/to/test.jar'";
+        operation = parse(sql, planner, getParserBySqlDialect(SqlDialect.DEFAULT));
+
+        assertThat(operation).isInstanceOf(CreateTempSystemFunctionOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "CREATE TEMPORARY SYSTEM FUNCTION: (functionName: [test_udf2], "
+                                + "catalogFunction: [CatalogFunctionImpl{className='org.apache.fink.function.function2', "
+                                + "functionLanguage='SCALA', "
+                                + "functionResource='[ResourceUri{resourceType=JAR, uri='file:///path/to/test.jar'}]'}], "
+                                + "ignoreIfExists: [false], functionLanguage: [SCALA])");
     }
 
     @Test

@@ -22,11 +22,16 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blocklist.BlockedNode;
+import org.apache.flink.runtime.blocklist.BlocklistContext;
+import org.apache.flink.runtime.blocklist.BlocklistHandler;
+import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -51,6 +56,9 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.BlocklistDeclarativeSlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -70,7 +78,7 @@ import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
+import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -89,6 +97,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation.ResolutionMode;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -117,6 +126,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.checkpoint.TaskStateSnapshot.deserializeTaskStateSnapshot;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * JobMaster implementation. The job master is responsible for the execution of a single {@link
@@ -129,7 +139,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>{@link #updateTaskExecutionState} updates the task execution state for given task
  * </ul>
  */
-public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
+public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         implements JobMasterGateway, JobMasterService {
 
     /** Default names for Flink's distributed components. */
@@ -207,6 +217,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     private HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
+    private final BlocklistHandler blocklistHandler;
+
     // ------------------------------------------------------------------------
 
     public JobMaster(
@@ -227,6 +239,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
             PartitionTrackerFactory partitionTrackerFactory,
             ExecutionDeploymentTracker executionDeploymentTracker,
             ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory,
+            BlocklistHandler.Factory blocklistHandlerFactory,
             long initializationTimestamp)
             throws Exception {
 
@@ -301,10 +314,21 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         resourceManagerLeaderRetriever =
                 highAvailabilityServices.getResourceManagerLeaderRetriever();
 
-        this.slotPoolService =
-                checkNotNull(slotPoolServiceSchedulerFactory).createSlotPoolService(jid);
+        this.registeredTaskManagers = new HashMap<>();
+        this.blocklistHandler =
+                blocklistHandlerFactory.create(
+                        new JobMasterBlocklistContext(),
+                        this::getNodeIdOfTaskManager,
+                        getMainThreadExecutor(),
+                        log);
 
-        this.registeredTaskManagers = new HashMap<>(4);
+        this.slotPoolService =
+                checkNotNull(slotPoolServiceSchedulerFactory)
+                        .createSlotPoolService(
+                                jid,
+                                createDeclarativeSlotPoolFactory(
+                                        jobMasterConfiguration.getConfiguration()));
+
         this.partitionTracker =
                 checkNotNull(partitionTrackerFactory)
                         .create(
@@ -361,7 +385,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         initializationTimestamp,
                         getMainThreadExecutor(),
                         fatalErrorHandler,
-                        jobStatusListener);
+                        jobStatusListener,
+                        blocklistHandler::addNewBlockedNodes);
 
         return scheduler;
     }
@@ -376,6 +401,15 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
             createTaskManagerHeartbeatManager(HeartbeatServices heartbeatServices) {
         return heartbeatServices.createHeartbeatManagerSender(
                 resourceId, new TaskManagerHeartbeatListener(), getMainThreadExecutor(), log);
+    }
+
+    private DeclarativeSlotPoolFactory createDeclarativeSlotPoolFactory(
+            Configuration configuration) {
+        if (BlocklistUtils.isBlocklistEnabled(configuration)) {
+            return new BlocklistDeclarativeSlotPoolFactory(blocklistHandler::isBlockedTaskManager);
+        } else {
+            return new DefaultDeclarativeSlotPoolFactory();
+        }
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -897,6 +931,12 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         return future;
     }
 
+    @Override
+    public CompletableFuture<Acknowledge> notifyNewBlockedNodes(Collection<BlockedNode> newNodes) {
+        blocklistHandler.addNewBlockedNodes(newNodes);
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
     // ----------------------------------------------------------------------------------------------
     // Internal methods
     // ----------------------------------------------------------------------------------------------
@@ -1124,7 +1164,9 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                     new EstablishedResourceManagerConnection(
                             resourceManagerGateway, resourceManagerResourceId);
 
+            blocklistHandler.registerBlocklistListener(resourceManagerGateway);
             slotPoolService.connectToResourceManager(resourceManagerGateway);
+            partitionTracker.connectToResourceManager(resourceManagerGateway);
 
             resourceManagerHeartbeatManager.monitorTarget(
                     resourceManagerResourceId,
@@ -1173,7 +1215,13 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                 establishedResourceManagerConnection.getResourceManagerGateway();
         resourceManagerGateway.disconnectJobManager(
                 jobGraph.getJobID(), schedulerNG.requestJobStatus(), cause);
+        blocklistHandler.deregisterBlocklistListener(resourceManagerGateway);
         slotPoolService.disconnectResourceManager();
+    }
+
+    private String getNodeIdOfTaskManager(ResourceID taskManagerId) {
+        checkState(registeredTaskManagers.containsKey(taskManagerId));
+        return registeredTaskManagers.get(taskManagerId).getTaskManagerLocation().getNodeId();
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -1445,5 +1493,35 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         public Void retrievePayload(ResourceID resourceID) {
             return null;
         }
+    }
+
+    private class JobMasterBlocklistContext implements BlocklistContext {
+
+        @Override
+        public void blockResources(Collection<BlockedNode> blockedNodes) {
+            Set<String> blockedNodeIds =
+                    blockedNodes.stream().map(BlockedNode::getNodeId).collect(Collectors.toSet());
+
+            Collection<ResourceID> blockedTaskMangers =
+                    registeredTaskManagers.keySet().stream()
+                            .filter(
+                                    taskManagerId ->
+                                            blockedNodeIds.contains(
+                                                    getNodeIdOfTaskManager(taskManagerId)))
+                            .collect(Collectors.toList());
+
+            blockedTaskMangers.forEach(
+                    taskManagerId -> {
+                        Exception cause =
+                                new FlinkRuntimeException(
+                                        String.format(
+                                                "TaskManager %s is blocked.",
+                                                taskManagerId.getStringWithMetadata()));
+                        slotPoolService.releaseFreeSlotsOnTaskManager(taskManagerId, cause);
+                    });
+        }
+
+        @Override
+        public void unblockResources(Collection<BlockedNode> unblockedNodes) {}
     }
 }

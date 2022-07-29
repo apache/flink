@@ -26,13 +26,20 @@
     "org.apache.flink.sql.parser.ddl.constraint.SqlConstraintEnforcement"
     "org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint"
     "org.apache.flink.sql.parser.ddl.constraint.SqlUniqueSpec"
+    "org.apache.flink.sql.parser.ddl.position.SqlColumnPosSpec"
+    "org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition"
+    "org.apache.flink.sql.parser.ddl.resource.SqlResource"
+    "org.apache.flink.sql.parser.ddl.resource.SqlResourceType"
     "org.apache.flink.sql.parser.ddl.SqlAddJar"
     "org.apache.flink.sql.parser.ddl.SqlAlterDatabase"
     "org.apache.flink.sql.parser.ddl.SqlAlterFunction"
     "org.apache.flink.sql.parser.ddl.SqlAlterTable"
+    "org.apache.flink.sql.parser.ddl.SqlAlterTable.AlterTableContext"
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableAdd"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableAddConstraint"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableCompact"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint"
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableModify"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableOptions"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableRename"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableReset"
@@ -64,6 +71,7 @@
     "org.apache.flink.sql.parser.ddl.SqlUseDatabase"
     "org.apache.flink.sql.parser.ddl.SqlUseModules"
     "org.apache.flink.sql.parser.ddl.SqlWatermark"
+    "org.apache.flink.sql.parser.ddl.SqlAnalyzeTable"
     "org.apache.flink.sql.parser.dml.RichSqlInsert"
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword"
     "org.apache.flink.sql.parser.dml.SqlBeginStatementSet"
@@ -100,6 +108,7 @@
     "org.apache.flink.sql.parser.utils.ParserResource"
     "org.apache.flink.sql.parser.validate.FlinkSqlConformance"
     "org.apache.flink.sql.parser.SqlProperty"
+    "org.apache.flink.sql.parser.SqlPartitionSpecProperty"
     "org.apache.calcite.sql.SqlAlienSystemTypeNameSpec"
     "org.apache.calcite.sql.SqlCreate"
     "org.apache.calcite.sql.SqlDrop"
@@ -131,6 +140,7 @@
     "JARS"
     "LOAD"
     "METADATA"
+    "MODIFY"
     "MODULES"
     "OVERWRITE"
     "OVERWRITING"
@@ -151,6 +161,9 @@
     "WATERMARKS"
     "TIMESTAMP_LTZ"
     "TRY_CAST"
+    "ANALYZE"
+    "COMPUTE"
+    "STATISTICS"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -493,6 +506,9 @@
     "PARTITIONS"
     "TRY_CAST"
     "VIRTUAL"
+    "ANALYZE"
+    "COMPUTE"
+    "STATISTICS"
   ]
 
   # List of non-reserved keywords to remove;
@@ -538,6 +554,7 @@
     "SqlShowJars()"
     "SqlSet()"
     "SqlReset()"
+    "SqlAnalyzeTable()"
   ]
 
   # List of methods for parsing custom literals.

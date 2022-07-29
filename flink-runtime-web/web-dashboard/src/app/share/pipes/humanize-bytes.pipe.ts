@@ -26,7 +26,7 @@ import { isNil } from '@flink-runtime-web/utils';
 export class HumanizeBytesPipe implements PipeTransform {
   public transform(value: number): string {
     if (isNil(value) || isNaN(value) || value < 0) {
-      return '–';
+      return '-';
     }
 
     const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];

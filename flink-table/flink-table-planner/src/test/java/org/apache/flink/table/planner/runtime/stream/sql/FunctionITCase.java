@@ -52,7 +52,9 @@ import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import java.lang.invoke.MethodHandle;
@@ -65,10 +67,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
@@ -76,13 +82,33 @@ import static org.assertj.core.api.Assertions.fail;
 /**
  * Tests for catalog and system functions in a table environment.
  *
- * <p>Note: This class is meant for testing the core function support. Use {@link
+ * <p>Note: This class is meant for testing the core function support. Use {@code
  * org.apache.flink.table.planner.functions.BuiltInFunctionTestBase} for testing individual function
  * implementations.
  */
 public class FunctionITCase extends StreamingTestBase {
 
     private static final String TEST_FUNCTION = TestUDF.class.getName();
+
+    private static final Random random = new Random();
+    private String udfClassName;
+    private String jarPath;
+
+    @Before
+    @Override
+    public void before() throws Exception {
+        super.before();
+        udfClassName = GENERATED_LOWER_UDF_CLASS + random.nextInt(50);
+        jarPath =
+                UserClassLoaderJarTestUtils.createJarFile(
+                                TEMPORARY_FOLDER.newFolder(
+                                        String.format("test-jar-%s", UUID.randomUUID())),
+                                "test-classloader-udf.jar",
+                                udfClassName,
+                                String.format(GENERATED_LOWER_UDF_CODE, udfClassName))
+                        .toURI()
+                        .toString();
+    }
 
     @Test
     public void testCreateCatalogFunctionInDefaultCatalog() {
@@ -196,6 +222,45 @@ public class FunctionITCase extends StreamingTestBase {
         tEnv().executeSql(ddl1);
         tEnv().executeSql(ddl2);
         tEnv().executeSql(ddl3);
+    }
+
+    @Test
+    public void testCreateTemporarySystemFunctionByUsingJar() {
+        String ddl =
+                String.format(
+                        "CREATE TEMPORARY SYSTEM FUNCTION f10 AS '%s' USING JAR '%s'",
+                        udfClassName, jarPath);
+        tEnv().executeSql(ddl);
+        assertThat(Arrays.asList(tEnv().listFunctions())).contains("f10");
+
+        tEnv().executeSql("DROP TEMPORARY SYSTEM FUNCTION f10");
+        assertThat(Arrays.asList(tEnv().listFunctions())).doesNotContain("f10");
+    }
+
+    @Test
+    public void testCreateCatalogFunctionByUsingJar() {
+        String ddl =
+                String.format(
+                        "CREATE FUNCTION default_database.f11 AS '%s' USING JAR '%s'",
+                        udfClassName, jarPath);
+        tEnv().executeSql(ddl);
+        assertThat(Arrays.asList(tEnv().listFunctions())).contains("f11");
+
+        tEnv().executeSql("DROP FUNCTION default_database.f11");
+        assertThat(Arrays.asList(tEnv().listFunctions())).doesNotContain("f11");
+    }
+
+    @Test
+    public void testCreateTemporaryCatalogFunctionByUsingJar() {
+        String ddl =
+                String.format(
+                        "CREATE TEMPORARY FUNCTION default_database.f12 AS '%s' USING JAR '%s'",
+                        udfClassName, jarPath);
+        tEnv().executeSql(ddl);
+        assertThat(Arrays.asList(tEnv().listFunctions())).contains("f12");
+
+        tEnv().executeSql("DROP TEMPORARY FUNCTION default_database.f12");
+        assertThat(Arrays.asList(tEnv().listFunctions())).doesNotContain("f12");
     }
 
     @Test
@@ -367,6 +432,38 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
+    public void testUserDefinedTemporarySystemFunctionByUsingJar() throws Exception {
+        String functionDDL =
+                String.format(
+                        "create temporary system function lowerUdf as '%s' using jar '%s'",
+                        udfClassName, jarPath);
+
+        String dropFunctionDDL = "drop temporary system function lowerUdf";
+        testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
+    }
+
+    @Test
+    public void testUserDefinedRegularCatalogFunctionByUsingJar() throws Exception {
+        String functionDDL =
+                String.format(
+                        "create function lowerUdf as '%s' using jar '%s'", udfClassName, jarPath);
+
+        String dropFunctionDDL = "drop function lowerUdf";
+        testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
+    }
+
+    @Test
+    public void testUserDefinedTemporaryCatalogFunctionByUsingJar() throws Exception {
+        String functionDDL =
+                String.format(
+                        "create temporary function lowerUdf as '%s' using jar '%s'",
+                        udfClassName, jarPath);
+
+        String dropFunctionDDL = "drop temporary function lowerUdf";
+        testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
+    }
+
+    @Test
     public void testUserDefinedTemporarySystemFunction() throws Exception {
         String functionDDL = "create temporary system function addOne as '" + TEST_FUNCTION + "'";
 
@@ -409,12 +506,51 @@ public class FunctionITCase extends StreamingTestBase {
         Table t2 = tEnv().sqlQuery(query);
         t2.executeInsert("t2").await();
 
-        Row[] result = TestCollectionTableFactory.RESULT().toArray(new Row[0]);
-        Row[] expected = sourceData.toArray(new Row[0]);
+        List<Row> result = TestCollectionTableFactory.RESULT();
+        assertThat(result).isEqualTo(sourceData);
+
+        tEnv().executeSql("drop table t1");
+        tEnv().executeSql("drop table t2");
+    }
+
+    private void testUserDefinedFunctionByUsingJar(String createFunctionDDL, String dropFunctionDDL)
+            throws Exception {
+        List<Row> sourceData =
+                Arrays.asList(
+                        Row.of(1, "JARK"),
+                        Row.of(2, "RON"),
+                        Row.of(3, "LeoNard"),
+                        Row.of(1, "FLINK"),
+                        Row.of(2, "CDC"));
+
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        String sourceDDL = "create table t1(a int, b varchar) with ('connector' = 'COLLECTION')";
+        String sinkDDL = "create table t2(a int, b varchar) with ('connector' = 'COLLECTION')";
+
+        String query = "select a, lowerUdf(b) from t1";
+
+        tEnv().executeSql(sourceDDL);
+        tEnv().executeSql(sinkDDL);
+        tEnv().executeSql(createFunctionDDL);
+        Table t2 = tEnv().sqlQuery(query);
+        t2.executeInsert("t2").await();
+
+        List<Row> result = TestCollectionTableFactory.RESULT();
+        List<Row> expected =
+                Arrays.asList(
+                        Row.of(1, "jark"),
+                        Row.of(2, "ron"),
+                        Row.of(3, "leonard"),
+                        Row.of(1, "flink"),
+                        Row.of(2, "cdc"));
         assertThat(result).isEqualTo(expected);
 
         tEnv().executeSql("drop table t1");
         tEnv().executeSql("drop table t2");
+        // delete the function
+        tEnv().executeSql(dropFunctionDDL);
     }
 
     @Test
@@ -596,7 +732,7 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testVarArgScalarFunction() throws Exception {
+    public void testVarArgScalarFunction() {
         final List<Row> sourceData = Arrays.asList(Row.of("Bob", 1), Row.of("Alice", 2));
 
         TestCollectionTableFactory.reset();
@@ -1076,6 +1212,19 @@ public class FunctionITCase extends StreamingTestBase {
                         .collect());
     }
 
+    @Test
+    public void testWithBoolNotNullTypeHint() {
+        List<Row> sourceData = Arrays.asList(Row.of(1, 2), Row.of(2, 3));
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql(
+                        "CREATE TABLE SourceTable(x INT NOT NULL,y INT) WITH ('connector' = 'COLLECTION')");
+        tEnv().executeSql("CREATE FUNCTION BoolEcho AS '" + BoolEcho.class.getName() + "'");
+        CollectionUtil.iteratorToList(
+                tEnv().executeSql("SELECT BoolEcho(x=1 and y is null) FROM SourceTable").collect());
+    }
+
     // --------------------------------------------------------------------------------------------
     // Test functions
     // --------------------------------------------------------------------------------------------
@@ -1493,6 +1642,13 @@ public class FunctionITCase extends StreamingTestBase {
             } catch (Throwable t) {
                 throw new FlinkRuntimeException(t);
             }
+        }
+    }
+
+    /** A function that takes BOOLEAN NOT NULL. */
+    public static class BoolEcho extends ScalarFunction {
+        public Boolean eval(@DataTypeHint("BOOLEAN NOT NULL") Boolean b) {
+            return b;
         }
     }
 }

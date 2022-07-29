@@ -192,8 +192,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
             final TimeoutException timeoutException = optionalTimeoutException.get();
             if (useNewSource) {
-                assertThat(timeoutException.getCause().getMessage())
-                        .contains("Timed out waiting for a node assignment.");
+                assertThat(timeoutException)
+                        .hasMessageContaining("Timed out waiting for a node assignment.");
             } else {
                 assertThat(timeoutException)
                         .hasMessage("Timeout expired while fetching topic metadata");

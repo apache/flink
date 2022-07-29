@@ -280,6 +280,14 @@ public final class Expressions {
     }
 
     /**
+     * Return the current database, the return type of this expression is {@link
+     * DataTypes#STRING()}.
+     */
+    public static ApiExpression currentDatabase() {
+        return apiCall(BuiltInFunctionDefinitions.CURRENT_DATABASE);
+    }
+
+    /**
      * Returns the current SQL time in local time zone, the return type of this expression is {@link
      * DataTypes#TIME()}, this is a synonym for {@link Expressions#currentTime()}.
      */
@@ -379,6 +387,29 @@ public final class Expressions {
                 valueLiteral(timePointUnit),
                 timePoint1,
                 timePoint2);
+    }
+
+    /**
+     * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+     * "yyyy-MM-dd HH:mm:ss" format.
+     *
+     * @param unixtime The unix timestamp with numeric type.
+     * @return The formatted timestamp as string.
+     */
+    public static ApiExpression fromUnixtime(Object unixtime) {
+        return apiCall(BuiltInFunctionDefinitions.FROM_UNIXTIME, unixtime);
+    }
+
+    /**
+     * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+     * given format.
+     *
+     * @param unixtime The unix timestamp with numeric type.
+     * @param format The format of the string.
+     * @return The formatted timestamp as string.
+     */
+    public static ApiExpression fromUnixtime(Object unixtime, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.FROM_UNIXTIME, unixtime, format);
     }
 
     /** Creates an array of literals. */

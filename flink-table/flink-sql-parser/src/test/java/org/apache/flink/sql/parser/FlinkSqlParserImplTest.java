@@ -314,6 +314,179 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testAlterTableAddSinlgeColumn() {
+        sql("alter table t1 add new_column string comment 'new_column docs'")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs'\n"
+                                + ")");
+        sql("alter table t1 add new_column string comment 'new_column docs' first")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' FIRST\n"
+                                + ")");
+        sql("alter table t1 add new_column string comment 'new_column docs' after id")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`\n"
+                                + ")");
+        // add compute column
+        sql("alter table t1 add col_int as col_a - col_b after col_b")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `COL_INT` AS (`COL_A` - `COL_B`) AFTER `COL_B`\n"
+                                + ")");
+        // add metadata column
+        sql("alter table t1 add col_int int metadata from 'mk1' virtual comment 'comment_metadata' after col_b")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_metadata' AFTER `COL_B`\n"
+                                + ")");
+    }
+
+    @Test
+    void testAlterTableAddWatermark() {
+        sql("alter table t1 add watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
+        sql("alter table default_database.t1 add watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER TABLE `DEFAULT_DATABASE`.`T1` ADD (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
+        sql("alter table default_catalog.default_database.t1 add watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER TABLE `DEFAULT_CATALOG`.`DEFAULT_DATABASE`.`T1` ADD (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
+
+        sql("alter table default_catalog.default_database.t1 add (\n"
+                        + "watermark for ts as ts - interval '1' second,\n"
+                        + "^watermark^ for f1 as now()\n"
+                        + ")")
+                .fails("Multiple WATERMARK statements is not supported yet.");
+    }
+
+    @Test
+    void testAlterTableAddMultipleColumn() {
+        final String sql1 =
+                "alter table t1 add (\n"
+                        + "col_int int,\n"
+                        + "log_ts string comment 'log timestamp string' first,\n"
+                        + "ts AS to_timestamp(log_ts) after log_ts,\n"
+                        + "col_meta int metadata from 'mk1' virtual comment 'comment_str' after col_b,\n"
+                        + "primary key (id) not enforced,\n"
+                        + "unique(a, b),\n"
+                        + "watermark for ts as ts - interval '3' second\n"
+                        + ")";
+        final String expected1 =
+                "ALTER TABLE `T1` ADD (\n"
+                        + "  `COL_INT` INTEGER,\n"
+                        + "  `LOG_TS` STRING COMMENT 'log timestamp string' FIRST,\n"
+                        + "  `TS` AS `TO_TIMESTAMP`(`LOG_TS`) AFTER `LOG_TS`,\n"
+                        + "  `COL_META` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_str' AFTER `COL_B`,\n"
+                        + "  PRIMARY KEY (`ID`) NOT ENFORCED,\n"
+                        + "  UNIQUE (`A`, `B`),\n"
+                        + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
+                        + ")";
+        sql(sql1).ok(expected1);
+    }
+
+    @Test
+    public void testAlterTableModifySingleColumn() {
+        sql("alter table t1 modify new_column string comment 'new_column docs'")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs'\n"
+                                + ")");
+        sql("alter table t1 modify new_column string comment 'new_column docs' first")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' FIRST\n"
+                                + ")");
+        sql("alter table t1 modify new_column string comment 'new_column docs' after id")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`\n"
+                                + ")");
+        // modify compute column
+        sql("alter table t1 modify col_int as col_a - col_b after col_b")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `COL_INT` AS (`COL_A` - `COL_B`) AFTER `COL_B`\n"
+                                + ")");
+        // modify metadata column
+        sql("alter table t1 modify col_int int metadata from 'mk1' virtual comment 'comment_metadata' after col_b")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_metadata' AFTER `COL_B`\n"
+                                + ")");
+    }
+
+    @Test
+    void testAlterTableModifyWatermark() {
+        sql("alter table t1 modify watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
+        sql("alter table default_database.t1 modify watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER TABLE `DEFAULT_DATABASE`.`T1` MODIFY (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
+        sql("alter table default_catalog.default_database.t1 modify watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER TABLE `DEFAULT_CATALOG`.`DEFAULT_DATABASE`.`T1` MODIFY (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
+
+        sql("alter table default_catalog.default_database.t1 modify (\n"
+                        + "watermark for ts as ts - interval '1' second,\n"
+                        + "^watermark^ for f1 as now()\n"
+                        + ")")
+                .fails("Multiple WATERMARK statements is not supported yet.");
+    }
+
+    @Test
+    void testAlterTableModifyConstraint() {
+        sql("alter table t1 modify constraint ct1 primary key(a, b) not enforced")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
+                                + ")");
+        sql("alter table t1 modify unique(a, b)")
+                .ok("ALTER TABLE `T1` MODIFY (\n" + "  UNIQUE (`A`, `B`)\n" + ")");
+    }
+
+    @Test
+    public void testAlterTableModifyMultipleColumn() {
+        final String sql1 =
+                "alter table t1 modify (\n"
+                        + "col_int int,\n"
+                        + "log_ts string comment 'log timestamp string' first,\n"
+                        + "ts AS to_timestamp(log_ts) after log_ts,\n"
+                        + "col_meta int metadata from 'mk1' virtual comment 'comment_str' after col_b,\n"
+                        + "primary key (id) not enforced,\n"
+                        + "unique(a, b),\n"
+                        + "watermark for ts as ts - interval '3' second\n"
+                        + ")";
+        final String expected1 =
+                "ALTER TABLE `T1` MODIFY (\n"
+                        + "  `COL_INT` INTEGER,\n"
+                        + "  `LOG_TS` STRING COMMENT 'log timestamp string' FIRST,\n"
+                        + "  `TS` AS `TO_TIMESTAMP`(`LOG_TS`) AFTER `LOG_TS`,\n"
+                        + "  `COL_META` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_str' AFTER `COL_B`,\n"
+                        + "  PRIMARY KEY (`ID`) NOT ENFORCED,\n"
+                        + "  UNIQUE (`A`, `B`),\n"
+                        + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
+                        + ")";
+        sql(sql1).ok(expected1);
+    }
+
+    @Test
     void testAlterTableReset() {
         sql("alter table t1 reset ('key1')").ok("ALTER TABLE `T1` RESET (\n  'key1'\n)");
 
@@ -1314,6 +1487,36 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         "CREATE SYSTEM FUNCTION is not supported, "
                                 + "system functions can only be registered as temporary "
                                 + "function, you can use CREATE TEMPORARY SYSTEM FUNCTION instead.");
+
+        // test create function using jar
+        sql("create temporary function function1 as 'org.apache.fink.function.function1' language java using jar 'file:///path/to/test.jar'")
+                .ok(
+                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar'");
+
+        sql("create temporary function function1 as 'org.apache.fink.function.function1' language scala using jar '/path/to/test.jar'")
+                .ok(
+                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE SCALA USING JAR '/path/to/test.jar'");
+
+        sql("create temporary system function function1 as 'org.apache.fink.function.function1' language scala using jar '/path/to/test.jar'")
+                .ok(
+                        "CREATE TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE SCALA USING JAR '/path/to/test.jar'");
+
+        sql("create function function1 as 'org.apache.fink.function.function1' language java using jar 'file:///path/to/test.jar', jar 'hdfs:///path/to/test2.jar'")
+                .ok(
+                        "CREATE FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar', JAR 'hdfs:///path/to/test2.jar'");
+
+        sql("create temporary function function1 as 'org.apache.fink.function.function1' language ^sql^ using jar 'file:///path/to/test.jar'")
+                .fails("CREATE FUNCTION USING JAR syntax is not applicable to SQL language.");
+
+        sql("create temporary function function1 as 'org.apache.fink.function.function1' language ^python^ using jar 'file:///path/to/test.jar'")
+                .fails("CREATE FUNCTION USING JAR syntax is not applicable to PYTHON language.");
+
+        sql("create temporary function function1 as 'org.apache.fink.function.function1' language java using ^file^ 'file:///path/to/test'")
+                .fails(
+                        "Encountered \"file\" at line 1, column 97.\n"
+                                + "Was expecting:\n"
+                                + "    \"JAR\" ...\n"
+                                + "    .*");
     }
 
     @Test
@@ -1651,6 +1854,38 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         expr("try_cast(a as row(f0 int array, f1 map<string, decimal(10, 2)>, f2 STRING NOT NULL))")
                 .ok(
                         "TRY_CAST(`A` AS ROW(`F0` INTEGER ARRAY, `F1` MAP< STRING, DECIMAL(10, 2) >, `F2` STRING NOT NULL))");
+    }
+
+    @Test
+    void testAnalyzeTable() {
+        sql("analyze table emp^s^").fails("(?s).*Encountered \"<EOF>\" at line 1, column 18.\n.*");
+        sql("analyze table emps compute statistics").ok("ANALYZE TABLE `EMPS` COMPUTE STATISTICS");
+        sql("analyze table emps partition ^compute^ statistics")
+                .fails("(?s).*Encountered \"compute\" at line 1, column 30.\n.*");
+        sql("analyze table emps partition(^)^ compute statistics")
+                .fails("(?s).*Encountered \"\\)\" at line 1, column 30.\n.*");
+        sql("analyze table emps partition(x='ab') compute statistics")
+                .ok("ANALYZE TABLE `EMPS` PARTITION (`X` = 'ab') COMPUTE STATISTICS");
+        sql("analyze table emps partition(x='ab', y='bc') compute statistics")
+                .ok("ANALYZE TABLE `EMPS` PARTITION (`X` = 'ab', `Y` = 'bc') COMPUTE STATISTICS");
+        sql("analyze table emps compute statistics for column^s^")
+                .fails("(?s).*Encountered \"<EOF>\" at line 1, column 49.\n.*");
+        sql("analyze table emps compute statistics for columns a")
+                .ok("ANALYZE TABLE `EMPS` COMPUTE STATISTICS FOR COLUMNS `A`");
+        sql("analyze table emps compute statistics for columns a, b")
+                .ok("ANALYZE TABLE `EMPS` COMPUTE STATISTICS FOR COLUMNS `A`, `B`");
+        sql("analyze table emps compute statistics for all columns")
+                .ok("ANALYZE TABLE `EMPS` COMPUTE STATISTICS FOR ALL COLUMNS");
+        sql("analyze table emps partition(x, y) compute statistics for all columns")
+                .ok("ANALYZE TABLE `EMPS` PARTITION (`X`, `Y`) COMPUTE STATISTICS FOR ALL COLUMNS");
+        sql("analyze table emps partition(x='ab', y) compute statistics for all columns")
+                .ok(
+                        "ANALYZE TABLE `EMPS` PARTITION (`X` = 'ab', `Y`) COMPUTE STATISTICS FOR ALL COLUMNS");
+        sql("analyze table emps partition(x, y='cd') compute statistics for all columns")
+                .ok(
+                        "ANALYZE TABLE `EMPS` PARTITION (`X`, `Y` = 'cd') COMPUTE STATISTICS FOR ALL COLUMNS");
+        sql("analyze table emps partition(x=^,^ y) compute statistics for all columns")
+                .fails("(?s).*Encountered \"\\,\" at line 1, column 32.\n.*");
     }
 
     public static BaseMatcher<SqlNode> validated(String validatedSql) {

@@ -36,16 +36,6 @@
             <artifactId>flink-end-to-end-tests-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-test-utils-junit</artifactId>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <scope>compile</scope>
-        </dependency>
 
         <!-- The following dependencies are for connector/format sql-jars that
             we copy using the maven-dependency-plugin. When extending the test
@@ -92,30 +82,6 @@
                         </artifactItem>
                     </artifactItems>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>integration-tests</id>
-                        <phase>integration-test</phase>
-                        <goals>
-                            <goal>test</goal>
-                        </goals>
-                        <configuration>
-                            <includes>
-                                <include>**/*ITCase.*</include>
-                            </includes>
-                            <!-- override reuseForks to true to reduce testing time -->
-                            <reuseForks>true</reuseForks>
-                            <systemPropertyVariables>
-                                <rootDir>${project.basedir}/../../</rootDir>
-                                <moduleDir>${project.basedir}</moduleDir>
-                            </systemPropertyVariables>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>

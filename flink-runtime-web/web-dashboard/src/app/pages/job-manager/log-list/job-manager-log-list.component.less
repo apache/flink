@@ -19,7 +19,26 @@
 @import "theme";
 
 :host {
-  ::ng-deep .ant-card-body {
-    padding: 0;
+  display: flex;
+  flex: 1;
+  padding: @padding-md;
+
+  ::ng-deep {
+    ::-webkit-scrollbar {
+      display: none;
+    }
+
+    nz-table,
+    nz-spin,
+    cdk-virtual-scroll-viewport,
+    nz-table-inner-scroll,
+    .ant-spin-container,
+    .ant-table {
+      height: 100%;
+    }
+
+    .ant-table-cell {
+      font-size: @font-size-sm;
+    }
   }
 }

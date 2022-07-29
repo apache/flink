@@ -17,26 +17,21 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.client.ClientUtils
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.{EnvironmentSettings, TableConfig}
-import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, ObjectPath}
-import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.factories.{TestValuesCatalog, TestValuesTableFactory}
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.TestingTableEnvironment
-import org.apache.flink.table.utils.TestUserClassLoaderJar
+import org.apache.flink.table.resource.{ResourceType, ResourceUri}
+import org.apache.flink.util.UserClassLoaderJarTestUtils
 
 import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-import java.io.File
-import java.net.URL
 import java.util
+import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -44,40 +39,8 @@ import scala.collection.JavaConversions._
 class PartitionableSourceITCase(val sourceFetchPartitions: Boolean, val useCatalogFilter: Boolean)
   extends BatchTestBase {
 
-  final private val UDF_CLASS =
-    s"""
-       |public class TrimUDF extends org.apache.flink.table.functions.ScalarFunction {
-       |   public String eval(String str) {
-       |     return str.trim();
-       |   }
-       |}
-       |""".stripMargin
-
-  private def overrideTableEnv(): Unit = {
-    val tmpDir: File = TEMPORARY_FOLDER.newFolder()
-    val udfJarFile: File =
-      TestUserClassLoaderJar.createJarFile(tmpDir, "flink-test-udf.jar", "TrimUDF", UDF_CLASS)
-    val jars: util.List[URL] = util.Collections.singletonList(udfJarFile.toURI.toURL)
-    val cl = ClientUtils.buildUserCodeClassLoader(
-      jars,
-      util.Collections.emptyList(),
-      getClass.getClassLoader,
-      new Configuration())
-
-    settings = EnvironmentSettings.newInstance().inBatchMode().withClassLoader(cl).build()
-    testingTableEnv = TestingTableEnvironment
-      .create(settings, catalogManager = None, TableConfig.getDefault)
-    tEnv = testingTableEnv
-    planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
-    env = planner.getExecEnv
-    env.getConfig.enableObjectReuse()
-    tableConfig = tEnv.getConfig
-  }
-
   @Before
   override def before(): Unit = {
-    // override TableEnvironment by a user defined classloader
-    overrideTableEnv()
     super.before()
 
     env.setParallelism(1) // set sink parallelism to 1
@@ -217,6 +180,28 @@ class PartitionableSourceITCase(val sourceFetchPartitions: Boolean, val useCatal
 
   @Test
   def testPartitionPrunerCompileClassLoader(): Unit = {
+    val udfJavaCode =
+      s"""
+         |public class TrimUDF extends org.apache.flink.table.functions.ScalarFunction {
+         |   public String eval(String str) {
+         |     return str.trim();
+         |   }
+         |}
+         |""".stripMargin
+    val tmpDir = TEMPORARY_FOLDER.newFolder()
+    val udfJarFile =
+      UserClassLoaderJarTestUtils.createJarFile(
+        tmpDir,
+        "flink-test-udf.jar",
+        "TrimUDF",
+        udfJavaCode)
+
+    tEnv
+      .asInstanceOf[TestingTableEnvironment]
+      .getResourceManager
+      .registerJarResources(
+        Collections.singletonList(new ResourceUri(ResourceType.JAR, udfJarFile.toURI.toString)))
+
     tEnv.executeSql("create temporary function trimUDF as 'TrimUDF'")
     checkResult(
       "select * from PartitionableTable where trimUDF(part1) = 'A' and part2 > 1",

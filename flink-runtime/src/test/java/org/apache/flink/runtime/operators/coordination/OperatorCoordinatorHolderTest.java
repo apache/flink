@@ -264,7 +264,8 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
                 context ->
                         new TestingOperatorCoordinator(context) {
                             @Override
-                            public void handleEventFromOperator(int subtask, OperatorEvent event) {
+                            public void handleEventFromOperator(
+                                    int subtask, int attemptNumber, OperatorEvent event) {
                                 context.failJob(new RuntimeException("Artificial Exception"));
                             }
                         };
@@ -272,11 +273,11 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         final OperatorCoordinatorHolder holder =
                 createCoordinatorHolder(tasks, coordinatorProvider);
 
-        holder.handleEventFromOperator(0, new TestOperatorEvent());
+        holder.handleEventFromOperator(0, 0, new TestOperatorEvent());
         assertNotNull(globalFailure);
         final Throwable firstGlobalFailure = globalFailure;
 
-        holder.handleEventFromOperator(1, new TestOperatorEvent());
+        holder.handleEventFromOperator(1, 0, new TestOperatorEvent());
         assertEquals(
                 "The global failure should be the same instance because the context"
                         + "should only take the first request from the coordinator to fail the job.",
@@ -284,7 +285,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
                 globalFailure);
 
         holder.resetToCheckpoint(0L, new byte[0]);
-        holder.handleEventFromOperator(1, new TestOperatorEvent());
+        holder.handleEventFromOperator(1, 1, new TestOperatorEvent());
         assertNotEquals(
                 "The new failures should be propagated after the coordinator " + "is reset.",
                 firstGlobalFailure,
@@ -511,7 +512,8 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
                         getClass().getClassLoader(),
                         3,
                         1775,
-                        eventTarget);
+                        eventTarget,
+                        false);
 
         holder.lazyInitialize(globalFailureHandler, mainThreadExecutor);
         holder.start();
@@ -675,16 +677,17 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         }
 
         @Override
-        public void handleEventFromOperator(int subtask, OperatorEvent event) {}
+        public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event) {}
 
         @Override
-        public void subtaskFailed(int subtask, @Nullable Throwable reason) {}
+        public void executionAttemptFailed(
+                int subtask, int attemptNumber, @Nullable Throwable reason) {}
 
         @Override
         public void subtaskReset(int subtask, long checkpointId) {}
 
         @Override
-        public void subtaskReady(int subtask, SubtaskGateway gateway) {
+        public void executionAttemptReady(int subtask, int attemptNumber, SubtaskGateway gateway) {
             subtaskGateways[subtask] = gateway;
 
             for (SubtaskGateway subtaskGateway : subtaskGateways) {

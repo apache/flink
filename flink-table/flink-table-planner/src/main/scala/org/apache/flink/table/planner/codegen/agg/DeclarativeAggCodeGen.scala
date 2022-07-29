@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator.DISTI
 import org.apache.flink.table.planner.expressions.{DeclarativeExpressionResolver, RexNodeExpression}
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.{toRexDistinctKey, toRexInputRef}
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.functions.aggfunctions.{DeclarativeAggregateFunction, SizeBasedWindowFunction}
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.types.logical.LogicalType
@@ -76,6 +76,14 @@ class DeclarativeAggCodeGen(
     .map(a => s"agg${aggInfo.aggIndex}_${a.getName}")
 
   private val rexNodeGen = new ExpressionConverter(relBuilder)
+
+  private val windowSizeTerm = function match {
+    case f: SizeBasedWindowFunction =>
+      val exprCodegen = new ExprCodeGenerator(ctx, false)
+      exprCodegen.generateExpression(f.windowSizeAttribute().accept(rexNodeGen))
+      f.windowSizeAttribute().getName
+    case _ => null
+  }
 
   private val bufferNullTerms = {
     val exprCodegen = new ExprCodeGenerator(ctx, false)
@@ -283,5 +291,14 @@ class DeclarativeAggCodeGen(
       needReset: Boolean = false,
       needEmitValue: Boolean = false): Unit = {
     // skip the check for DeclarativeAggregateFunction for now
+  }
+
+  override def setWindowSize(generator: ExprCodeGenerator): String = {
+    function match {
+      case _: SizeBasedWindowFunction =>
+        s"""this.$windowSizeTerm = ${generator.input1Term};"""
+      case _ =>
+        ""
+    }
   }
 }

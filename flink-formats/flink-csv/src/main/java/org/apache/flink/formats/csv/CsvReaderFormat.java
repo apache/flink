@@ -25,6 +25,8 @@ import org.apache.flink.connector.file.src.reader.SimpleStreamFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.formats.common.Converter;
+import org.apache.flink.util.function.SerializableFunction;
+import org.apache.flink.util.function.SerializableSupplier;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.MappingIterator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
@@ -33,6 +35,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.Csv
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -56,11 +60,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * low-level {@code forSchema} static factory method based on the {@code Jackson} library utilities:
  *
  * <pre>{@code
- * CsvMapper mapper = new CsvMapper();
- * CsvSchema schema = mapper.schemaFor(SomePojo.class)
+ * Function<CsvMapper, CsvSchema> schemaGenerator =
+ *          mapper -> mapper.schemaFor(SomePojo.class)
  *                          .withColumnSeparator('|');
  * CsvReaderFormat<SomePojo> csvFormat =
- *          CsvReaderFormat.forSchema(mapper,schema, TypeInformation.of(SomePojo.class));
+ *          CsvReaderFormat.forSchema(() -> new CsvMapper(), schemaGenerator, TypeInformation.of(SomePojo.class));
  * FileSource<SomePojo> source =
  *         FileSource.forRecordStreamFormat(csvFormat, Path.fromLocalFile(filesPath)).build();
  * }</pre>
@@ -72,8 +76,8 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
 
     private static final long serialVersionUID = 1L;
 
-    private final CsvMapper mapper;
-    private final CsvSchema schema;
+    private final SerializableSupplier<CsvMapper> mapperFactory;
+    private final SerializableFunction<CsvMapper, CsvSchema> schemaGenerator;
     private final Class<Object> rootType;
     private final Converter<Object, T, Void> converter;
     private final TypeInformation<T> typeInformation;
@@ -81,14 +85,14 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
 
     @SuppressWarnings("unchecked")
     <R> CsvReaderFormat(
-            CsvMapper mapper,
-            CsvSchema schema,
+            SerializableSupplier<CsvMapper> mapperFactory,
+            SerializableFunction<CsvMapper, CsvSchema> schemaGenerator,
             Class<R> rootType,
             Converter<R, T, Void> converter,
             TypeInformation<T> typeInformation,
             boolean ignoreParseErrors) {
-        this.mapper = checkNotNull(mapper);
-        this.schema = checkNotNull(schema);
+        this.mapperFactory = checkNotNull(mapperFactory);
+        this.schemaGenerator = checkNotNull(schemaGenerator);
         this.rootType = (Class<Object>) checkNotNull(rootType);
         this.typeInformation = checkNotNull(typeInformation);
         this.converter = (Converter<Object, T, Void>) checkNotNull(converter);
@@ -104,23 +108,45 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
      */
     public static <T> CsvReaderFormat<T> forSchema(
             CsvSchema schema, TypeInformation<T> typeInformation) {
-        return forSchema(new CsvMapper(), schema, typeInformation);
+        return forSchema(() -> new CsvMapper(), ignored -> schema, typeInformation);
     }
 
     /**
-     * Builds a new {@code CsvReaderFormat} using a {@code CsvSchema} and a pre-created {@code
-     * CsvMapper}.
+     * @deprecated This method is limited to serializable {@link CsvMapper CsvMappers}, preventing
+     *     the usage of certain Jackson modules (like the {@link
+     *     org.apache.flink.shaded.jackson2.com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+     *     Java 8 Date/Time Serializers}). Use {@link #forSchema(Supplier, Function,
+     *     TypeInformation)} instead.
+     */
+    @Deprecated
+    public static <T> CsvReaderFormat<T> forSchema(
+            CsvMapper mapper, CsvSchema schema, TypeInformation<T> typeInformation) {
+        return new CsvReaderFormat<>(
+                () -> mapper,
+                ignored -> schema,
+                typeInformation.getTypeClass(),
+                (value, context) -> value,
+                typeInformation,
+                false);
+    }
+
+    /**
+     * Builds a new {@code CsvReaderFormat} using a {@code CsvSchema} generator and {@code
+     * CsvMapper} factory.
      *
-     * @param mapper The pre-created {@code CsvMapper}.
-     * @param schema The Jackson CSV schema configured for parsing specific CSV files.
+     * @param mapperFactory The factory creating the {@code CsvMapper}.
+     * @param schemaGenerator A generator that creates and configures the Jackson CSV schema for
+     *     parsins specific CSV files, from a mapper created by the mapper factory.
      * @param typeInformation The Flink type descriptor of the returned elements.
      * @param <T> The type of the returned elements.
      */
     public static <T> CsvReaderFormat<T> forSchema(
-            CsvMapper mapper, CsvSchema schema, TypeInformation<T> typeInformation) {
+            SerializableSupplier<CsvMapper> mapperFactory,
+            SerializableFunction<CsvMapper, CsvSchema> schemaGenerator,
+            TypeInformation<T> typeInformation) {
         return new CsvReaderFormat<>(
-                mapper,
-                schema,
+                mapperFactory,
+                schemaGenerator,
                 typeInformation.getTypeClass(),
                 (value, context) -> value,
                 typeInformation,
@@ -136,10 +162,9 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
      * @param <T> The type of the returned elements.
      */
     public static <T> CsvReaderFormat<T> forPojo(Class<T> pojoType) {
-        CsvMapper mapper = new CsvMapper();
         return forSchema(
-                mapper,
-                mapper.schemaFor(pojoType).withoutQuoteChar(),
+                () -> new CsvMapper(),
+                mapper -> mapper.schemaFor(pojoType).withoutQuoteChar(),
                 TypeInformation.of(pojoType));
     }
 
@@ -149,8 +174,8 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
      */
     public CsvReaderFormat<T> withIgnoreParseErrors() {
         return new CsvReaderFormat<T>(
-                this.mapper,
-                this.schema,
+                this.mapperFactory,
+                this.schemaGenerator,
                 this.rootType,
                 this.converter,
                 this.typeInformation,
@@ -160,8 +185,12 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
     @Override
     public StreamFormat.Reader<T> createReader(Configuration config, FSDataInputStream stream)
             throws IOException {
+        final CsvMapper csvMapper = mapperFactory.get();
         return new Reader<>(
-                mapper.readerFor(rootType).with(schema).readValues(stream),
+                csvMapper
+                        .readerFor(rootType)
+                        .with(schemaGenerator.apply(csvMapper))
+                        .readValues(stream),
                 converter,
                 ignoreParseErrors);
     }

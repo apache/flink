@@ -19,8 +19,12 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Utility for tracking partitions and issuing release calls to task executors and shuffle masters.
@@ -61,4 +65,10 @@ public interface JobMasterPartitionTracker
 
     /** Get all the partitions under tracking. */
     Collection<ResultPartitionDeploymentDescriptor> getAllTrackedPartitions();
+
+    void connectToResourceManager(ResourceManagerGateway resourceManagerGateway);
+
+    /** Get the shuffle descriptors of the cluster partitions ordered by partition number. */
+    List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+            IntermediateDataSetID intermediateDataSetID);
 }

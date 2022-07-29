@@ -20,18 +20,17 @@ package org.apache.flink.table.sql.codegen;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
-import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -65,7 +64,6 @@ import static org.junit.Assert.assertTrue;
  * cover it, so we should add E2E test for these case.
  */
 @RunWith(Parameterized.class)
-@Ignore
 public class PlannerScalaFreeITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(PlannerScalaFreeITCase.class);
@@ -106,8 +104,7 @@ public class PlannerScalaFreeITCase extends TestLogger {
     }
 
     @Before
-    public void before() throws Exception {
-        DOWNLOAD_CACHE.before();
+    public void before() {
         Path tmpPath = tmp.getRoot().toPath();
         LOG.info("The current temporary path: {}", tmpPath);
         this.result = tmpPath.resolve("result");

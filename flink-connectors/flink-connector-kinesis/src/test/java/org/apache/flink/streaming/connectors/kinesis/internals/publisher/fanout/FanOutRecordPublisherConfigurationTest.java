@@ -44,7 +44,7 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.REGISTER_STREAM_TIMEOUT_SECONDS;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_TIMEOUT_SECONDS;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FanOutRecordPublisherConfiguration}. */
 public class FanOutRecordPublisherConfigurationTest extends TestLogger {
@@ -70,9 +70,8 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
         testConfig.setProperty(EFO_CONSUMER_NAME, fakedConsumerName);
         FanOutRecordPublisherConfiguration fanOutRecordPublisherConfiguration =
                 new FanOutRecordPublisherConfiguration(testConfig, new ArrayList<>());
-        assertEquals(
-                fanOutRecordPublisherConfiguration.getConsumerName(),
-                Optional.of(fakedConsumerName));
+        assertThat(Optional.of(fakedConsumerName))
+                .isEqualTo(fanOutRecordPublisherConfiguration.getConsumerName());
     }
 
     @Test
@@ -101,9 +100,8 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
         expectedStreamArns.put("fakedstream1", "fakedstream1");
         expectedStreamArns.put("fakedstream2", "fakedstream2");
 
-        assertEquals(
-                fanOutRecordPublisherConfiguration.getStreamConsumerArn("fakedstream1"),
-                Optional.of("fakedstream1"));
+        assertThat(Optional.of("fakedstream1"))
+                .isEqualTo(fanOutRecordPublisherConfiguration.getStreamConsumerArn("fakedstream1"));
     }
 
     @Test
@@ -149,8 +147,10 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
         FanOutRecordPublisherConfiguration configuration =
                 new FanOutRecordPublisherConfiguration(testConfig, Collections.emptyList());
 
-        assertEquals(Duration.ofSeconds(120), configuration.getRegisterStreamConsumerTimeout());
-        assertEquals(Duration.ofSeconds(60), configuration.getDeregisterStreamConsumerTimeout());
+        assertThat(configuration.getRegisterStreamConsumerTimeout())
+                .isEqualTo(Duration.ofSeconds(120));
+        assertThat(configuration.getDeregisterStreamConsumerTimeout())
+                .isEqualTo(Duration.ofSeconds(60));
     }
 
     @Test
@@ -163,8 +163,10 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
         FanOutRecordPublisherConfiguration configuration =
                 new FanOutRecordPublisherConfiguration(testConfig, Collections.emptyList());
 
-        assertEquals(Duration.ofSeconds(60), configuration.getRegisterStreamConsumerTimeout());
-        assertEquals(Duration.ofSeconds(240), configuration.getDeregisterStreamConsumerTimeout());
+        assertThat(configuration.getRegisterStreamConsumerTimeout())
+                .isEqualTo(Duration.ofSeconds(60));
+        assertThat(configuration.getDeregisterStreamConsumerTimeout())
+                .isEqualTo(Duration.ofSeconds(240));
     }
 
     @Test
@@ -177,7 +179,7 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
         FanOutRecordPublisherConfiguration configuration =
                 new FanOutRecordPublisherConfiguration(testConfig, Collections.emptyList());
 
-        assertEquals(Duration.ofSeconds(123), configuration.getSubscribeToShardTimeout());
+        assertThat(configuration.getSubscribeToShardTimeout()).isEqualTo(Duration.ofSeconds(123));
     }
 
     @Test
@@ -189,6 +191,6 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
         FanOutRecordPublisherConfiguration configuration =
                 new FanOutRecordPublisherConfiguration(testConfig, Collections.emptyList());
 
-        assertEquals(Duration.ofSeconds(60), configuration.getSubscribeToShardTimeout());
+        assertThat(configuration.getSubscribeToShardTimeout()).isEqualTo(Duration.ofSeconds(60));
     }
 }

@@ -149,8 +149,8 @@ public class RecreateOnResetOperatorCoordinatorTest {
         // The following method calls should be applied to the new internal
         // coordinator asynchronously because the current coordinator has not
         // been successfully closed yet.
-        coordinator.handleEventFromOperator(1, testingEvent);
-        coordinator.subtaskFailed(1, new Exception("Subtask Failure Exception."));
+        coordinator.handleEventFromOperator(1, 0, testingEvent);
+        coordinator.executionAttemptFailed(1, 0, new Exception("Subtask Failure Exception."));
         coordinator.notifyCheckpointComplete(completedCheckpointId);
 
         // The new coordinator should not have been created because the resetToCheckpoint()
@@ -198,8 +198,8 @@ public class RecreateOnResetOperatorCoordinatorTest {
         // Loop to get some interleaved method invocations on multiple instances
         // of active coordinators.
         for (int i = 0; i < numResets; i++) {
-            coordinator.handleEventFromOperator(1, new TestingEvent(i));
-            coordinator.subtaskFailed(i, new Exception());
+            coordinator.handleEventFromOperator(1, 0, new TestingEvent(i));
+            coordinator.executionAttemptFailed(i, 0, new Exception());
             CompletableFuture<byte[]> future = CompletableFuture.completedFuture(new byte[i]);
             coordinator.checkpointCoordinator(i, future);
             final int loop = i;

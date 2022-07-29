@@ -31,7 +31,7 @@ Checkpoint 使 Flink 的状态具有良好的容错性，通过 checkpoint 机�
 
 参考 [Checkpointing]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}) 查看如何在 Flink 程序中开启和配置 checkpoint。
 
-To understand the differences between checkpoints and [savepoints]({{< ref "docs/ops/state/savepoints" >}}) see [checkpoints vs. savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}}).
+要了解 checkpoints 和 [savepoints]({{< ref "docs/ops/state/savepoints" >}}) 之间的区别，请参阅 [checkpoints 与 savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}})。
 
 ## 保留 Checkpoint
 

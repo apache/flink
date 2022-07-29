@@ -17,9 +17,10 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { Subject } from 'rxjs';
-import { map, takeUntil } from 'rxjs/operators';
+import { of, Subject } from 'rxjs';
+import { catchError, map, startWith, takeUntil } from 'rxjs/operators';
 
+import { ClusterConfiguration } from '@flink-runtime-web/interfaces';
 import { JobManagerService, StatusService } from '@flink-runtime-web/services';
 
 @Component({
@@ -30,7 +31,7 @@ import { JobManagerService, StatusService } from '@flink-runtime-web/services';
 })
 export class JobManagerMetricsComponent implements OnInit, OnDestroy {
   public metrics: { [id: string]: number } = {};
-  public config: { [id: string]: string } = {};
+  public jmConfig: { [id: string]: string } = {};
   public listOfGCName: string[] = [];
   public listOfGCMetric: Array<{ name: string; count: number | null; time: number | null }> = [];
 
@@ -43,13 +44,19 @@ export class JobManagerMetricsComponent implements OnInit, OnDestroy {
   ) {}
 
   public ngOnInit(): void {
-    this.jobManagerService.loadConfig().subscribe(data => {
-      for (const item of data) {
-        this.config[item.key] = item.value;
-      }
-      this.cdr.markForCheck();
-    });
-    this.statusService.refresh$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.jobManagerService
+      .loadConfig()
+      .pipe(
+        catchError(() => of([] as ClusterConfiguration[])),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        for (const item of data) {
+          this.jmConfig[item.key] = item.value;
+        }
+        this.cdr.markForCheck();
+      });
+    this.statusService.refresh$.pipe(startWith(true), takeUntil(this.destroy$)).subscribe(() => {
       this.jobManagerService
         .loadMetricsName()
         .pipe(map(arr => arr.filter(item => item.indexOf('Status.JVM.GarbageCollector') !== -1)))

@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
@@ -25,11 +24,8 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -59,12 +55,12 @@ import org.apache.flink.streaming.connectors.kinesis.util.RecordEmitter;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.CollectingSourceContext;
+import org.apache.flink.types.PojoTestUtils;
 import org.apache.flink.util.TestLogger;
 
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Matchers;
@@ -92,11 +88,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -187,12 +179,12 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         // arbitrary checkpoint id and timestamp
         consumer.snapshotState(new StateSnapshotContextSynchronousImpl(123, 123));
 
-        assertTrue(listState.isClearCalled());
+        assertThat(listState.isClearCalled()).isTrue();
 
         // the checkpointed list state should contain only the shards that it should subscribe to
-        assertEquals(globalUnionState.size() / 2, listState.getList().size());
-        assertTrue(listState.getList().contains(globalUnionState.get(0)));
-        assertTrue(listState.getList().contains(globalUnionState.get(2)));
+        assertThat(listState.getList()).hasSize(globalUnionState.size() / 2);
+        assertThat(listState.getList()).contains(globalUnionState.get(0));
+        assertThat(listState.getList()).contains(globalUnionState.get(2));
     }
 
     @Test
@@ -297,12 +289,12 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 
         mockedConsumer.snapshotState(mock(FunctionSnapshotContext.class));
 
-        assertEquals(true, listState.clearCalled);
-        assertEquals(3, listState.getList().size());
+        assertThat(listState.clearCalled).isTrue();
+        assertThat(listState.getList()).hasSize(3);
 
         for (Tuple2<StreamShardMetadata, SequenceNumber> state : initialState) {
             for (Tuple2<StreamShardMetadata, SequenceNumber> currentState : listState.getList()) {
-                assertNotEquals(state, currentState);
+                assertThat(currentState).isNotEqualTo(state);
             }
         }
 
@@ -311,7 +303,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
             for (Tuple2<StreamShardMetadata, SequenceNumber> currentState : listState.getList()) {
                 hasOneIsSame = hasOneIsSame || state.equals(currentState);
             }
-            assertEquals(true, hasOneIsSame);
+            assertThat(hasOneIsSame).isTrue();
         }
     }
 
@@ -633,17 +625,13 @@ public class FlinkKinesisConsumerTest extends TestLogger {
                                         .withEndingSequenceNumber(endingSequenceNumber));
         KinesisStreamShard kinesisStreamShard = new KinesisStreamShard(streamName, shard);
 
-        assertEquals(
-                streamShardMetadata,
-                KinesisStreamShard.convertToStreamShardMetadata(kinesisStreamShard));
+        assertThat(KinesisStreamShard.convertToStreamShardMetadata(kinesisStreamShard))
+                .isEqualTo(streamShardMetadata);
     }
 
     @Test
     public void testStreamShardMetadataSerializedUsingPojoSerializer() {
-        TypeInformation<StreamShardMetadata> typeInformation =
-                TypeInformation.of(StreamShardMetadata.class);
-        assertTrue(
-                typeInformation.createSerializer(new ExecutionConfig()) instanceof PojoSerializer);
+        PojoTestUtils.assertSerializedAsPojo(StreamShardMetadata.class);
     }
 
     /**
@@ -987,9 +975,9 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         sourceFunc.cancel();
         testHarness.close();
 
-        assertEquals("record count", recordCount, testHarness.getOutput().size());
-        assertThat(watermarks, org.hamcrest.Matchers.contains(new Watermark(-3), new Watermark(5)));
-        assertEquals("watermark count", watermarkCount, watermarks.size());
+        assertThat(testHarness.getOutput()).as("record count").hasSize(recordCount);
+        assertThat(watermarks).contains(new Watermark(-3), new Watermark(5));
+        assertThat(watermarks).as("watermark count").hasSize(watermarkCount);
     }
 
     @Test
@@ -1140,8 +1128,8 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         expectedResults.add(new Watermark(-4));
         // verify watermark
         awaitRecordCount(results, expectedResults.size());
-        assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
-        assertEquals(0, TestWatermarkTracker.WATERMARK.get());
+        assertThat(results).contains(expectedResults.toArray());
+        assertThat(TestWatermarkTracker.WATERMARK.get()).isEqualTo(0);
 
         // trigger sync
         testHarness.setProcessingTime(testHarness.getProcessingTime() + 1);
@@ -1158,31 +1146,30 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         while (deadline.hasTimeLeft() && emitterQueue.getSize() < 1) {
             Thread.sleep(10);
         }
-        assertEquals("first record received", 1, emitterQueue.getSize());
+        assertThat(emitterQueue.getSize()).as("first record received").isEqualTo(1);
 
         // Advance the watermark. Since the new record is past global watermark + threshold,
         // it won't be emitted and the watermark does not advance
         testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
-        assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
-        assertEquals(
-                3000L,
-                (long) org.powermock.reflect.Whitebox.getInternalState(fetcher, "nextWatermark"));
+        assertThat(results).contains(expectedResults.toArray());
+        assertThat((long) org.powermock.reflect.Whitebox.getInternalState(fetcher, "nextWatermark"))
+                .isEqualTo(3000L);
         TestWatermarkTracker.assertGlobalWatermark(-4);
 
         // Trigger global watermark sync
         testHarness.setProcessingTime(testHarness.getProcessingTime() + 1);
         expectedResults.add(Long.toString(record2));
         awaitRecordCount(results, expectedResults.size());
-        assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
+        assertThat(results).contains(expectedResults.toArray());
         TestWatermarkTracker.assertGlobalWatermark(3000);
 
         // Trigger watermark update and emit
         testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
         expectedResults.add(new Watermark(3000));
-        assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
+        assertThat(results).contains(expectedResults.toArray());
 
         // verify exception propagation
-        Assert.assertNull(sourceThreadError.get());
+        assertThat(sourceThreadError.get()).isNull();
         throwOnCollect.set(true);
         shard1.put(Long.toString(record2 + 1));
 
@@ -1190,8 +1177,8 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         while (deadline.hasTimeLeft() && sourceThreadError.get() == null) {
             Thread.sleep(10);
         }
-        Assert.assertNotNull(sourceThreadError.get());
-        Assert.assertNotNull("expected", sourceThreadError.get().getMessage());
+        assertThat(sourceThreadError.get()).isNotNull();
+        assertThat(sourceThreadError.get().getMessage()).as("expected").isNotNull();
 
         sourceFunc.cancel();
         testHarness.close();
@@ -1205,10 +1192,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         }
 
         int received = queue.size();
-        if (received < count) {
-            Assert.fail(
-                    String.format("Timeout waiting for records, received %d/%d", received, count));
-        }
+        assertThat(received).isEqualTo(count);
     }
 
     private static class OpenCheckingStringSchema extends SimpleStringSchema {
@@ -1216,7 +1200,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 
         @Override
         public void open(DeserializationSchema.InitializationContext context) throws Exception {
-            assertThat(context.getMetricGroup(), notNullValue(MetricGroup.class));
+            assertThat(context.getMetricGroup()).isNotNull();
             this.opened = true;
         }
 
@@ -1260,7 +1244,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         }
 
         static void assertGlobalWatermark(long expected) {
-            Assert.assertEquals(expected, WATERMARK.get());
+            assertThat(WATERMARK.get()).isEqualTo(expected);
         }
     }
 }

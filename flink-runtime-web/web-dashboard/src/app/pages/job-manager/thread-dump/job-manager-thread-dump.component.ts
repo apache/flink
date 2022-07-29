@@ -16,12 +16,16 @@
  * limitations under the License.
  */
 
-import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestroy, Inject } from '@angular/core';
+import { of, Subject } from 'rxjs';
+import { catchError, takeUntil } from 'rxjs/operators';
 
-import { JobManagerService } from '@flink-runtime-web/services';
-import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
+import {
+  JOB_MANAGER_MODULE_CONFIG,
+  JOB_MANAGER_MODULE_DEFAULT_CONFIG,
+  JobManagerModuleConfig
+} from '@flink-runtime-web/pages/job-manager/job-manager.config';
+import { ConfigService, JobManagerService } from '@flink-runtime-web/services';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
 
 @Component({
@@ -31,14 +35,23 @@ import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerThreadDumpComponent implements OnInit, OnDestroy {
-  public readonly editorOptions: EditorOptions = flinkEditorOptions;
-
+  public readonly downloadName = `jobmanager_thread_dump`;
+  public downloadUrl: string;
+  public editorOptions: EditorOptions;
   public dump = '';
   public loading = true;
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly jobManagerService: JobManagerService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly jobManagerService: JobManagerService,
+    private readonly configService: ConfigService,
+    private readonly cdr: ChangeDetectorRef,
+    @Inject(JOB_MANAGER_MODULE_CONFIG) readonly moduleConfig: JobManagerModuleConfig
+  ) {
+    this.editorOptions = moduleConfig.editorOptions || JOB_MANAGER_MODULE_DEFAULT_CONFIG.editorOptions;
+    this.downloadUrl = `${this.configService.BASE_URL}/jobmanager/thread-dump`;
+  }
 
   public ngOnInit(): void {
     this.reload();
@@ -52,21 +65,16 @@ export class JobManagerThreadDumpComponent implements OnInit, OnDestroy {
   public reload(): void {
     this.loading = true;
     this.cdr.markForCheck();
-    if (this.jobManagerService) {
-      this.jobManagerService
-        .loadThreadDump()
-        .pipe(takeUntil(this.destroy$))
-        .subscribe(
-          data => {
-            this.loading = false;
-            this.dump = data;
-            this.cdr.markForCheck();
-          },
-          () => {
-            this.loading = false;
-            this.cdr.markForCheck();
-          }
-        );
-    }
+    this.jobManagerService
+      .loadThreadDump()
+      .pipe(
+        catchError(() => of('')),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        this.loading = false;
+        this.dump = data;
+        this.cdr.markForCheck();
+      });
   }
 }

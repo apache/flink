@@ -145,6 +145,7 @@ public class InterruptSensitiveRestoreTest {
             case KEYED_RAW:
                 cfg.setStateKeySerializer(IntSerializer.INSTANCE);
                 cfg.setStreamOperator(new StreamSource<>(new TestSource(mode)));
+                cfg.serializeAllConfigs();
                 break;
             default:
                 throw new IllegalArgumentException();

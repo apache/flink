@@ -23,11 +23,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.streaming.api.operators.python.timer.TimerRegistration;
-import org.apache.flink.streaming.api.utils.ProtoUtils;
+import org.apache.flink.streaming.api.operators.python.process.timer.TimerRegistration;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -50,8 +50,8 @@ import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
 import static org.apache.flink.python.Constants.TIMER_ID;
 import static org.apache.flink.python.Constants.WINDOW_STRATEGY;
 import static org.apache.flink.python.Constants.WRAPPER_TIMER_CODER_ID;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createCoderProto;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createReviseOutputDataStreamFunctionProto;
+import static org.apache.flink.python.util.ProtoUtils.createCoderProto;
+import static org.apache.flink.python.util.ProtoUtils.createReviseOutputDataStreamFunctionProto;
 
 /**
  * {@link BeamDataStreamPythonFunctionRunner} is responsible for starting a beam python harness to

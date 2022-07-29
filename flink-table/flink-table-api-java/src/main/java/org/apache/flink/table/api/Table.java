@@ -114,7 +114,7 @@ public interface Table extends Explainable<Table>, Executable {
      * Performs a selection operation. Similar to a SQL SELECT statement. The field expressions can
      * contain complex expressions and aggregations.
      *
-     * <p>Scala Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.select($("key"), $("value").avg().plus(" The average").as("average"));
@@ -164,7 +164,7 @@ public interface Table extends Explainable<Table>, Executable {
      * Renames the fields of the expression result. Use this to disambiguate fields before joining
      * to operations.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.as($("a"), $("b"))
@@ -184,7 +184,7 @@ public interface Table extends Explainable<Table>, Executable {
     /**
      * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE clause.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.filter($("name").isEqual("Fred"));
@@ -201,7 +201,7 @@ public interface Table extends Explainable<Table>, Executable {
     /**
      * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE clause.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.where($("name").isEqual("Fred"));
@@ -219,7 +219,7 @@ public interface Table extends Explainable<Table>, Executable {
      * Groups the elements on some grouping keys. Use this before a selection with aggregations to
      * perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
      *
-     * <p>Scala Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.groupBy($("key")).select($("key"), $("value").avg());
@@ -267,7 +267,7 @@ public interface Table extends Explainable<Table>, Executable {
      *
      * <p>Note: Both tables must be bound to the same {@code TableEnvironment} .
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * left.join(right, $("a").isEqual($("b")))
@@ -306,7 +306,7 @@ public interface Table extends Explainable<Table>, Executable {
      * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its {@code
      * TableConfig} must have null check enabled (default).
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * left.leftOuterJoin(right, $("a").isEqual($("b")))
@@ -329,7 +329,7 @@ public interface Table extends Explainable<Table>, Executable {
      * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its {@code
      * TableConfig} must have null check enabled (default).
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * left.rightOuterJoin(right, $("a").isEqual($("b")))
@@ -352,7 +352,7 @@ public interface Table extends Explainable<Table>, Executable {
      * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its {@code
      * TableConfig} must have null check enabled (default).
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * left.fullOuterJoin(right, $("a").isEqual($("b")))
@@ -373,7 +373,7 @@ public interface Table extends Explainable<Table>, Executable {
      * a SQL inner join with ON TRUE predicate but works with a table function. Each row of the
      * table is joined with all rows produced by the table function.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * class MySplitUDTF extends TableFunction<String> {
@@ -407,7 +407,7 @@ public interface Table extends Explainable<Table>, Executable {
      * a SQL inner join but works with a table function. Each row of the table is joined with all
      * rows produced by the table function.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * class MySplitUDTF extends TableFunction<String> {
@@ -442,7 +442,7 @@ public interface Table extends Explainable<Table>, Executable {
      * table is joined with all rows produced by the table function. If the table function does not
      * produce any row, the outer row is padded with nulls.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * class MySplitUDTF extends TableFunction<String> {
@@ -477,7 +477,7 @@ public interface Table extends Explainable<Table>, Executable {
      * table is joined with all rows produced by the table function. If the table function does not
      * produce any row, the outer row is padded with nulls.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * class MySplitUDTF extends TableFunction<String> {
@@ -702,7 +702,7 @@ public interface Table extends Explainable<Table>, Executable {
      * <p>An over-window defines for each record an interval of records over which aggregation
      * functions can be computed.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * table
@@ -735,7 +735,7 @@ public interface Table extends Explainable<Table>, Executable {
      * complex expressions, but can not contain aggregations. It will throw an exception if the
      * added fields already exist.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.addColumns(
@@ -760,7 +760,7 @@ public interface Table extends Explainable<Table>, Executable {
      * complex expressions, but can not contain aggregations. Existing fields will be replaced. If
      * the added fields have duplicate field name, then the last one is used.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.addOrReplaceColumns(
@@ -784,7 +784,7 @@ public interface Table extends Explainable<Table>, Executable {
      * Renames existing columns. Similar to a field alias statement. The field expressions should be
      * alias expressions, and only the existing fields can be renamed.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.renameColumns(
@@ -807,7 +807,7 @@ public interface Table extends Explainable<Table>, Executable {
     /**
      * Drops existing columns. The field expressions should be field reference expressions.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.dropColumns($("a"), $("b"));
@@ -825,7 +825,7 @@ public interface Table extends Explainable<Table>, Executable {
      * Performs a map operation with an user-defined scalar function or built-in scalar function.
      * The output will be flattened if the output type is a composite type.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.map(call(MyMapFunction.class, $("c")))
@@ -844,7 +844,7 @@ public interface Table extends Explainable<Table>, Executable {
      * Performs a flatMap operation with an user-defined table function or built-in table function.
      * The output will be flattened if the output type is a composite type.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.flatMap(call(MyFlatMapFunction.class, $("c")))
@@ -864,7 +864,7 @@ public interface Table extends Explainable<Table>, Executable {
      * {@link #aggregate(Expression)} with a select statement. The output will be flattened if the
      * output type is a composite type.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.aggregate(call(MyAggregateFunction.class, $("a"), $("b")).as("f0", "f1", "f2"))
@@ -885,7 +885,7 @@ public interface Table extends Explainable<Table>, Executable {
      * Perform a global flatAggregate without groupBy. FlatAggregate takes a TableAggregateFunction
      * which returns multiple rows. Use a selection after the flatAggregate.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.flatAggregate(call(MyTableAggregateFunction.class, $("a"), $("b")).as("x", "y", "z"))

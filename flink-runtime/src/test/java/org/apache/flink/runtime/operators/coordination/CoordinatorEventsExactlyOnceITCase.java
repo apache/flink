@@ -287,9 +287,9 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
      * The coordinator that sends events and completes checkpoints.
      *
      * <p>All consistency guaranteed for the coordinator apply to order or method invocations (like
-     * {@link #subtaskFailed(int, Throwable)}, {@link #subtaskReset(int, long)} or {@link
-     * #checkpointCoordinator(long, CompletableFuture)}) and the order in which actions are done
-     * (sending events and completing checkpoints). Tho consistently evaluate this, but with
+     * {@link #executionAttemptFailed(int, int, Throwable)}}, {@link #subtaskReset(int, long)} or
+     * {@link #checkpointCoordinator(long, CompletableFuture)}) and the order in which actions are
+     * done (sending events and completing checkpoints). Tho consistently evaluate this, but with
      * concurrency against the scheduler thread that calls this coordinator implements a simple
      * mailbox that moves the method handling into a separate thread, but keeps the order.
      */
@@ -357,7 +357,8 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         }
 
         @Override
-        public void handleEventFromOperator(int subtask, OperatorEvent event) throws Exception {
+        public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event)
+                throws Exception {
             if (subtask != 0 || !(event instanceof StartEvent)) {
                 throw new Exception(
                         String.format("Don't recognize event '%s' from task %d.", event, subtask));
@@ -383,7 +384,8 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         }
 
         @Override
-        public void subtaskFailed(int subtask, @Nullable Throwable reason) {
+        public void executionAttemptFailed(
+                int subtask, int attemptNumber, @Nullable Throwable reason) {
             // we need to create and register this outside the mailbox so that the
             // registration is not affected by the artificial stall on the mailbox, but happens
             // strictly before the tasks are restored and the operator events are received (to
@@ -420,7 +422,7 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         public void subtaskReset(int subtask, long checkpointId) {}
 
         @Override
-        public void subtaskReady(int subtask, SubtaskGateway gateway) {
+        public void executionAttemptReady(int subtask, int attemptNumber, SubtaskGateway gateway) {
             runInMailbox(
                     () -> {
                         checkState(!workLoopRunning);

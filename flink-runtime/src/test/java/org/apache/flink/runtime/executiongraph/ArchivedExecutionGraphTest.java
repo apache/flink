@@ -435,6 +435,9 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         assertEquals(runtimeExecution.getAttemptNumber(), archivedExecution.getAttemptNumber());
         assertArrayEquals(
                 runtimeExecution.getStateTimestamps(), archivedExecution.getStateTimestamps());
+        assertArrayEquals(
+                runtimeExecution.getStateEndTimestamps(),
+                archivedExecution.getStateEndTimestamps());
         assertEquals(runtimeExecution.getState(), archivedExecution.getState());
         assertEquals(
                 runtimeExecution.getAssignedResourceLocation(),
@@ -472,6 +475,33 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         assertEquals(
                 runtimeExecution.getStateTimestamp(ExecutionState.FAILED),
                 archivedExecution.getStateTimestamp(ExecutionState.FAILED));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.CREATED),
+                archivedExecution.getStateEndTimestamp(ExecutionState.CREATED));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.SCHEDULED),
+                archivedExecution.getStateEndTimestamp(ExecutionState.SCHEDULED));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.DEPLOYING),
+                archivedExecution.getStateEndTimestamp(ExecutionState.DEPLOYING));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.INITIALIZING),
+                archivedExecution.getStateEndTimestamp(ExecutionState.INITIALIZING));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.RUNNING),
+                archivedExecution.getStateEndTimestamp(ExecutionState.RUNNING));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.FINISHED),
+                archivedExecution.getStateEndTimestamp(ExecutionState.FINISHED));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.CANCELING),
+                archivedExecution.getStateEndTimestamp(ExecutionState.CANCELING));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.CANCELED),
+                archivedExecution.getStateEndTimestamp(ExecutionState.CANCELED));
+        assertEquals(
+                runtimeExecution.getStateEndTimestamp(ExecutionState.FAILED),
+                archivedExecution.getStateEndTimestamp(ExecutionState.FAILED));
         compareStringifiedAccumulators(
                 runtimeExecution.getUserAccumulatorsStringified(),
                 archivedExecution.getUserAccumulatorsStringified());

@@ -43,6 +43,12 @@ sudo apt-get autoremove -y
 sudo apt-get clean
 df -h
 echo "Removing large directories"
-# deleting 15GB
-rm -rf /usr/share/dotnet/
+
+sudo rm -rf /usr/share/dotnet/
+sudo rm -rf /usr/local/graalvm/
+sudo rm -rf /usr/local/.ghcup/
+sudo rm -rf /usr/local/share/powershell
+sudo rm -rf /usr/local/share/chromium
+sudo rm -rf /usr/local/lib/android
+sudo rm -rf /usr/local/lib/node_modules
 df -h

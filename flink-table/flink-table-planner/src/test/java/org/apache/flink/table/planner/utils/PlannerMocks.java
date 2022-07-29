@@ -31,11 +31,13 @@ import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
+import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.RelTraitDef;
 
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
@@ -58,6 +60,7 @@ public class PlannerMocks {
     private PlannerMocks(
             boolean isBatchMode,
             TableConfig tableConfig,
+            ResourceManager resourceManager,
             CatalogManager catalogManager,
             List<RelTraitDef> traitDefs,
             CalciteSchema rootSchema) {
@@ -67,11 +70,7 @@ public class PlannerMocks {
         final ModuleManager moduleManager = new ModuleManager();
 
         this.functionCatalog =
-                new FunctionCatalog(
-                        tableConfig,
-                        catalogManager,
-                        moduleManager,
-                        PlannerMocks.class.getClassLoader());
+                new FunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager);
 
         this.plannerContext =
                 new PlannerContext(
@@ -156,6 +155,11 @@ public class PlannerMocks {
         private boolean batchMode = false;
         private TableConfig tableConfig = TableConfig.getDefault();
         private CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
+        private ResourceManager resourceManager =
+                ResourceManager.createResourceManager(
+                        new URL[0],
+                        Thread.currentThread().getContextClassLoader(),
+                        tableConfig.getConfiguration());
         private List<RelTraitDef> traitDefs = Collections.emptyList();
         private CalciteSchema rootSchema;
 
@@ -176,6 +180,11 @@ public class PlannerMocks {
             return this;
         }
 
+        public Builder withResourceManager(ResourceManager resourceManager) {
+            this.resourceManager = resourceManager;
+            return this;
+        }
+
         public Builder withCatalogManager(CatalogManager catalogManager) {
             this.catalogManager = catalogManager;
             return this;
@@ -192,7 +201,8 @@ public class PlannerMocks {
         }
 
         public PlannerMocks build() {
-            return new PlannerMocks(batchMode, tableConfig, catalogManager, traitDefs, rootSchema);
+            return new PlannerMocks(
+                    batchMode, tableConfig, resourceManager, catalogManager, traitDefs, rootSchema);
         }
     }
 

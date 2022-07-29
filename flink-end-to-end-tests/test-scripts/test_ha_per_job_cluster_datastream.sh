@@ -23,7 +23,6 @@ source "$(dirname "$0")"/common_ha.sh
 TEST_PROGRAM_JAR_NAME=DataStreamAllroundTestProgram.jar
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/${TEST_PROGRAM_JAR_NAME}
 FLINK_LIB_DIR=${FLINK_DIR}/lib
-JOB_ID="00000000000000000000000000000000"
 
 #
 # NOTE: This script requires at least Bash version >= 4. Mac OS in 2020 still ships 3.x
@@ -126,6 +125,8 @@ function run_ha_test() {
     local neededTaskmanagers=$(( (${PARALLELISM} + ${TASK_SLOTS_PER_TM_HA} - 1)  / ${TASK_SLOTS_PER_TM_HA} ))
     start_taskmanagers ${neededTaskmanagers}
 
+    wait_num_of_occurence_in_logs "Job [a-z0-9]+ is submitted." 1 "standalonejob"
+    JOB_ID=$(grep -E -o 'Job [a-z0-9]+ is submitted' $FLINK_LOG_DIR/*standalonejob*.log* | awk '{print $2}')
     wait_job_running ${JOB_ID}
 
     # start the watchdog that keeps the number of JMs stable

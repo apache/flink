@@ -40,4 +40,7 @@ public interface ParserResource {
 
     @Resources.BaseMessage("Duplicate EXPLAIN DETAIL is not allowed.")
     Resources.ExInst<ParseException> explainDetailIsDuplicate();
+
+    @Resources.BaseMessage("CREATE FUNCTION USING JAR syntax is not applicable to {0} language.")
+    Resources.ExInst<ParseException> createFunctionUsingJar(String language);
 }

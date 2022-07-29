@@ -262,6 +262,7 @@
       "type" : "INT"
     } ],
     "filterOnTemporalTable" : null,
+    "inputInsertOnly" : true,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

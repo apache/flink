@@ -21,6 +21,8 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blocklist.BlocklistHandler;
+import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -91,6 +93,7 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
                 delegationTokenManager,
                 resourceManagerRuntimeServices.getSlotManager(),
                 ResourceManagerPartitionTrackerImpl::new,
+                BlocklistUtils.loadBlocklistHandlerFactory(configuration),
                 resourceManagerRuntimeServices.getJobLeaderIdService(),
                 clusterInformation,
                 fatalErrorHandler,
@@ -173,6 +176,7 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
                 DelegationTokenManager delegationTokenManager,
                 SlotManager slotManager,
                 ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
+                BlocklistHandler.Factory blocklistHandlerFactory,
                 JobLeaderIdService jobLeaderIdService,
                 ClusterInformation clusterInformation,
                 FatalErrorHandler fatalErrorHandler,
@@ -187,6 +191,7 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
                     delegationTokenManager,
                     slotManager,
                     clusterPartitionTrackerFactory,
+                    blocklistHandlerFactory,
                     jobLeaderIdService,
                     clusterInformation,
                     fatalErrorHandler,
@@ -232,6 +237,11 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
         public CompletableFuture<Void> getTerminationFuture() {
             return getTerminationFutureFunction.apply(
                     MockResourceManager.this, super.getTerminationFuture());
+        }
+
+        @Override
+        public CompletableFuture<Void> getReadyToServeFuture() {
+            return CompletableFuture.completedFuture(null);
         }
     }
 }

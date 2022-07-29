@@ -134,8 +134,9 @@ public class BatchShuffleReadBufferPoolTest {
         Map<Object, List<MemorySegment>> buffers = new ConcurrentHashMap<>();
 
         try {
-            Object[] owners = new Object[] {new Object(), new Object(), new Object(), new Object()};
-            for (int i = 0; i < 4; ++i) {
+            Object[] owners = new Object[8];
+            for (int i = 0; i < 8; ++i) {
+                owners[i] = new Object();
                 buffers.put(owners[i], bufferPool.requestBuffers());
             }
             assertEquals(0, bufferPool.getAvailableBuffers());
@@ -173,7 +174,7 @@ public class BatchShuffleReadBufferPoolTest {
 
             assertNull(exception.get());
             assertEquals(0, bufferPool.getAvailableBuffers());
-            assertEquals(4, buffers.size());
+            assertEquals(8, buffers.size());
         } finally {
             for (Object owner : buffers.keySet()) {
                 bufferPool.recycle(buffers.remove(owner));

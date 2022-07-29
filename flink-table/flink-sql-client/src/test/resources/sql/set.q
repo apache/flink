@@ -173,7 +173,7 @@ set;
 'execution.target' = 'remote'
 'jobmanager.rpc.address' = 'localhost'
 'pipeline.classpaths' = ''
-'pipeline.jars' = '$VAR_PIPELINE_JARS_URL'
+'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
 'sql-client.verbose' = 'true'
 'table.exec.legacy-cast-behaviour' = 'DISABLED'

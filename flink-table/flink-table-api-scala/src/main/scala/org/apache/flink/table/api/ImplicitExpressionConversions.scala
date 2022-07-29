@@ -462,6 +462,9 @@ trait ImplicitExpressionConversions {
     Expressions.currentWatermark(rowtimeAttribute)
   }
 
+  /** Return the current database, the return type of this expression is [[DataTypes.STRING()]]. */
+  def currentDatabase(): Expression = Expressions.currentDatabase()
+
   /**
    * Returns the current SQL time in local time zone, the return type of this expression is
    * [[DataTypes.TIME]], this is a synonym for [[ImplicitExpressionConversions.currentTime()]].
@@ -544,6 +547,19 @@ trait ImplicitExpressionConversions {
       timePoint2: Expression): Expression = {
     Expressions.timestampDiff(timePointUnit, timePoint1, timePoint2)
   }
+
+  /**
+   * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+   * "yyyy-MM-dd HH:mm:ss" format.
+   */
+  def fromUnixtime(unixtime: Expression): Expression = Expressions.fromUnixtime(unixtime)
+
+  /**
+   * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+   * given format.
+   */
+  def fromUnixtime(unixtime: Expression, format: Expression): Expression =
+    Expressions.fromUnixtime(unixtime, format)
 
   /** Creates an array of literals. */
   def array(head: Expression, tail: Expression*): Expression = {

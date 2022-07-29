@@ -55,7 +55,9 @@ import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.SimpleStatement;
 import com.datastax.driver.core.SocketOptions;
+import com.datastax.driver.core.Statement;
 import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.annotations.Table;
@@ -106,6 +108,7 @@ public class CassandraConnectorITCase
 
     private static final int MAX_CONNECTION_RETRY = 3;
     private static final long CONNECTION_RETRY_DELAY = 500L;
+
     private static final Logger LOG = LoggerFactory.getLogger(CassandraConnectorITCase.class);
     private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
 
@@ -113,6 +116,8 @@ public class CassandraConnectorITCase
 
     @ClassRule
     public static final CassandraContainer CASSANDRA_CONTAINER = createCassandraContainer();
+
+    private static final int READ_TIMEOUT_MILLIS = 36000;
 
     @Rule public final RetryRule retryRule = new RetryRule();
 
@@ -141,10 +146,11 @@ public class CassandraConnectorITCase
                                         .setSerialConsistencyLevel(ConsistencyLevel.LOCAL_SERIAL))
                         .withSocketOptions(
                                 new SocketOptions()
-                                        // multiply default timeout by 3
+                                        // default timeout x 3
                                         .setConnectTimeoutMillis(15000)
-                                        // double default timeout
-                                        .setReadTimeoutMillis(24000))
+                                        // default timeout x3 and higher than
+                                        // request_timeout_in_ms at the cluster level
+                                        .setReadTimeoutMillis(READ_TIMEOUT_MILLIS))
                         .withoutJMXReporting()
                         .withoutMetrics()
                         .build();
@@ -263,7 +269,7 @@ public class CassandraConnectorITCase
     // ------------------------------------------------------------------------
 
     public static CassandraContainer createCassandraContainer() {
-        CassandraContainer cassandra = new CassandraContainer(DockerImageVersions.CASSANDRA_3);
+        CassandraContainer cassandra = new CassandraContainer(DockerImageVersions.CASSANDRA_4_0);
         cassandra.withJmxReporting(false);
         cassandra.withLogConsumer(LOG_CONSUMER);
         return cassandra;
@@ -279,13 +285,14 @@ public class CassandraConnectorITCase
             String patchedConfiguration =
                     configuration
                             .replaceAll(
-                                    "request_timeout_in_ms: [0-9]+", "request_timeout_in_ms: 30000")
+                                    "request_timeout_in_ms: [0-9]+",
+                                    "request_timeout_in_ms: 30000") // x3 default timeout
                             .replaceAll(
                                     "read_request_timeout_in_ms: [0-9]+",
-                                    "read_request_timeout_in_ms: 15000")
+                                    "read_request_timeout_in_ms: 15000") // x3 default timeout
                             .replaceAll(
                                     "write_request_timeout_in_ms: [0-9]+",
-                                    "write_request_timeout_in_ms: 6000");
+                                    "write_request_timeout_in_ms: 6000"); // x3 default timeout
             CASSANDRA_CONTAINER.copyFileToContainer(
                     Transferable.of(patchedConfiguration.getBytes(StandardCharsets.UTF_8)),
                     "/etc/cassandra/cassandra.yaml");
@@ -380,13 +387,13 @@ public class CassandraConnectorITCase
                 }
             }
         }
-        session.execute(CREATE_KEYSPACE_QUERY);
+        session.execute(requestWithTimeout(CREATE_KEYSPACE_QUERY));
     }
 
     @Before
     public void createTable() {
         tableID = random.nextInt(Integer.MAX_VALUE);
-        session.execute(injectTableName(CREATE_TABLE_QUERY));
+        session.execute(requestWithTimeout(injectTableName(CREATE_TABLE_QUERY)));
     }
 
     @AfterClass
@@ -457,7 +464,7 @@ public class CassandraConnectorITCase
     protected void verifyResultsIdealCircumstances(
             CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
-        ResultSet result = session.execute(injectTableName(SELECT_DATA_QUERY));
+        ResultSet result = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         ArrayList<Integer> list = new ArrayList<>();
         for (int x = 1; x <= 60; x++) {
             list.add(x);
@@ -475,7 +482,7 @@ public class CassandraConnectorITCase
     protected void verifyResultsDataPersistenceUponMissedNotify(
             CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
-        ResultSet result = session.execute(injectTableName(SELECT_DATA_QUERY));
+        ResultSet result = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         ArrayList<Integer> list = new ArrayList<>();
         for (int x = 1; x <= 60; x++) {
             list.add(x);
@@ -493,7 +500,7 @@ public class CassandraConnectorITCase
     protected void verifyResultsDataDiscardingUponRestore(
             CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
-        ResultSet result = session.execute(injectTableName(SELECT_DATA_QUERY));
+        ResultSet result = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         ArrayList<Integer> list = new ArrayList<>();
         for (int x = 1; x <= 20; x++) {
             list.add(x);
@@ -527,7 +534,7 @@ public class CassandraConnectorITCase
         }
 
         ArrayList<Integer> actual = new ArrayList<>();
-        ResultSet result = session.execute(injectTableName(SELECT_DATA_QUERY));
+        ResultSet result = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
 
         for (com.datastax.driver.core.Row s : result) {
             actual.add(s.getInt(TUPLE_COUNTER_FIELD));
@@ -606,7 +613,7 @@ public class CassandraConnectorITCase
             sink.close();
         }
 
-        ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         assertThat(rs.all()).hasSize(20);
     }
 
@@ -624,7 +631,7 @@ public class CassandraConnectorITCase
             sink.close();
         }
 
-        ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         assertThat(rs.all()).hasSize(20);
     }
 
@@ -634,7 +641,7 @@ public class CassandraConnectorITCase
                 annotatePojoWithTable(KEYSPACE, TABLE_NAME_PREFIX + tableID);
         writePojos(annotatedPojoClass, null);
 
-        ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         assertThat(rs.all()).hasSize(20);
     }
 
@@ -643,7 +650,7 @@ public class CassandraConnectorITCase
         final Class<? extends Pojo> annotatedPojoClass =
                 annotatePojoWithTable("", TABLE_NAME_PREFIX + tableID);
         writePojos(annotatedPojoClass, KEYSPACE);
-        ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         assertThat(rs.all()).hasSize(20);
     }
 
@@ -684,7 +691,7 @@ public class CassandraConnectorITCase
 
         tEnv.sqlQuery("select * from testFlinkTable").executeInsert("cassandraTable").await();
 
-        ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
 
         // validate that all input was correctly written to Cassandra
         List<Row> input = new ArrayList<>(rowCollection);
@@ -719,7 +726,7 @@ public class CassandraConnectorITCase
                 annotatePojoWithTable(KEYSPACE, TABLE_NAME_PREFIX + tableID);
 
         final List<? extends Pojo> pojos = writePojosWithOutputFormat(annotatedPojoClass);
-        ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         assertThat(rs.all()).hasSize(20);
 
         final List<? extends Pojo> result = readPojosWithInputFormat(annotatedPojoClass);
@@ -790,7 +797,7 @@ public class CassandraConnectorITCase
             sink.close();
         }
 
-        ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         List<com.datastax.driver.core.Row> rows = rs.all();
         assertThat(rows).hasSize(rowCollection.size());
     }
@@ -844,7 +851,7 @@ public class CassandraConnectorITCase
             sink.close();
         }
 
-        ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         List<com.datastax.driver.core.Row> rows = rs.all();
         assertThat(rows).hasSize(scalaTupleCollection.size());
 
@@ -884,7 +891,7 @@ public class CassandraConnectorITCase
             sink.close();
         }
 
-        ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
+        ResultSet rs = session.execute(requestWithTimeout(injectTableName(SELECT_DATA_QUERY)));
         List<com.datastax.driver.core.Row> rows = rs.all();
         assertThat(rows).hasSize(1);
         // Since nulls are ignored, we should be reading one complete record
@@ -896,5 +903,9 @@ public class CassandraConnectorITCase
                                     row.getInt(TUPLE_BATCHID_FIELD)))
                     .isEqualTo(new scala.Tuple3<>(id, counter, batchId));
         }
+    }
+
+    private static Statement requestWithTimeout(String query) {
+        return new SimpleStatement(query).setReadTimeoutMillis(READ_TIMEOUT_MILLIS);
     }
 }

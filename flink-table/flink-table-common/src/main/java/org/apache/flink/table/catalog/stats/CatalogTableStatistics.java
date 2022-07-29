@@ -40,7 +40,7 @@ public class CatalogTableStatistics {
     /** The raw data size (size when loaded in memory) in bytes. */
     private final long rawDataSize;
 
-    private Map<String, String> properties;
+    private final Map<String, String> properties;
 
     public CatalogTableStatistics(long rowCount, int fileCount, long totalSize, long rawDataSize) {
         this(rowCount, fileCount, totalSize, rawDataSize, new HashMap<>());

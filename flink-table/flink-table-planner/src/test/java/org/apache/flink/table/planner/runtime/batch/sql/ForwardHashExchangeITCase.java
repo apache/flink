@@ -35,7 +35,7 @@ import java.util.Arrays;
 public class ForwardHashExchangeITCase extends BatchTestBase {
 
     @Before
-    public void before() {
+    public void before() throws Exception {
         super.before();
         env().getConfig().setDynamicGraph(true);
         env().disableOperatorChaining();

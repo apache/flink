@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -121,9 +122,8 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
         return assignmentsByCheckpointId.get(checkpointId);
     }
 
-    @VisibleForTesting
     Map<Integer, LinkedHashSet<SplitT>> uncheckpointedAssignments() {
-        return uncheckpointedAssignments;
+        return Collections.unmodifiableMap(uncheckpointedAssignments);
     }
 
     // -------------- private helpers ---------------

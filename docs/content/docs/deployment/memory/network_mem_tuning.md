@@ -120,6 +120,23 @@ In order to avoid excessive data skew, the number of buffers for each subpartiti
 
 Unlike the input buffer pool, the configured amount of exclusive buffers and floating buffers is only treated as recommended values. If there are not enough buffers available, Flink can make progress with only a single exclusive buffer per output subpartition and zero floating buffers.
 
+#### Overdraft buffers
+
+For each output subtask can also request up to `taskmanager.network.memory.max-overdraft-buffers-per-gate`
+(by default 5) extra overdraft buffers. Those buffers are only used, if the subtask is backpressured
+by downstream subtasks and the subtask requires more than a single network buffer to finish what its
+currently doing. This can happen in situations like:
+- Serializing very large records, that do not fit into a single network buffer.
+- Flat Map like operator, that produces many output records per single input record.
+- Operators that output many records either periodically or on a reaction to some events (for
+example `WindowOperator`'s triggers).
+
+Without overdraft buffers in such situations Flink subtask thread would block on the backpressure,
+preventing for example unaligned checkpoints from completing. To mitigate this, the overdraft
+buffers concept has been added. Those overdraft buffers are strictly optional and Flink can
+gradually make progress using only regular buffers, which means `0` is an acceptable configuration
+for the `taskmanager.network.memory.max-overdraft-buffers-per-gate`.
+
 ## The number of in-flight buffers 
 
 The default settings for exclusive buffers and floating buffers should be sufficient for the maximum throughput.  If the minimum of in-flight data needs to be set, the exclusive buffers can be set to `0` and the memory segment size can be decreased.

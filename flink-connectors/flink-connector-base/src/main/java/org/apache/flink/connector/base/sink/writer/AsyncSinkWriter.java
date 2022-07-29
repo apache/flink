@@ -170,14 +170,14 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * the valid limits of the destination). The logic then needs to create and execute the request
      * asynchronously against the destination (ideally by batching together multiple request entries
      * to increase efficiency). The logic also needs to identify individual request entries that
-     * were not persisted successfully and resubmit them using the {@code requestResult} callback.
+     * were not persisted successfully and resubmit them using the {@code requestToRetry} callback.
      *
      * <p>From a threading perspective, the mailbox thread will call this method and initiate the
      * asynchronous request to persist the {@code requestEntries}. NOTE: The client must support
      * asynchronous requests and the method called to persist the records must asynchronously
      * execute and return a future with the results of that request. A thread from the destination
      * client thread pool should complete the request and submit the failed entries that should be
-     * retried. The {@code requestResult} will then trigger the mailbox thread to requeue the
+     * retried. The {@code requestToRetry} will then trigger the mailbox thread to requeue the
      * unsuccessful elements.
      *
      * <p>An example implementation of this method is included:
@@ -185,15 +185,15 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * <pre>{@code
      * @Override
      * protected void submitRequestEntries
-     *   (List<RequestEntryT> records, Consumer<Collection<RequestEntryT>> requestResult) {
+     *   (List<RequestEntryT> records, Consumer<Collection<RequestEntryT>> requestToRetry) {
      *     Future<Response> response = destinationClient.putRecords(records);
      *     response.whenComplete(
      *         (response, error) -> {
      *             if(error){
      *                 List<RequestEntryT> retryableFailedRecords = getRetryableFailed(response);
-     *                 requestResult.accept(retryableFailedRecords);
+     *                 requestToRetry.accept(retryableFailedRecords);
      *             }else{
-     *                 requestResult.accept(Collections.emptyList());
+     *                 requestToRetry.accept(Collections.emptyList());
      *             }
      *         }
      *     );
@@ -205,14 +205,14 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * requests.
      *
      * @param requestEntries a set of request entries that should be sent to the destination
-     * @param requestResult the {@code accept} method should be called on this Consumer once the
+     * @param requestToRetry the {@code accept} method should be called on this Consumer once the
      *     processing of the {@code requestEntries} are complete. Any entries that encountered
-     *     difficulties in persisting should be re-queued through {@code requestResult} by including
-     *     that element in the collection of {@code RequestEntryT}s passed to the {@code accept}
-     *     method. All other elements are assumed to have been successfully persisted.
+     *     difficulties in persisting should be re-queued through {@code requestToRetry} by
+     *     including that element in the collection of {@code RequestEntryT}s passed to the {@code
+     *     accept} method. All other elements are assumed to have been successfully persisted.
      */
     protected abstract void submitRequestEntries(
-            List<RequestEntryT> requestEntries, Consumer<List<RequestEntryT>> requestResult);
+            List<RequestEntryT> requestEntries, Consumer<List<RequestEntryT>> requestToRetry);
 
     /**
      * This method allows the getting of the size of a {@code RequestEntryT} in bytes. The size in
@@ -381,7 +381,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         }
 
         long timestampOfRequest = System.currentTimeMillis();
-        Consumer<List<RequestEntryT>> requestResult =
+        Consumer<List<RequestEntryT>> requestToRetry =
                 failedRequestEntries ->
                         mailboxExecutor.execute(
                                 () ->
@@ -394,7 +394,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
         inFlightRequestsCount++;
         inFlightMessages += batchSize;
-        submitRequestEntries(batch, requestResult);
+        submitRequestEntries(batch, requestToRetry);
     }
 
     /**

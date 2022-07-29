@@ -19,23 +19,23 @@ package org.apache.flink.streaming.connectors.kinesis.model;
 
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for methods in the {@link StreamShardHandle} class. */
 public class StreamShardHandleTest {
     @Test
     public void testCompareShardIds() {
         assertThat(
-                StreamShardHandle.compareShardIds("shardId-000000000001", "shardId-000000000010"),
-                lessThan(0));
+                        StreamShardHandle.compareShardIds(
+                                "shardId-000000000001", "shardId-000000000010"))
+                .isLessThan(0);
         assertThat(
-                StreamShardHandle.compareShardIds("shardId-000000000010", "shardId-000000000010"),
-                equalTo(0));
+                        StreamShardHandle.compareShardIds(
+                                "shardId-000000000010", "shardId-000000000010"))
+                .isEqualTo(0);
         assertThat(
-                StreamShardHandle.compareShardIds("shardId-000000000015", "shardId-000000000010"),
-                greaterThan(0));
+                        StreamShardHandle.compareShardIds(
+                                "shardId-000000000015", "shardId-000000000010"))
+                .isGreaterThan(0);
     }
 }

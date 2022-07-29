@@ -32,7 +32,7 @@ import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface
  */
 @Internal
 public class AdaptivePollingRecordPublisher extends PollingRecordPublisher {
-    // AWS Kinesis has a read limit of 2 Mb/sec
+    // AWS Kinesis has a read limit of 2 MB/sec
     // https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html
     private static final long KINESIS_SHARD_BYTES_PER_SECOND_LIMIT = 2 * 1024L * 1024L;
 

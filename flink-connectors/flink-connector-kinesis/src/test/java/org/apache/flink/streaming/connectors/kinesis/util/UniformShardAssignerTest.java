@@ -22,7 +22,6 @@ import org.apache.flink.util.TestLoggerExtension;
 
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.Shard;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -30,6 +29,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.math.BigInteger;
 import java.util.stream.Stream;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link UniformShardAssigner}. */
 @ExtendWith(TestLoggerExtension.class)
@@ -68,8 +69,7 @@ public class UniformShardAssignerTest {
         StreamShardHandle handle = new StreamShardHandle("", shard);
         // streamName = "" hashes to zero
 
-        Assertions.assertEquals(
-                expectedSubtask,
-                Math.abs(new UniformShardAssigner().assign(handle, nSubtasks)) % nSubtasks);
+        assertThat(Math.abs(new UniformShardAssigner().assign(handle, nSubtasks)) % nSubtasks)
+                .isEqualTo(expectedSubtask);
     }
 }

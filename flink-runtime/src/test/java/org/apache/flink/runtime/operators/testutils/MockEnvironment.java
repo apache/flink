@@ -57,8 +57,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.concurrent.Executors;
 
-import com.sun.istack.NotNull;
-
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -405,7 +403,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
     }
 
     @Override
-    public void setMainMailboxExecutor(@NotNull MailboxExecutor mainMailboxExecutor) {
+    public void setMainMailboxExecutor(MailboxExecutor mainMailboxExecutor) {
         this.mainMailboxExecutor = mainMailboxExecutor;
     }
 
@@ -415,7 +413,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
     }
 
     @Override
-    public void setAsyncOperationsThreadPool(@NotNull ExecutorService executorService) {
+    public void setAsyncOperationsThreadPool(ExecutorService executorService) {
         this.asyncOperationsThreadPool = executorService;
     }
 
@@ -425,8 +423,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
     }
 
     @Override
-    public void setCheckpointStorageAccess(
-            @NotNull CheckpointStorageAccess checkpointStorageAccess) {
+    public void setCheckpointStorageAccess(CheckpointStorageAccess checkpointStorageAccess) {
         this.checkpointStorageAccess = checkpointStorageAccess;
     }
 

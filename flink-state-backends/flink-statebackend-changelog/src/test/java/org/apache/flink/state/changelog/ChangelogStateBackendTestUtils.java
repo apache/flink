@@ -183,6 +183,7 @@ public class ChangelogStateBackendTestUtils {
         return TestTaskStateManager.builder()
                 .setStateChangelogStorage(
                         new FsStateChangelogStorage(
+                                JobID.generate(),
                                 Path.fromLocalFile(changelogStoragePath),
                                 false,
                                 1024,

@@ -35,6 +35,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -133,7 +134,7 @@ public class AdaptiveBatchSchedulerTest extends TestLogger {
                             state,
                             null,
                             null,
-                            new IOMetrics(0, 0, 0, 0)));
+                            new IOMetrics(0, 0, 0, 0, 0, 0, 0)));
         }
     }
 
@@ -177,15 +178,10 @@ public class AdaptiveBatchSchedulerTest extends TestLogger {
         configuration.set(
                 JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
 
-        final AdaptiveBatchSchedulerTestUtils.AdaptiveBatchSchedulerBuilder schedulerBuilder =
-                (AdaptiveBatchSchedulerTestUtils.AdaptiveBatchSchedulerBuilder)
-                        new AdaptiveBatchSchedulerTestUtils.AdaptiveBatchSchedulerBuilder(
-                                        jobGraph,
-                                        mainThreadExecutor,
-                                        EXECUTOR_RESOURCE.getExecutor())
-                                .setJobMasterConfiguration(configuration);
-        schedulerBuilder.setVertexParallelismDecider((ignored) -> 10);
-
-        return schedulerBuilder.build();
+        return new DefaultSchedulerBuilder(
+                        jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
+                .setJobMasterConfiguration(configuration)
+                .setVertexParallelismDecider((ignored) -> 10)
+                .buildAdaptiveBatchJobScheduler();
     }
 }

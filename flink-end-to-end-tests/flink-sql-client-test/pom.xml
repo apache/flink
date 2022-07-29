@@ -54,22 +54,6 @@ under the License.
 		<dependency>
 			<!-- Used by maven-dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-json</artifactId>
-			<version>${project.version}</version>
-			<classifier>sql-jar</classifier>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<!-- Used by maven-dependency-plugin -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-csv</artifactId>
-			<version>${project.version}</version>
-			<classifier>sql-jar</classifier>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<!-- Used by maven-dependency-plugin -->
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-connector-kafka</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>

@@ -58,6 +58,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -594,18 +595,21 @@ final class TestValuesRuntimeFunctions {
 
         private static final long serialVersionUID = 1L;
         private final Map<Row, List<Row>> mapping;
+        private final Random random;
         private transient boolean isOpenCalled = false;
         private transient ExecutorService executor;
 
         protected AsyncTestValueLookupFunction(Map<Row, List<Row>> mapping) {
             this.mapping = mapping;
+            this.random = new Random();
         }
 
         @Override
         public void open(FunctionContext context) throws Exception {
             RESOURCE_COUNTER.incrementAndGet();
             isOpenCalled = true;
-            executor = Executors.newSingleThreadExecutor();
+            // generate unordered result for async lookup
+            executor = Executors.newFixedThreadPool(2);
         }
 
         public void eval(CompletableFuture<Collection<Row>> resultFuture, Object... inputs) {
@@ -619,6 +623,11 @@ final class TestValuesRuntimeFunctions {
             }
             CompletableFuture.supplyAsync(
                             () -> {
+                                try {
+                                    Thread.sleep(random.nextInt(5));
+                                } catch (InterruptedException e) {
+                                    throw new RuntimeException(e);
+                                }
                                 List<Row> list = mapping.get(key);
                                 if (list == null) {
                                     return Collections.<Row>emptyList();

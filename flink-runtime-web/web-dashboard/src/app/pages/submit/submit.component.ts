@@ -165,7 +165,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
         this.validateForm.get('allowNonRestoredState')!.value
       )
       .subscribe(data => {
-        this.router.navigate(['job', data.jobid]).then();
+        this.router.navigate(['job', 'running', data.jobid]).then();
       });
   }
 }

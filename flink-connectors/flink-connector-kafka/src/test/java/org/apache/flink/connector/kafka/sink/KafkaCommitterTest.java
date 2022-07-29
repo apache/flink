@@ -22,6 +22,7 @@ import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -81,6 +82,32 @@ public class KafkaCommitterTest {
                     .isInstanceOf(IllegalStateException.class);
             assertThat(request.getFailedWithUnknownReason().getMessage())
                     .contains("Transaction was not started");
+            assertThat(recyclable.isRecycled()).isTrue();
+        }
+    }
+
+    @Test
+    public void testKafkaCommitterClosesProducer() throws IOException, InterruptedException {
+        Properties properties = getProperties();
+        FlinkKafkaInternalProducer<Object, Object> producer =
+                new FlinkKafkaInternalProducer(properties, TRANSACTIONAL_ID) {
+                    @Override
+                    public void commitTransaction() throws ProducerFencedException {}
+
+                    @Override
+                    public void flush() {}
+
+                    @Override
+                    public void close() {}
+                };
+        try (final KafkaCommitter committer = new KafkaCommitter(properties);
+                Recyclable<FlinkKafkaInternalProducer<Object, Object>> recyclable =
+                        new Recyclable<>(producer, p -> {})) {
+            final MockCommitRequest<KafkaCommittable> request =
+                    new MockCommitRequest<>(
+                            new KafkaCommittable(PRODUCER_ID, EPOCH, TRANSACTIONAL_ID, recyclable));
+
+            committer.commit(Collections.singletonList(request));
             assertThat(recyclable.isRecycled()).isTrue();
         }
     }

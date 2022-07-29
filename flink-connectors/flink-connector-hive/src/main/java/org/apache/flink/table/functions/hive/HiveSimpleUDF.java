@@ -61,12 +61,12 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
     public HiveSimpleUDF(HiveFunctionWrapper<UDF> hiveFunctionWrapper, HiveShim hiveShim) {
         super(hiveFunctionWrapper);
         this.hiveShim = hiveShim;
-        LOG.info("Creating HiveSimpleUDF from '{}'", this.hiveFunctionWrapper.getClassName());
+        LOG.info("Creating HiveSimpleUDF from '{}'", this.hiveFunctionWrapper.getUDFClassName());
     }
 
     @Override
     public void openInternal() {
-        LOG.info("Opening HiveSimpleUDF as '{}'", hiveFunctionWrapper.getClassName());
+        LOG.info("Opening HiveSimpleUDF as '{}'", hiveFunctionWrapper.getUDFClassName());
 
         function = hiveFunctionWrapper.createFunction();
 
@@ -105,7 +105,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
             throw new FlinkHiveUDFException(
                     String.format(
                             "Failed to open HiveSimpleUDF from %s",
-                            hiveFunctionWrapper.getClassName()),
+                            hiveFunctionWrapper.getUDFClassName()),
                     e);
         }
     }

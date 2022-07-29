@@ -56,7 +56,7 @@ under the License.
 
 		In particular, here we're forced to use flink-table-planner_${scala.binary.version} instead of
 		flink-table-planner-loader, because otherwise we hit this bug https://youtrack.jetbrains.com/issue/IDEA-93855
-		when trying to run the examples from within Intellij IDEA. This is only relevant to this specific
+		when trying to run the examples from within IntelliJ IDEA. This is only relevant to this specific
 		examples project, as it's in the same build tree of flink-parent.
 
 		In a real environment, you need flink-table-runtime and flink-table-planner-loader either

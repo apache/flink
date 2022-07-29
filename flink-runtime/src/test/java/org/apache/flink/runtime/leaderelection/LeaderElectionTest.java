@@ -23,6 +23,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedLeaderService;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.testutils.TestingUtils;
@@ -185,7 +186,7 @@ public class LeaderElectionTest extends TestLogger {
         @Override
         public void setup(FatalErrorHandler fatalErrorHandler) throws Exception {
             try {
-                testingServer = new TestingServer();
+                testingServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
             } catch (Exception e) {
                 throw new RuntimeException("Could not start ZooKeeper testing cluster.", e);
             }
@@ -208,7 +209,7 @@ public class LeaderElectionTest extends TestLogger {
             }
 
             if (testingServer != null) {
-                testingServer.stop();
+                testingServer.close();
                 testingServer = null;
             }
         }

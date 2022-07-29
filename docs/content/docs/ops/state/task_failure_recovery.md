@@ -77,6 +77,15 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 ))
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_restart_strategy(RestartStrategies.fixed_delay_restart(
+    3,  # number of restart attempts
+    10000  # delay(millisecond)
+))
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 
@@ -121,6 +130,15 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // number of restart attempts
   Time.of(10, TimeUnit.SECONDS) // delay
+))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_restart_strategy(RestartStrategies.fixed_delay_restart(
+    3,  # number of restart attempts
+    10000  # delay(millisecond)
 ))
 ```
 {{< /tab >}}
@@ -179,6 +197,11 @@ env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
 ))
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ### Failure Rate Restart Strategy
@@ -223,6 +246,16 @@ env.setRestartStrategy(RestartStrategies.failureRateRestart(
 ))
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_restart_strategy(RestartStrategies.failure_rate_restart(
+    3,  # max failures per interval
+    300000,  # interval for measuring failure rate (millisecond)
+    10000  # dela(millisecond)
+))
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 
@@ -247,6 +280,12 @@ env.setRestartStrategy(RestartStrategies.noRestart());
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.noRestart())
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_restart_strategy(RestartStrategies.no_restart())
 ```
 {{< /tab >}}
 {{< /tabs >}}

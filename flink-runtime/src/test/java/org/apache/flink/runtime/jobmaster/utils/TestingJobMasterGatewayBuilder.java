@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
+import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -171,6 +172,10 @@ public class TestingJobMasterGatewayBuilder {
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer =
             ignored -> {};
+
+    private Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
+            notifyNewBlockedNodesFunction =
+                    ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 
     public TestingJobMasterGatewayBuilder setAddress(String address) {
         this.address = address;
@@ -382,6 +387,13 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
+    public TestingJobMasterGatewayBuilder setNotifyNewBlockedNodesFunction(
+            Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
+                    notifyNewBlockedNodesFunction) {
+        this.notifyNewBlockedNodesFunction = notifyNewBlockedNodesFunction;
+        return this;
+    }
+
     public TestingJobMasterGateway build() {
         return new TestingJobMasterGateway(
                 address,
@@ -412,6 +424,7 @@ public class TestingJobMasterGatewayBuilder {
                 updateAggregateFunction,
                 operatorEventSender,
                 deliverCoordinationRequestFunction,
-                notifyNotEnoughResourcesConsumer);
+                notifyNotEnoughResourcesConsumer,
+                notifyNewBlockedNodesFunction);
     }
 }

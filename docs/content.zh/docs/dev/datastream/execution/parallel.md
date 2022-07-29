@@ -73,6 +73,24 @@ wordCounts.print()
 env.execute("Word Count Example")
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+
+text = [...]
+word_counts = text
+    .flat_map(lambda x: x.split(" ")) \
+    .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+    .key_by(lambda i: i[0]) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .reduce(lambda i, j: (i[0], i[1] + j[1])) \
+    .set_parallelism(5)
+word_counts.print()
+
+
+env.execute("Word Count Example")
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ### 执行环境层次
@@ -106,6 +124,24 @@ val wordCounts = text
     .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1)
 wordCounts.print()
+
+env.execute("Word Count Example")
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_parallelism(3)
+
+text = [...]
+word_counts = text
+    .flat_map(lambda x: x.split(" ")) \
+    .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+    .key_by(lambda i: i[0]) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .reduce(lambda i, j: (i[0], i[1] + j[1]))
+word_counts.print()
+
 
 env.execute("Word Count Example")
 ```
@@ -158,6 +194,11 @@ try {
 } catch {
     case e: Exception => e.printStackTrace
 }
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Python API 中尚不支持该特性。
 ```
 {{< /tab >}}
 {{< /tabs >}}

@@ -47,7 +47,7 @@ under the License.
 			<!-- can be removed once new version of Glue Schema Registry releases -->
 
 			<dependency>
-				<groupId >com.google.guava</groupId>
+				<groupId>com.google.guava</groupId>
 				<artifactId>guava</artifactId>
 				<version>${guava.version}</version>
 			</dependency>
@@ -106,14 +106,21 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kinesis</artifactId>
+			<artifactId>flink-connector-aws-kinesis-streams</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-aws-kinesis-streams</artifactId>
+			<artifactId>flink-connector-aws-base</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-kinesis</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 		</dependency>

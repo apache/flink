@@ -140,6 +140,13 @@ public class HiveASTParserTest {
     }
 
     @Test
+    public void testMacro() throws Exception {
+        assertDDLType(
+                HiveASTParser.TOK_CREATEMACRO, "create temporary macro m1 (x int, y int) x + y ");
+        assertDDLType(HiveASTParser.TOK_DROPMACRO, "drop temporary macro m1");
+    }
+
+    @Test
     public void testConstraints() throws Exception {
         assertDDLType(
                 HiveASTParser.TOK_CREATETABLE,

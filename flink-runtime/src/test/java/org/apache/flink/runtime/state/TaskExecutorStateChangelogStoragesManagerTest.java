@@ -207,7 +207,7 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
 
         @Override
         public StateChangelogStorage<?> createStorage(
-                Configuration configuration, TaskManagerJobMetricGroup metricGroup) {
+                JobID jobID, Configuration configuration, TaskManagerJobMetricGroup metricGroup) {
             return new TestStateChangelogStorage();
         }
 

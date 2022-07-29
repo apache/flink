@@ -226,9 +226,9 @@ function install_miniconda() {
 # Install some kinds of py env.
 function install_py_env() {
     if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
-        py_env=("3.8")
+        py_env=("3.9")
     else
-        py_env=("3.6" "3.7" "3.8")
+        py_env=("3.6" "3.7" "3.8" "3.9")
     fi
     for ((i=0;i<${#py_env[@]};i++)) do
         if [ -d "$CURRENT_DIR/.conda/envs/${py_env[i]}" ]; then
@@ -304,7 +304,7 @@ function install_flake8() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q flake8==3.7.9 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q flake8==4.0.1 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install flake8 failed \
         please try to exec the script again.\
@@ -328,7 +328,7 @@ function install_sphinx() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q Sphinx==2.4.4 Docutils==0.17.1 "Jinja2<3.1.0" 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q Sphinx==3.1.0 Docutils==0.17.1 "Jinja2<3.1.0" 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install sphinx failed \
         please try to exec the script again.\
@@ -403,7 +403,7 @@ function install_environment() {
     fi
 
     # step-3 install python environment which includes
-    # 3.6 3.7 3.8
+    # 3.6 3.7 3.8 3.9
     if [ $STEP -lt 3 ] && [ `need_install_component "py_env"` = true ]; then
         print_function "STEP" "installing python environment..."
         install_py_env
@@ -584,7 +584,7 @@ function check_stage() {
 #########################
 # Tox check
 function tox_check() {
-    LATEST_PYTHON="py38"
+    LATEST_PYTHON="py39"
     print_function "STAGE" "tox checks"
     # Set created py-env in $PATH for tox's creating virtual env
     activate
@@ -663,6 +663,7 @@ function sphinx_check() {
     else
         print_function "STAGE" "sphinx checks... [SUCCESS]"
     fi
+    popd
 }
 
 # mypy check
@@ -691,25 +692,31 @@ CURRENT_DIR="$(cd "$( dirname "$0" )" && pwd)"
 FLINK_PYTHON_DIR=$(dirname "$CURRENT_DIR")
 
 # conda home path
-CONDA_HOME=$CURRENT_DIR/.conda
+if [ -z "${FLINK_CONDA_HOME+x}" ]; then
+    CONDA_HOME="$CURRENT_DIR/.conda"
+    ENV_HOME="$CONDA_HOME"
+else
+    CONDA_HOME=$FLINK_CONDA_HOME
+    ENV_HOME="${CONDA_PREFIX-$CONDA_HOME}"
+fi
 
 # conda path
 CONDA_PATH=$CONDA_HOME/bin/conda
 
 # pip path
-PIP_PATH=$CONDA_HOME/bin/pip
+PIP_PATH=$ENV_HOME/bin/pip
 
 # tox path
-TOX_PATH=$CONDA_HOME/bin/tox
+TOX_PATH=$ENV_HOME/bin/tox
 
 # flake8 path
-FLAKE8_PATH=$CONDA_HOME/bin/flake8
+FLAKE8_PATH=$ENV_HOME/bin/flake8
 
 # sphinx path
-SPHINX_PATH=$CONDA_HOME/bin/sphinx-build
+SPHINX_PATH=$ENV_HOME/bin/sphinx-build
 
 # mypy path
-MYPY_PATH=${CONDA_HOME}/bin/mypy
+MYPY_PATH=$ENV_HOME/bin/mypy
 
 _OLD_PATH="$PATH"
 
@@ -761,6 +768,10 @@ SUPPORTED_INSTALLATION_COMPONENTS=()
 get_all_supported_install_components
 
 INSTALLATION_COMPONENTS=()
+
+# whether remove the installed python environment.
+CLEAN_UP_FLAG=0
+
 # parse_opts
 USAGE="
 usage: $0 [options]
@@ -778,7 +789,7 @@ usage: $0 [options]
 -l          list all checks supported.
 Examples:
   ./lint-python -s basic        =>  install environment with basic components.
-  ./lint-python -s py_env       =>  install environment with python env(3.6,3.7,3.8).
+  ./lint-python -s py_env       =>  install environment with python env(3.6,3.7,3.8,3.9).
   ./lint-python -s all          =>  install environment with all components such as python env,tox,flake8,sphinx,mypy etc.
   ./lint-python -s tox,flake8   =>  install environment with tox,flake8.
   ./lint-python -s tox -f       =>  reinstall environment with tox.
@@ -787,8 +798,9 @@ Examples:
   ./lint-python                 =>  exec all checks.
   ./lint-python -f              =>  reinstall environment with all components and exec all checks.
   ./lint-python -l              =>  list all checks supported.
+  ./lint-python -r              =>  clean up python environment.
 "
-while getopts "hfs:i:e:l" arg; do
+while getopts "hfs:i:e:lr" arg; do
     case "$arg" in
         h)
             printf "%s\\n" "$USAGE"
@@ -813,6 +825,10 @@ while getopts "hfs:i:e:l" arg; do
             done
             exit 2
             ;;
+        r)
+            printf "clean up python environment:\n"
+            CLEAN_UP_FLAG=1
+            ;;
         ?)
             printf "ERROR: did not recognize option '%s', please try -h\\n" "$1"
             exit 1
@@ -822,6 +838,15 @@ done
 
 # decides whether to skip check stage
 skip_checks=0
+
+if [[ ${CLEAN_UP_FLAG} -eq 1 ]]; then
+    printf "clean up python environment"
+    rm -rf ${CONDA_HOME}
+    rm -rf ${STAGE_FILE}
+    rm -rf ${FLINK_PYTHON_DIR}/.tox
+    skip_checks=1
+fi
+
 if [ ! -z "$INSTALLATION_COMPONENTS" ]; then
     parse_component_args
     skip_checks=1
@@ -840,7 +865,9 @@ else
 fi
 
 # install environment
-install_environment
+if [[ ${CLEAN_UP_FLAG} -eq 0 ]]; then
+    install_environment
+fi
 
 pushd "$FLINK_PYTHON_DIR" &> /dev/null
 # exec all selected checks

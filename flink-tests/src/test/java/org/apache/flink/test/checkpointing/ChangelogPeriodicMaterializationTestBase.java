@@ -219,7 +219,7 @@ public abstract class ChangelogPeriodicMaterializationTestBase extends TestLogge
         return JobID.fromByteArray(randomBytes);
     }
 
-    protected static Set<StateHandleID> getAllStateHandleId(JobID jobID, MiniCluster miniCluster)
+    public static Set<StateHandleID> getAllStateHandleId(JobID jobID, MiniCluster miniCluster)
             throws IOException, FlinkJobNotFoundException, ExecutionException,
                     InterruptedException {
         Optional<String> mostRecentCompletedCheckpointPath =

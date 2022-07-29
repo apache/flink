@@ -21,6 +21,7 @@ import io
 import os
 import platform
 import sys
+import warnings
 from distutils.command.build_ext import build_ext
 from shutil import copytree, copy, rmtree
 
@@ -30,6 +31,8 @@ if sys.version_info < (3, 6):
     print("Python versions prior to 3.6 are not supported for PyFlink.",
           file=sys.stderr)
     sys.exit(-1)
+elif sys.version_info.minor == 6:
+    warnings.warn("Python version 3.6 won't be supported for PyFlink after 1.16.")
 
 
 def remove_if_exists(file_path):
@@ -270,11 +273,16 @@ try:
                 'pyflink.util',
                 'pyflink.datastream',
                 'pyflink.datastream.connectors',
+                'pyflink.datastream.formats',
                 'pyflink.common',
                 'pyflink.fn_execution',
                 'pyflink.fn_execution.beam',
                 'pyflink.fn_execution.datastream',
+                'pyflink.fn_execution.datastream.embedded',
+                'pyflink.fn_execution.datastream.process',
                 'pyflink.fn_execution.datastream.window',
+                'pyflink.fn_execution.embedded',
+                'pyflink.fn_execution.formats',
                 'pyflink.fn_execution.table',
                 'pyflink.fn_execution.utils',
                 'pyflink.metrics',
@@ -299,11 +307,11 @@ try:
 
     install_requires = ['py4j==0.10.9.3', 'python-dateutil==2.8.0', 'apache-beam==2.38.0',
                         'cloudpickle==2.1.0', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
-                        'pytz>=2018.3', 'fastavro>=0.21.4,<0.24', 'requests>=2.26.0',
+                        'pytz>=2018.3', 'fastavro>=1.1.0,<1.4.8', 'requests>=2.26.0',
                         'protobuf<3.18',
-                        'pemja==0.1.5;'
+                        'pemja==0.2.0;'
                         'python_full_version >= "3.7" and platform_system != "Windows"',
-                        'httplib2>=0.8,<0.19.0', apache_flink_libraries_dependency]
+                        'httplib2>=0.19.0,<=0.20.4', apache_flink_libraries_dependency]
 
     if sys.version_info < (3, 7):
         # python 3.6 upper and lower limit
@@ -311,7 +319,7 @@ try:
         install_requires.append('pandas>=1.0,<1.2.0')
         install_requires.append('pyarrow>=0.15.1,<7.0.0')
     else:
-        # python 3.7 3.8 upper limit and M1 chip lower limit,
+        # python 3.7, 3.8 and 3.9 upper limit and M1 chip lower limit,
         install_requires.append('numpy>=1.21.4,<1.22.0')
         install_requires.append('pandas>=1.3.0,<1.4.0')
         install_requires.append('pyarrow>=5.0.0,<9.0.0')
@@ -341,7 +349,8 @@ try:
             'License :: OSI Approved :: Apache Software License',
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
-            'Programming Language :: Python :: 3.8'],
+            'Programming Language :: Python :: 3.8',
+            'Programming Language :: Python :: 3.9'],
         ext_modules=extensions
     )
 finally:

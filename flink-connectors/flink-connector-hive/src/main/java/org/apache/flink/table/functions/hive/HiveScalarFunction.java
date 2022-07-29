@@ -52,16 +52,12 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction
 
     @Override
     public boolean isDeterministic() {
-        try {
-            org.apache.hadoop.hive.ql.udf.UDFType udfType =
-                    hiveFunctionWrapper
-                            .getUDFClass()
-                            .getAnnotation(org.apache.hadoop.hive.ql.udf.UDFType.class);
+        org.apache.hadoop.hive.ql.udf.UDFType udfType =
+                hiveFunctionWrapper
+                        .getUDFClass()
+                        .getAnnotation(org.apache.hadoop.hive.ql.udf.UDFType.class);
 
-            return udfType != null && udfType.deterministic() && !udfType.stateful();
-        } catch (ClassNotFoundException e) {
-            throw new FlinkHiveUDFException(e);
-        }
+        return udfType != null && udfType.deterministic() && !udfType.stateful();
     }
 
     @Override

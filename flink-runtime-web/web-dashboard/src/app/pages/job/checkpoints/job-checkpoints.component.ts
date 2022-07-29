@@ -32,6 +32,8 @@ import { JobLocalService } from '../job-local.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobCheckpointsComponent implements OnInit, OnDestroy {
+  disabledInterval = 0x7fffffffffffffff;
+
   public readonly trackById = (_: number, node: CheckpointHistory): number => node.id;
 
   public checkPointStats?: Checkpoint;

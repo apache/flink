@@ -118,6 +118,16 @@ public class OptimizerConfigOptions {
                                     + "Default value is true.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_REPORT_STATISTICS_ENABLED =
+            key("table.optimizer.source.report-statistics-enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "When it is true, the optimizer will collect and use the statistics from source connectors"
+                                    + " if the source extends from SupportsStatisticReport and the statistics from catalog is UNKNOWN."
+                                    + "Default value is true.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_JOIN_REORDER_ENABLED =
             key("table.optimizer.join-reorder-enabled")
                     .booleanType()

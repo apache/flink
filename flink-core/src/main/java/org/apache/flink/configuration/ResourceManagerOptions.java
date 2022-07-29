@@ -142,6 +142,14 @@ public class ResourceManagerOptions {
                                     + START_WORKER_MAX_FAILURE_RATE.key()
                                     + "') is reached.");
 
+    @Documentation.ExcludeFromDocumentation(
+            "This is an expert option, that we do not want to expose in the documentation")
+    public static final ConfigOption<Duration> REQUIREMENTS_CHECK_DELAY =
+            ConfigOptions.key("slotmanager.requirement-check.delay")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(50))
+                    .withDescription("The delay of the resource requirements check.");
+
     /**
      * The timeout for a slot request to be discarded, in milliseconds.
      *
@@ -252,6 +260,17 @@ public class ResourceManagerOptions {
                                     + "fallback to '"
                                     + TaskManagerOptions.REGISTRATION_TIMEOUT.key()
                                     + "'.");
+
+    /** Timeout for ResourceManager to recover all the previous attempts workers. */
+    public static final ConfigOption<Duration> RESOURCE_MANAGER_PREVIOUS_WORKER_RECOVERY_TIMEOUT =
+            ConfigOptions.key("resourcemanager.previous-worker.recovery.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(0))
+                    .withDescription(
+                            "Timeout for resource manager to recover all the previous attempts workers. If exceeded,"
+                                    + " resource manager will handle new resource requests by requesting new workers."
+                                    + " If you would like to reuse the previous workers as much as possible, you should"
+                                    + " configure a longer timeout time to wait for previous workers to register.");
 
     // ---------------------------------------------------------------------------------------------
 

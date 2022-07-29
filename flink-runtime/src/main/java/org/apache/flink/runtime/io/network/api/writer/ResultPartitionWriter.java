@@ -53,6 +53,9 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 
     int getNumTargetKeyGroups();
 
+    /** Sets the max overdraft buffer size of per gate. */
+    void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate);
+
     /** Writes the given serialized record to the target subpartition. */
     void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException;
 

@@ -24,6 +24,9 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -40,6 +43,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 interface ChannelStateWriteRequest {
+
+    Logger LOG = LoggerFactory.getLogger(ChannelStateWriteRequest.class);
+
     long getCheckpointId();
 
     void cancel(Throwable cause) throws Exception;
@@ -108,12 +114,18 @@ interface ChannelStateWriteRequest {
                         bufferConsumer.accept(writer, buffer);
                     }
                 },
-                throwable -> {
-                    try {
-                        CloseableIterator.fromList(dataFuture.get(), Buffer::recycleBuffer).close();
-                    } catch (ExecutionException ignored) {
-                    }
-                },
+                throwable ->
+                        dataFuture.thenAccept(
+                                buffers -> {
+                                    try {
+                                        CloseableIterator.fromList(buffers, Buffer::recycleBuffer)
+                                                .close();
+                                    } catch (Exception e) {
+                                        LOG.error(
+                                                "Failed to recycle the output buffer of channel state.",
+                                                e);
+                                    }
+                                }),
                 false);
     }
 

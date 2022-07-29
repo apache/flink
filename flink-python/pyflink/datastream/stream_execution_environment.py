@@ -18,7 +18,7 @@
 import os
 import tempfile
 
-from typing import List, Any, Optional
+from typing import List, Any, Optional, cast
 
 from py4j.java_gateway import JavaObject
 
@@ -37,6 +37,7 @@ from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.state_backend import _from_j_state_backend, StateBackend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
+from pyflink.datastream.utils import ResultTypeQueryable
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
 from pyflink.util.java_utils import load_java_class, add_jars_to_context_class_loader, \
@@ -833,6 +834,34 @@ class StreamExecutionEnvironment(object):
 
         return StreamExecutionEnvironment(j_stream_exection_environment)
 
+    def create_input(self, input_format, type_info: Optional[TypeInformation] = None):
+        """
+        Create an input data stream with InputFormat.
+
+        If the input_format needs a well-defined type information (e.g. Avro's generic record), you
+        can either explicitly use type_info argument or use InputFormats implementing
+        ResultTypeQueryable.
+
+        :param input_format: The input format to read from.
+        :param type_info: Optional type information to explicitly declare output type.
+
+        .. versionadded:: 1.16.0
+        """
+        input_type_info = type_info
+
+        if input_type_info is None and isinstance(input_format, ResultTypeQueryable):
+            input_type_info = cast(ResultTypeQueryable, input_format).get_produced_type()
+
+        if input_type_info is None:
+            j_data_stream = self._j_stream_execution_environment.createInput(
+                input_format.get_java_function()
+            )
+        else:
+            j_data_stream = self._j_stream_execution_environment.createInput(
+                input_format.get_java_function(), input_type_info.get_java_type_info()
+            )
+        return DataStream(j_data_stream=j_data_stream)
+
     def add_source(self, source_func: SourceFunction, source_name: str = 'Custom Source',
                    type_info: TypeInformation = None) -> 'DataStream':
         """
@@ -933,12 +962,11 @@ class StreamExecutionEnvironment(object):
             else:
                 j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name)
                 out_put_type_info = type_info
-            # Since flink python module depends on table module, we can make use of utils of it when
-            # implementing python DataStream API.
-            PythonTableUtils = gateway.jvm\
-                .org.apache.flink.table.utils.python.PythonTableUtils
+
+            PythonTypeUtils = gateway.jvm\
+                .org.apache.flink.streaming.api.utils.PythonTypeUtils
             execution_config = self._j_stream_execution_environment.getConfig()
-            j_input_format = PythonTableUtils.getCollectionInputFormat(
+            j_input_format = PythonTypeUtils.getCollectionInputFormat(
                 j_objs,
                 out_put_type_info.get_java_type_info(),
                 execution_config

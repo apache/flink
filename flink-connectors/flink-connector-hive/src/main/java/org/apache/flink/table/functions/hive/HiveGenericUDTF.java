@@ -145,7 +145,7 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction<
     public DataType inferReturnType() throws UDFArgumentException {
         LOG.info(
                 "Getting result type of HiveGenericUDTF with {}",
-                hiveFunctionWrapper.getClassName());
+                hiveFunctionWrapper.getUDFClassName());
         ObjectInspector[] argumentInspectors = HiveInspectors.getArgInspectors(hiveShim, arguments);
         return HiveTypeUtil.toFlinkType(
                 hiveFunctionWrapper.createFunction().initialize(argumentInspectors));

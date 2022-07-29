@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
+import static org.apache.flink.python.util.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
 
 /**
  * A {@link PassThroughPythonScalarFunctionRunner} runner that just return the input elements as the

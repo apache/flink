@@ -18,13 +18,20 @@
 
 package org.apache.flink.kubernetes.taskmanager;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptionsInternal;
+import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** This class is the executable entry point for running a TaskExecutor in a Kubernetes pod. */
 public class KubernetesTaskExecutorRunner {
@@ -36,6 +43,26 @@ public class KubernetesTaskExecutorRunner {
         SignalHandler.register(LOG);
         JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-        TaskManagerRunner.runTaskManagerProcessSecurely(args);
+        runTaskManagerSecurely(args);
+    }
+
+    private static void runTaskManagerSecurely(String[] args) {
+        Configuration configuration = null;
+
+        try {
+            configuration = TaskManagerRunner.loadConfiguration(args);
+            final String nodeId = System.getenv().get(Constants.ENV_FLINK_POD_NODE_ID);
+            Preconditions.checkState(
+                    nodeId != null,
+                    "The environment variable %s is not set, "
+                            + "which is used to identify the node where the task manager is located.",
+                    Constants.ENV_FLINK_POD_NODE_ID);
+            configuration.setString(TaskManagerOptionsInternal.TASK_MANAGER_NODE_ID, nodeId);
+        } catch (FlinkParseException fpe) {
+            LOG.error("Could not load the configuration.", fpe);
+            System.exit(TaskManagerRunner.FAILURE_EXIT_CODE);
+        }
+
+        TaskManagerRunner.runTaskManagerProcessSecurely(checkNotNull(configuration));
     }
 }

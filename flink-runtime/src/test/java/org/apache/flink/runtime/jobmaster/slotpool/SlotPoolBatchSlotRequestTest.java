@@ -41,7 +41,6 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -131,33 +130,6 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
             for (CompletableFuture<PhysicalSlot> slotFuture : slotFutures) {
                 assertThat(slotFuture.isDone(), is(false));
             }
-        }
-    }
-
-    /**
-     * Tests that a batch slot request does react to {@link
-     * SlotPoolService#notifyNotEnoughResourcesAvailable}.
-     */
-    @Test
-    public void testPendingBatchSlotRequestFailsIfAllocationFailsUnfulfillably() throws Exception {
-        final TestingResourceManagerGateway testingResourceManagerGateway =
-                new TestingResourceManagerGateway();
-
-        try (final DeclarativeSlotPoolBridge slotPool =
-                new DeclarativeSlotPoolBridgeBuilder()
-                        .setResourceManagerGateway(testingResourceManagerGateway)
-                        .buildAndStart(mainThreadExecutor)) {
-
-            final CompletableFuture<PhysicalSlot> slotFuture =
-                    SlotPoolUtils.requestNewAllocatedBatchSlot(
-                            slotPool, mainThreadExecutor, resourceProfile);
-
-            SlotPoolUtils.notifyNotEnoughResourcesAvailable(
-                    slotPool, mainThreadExecutor, Collections.emptyList());
-
-            assertThat(
-                    slotFuture,
-                    FlinkMatchers.futureWillCompleteExceptionally(Duration.ofSeconds(10L)));
         }
     }
 

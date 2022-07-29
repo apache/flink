@@ -25,10 +25,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blocklist.BlocklistOperations;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.executiongraph.SpeculativeExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategyFactoryLoader;
@@ -40,31 +43,31 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
-import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkChecker;
-import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkCheckerImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
-import org.apache.flink.runtime.scheduler.DefaultExecutionVertexOperations;
+import org.apache.flink.runtime.scheduler.DefaultExecutionOperations;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
-import org.apache.flink.runtime.scheduler.SlotSharingExecutionSlotAllocatorFactory;
+import org.apache.flink.runtime.scheduler.SimpleExecutionSlotAllocator;
 import org.apache.flink.runtime.scheduler.strategy.VertexwiseSchedulingStrategy;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.util.SlotSelectionStrategyUtils;
-import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -91,7 +94,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             long initializationTimestamp,
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
-            JobStatusListener jobStatusListener)
+            JobStatusListener jobStatusListener,
+            BlocklistOperations blocklistOperations)
             throws Exception {
 
         checkState(
@@ -107,17 +111,15 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                                         new IllegalStateException(
                                                 "The AdaptiveBatchScheduler requires a SlotPool."));
 
-        final SlotSelectionStrategy slotSelectionStrategy =
-                SlotSelectionStrategyUtils.selectSlotSelectionStrategy(
-                        JobType.BATCH, jobMasterConfiguration);
-        final PhysicalSlotRequestBulkChecker bulkChecker =
-                PhysicalSlotRequestBulkCheckerImpl.createFromSlotPool(
-                        slotPool, SystemClock.getInstance());
-        final PhysicalSlotProvider physicalSlotProvider =
-                new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
+        final boolean enableSpeculativeExecution =
+                jobMasterConfiguration.getBoolean(JobManagerOptions.SPECULATIVE_ENABLED);
+
+        final List<Consumer<ComponentMainThreadExecutor>> startUpActions = new ArrayList<>();
+        final Consumer<ComponentMainThreadExecutor> combinedStartUpActions =
+                m -> startUpActions.forEach(a -> a.accept(m));
+
         final ExecutionSlotAllocatorFactory allocatorFactory =
-                new SlotSharingExecutionSlotAllocatorFactory(
-                        physicalSlotProvider, false, bulkChecker, slotRequestTimeout);
+                createExecutionSlotAllocatorFactory(jobMasterConfiguration, slotPool);
 
         final RestartBackoffTimeStrategy restartBackoffTimeStrategy =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
@@ -145,34 +147,87 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                         blobWriter,
                         shuffleMaster,
                         partitionTracker,
-                        true);
+                        true,
+                        createExecutionJobVertexFactory(enableSpeculativeExecution));
 
-        return new AdaptiveBatchScheduler(
-                log,
-                jobGraph,
-                ioExecutor,
-                jobMasterConfiguration,
-                bulkChecker::start,
-                new ScheduledExecutorServiceAdapter(futureExecutor),
-                userCodeLoader,
-                new CheckpointsCleaner(),
-                checkpointRecoveryFactory,
-                jobManagerJobMetricGroup,
-                new VertexwiseSchedulingStrategy.Factory(),
-                FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(jobMasterConfiguration),
-                restartBackoffTimeStrategy,
-                new DefaultExecutionVertexOperations(),
-                new ExecutionVertexVersioner(),
-                allocatorFactory,
-                initializationTimestamp,
-                mainThreadExecutor,
-                jobStatusListener,
-                executionGraphFactory,
-                shuffleMaster,
-                rpcTimeout,
-                DefaultVertexParallelismDecider.from(jobMasterConfiguration),
-                DefaultVertexParallelismDecider.getNormalizedMaxParallelism(
-                        jobMasterConfiguration));
+        if (enableSpeculativeExecution) {
+            return new SpeculativeScheduler(
+                    log,
+                    jobGraph,
+                    ioExecutor,
+                    jobMasterConfiguration,
+                    combinedStartUpActions,
+                    new ScheduledExecutorServiceAdapter(futureExecutor),
+                    userCodeLoader,
+                    new CheckpointsCleaner(),
+                    checkpointRecoveryFactory,
+                    jobManagerJobMetricGroup,
+                    new VertexwiseSchedulingStrategy.Factory(),
+                    FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(
+                            jobMasterConfiguration),
+                    restartBackoffTimeStrategy,
+                    new DefaultExecutionOperations(),
+                    new ExecutionVertexVersioner(),
+                    allocatorFactory,
+                    initializationTimestamp,
+                    mainThreadExecutor,
+                    jobStatusListener,
+                    executionGraphFactory,
+                    shuffleMaster,
+                    rpcTimeout,
+                    DefaultVertexParallelismDecider.from(jobMasterConfiguration),
+                    DefaultVertexParallelismDecider.getNormalizedMaxParallelism(
+                            jobMasterConfiguration),
+                    blocklistOperations);
+        } else {
+            return new AdaptiveBatchScheduler(
+                    log,
+                    jobGraph,
+                    ioExecutor,
+                    jobMasterConfiguration,
+                    combinedStartUpActions,
+                    new ScheduledExecutorServiceAdapter(futureExecutor),
+                    userCodeLoader,
+                    new CheckpointsCleaner(),
+                    checkpointRecoveryFactory,
+                    jobManagerJobMetricGroup,
+                    new VertexwiseSchedulingStrategy.Factory(),
+                    FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(
+                            jobMasterConfiguration),
+                    restartBackoffTimeStrategy,
+                    new DefaultExecutionOperations(),
+                    new ExecutionVertexVersioner(),
+                    allocatorFactory,
+                    initializationTimestamp,
+                    mainThreadExecutor,
+                    jobStatusListener,
+                    executionGraphFactory,
+                    shuffleMaster,
+                    rpcTimeout,
+                    DefaultVertexParallelismDecider.from(jobMasterConfiguration),
+                    DefaultVertexParallelismDecider.getNormalizedMaxParallelism(
+                            jobMasterConfiguration));
+        }
+    }
+
+    private static ExecutionSlotAllocatorFactory createExecutionSlotAllocatorFactory(
+            Configuration configuration, SlotPool slotPool) {
+        final SlotSelectionStrategy slotSelectionStrategy =
+                SlotSelectionStrategyUtils.selectSlotSelectionStrategy(
+                        JobType.BATCH, configuration);
+        final PhysicalSlotProvider physicalSlotProvider =
+                new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
+
+        return new SimpleExecutionSlotAllocator.Factory(physicalSlotProvider, false);
+    }
+
+    private static ExecutionJobVertex.Factory createExecutionJobVertexFactory(
+            boolean enableSpeculativeExecution) {
+        if (enableSpeculativeExecution) {
+            return new SpeculativeExecutionJobVertex.Factory();
+        } else {
+            return new ExecutionJobVertex.Factory();
+        }
     }
 
     private void checkAllExchangesBlocking(final JobGraph jobGraph) {

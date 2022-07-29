@@ -19,6 +19,7 @@ package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
+import org.apache.flink.runtime.rpc.Local;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -359,10 +360,6 @@ class ContextClassLoadingSettingTest {
 
         CompletableFuture<Void> doSomethingAsync();
 
-        CompletableFuture<ClassLoader> doCallAsync();
-
-        CompletableFuture<ClassLoader> doRunAsync();
-
         void doSomethingWithoutReturningAnything();
 
         CompletableFuture<PickyObject> getPickyObject();
@@ -414,13 +411,11 @@ class ContextClassLoadingSettingTest {
             return rpcResponseFuture;
         }
 
-        @Override
         public CompletableFuture<ClassLoader> doCallAsync() {
             return callAsync(
                     () -> Thread.currentThread().getContextClassLoader(), Duration.ofSeconds(10));
         }
 
-        @Override
         public CompletableFuture<ClassLoader> doRunAsync() {
             final CompletableFuture<ClassLoader> contextClassLoader = new CompletableFuture<>();
             runAsync(
@@ -445,6 +440,7 @@ class ContextClassLoadingSettingTest {
         }
 
         @Override
+        @Local
         public CompletableFuture<ClassLoader> getContextClassLoader() {
             return CompletableFuture.completedFuture(
                     Thread.currentThread().getContextClassLoader());

@@ -21,6 +21,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
+import org.apache.flink.connector.aws.testutils.AWSServicesTestUtils;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -41,8 +42,8 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.core.SdkSystemSetting;
-import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
-import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.GetRecordsRequest;
@@ -80,17 +81,17 @@ class KinesisStreamsSinkITCase {
                     .withNetworkAliases("kinesalite");
 
     private StreamExecutionEnvironment env;
-    private SdkAsyncHttpClient httpClient;
-    private KinesisAsyncClient kinesisClient;
+    private SdkHttpClient httpClient;
+    private KinesisClient kinesisClient;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() {
         System.setProperty(SdkSystemSetting.CBOR_ENABLED.property(), "false");
 
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        httpClient = KINESALITE.buildSdkAsyncHttpClient();
+        httpClient = AWSServicesTestUtils.createHttpClient();
         kinesisClient = KINESALITE.createHostClient(httpClient);
     }
 
@@ -455,7 +456,6 @@ class KinesisStreamsSinkITCase {
                                             .shardIteratorType(ShardIteratorType.TRIM_HORIZON)
                                             .streamName(kinesaliteStreamName)
                                             .build())
-                            .get()
                             .shardIterator();
 
             Assertions.assertThat(
@@ -464,7 +464,6 @@ class KinesisStreamsSinkITCase {
                                             GetRecordsRequest.builder()
                                                     .shardIterator(shardIterator)
                                                     .build())
-                                    .get()
                                     .records()
                                     .size())
                     .isEqualTo(expectedElements);
@@ -538,13 +537,8 @@ class KinesisStreamsSinkITCase {
                             .withConstantThroughput()
                             .build();
 
-            kinesisClient
-                    .createStream(
-                            CreateStreamRequest.builder()
-                                    .streamName(streamName)
-                                    .shardCount(1)
-                                    .build())
-                    .get();
+            kinesisClient.createStream(
+                    CreateStreamRequest.builder().streamName(streamName).shardCount(1).build());
 
             Deadline deadline = Deadline.fromNow(Duration.ofMinutes(1));
             while (!rateLimiter.getWhenReady(() -> streamExists(streamName))) {
@@ -561,7 +555,6 @@ class KinesisStreamsSinkITCase {
                                         DescribeStreamRequest.builder()
                                                 .streamName(streamName)
                                                 .build())
-                                .get()
                                 .streamDescription()
                                 .streamStatus()
                         == StreamStatus.ACTIVE;

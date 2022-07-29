@@ -32,6 +32,7 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.util.MutableIOMetrics;
+import org.apache.flink.runtime.rest.messages.AggregatedTaskDetailsInfo;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
@@ -39,6 +40,7 @@ import org.apache.flink.runtime.rest.messages.JobVertexMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobVertexTaskManagersInfo;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.job.StatusDurationUtils;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -56,6 +58,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 /**
  * A request handler that provides the details of a job vertex, including id, name, and the runtime
@@ -151,6 +154,13 @@ public class JobVertexTaskManagersHandler
             String host = taskManagerId2Host.get(taskmanagerId);
             List<AccessExecutionVertex> taskVertices = entry.getValue();
 
+            List<IOMetricsInfo> ioMetricsInfos = new ArrayList<>();
+            List<Map<ExecutionState, Long>> status =
+                    taskVertices.stream()
+                            .map(AccessExecutionVertex::getCurrentExecutionAttempt)
+                            .map(StatusDurationUtils::getExecutionStateDuration)
+                            .collect(Collectors.toList());
+
             int[] tasksPerState = new int[ExecutionState.values().length];
 
             long startTime = Long.MAX_VALUE;
@@ -177,6 +187,25 @@ public class JobVertexTaskManagersHandler
                         metricFetcher,
                         jobID.toString(),
                         jobVertex.getJobVertexId().toString());
+                MutableIOMetrics current = new MutableIOMetrics();
+                current.addIOMetrics(
+                        vertex.getCurrentExecutionAttempt(),
+                        metricFetcher,
+                        jobID.toString(),
+                        jobVertex.getJobVertexId().toString());
+                ioMetricsInfos.add(
+                        new IOMetricsInfo(
+                                current.getNumBytesIn(),
+                                current.isNumBytesInComplete(),
+                                current.getNumBytesOut(),
+                                current.isNumBytesOutComplete(),
+                                current.getNumRecordsIn(),
+                                current.isNumRecordsInComplete(),
+                                current.getNumRecordsOut(),
+                                current.isNumRecordsOutComplete(),
+                                current.getAccumulateBackPressuredTime(),
+                                current.getAccumulateIdleTime(),
+                                current.getAccumulateBusyTime()));
             }
 
             long duration;
@@ -206,7 +235,10 @@ public class JobVertexTaskManagersHandler
                             counts.getNumRecordsIn(),
                             counts.isNumRecordsInComplete(),
                             counts.getNumRecordsOut(),
-                            counts.isNumRecordsOutComplete());
+                            counts.isNumRecordsOutComplete(),
+                            counts.getAccumulateBackPressuredTime(),
+                            counts.getAccumulateIdleTime(),
+                            counts.getAccumulateBusyTime());
 
             Map<ExecutionState, Integer> statusCounts =
                     new HashMap<>(ExecutionState.values().length);
@@ -222,7 +254,8 @@ public class JobVertexTaskManagersHandler
                             duration,
                             jobVertexMetrics,
                             statusCounts,
-                            taskmanagerId));
+                            taskmanagerId,
+                            AggregatedTaskDetailsInfo.create(ioMetricsInfos, status)));
         }
 
         return new JobVertexTaskManagersInfo(

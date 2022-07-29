@@ -25,10 +25,10 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
-import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfo;
-import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoEntry;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
 import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
+import org.apache.flink.runtime.rest.messages.ConfigurationInfo;
+import org.apache.flink.runtime.rest.messages.ConfigurationInfoEntry;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
@@ -55,6 +55,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
@@ -131,7 +132,7 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     }
 
     @AfterAll
-    static void tearDown() throws Exception {
+    static void teardown() throws Exception {
         try {
             YarnTestBase.teardown();
         } finally {
@@ -424,16 +425,15 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
     private static Map<String, String> getFlinkConfig(final String host, final int port)
             throws Exception {
-        final ClusterConfigurationInfo clusterConfigurationInfoEntries =
+        final ConfigurationInfo configurationInfoEntries =
                 restClient
                         .sendRequest(host, port, ClusterConfigurationInfoHeaders.getInstance())
                         .get();
 
-        return clusterConfigurationInfoEntries.stream()
+        return configurationInfoEntries.stream()
                 .collect(
                         Collectors.toMap(
-                                ClusterConfigurationInfoEntry::getKey,
-                                ClusterConfigurationInfoEntry::getValue));
+                                ConfigurationInfoEntry::getKey, ConfigurationInfoEntry::getValue));
     }
 
     /**
@@ -521,14 +521,15 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     /** Test a fire-and-forget job submission to a YARN cluster. */
     @Timeout(value = 60)
     @Test
-    void testDetachedPerJobYarnCluster() throws Exception {
+    void testDetachedPerJobYarnCluster(@TempDir File tempDir) throws Exception {
         runTest(
                 () -> {
                     LOG.info("Starting testDetachedPerJobYarnCluster()");
 
                     File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
 
-                    testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
+                    testDetachedPerJobYarnClusterInternal(
+                            tempDir, exampleJarLocation.getAbsolutePath());
 
                     LOG.info("Finished testDetachedPerJobYarnCluster()");
                 });
@@ -537,29 +538,27 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     /** Test a fire-and-forget job submission to a YARN cluster. */
     @Timeout(value = 60)
     @Test
-    void testDetachedPerJobYarnClusterWithStreamingJob() throws Exception {
+    void testDetachedPerJobYarnClusterWithStreamingJob(@TempDir File tempDir) throws Exception {
         runTest(
                 () -> {
                     LOG.info("Starting testDetachedPerJobYarnClusterWithStreamingJob()");
 
                     File exampleJarLocation = getTestJarPath("StreamingWordCount.jar");
 
-                    testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
+                    testDetachedPerJobYarnClusterInternal(
+                            tempDir, exampleJarLocation.getAbsolutePath());
 
                     LOG.info("Finished testDetachedPerJobYarnClusterWithStreamingJob()");
                 });
     }
 
-    private void testDetachedPerJobYarnClusterInternal(String job) throws Exception {
+    private void testDetachedPerJobYarnClusterInternal(File tempDir, String job) throws Exception {
         YarnClient yc = YarnClient.createYarnClient();
         yc.init(YARN_CONFIGURATION);
         yc.start();
 
-        // get temporary folder for writing output of wordcount example
-        File tmpOutFolder = tmp;
-
         // get temporary file for reading input data for wordcount example
-        File tmpInFile = tmpOutFolder.toPath().resolve(UUID.randomUUID().toString()).toFile();
+        File tmpInFile = tempDir.toPath().resolve(UUID.randomUUID().toString()).toFile();
         tmpInFile.createNewFile();
         try {
             FileUtils.writeStringToFile(tmpInFile, WordCountData.TEXT, Charset.defaultCharset());
@@ -592,7 +591,7 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                             "--input",
                             tmpInFile.getAbsoluteFile().toString(),
                             "--output",
-                            tmpOutFolder.getAbsoluteFile().toString()
+                            tempDir.getAbsoluteFile().toString()
                         },
                         "Job has been submitted with JobID",
                         RunTypes.CLI_FRONTEND);
@@ -646,10 +645,10 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
             // now it has finished.
             // check the output files.
-            File[] listOfOutputFiles = tmpOutFolder.listFiles();
+            File[] listOfOutputFiles = tempDir.listFiles();
 
             assertThat(listOfOutputFiles).isNotNull();
-            LOG.info("The job has finished. TaskManager output files found in {}", tmpOutFolder);
+            LOG.info("The job has finished. TaskManager output files found in {}", tempDir);
 
             // read all output files in output folder to one output string
             StringBuilder content = new StringBuilder();

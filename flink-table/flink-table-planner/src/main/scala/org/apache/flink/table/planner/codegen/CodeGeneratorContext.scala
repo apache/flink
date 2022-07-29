@@ -547,6 +547,31 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
     fieldTerm
   }
 
+  /**
+   * Adds a reusable query-level current database to the beginning of the SAM of the generated
+   * class.
+   *
+   * <p> The current database value is evaluated once at query-start.
+   */
+  def addReusableQueryLevelCurrentDatabase(): String = {
+    val fieldTerm = s"queryCurrentDatabase"
+
+    val queryStartCurrentDatabase = tableConfig
+      .getOptional(InternalConfigOptions.TABLE_QUERY_CURRENT_DATABASE)
+      .orElseThrow(new JSupplier[Throwable] {
+        override def get() = new CodeGenException(
+          "Try to obtain current database of query-start fail." +
+            " This is a bug, please file an issue.")
+      })
+
+    reusableMemberStatements.add(s"""
+                                    |private static final $BINARY_STRING $fieldTerm =
+                                    |$BINARY_STRING.fromString("$queryStartCurrentDatabase");
+                                    |""".stripMargin)
+
+    fieldTerm
+  }
+
   /** Adds a reusable record-level local time to the beginning of the SAM of the generated class. */
   def addReusableRecordLevelLocalTime(): String = {
     val fieldTerm = s"localTime"

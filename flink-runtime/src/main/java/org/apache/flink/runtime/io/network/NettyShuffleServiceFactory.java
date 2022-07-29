@@ -38,7 +38,6 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
-import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.slf4j.Logger;
@@ -81,7 +80,9 @@ public class NettyShuffleServiceFactory
                 shuffleEnvironmentContext.getTaskExecutorResourceId(),
                 shuffleEnvironmentContext.getEventPublisher(),
                 shuffleEnvironmentContext.getParentMetricGroup(),
-                shuffleEnvironmentContext.getIoExecutor());
+                shuffleEnvironmentContext.getIoExecutor(),
+                shuffleEnvironmentContext.getNumberOfSlots(),
+                shuffleEnvironmentContext.getTmpDirPaths());
     }
 
     @VisibleForTesting
@@ -90,14 +91,18 @@ public class NettyShuffleServiceFactory
             ResourceID taskExecutorResourceId,
             TaskEventPublisher taskEventPublisher,
             MetricGroup metricGroup,
-            Executor ioExecutor) {
+            Executor ioExecutor,
+            int numberOfSlots,
+            String[] tmpDirPaths) {
         return createNettyShuffleEnvironment(
                 config,
                 taskExecutorResourceId,
                 taskEventPublisher,
                 new ResultPartitionManager(),
                 metricGroup,
-                ioExecutor);
+                ioExecutor,
+                numberOfSlots,
+                tmpDirPaths);
     }
 
     @VisibleForTesting
@@ -107,7 +112,9 @@ public class NettyShuffleServiceFactory
             TaskEventPublisher taskEventPublisher,
             ResultPartitionManager resultPartitionManager,
             MetricGroup metricGroup,
-            Executor ioExecutor) {
+            Executor ioExecutor,
+            int numberOfSlots,
+            String[] tmpDirPaths) {
         NettyConfig nettyConfig = config.nettyConfig();
         ConnectionManager connectionManager =
                 nettyConfig != null
@@ -125,7 +132,9 @@ public class NettyShuffleServiceFactory
                 resultPartitionManager,
                 connectionManager,
                 metricGroup,
-                ioExecutor);
+                ioExecutor,
+                numberOfSlots,
+                tmpDirPaths);
     }
 
     @VisibleForTesting
@@ -136,7 +145,9 @@ public class NettyShuffleServiceFactory
             ResultPartitionManager resultPartitionManager,
             ConnectionManager connectionManager,
             MetricGroup metricGroup,
-            Executor ioExecutor) {
+            Executor ioExecutor,
+            int numberOfSlots,
+            String[] tmpDirPaths) {
         checkNotNull(config);
         checkNotNull(taskExecutorResourceId);
         checkNotNull(taskEventPublisher);
@@ -177,7 +188,7 @@ public class NettyShuffleServiceFactory
                                 1,
                                 Math.min(
                                         batchShuffleReadBufferPool.getMaxConcurrentRequests(),
-                                        4 * Hardware.getNumberCPUCores())),
+                                        Math.max(numberOfSlots, tmpDirPaths.length))),
                         new ExecutorThreadFactory("blocking-shuffle-io"));
 
         registerShuffleMetrics(metricGroup, networkBufferPool);
@@ -198,7 +209,8 @@ public class NettyShuffleServiceFactory
                         config.getMaxBuffersPerChannel(),
                         config.sortShuffleMinBuffers(),
                         config.sortShuffleMinParallelism(),
-                        config.isSSLEnabled());
+                        config.isSSLEnabled(),
+                        config.getMaxOverdraftBuffersPerGate());
 
         SingleInputGateFactory singleInputGateFactory =
                 new SingleInputGateFactory(

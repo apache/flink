@@ -255,6 +255,7 @@ public class StreamTaskTestHarness<OUT> {
 
         streamConfig.setOutEdgesInOrder(outEdgesInOrder);
         streamConfig.setNonChainedOutputs(outEdgesInOrder);
+        streamConfig.serializeAllConfigs();
     }
 
     public StreamMockEnvironment createEnvironment() {
@@ -280,6 +281,7 @@ public class StreamTaskTestHarness<OUT> {
      * thread to finish running.
      */
     public Thread invoke() throws Exception {
+        streamConfig.serializeAllConfigs();
         return invoke(createEnvironment());
     }
 
@@ -295,6 +297,7 @@ public class StreamTaskTestHarness<OUT> {
 
         initializeInputs();
         initializeOutput();
+        streamConfig.serializeAllConfigs();
 
         taskThread = new TaskThread(() -> taskFactory.apply(mockEnv));
         taskThread.start();
@@ -508,6 +511,7 @@ public class StreamTaskTestHarness<OUT> {
         setupCalled = true;
         StreamConfig streamConfig = getStreamConfig();
         streamConfig.setStreamOperatorFactory(headOperatorFactory);
+        streamConfig.serializeAllConfigs();
         return new StreamConfigChainer(headOperatorId, streamConfig, this, 1);
     }
 

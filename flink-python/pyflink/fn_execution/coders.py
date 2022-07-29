@@ -606,6 +606,15 @@ class DataViewFilterCoder(FieldCoder):
         return coder_impl.DataViewFilterCoderImpl(self._udf_data_view_specs)
 
 
+class AvroCoder(FieldCoder):
+
+    def __init__(self, schema_string: str):
+        self._schema_string = schema_string
+
+    def get_impl(self):
+        return coder_impl.AvroCoderImpl(self._schema_string)
+
+
 def from_proto(field_type):
     """
     Creates the corresponding :class:`Coder` given the protocol representation of the field type.
@@ -702,6 +711,8 @@ def from_type_info_proto(type_info):
         elif field_type_name == type_info_name.MAP:
             return MapCoder(from_type_info_proto(type_info.map_type_info.key_type),
                             from_type_info_proto(type_info.map_type_info.value_type))
+        elif field_type_name == type_info_name.AVRO:
+            return AvroCoder(type_info.avro_type_info.schema)
         else:
             raise ValueError("Unsupported type_info %s." % type_info)
 

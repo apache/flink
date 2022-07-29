@@ -91,7 +91,7 @@ public class ChangelogKeyedStateBackendTest {
                         IntSerializer.INSTANCE,
                         getClass().getClassLoader(),
                         1,
-                        KeyGroupRange.EMPTY_KEY_GROUP_RANGE,
+                        KeyGroupRange.of(0, 0),
                         new ExecutionConfig(),
                         TtlTimeProvider.DEFAULT,
                         LatencyTrackingStateConfig.disabled(),

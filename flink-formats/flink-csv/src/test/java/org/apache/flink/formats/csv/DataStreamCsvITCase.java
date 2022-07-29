@@ -161,12 +161,14 @@ public class DataStreamCsvITCase {
     public void testCsvReaderFormatFromSchema() throws Exception {
         writeFile(outDir, "data.csv", CSV_LINES_PIPE_SEPARATED);
 
-        CsvMapper mapper = new CsvMapper();
-        CsvSchema schema =
-                mapper.schemaFor(CityPojo.class).withoutQuoteChar().withColumnSeparator('|');
-
         final CsvReaderFormat<CityPojo> csvFormat =
-                CsvReaderFormat.forSchema(mapper, schema, TypeInformation.of(CityPojo.class));
+                CsvReaderFormat.forSchema(
+                        () -> new CsvMapper(),
+                        mapper ->
+                                mapper.schemaFor(CityPojo.class)
+                                        .withoutQuoteChar()
+                                        .withColumnSeparator('|'),
+                        TypeInformation.of(CityPojo.class));
         final List<CityPojo> result = initializeSourceAndReadData(outDir, csvFormat);
 
         assertThat(Arrays.asList(POJOS)).isEqualTo(result);

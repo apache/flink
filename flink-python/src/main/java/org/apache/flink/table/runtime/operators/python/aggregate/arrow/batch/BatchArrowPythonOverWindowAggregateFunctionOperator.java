@@ -39,8 +39,8 @@ import java.util.ListIterator;
 
 import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
 import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createOverWindowArrowTypeCoderInfoDescriptorProto;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedFunctionProto;
+import static org.apache.flink.python.util.ProtoUtils.createOverWindowArrowTypeCoderInfoDescriptorProto;
+import static org.apache.flink.python.util.ProtoUtils.createUserDefinedFunctionProto;
 
 /** The Batch Arrow Python {@link AggregateFunction} Operator for Over Window Aggregation. */
 @Internal
@@ -251,13 +251,13 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
     }
 
     @Override
-    public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
+    public FlinkFnApi.UserDefinedFunctions createUserDefinedFunctionsProto() {
         FlinkFnApi.UserDefinedFunctions.Builder builder =
                 FlinkFnApi.UserDefinedFunctions.newBuilder();
         // add udaf proto
         for (int i = 0; i < pandasAggFunctions.length; i++) {
             FlinkFnApi.UserDefinedFunction.Builder functionBuilder =
-                    getUserDefinedFunctionProto(pandasAggFunctions[i]).toBuilder();
+                    createUserDefinedFunctionProto(pandasAggFunctions[i]).toBuilder();
             functionBuilder.setWindowIndex(aggWindowIndex[i]);
             builder.addUdfs(functionBuilder);
         }

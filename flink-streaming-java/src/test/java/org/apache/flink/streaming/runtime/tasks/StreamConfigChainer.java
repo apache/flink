@@ -157,6 +157,7 @@ public class StreamConfigChainer<OWNER> {
                     ManagedMemoryUseCase.STATE_BACKEND, 1.0);
         }
         tailConfig.setChainIndex(chainIndex);
+        tailConfig.serializeAllConfigs();
 
         chainedConfigs.put(chainIndex, tailConfig);
 
@@ -191,8 +192,11 @@ public class StreamConfigChainer<OWNER> {
         tailConfig.setNumberOfOutputs(numberOfNonChainedOutputs);
         tailConfig.setOutEdgesInOrder(outEdgesInOrder);
         tailConfig.setNonChainedOutputs(outEdgesInOrder);
-        headConfig.setTransitiveChainedTaskConfigs(chainedConfigs);
+        chainedConfigs.values().forEach(StreamConfig::serializeAllConfigs);
+
+        headConfig.setAndSerializeTransitiveChainedTaskConfigs(chainedConfigs);
         headConfig.setOutEdgesInOrder(outEdgesInOrder);
+        headConfig.serializeAllConfigs();
 
         return owner;
     }
@@ -238,9 +242,11 @@ public class StreamConfigChainer<OWNER> {
         headConfig.setNumberOfOutputs(1);
         headConfig.setOutEdgesInOrder(outEdgesInOrder);
         headConfig.setNonChainedOutputs(outEdgesInOrder);
-        headConfig.setTransitiveChainedTaskConfigs(chainedConfigs);
+        chainedConfigs.values().forEach(StreamConfig::serializeAllConfigs);
+        headConfig.setAndSerializeTransitiveChainedTaskConfigs(chainedConfigs);
         headConfig.setOutEdgesInOrder(outEdgesInOrder);
         headConfig.setTypeSerializerOut(outputSerializer);
+        headConfig.serializeAllConfigs();
 
         return owner;
     }

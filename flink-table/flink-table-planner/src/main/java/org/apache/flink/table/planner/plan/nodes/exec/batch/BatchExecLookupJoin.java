@@ -59,6 +59,7 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchEx
                 lookupKeys,
                 projectionOnTemporalTable,
                 filterOnTemporalTable,
+                true,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

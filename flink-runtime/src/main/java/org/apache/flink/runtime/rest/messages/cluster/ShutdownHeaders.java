@@ -70,4 +70,9 @@ public class ShutdownHeaders
     public String getDescription() {
         return "Shuts down the cluster";
     }
+
+    @Override
+    public String operationId() {
+        return "shutdownCluster";
+    }
 }

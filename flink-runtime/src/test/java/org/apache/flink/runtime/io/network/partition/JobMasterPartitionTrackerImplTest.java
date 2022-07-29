@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -35,6 +36,8 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -297,6 +300,47 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
                 externallyReleasedPartitions, containsInAnyOrder(jobPartitionId0, jobPartitionId1));
     }
 
+    @Test
+    public void testGetShuffleDescriptors() {
+        final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
+        IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
+
+        final Queue<ReleaseCall> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
+        final JobMasterPartitionTrackerImpl partitionTracker =
+                new JobMasterPartitionTrackerImpl(
+                        new JobID(),
+                        shuffleMaster,
+                        resourceId ->
+                                Optional.of(
+                                        createTaskExecutorGateway(
+                                                resourceId, taskExecutorReleaseCalls)));
+
+        TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+        partitionTracker.connectToResourceManager(resourceManagerGateway);
+        partitionTracker.getClusterPartitionShuffleDescriptors(intermediateDataSetId);
+
+        assertThat(
+                resourceManagerGateway.requestedIntermediateDataSetIds,
+                contains(intermediateDataSetId));
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testGetShuffleDescriptorsBeforeConnectToResourceManager() {
+        final TestingShuffleMaster shuffleMaster = new TestingShuffleMaster();
+        IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
+
+        final Queue<ReleaseCall> taskExecutorReleaseCalls = new ArrayBlockingQueue<>(4);
+        final JobMasterPartitionTrackerImpl partitionTracker =
+                new JobMasterPartitionTrackerImpl(
+                        new JobID(),
+                        shuffleMaster,
+                        resourceId ->
+                                Optional.of(
+                                        createTaskExecutorGateway(
+                                                resourceId, taskExecutorReleaseCalls)));
+        partitionTracker.getClusterPartitionShuffleDescriptors(intermediateDataSetId);
+    }
+
     private static TaskExecutorGateway createTaskExecutorGateway(
             ResourceID taskExecutorId, Collection<ReleaseCall> releaseOrPromoteCalls) {
         return new TestingTaskExecutorGatewayBuilder()
@@ -326,6 +370,20 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
         @Override
         public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
             externallyReleasedPartitions.add(shuffleDescriptor.getResultPartitionID());
+        }
+    }
+
+    private static class TestingResourceManagerGateway
+            extends org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway {
+
+        private final List<IntermediateDataSetID> requestedIntermediateDataSetIds =
+                new ArrayList<>();
+
+        @Override
+        public CompletableFuture<List<ShuffleDescriptor>> getClusterPartitionsShuffleDescriptors(
+                IntermediateDataSetID intermediateDataSetID) {
+            requestedIntermediateDataSetIds.add(intermediateDataSetID);
+            return CompletableFuture.completedFuture(Collections.emptyList());
         }
     }
 

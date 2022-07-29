@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.planner.utils.FilterUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BooleanType;
@@ -44,7 +45,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** Use TestValuesCatalog to test partition push down. */
+/** Use TestValuesCatalog to test partition push down and create function definition. */
 public class TestValuesCatalog extends GenericInMemoryCatalog {
     private final boolean supportListPartitionByFilter;
 
@@ -93,6 +94,11 @@ public class TestValuesCatalog extends GenericInMemoryCatalog {
                                     resolvedExpressions, getter);
                         })
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<FunctionDefinitionFactory> getFunctionDefinitionFactory() {
+        return Optional.of(new TestFunctionDefinitionFactory());
     }
 
     private Function<String, Comparable<?>> getValueGetter(

@@ -27,11 +27,13 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.net.URL;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
@@ -83,14 +85,18 @@ class FunctionCatalogTest {
 
         moduleManager = new ModuleManager();
 
+        Configuration configuration = new Configuration();
         functionCatalog =
                 new FunctionCatalog(
-                        new Configuration(),
+                        configuration,
+                        ResourceManager.createResourceManager(
+                                new URL[0],
+                                FunctionCatalogTest.class.getClassLoader(),
+                                configuration),
                         CatalogManagerMocks.preparedCatalogManager()
                                 .defaultCatalog(DEFAULT_CATALOG, catalog)
                                 .build(),
-                        moduleManager,
-                        FunctionCatalogTest.class.getClassLoader());
+                        moduleManager);
     }
 
     @Test

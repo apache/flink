@@ -21,8 +21,7 @@ package org.apache.flink.table.client.gateway.context;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions;
-import org.apache.flink.table.utils.TestUserClassLoaderJar;
+import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -43,6 +42,8 @@ import static org.apache.flink.configuration.PipelineOptions.NAME;
 import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.HamcrestCondition.matching;
@@ -59,11 +60,11 @@ public class SessionContextTest {
     @BeforeClass
     public static void prepare() throws Exception {
         udfJar =
-                TestUserClassLoaderJar.createJarFile(
+                UserClassLoaderJarTestUtils.createJarFile(
                         tempFolder.newFolder("test-jar"),
                         "test-classloader-udf.jar",
-                        UserDefinedFunctions.GENERATED_UDF_CLASS,
-                        UserDefinedFunctions.GENERATED_UDF_CODE);
+                        GENERATED_LOWER_UDF_CLASS,
+                        String.format(GENERATED_LOWER_UDF_CODE, GENERATED_LOWER_UDF_CLASS));
     }
 
     @Before
@@ -165,14 +166,6 @@ public class SessionContextTest {
     }
 
     @Test
-    public void testAddIllegalJarInConfig() {
-        Configuration innerConfig = (Configuration) sessionContext.getReadableConfig();
-        innerConfig.set(JARS, Collections.singletonList("/path/to/illegal.jar"));
-
-        validateAddJarWithException(udfJar.getPath(), "no protocol: /path/to/illegal.jar");
-    }
-
-    @Test
     public void testRemoveJarWithFullPath() {
         validateRemoveJar(udfJar.getPath());
     }
@@ -224,14 +217,12 @@ public class SessionContextTest {
         return sessionContext.getExecutionContext().getTableEnvironment().getConfig();
     }
 
-    private void validateAddJar(String jarPath) throws IOException {
+    private void validateAddJar(String jarPath) {
         sessionContext.addJar(jarPath);
         assertThat(sessionContext.listJars()).containsExactly(udfJar.getPath());
-        assertThat(getConfiguration().get(JARS)).containsExactly(udfJar.toURI().toURL().toString());
         // reset to the default
         sessionContext.reset();
         assertThat(sessionContext.listJars()).containsExactly(udfJar.getPath());
-        assertThat(getConfiguration().get(JARS)).containsExactly(udfJar.toURI().toURL().toString());
     }
 
     private void validateRemoveJar(String jarPath) {

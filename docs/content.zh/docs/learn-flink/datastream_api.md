@@ -182,8 +182,7 @@ DataStream<String> lines = env.readTextFile("file:///path");
 
 1> 和 2> 指出输出来自哪个 sub-task（即 thread）
 
-In production, commonly used sinks include the StreamingFileSink, various databases,
-and several pub-sub systems.
+In production, commonly used sinks include various databases and several pub-sub systems.
 
 ### 调试
 

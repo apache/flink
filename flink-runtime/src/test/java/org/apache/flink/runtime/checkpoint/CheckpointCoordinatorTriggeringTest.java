@@ -23,6 +23,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
@@ -716,7 +718,18 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
                         .setTimer(new ScheduledExecutorServiceAdapter(scheduledExecutorService))
                         .setCheckpointCoordinatorConfiguration(
                                 CheckpointCoordinatorConfiguration.builder().build())
-                        .build(EXECUTOR_RESOURCE.getExecutor());
+                        // Since timer thread != main thread we should override the default main
+                        // thread executor because it initially requires triggering a checkpoint
+                        // from the main test thread.
+                        .build(
+                                new CheckpointCoordinatorTestingUtils
+                                                .CheckpointExecutionGraphBuilder()
+                                        .addJobVertex(new JobVertexID())
+                                        .setMainThreadExecutor(
+                                                ComponentMainThreadExecutorServiceAdapter
+                                                        .forSingleThreadExecutor(
+                                                                new DirectScheduledExecutorService()))
+                                        .build(EXECUTOR_RESOURCE.getExecutor()));
 
         final CompletableFuture<String> masterHookCheckpointFuture = new CompletableFuture<>();
         final OneShotLatch triggerCheckpointLatch = new OneShotLatch();

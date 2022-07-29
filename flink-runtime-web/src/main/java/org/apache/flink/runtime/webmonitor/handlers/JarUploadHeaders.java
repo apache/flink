@@ -78,6 +78,11 @@ public final class JarUploadHeaders
     }
 
     @Override
+    public String operationId() {
+        return "uploadJar";
+    }
+
+    @Override
     public boolean acceptsFileUploads() {
         return true;
     }

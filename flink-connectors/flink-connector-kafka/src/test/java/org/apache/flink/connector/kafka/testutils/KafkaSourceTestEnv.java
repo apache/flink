@@ -220,6 +220,10 @@ public class KafkaSourceTestEnv extends KafkaTestBase {
     public static void setupEarliestOffsets(String topic) throws Throwable {
         // Delete some records to move the starting partition.
         List<TopicPartition> partitions = getPartitionsForTopic(topic);
+        setupEarliestOffsets(partitions);
+    }
+
+    public static void setupEarliestOffsets(List<TopicPartition> partitions) throws Throwable {
         Map<TopicPartition, RecordsToDelete> toDelete = new HashMap<>();
         getEarliestOffsets(partitions)
                 .forEach((tp, offset) -> toDelete.put(tp, RecordsToDelete.beforeOffset(offset)));

@@ -24,9 +24,7 @@ import java.util.Properties;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SHARD_GETRECORDS_MAX;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link PollingRecordPublisherConfiguration}. */
 public class PollingRecordPublisherConfigurationTest {
@@ -35,9 +33,9 @@ public class PollingRecordPublisherConfigurationTest {
     public void testDefaults() {
         PollingRecordPublisherConfiguration configuration =
                 new PollingRecordPublisherConfiguration(new Properties());
-        assertEquals(configuration.getFetchIntervalMillis(), 200);
-        assertEquals(configuration.getMaxNumberOfRecordsPerFetch(), 10000);
-        assertFalse(configuration.isAdaptiveReads());
+        assertThat(configuration.getFetchIntervalMillis()).isEqualTo(200);
+        assertThat(configuration.getMaxNumberOfRecordsPerFetch()).isEqualTo(10000);
+        assertThat(configuration.isAdaptiveReads()).isFalse();
     }
 
     @Test
@@ -46,7 +44,7 @@ public class PollingRecordPublisherConfigurationTest {
         PollingRecordPublisherConfiguration configuration =
                 new PollingRecordPublisherConfiguration(properties);
 
-        assertEquals(configuration.getFetchIntervalMillis(), 1);
+        assertThat(configuration.getFetchIntervalMillis()).isEqualTo(1);
     }
 
     @Test
@@ -55,7 +53,7 @@ public class PollingRecordPublisherConfigurationTest {
         PollingRecordPublisherConfiguration configuration =
                 new PollingRecordPublisherConfiguration(properties);
 
-        assertEquals(configuration.getMaxNumberOfRecordsPerFetch(), 2);
+        assertThat(configuration.getMaxNumberOfRecordsPerFetch()).isEqualTo(2);
     }
 
     @Test
@@ -64,7 +62,7 @@ public class PollingRecordPublisherConfigurationTest {
         PollingRecordPublisherConfiguration configuration =
                 new PollingRecordPublisherConfiguration(properties);
 
-        assertTrue(configuration.isAdaptiveReads());
+        assertThat(configuration.isAdaptiveReads()).isTrue();
     }
 
     private Properties properties(final String key, final String value) {

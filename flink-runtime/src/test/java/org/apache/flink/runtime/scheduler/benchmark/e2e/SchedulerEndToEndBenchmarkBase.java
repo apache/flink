@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
 import org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkBase;
@@ -76,8 +77,7 @@ public class SchedulerEndToEndBenchmarkBase extends SchedulerBenchmarkBase {
             ComponentMainThreadExecutor mainThreadExecutor,
             ScheduledExecutorService executorService)
             throws Exception {
-        return new SchedulerTestingUtils.DefaultSchedulerBuilder(
-                        jobGraph, mainThreadExecutor, executorService)
+        return new DefaultSchedulerBuilder(jobGraph, mainThreadExecutor, executorService)
                 .setExecutionSlotAllocatorFactory(
                         SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                 physicalSlotProvider))

@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 /** Test class for {@link OpenApiSpecGenerator}. */
 class OpenApiSpecGeneratorTest {
@@ -84,6 +85,31 @@ class OpenApiSpecGeneratorTest {
                                     "/test/exclude2",
                                     "This REST API should also not appear in the generated documentation."),
                             null));
+        }
+    }
+
+    @Test
+    void testDuplicateOperationIdsAreRejected() throws Exception {
+        File file = File.createTempFile("rest_v0_", ".html");
+        assertThatThrownBy(
+                        () ->
+                                OpenApiSpecGenerator.createDocumentationFile(
+                                        new TestDuplicateOperationIdDocumentingRestEndpoint(),
+                                        RestAPIVersion.V0,
+                                        file.toPath()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Duplicate OperationId");
+    }
+
+    private static class TestDuplicateOperationIdDocumentingRestEndpoint
+            implements DocumentingRestEndpoint {
+
+        @Override
+        public List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(
+                CompletableFuture<String> localAddressFuture) {
+            return Arrays.asList(
+                    Tuple2.of(new TestEmptyMessageHeaders("operation1"), null),
+                    Tuple2.of(new TestEmptyMessageHeaders("operation1"), null));
         }
     }
 }

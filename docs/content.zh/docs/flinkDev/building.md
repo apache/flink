@@ -79,7 +79,7 @@ mvn clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
 
     ```shell
     $ python --version
-    # the version printed here must be 3.6, 3.7 or 3.8
+    # the version printed here must be 3.6, 3.7, 3.8 or 3.9
     ```
 
 3. 构建 PyFlink 的 Cython 扩展模块（可选的）

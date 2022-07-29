@@ -323,6 +323,16 @@ public class ExecutionConfigOptions {
                     .withDescription(
                             "The async timeout for the asynchronous operation to complete.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<AsyncOutputMode> TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE =
+            key("table.exec.async-lookup.output-mode")
+                    .enumType(AsyncOutputMode.class)
+                    .defaultValue(AsyncOutputMode.ORDERED)
+                    .withDescription(
+                            "Output mode for asynchronous operations which will convert to {@see AsyncDataStream.OutputMode}, ORDERED by default. "
+                                    + "If set to ALLOW_UNORDERED, will attempt to use {@see AsyncDataStream.OutputMode.UNORDERED} when it does not "
+                                    + "affect the correctness of the result, otherwise ORDERED will be still used.");
+
     // ------------------------------------------------------------------------
     //  MiniBatch Options
     // ------------------------------------------------------------------------
@@ -571,6 +581,21 @@ public class ExecutionConfigOptions {
 
         /** Add keyed shuffle in any case except single parallelism. */
         FORCE
+    }
+
+    /** Output mode for asynchronous operations, equivalent to {@see AsyncDataStream.OutputMode}. */
+    @PublicEvolving
+    public enum AsyncOutputMode {
+
+        /** Ordered output mode, equivalent to {@see AsyncDataStream.OutputMode.ORDERED}. */
+        ORDERED,
+
+        /**
+         * Allow unordered output mode, will attempt to use {@see
+         * AsyncDataStream.OutputMode.UNORDERED} when it does not affect the correctness of the
+         * result, otherwise ORDERED will be still used.
+         */
+        ALLOW_UNORDERED
     }
 
     /** Determine if CAST operates using the legacy behaviour or the new one. */

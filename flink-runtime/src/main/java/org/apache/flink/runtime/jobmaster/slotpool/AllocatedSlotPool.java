@@ -103,6 +103,14 @@ public interface AllocatedSlotPool {
     Optional<AllocatedSlot> freeReservedSlot(AllocationID allocationId, long currentTime);
 
     /**
+     * Returns slot information specified by the given allocationId.
+     *
+     * @return the slot information if there was a slot with the given allocationId; otherwise
+     *     {@link Optional#empty()}
+     */
+    Optional<SlotInfo> getSlotInformation(AllocationID allocationID);
+
+    /**
      * Returns information about all currently free slots.
      *
      * @return collection of free slot information

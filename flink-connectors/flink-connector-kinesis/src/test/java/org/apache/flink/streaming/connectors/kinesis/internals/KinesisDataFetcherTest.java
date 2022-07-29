@@ -50,7 +50,6 @@ import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableLong;
-import org.junit.Assert;
 import org.junit.Test;
 import org.powermock.reflect.Whitebox;
 
@@ -73,11 +72,8 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonList;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -90,10 +86,10 @@ public class KinesisDataFetcherTest extends TestLogger {
         KinesisDataFetcher<String> fetcher =
                 createTestDataFetcherWithNoShards(10, 2, "test-stream");
 
-        assertTrue(fetcher.isRunning());
+        assertThat(fetcher.isRunning()).isTrue();
     }
 
-    @Test(timeout = 10000)
+    @Test
     public void testIsRunningFalseAfterShutDown() throws InterruptedException {
         KinesisDataFetcher<String> fetcher =
                 createTestDataFetcherWithNoShards(10, 2, "test-stream");
@@ -101,7 +97,7 @@ public class KinesisDataFetcherTest extends TestLogger {
         fetcher.shutdownFetcher();
         fetcher.awaitTermination();
 
-        assertFalse(fetcher.isRunning());
+        assertThat(fetcher.isRunning()).isFalse();
     }
 
     @Test
@@ -199,25 +195,24 @@ public class KinesisDataFetcherTest extends TestLogger {
         consumer.cancel();
         consumerThread.sync();
 
-        assertEquals(numShards, testShardStates.size());
+        assertThat(testShardStates).hasSize(numShards);
 
         for (int i = 0; i < numShards; i++) {
             fetcher.emitRecordAndUpdateState(
                     "record-" + i, 10L, i, new SequenceNumber("seq-num-1"));
-            assertEquals(
-                    new SequenceNumber("seq-num-1"),
-                    testShardStates.get(i).getLastProcessedSequenceNum());
-            assertEquals(
-                    new StreamRecord<>("record-" + i, 10L), sourceContext.removeLatestOutput());
+            assertThat(testShardStates.get(i).getLastProcessedSequenceNum())
+                    .isEqualTo(new SequenceNumber("seq-num-1"));
+            assertThat(sourceContext.removeLatestOutput())
+                    .isEqualTo(new StreamRecord<>("record-" + i, 10L));
         }
 
         // emitting a null (i.e., a corrupt record) should not produce any output, but still have
         // the shard state updated
         fetcher.emitRecordAndUpdateState(null, 10L, 1, new SequenceNumber("seq-num-2"));
-        assertEquals(
-                new SequenceNumber("seq-num-2"),
-                testShardStates.get(1).getLastProcessedSequenceNum());
-        assertNull(sourceContext.removeLatestOutput()); // no output should have been collected
+        assertThat(testShardStates.get(1).getLastProcessedSequenceNum())
+                .isEqualTo(new SequenceNumber("seq-num-2"));
+        assertThat(sourceContext.removeLatestOutput())
+                .isNull(); // no output should have been collected
     }
 
     @Test
@@ -271,16 +266,16 @@ public class KinesisDataFetcherTest extends TestLogger {
 
         // assert that the streams tracked in the state are identical to the subscribed streams
         Set<String> streamsInState = subscribedStreamsToLastSeenShardIdsUnderTest.keySet();
-        assertEquals(fakeStreams.size(), streamsInState.size());
-        assertTrue(streamsInState.containsAll(fakeStreams));
+        assertThat(streamsInState).hasSize(fakeStreams.size());
+        assertThat(streamsInState.containsAll(fakeStreams)).isTrue();
 
         // assert that the last seen shards in state is correctly set
         for (Map.Entry<String, String> streamToLastSeenShard :
                 subscribedStreamsToLastSeenShardIdsUnderTest.entrySet()) {
-            assertEquals(
-                    KinesisShardIdGenerator.generateFromShardOrder(
-                            streamToShardCount.get(streamToLastSeenShard.getKey()) - 1),
-                    streamToLastSeenShard.getValue());
+            assertThat(streamToLastSeenShard.getValue())
+                    .isEqualTo(
+                            KinesisShardIdGenerator.generateFromShardOrder(
+                                    streamToShardCount.get(streamToLastSeenShard.getKey()) - 1));
         }
     }
 
@@ -373,16 +368,16 @@ public class KinesisDataFetcherTest extends TestLogger {
 
         // assert that the streams tracked in the state are identical to the subscribed streams
         Set<String> streamsInState = subscribedStreamsToLastSeenShardIdsUnderTest.keySet();
-        assertEquals(fakeStreams.size(), streamsInState.size());
-        assertTrue(streamsInState.containsAll(fakeStreams));
+        assertThat(streamsInState).hasSize(fakeStreams.size());
+        assertThat(streamsInState.containsAll(fakeStreams)).isTrue();
 
         // assert that the last seen shards in state is correctly set
         for (Map.Entry<String, String> streamToLastSeenShard :
                 subscribedStreamsToLastSeenShardIdsUnderTest.entrySet()) {
-            assertEquals(
-                    KinesisShardIdGenerator.generateFromShardOrder(
-                            streamToShardCount.get(streamToLastSeenShard.getKey()) - 1),
-                    streamToLastSeenShard.getValue());
+            assertThat(streamToLastSeenShard.getValue())
+                    .isEqualTo(
+                            KinesisShardIdGenerator.generateFromShardOrder(
+                                    streamToShardCount.get(streamToLastSeenShard.getKey()) - 1));
         }
     }
 
@@ -480,16 +475,16 @@ public class KinesisDataFetcherTest extends TestLogger {
 
         // assert that the streams tracked in the state are identical to the subscribed streams
         Set<String> streamsInState = subscribedStreamsToLastSeenShardIdsUnderTest.keySet();
-        assertEquals(fakeStreams.size(), streamsInState.size());
-        assertTrue(streamsInState.containsAll(fakeStreams));
+        assertThat(streamsInState).hasSize(fakeStreams.size());
+        assertThat(streamsInState.containsAll(fakeStreams)).isTrue();
 
         // assert that the last seen shards in state is correctly set
         for (Map.Entry<String, String> streamToLastSeenShard :
                 subscribedStreamsToLastSeenShardIdsUnderTest.entrySet()) {
-            assertEquals(
-                    KinesisShardIdGenerator.generateFromShardOrder(
-                            streamToShardCount.get(streamToLastSeenShard.getKey()) - 1),
-                    streamToLastSeenShard.getValue());
+            assertThat(streamToLastSeenShard.getValue())
+                    .isEqualTo(
+                            KinesisShardIdGenerator.generateFromShardOrder(
+                                    streamToShardCount.get(streamToLastSeenShard.getKey()) - 1));
         }
     }
 
@@ -587,18 +582,16 @@ public class KinesisDataFetcherTest extends TestLogger {
 
         // assert that the streams tracked in the state are identical to the subscribed streams
         Set<String> streamsInState = subscribedStreamsToLastSeenShardIdsUnderTest.keySet();
-        assertEquals(fakeStreams.size(), streamsInState.size());
-        assertTrue(streamsInState.containsAll(fakeStreams));
+        assertThat(streamsInState).hasSize(fakeStreams.size());
+        assertThat(streamsInState.containsAll(fakeStreams)).isTrue();
 
         // assert that the last seen shards in state is correctly set
-        assertEquals(
-                KinesisShardIdGenerator.generateFromShardOrder(2),
-                subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream1"));
-        assertEquals(
-                KinesisShardIdGenerator.generateFromShardOrder(1),
-                subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream2"));
-        assertNull(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream3"));
-        assertNull(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream4"));
+        assertThat(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream1"))
+                .isEqualTo(KinesisShardIdGenerator.generateFromShardOrder(2));
+        assertThat(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream2"))
+                .isEqualTo(KinesisShardIdGenerator.generateFromShardOrder(1));
+        assertThat(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream3")).isNull();
+        assertThat(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream4")).isNull();
     }
 
     @Test
@@ -699,18 +692,16 @@ public class KinesisDataFetcherTest extends TestLogger {
 
         // assert that the streams tracked in the state are identical to the subscribed streams
         Set<String> streamsInState = subscribedStreamsToLastSeenShardIdsUnderTest.keySet();
-        assertEquals(fakeStreams.size(), streamsInState.size());
-        assertTrue(streamsInState.containsAll(fakeStreams));
+        assertThat(streamsInState).hasSize(fakeStreams.size());
+        assertThat(streamsInState.containsAll(fakeStreams)).isTrue();
 
         // assert that the last seen shards in state is correctly set
-        assertEquals(
-                KinesisShardIdGenerator.generateFromShardOrder(3),
-                subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream1"));
-        assertEquals(
-                KinesisShardIdGenerator.generateFromShardOrder(4),
-                subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream2"));
-        assertNull(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream3"));
-        assertNull(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream4"));
+        assertThat(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream1"))
+                .isEqualTo(KinesisShardIdGenerator.generateFromShardOrder(3));
+        assertThat(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream2"))
+                .isEqualTo(KinesisShardIdGenerator.generateFromShardOrder(4));
+        assertThat(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream3")).isNull();
+        assertThat(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream4")).isNull();
     }
 
     @Test
@@ -749,12 +740,10 @@ public class KinesisDataFetcherTest extends TestLogger {
                                         .withEndingSequenceNumber(endingSequenceNumber));
         StreamShardHandle streamShardHandle = new StreamShardHandle(streamName, shard);
 
-        assertEquals(
-                kinesisStreamShard,
-                KinesisDataFetcher.convertToStreamShardMetadata(streamShardHandle));
-        assertEquals(
-                streamShardHandle,
-                KinesisDataFetcher.convertToStreamShardHandle(kinesisStreamShard));
+        assertThat(KinesisDataFetcher.convertToStreamShardMetadata(streamShardHandle))
+                .isEqualTo(kinesisStreamShard);
+        assertThat(KinesisDataFetcher.convertToStreamShardHandle(kinesisStreamShard))
+                .isEqualTo(streamShardHandle);
     }
 
     private static class DummyFlinkKinesisConsumer<T> extends FlinkKinesisConsumer<T> {
@@ -841,9 +830,9 @@ public class KinesisDataFetcherTest extends TestLogger {
 
                 String msg = String.format("for hash=%d, subtask=%d", hash, subtaskIndex);
                 if (j == i) {
-                    assertEquals(msg, shardCount, shards.size());
+                    assertThat(shards).as(msg).hasSize(shardCount);
                 } else {
-                    assertEquals(msg, 0, shards.size());
+                    assertThat(shards).as(msg).isEmpty();
                 }
             }
         }
@@ -851,12 +840,12 @@ public class KinesisDataFetcherTest extends TestLogger {
 
     @Test
     public void testIsThisSubtaskShouldSubscribeTo() {
-        assertTrue(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(0, 2, 0));
-        assertFalse(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(1, 2, 0));
-        assertTrue(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(2, 2, 0));
-        assertFalse(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(0, 2, 1));
-        assertTrue(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(1, 2, 1));
-        assertFalse(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(2, 2, 1));
+        assertThat(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(0, 2, 0)).isTrue();
+        assertThat(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(1, 2, 0)).isFalse();
+        assertThat(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(2, 2, 0)).isTrue();
+        assertThat(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(0, 2, 1)).isFalse();
+        assertThat(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(1, 2, 1)).isTrue();
+        assertThat(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(2, 2, 1)).isFalse();
     }
 
     private static BoundedOutOfOrdernessTimestampExtractor<String> watermarkAssigner =
@@ -930,34 +919,34 @@ public class KinesisDataFetcherTest extends TestLogger {
                 new StreamRecord<>(String.valueOf(Long.MIN_VALUE), Long.MIN_VALUE);
         fetcher.emitRecordAndUpdateState(
                 record1.getValue(), record1.getTimestamp(), shardIndex, seq);
-        Assert.assertEquals(record1, sourceContext.getCollectedOutputs().poll());
+        assertThat(sourceContext.getCollectedOutputs().poll()).isEqualTo(record1);
 
         fetcher.emitWatermark();
-        Assert.assertTrue("potential watermark equals previous watermark", watermarks.isEmpty());
+        assertThat(watermarks).as("potential watermark equals previous watermark").isEmpty();
 
         StreamRecord<String> record2 = new StreamRecord<>(String.valueOf(1), 1);
         fetcher.emitRecordAndUpdateState(
                 record2.getValue(), record2.getTimestamp(), shardIndex, seq);
-        Assert.assertEquals(record2, sourceContext.getCollectedOutputs().poll());
+        assertThat(sourceContext.getCollectedOutputs().poll()).isEqualTo(record2);
 
         fetcher.emitWatermark();
-        Assert.assertFalse("watermark advanced", watermarks.isEmpty());
-        Assert.assertEquals(new Watermark(record2.getTimestamp()), watermarks.remove(0));
-        Assert.assertFalse("not idle", isTemporaryIdle.booleanValue());
+        assertThat(watermarks).as("watermark advanced").isNotEmpty();
+        assertThat(watermarks.remove(0)).isEqualTo(new Watermark(record2.getTimestamp()));
+        assertThat(isTemporaryIdle.booleanValue()).as("not idle").isFalse();
 
         // test idle timeout
         long idleTimeout = 10;
         // advance clock idleTimeout
         clock.add(idleTimeout + 1);
         fetcher.emitWatermark();
-        Assert.assertFalse("not idle", isTemporaryIdle.booleanValue());
-        Assert.assertTrue("not idle, no new watermark", watermarks.isEmpty());
+        assertThat(isTemporaryIdle.booleanValue()).as("not idle").isFalse();
+        assertThat(watermarks).as("not idle, no new watermark").isEmpty();
 
         // activate idle timeout
         Whitebox.setInternalState(fetcher, "shardIdleIntervalMillis", idleTimeout);
         fetcher.emitWatermark();
-        Assert.assertTrue("idle", isTemporaryIdle.booleanValue());
-        Assert.assertTrue("idle, no watermark", watermarks.isEmpty());
+        assertThat(isTemporaryIdle.booleanValue()).as("idle").isTrue();
+        assertThat(watermarks).as("idle, no watermark").isEmpty();
     }
 
     @Test
@@ -1015,24 +1004,14 @@ public class KinesisDataFetcherTest extends TestLogger {
         // InterruptedException.
         consumerThread.interrupt();
 
-        try {
-            consumerThread.sync();
-        } catch (InterruptedException e) {
-            fail(
-                    "Expected exception from deserializer, but got InterruptedException, probably from "
-                            + "KinesisDataFetcher, which obscures the cause of the failure. "
-                            + e);
-        } catch (RuntimeException e) {
-            if (!e.getMessage().equals(AlwaysThrowsDeserializationSchema.EXCEPTION_MESSAGE)) {
-                fail("Expected exception from deserializer, but got: " + e);
-            }
-        } catch (Exception e) {
-            fail("Expected exception from deserializer, but got: " + e);
-        }
+        assertThatThrownBy(consumerThread::sync)
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage(AlwaysThrowsDeserializationSchema.EXCEPTION_MESSAGE);
 
-        assertTrue(
-                "Expected Fetcher to have been interrupted. This test didn't accomplish its goal.",
-                fetcher.wasInterrupted);
+        assertThat(fetcher.wasInterrupted)
+                .as(
+                        "Expected Fetcher to have been interrupted. This test didn't accomplish its goal.")
+                .isTrue();
     }
 
     @Test(timeout = 1000L)

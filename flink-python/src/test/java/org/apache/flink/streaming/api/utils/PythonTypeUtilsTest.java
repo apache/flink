@@ -95,7 +95,8 @@ class PythonTypeUtilsTest {
         for (Map.Entry<TypeInformation, FlinkFnApi.TypeInfo.TypeName> entry :
                 typeInformationTypeNameMap.entrySet()) {
             assertThat(
-                            PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(entry.getKey())
+                            PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(
+                                            entry.getKey(), null)
                                     .getTypeName())
                     .isEqualTo(entry.getValue());
         }
@@ -104,7 +105,7 @@ class PythonTypeUtilsTest {
                 PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO;
         FlinkFnApi.TypeInfo convertedFieldType =
                 PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(
-                        primitiveIntegerArrayTypeInfo);
+                        primitiveIntegerArrayTypeInfo, null);
         assertThat(convertedFieldType.getTypeName())
                 .isEqualTo(FlinkFnApi.TypeInfo.TypeName.PRIMITIVE_ARRAY);
         assertThat(convertedFieldType.getCollectionElementType().getTypeName())
@@ -112,7 +113,8 @@ class PythonTypeUtilsTest {
 
         TypeInformation basicIntegerArrayTypeInfo = BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO;
         FlinkFnApi.TypeInfo convertedBasicFieldType =
-                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(basicIntegerArrayTypeInfo);
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(
+                        basicIntegerArrayTypeInfo, null);
         assertThat(convertedBasicFieldType.getTypeName())
                 .isEqualTo(FlinkFnApi.TypeInfo.TypeName.BASIC_ARRAY);
         assertThat(convertedBasicFieldType.getCollectionElementType().getTypeName())
@@ -120,7 +122,7 @@ class PythonTypeUtilsTest {
 
         TypeInformation objectArrayTypeInfo = Types.OBJECT_ARRAY(Types.ROW(Types.INT));
         FlinkFnApi.TypeInfo convertedTypeInfoProto =
-                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(objectArrayTypeInfo);
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(objectArrayTypeInfo, null);
         assertThat(convertedTypeInfoProto.getTypeName())
                 .isEqualTo(FlinkFnApi.TypeInfo.TypeName.OBJECT_ARRAY);
         assertThat(convertedTypeInfoProto.getCollectionElementType().getTypeName())
@@ -135,14 +137,15 @@ class PythonTypeUtilsTest {
                 .isEqualTo(FlinkFnApi.TypeInfo.TypeName.INT);
 
         TypeInformation rowTypeInfo = Types.ROW(Types.INT);
-        convertedFieldType = PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(rowTypeInfo);
+        convertedFieldType =
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(rowTypeInfo, null);
         assertThat(convertedFieldType.getTypeName()).isEqualTo(FlinkFnApi.TypeInfo.TypeName.ROW);
         assertThat(convertedFieldType.getRowTypeInfo().getFields(0).getFieldType().getTypeName())
                 .isEqualTo(FlinkFnApi.TypeInfo.TypeName.INT);
 
         TypeInformation tupleTypeInfo = Types.TUPLE(Types.INT);
         convertedFieldType =
-                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(tupleTypeInfo);
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(tupleTypeInfo, null);
         assertThat(convertedFieldType.getTypeName()).isEqualTo(FlinkFnApi.TypeInfo.TypeName.TUPLE);
         assertThat(convertedFieldType.getTupleTypeInfo().getFieldTypes(0).getTypeName())
                 .isEqualTo(FlinkFnApi.TypeInfo.TypeName.INT);

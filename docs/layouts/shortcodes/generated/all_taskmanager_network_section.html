@@ -81,6 +81,12 @@
             <td>Number of max buffers that can be used for each channel. If a channel exceeds the number of max buffers, it will make the task become unavailable, cause the back pressure and block the data processing. This might speed up checkpoint alignment by preventing excessive growth of the buffered in-flight data in case of data skew and high number of configured floating buffers. This limit is not strictly guaranteed, and can be ignored by things like flatMap operators, records spanning multiple buffers or single timer producing large amount of data.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.memory.max-overdraft-buffers-per-gate</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Integer</td>
+            <td>Number of max overdraft network buffers to use for each ResultPartition. The overdraft buffers will be used when the subtask cannot apply to the normal buffers  due to back pressure, while subtask is performing an action that can not be interrupted in the middle,  like serializing a large record, flatMap operator producing multiple records for one single input record or processing time timer producing large output. In situations like that system will allow subtask to request overdraft buffers, so that the subtask can finish such uninterruptible action, without blocking unaligned checkpoints for long period of time. Overdraft buffers are provided on best effort basis only if the system has some unused buffers available. Subtask that has used overdraft buffers won't be allowed to process any more records until the overdraft buffers are returned to the pool.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.netty.client.connectTimeoutSec</h5></td>
             <td style="word-wrap: break-word;">120</td>
             <td>Integer</td>

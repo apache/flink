@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, INT_TYPE_INFO, LONG_TYPE_INFO}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.dag.Transformation
@@ -43,7 +43,6 @@ import org.junit.runners.Parameterized
 import java.util
 
 import scala.collection.JavaConversions._
-import scala.collection.Seq
 
 @RunWith(classOf[Parameterized])
 class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
@@ -229,6 +228,25 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         row("Hello world", "Hallo Welt"),
         row("Hello world, how are you?", "Hallo Welt wie"),
         row("I am fine.", "Hallo Welt wie")
+      )
+    )
+  }
+
+  @Test
+  def testInnerJoinWithBooleanFilterCondition(): Unit = {
+    val data1: Seq[Row] =
+      Seq(row(1, 1L, "Hi", true), row(2, 2L, "Hello", false), row(3, 2L, "Hello world", true))
+    val type3 = new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO, BOOLEAN_TYPE_INFO)
+    registerCollection("table5", data1, type3, "a1, b1, c1, d1")
+    registerCollection("table6", data1, type3, "a2, b2, c2, d2")
+
+    checkResult(
+      "SELECT a1, a1, c2 FROM table5 INNER JOIN table6 ON d1 = d2 where d1 is true",
+      Seq(
+        row("1, 1, Hello world"),
+        row("1, 1, Hi"),
+        row("3, 3, Hello world"),
+        row("3, 3, Hi")
       )
     )
   }

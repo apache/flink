@@ -19,6 +19,7 @@ package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -61,24 +62,31 @@ public class FsStateChangelogStorage extends FsStateChangelogStorageForRecovery
 
     private final TaskChangelogRegistry changelogRegistry;
 
-    public FsStateChangelogStorage(Configuration config, TaskManagerJobMetricGroup metricGroup)
+    public FsStateChangelogStorage(
+            JobID jobID, Configuration config, TaskManagerJobMetricGroup metricGroup)
             throws IOException {
-        this(config, metricGroup, defaultChangelogRegistry(config.get(NUM_DISCARD_THREADS)));
+        this(jobID, config, metricGroup, defaultChangelogRegistry(config.get(NUM_DISCARD_THREADS)));
     }
 
     public FsStateChangelogStorage(
+            JobID jobID,
             Configuration config,
             TaskManagerJobMetricGroup metricGroup,
             TaskChangelogRegistry changelogRegistry)
             throws IOException {
         this(
-                fromConfig(config, new ChangelogStorageMetricGroup(metricGroup), changelogRegistry),
+                fromConfig(
+                        jobID,
+                        config,
+                        new ChangelogStorageMetricGroup(metricGroup),
+                        changelogRegistry),
                 config.get(PREEMPTIVE_PERSIST_THRESHOLD).getBytes(),
                 changelogRegistry);
     }
 
     @VisibleForTesting
     public FsStateChangelogStorage(
+            JobID jobID,
             Path basePath,
             boolean compression,
             int bufferSize,
@@ -88,6 +96,7 @@ public class FsStateChangelogStorage extends FsStateChangelogStorageForRecovery
         this(
                 directScheduler(
                         new StateChangeFsUploader(
+                                jobID,
                                 basePath,
                                 basePath.getFileSystem(),
                                 compression,

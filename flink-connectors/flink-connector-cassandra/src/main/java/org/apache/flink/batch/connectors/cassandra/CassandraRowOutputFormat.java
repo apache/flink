@@ -22,7 +22,10 @@ import org.apache.flink.types.Row;
 
 import java.time.Duration;
 
-/** OutputFormat to write Flink {@link Row}s into a Cassandra cluster. */
+/**
+ * OutputFormat to write Flink {@link Row}s into a Cassandra cluster. * Please read the
+ * recommendations in {@linkplain CassandraOutputFormatBase}.
+ */
 public class CassandraRowOutputFormat extends CassandraColumnarOutputFormatBase<Row> {
 
     public CassandraRowOutputFormat(String insertQuery, ClusterBuilder builder) {

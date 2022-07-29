@@ -33,8 +33,8 @@ public class HighAvailabilityOptions {
 
     /**
      * Defines high-availability mode used for the cluster execution. A value of "NONE" signals no
-     * highly available setup. To enable high-availability, set this mode to "ZOOKEEPER". Can also
-     * be set to FQN of HighAvailability factory class.
+     * highly available setup. To enable high-availability, set this mode to "ZOOKEEPER" or
+     * "KUBERNETES". Can also be set to the FQN of the HighAvailability factory class.
      */
     @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY)
     public static final ConfigOption<String> HA_MODE =
@@ -43,8 +43,8 @@ public class HighAvailabilityOptions {
                     .defaultValue("NONE")
                     .withDeprecatedKeys("recovery.mode")
                     .withDescription(
-                            "Defines high-availability mode used for the cluster execution."
-                                    + " To enable high-availability, set this mode to \"ZOOKEEPER\" or specify FQN of factory class.");
+                            "Defines high-availability mode used for cluster execution."
+                                    + " To enable high-availability, set this mode to \"ZOOKEEPER\", \"KUBERNETES\", or specify the fully qualified name of the factory class.");
 
     /**
      * The ID of the Flink cluster, used to separate multiple Flink clusters Needs to be set for

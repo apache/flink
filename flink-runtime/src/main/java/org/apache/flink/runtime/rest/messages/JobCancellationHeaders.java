@@ -72,4 +72,9 @@ public class JobCancellationHeaders
     public String getDescription() {
         return "Terminates a job.";
     }
+
+    @Override
+    public String operationId() {
+        return "cancelJob";
+    }
 }

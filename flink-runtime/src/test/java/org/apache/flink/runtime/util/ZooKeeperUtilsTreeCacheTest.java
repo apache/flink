@@ -23,6 +23,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
@@ -61,7 +62,8 @@ public class ZooKeeperUtilsTreeCacheTest extends TestLogger {
     @Before
     public void setUp() throws Exception {
         closer = Closer.create();
-        final TestingServer testingServer = closer.register(new TestingServer());
+        final TestingServer testingServer =
+                closer.register(ZooKeeperTestUtils.createAndStartZookeeperTestingServer());
 
         Configuration configuration = new Configuration();
         configuration.set(

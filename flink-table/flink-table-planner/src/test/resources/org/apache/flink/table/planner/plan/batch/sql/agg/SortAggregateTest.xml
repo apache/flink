@@ -329,6 +329,113 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testApproximateCountDistinct[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT 
+ APPROX_COUNT_DISTINCT(`byte`), 
+ APPROX_COUNT_DISTINCT(`short`), 
+ APPROX_COUNT_DISTINCT(`int`), 
+ APPROX_COUNT_DISTINCT(`long`), 
+ APPROX_COUNT_DISTINCT(`float`), 
+ APPROX_COUNT_DISTINCT(`double`), 
+ APPROX_COUNT_DISTINCT(`string`), 
+ APPROX_COUNT_DISTINCT(`date`), 
+ APPROX_COUNT_DISTINCT(`time`), 
+ APPROX_COUNT_DISTINCT(`timestamp`), 
+ APPROX_COUNT_DISTINCT(`decimal3020`), 
+ APPROX_COUNT_DISTINCT(`decimal105`)
+ FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT(APPROXIMATE DISTINCT $0)], EXPR$1=[COUNT(APPROXIMATE DISTINCT $1)], EXPR$2=[COUNT(APPROXIMATE DISTINCT $2)], EXPR$3=[COUNT(APPROXIMATE DISTINCT $3)], EXPR$4=[COUNT(APPROXIMATE DISTINCT $4)], EXPR$5=[COUNT(APPROXIMATE DISTINCT $5)], EXPR$6=[COUNT(APPROXIMATE DISTINCT $6)], EXPR$7=[COUNT(APPROXIMATE DISTINCT $7)], EXPR$8=[COUNT(APPROXIMATE DISTINCT $8)], EXPR$9=[COUNT(APPROXIMATE DISTINCT $9)], EXPR$10=[COUNT(APPROXIMATE DISTINCT $10)], EXPR$11=[COUNT(APPROXIMATE DISTINCT $11)])
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], string=[$7], date=[$8], time=[$9], timestamp=[$10], decimal3020=[$11], decimal105=[$12])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_COUNT(APPROXIMATE DISTINCT EXPR$0) AS EXPR$0, Final_COUNT(APPROXIMATE DISTINCT EXPR$1) AS EXPR$1, Final_COUNT(APPROXIMATE DISTINCT EXPR$2) AS EXPR$2, Final_COUNT(APPROXIMATE DISTINCT EXPR$3) AS EXPR$3, Final_COUNT(APPROXIMATE DISTINCT EXPR$4) AS EXPR$4, Final_COUNT(APPROXIMATE DISTINCT EXPR$5) AS EXPR$5, Final_COUNT(APPROXIMATE DISTINCT EXPR$6) AS EXPR$6, Final_COUNT(APPROXIMATE DISTINCT EXPR$7) AS EXPR$7, Final_COUNT(APPROXIMATE DISTINCT EXPR$8) AS EXPR$8, Final_COUNT(APPROXIMATE DISTINCT EXPR$9) AS EXPR$9, Final_COUNT(APPROXIMATE DISTINCT EXPR$10) AS EXPR$10, Final_COUNT(APPROXIMATE DISTINCT EXPR$11) AS EXPR$11])
++- Exchange(distribution=[single])
+   +- LocalSortAggregate(select=[Partial_COUNT(APPROXIMATE DISTINCT byte) AS EXPR$0, Partial_COUNT(APPROXIMATE DISTINCT short) AS EXPR$1, Partial_COUNT(APPROXIMATE DISTINCT int) AS EXPR$2, Partial_COUNT(APPROXIMATE DISTINCT long) AS EXPR$3, Partial_COUNT(APPROXIMATE DISTINCT float) AS EXPR$4, Partial_COUNT(APPROXIMATE DISTINCT double) AS EXPR$5, Partial_COUNT(APPROXIMATE DISTINCT string) AS EXPR$6, Partial_COUNT(APPROXIMATE DISTINCT date) AS EXPR$7, Partial_COUNT(APPROXIMATE DISTINCT time) AS EXPR$8, Partial_COUNT(APPROXIMATE DISTINCT timestamp) AS EXPR$9, Partial_COUNT(APPROXIMATE DISTINCT decimal3020) AS EXPR$10, Partial_COUNT(APPROXIMATE DISTINCT decimal105) AS EXPR$11])
+      +- Calc(select=[byte, short, int, long, float, double, string, date, time, timestamp, decimal3020, decimal105])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testApproximateCountDistinct[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT 
+ APPROX_COUNT_DISTINCT(`byte`), 
+ APPROX_COUNT_DISTINCT(`short`), 
+ APPROX_COUNT_DISTINCT(`int`), 
+ APPROX_COUNT_DISTINCT(`long`), 
+ APPROX_COUNT_DISTINCT(`float`), 
+ APPROX_COUNT_DISTINCT(`double`), 
+ APPROX_COUNT_DISTINCT(`string`), 
+ APPROX_COUNT_DISTINCT(`date`), 
+ APPROX_COUNT_DISTINCT(`time`), 
+ APPROX_COUNT_DISTINCT(`timestamp`), 
+ APPROX_COUNT_DISTINCT(`decimal3020`), 
+ APPROX_COUNT_DISTINCT(`decimal105`)
+ FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT(APPROXIMATE DISTINCT $0)], EXPR$1=[COUNT(APPROXIMATE DISTINCT $1)], EXPR$2=[COUNT(APPROXIMATE DISTINCT $2)], EXPR$3=[COUNT(APPROXIMATE DISTINCT $3)], EXPR$4=[COUNT(APPROXIMATE DISTINCT $4)], EXPR$5=[COUNT(APPROXIMATE DISTINCT $5)], EXPR$6=[COUNT(APPROXIMATE DISTINCT $6)], EXPR$7=[COUNT(APPROXIMATE DISTINCT $7)], EXPR$8=[COUNT(APPROXIMATE DISTINCT $8)], EXPR$9=[COUNT(APPROXIMATE DISTINCT $9)], EXPR$10=[COUNT(APPROXIMATE DISTINCT $10)], EXPR$11=[COUNT(APPROXIMATE DISTINCT $11)])
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], string=[$7], date=[$8], time=[$9], timestamp=[$10], decimal3020=[$11], decimal105=[$12])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+SortAggregate(isMerge=[false], select=[COUNT(APPROXIMATE DISTINCT byte) AS EXPR$0, COUNT(APPROXIMATE DISTINCT short) AS EXPR$1, COUNT(APPROXIMATE DISTINCT int) AS EXPR$2, COUNT(APPROXIMATE DISTINCT long) AS EXPR$3, COUNT(APPROXIMATE DISTINCT float) AS EXPR$4, COUNT(APPROXIMATE DISTINCT double) AS EXPR$5, COUNT(APPROXIMATE DISTINCT string) AS EXPR$6, COUNT(APPROXIMATE DISTINCT date) AS EXPR$7, COUNT(APPROXIMATE DISTINCT time) AS EXPR$8, COUNT(APPROXIMATE DISTINCT timestamp) AS EXPR$9, COUNT(APPROXIMATE DISTINCT decimal3020) AS EXPR$10, COUNT(APPROXIMATE DISTINCT decimal105) AS EXPR$11])
++- Exchange(distribution=[single])
+   +- Calc(select=[byte, short, int, long, float, double, string, date, time, timestamp, decimal3020, decimal105])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testApproximateCountDistinct[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT 
+ APPROX_COUNT_DISTINCT(`byte`), 
+ APPROX_COUNT_DISTINCT(`short`), 
+ APPROX_COUNT_DISTINCT(`int`), 
+ APPROX_COUNT_DISTINCT(`long`), 
+ APPROX_COUNT_DISTINCT(`float`), 
+ APPROX_COUNT_DISTINCT(`double`), 
+ APPROX_COUNT_DISTINCT(`string`), 
+ APPROX_COUNT_DISTINCT(`date`), 
+ APPROX_COUNT_DISTINCT(`time`), 
+ APPROX_COUNT_DISTINCT(`timestamp`), 
+ APPROX_COUNT_DISTINCT(`decimal3020`), 
+ APPROX_COUNT_DISTINCT(`decimal105`)
+ FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT(APPROXIMATE DISTINCT $0)], EXPR$1=[COUNT(APPROXIMATE DISTINCT $1)], EXPR$2=[COUNT(APPROXIMATE DISTINCT $2)], EXPR$3=[COUNT(APPROXIMATE DISTINCT $3)], EXPR$4=[COUNT(APPROXIMATE DISTINCT $4)], EXPR$5=[COUNT(APPROXIMATE DISTINCT $5)], EXPR$6=[COUNT(APPROXIMATE DISTINCT $6)], EXPR$7=[COUNT(APPROXIMATE DISTINCT $7)], EXPR$8=[COUNT(APPROXIMATE DISTINCT $8)], EXPR$9=[COUNT(APPROXIMATE DISTINCT $9)], EXPR$10=[COUNT(APPROXIMATE DISTINCT $10)], EXPR$11=[COUNT(APPROXIMATE DISTINCT $11)])
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], string=[$7], date=[$8], time=[$9], timestamp=[$10], decimal3020=[$11], decimal105=[$12])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_COUNT(APPROXIMATE DISTINCT EXPR$0) AS EXPR$0, Final_COUNT(APPROXIMATE DISTINCT EXPR$1) AS EXPR$1, Final_COUNT(APPROXIMATE DISTINCT EXPR$2) AS EXPR$2, Final_COUNT(APPROXIMATE DISTINCT EXPR$3) AS EXPR$3, Final_COUNT(APPROXIMATE DISTINCT EXPR$4) AS EXPR$4, Final_COUNT(APPROXIMATE DISTINCT EXPR$5) AS EXPR$5, Final_COUNT(APPROXIMATE DISTINCT EXPR$6) AS EXPR$6, Final_COUNT(APPROXIMATE DISTINCT EXPR$7) AS EXPR$7, Final_COUNT(APPROXIMATE DISTINCT EXPR$8) AS EXPR$8, Final_COUNT(APPROXIMATE DISTINCT EXPR$9) AS EXPR$9, Final_COUNT(APPROXIMATE DISTINCT EXPR$10) AS EXPR$10, Final_COUNT(APPROXIMATE DISTINCT EXPR$11) AS EXPR$11])
++- Exchange(distribution=[single])
+   +- LocalSortAggregate(select=[Partial_COUNT(APPROXIMATE DISTINCT byte) AS EXPR$0, Partial_COUNT(APPROXIMATE DISTINCT short) AS EXPR$1, Partial_COUNT(APPROXIMATE DISTINCT int) AS EXPR$2, Partial_COUNT(APPROXIMATE DISTINCT long) AS EXPR$3, Partial_COUNT(APPROXIMATE DISTINCT float) AS EXPR$4, Partial_COUNT(APPROXIMATE DISTINCT double) AS EXPR$5, Partial_COUNT(APPROXIMATE DISTINCT string) AS EXPR$6, Partial_COUNT(APPROXIMATE DISTINCT date) AS EXPR$7, Partial_COUNT(APPROXIMATE DISTINCT time) AS EXPR$8, Partial_COUNT(APPROXIMATE DISTINCT timestamp) AS EXPR$9, Partial_COUNT(APPROXIMATE DISTINCT decimal3020) AS EXPR$10, Partial_COUNT(APPROXIMATE DISTINCT decimal105) AS EXPR$11])
+      +- Calc(select=[byte, short, int, long, float, double, string, date, time, timestamp, decimal3020, decimal105])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testAvg[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[

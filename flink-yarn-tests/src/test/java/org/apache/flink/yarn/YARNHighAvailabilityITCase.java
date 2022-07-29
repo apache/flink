@@ -39,6 +39,7 @@ import org.apache.flink.runtime.rest.messages.job.metrics.JobMetricsHeaders;
 import org.apache.flink.runtime.rest.messages.job.metrics.JobMetricsMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.metrics.Metric;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
@@ -109,10 +110,10 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
     private JobGraph job;
 
     @BeforeAll
-    static void setup(@TempDir File folder) throws Exception {
-        zkServer = new TestingServer();
+    static void setup(@TempDir File tempDir) throws Exception {
+        zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
 
-        storageDir = folder.getAbsolutePath();
+        storageDir = tempDir.getAbsolutePath();
 
         // startYARNWithConfig should be implemented by subclass
         YARN_CONFIGURATION.setClass(
@@ -124,15 +125,19 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
 
     @AfterAll
     static void teardown() throws Exception {
-        if (zkServer != null) {
-            zkServer.stop();
-            zkServer = null;
+        try {
+            YarnTestBase.teardown();
+        } finally {
+            if (zkServer != null) {
+                zkServer.close();
+                zkServer = null;
+            }
         }
     }
 
     @BeforeEach
-    void setUp(@TempDir File folder) {
-        stopJobSignal = YarnTestJob.StopJobSignal.usingMarkerFile(folder.toPath());
+    void setUp(@TempDir File tempDir) {
+        stopJobSignal = YarnTestJob.StopJobSignal.usingMarkerFile(tempDir.toPath());
         job = YarnTestJob.stoppableJob(stopJobSignal);
         final File testingJar =
                 TestUtils.findFile("..", new TestUtils.TestJarFinder("flink-yarn-tests"));

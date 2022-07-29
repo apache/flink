@@ -60,6 +60,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
         this(operator, 1, 1, 0);
 
         config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
+        config.serializeAllConfigs();
     }
 
     public OneInputStreamOperatorTestHarness(
@@ -77,6 +78,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
                 subtaskIndex,
                 operatorID);
         config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
+        config.serializeAllConfigs();
     }
 
     public OneInputStreamOperatorTestHarness(
@@ -87,6 +89,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
         this(operator, environment);
 
         config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
+        config.serializeAllConfigs();
     }
 
     public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator)
@@ -141,6 +144,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
         this(factory, environment);
 
         config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
+        config.serializeAllConfigs();
     }
 
     public OneInputStreamOperatorTestHarness(
@@ -155,6 +159,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
         this(factory, 1, 1, 0);
 
         config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
+        config.serializeAllConfigs();
     }
 
     public OneInputStreamOperatorTestHarness(
@@ -185,6 +190,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
         super(operator, taskName, operatorID);
 
         config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
+        config.serializeAllConfigs();
     }
 
     @Override

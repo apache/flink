@@ -191,6 +191,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
         cfg.setStreamOperator(op);
         cfg.setOperatorID(new OperatorID());
         cfg.setStateBackend(backend);
+        cfg.serializeAllConfigs();
 
         ExecutionConfig executionConfig = new ExecutionConfig();
 

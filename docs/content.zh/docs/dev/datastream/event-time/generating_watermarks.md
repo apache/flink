@@ -77,6 +77,19 @@ WatermarkStrategy
   })
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+class FirstElementTimestampAssigner(TimestampAssigner):
+   
+    def extract_timestamp(self, value, record_timestamp):
+       return value[0]
+
+
+WatermarkStrategy \
+    .for_bounded_out_of_orderness(Duration.of_seconds(20)) \
+    .with_timestamp_assigner(FirstElementTimestampAssigner())
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 其中 `TimestampAssigner` 的设置与否是可选的，大多数情况下，可以不用去特别指定。例如，当使用 Kafka 或 Kinesis 数据源时，你可以直接从 Kafka/Kinesis 数据源记录中获取到时间戳。
@@ -136,6 +149,26 @@ withTimestampsAndWatermarks
         .addSink(...)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+
+# currently read_file is not supported in PyFlink
+stream = env \
+    .read_text_file(my_file_path, charset) \
+    .map(lambda s: MyEvent.from_string(s))
+
+with_timestamp_and_watermarks = stream \
+    .filter(lambda e: e.severity() == WARNING) \
+    .assign_timestamp_and_watermarks(<watermark strategy>)
+
+with_timestamp_and_watermarks \
+    .key_by(lambda e: e.get_group()) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(10))) \
+    .reduce(lambda a, b: a.add(b)) \
+    .add_sink(...)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 使用 `WatermarkStrategy` 去获取流并生成带有时间戳的元素和 watermark 的新流时，如果原始流已经具有时间戳或 watermark，则新指定的时间戳分配器将覆盖原有的时间戳和 watermark。
@@ -161,6 +194,13 @@ WatermarkStrategy
 WatermarkStrategy
   .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
   .withIdleness(Duration.ofMinutes(1))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+WatermarkStrategy \
+    .for_bounded_out_of_orderness(Duration.of_seconds(20)) \
+    .with_idleness(Duration.of_minutes(1))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -198,6 +238,13 @@ WatermarkStrategy
 WatermarkStrategy
   .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
   .withWatermarkAlignment("alignment-group-1", Duration.ofSeconds(20), Duration.ofSeconds(1))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+WatermarkStrategy \
+    .for_bounded_out_of_orderness(Duration.of_seconds(20)) \
+    .with_watermark_alignment("alignment-group-1", Duration.of_seconds(20), Duration.of_seconds(1))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -368,6 +415,11 @@ class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks[MyEvent] 
 }
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+目前在python中不支持该api
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 <a name="writing-a-punctuated-watermarkgenerator"></a>
@@ -413,6 +465,11 @@ class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks[MyEvent] {
 }
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+Python API 中尚不支持该特性。
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 {{< hint warning >}}
@@ -450,6 +507,17 @@ kafkaSource.assignTimestampsAndWatermarks(
     .forBoundedOutOfOrderness(Duration.ofSeconds(20)))
 
 val stream: DataStream[MyType] = env.addSource(kafkaSource)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+kafka_source = FlinkKafkaConsumer("timer-stream-source", schema, props)
+
+stream = env
+    .add_source(kafka_source)
+    .assign_timestamps_and_watermarks(
+        WatermarkStrategy
+            .for_bounded_out_of_orderness(Duration.of_seconds(20)))
 ```
 {{< /tab >}}
 {{< /tabs >}}

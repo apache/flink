@@ -25,11 +25,12 @@ import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
 import com.google.common.util.concurrent.ListenableFuture;
 
-import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.CompletionStage;
 
 /**
  * OutputFormat to write data to Apache Cassandra and from a custom Cassandra annotated object.
+ * Please read the recommendations in {@linkplain CassandraOutputFormatBase}.
  *
  * @param <OUT> type of outputClass
  */
@@ -67,14 +68,10 @@ public class CassandraPojoOutputFormat<OUT> extends CassandraOutputFormatBase<OU
         this.outputClass = outputClass;
     }
 
-    /**
-     * Opens a Session to Cassandra and initializes the prepared statement.
-     *
-     * @param taskNumber The number of the parallel instance.
-     */
+    /** Opens a Session to Cassandra and initializes the prepared statement. */
     @Override
-    public void open(int taskNumber, int numTasks) {
-        super.open(taskNumber, numTasks);
+    protected void postOpen() {
+        super.postOpen();
         MappingManager mappingManager = new MappingManager(session);
         this.mapper = mappingManager.mapper(outputClass);
         if (mapperOptions != null) {
@@ -86,17 +83,15 @@ public class CassandraPojoOutputFormat<OUT> extends CassandraOutputFormatBase<OU
     }
 
     @Override
-    protected ListenableFuture<Void> send(OUT record) {
-        return mapper.saveAsync(record);
+    protected CompletionStage<Void> send(OUT record) {
+        final ListenableFuture<Void> result = mapper.saveAsync(record);
+        return listenableFutureToCompletableFuture(result);
     }
 
     /** Closes all resources used. */
     @Override
-    public void close() throws IOException {
-        try {
-            super.close();
-        } finally {
-            mapper = null;
-        }
+    protected void postClose() {
+        super.postClose();
+        mapper = null;
     }
 }

@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -550,6 +552,42 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
         expectedOutput.add(insertRecord("a", 1L, 10, 1));
         expectedOutput.add(deleteRecord("a", 1L, 10, 1));
         expectedOutput.add(insertRecord("a", 1L, 9, 1));
+
+        assertorWithRowNumber.assertOutputEquals(
+                "output wrong.", expectedOutput, testHarness.getOutput());
+    }
+
+    @Test
+    public void testRetractAnStaledRecordWithRowNumber() throws Exception {
+        StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(1_000);
+        AbstractTopNFunction func =
+                new RetractableTopNFunction(
+                        ttlConfig,
+                        InternalTypeInfo.ofFields(
+                                VarCharType.STRING_TYPE, new BigIntType(), new IntType()),
+                        comparableRecordComparator,
+                        sortKeySelector,
+                        RankType.ROW_NUMBER,
+                        new ConstantRankRange(1, 2),
+                        generatedEqualiser,
+                        true,
+                        true);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.setStateTtlProcessingTime(0);
+        testHarness.processElement(insertRecord("a", 1L, 10));
+        testHarness.setStateTtlProcessingTime(1001);
+        testHarness.processElement(insertRecord("a", 2L, 11));
+        testHarness.processElement(deleteRecord("a", 1L, 10));
+        testHarness.close();
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("a", 1L, 10, 1L));
+        expectedOutput.add(insertRecord("a", 2L, 11, 1L));
+        // the following delete record should not be sent because the left row is null which is
+        // illegal.
+        // -D{row1=null, row2=+I(1)};
 
         assertorWithRowNumber.assertOutputEquals(
                 "output wrong.", expectedOutput, testHarness.getOutput());

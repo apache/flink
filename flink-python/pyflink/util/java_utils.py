@@ -82,14 +82,11 @@ def is_instance_of(java_object, java_class):
 
 
 def get_j_env_configuration(j_env):
-    if is_instance_of(j_env, "org.apache.flink.api.java.ExecutionEnvironment"):
-        return j_env.getConfiguration()
-    else:
-        env_clazz = load_java_class(
-            "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
-        field = env_clazz.getDeclaredField("configuration")
-        field.setAccessible(True)
-        return field.get(j_env)
+    env_clazz = load_java_class(
+        "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
+    field = env_clazz.getDeclaredField("configuration")
+    field.setAccessible(True)
+    return field.get(j_env)
 
 
 def get_field_value(java_obj, field_name):
@@ -151,22 +148,28 @@ def add_jars_to_context_class_loader(jar_urls):
     if all([url.toString() in existing_urls for url in jar_urls]):
         # if urls all existed, no need to create new class loader.
         return
+
     URLClassLoaderClass = load_java_class("java.net.URLClassLoader")
-    addURL = URLClassLoaderClass.getDeclaredMethod(
-        "addURL",
-        to_jarray(
-            gateway.jvm.Class,
-            [load_java_class("java.net.URL")]))
-    addURL.setAccessible(True)
-    if class_loader_name == "org.apache.flink.runtime.execution.librarycache." \
-                            "FlinkUserCodeClassLoaders$SafetyNetWrapperClassLoader":
-        ensureInner = context_classloader.getClass().getDeclaredMethod("ensureInner", None)
-        ensureInner.setAccessible(True)
-        loader = ensureInner.invoke(context_classloader, None)
+    if is_instance_of(context_classloader, URLClassLoaderClass):
+        if class_loader_name == "org.apache.flink.runtime.execution.librarycache." \
+                                "FlinkUserCodeClassLoaders$SafetyNetWrapperClassLoader":
+            ensureInner = context_classloader.getClass().getDeclaredMethod("ensureInner", None)
+            ensureInner.setAccessible(True)
+            context_classloader = ensureInner.invoke(context_classloader, None)
+
+        addURL = URLClassLoaderClass.getDeclaredMethod(
+            "addURL",
+            to_jarray(
+                gateway.jvm.Class,
+                [load_java_class("java.net.URL")]))
+        addURL.setAccessible(True)
+
+        for url in jar_urls:
+            addURL.invoke(context_classloader, to_jarray(get_gateway().jvm.Object, [url]))
+
     else:
-        loader = context_classloader
-    for url in jar_urls:
-        addURL.invoke(loader, to_jarray(get_gateway().jvm.Object, [url]))
+        context_classloader = create_url_class_loader(jar_urls, context_classloader)
+        gateway.jvm.Thread.currentThread().setContextClassLoader(context_classloader)
 
 
 def to_j_explain_detail_arr(p_extra_details):
@@ -189,3 +192,10 @@ def to_j_explain_detail_arr(p_extra_details):
         j_arr[i] = to_j_explain_detail(p_extra_details[i])
 
     return j_arr
+
+
+def create_url_class_loader(urls, parent_class_loader):
+    gateway = get_gateway()
+    url_class_loader = gateway.jvm.java.net.URLClassLoader(
+        to_jarray(gateway.jvm.java.net.URL, urls), parent_class_loader)
+    return url_class_loader

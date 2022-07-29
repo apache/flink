@@ -70,6 +70,8 @@ public class ExecutionOptions {
                                                     + "Such an exchange reduces the resources required to execute the "
                                                     + "job as it does not need to run upstream and downstream "
                                                     + "tasks simultaneously.")
+                                    // TODO Add ALL_EXCHANGES_HYBRID's text description when hybrid
+                                    // shuffle mode related codes are all merged.
                                     .build());
 
     /**

@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
@@ -34,6 +35,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
@@ -41,6 +43,7 @@ import org.apache.flink.table.operations.command.HelpOperation;
 import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.planner.delegation.hive.HiveOperationExecutor;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
@@ -59,6 +62,7 @@ import org.apache.hadoop.hive.ql.io.RCFileOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
+import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCount;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
 import org.apache.hadoop.hive.serde.serdeConstants;
@@ -76,6 +80,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -112,18 +117,30 @@ public class HiveDialectITCase {
     }
 
     @Test
-    public void testPluggableParser() {
+    public void testPluggableDialect() {
         TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
         Parser parser = tableEnvInternal.getParser();
         // hive dialect should use HiveParser
         assertThat(parser).isInstanceOf(HiveParser.class);
-        // execute some sql and verify the parser instance is reused
+        ExtendedOperationExecutor operationExecutor =
+                ((TableEnvironmentImpl) tableEnvInternal).getExtendedOperationExecutor();
+        // hive dialect should use HiveOperationExecutor
+        assertThat(operationExecutor).isInstanceOf(HiveOperationExecutor.class);
+        // execute some sql and verify the parser/operation executor instance is reused
         tableEnvInternal.executeSql("show databases");
         assertThat(tableEnvInternal.getParser()).isSameAs(parser);
+        assertThat(((TableEnvironmentImpl) tableEnvInternal).getExtendedOperationExecutor())
+                .isSameAs(operationExecutor);
         // switching dialect will result in a new parser
         tableEnvInternal.getConfig().setSqlDialect(SqlDialect.DEFAULT);
         assertThat(tableEnvInternal.getParser().getClass().getName())
                 .isNotEqualTo(parser.getClass().getName());
+        assertThat(
+                        ((TableEnvironmentImpl) tableEnvInternal)
+                                .getExtendedOperationExecutor()
+                                .getClass()
+                                .getName())
+                .isNotEqualTo(operationExecutor.getClass().getName());
     }
 
     @Test
@@ -350,6 +367,23 @@ public class HiveDialectITCase {
         assertThat(results.toString())
                 .isEqualTo(
                         "[+I[1, 0, static], +I[1, 1, a], +I[1, 2, b], +I[1, 3, c], +I[2, 0, static], +I[2, 1, b], +I[3, 0, static], +I[3, 1, c]]");
+        tableEnv.executeSql(
+                        "insert overwrite table default.dest2 partition (p1=1,p2='static') if not exists select x from src")
+                .await();
+        results = queryResult(tableEnv.sqlQuery("select * from dest2 order by x,p1,p2"));
+        assertThat(results.toString())
+                .isEqualTo(
+                        "[+I[1, 0, static], +I[1, 1, a], +I[1, 1, static], +I[1, 2, b], +I[1, 3, c], +I[2, 0, static],"
+                                + " +I[2, 1, b], +I[2, 1, static], +I[3, 0, static], +I[3, 1, c], +I[3, 1, static]]");
+
+        // test table partitioned by decimal type
+        tableEnv.executeSql(
+                "create table dest3 (key int, value string) partitioned by (p1 decimal(5, 2)) ");
+        tableEnv.executeSql("insert overwrite dest3 partition (p1) select 1,y,100.45 from src")
+                .await();
+        results = queryResult(tableEnv.sqlQuery("select * from dest3"));
+        assertThat(results.toString())
+                .isEqualTo("[+I[1, a, 100.45], +I[1, b, 100.45], +I[1, c, 100.45]]");
     }
 
     @Test
@@ -538,6 +572,50 @@ public class HiveDialectITCase {
                 .isEqualTo(LazyBinarySerDe.class.getName());
         assertThat(partition.getSd().getSerdeInfo().getParameters().get(serdeConstants.LINE_DELIM))
                 .isEqualTo("\n");
+    }
+
+    @Test
+    public void testTableWithSubDirsInPartitionDir() throws Exception {
+        tableEnv.executeSql("CREATE TABLE fact_tz(x int) PARTITIONED BY (ds STRING, hr STRING)");
+        tableEnv.executeSql("INSERT OVERWRITE TABLE fact_tz PARTITION (ds='1', hr='1') select 1")
+                .await();
+        tableEnv.executeSql("INSERT OVERWRITE TABLE fact_tz PARTITION (ds='1', hr='2') select 2")
+                .await();
+        String location = warehouse + "/fact_tz";
+        // create an external table
+        tableEnv.executeSql(
+                String.format(
+                        "create external table fact_daily(x int) PARTITIONED BY (ds STRING) location '%s'",
+                        location));
+        tableEnv.executeSql(
+                String.format(
+                        "ALTER TABLE fact_daily ADD PARTITION (ds='1') location '%s'",
+                        location + "/ds=1"));
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select * from fact_daily WHERE ds='1' order by x")
+                                .collect());
+        // the data read from the external table fact_daily should contain the data in
+        // directory 'ds=1/hr=1', 'ds=1/hr=2'
+        assertThat(results.toString()).isEqualTo("[+I[1, 1], +I[2, 1]]");
+
+        tableEnv.getConfig()
+                .set(
+                        HiveOptions.TABLE_EXEC_HIVE_READ_PARTITION_WITH_SUBDIRECTORY_ENABLED.key(),
+                        "false");
+        // should throw exception when disable reading sub-dirs in partition directory
+        assertThatThrownBy(
+                        () ->
+                                CollectionUtil.iteratorToList(
+                                        tableEnv.executeSql("select * from fact_daily WHERE ds='1'")
+                                                .collect()))
+                .satisfiesAnyOf(
+                        anyCauseMatches(
+                                String.format(
+                                        "Not a file: file:%s", warehouse + "/fact_tz/ds=1/hr=1")),
+                        anyCauseMatches(
+                                String.format(
+                                        "Not a file: file:%s", warehouse + "/fact_tz/ds=1/hr=2")));
     }
 
     @Test
@@ -792,6 +870,52 @@ public class HiveDialectITCase {
                                 .collect());
         assertThat(partitions).hasSize(1);
         assertThat(partitions.toString()).contains("dt=2020-04-30 01:02:03/country=china");
+    }
+
+    @Test
+    public void testMacro() throws Exception {
+        tableEnv.executeSql("create temporary macro string_len (x string) length(x)");
+        tableEnv.executeSql("create temporary macro string_len_plus(x string) length(x) + 1");
+        tableEnv.executeSql("create table macro_test (x string)");
+        tableEnv.executeSql("insert into table macro_test values ('bb'), ('a'), ('cc')").await();
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select string_len(x), string_len_plus(x) from macro_test")
+                                .collect());
+        assertThat(result.toString()).isEqualTo("[+I[2, 3], +I[1, 2], +I[2, 3]]");
+        // drop macro
+        tableEnv.executeSql("drop temporary macro string_len_plus");
+        // create macro
+        tableEnv.executeSql("create temporary macro string_len_plus(x string) length(x) + 2");
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select string_len(x), string_len_plus(x) from macro_test")
+                                .collect());
+        assertThat(result.toString()).isEqualTo("[+I[2, 4], +I[1, 3], +I[2, 4]]");
+        String badMacroName = "db.string_len";
+        // should fail when create macro whose name contains "."
+        assertThatThrownBy(
+                        () ->
+                                tableEnv.executeSql(
+                                        String.format(
+                                                "create temporary macro `%s` (x string) length(x)",
+                                                badMacroName)))
+                .hasRootCauseInstanceOf(SemanticException.class)
+                .hasRootCauseMessage(
+                        String.format(
+                                "CREATE TEMPORARY MACRO doesn't allow \".\" character in the macro name, but the name is \"%s\".",
+                                badMacroName));
+        // should fail when drop macro whose name contains "."
+        assertThatThrownBy(
+                        () ->
+                                tableEnv.executeSql(
+                                        String.format("drop temporary macro `%s`", badMacroName)))
+                .hasRootCauseInstanceOf(SemanticException.class)
+                .hasRootCauseMessage(
+                        "DROP TEMPORARY MACRO doesn't allow \".\" character in the macro name, but the name is \"%s\".",
+                        badMacroName);
     }
 
     @Test

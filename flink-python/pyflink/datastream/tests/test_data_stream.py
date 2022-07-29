@@ -18,7 +18,12 @@
 import datetime
 import decimal
 import os
+import sys
 import uuid
+from collections import defaultdict
+from typing import Tuple
+
+import pytest
 
 from pyflink.common import Row, Configuration
 from pyflink.common.time import Time
@@ -29,7 +34,8 @@ from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import (AggregateFunction, CoMapFunction, CoFlatMapFunction,
                                           MapFunction, FilterFunction, FlatMapFunction,
                                           KeyedCoProcessFunction, KeyedProcessFunction, KeySelector,
-                                          ProcessFunction, ReduceFunction, CoProcessFunction)
+                                          ProcessFunction, ReduceFunction, CoProcessFunction,
+                                          BroadcastProcessFunction, KeyedBroadcastProcessFunction)
 from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.state import (ValueStateDescriptor, ListStateDescriptor, MapStateDescriptor,
                                       ReducingStateDescriptor, ReducingState, AggregatingState,
@@ -115,6 +121,54 @@ class DataStreamTests(object):
         expected = ["<Row('cfgs', 5, Decimal('3'))>",
                     "<Row('deeefg', 7, Decimal('4'))>"]
         self.assert_equals_sorted(expected, results)
+
+    def test_array_type_info(self):
+        ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
+                                       (2, [None, 2.2, 2.3], ['hello', None, 'flink']),
+                                       (3, [3.1, 3.2, None], ['hello', 'hi', None])],
+                                      type_info=Types.ROW([Types.INT(),
+                                                           Types.BASIC_ARRAY(Types.FLOAT()),
+                                                           Types.OBJECT_ARRAY(Types.STRING())]))
+
+        ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
+                                                   Types.BASIC_ARRAY(Types.FLOAT()),
+                                                   Types.OBJECT_ARRAY(Types.STRING())]))\
+            .add_sink(self.test_sink)
+        self.env.execute("test basic array type info")
+        results = self.test_sink.get_results()
+        expected = ['+I[1, [1.1, null, 1.3], [null, hi, flink]]',
+                    '+I[2, [null, 2.2, 2.3], [hello, null, flink]]',
+                    '+I[3, [3.1, 3.2, null], [hello, hi, null]]']
+        self.assert_equals_sorted(expected, results)
+
+    def test_partition_custom(self):
+        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2),
+                                       ('f', 7), ('g', 7), ('h', 8), ('i', 8), ('j', 9)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        expected_num_partitions = 5
+
+        def my_partitioner(key, num_partitions):
+            assert expected_num_partitions == num_partitions
+            return key % num_partitions
+
+        partitioned_stream = ds.map(lambda x: x, output_type=Types.ROW([Types.STRING(),
+                                                                        Types.INT()]))\
+            .set_parallelism(4).partition_custom(my_partitioner, lambda x: x[1])
+
+        JPartitionCustomTestMapFunction = get_gateway().jvm\
+            .org.apache.flink.python.util.PartitionCustomTestMapFunction
+        test_map_stream = DataStream(partitioned_stream
+                                     ._j_data_stream.map(JPartitionCustomTestMapFunction()))
+        test_map_stream.set_parallelism(expected_num_partitions).add_sink(self.test_sink)
+
+        self.env.execute('test_partition_custom')
+
+
+class ProcessDataStreamTests(DataStreamTests):
+    """
+    The tests only tested in Process Mode.
+    """
 
     def test_basic_co_operations(self):
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
@@ -939,8 +993,136 @@ class DataStreamTests(object):
         side_expected = ['1', '1', '2', '2', '3', '3', '4', '4']
         self.assert_equals_sorted(side_expected, side_sink.get_results())
 
+    def test_co_broadcast_process(self):
+        ds = self.env.from_collection([1, 2, 3, 4, 5], type_info=Types.INT())  # type: DataStream
+        ds_broadcast = self.env.from_collection(
+            [(0, "a"), (1, "b")], type_info=Types.TUPLE([Types.INT(), Types.STRING()])
+        )  # type: DataStream
 
-class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
+        class MyBroadcastProcessFunction(BroadcastProcessFunction):
+            def __init__(self, map_state_desc):
+                self._map_state_desc = map_state_desc
+                self._cache = defaultdict(list)
+
+            def process_element(self, value: int, ctx: BroadcastProcessFunction.ReadOnlyContext):
+                ro_broadcast_state = ctx.get_broadcast_state(self._map_state_desc)
+                key = value % 2
+                if ro_broadcast_state.contains(key):
+                    if self._cache.get(key) is not None:
+                        for v in self._cache[key]:
+                            yield ro_broadcast_state.get(key) + str(v)
+                        self._cache[key].clear()
+                    yield ro_broadcast_state.get(key) + str(value)
+                else:
+                    self._cache[key].append(value)
+
+            def process_broadcast_element(
+                self, value: Tuple[int, str], ctx: BroadcastProcessFunction.Context
+            ):
+                key = value[0]
+                yield str(key) + value[1]
+                broadcast_state = ctx.get_broadcast_state(self._map_state_desc)
+                broadcast_state.put(key, value[1])
+                if self._cache.get(key) is not None:
+                    for v in self._cache[key]:
+                        yield value[1] + str(v)
+                    self._cache[key].clear()
+
+        map_state_desc = MapStateDescriptor(
+            "mapping", key_type_info=Types.INT(), value_type_info=Types.STRING()
+        )
+        ds.connect(ds_broadcast.broadcast(map_state_desc)).process(
+            MyBroadcastProcessFunction(map_state_desc), output_type=Types.STRING()
+        ).add_sink(self.test_sink)
+
+        self.env.execute("test_co_broadcast_process")
+        expected = ["0a", "0a", "1b", "1b", "a2", "a4", "b1", "b3", "b5"]
+        self.assert_equals_sorted(expected, self.test_sink.get_results())
+
+    def test_keyed_co_broadcast_process(self):
+        ds = self.env.from_collection(
+            [(1, '1603708211000'),
+             (2, '1603708212000'),
+             (3, '1603708213000'),
+             (4, '1603708214000')],
+            type_info=Types.ROW([Types.INT(), Types.STRING()]))  # type: DataStream
+        ds_broadcast = self.env.from_collection(
+            [(0, '1603708215000', 'a'),
+             (1, '1603708215000', 'b')],
+            type_info=Types.ROW([Types.INT(), Types.STRING(), Types.STRING()])
+        )  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+        ds = ds.assign_timestamps_and_watermarks(watermark_strategy)
+        ds_broadcast = ds_broadcast.assign_timestamps_and_watermarks(watermark_strategy)
+
+        def _create_string(s, t):
+            return 'value: {}, ts: {}'.format(s, t)
+
+        class MyKeyedBroadcastProcessFunction(KeyedBroadcastProcessFunction):
+            def __init__(self, map_state_desc):
+                self._map_state_desc = map_state_desc
+                self._cache = None
+
+            def open(self, runtime_context: RuntimeContext):
+                self._cache = defaultdict(list)
+
+            def process_element(
+                self, value: Tuple[int, str], ctx: KeyedBroadcastProcessFunction.ReadOnlyContext
+            ):
+                ro_broadcast_state = ctx.get_broadcast_state(self._map_state_desc)
+                key = value[0] % 2
+                if ro_broadcast_state.contains(key):
+                    if self._cache.get(key) is not None:
+                        for v in self._cache[key]:
+                            yield _create_string(ro_broadcast_state.get(key) + str(v[0]), v[1])
+                        self._cache[key].clear()
+                    yield _create_string(ro_broadcast_state.get(key) + str(value[0]), value[1])
+                else:
+                    self._cache[key].append(value)
+                ctx.timer_service().register_event_time_timer(ctx.timestamp() + 10000)
+
+            def process_broadcast_element(
+                self, value: Tuple[int, str, str], ctx: KeyedBroadcastProcessFunction.Context
+            ):
+                key = value[0]
+                yield _create_string(str(key) + value[2], ctx.timestamp())
+                broadcast_state = ctx.get_broadcast_state(self._map_state_desc)
+                broadcast_state.put(key, value[2])
+                if self._cache.get(key) is not None:
+                    for v in self._cache[key]:
+                        yield _create_string(value[2] + str(v[0]), v[1])
+                    self._cache[key].clear()
+
+            def on_timer(self, timestamp: int, ctx: KeyedBroadcastProcessFunction.OnTimerContext):
+                yield _create_string(ctx.get_current_key(), timestamp)
+
+        map_state_desc = MapStateDescriptor(
+            "mapping", key_type_info=Types.INT(), value_type_info=Types.STRING()
+        )
+        ds.key_by(lambda t: t[0]).connect(ds_broadcast.broadcast(map_state_desc)).process(
+            MyKeyedBroadcastProcessFunction(map_state_desc), output_type=Types.STRING()
+        ).add_sink(self.test_sink)
+
+        self.env.execute("test_keyed_co_broadcast_process")
+        expected = [
+            'value: 0a, ts: 1603708215000',
+            'value: 0a, ts: 1603708215000',
+            'value: 1, ts: 1603708221000',
+            'value: 1b, ts: 1603708215000',
+            'value: 1b, ts: 1603708215000',
+            'value: 2, ts: 1603708222000',
+            'value: 3, ts: 1603708223000',
+            'value: 4, ts: 1603708224000',
+            'value: a2, ts: 1603708212000',
+            'value: a4, ts: 1603708214000',
+            'value: b1, ts: 1603708211000',
+            'value: b3, ts: 1603708213000'
+        ]
+        self.assert_equals_sorted(expected, self.test_sink.get_results())
+
+
+class StreamingModeDataStreamTests(ProcessDataStreamTests, PyFlinkStreamingTestCase):
     def test_data_stream_name(self):
         ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
         test_name = 'test_name'
@@ -1049,29 +1231,6 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         shuffle_node = exec_plan['nodes'][1]
         pre_ship_strategy = shuffle_node['predecessors'][0]['ship_strategy']
         self.assertEqual(pre_ship_strategy, 'SHUFFLE')
-
-    def test_partition_custom(self):
-        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2),
-                                       ('f', 7), ('g', 7), ('h', 8), ('i', 8), ('j', 9)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-
-        expected_num_partitions = 5
-
-        def my_partitioner(key, num_partitions):
-            assert expected_num_partitions == num_partitions
-            return key % num_partitions
-
-        partitioned_stream = ds.map(lambda x: x, output_type=Types.ROW([Types.STRING(),
-                                                                        Types.INT()]))\
-            .set_parallelism(4).partition_custom(my_partitioner, lambda x: x[1])
-
-        JPartitionCustomTestMapFunction = get_gateway().jvm\
-            .org.apache.flink.python.util.PartitionCustomTestMapFunction
-        test_map_stream = DataStream(partitioned_stream
-                                     ._j_data_stream.map(JPartitionCustomTestMapFunction()))
-        test_map_stream.set_parallelism(expected_num_partitions).add_sink(self.test_sink)
-
-        self.env.execute('test_partition_custom')
 
     def test_keyed_stream_partitioning(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)])
@@ -1370,7 +1529,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         self.assert_equals_sorted(expected, results)
 
 
-class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
+class BatchModeDataStreamTests(ProcessDataStreamTests, PyFlinkBatchTestCase):
 
     def test_timestamp_assigner_and_watermark_strategy(self):
         self.env.set_parallelism(1)
@@ -1542,6 +1701,14 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
         results = self.test_sink.get_results(False)
         expected = ['1']
         self.assert_equals_sorted(expected, results)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
+class EmbeddedDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
+    def setUp(self):
+        super(EmbeddedDataStreamTests, self).setUp()
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
+        config.setString("python.execution-mode", "thread")
 
 
 class MyKeySelector(KeySelector):

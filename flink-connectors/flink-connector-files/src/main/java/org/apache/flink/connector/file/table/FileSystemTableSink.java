@@ -136,8 +136,13 @@ public class FileSystemTableSink extends AbstractFileSystemTable
 
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context sinkContext) {
-        return (DataStreamSinkProvider)
-                (providerContext, dataStream) -> consume(providerContext, dataStream, sinkContext);
+        return new DataStreamSinkProvider() {
+            @Override
+            public DataStreamSink<?> consumeDataStream(
+                    ProviderContext providerContext, DataStream<RowData> dataStream) {
+                return consume(providerContext, dataStream, sinkContext);
+            }
+        };
     }
 
     private DataStreamSink<?> consume(

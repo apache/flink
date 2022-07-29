@@ -101,6 +101,14 @@ public class UnpooledBufferPool implements BufferPool {
     }
 
     @Override
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {}
+
+    @Override
+    public int getMaxOverdraftBuffersPerGate() {
+        return 0;
+    }
+
+    @Override
     public int getNumberOfAvailableMemorySegments() {
         return Integer.MAX_VALUE;
     }

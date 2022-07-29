@@ -371,7 +371,7 @@ public final class DynamicSourceUtils {
         return Collections.emptyMap();
     }
 
-    private static List<MetadataColumn> extractMetadataColumns(ResolvedSchema schema) {
+    public static List<MetadataColumn> extractMetadataColumns(ResolvedSchema schema) {
         return schema.getColumns().stream()
                 .filter(MetadataColumn.class::isInstance)
                 .map(MetadataColumn.class::cast)

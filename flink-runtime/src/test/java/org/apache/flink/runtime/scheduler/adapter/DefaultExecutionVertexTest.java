@@ -81,7 +81,9 @@ public class DefaultExecutionVertexTest extends TestLogger {
 
         List<ConsumedPartitionGroup> consumedPartitionGroups =
                 Collections.singletonList(
-                        ConsumedPartitionGroup.fromSinglePartition(intermediateResultPartitionId));
+                        ConsumedPartitionGroup.fromSinglePartition(
+                                intermediateResultPartitionId,
+                                schedulingResultPartition.getResultType()));
         Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionById =
                 Collections.singletonMap(intermediateResultPartitionId, schedulingResultPartition);
 

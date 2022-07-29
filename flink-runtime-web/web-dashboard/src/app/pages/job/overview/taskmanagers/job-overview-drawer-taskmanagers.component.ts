@@ -16,12 +16,18 @@
  * limitations under the License.
  */
 
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { Subject } from 'rxjs';
-import { mergeMap, takeUntil } from 'rxjs/operators';
+import { ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, Type } from '@angular/core';
+import { of, Subject } from 'rxjs';
+import { catchError, map, mergeMap, takeUntil } from 'rxjs/operators';
 
 import { VertexTaskManagerDetail } from '@flink-runtime-web/interfaces';
+import {
+  JOB_OVERVIEW_MODULE_CONFIG,
+  JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
+  JobOverviewModuleConfig
+} from '@flink-runtime-web/pages/job/overview/job-overview.config';
 import { JobService } from '@flink-runtime-web/services';
+import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
 import { JobLocalService } from '../../job-local.service';
@@ -51,36 +57,49 @@ export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy
   public readonly sortStatusFn = createSortFn(item => item.status);
 
   public listOfTaskManager: VertexTaskManagerDetail[] = [];
-  public sortName: string;
-  public sortValue: string;
   public isLoading = true;
+  public virtualItemSize = 36;
+  public actionComponent: Type<unknown>;
+  public taskCountBadgeComponent: Type<unknown>;
+  public stateBadgeComponent: Type<unknown>;
+  public readonly narrowLogData = typeDefinition<VertexTaskManagerDetail>();
 
   private readonly destroy$ = new Subject<void>();
 
   constructor(
     private readonly jobService: JobService,
     private readonly jobLocalService: JobLocalService,
-    private readonly cdr: ChangeDetectorRef
-  ) {}
+    private readonly cdr: ChangeDetectorRef,
+    @Inject(JOB_OVERVIEW_MODULE_CONFIG) readonly moduleConfig: JobOverviewModuleConfig
+  ) {
+    this.actionComponent =
+      moduleConfig.customComponents?.taskManagerActionComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.taskManagerActionComponent;
+    this.taskCountBadgeComponent =
+      moduleConfig.customComponents?.taskCountBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.taskCountBadgeComponent;
+    this.stateBadgeComponent =
+      moduleConfig.customComponents?.stateBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.stateBadgeComponent;
+  }
 
   ngOnInit(): void {
     this.jobLocalService
       .jobWithVertexChanges()
       .pipe(
-        mergeMap(data => this.jobService.loadTaskManagers(data.job.jid, data.vertex!.id)),
+        mergeMap(data =>
+          this.jobService.loadTaskManagers(data.job.jid, data.vertex!.id).pipe(
+            map(data => data.taskmanagers),
+            catchError(() => of([]))
+          )
+        ),
         takeUntil(this.destroy$)
       )
-      .subscribe(
-        data => {
-          this.listOfTaskManager = data.taskmanagers;
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        },
-        () => {
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        }
-      );
+      .subscribe(taskmanagers => {
+        this.listOfTaskManager = taskmanagers;
+        this.isLoading = false;
+        this.cdr.markForCheck();
+      });
   }
 
   ngOnDestroy(): void {

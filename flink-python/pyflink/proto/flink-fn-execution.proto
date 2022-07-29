@@ -310,6 +310,7 @@ message TypeInfo {
     PICKLED_BYTES = 20;
     OBJECT_ARRAY = 21;
     INSTANT = 22;
+    AVRO = 23;
   }
 
   message MapTypeInfo {
@@ -329,12 +330,17 @@ message TypeInfo {
     repeated TypeInfo field_types = 1;
   }
 
+  message AvroTypeInfo {
+    string schema = 1;
+  }
+
   TypeName type_name = 1;
   oneof type_info {
     TypeInfo collection_element_type = 2;
     RowTypeInfo row_type_info = 3;
     TupleTypeInfo tuple_type_info = 4;
     MapTypeInfo map_type_info = 5;
+    AvroTypeInfo avro_type_info = 6;
   }
 }
 
@@ -346,6 +352,8 @@ message UserDefinedDataStreamFunction {
     KEYED_PROCESS = 2;
     KEYED_CO_PROCESS = 3;
     WINDOW = 4;
+    CO_BROADCAST_PROCESS = 5;
+    KEYED_CO_BROADCAST_PROCESS = 6;
     REVISE_OUTPUT = 100;
   }
 

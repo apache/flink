@@ -260,7 +260,7 @@ public class NettyShuffleEnvironmentOptions {
                                     // this raw value must be changed correspondingly
                                     "taskmanager.memory.framework.off-heap.batch-shuffle.size"));
 
-    /** Number of max buffers can be used for each output subparition. */
+    /** Number of max buffers can be used for each output subpartition. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_MAX_BUFFERS_PER_CHANNEL =
             key("taskmanager.network.memory.max-buffers-per-channel")
@@ -273,6 +273,24 @@ public class NettyShuffleEnvironmentOptions {
                                     + " case of data skew and high number of configured floating buffers. This limit is not strictly guaranteed,"
                                     + " and can be ignored by things like flatMap operators, records spanning multiple buffers or single timer"
                                     + " producing large amount of data.");
+
+    /** Number of max overdraft network buffers to use for each ResultPartition. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> NETWORK_MAX_OVERDRAFT_BUFFERS_PER_GATE =
+            key("taskmanager.network.memory.max-overdraft-buffers-per-gate")
+                    .intType()
+                    .defaultValue(5)
+                    .withDescription(
+                            "Number of max overdraft network buffers to use for each ResultPartition. The overdraft buffers"
+                                    + " will be used when the subtask cannot apply to the normal buffers  due to back pressure,"
+                                    + " while subtask is performing an action that can not be interrupted in the middle,  like"
+                                    + " serializing a large record, flatMap operator producing multiple records for one single"
+                                    + " input record or processing time timer producing large output. In situations like that"
+                                    + " system will allow subtask to request overdraft buffers, so that the subtask can finish"
+                                    + " such uninterruptible action, without blocking unaligned checkpoints for long period of"
+                                    + " time. Overdraft buffers are provided on best effort basis only if the system has some"
+                                    + " unused buffers available. Subtask that has used overdraft buffers won't be allowed to"
+                                    + " process any more records until the overdraft buffers are returned to the pool.");
 
     /** The timeout for requesting exclusive buffers for each channel. */
     @Documentation.ExcludeFromDocumentation(

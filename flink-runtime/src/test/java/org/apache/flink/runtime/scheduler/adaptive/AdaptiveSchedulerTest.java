@@ -25,9 +25,9 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
@@ -49,7 +49,6 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraphTest;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FixedDelayRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.NoRestartBackoffTimeStrategy;
@@ -67,6 +66,7 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultAllocatedSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPool;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
@@ -993,36 +993,6 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 .isFalse();
     }
 
-    static class RunFailedJobListener implements JobStatusListener {
-        OneShotLatch jobRunning;
-        OneShotLatch jobTerminal;
-
-        public RunFailedJobListener() {
-            this.jobRunning = new OneShotLatch();
-            this.jobTerminal = new OneShotLatch();
-        }
-
-        @Override
-        public void jobStatusChanges(JobID jobId, JobStatus newJobStatus, long timestamp) {
-            if (newJobStatus == JobStatus.RUNNING) {
-                jobRunning.trigger();
-                return;
-            }
-            boolean hasRestarted = jobRunning.isTriggered() && newJobStatus == JobStatus.CREATED;
-            if (newJobStatus == JobStatus.FAILED || hasRestarted) {
-                jobTerminal.trigger();
-            }
-        }
-
-        public void waitForRunning() throws InterruptedException {
-            jobRunning.await();
-        }
-
-        public void waitForTerminal() throws InterruptedException {
-            jobTerminal.await();
-        }
-    }
-
     private Iterable<RootExceptionHistoryEntry> runExceptionHistoryTests(
             BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic) throws Exception {
         return runExceptionHistoryTests(testLogic, ignored -> {}, ignored -> {});
@@ -1040,11 +1010,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
             Consumer<AdaptiveSchedulerBuilder> setupScheduler,
             Consumer<JobGraph> setupJobGraph)
             throws Exception {
-        final int numAvailableSlots = 4;
         final JobGraph jobGraph = createJobGraph();
         setupJobGraph.accept(jobGraph);
-        RunFailedJobListener listener = new RunFailedJobListener();
-        List<ExecutionAttemptID> cancelledTasks = new ArrayList<>();
 
         final CompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
@@ -1064,14 +1031,22 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         .setJobMasterConfiguration(configuration)
                         .setDeclarativeSlotPool(declarativeSlotPool)
                         .setCheckpointRecoveryFactory(checkpointRecoveryFactory)
-                        .setCheckpointCleaner(checkpointCleaner)
-                        .setJobStatusListener(listener);
+                        .setCheckpointCleaner(checkpointCleaner);
         setupScheduler.accept(builder);
         final AdaptiveScheduler scheduler = builder.build(EXECUTOR_RESOURCE.getExecutor());
 
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
-                new SubmissionBufferingTaskManagerGateway(numAvailableSlots);
-        taskManagerGateway.setCancelConsumer(cancelledTasks::add);
+                new SubmissionBufferingTaskManagerGateway(PARALLELISM);
+        taskManagerGateway.setCancelConsumer(
+                attemptId ->
+                        singleThreadMainThreadExecutor.execute(
+                                () ->
+                                        scheduler.updateTaskExecutionState(
+                                                new TaskExecutionStateTransition(
+                                                        new TaskExecutionState(
+                                                                attemptId,
+                                                                ExecutionState.CANCELED,
+                                                                null)))));
 
         singleThreadMainThreadExecutor.execute(
                 () -> {
@@ -1080,10 +1055,13 @@ public class AdaptiveSchedulerTest extends TestLogger {
                             declarativeSlotPool,
                             createSlotOffersForResourceRequirements(
                                     ResourceCounter.withResource(
-                                            ResourceProfile.UNKNOWN, numAvailableSlots)),
+                                            ResourceProfile.UNKNOWN, PARALLELISM)),
                             taskManagerGateway);
                 });
-        listener.waitForRunning();
+        // wait for all tasks to be deployed
+        // this is important because some tests trigger savepoints
+        // these only properly work if the deployment has been started
+        taskManagerGateway.waitForSubmissions(PARALLELISM, TestingUtils.infiniteDuration());
 
         CompletableFuture<Iterable<ArchivedExecutionVertex>> vertexFuture =
                 new CompletableFuture<>();
@@ -1106,17 +1084,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         singleThreadMainThreadExecutor);
         runTestLogicFuture.get();
 
-        Consumer<ExecutionAttemptID> canceller =
-                attemptId ->
-                        scheduler.updateTaskExecutionState(
-                                new TaskExecutionStateTransition(
-                                        new TaskExecutionState(
-                                                attemptId, ExecutionState.CANCELED, null)));
-        CompletableFuture<Void> cancelFuture =
-                CompletableFuture.runAsync(
-                        () -> cancelledTasks.forEach(canceller), singleThreadMainThreadExecutor);
-        cancelFuture.get();
-        listener.waitForTerminal();
+        singleThreadMainThreadExecutor.execute(scheduler::cancel);
+        scheduler.getJobTerminationFuture().get();
 
         return scheduler.requestJob().getExceptionHistory();
     }
@@ -1199,7 +1168,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 jobGraph ->
                         jobGraph.setSnapshotSettings(
                                 new JobCheckpointingSettings(
-                                        CheckpointCoordinatorConfiguration.builder().build(),
+                                        // set a large checkpoint interval so we can easily deduce
+                                        // the savepoints checkpoint id
+                                        CheckpointCoordinatorConfiguration.builder()
+                                                .setCheckpointInterval(Long.MAX_VALUE)
+                                                .build(),
                                         null));
         final CompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
@@ -1223,6 +1196,17 @@ public class AdaptiveSchedulerTest extends TestLogger {
                             new TaskExecutionStateTransition(
                                     new TaskExecutionState(
                                             attemptId, ExecutionState.FAILED, expectedException)));
+
+                    // fail the savepoint so that the job terminates
+                    for (ExecutionAttemptID id : attemptIds) {
+                        scheduler.declineCheckpoint(
+                                new DeclineCheckpoint(
+                                        scheduler.requestJob().getJobId(),
+                                        id,
+                                        checkpointIDCounter.get() - 1,
+                                        new CheckpointException(
+                                                CheckpointFailureReason.IO_EXCEPTION)));
+                    }
                 };
 
         final Iterable<RootExceptionHistoryEntry> actualExceptionHistory =
@@ -1559,7 +1543,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         public SubmissionBufferingTaskManagerGateway(int capacity) {
             submittedTasks = new ArrayBlockingQueue<>(capacity);
-            super.setSubmitConsumer(submittedTasks::offer);
+            setSubmitConsumer(ignored -> {});
         }
 
         @Override

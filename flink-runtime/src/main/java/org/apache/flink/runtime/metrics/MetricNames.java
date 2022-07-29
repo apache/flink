@@ -72,6 +72,9 @@ public class MetricNames {
     public static final String TASK_IDLE_TIME = "idleTimeMs" + SUFFIX_RATE;
     public static final String TASK_BUSY_TIME = "busyTimeMs" + SUFFIX_RATE;
     public static final String TASK_BACK_PRESSURED_TIME = "backPressuredTimeMs" + SUFFIX_RATE;
+    public static final String ACC_TASK_IDLE_TIME = "accumulateIdleTimeMs";
+    public static final String ACC_TASK_BUSY_TIME = "accumulateBusyTimeMs";
+    public static final String ACC_TASK_BACK_PRESSURED_TIME = "accumulateBackPressuredTimeMs";
     public static final String TASK_SOFT_BACK_PRESSURED_TIME =
             "softBackPressuredTimeMs" + SUFFIX_RATE;
     public static final String TASK_HARD_BACK_PRESSURED_TIME =
@@ -106,4 +109,9 @@ public class MetricNames {
     public static final String MAILBOX_THROUGHPUT = "mailboxMailsPerSecond";
     public static final String MAILBOX_LATENCY = "mailboxLatencyMs";
     public static final String MAILBOX_SIZE = "mailboxQueueSize";
+
+    // speculative execution
+    public static final String NUM_SLOW_EXECUTION_VERTICES = "numSlowExecutionVertices";
+    public static final String NUM_EFFECTIVE_SPECULATIVE_EXECUTIONS =
+            "numEffectiveSpeculativeExecutions";
 }

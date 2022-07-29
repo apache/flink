@@ -80,6 +80,8 @@ public class ResultPartitionBuilder {
 
     private String compressionCodec = "LZ4";
 
+    private int maxOverdraftBuffersPerGate = 5;
+
     public ResultPartitionBuilder setResultPartitionIndex(int partitionIndex) {
         this.partitionIndex = partitionIndex;
         return this;
@@ -203,6 +205,11 @@ public class ResultPartitionBuilder {
         return this;
     }
 
+    public ResultPartitionBuilder setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {
+        this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
+        return this;
+    }
+
     public ResultPartition build() {
         ResultPartitionFactory resultPartitionFactory =
                 new ResultPartitionFactory(
@@ -220,7 +227,8 @@ public class ResultPartitionBuilder {
                         maxBuffersPerChannel,
                         sortShuffleMinBuffers,
                         sortShuffleMinParallelism,
-                        sslEnabled);
+                        sslEnabled,
+                        maxOverdraftBuffersPerGate);
 
         SupplierWithException<BufferPool, IOException> factory =
                 bufferPoolFactory.orElseGet(

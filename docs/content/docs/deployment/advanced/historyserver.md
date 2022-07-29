@@ -75,6 +75,22 @@ The contained archives are downloaded and cached in the local filesystem. The lo
 
 Check out the configuration page for a [complete list of configuration options]({{< ref "docs/deployment/config" >}}#history-server).
 
+## Log Integration
+
+Flink does not provide built-in methods for archiving logs of completed jobs.
+However, if you already have log archiving and browsing services, you can configure HistoryServer to integrate them
+(via [`historyserver.log.jobmanager.url-pattern`]({{< ref "docs/deployment/config" >}}#historyserver-log-jobmanager-url-pattern)
+and [`historyserver.log.taskmanager.url-pattern`]({{< ref "docs/deployment/config" >}}#historyserver-log-taskmanager-url-pattern)).
+In this way, you can directly link from HistoryServer WebUI to logs of the relevant JobManager / TaskManagers.
+
+```yaml
+# HistoryServer will replace <jobid> with the relevant job id
+historyserver.log.jobmanager.url-pattern: http://my.log-browsing.url/<jobid>
+
+# HistoryServer will replace <jobid> and <tmid> with the relevant job id and taskmanager id
+historyserver.log.taskmanager.url-pattern: http://my.log-browsing.url/<jobid>/<tmid>
+```
+
 ## Available Requests
 
 Below is a list of available requests, with a sample JSON response. All requests are of the sample form `http://hostname:8082/jobs`, below we list only the *path* part of the URLs.
@@ -97,5 +113,9 @@ Values in angle brackets are variables, for example `http://hostname:port/jobs/<
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>/attempts/<attempt>`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>/attempts/<attempt>/accumulators`
   - `/jobs/<jobid>/plan`
+  - `/jobs/<jobid>/jobmanager/config`
+  - `/jobs/<jobid>/jobmanager/environment`
+  - `/jobs/<jobid>/jobmanager/log-url`
+  - `/jobs/<jobid>/taskmanagers/<taskmanagerid>/log-url`
 
 {{< top >}}

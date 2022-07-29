@@ -95,6 +95,8 @@ import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpoint
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * These tests verify that the RichFunction methods are called (in correct order). And that
@@ -594,6 +596,30 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 if (writer != null) {
                     writer.close();
                 }
+            }
+        }
+    }
+
+    @Test
+    void testDisableOverdraftBuffer() throws Exception {
+        try (NettyShuffleEnvironment env =
+                        new NettyShuffleEnvironmentBuilder().setNumNetworkBuffers(2).build();
+                ResultPartition partitionWriter =
+                        PartitionTestUtils.createPartition(
+                                env, ResultPartitionType.PIPELINED_BOUNDED, 1)) {
+            partitionWriter.setup();
+            assertTrue(partitionWriter.getBufferPool().getMaxOverdraftBuffersPerGate() > 0);
+
+            final CompletableFuture<Long> checkpointCompleted = new CompletableFuture<>();
+            try (StreamTaskMailboxTestHarness<String> testHarness =
+                    new StreamTaskMailboxTestHarnessBuilder<>(
+                                    SourceStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                            .addAdditionalOutput(partitionWriter)
+                            .setupOperatorChain(new StreamSource<>(new MockSource(0, 0, 1)))
+                            .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                            .build()) {
+
+                assertEquals(0, partitionWriter.getBufferPool().getMaxOverdraftBuffersPerGate());
             }
         }
     }

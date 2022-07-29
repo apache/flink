@@ -22,12 +22,14 @@ import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOpt
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.planner.expressions.utils.Func0
+import org.apache.flink.table.planner.factories.TestValuesCatalog
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
+import org.apache.flink.table.utils.UserDefinedFunctions.{GENERATED_LOWER_UDF_CLASS, GENERATED_LOWER_UDF_CODE}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
-import org.apache.flink.util.FileUtils
+import org.apache.flink.util.{FileUtils, UserClassLoaderJarTestUtils}
 
 import org.junit.{Before, Rule, Test}
 import org.junit.Assert.{assertEquals, assertNotEquals, fail}
@@ -39,8 +41,10 @@ import java.io.File
 import java.math.{BigDecimal => JBigDecimal}
 import java.net.URI
 import java.util
+import java.util.UUID
 
 import scala.collection.JavaConversions._
+import scala.util.Random
 
 /** Test cases for catalog table. */
 @RunWith(classOf[Parameterized])
@@ -1234,6 +1238,40 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     expectedProperty.put("k1", "a")
     expectedProperty.put("k2", "b")
     assertEquals(expectedProperty, database.getProperties)
+  }
+
+  @Test
+  def testLoadFunction(): Unit = {
+    tableEnv.registerCatalog("cat2", new TestValuesCatalog("cat2", "default", true))
+    tableEnv.executeSql("use catalog cat2")
+    // test load customer function packaged in a jar
+    val random = new Random();
+    val udfClassName = GENERATED_LOWER_UDF_CLASS + random.nextInt(50)
+    val jarPath = UserClassLoaderJarTestUtils
+      .createJarFile(
+        AbstractTestBase.TEMPORARY_FOLDER.newFolder(String.format("test-jar-%s", UUID.randomUUID)),
+        "test-classloader-udf.jar",
+        udfClassName,
+        String.format(GENERATED_LOWER_UDF_CODE, udfClassName)
+      )
+      .toURI
+      .toString
+    tableEnv.executeSql(s"""create function lowerUdf as '$udfClassName' using jar '$jarPath'""")
+
+    TestCollectionTableFactory.reset()
+    TestCollectionTableFactory.initData(List(Row.of("BoB")))
+    val ddl1 =
+      """
+        |create table t1(
+        |  a varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(ddl1)
+    assertEquals(
+      "+I[bob]",
+      tableEnv.executeSql("select lowerUdf(a) from t1").collect().next().toString)
   }
 }
 

@@ -61,6 +61,8 @@ To read Avro records, you will need to add the `parquet-avro` dependency:
 </dependency>
 ```
 
+{{< py_download_link "parquet" >}}
+
 This format is compatible with the new Source that can be used in both batch and streaming execution modes.
 Thus, you can use this format for two kinds of data:
 
@@ -75,6 +77,8 @@ To configure the File Source for unbounded data, you must additionally call
 
 **Vectorized reader**
 
+{{< tabs "0b1b298a-b92f-4f95-8d06-49544b48ab75" >}}
+{{< tab "Java" >}}
 ```java
 
 // Parquet rows are decoded in batches
@@ -86,9 +90,26 @@ FileSource.forBulkFileFormat(BulkFormat,Path...)
         .build();
 
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+# Parquet rows are decoded in batches
+FileSource.for_bulk_file_format(BulkFormat, Path...)
+
+# Monitor the Paths to read data as unbounded data
+FileSource.for_bulk_file_format(BulkFormat, Path...) \
+          .monitor_continuously(Duration.of_millis(5)) \
+          .build()
+
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 **Avro Parquet reader**
 
+{{< tabs "0b1b298a-b92f-4f95-8d06-49544b12ab75" >}}
+{{< tab "Java" >}}
 ```java
 
 // Parquet rows are decoded in batches
@@ -99,8 +120,22 @@ FileSource.forRecordStreamFormat(StreamFormat,Path...)
         .monitorContinuously(Duration.ofMillis(5L))
         .build();
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+# Parquet rows are decoded in batches
+FileSource.for_record_stream_format(StreamFormat, Path...)
+
+# Monitor the Paths to read data as unbounded data
+FileSource.for_record_stream_format(StreamFormat, Path...) \
+          .monitor_continuously(Duration.of_millis(5)) \
+          .build()
 
 ```
+{{< /tab >}}
+{{< /tabs >}}
 
 {{< hint info >}}
 Following examples are all configured for bounded data.
@@ -115,29 +150,51 @@ Flink will read records in batches of 500 records. The first boolean parameter s
 The second boolean instructs the application that the projected Parquet fields names are case-sensitive.
 There is no watermark strategy defined as records do not contain event timestamps.
 
+{{< tabs "RowData" >}}
+{{< tab "Java" >}}
 ```java
 final LogicalType[] fieldTypes =
-  new LogicalType[] {
-  new DoubleType(), new IntType(), new VarCharType()
-  };
+        new LogicalType[] {
+                new DoubleType(), new IntType(), new VarCharType()};
+final RowType rowType = RowType.of(fieldTypes, new String[] {"f7", "f4", "f99"});
 
 final ParquetColumnarRowInputFormat<FileSourceSplit> format =
-  new ParquetColumnarRowInputFormat<>(
-  new Configuration(),
-  RowType.of(fieldTypes, new String[] {"f7", "f4", "f99"}),
-  500,
-  false,
-  true);
+        new ParquetColumnarRowInputFormat<>(
+                new Configuration(),
+                rowType,
+                InternalTypeInfo.of(rowType),
+                500,
+                false,
+                true);
 final FileSource<RowData> source =
-  FileSource.forBulkFileFormat(format,  /* Flink Path */)
-  .build();
+        FileSource.forBulkFileFormat(format,  /* Flink Path */)
+                .build();
 final DataStream<RowData> stream =
-  env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
+        env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('f7', DataTypes.DOUBLE()),
+    DataTypes.FIELD('f4', DataTypes.INT()),
+    DataTypes.FIELD('f99', DataTypes.VARCHAR()),
+])
+source = FileSource.for_bulk_file_format(ParquetColumnarRowInputFormat(
+    hadoop_config=Configuration(),
+    row_type=row_type,
+    batch_size=500,
+    is_utc_timestamp=False,
+    is_case_sensitive=True,
+), PARQUET_FILE_PATH).build()
+ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "file-source")
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ## Avro Records
 
-Flink supports producing three types of Avro records by reading Parquet files:
+Flink supports producing three types of Avro records by reading Parquet files (Only Generic record is supported in PyFlink):
 
 - [Generic record](https://avro.apache.org/docs/1.10.0/api/java/index.html)
 - [Specific record](https://avro.apache.org/docs/1.10.0/api/java/index.html)
@@ -166,6 +223,8 @@ In the following example, you will create a DataStream containing Parquet record
 It will parse the Avro schema based on the JSON string. There are many other ways to parse a schema, e.g. from java.io.File or java.io.InputStream. Please refer to [Avro Schema](https://avro.apache.org/docs/1.10.0/api/java/org/apache/avro/Schema.html) for details.
 After that, you will create an `AvroParquetRecordFormat` via `AvroParquetReaders` for Avro Generic records.
 
+{{< tabs "GenericRecord" >}}
+{{< tab "Java" >}}
 ```java
 // parsing avro schema
 final Schema schema =
@@ -191,6 +250,33 @@ final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEn
 final DataStream<GenericRecord> stream =
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# parsing avro schema
+schema = AvroSchema.parse_string("""
+{
+    "type": "record",
+    "name": "User",
+    "fields": [
+        {"name": "name", "type": "string"},
+        {"name": "favoriteNumber",  "type": ["int", "null"]},
+        {"name": "favoriteColor", "type": ["string", "null"]}
+    ]
+}
+""")
+
+source = FileSource.for_record_stream_format(
+    AvroParquetReaders.for_generic_record(schema), # file paths
+).build()
+
+env = StreamExecutionEnvironment.get_execution_environment()
+env.enable_checkpointing(10)
+
+stream = env.from_source(source, WatermarkStrategy.no_watermarks(), "file-source")
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ### Specific record
 

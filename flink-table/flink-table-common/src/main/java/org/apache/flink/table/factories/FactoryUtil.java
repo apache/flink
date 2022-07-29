@@ -110,6 +110,13 @@ public final class FactoryUtil {
                                     + "By default, if this option is not defined, the planner will derive the parallelism "
                                     + "for each statement individually by also considering the global configuration.");
 
+    public static final ConfigOption<List<String>> SQL_GATEWAY_ENDPOINT_TYPE =
+            ConfigOptions.key("sql-gateway.endpoint.type")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription("Specify the endpoints that are used.");
+
     /**
      * Suffix for keys of {@link ConfigOption} in case a connector requires multiple formats (e.g.
      * for both key and value).
@@ -876,7 +883,9 @@ public final class FactoryUtil {
     // Helper classes
     // --------------------------------------------------------------------------------------------
 
-    private static class FactoryHelper<F extends Factory> {
+    /** Base helper utility for validating all options for a {@link Factory}. */
+    @PublicEvolving
+    public static class FactoryHelper<F extends Factory> {
 
         protected final F factory;
 
@@ -886,7 +895,7 @@ public final class FactoryUtil {
 
         protected final Set<String> deprecatedOptionKeys;
 
-        FactoryHelper(
+        public FactoryHelper(
                 F factory, Map<String, String> configuration, ConfigOption<?>... implicitOptions) {
             this.factory = factory;
             this.allOptions = Configuration.fromMap(configuration);

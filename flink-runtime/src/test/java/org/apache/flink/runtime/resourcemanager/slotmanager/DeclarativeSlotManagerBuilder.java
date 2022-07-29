@@ -22,6 +22,7 @@ import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -30,6 +31,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
+import java.time.Duration;
 import java.util.concurrent.Executor;
 
 /** Builder for {@link DeclarativeSlotManager}. */
@@ -47,6 +49,7 @@ public class DeclarativeSlotManagerBuilder {
     private int redundantTaskManagerNum;
     private ResourceTracker resourceTracker;
     private SlotTracker slotTracker;
+    private Duration requirementCheckDelay;
 
     private DeclarativeSlotManagerBuilder(ScheduledExecutor scheduledExecutor) {
         this.slotMatchingStrategy = AnyMatchingSlotMatchingStrategy.INSTANCE;
@@ -64,6 +67,7 @@ public class DeclarativeSlotManagerBuilder {
                 ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue();
         this.resourceTracker = new DefaultResourceTracker();
         this.slotTracker = new DefaultSlotTracker();
+        this.requirementCheckDelay = Duration.ZERO;
     }
 
     public static DeclarativeSlotManagerBuilder newBuilder(ScheduledExecutor scheduledExecutor) {
@@ -135,12 +139,18 @@ public class DeclarativeSlotManagerBuilder {
         return this;
     }
 
+    public DeclarativeSlotManagerBuilder setRequirementCheckDelay(Duration requirementCheckDelay) {
+        this.requirementCheckDelay = requirementCheckDelay;
+        return this;
+    }
+
     public DeclarativeSlotManager build() {
         final SlotManagerConfiguration slotManagerConfiguration =
                 new SlotManagerConfiguration(
                         taskManagerRequestTimeout,
                         slotRequestTimeout,
                         taskManagerTimeout,
+                        requirementCheckDelay,
                         waitResultConsumedBeforeRelease,
                         slotMatchingStrategy,
                         defaultWorkerResourceSpec,
@@ -172,8 +182,18 @@ public class DeclarativeSlotManagerBuilder {
             ResourceManagerId resourceManagerId,
             Executor executor,
             ResourceActions resourceManagerActions) {
+        return buildAndStart(
+                resourceManagerId, executor, resourceManagerActions, resourceID -> false);
+    }
+
+    public DeclarativeSlotManager buildAndStart(
+            ResourceManagerId resourceManagerId,
+            Executor executor,
+            ResourceActions resourceManagerActions,
+            BlockedTaskManagerChecker blockedTaskManagerChecker) {
         final DeclarativeSlotManager slotManager = build();
-        slotManager.start(resourceManagerId, executor, resourceManagerActions);
+        slotManager.start(
+                resourceManagerId, executor, resourceManagerActions, blockedTaskManagerChecker);
         return slotManager;
     }
 }

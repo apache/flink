@@ -324,6 +324,28 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
   }
 
   @Test
+  def testInnerJoinWithBooleanFilterCondition(): Unit = {
+    val data1 = new mutable.MutableList[(Int, Long, String, Boolean)]
+    data1.+=((1, 1L, "Hi", true))
+    data1.+=((2, 2L, "Hello", false))
+    data1.+=((3, 2L, "Hello world", true))
+
+    val t1 = failingDataSource(data1).toTable(tEnv, 'a1, 'b1, 'c1, 'd1)
+    val t2 = failingDataSource(data1).toTable(tEnv, 'a2, 'b2, 'c2, 'd2)
+    tEnv.registerTable("Table3", t1)
+    tEnv.registerTable("Table5", t2)
+
+    val sqlQuery = "SELECT a1, a1, c2 FROM Table3 INNER JOIN Table5 ON d1 = d2 where d1 is true"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("1,1,Hello world", "1,1,Hi", "3,3,Hello world", "3,3,Hi")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
   def testInnerJoinWithNonEquiJoinPredicate(): Unit = {
     val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE b = e AND a < 6 AND h < b"
 

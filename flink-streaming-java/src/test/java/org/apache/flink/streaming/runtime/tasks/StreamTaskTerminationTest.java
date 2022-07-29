@@ -133,6 +133,7 @@ public class StreamTaskTerminationTest extends TestLogger {
         streamConfig.setStreamOperator(noOpStreamOperator);
         streamConfig.setOperatorID(new OperatorID());
         streamConfig.setStateBackend(blockingStateBackend);
+        streamConfig.serializeAllConfigs();
 
         final long checkpointId = 0L;
         final long checkpointTimestamp = 0L;

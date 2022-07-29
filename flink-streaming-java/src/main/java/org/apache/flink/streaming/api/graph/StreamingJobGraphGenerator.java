@@ -54,6 +54,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
@@ -75,7 +76,10 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -97,6 +101,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -113,12 +121,28 @@ public class StreamingJobGraphGenerator {
 
     // ------------------------------------------------------------------------
 
+    @VisibleForTesting
     public static JobGraph createJobGraph(StreamGraph streamGraph) {
-        return createJobGraph(streamGraph, null);
+        return new StreamingJobGraphGenerator(streamGraph, null, Runnable::run).createJobGraph();
     }
 
     public static JobGraph createJobGraph(StreamGraph streamGraph, @Nullable JobID jobID) {
-        return new StreamingJobGraphGenerator(streamGraph, jobID).createJobGraph();
+        // TODO Currently, we construct a new thread pool for the compilation of each job. In the
+        // future, we may refactor the job submission framework and make it reusable across jobs.
+        final ExecutorService serializationExecutor =
+                Executors.newFixedThreadPool(
+                        Math.max(
+                                1,
+                                Math.min(
+                                        Hardware.getNumberCPUCores(),
+                                        streamGraph.getExecutionConfig().getParallelism())),
+                        new ExecutorThreadFactory("flink-operator-serialization-io"));
+        try {
+            return new StreamingJobGraphGenerator(streamGraph, jobID, serializationExecutor)
+                    .createJobGraph();
+        } finally {
+            serializationExecutor.shutdown();
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -144,7 +168,15 @@ public class StreamingJobGraphGenerator {
     private final StreamGraphHasher defaultStreamGraphHasher;
     private final List<StreamGraphHasher> legacyStreamGraphHashers;
 
-    private StreamingJobGraphGenerator(StreamGraph streamGraph, @Nullable JobID jobID) {
+    private boolean hasHybridResultPartition = false;
+
+    private final Executor serializationExecutor;
+
+    // Futures for the serialization of operator coordinators
+    private final List<CompletableFuture<Void>> coordinatorSerializationFutures = new ArrayList<>();
+
+    private StreamingJobGraphGenerator(
+            StreamGraph streamGraph, @Nullable JobID jobID, Executor serializationExecutor) {
         this.streamGraph = streamGraph;
         this.defaultStreamGraphHasher = new StreamGraphHasherV2();
         this.legacyStreamGraphHashers = Arrays.asList(new StreamGraphUserHashHasher());
@@ -158,6 +190,7 @@ public class StreamingJobGraphGenerator {
         this.chainedPreferredResources = new HashMap<>();
         this.chainedInputOutputFormats = new HashMap<>();
         this.physicalEdgesInOrder = new ArrayList<>();
+        this.serializationExecutor = Preconditions.checkNotNull(serializationExecutor);
 
         jobGraph = new JobGraph(jobID, streamGraph.getJobName());
     }
@@ -183,6 +216,8 @@ public class StreamingJobGraphGenerator {
         setChaining(hashes, legacyHashes);
 
         setPhysicalEdges();
+
+        markContainsSourcesOrSinks();
 
         setSlotSharingAndCoLocation();
 
@@ -217,9 +252,30 @@ public class StreamingJobGraphGenerator {
                             + "This indicates that non-serializable types (like custom serializers) were registered");
         }
 
+        jobGraph.setChangelogStateBackendEnabled(streamGraph.isChangelogStateBackendEnabled());
+
         addVertexIndexPrefixInVertexName();
 
         setVertexDescription();
+
+        // Wait for the serialization of operator coordinators and stream config.
+        try {
+            FutureUtils.combineAll(
+                            vertexConfigs.values().stream()
+                                    .map(
+                                            config ->
+                                                    config.triggerSerializationAndReturnFuture(
+                                                            serializationExecutor))
+                                    .collect(Collectors.toList()))
+                    .get();
+            FutureUtils.combineAll(coordinatorSerializationFutures).get();
+        } catch (Exception e) {
+            throw new FlinkRuntimeException("Error in serialization.", e);
+        }
+
+        if (!streamGraph.getJobStatusHooks().isEmpty()) {
+            jobGraph.setJobStatusHooks(streamGraph.getJobStatusHooks());
+        }
 
         return jobGraph;
     }
@@ -743,15 +799,21 @@ public class StreamingJobGraphGenerator {
 
         for (OperatorCoordinator.Provider coordinatorProvider :
                 chainInfo.getCoordinatorProviders()) {
-            try {
-                jobVertex.addOperatorCoordinator(new SerializedValue<>(coordinatorProvider));
-            } catch (IOException e) {
-                throw new FlinkRuntimeException(
-                        String.format(
-                                "Coordinator Provider for node %s is not serializable.",
-                                chainedNames.get(streamNodeId)),
-                        e);
-            }
+            coordinatorSerializationFutures.add(
+                    CompletableFuture.runAsync(
+                            () -> {
+                                try {
+                                    jobVertex.addOperatorCoordinator(
+                                            new SerializedValue<>(coordinatorProvider));
+                                } catch (IOException e) {
+                                    throw new FlinkRuntimeException(
+                                            String.format(
+                                                    "Coordinator Provider for node %s is not serializable.",
+                                                    chainedNames.get(streamNodeId)),
+                                            e);
+                                }
+                            },
+                            serializationExecutor));
         }
 
         jobVertex.setResources(
@@ -872,7 +934,6 @@ public class StreamingJobGraphGenerator {
         final CheckpointConfig checkpointCfg = streamGraph.getCheckpointConfig();
 
         config.setStateBackend(streamGraph.getStateBackend());
-        config.setChangelogStateBackendEnabled(streamGraph.isChangelogStateBackendEnabled());
         config.setCheckpointStorage(streamGraph.getCheckpointStorage());
         config.setSavepointDir(streamGraph.getSavepointDirectory());
         config.setGraphContainingLoops(streamGraph.isIterative());
@@ -976,12 +1037,19 @@ public class StreamingJobGraphGenerator {
             case BATCH:
                 resultPartitionType = ResultPartitionType.BLOCKING;
                 break;
+            case HYBRID:
+                resultPartitionType = ResultPartitionType.HYBRID;
+                break;
             case UNDEFINED:
                 resultPartitionType = determineResultPartitionType(partitioner);
                 break;
             default:
                 throw new UnsupportedOperationException(
                         "Data exchange mode " + edge.getExchangeMode() + " is not supported yet.");
+        }
+
+        if (resultPartitionType == ResultPartitionType.HYBRID) {
+            hasHybridResultPartition = true;
         }
 
         checkBufferTimeout(resultPartitionType, edge);
@@ -1045,6 +1113,8 @@ public class StreamingJobGraphGenerator {
                 return ResultPartitionType.PIPELINED_BOUNDED;
             case ALL_EDGES_PIPELINED_APPROXIMATE:
                 return ResultPartitionType.PIPELINED_APPROXIMATE;
+            case ALL_EDGES_HYBRID:
+                return ResultPartitionType.HYBRID;
             default:
                 throw new RuntimeException(
                         "Unrecognized global data exchange mode "
@@ -1150,7 +1220,7 @@ public class StreamingJobGraphGenerator {
                 break;
             default:
                 throw new RuntimeException(
-                        "Unknown chaining strategy: " + upStreamOperator.getChainingStrategy());
+                        "Unknown chaining strategy: " + downStreamOperator.getChainingStrategy());
         }
 
         return isChainable;
@@ -1165,6 +1235,27 @@ public class StreamingJobGraphGenerator {
                     streamGraph.getSourceVertex(upStreamVertex.getInEdges().get(0)), streamGraph);
         }
         return upStreamVertex.getOperatorFactory();
+    }
+
+    private void markContainsSourcesOrSinks() {
+        for (Map.Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
+            final JobVertex jobVertex = entry.getValue();
+            final Set<Integer> vertexOperators = new HashSet<>();
+            vertexOperators.add(entry.getKey());
+            if (chainedConfigs.containsKey(entry.getKey())) {
+                vertexOperators.addAll(chainedConfigs.get(entry.getKey()).keySet());
+            }
+
+            for (int nodeId : vertexOperators) {
+                if (streamGraph.getSourceIDs().contains(nodeId)) {
+                    jobVertex.markContainsSources();
+                }
+                if (streamGraph.getSinkIDs().contains(nodeId)
+                        || streamGraph.getExpandedSinkIds().contains(nodeId)) {
+                    jobVertex.markContainsSinks();
+                }
+            }
+        }
     }
 
     private void setSlotSharingAndCoLocation() {
@@ -1191,6 +1282,10 @@ public class StreamingJobGraphGenerator {
                 effectiveSlotSharingGroup =
                         checkNotNull(vertexRegionSlotSharingGroups.get(vertex.getID()));
             } else {
+                checkState(
+                        !hasHybridResultPartition,
+                        "hybrid shuffle mode currently does not support setting non-default slot sharing group.");
+
                 effectiveSlotSharingGroup =
                         specifiedSlotSharingGroups.computeIfAbsent(
                                 slotSharingGroupKey,

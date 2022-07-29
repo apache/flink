@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.utils;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.python.util.ProtoUtils;
 
 import org.junit.jupiter.api.Test;
 

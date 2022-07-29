@@ -28,12 +28,14 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.testutils.ClassLoaderUtils;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.net.URL;
@@ -51,14 +53,14 @@ import static org.junit.Assert.assertThat;
  * Tests for {@link PackagedProgramUtils} methods that should be executed for {@link
  * StreamExecutionEnvironment} and {@link Environment}.
  */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class PackagedProgramUtilsPipelineTest {
 
-    @Parameterized.Parameter public TestParameter testParameter;
+    @Parameter public TestParameter testParameter;
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private java.nio.file.Path temporaryFolder;
 
-    @Parameterized.Parameters
+    @Parameters(name = "testParameter-{0}")
     public static Collection<TestParameter> parameters() {
         return Arrays.asList(
                 TestParameter.of(
@@ -73,8 +75,8 @@ public class PackagedProgramUtilsPipelineTest {
      * This tests whether configuration forwarding from a {@link Configuration} to the environment
      * works.
      */
-    @Test
-    public void testConfigurationForwarding() throws Exception {
+    @TestTemplate
+    void testConfigurationForwarding() throws Exception {
         // we want to test forwarding with this config, ensure that the default is what we expect.
         assertThat(
                 ExecutionEnvironment.getExecutionEnvironment()
@@ -100,8 +102,8 @@ public class PackagedProgramUtilsPipelineTest {
         assertThat(executionConfig.isAutoTypeRegistrationDisabled(), is(true));
     }
 
-    @Test
-    public void testUserClassloaderForConfiguration() throws Exception {
+    @TestTemplate
+    void testUserClassloaderForConfiguration() throws Exception {
         String userSerializerClassName = "UserSerializer";
         List<URL> userUrls = getClassUrls(userSerializerClassName);
 
@@ -137,7 +139,7 @@ public class PackagedProgramUtilsPipelineTest {
     private List<URL> getClassUrls(String className) throws IOException {
         URLClassLoader urlClassLoader =
                 ClassLoaderUtils.compileAndLoadJava(
-                        temporaryFolder.newFolder(),
+                        TempDirUtils.newFolder(temporaryFolder),
                         className + ".java",
                         "import com.esotericsoftware.kryo.Kryo;\n"
                                 + "import com.esotericsoftware.kryo.Serializer;\n"
@@ -177,6 +179,11 @@ public class PackagedProgramUtilsPipelineTest {
                 @Override
                 public ExecutionConfig extractExecutionConfig(Pipeline pipeline) {
                     return executionConfigExtractor.apply(pipeline);
+                }
+
+                @Override
+                public String toString() {
+                    return entryClass.getSimpleName();
                 }
             };
         }

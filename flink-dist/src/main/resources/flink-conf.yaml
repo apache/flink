@@ -36,7 +36,7 @@ jobmanager.rpc.address: localhost
 
 jobmanager.rpc.port: 6123
 
-# The host interface the JobManager will bind to. My default, this is localhost, and will prevent
+# The host interface the JobManager will bind to. By default, this is localhost, and will prevent
 # the JobManager from communicating outside the machine/container it is running on.
 # On YARN this setting will be ignored if it is set to 'localhost', defaulting to 0.0.0.0.
 # On Kubernetes this setting will be ignored, defaulting to 0.0.0.0.

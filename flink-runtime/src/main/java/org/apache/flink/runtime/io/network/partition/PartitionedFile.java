@@ -47,10 +47,10 @@ public class PartitionedFile {
     public static final String INDEX_FILE_SUFFIX = ".shuffle.index";
 
     /**
-     * Size of each index entry in the index file: 8 bytes for file offset and 4 bytes for number of
-     * buffers.
+     * Size of each index entry in the index file: 8 bytes for file offset and 8 bytes for data size
+     * in bytes.
      */
-    public static final int INDEX_ENTRY_SIZE = 8 + 4;
+    public static final int INDEX_ENTRY_SIZE = 8 + 8;
 
     /** Number of data regions in this {@link PartitionedFile}. */
     private final int numRegions;
