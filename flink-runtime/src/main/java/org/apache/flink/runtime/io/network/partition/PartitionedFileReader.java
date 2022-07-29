@@ -67,7 +67,8 @@ class PartitionedFileReader {
             PartitionedFile partitionedFile,
             int targetSubpartition,
             FileChannel dataFileChannel,
-            FileChannel indexFileChannel) {
+            FileChannel indexFileChannel)
+            throws IOException {
         checkArgument(checkNotNull(dataFileChannel).isOpen(), "Data file channel must be opened.");
         checkArgument(
                 checkNotNull(indexFileChannel).isOpen(), "Index file channel must be opened.");
@@ -79,6 +80,7 @@ class PartitionedFileReader {
 
         this.indexEntryBuf = ByteBuffer.allocateDirect(PartitionedFile.INDEX_ENTRY_SIZE);
         BufferReaderWriterUtil.configureByteBuffer(indexEntryBuf);
+        moveToNextReadableRegion();
     }
 
     private void moveToNextReadableRegion() throws IOException {

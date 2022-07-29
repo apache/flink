@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.assertj.core.api.Assertions;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -41,12 +42,12 @@ import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -248,27 +249,18 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
     }
 
     @Test
-    public void testRequestBufferTimeoutAndFailed() throws Exception {
+    public void testRequestBufferTimeout() throws Exception {
         Duration bufferRequestTimeout = Duration.ofSeconds(3);
         List<MemorySegment> buffers = bufferPool.requestBuffers();
         SortMergeResultPartitionReadScheduler readScheduler =
                 new SortMergeResultPartitionReadScheduler(
                         numSubpartitions, bufferPool, executor, this, bufferRequestTimeout);
 
-        SortMergeSubpartitionReader subpartitionReader =
-                readScheduler.createSubpartitionReader(
-                        new NoOpBufferAvailablityListener(), 0, partitionedFile);
-
-        PriorityQueue<SortMergeSubpartitionReader> allReaders = new PriorityQueue<>();
-        allReaders.add(subpartitionReader);
-
         long startTimestamp = System.nanoTime();
-        Queue<MemorySegment> allocatedBuffers = readScheduler.allocateBuffers(allReaders);
+        Assertions.assertThatThrownBy(readScheduler::allocateBuffers)
+                .isInstanceOf(TimeoutException.class);
         long requestDuration = System.nanoTime() - startTimestamp;
-
-        assertEquals(0, allocatedBuffers.size());
-        assertTrue(requestDuration > bufferRequestTimeout.toNanos());
-        assertExpectedTimeoutException(subpartitionReader.getFailureCause());
+        Assertions.assertThat(requestDuration > bufferRequestTimeout.toNanos()).isTrue();
 
         bufferPool.recycle(buffers);
         readScheduler.release();
@@ -285,11 +277,8 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
         SortMergeSubpartitionReader subpartitionReader =
                 new SortMergeSubpartitionReader(new NoOpBufferAvailablityListener(), fileReader);
 
-        PriorityQueue<SortMergeSubpartitionReader> allReaders = new PriorityQueue<>();
-        allReaders.add(subpartitionReader);
-
         long startTimestamp = System.nanoTime();
-        Queue<MemorySegment> allocatedBuffers = readScheduler.allocateBuffers(allReaders);
+        Queue<MemorySegment> allocatedBuffers = readScheduler.allocateBuffers();
         long requestDuration = System.nanoTime() - startTimestamp;
 
         assertEquals(3, allocatedBuffers.size());
