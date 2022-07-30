@@ -58,6 +58,7 @@ class FileSystemCommitter implements Serializable {
     private final boolean isToLocal;
     private final Path tmpPath;
     private final int partitionColumnSize;
+    private final LinkedHashMap<String, String> staticPartitions;
 
     FileSystemCommitter(
             FileSystemFactory factory,
@@ -65,7 +66,14 @@ class FileSystemCommitter implements Serializable {
             boolean overwrite,
             Path tmpPath,
             int partitionColumnSize) {
-        this(factory, metaStoreFactory, overwrite, tmpPath, partitionColumnSize, false);
+        this(
+                factory,
+                metaStoreFactory,
+                overwrite,
+                tmpPath,
+                partitionColumnSize,
+                false,
+                new LinkedHashMap<String, String>());
     }
 
     FileSystemCommitter(
@@ -74,13 +82,15 @@ class FileSystemCommitter implements Serializable {
             boolean overwrite,
             Path tmpPath,
             int partitionColumnSize,
-            boolean isToLocal) {
+            boolean isToLocal,
+            LinkedHashMap<String, String> staticPartitions) {
         this.factory = factory;
         this.metaStoreFactory = metaStoreFactory;
         this.overwrite = overwrite;
         this.tmpPath = tmpPath;
         this.partitionColumnSize = partitionColumnSize;
         this.isToLocal = isToLocal;
+        this.staticPartitions = staticPartitions;
     }
 
     /** For committing job's output after successful batch job completion. */
@@ -91,9 +101,13 @@ class FileSystemCommitter implements Serializable {
         try (PartitionLoader loader =
                 new PartitionLoader(overwrite, fs, metaStoreFactory, isToLocal)) {
             if (partitionColumnSize > 0) {
-                for (Map.Entry<LinkedHashMap<String, String>, List<Path>> entry :
-                        collectPartSpecToPaths(fs, taskPaths, partitionColumnSize).entrySet()) {
-                    loader.loadPartition(entry.getKey(), entry.getValue());
+                if (taskPaths.isEmpty() && !staticPartitions.isEmpty()) {
+                    loader.loadEmptyPartition(this.staticPartitions);
+                } else {
+                    for (Map.Entry<LinkedHashMap<String, String>, List<Path>> entry :
+                            collectPartSpecToPaths(fs, taskPaths, partitionColumnSize).entrySet()) {
+                        loader.loadPartition(entry.getKey(), entry.getValue());
+                    }
                 }
             } else {
                 loader.loadNonPartition(taskPaths);

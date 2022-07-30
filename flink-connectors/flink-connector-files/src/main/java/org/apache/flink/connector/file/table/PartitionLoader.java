@@ -86,6 +86,32 @@ public class PartitionLoader implements Closeable {
         overwriteAndMoveFiles(srcDirs, tableLocation);
     }
 
+    /**
+     * The flink job does not write data to the partition, but the corresponding partition needs to
+     * be created.
+     *
+     * <p>The partition does not exist, create it.
+     *
+     * <p>The partition exists:
+     *
+     * <pre>
+     *      if overwrite is true, delete the path, then create it;
+     *      if overwrite is false, do nothing;
+     * </pre>
+     */
+    public void loadEmptyPartition(LinkedHashMap<String, String> partSpec) throws Exception {
+        Optional<Path> pathFromMeta = metaStore.getPartition(partSpec);
+        if (pathFromMeta.isPresent() && !overwrite) {
+            return;
+        }
+        Path path = new Path(metaStore.getLocationPath(), generatePartitionPath(partSpec));
+        if (pathFromMeta.isPresent()) {
+            fs.delete(pathFromMeta.get(), true);
+            fs.mkdirs(path);
+        }
+        metaStore.createOrAlterPartition(partSpec, path);
+    }
+
     private void overwriteAndMoveFiles(List<Path> srcDirs, Path destDir) throws Exception {
         FileSystem destFileSystem = destDir.getFileSystem();
         boolean dirSuccessExist = destFileSystem.exists(destDir) || destFileSystem.mkdirs(destDir);

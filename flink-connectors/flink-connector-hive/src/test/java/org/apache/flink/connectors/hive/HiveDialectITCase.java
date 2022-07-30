@@ -1108,6 +1108,100 @@ public class HiveDialectITCase {
         }
     }
 
+    @Test
+    public void testInsertIntoNotExistStaticPartitionWithoutData() throws Exception {
+        tableEnv.executeSql("CREATE TABLE src_table (name string) PARTITIONED BY (`dt` string)");
+        tableEnv.executeSql("CREATE TABLE target_table (name string) PARTITIONED BY (`dt` string)");
+
+        tableEnv.executeSql(
+                        "INSERT INTO target_table partition (dt='2022-07-27') SELECT name FROM src_table where dt = '2022-07-27'")
+                .await();
+        List<Row> partitions =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("show partitions target_table").collect());
+        assertThat(partitions).hasSize(1);
+        assertThat(partitions.toString()).contains("dt=2022-07-27");
+    }
+
+    @Test
+    public void testInsertOverwriteNotExistStaticPartitionWithoutData() throws Exception {
+        tableEnv.executeSql("CREATE TABLE src_table (name string) PARTITIONED BY (`dt` string)");
+        tableEnv.executeSql("CREATE TABLE target_table (name string) PARTITIONED BY (`dt` string)");
+
+        tableEnv.executeSql(
+                        "INSERT OVERWRITE target_table partition (dt='2022-07-27') SELECT name FROM src_table where dt = '2022-07-27'")
+                .await();
+        List<Row> partitions =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("show partitions target_table").collect());
+        assertThat(partitions).hasSize(1);
+        assertThat(partitions.toString()).contains("dt=2022-07-27");
+    }
+
+    @Test
+    public void testInsertIntoExistStaticPartitionWithoutData() throws Exception {
+        tableEnv.executeSql("CREATE TABLE src_table (name string) PARTITIONED BY (`dt` string)");
+        tableEnv.executeSql("CREATE TABLE target_table (name string) PARTITIONED BY (`dt` string)");
+
+        tableEnv.executeSql("INSERT INTO target_table partition (dt='2022-07-27') VALUES ('zm')")
+                .await();
+
+        assertThat(
+                        queryResult(
+                                        tableEnv.sqlQuery(
+                                                "select name from target_table where dt='2022-07-27'"))
+                                .toString())
+                .isEqualTo("[+I[zm]]");
+
+        tableEnv.executeSql(
+                        "INSERT INTO target_table partition (dt='2022-07-27') SELECT name FROM src_table where dt = '2022-07-27'")
+                .await();
+        List<Row> partitions =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("show partitions target_table").collect());
+        assertThat(partitions).hasSize(1);
+        assertThat(partitions.toString()).contains("dt=2022-07-27");
+
+        assertThat(
+                        queryResult(
+                                        tableEnv.sqlQuery(
+                                                "select name from target_table where dt='2022-07-27'"))
+                                .toString())
+                .isEqualTo("[+I[zm]]");
+    }
+
+    @Test
+    public void testInsertOverwriteExistStaticPartitionWithoutData() throws Exception {
+        tableEnv.executeSql("CREATE TABLE src_table (name string) PARTITIONED BY (`dt` string)");
+        tableEnv.executeSql("CREATE TABLE target_table (name string) PARTITIONED BY (`dt` string)");
+
+        tableEnv.executeSql("INSERT INTO target_table partition (dt='2022-07-27') VALUES ('zm')")
+                .await();
+
+        assertThat(
+                        queryResult(
+                                        tableEnv.sqlQuery(
+                                                "select name from target_table where dt='2022-07-27'"))
+                                .toString())
+                .isEqualTo("[+I[zm]]");
+
+        tableEnv.executeSql(
+                        "INSERT OVERWRITE target_table partition (dt='2022-07-27') SELECT name FROM src_table where dt = '2022-07-27'")
+                .await();
+        List<Row> partitions =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("show partitions target_table").collect());
+        assertThat(partitions).hasSize(1);
+        assertThat(partitions.toString()).contains("dt=2022-07-27");
+
+        assertThat(
+                        queryResult(
+                                        tableEnv.sqlQuery(
+                                                "select name from target_table where dt='2022-07-27'"))
+                                .toString())
+                .isEqualTo("[]");
+    }
+
     private void verifyUnsupportedOperation(String ddl) {
         assertThatThrownBy(() -> tableEnv.executeSql(ddl))
                 .isInstanceOf(ValidationException.class)

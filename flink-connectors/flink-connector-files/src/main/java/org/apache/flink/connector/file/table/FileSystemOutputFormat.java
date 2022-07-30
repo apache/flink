@@ -93,7 +93,8 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
                             overwrite,
                             tmpPath,
                             partitionColumns.length,
-                            isToLocal);
+                            isToLocal,
+                            staticPartitions);
             committer.commitPartitions();
         } catch (Exception e) {
             throw new TableException("Exception in finalizeGlobal", e);

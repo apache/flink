@@ -61,7 +61,13 @@ class FileSystemCommitterTest {
     void testPartition() throws Exception {
         FileSystemCommitter committer =
                 new FileSystemCommitter(
-                        fileSystemFactory, metaStoreFactory, true, new Path(path.toString()), 2);
+                        fileSystemFactory,
+                        metaStoreFactory,
+                        true,
+                        new Path(path.toString()),
+                        2,
+                        false,
+                        new LinkedHashMap<String, String>());
 
         createFile(path, "task-1/p1=0/p2=0/", "f1", "f2");
         createFile(path, "task-2/p1=0/p2=0/", "f3");
@@ -81,7 +87,13 @@ class FileSystemCommitterTest {
 
         committer =
                 new FileSystemCommitter(
-                        fileSystemFactory, metaStoreFactory, false, new Path(path.toString()), 2);
+                        fileSystemFactory,
+                        metaStoreFactory,
+                        false,
+                        new Path(path.toString()),
+                        2,
+                        false,
+                        new LinkedHashMap<String, String>());
         createFile(path, "task-2/p1=0/p2=1/", "f6");
         committer.commitPartitions();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=1/f5")).exists();
@@ -92,7 +104,13 @@ class FileSystemCommitterTest {
     void testNotPartition() throws Exception {
         FileSystemCommitter committer =
                 new FileSystemCommitter(
-                        fileSystemFactory, metaStoreFactory, true, new Path(path.toString()), 0);
+                        fileSystemFactory,
+                        metaStoreFactory,
+                        true,
+                        new Path(path.toString()),
+                        0,
+                        false,
+                        new LinkedHashMap<String, String>());
 
         createFile(path, "task-1/", "f1", "f2");
         createFile(path, "task-2/", "f3");
@@ -107,7 +125,13 @@ class FileSystemCommitterTest {
 
         committer =
                 new FileSystemCommitter(
-                        fileSystemFactory, metaStoreFactory, false, new Path(path.toString()), 0);
+                        fileSystemFactory,
+                        metaStoreFactory,
+                        false,
+                        new Path(path.toString()),
+                        0,
+                        false,
+                        new LinkedHashMap<String, String>());
         createFile(path, "task-2/", "f5");
         committer.commitPartitions();
         assertThat(new File(outputPath.toFile(), "f4")).exists();
