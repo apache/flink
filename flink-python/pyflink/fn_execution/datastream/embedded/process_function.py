@@ -15,12 +15,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.datastream import ProcessFunction, TimerService, KeyedProcessFunction, TimeDomain
+from pyflink.datastream import (ProcessFunction, KeyedProcessFunction, CoProcessFunction,
+                                KeyedCoProcessFunction, TimerService, TimeDomain)
 from pyflink.fn_execution.datastream.embedded.timerservice_impl import TimerServiceImpl
 from pyflink.fn_execution.embedded.converters import from_type_info
 
 
-class InternalProcessFunctionContext(ProcessFunction.Context, TimerService):
+class InternalProcessFunctionContext(ProcessFunction.Context, CoProcessFunction.Context,
+                                     TimerService):
     def __init__(self, context):
         self._context = context
 
@@ -49,7 +51,8 @@ class InternalProcessFunctionContext(ProcessFunction.Context, TimerService):
         raise Exception("Deleting timers is only supported on a keyed streams.")
 
 
-class InternalKeyedProcessFunctionContext(KeyedProcessFunction.Context):
+class InternalKeyedProcessFunctionContext(KeyedProcessFunction.Context,
+                                          KeyedCoProcessFunction.Context):
 
     def __init__(self, context, key_type_info):
         self._context = context
@@ -67,7 +70,9 @@ class InternalKeyedProcessFunctionContext(KeyedProcessFunction.Context):
 
 
 class InternalKeyedProcessFunctionOnTimerContext(KeyedProcessFunction.OnTimerContext,
-                                                 KeyedProcessFunction.Context):
+                                                 KeyedProcessFunction.Context,
+                                                 KeyedCoProcessFunction.OnTimerContext,
+                                                 KeyedCoProcessFunction.Context):
 
     def __init__(self, context, key_type_info):
         self._context = context

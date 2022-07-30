@@ -334,6 +334,42 @@ class DataStreamTests(object):
         expected = ['(1,hi)', '(2,hello)', '(4,hi)', '(6,hello)', '(9,hi)', '(12,hello)']
         self.assert_equals_sorted(expected, results)
 
+    def test_basic_co_operations(self):
+        python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
+        os.mkdir(python_file_dir)
+        python_file_path = os.path.join(python_file_dir, "test_stream_dependency_manage_lib.py")
+        with open(python_file_path, 'w') as f:
+            f.write("def add_two(a):\n    return a + 2")
+
+        class MyCoFlatMapFunction(CoFlatMapFunction):
+
+            def flat_map1(self, value):
+                yield value + 1
+
+            def flat_map2(self, value):
+                yield value - 1
+
+        class MyCoMapFunction(CoMapFunction):
+
+            def map1(self, value):
+                from test_stream_dependency_manage_lib import add_two
+                return add_two(value)
+
+            def map2(self, value):
+                return value + 1
+
+        self.env.add_python_file(python_file_path)
+        ds_1 = self.env.from_collection([1, 2, 3, 4, 5])
+        ds_2 = ds_1.map(lambda x: x * 2)
+
+        (ds_1.connect(ds_2).flat_map(MyCoFlatMapFunction())
+             .connect(ds_2).map(MyCoMapFunction())
+             .add_sink(self.test_sink))
+        self.env.execute("test_basic_co_operations")
+        results = self.test_sink.get_results(True)
+        expected = ['4', '5', '6', '7', '8', '3', '5', '7', '9', '11', '3', '5', '7', '9', '11']
+        self.assert_equals_sorted(expected, results)
+
 
 class DataStreamStreamingTests(DataStreamTests):
 
@@ -373,42 +409,6 @@ class ProcessDataStreamTests(DataStreamTests):
     """
     The tests only tested in Process Mode.
     """
-
-    def test_basic_co_operations(self):
-        python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
-        os.mkdir(python_file_dir)
-        python_file_path = os.path.join(python_file_dir, "test_stream_dependency_manage_lib.py")
-        with open(python_file_path, 'w') as f:
-            f.write("def add_two(a):\n    return a + 2")
-
-        class MyCoFlatMapFunction(CoFlatMapFunction):
-
-            def flat_map1(self, value):
-                yield value + 1
-
-            def flat_map2(self, value):
-                yield value - 1
-
-        class MyCoMapFunction(CoMapFunction):
-
-            def map1(self, value):
-                from test_stream_dependency_manage_lib import add_two
-                return add_two(value)
-
-            def map2(self, value):
-                return value + 1
-
-        self.env.add_python_file(python_file_path)
-        ds_1 = self.env.from_collection([1, 2, 3, 4, 5])
-        ds_2 = ds_1.map(lambda x: x * 2)
-
-        (ds_1.connect(ds_2).flat_map(MyCoFlatMapFunction())
-             .connect(ds_2).map(MyCoMapFunction())
-             .add_sink(self.test_sink))
-        self.env.execute("test_basic_co_operations")
-        results = self.test_sink.get_results(True)
-        expected = ['4', '5', '6', '7', '8', '3', '5', '7', '9', '11', '3', '5', '7', '9', '11']
-        self.assert_equals_sorted(expected, results)
 
     def test_basic_co_operations_with_output_type(self):
         class MyCoMapFunction(CoMapFunction):
@@ -1711,8 +1711,39 @@ class ProcessDataStreamBatchTests(DataStreamBatchTests, ProcessDataStreamTests,
         self.assert_equals_sorted(expected, results)
 
 
+class EmbeddedDataStreamTests(DataStreamTests):
+    def test_keyed_co_process(self):
+        self.env.set_parallelism(1)
+        ds1 = self.env.from_collection([("a", 1), ("b", 2), ("c", 3)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds2 = self.env.from_collection([("b", 2), ("c", 3), ("d", 4)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds1 = ds1.assign_timestamps_and_watermarks(
+            WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
+                SecondColumnTimestampAssigner()))
+        ds2 = ds2.assign_timestamps_and_watermarks(
+            WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
+                SecondColumnTimestampAssigner()))
+        ds1.connect(ds2) \
+            .key_by(lambda x: x[0], lambda x: x[0]) \
+            .process(MyKeyedCoProcessFunction()) \
+            .map(lambda x: Row(x[0], x[1] + 1)) \
+            .add_sink(self.test_sink)
+        self.env.execute('test_keyed_co_process_function')
+        results = self.test_sink.get_results(True)
+        expected = ["<Row('a', 2)>",
+                    "<Row('b', 2)>",
+                    "<Row('b', 3)>",
+                    "<Row('c', 2)>",
+                    "<Row('c', 3)>",
+                    "<Row('d', 2)>",
+                    "<Row('on_timer', 3)>"]
+        self.assert_equals_sorted(expected, results)
+
+
 @pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
-class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTestCase):
+class EmbeddedDataStreamStreamTests(EmbeddedDataStreamTests, DataStreamStreamingTests,
+                                    PyFlinkStreamingTestCase):
     def setUp(self):
         super(EmbeddedDataStreamStreamTests, self).setUp()
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
@@ -1720,7 +1751,8 @@ class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTe
 
 
 @pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
-class EmbeddedDataStreamBatchTests(DataStreamBatchTests, PyFlinkBatchTestCase):
+class EmbeddedDataStreamBatchTests(EmbeddedDataStreamTests, DataStreamBatchTests,
+                                   PyFlinkBatchTestCase):
     def setUp(self):
         super(EmbeddedDataStreamBatchTests, self).setUp()
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
