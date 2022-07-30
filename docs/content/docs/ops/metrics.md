@@ -1341,6 +1341,157 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
   </tbody>
 </table>
 
+### State Access Latency
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="27"><strong>Task/Operator</strong></th>
+      <td>stateClearLatency</td>
+      <td>The latency of clear operation for state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>valueStateGetLatency</td>
+      <td>The latency of Get operation for value state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>valueStateUpdateLatency</td>
+      <td>The latency of update operation for value state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateGetLatency</td>
+      <td>The latency of get operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateAddLatency</td>
+      <td>The latency of add operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateAddAllLatency</td>
+      <td>The latency of addAll operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateUpdateLatency</td>
+      <td>The latency of update operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateMergeNamespacesLatency</td>
+      <td>The latency of merge namespace operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateGetLatency</td>
+      <td>The latency of get operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStatePutLatency</td>
+      <td>The latency of put operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStatePutAllLatency</td>
+      <td>The latency of putAll operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateRemoveLatency</td>
+      <td>The latency of remove operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateContainsLatency</td>
+      <td>The latency of contains operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateEntriesInitLatency</td>
+      <td>The init latency of entries operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateKeysInitLatency</td>
+      <td>The init latency of keys operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateValuesInitLatency</td>
+      <td>The init latency of values operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIteratorInitLatency</td>
+      <td>The init latency of iterator operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIsEmptyLatency</td>
+      <td>The latency of isEmpty operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIteratorHasNextLatency</td>
+      <td>The latency of iterator#hasNext operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIteratorNextLatency</td>
+      <td>The latency of iterator#next operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIteratorRemoveLatency</td>
+      <td>The latency of iterator#remove operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>aggregatingStateGetLatency</td>
+      <td>The latency of get operation for aggregating state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>aggregatingStateAddLatency</td>
+      <td>The latency of add operation for aggregating state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>aggregatingStateMergeNamespacesLatency</td>
+      <td>The latency of merge namespace operation for aggregating state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>reducingStateGetLatency</td>
+      <td>The latency of get operation for reducing state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>reducingStateAddLatency</td>
+      <td>The latency of add operation for reducing state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>reducingStateMergeNamespacesLatency</td>
+      <td>The latency of merge namespace operation for reducing state</td>
+      <td>Histogram</td>
+    </tr>
+  </tbody>
+</table>
+
 ### RocksDB
 Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{< ref "docs/deployment/config" >}}#rocksdb-native-metrics)
 
@@ -1993,6 +2144,9 @@ This configuration has a default value of 100. A smaller value will get more acc
 
 As the type of this latency metrics is histogram, `state.backend.latency-track.history-size` will control the maximum number of recorded values in history, which has the default value of 128.
 A larger value of this configuration will require more memory, but will provide a more accurate result.
+
+<span class="label label-danger">Warning</span> Enabling state-access-latency metrics may impact the performance. 
+It is recommended to only use them for debugging purposes.
 
 ## REST API integration
 
