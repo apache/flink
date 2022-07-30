@@ -35,6 +35,7 @@ import org.apache.flink.table.functions.hive.HiveSimpleUDF;
 
 import org.apache.hadoop.hive.ql.exec.UDAF;
 import org.apache.hadoop.hive.ql.exec.UDF;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver2;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
@@ -120,19 +121,28 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
             LOG.info("Transforming Hive function '{}' into a HiveGenericUDTF", name);
             return new HiveGenericUDTF(new HiveFunctionWrapper<>(functionClz), hiveShim);
         } else if (GenericUDAFResolver2.class.isAssignableFrom(functionClz)
+                || GenericUDAFResolver.class.isAssignableFrom(functionClz)
                 || UDAF.class.isAssignableFrom(functionClz)) {
 
             if (GenericUDAFResolver2.class.isAssignableFrom(functionClz)) {
                 LOG.info(
                         "Transforming Hive function '{}' into a HiveGenericUDAF without UDAF bridging",
                         name);
-                return new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClz), false, hiveShim);
+                return new HiveGenericUDAF(
+                        new HiveFunctionWrapper<>(functionClz), false, true, hiveShim);
+            } else if (GenericUDAFResolver.class.isAssignableFrom(functionClz)) {
+                LOG.info(
+                        "Transforming Hive function '{}' into a HiveGenericUDAF without UDAF bridging",
+                        name);
+                return new HiveGenericUDAF(
+                        new HiveFunctionWrapper<>(functionClz), false, false, hiveShim);
             } else {
                 LOG.info(
                         "Transforming Hive function '{}' into a HiveGenericUDAF with UDAF bridging",
                         name);
 
-                return new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClz), true, hiveShim);
+                return new HiveGenericUDAF(
+                        new HiveFunctionWrapper<>(functionClz), true, false, hiveShim);
             }
         } else {
             throw new IllegalArgumentException(

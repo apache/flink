@@ -42,6 +42,7 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFBridge;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver2;
+import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 
 import java.util.Arrays;
@@ -59,6 +60,8 @@ public class HiveGenericUDAF
     // Flag that indicates whether a bridge between GenericUDAF and UDAF is required.
     // Old UDAF can be used with the GenericUDAF infrastructure through bridging.
     private final boolean isUDAFBridgeRequired;
+    // Flag that indicates whether the GenericUDAF implement GenericUDAFResolver2
+    private final boolean isUDAFResolve2;
     private final HiveShim hiveShim;
 
     private HiveFunctionArguments arguments;
@@ -71,16 +74,13 @@ public class HiveGenericUDAF
     private transient boolean initialized;
 
     public HiveGenericUDAF(
-            HiveFunctionWrapper<GenericUDAFResolver> funcWrapper, HiveShim hiveShim) {
-        this(funcWrapper, false, hiveShim);
-    }
-
-    public HiveGenericUDAF(
             HiveFunctionWrapper<GenericUDAFResolver> funcWrapper,
             boolean isUDAFBridgeRequired,
+            boolean isUDAFResolve2,
             HiveShim hiveShim) {
         this.hiveFunctionWrapper = funcWrapper;
         this.isUDAFBridgeRequired = isUDAFBridgeRequired;
+        this.isUDAFResolve2 = isUDAFResolve2;
         this.hiveShim = hiveShim;
     }
 
@@ -125,15 +125,7 @@ public class HiveGenericUDAF
 
     public GenericUDAFEvaluator createEvaluator(ObjectInspector[] inputInspectors)
             throws SemanticException {
-        GenericUDAFResolver2 resolver;
-
-        if (isUDAFBridgeRequired) {
-            resolver = new GenericUDAFBridge((UDAF) hiveFunctionWrapper.createFunction());
-        } else {
-            resolver = (GenericUDAFResolver2) hiveFunctionWrapper.createFunction();
-        }
-
-        return resolver.getEvaluator(
+        SimpleGenericUDAFParameterInfo parameterInfo =
                 hiveShim.createUDAFParameterInfo(
                         inputInspectors,
                         // The flag to indicate if the UDAF invocation was from the windowing
@@ -153,7 +145,18 @@ public class HiveGenericUDAF
                         // function implementation
                         // is not expected to ensure the wildcard handling of the target relation.
                         // That is handled by the framework.
-                        Boolean.FALSE));
+                        Boolean.FALSE);
+
+        if (isUDAFBridgeRequired) {
+            return new GenericUDAFBridge((UDAF) hiveFunctionWrapper.createFunction())
+                    .getEvaluator(parameterInfo);
+        } else if (isUDAFResolve2) {
+            return ((GenericUDAFResolver2) hiveFunctionWrapper.createFunction())
+                    .getEvaluator(parameterInfo);
+        } else {
+            // otherwise, it's instance of GenericUDAFResolver
+            return hiveFunctionWrapper.createFunction().getEvaluator(parameterInfo.getParameters());
+        }
     }
 
     /**
