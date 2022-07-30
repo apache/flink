@@ -23,7 +23,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.python.DataStreamPythonFunctionOperator;
+import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
@@ -50,6 +52,10 @@ public abstract class AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
     /** The number of partitions for the partition custom function. */
     private Integer numPartitions;
 
+    transient PythonTypeUtils.DataConverter<OUT, Object> outputDataConverter;
+
+    protected transient TimestampedCollector<OUT> collector;
+
     public AbstractEmbeddedDataStreamPythonFunctionOperator(
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
@@ -57,6 +63,16 @@ public abstract class AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
         super(config);
         this.pythonFunctionInfo = Preconditions.checkNotNull(pythonFunctionInfo);
         this.outputTypeInfo = Preconditions.checkNotNull(outputTypeInfo);
+    }
+
+    @Override
+    public void open() throws Exception {
+        super.open();
+
+        outputDataConverter =
+                PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(outputTypeInfo);
+
+        collector = new TimestampedCollector<>(output);
     }
 
     @Override

@@ -39,12 +39,12 @@ import static org.apache.flink.python.PythonOptions.STATE_CACHE_SIZE;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
- * {@link EmbeddedPythonProcessOperator} is responsible for executing Python ProcessFunction in
+ * {@link EmbeddedPythonCoProcessOperator} is responsible for executing Python CoProcessFunction in
  * embedded Python environment.
  */
 @Internal
-public class EmbeddedPythonProcessOperator<IN, OUT>
-        extends AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT> {
+public class EmbeddedPythonCoProcessOperator<IN1, IN2, OUT>
+        extends AbstractTwoInputEmbeddedPythonFunctionOperator<IN1, IN2, OUT> {
 
     private static final long serialVersionUID = 1L;
 
@@ -52,12 +52,13 @@ public class EmbeddedPythonProcessOperator<IN, OUT>
 
     private transient ContextImpl context;
 
-    public EmbeddedPythonProcessOperator(
+    public EmbeddedPythonCoProcessOperator(
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
-            TypeInformation<IN> inputTypeInfo,
+            TypeInformation<IN1> inputTypeInfo1,
+            TypeInformation<IN2> inputTypeInfo2,
             TypeInformation<OUT> outputTypeInfo) {
-        super(config, pythonFunctionInfo, inputTypeInfo, outputTypeInfo);
+        super(config, pythonFunctionInfo, inputTypeInfo1, inputTypeInfo2, outputTypeInfo);
     }
 
     @Override
@@ -95,8 +96,12 @@ public class EmbeddedPythonProcessOperator<IN, OUT>
     @Override
     public <T> AbstractEmbeddedDataStreamPythonFunctionOperator<T> copy(
             DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
-        return new EmbeddedPythonProcessOperator<>(
-                config, pythonFunctionInfo, getInputTypeInfo(), outputTypeInfo);
+        return new EmbeddedPythonCoProcessOperator<>(
+                config,
+                pythonFunctionInfo,
+                getInputTypeInfo1(),
+                getInputTypeInfo2(),
+                outputTypeInfo);
     }
 
     @Override

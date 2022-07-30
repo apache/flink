@@ -15,7 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.fn_execution.embedded.operations import OneInputFunctionOperation
+from pyflink.fn_execution.embedded.operations import (OneInputFunctionOperation,
+                                                      TwoInputFunctionOperation)
 
 from pyflink.fn_execution.embedded.converters import from_type_info_proto, from_schema_proto
 
@@ -113,6 +114,34 @@ def create_one_input_user_defined_data_stream_function_from_protos(
     function_operation = OneInputFunctionOperation(
         serialized_fns,
         input_data_converter,
+        output_data_converter,
+        runtime_context,
+        function_context,
+        timer_context,
+        job_parameters)
+
+    return function_operation
+
+
+def create_two_input_user_defined_data_stream_function_from_protos(
+        function_infos, input_coder_info1, input_coder_info2, output_coder_info, runtime_context,
+        function_context, timer_context, job_parameters):
+    serialized_fns = [pare_user_defined_data_stream_function_proto(proto)
+                      for proto in function_infos]
+
+    input_data_converter1 = (
+        from_type_info_proto(parse_coder_proto(input_coder_info1).raw_type.type_info))
+
+    input_data_converter2 = (
+        from_type_info_proto(parse_coder_proto(input_coder_info2).raw_type.type_info))
+
+    output_data_converter = (
+        from_type_info_proto(parse_coder_proto(output_coder_info).raw_type.type_info))
+
+    function_operation = TwoInputFunctionOperation(
+        serialized_fns,
+        input_data_converter1,
+        input_data_converter2,
         output_data_converter,
         runtime_context,
         function_context,

@@ -24,8 +24,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
@@ -37,44 +37,55 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * {@link AbstractOneInputEmbeddedPythonFunctionOperator} is responsible for run Python DataStream
- * operators with one input in Embedded Python environment.
+ * {@link AbstractTwoInputEmbeddedPythonFunctionOperator} is responsible for run Python DataStream
+ * operators with two input user defined python function in Embedded Python environment.
  */
 @Internal
-public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
+public abstract class AbstractTwoInputEmbeddedPythonFunctionOperator<IN1, IN2, OUT>
         extends AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
-        implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
+        implements TwoInputStreamOperator<IN1, IN2, OUT>, BoundedMultiInput {
 
     private static final long serialVersionUID = 1L;
 
-    /** The TypeInformation of the input data. */
-    private final TypeInformation<IN> inputTypeInfo;
+    /** The left input type. */
+    private final TypeInformation<IN1> inputTypeInfo1;
 
-    private transient PythonTypeUtils.DataConverter<IN, Object> inputDataConverter;
+    /** The right input type. */
+    private final TypeInformation<IN2> inputTypeInfo2;
+
+    private PythonTypeUtils.DataConverter<IN1, Object> inputDataConverter1;
+
+    private PythonTypeUtils.DataConverter<IN2, Object> inputDataConverter2;
 
     protected transient long timestamp;
 
-    public AbstractOneInputEmbeddedPythonFunctionOperator(
+    public AbstractTwoInputEmbeddedPythonFunctionOperator(
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
-            TypeInformation<IN> inputTypeInfo,
+            TypeInformation<IN1> inputTypeInfo1,
+            TypeInformation<IN2> inputTypeInfo2,
             TypeInformation<OUT> outputTypeInfo) {
         super(config, pythonFunctionInfo, outputTypeInfo);
-        this.inputTypeInfo = Preconditions.checkNotNull(inputTypeInfo);
+        this.inputTypeInfo1 = Preconditions.checkNotNull(inputTypeInfo1);
+        this.inputTypeInfo2 = Preconditions.checkNotNull(inputTypeInfo2);
     }
 
     @Override
     public void open() throws Exception {
         super.open();
 
-        inputDataConverter =
-                PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(inputTypeInfo);
+        inputDataConverter1 =
+                PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(inputTypeInfo1);
+
+        inputDataConverter2 =
+                PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(inputTypeInfo2);
     }
 
     @Override
     public void openPythonInterpreter() {
         // function_protos = ...
-        // input_coder_info = ...
+        // input_coder_info1 = ...
+        // input_coder_info2 = ...
         // output_coder_info = ...
         // runtime_context = ...
         // function_context = ...
@@ -84,8 +95,8 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
         // create_one_input_user_defined_data_stream_function_from_protos
         //
         // operation = create_one_input_user_defined_data_stream_function_from_protos(
-        //     function_protos, input_coder_info, output_coder_info, runtime_context,
-        //     function_context, job_parameters)
+        //     function_protos, input_coder_info1, input_coder_info2, output_coder_info,
+        //     runtime_context, function_context, job_parameters)
         // operation.open()
 
         interpreter.set(
@@ -95,13 +106,23 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
                         .collect(Collectors.toList()));
 
         interpreter.set(
-                "input_coder_info",
+                "input_coder_info1",
                 ProtoUtils.createRawTypeCoderInfoDescriptorProto(
-                                getInputTypeInfo(),
+                                getInputTypeInfo1(),
                                 FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE,
                                 false,
                                 null)
                         .toByteArray());
+
+        interpreter.set(
+                "input_coder_info2",
+                ProtoUtils.createRawTypeCoderInfoDescriptorProto(
+                                getInputTypeInfo2(),
+                                FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE,
+                                false,
+                                null)
+                        .toByteArray());
+
         interpreter.set(
                 "output_coder_info",
                 ProtoUtils.createRawTypeCoderInfoDescriptorProto(
@@ -117,12 +138,13 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
         interpreter.set("job_parameters", getJobParameters());
 
         interpreter.exec(
-                "from pyflink.fn_execution.embedded.operation_utils import create_one_input_user_defined_data_stream_function_from_protos");
+                "from pyflink.fn_execution.embedded.operation_utils import create_two_input_user_defined_data_stream_function_from_protos");
 
         interpreter.exec(
-                "operation = create_one_input_user_defined_data_stream_function_from_protos("
+                "operation = create_two_input_user_defined_data_stream_function_from_protos("
                         + "function_protos,"
-                        + "input_coder_info,"
+                        + "input_coder_info1,"
+                        + "input_coder_info2,"
                         + "output_coder_info,"
                         + "runtime_context,"
                         + "function_context,"
@@ -133,24 +155,29 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
     }
 
     @Override
-    public void endInput() {
+    public void endInput(int inputId) throws Exception {}
+
+    @Override
+    public void close() throws Exception {
         if (interpreter != null) {
             interpreter.invokeMethod("operation", "close");
         }
+
+        super.close();
     }
 
     @Override
-    public void processElement(StreamRecord<IN> element) throws Exception {
+    public void processElement1(StreamRecord<IN1> element) throws Exception {
         collector.setTimestamp(element);
         timestamp = element.getTimestamp();
 
-        IN value = element.getValue();
+        IN1 value = element.getValue();
         PyIterator results =
                 (PyIterator)
                         interpreter.invokeMethod(
                                 "operation",
-                                "process_element",
-                                inputDataConverter.toExternal(value));
+                                "process_element1",
+                                inputDataConverter1.toExternal(value));
 
         while (results.hasNext()) {
             OUT result = outputDataConverter.toInternal(results.next());
@@ -159,8 +186,32 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
         results.close();
     }
 
-    TypeInformation<IN> getInputTypeInfo() {
-        return inputTypeInfo;
+    @Override
+    public void processElement2(StreamRecord<IN2> element) throws Exception {
+        collector.setTimestamp(element);
+        timestamp = element.getTimestamp();
+
+        IN2 value = element.getValue();
+        PyIterator results =
+                (PyIterator)
+                        interpreter.invokeMethod(
+                                "operation",
+                                "process_element2",
+                                inputDataConverter2.toExternal(value));
+
+        while (results.hasNext()) {
+            OUT result = outputDataConverter.toInternal(results.next());
+            collector.collect(result);
+        }
+        results.close();
+    }
+
+    TypeInformation<IN1> getInputTypeInfo1() {
+        return inputTypeInfo1;
+    }
+
+    TypeInformation<IN2> getInputTypeInfo2() {
+        return inputTypeInfo2;
     }
 
     /** Gets the proto representation of the Python user-defined functions to be executed. */
