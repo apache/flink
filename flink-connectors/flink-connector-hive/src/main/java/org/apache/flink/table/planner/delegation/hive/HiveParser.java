@@ -358,7 +358,7 @@ public class HiveParser extends ParserImpl {
 
         // if not a query, treat it as an insert
         if (!analyzer.getQB().getIsQuery()) {
-            return dmlHelper.createInsertOperation(analyzer, relNode, hiveConf);
+            return dmlHelper.createInsertOperation(analyzer, relNode);
         } else {
             return new PlannerQueryOperation(relNode);
         }

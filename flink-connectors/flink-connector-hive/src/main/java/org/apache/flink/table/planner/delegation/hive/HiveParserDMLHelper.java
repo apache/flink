@@ -61,7 +61,6 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
@@ -237,15 +236,14 @@ public class HiveParserDMLHelper {
                 identifier, new PlannerQueryOperation(queryRelNode), staticPartSpec, overwrite);
     }
 
-    public Operation createInsertOperation(
-            HiveParserCalcitePlanner analyzer, RelNode queryRelNode, HiveConf hiveConf)
+    public Operation createInsertOperation(HiveParserCalcitePlanner analyzer, RelNode queryRelNode)
             throws SemanticException {
         HiveParserQB topQB = analyzer.getQB();
         QBMetaData qbMetaData = topQB.getMetaData();
         // decide the dest table
         Map<String, Table> nameToDestTable = qbMetaData.getNameToDestTable();
         Map<String, Partition> nameToDestPart = qbMetaData.getNameToDestPartition();
-        // for now we only support inserting to a single table
+        // for now we only support inserting to a single table in one queryRelNode
         Preconditions.checkState(
                 nameToDestTable.size() <= 1 && nameToDestPart.size() <= 1,
                 "Only support inserting to 1 table");
@@ -350,6 +348,7 @@ public class HiveParserDMLHelper {
             }
         }
 
+        // extra information needed for insert into directory
         String colNames = String.join(",", colNameArr);
         String colTypes = String.join(":", colTypeArr);
         props.put("columns", colNames);
