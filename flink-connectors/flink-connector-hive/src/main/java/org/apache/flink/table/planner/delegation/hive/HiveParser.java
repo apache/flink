@@ -229,12 +229,9 @@ public class HiveParser extends ParserImpl {
                                 context,
                                 dmlHelper,
                                 frameworkConfig,
-                                plannerContext.getCluster());
-                return Collections.singletonList(ddlAnalyzer.convertToOperation(node));
                                 plannerContext.getCluster(),
                                 plannerContext.getFlinkContext().getClassLoader());
-                operation = ddlAnalyzer.convertToOperation(node);
-                return Collections.singletonList(operation);
+                return Collections.singletonList(ddlAnalyzer.convertToOperation(node));
             } else {
                 return processQuery(context, hiveConf, hiveShim, node);
             }
@@ -257,20 +254,28 @@ public class HiveParser extends ParserImpl {
         // first child is the underlying explicandum
         HiveParserASTNode input = explain ? (HiveParserASTNode) node.getChild(0) : node;
         if (explain) {
-            Operation operation = analyzeSql(context, hiveConf, hiveShim, input);
+            Operation operation = convertASTNodeToOperation(context, hiveConf, hiveShim, input);
             // explain a nop is also considered nop
             return Collections.singletonList(
                     operation instanceof NopOperation
                             ? operation
                             : new ExplainOperation(operation));
         }
-        Operation operation;
+        return Collections.singletonList(
+                convertASTNodeToOperation(context, hiveConf, hiveShim, input));
+    }
+
+    private Operation convertASTNodeToOperation(
+            HiveParserContext context,
+            HiveConf hiveConf,
+            HiveShim hiveShim,
+            HiveParserASTNode input)
+            throws SemanticException {
         if (isMultiDestQuery(input)) {
-            operation = handleMultiDestQuery(context, hiveConf, hiveShim, input);
+            return processMultiDestQuery(context, hiveConf, hiveShim, input);
         } else {
-            operation = analyzeSql(context, hiveConf, hiveShim, input);
+            return analyzeSql(context, hiveConf, hiveShim, input);
         }
-        return Collections.singletonList(operation);
     }
 
     private boolean isMultiDestQuery(HiveParserASTNode astNode) {
@@ -279,7 +284,7 @@ public class HiveParser extends ParserImpl {
         return astNode.getChildCount() > 2;
     }
 
-    private Operation handleMultiDestQuery(
+    private Operation processMultiDestQuery(
             HiveParserContext context,
             HiveConf hiveConf,
             HiveShim hiveShim,

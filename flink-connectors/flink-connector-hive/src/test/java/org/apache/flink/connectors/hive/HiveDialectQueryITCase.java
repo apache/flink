@@ -50,6 +50,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -441,13 +442,23 @@ public class HiveDialectQueryITCase {
         tableEnv.executeSql("create table t2 (id bigint, name string)");
         tableEnv.executeSql("create table t3 (id bigint, name string, age int)");
         try {
+            String multiInsertSql =
+                    "from (select id, name, age from t3) t"
+                            + " insert overwrite table t1 select id, name where age < 20"
+                            + "  insert overwrite table t2 select id, name where age > 20";
+            // test explain
+            String actualPlan =
+                    (String)
+                            CollectionUtil.iteratorToList(
+                                            tableEnv.executeSql("explain " + multiInsertSql)
+                                                    .collect())
+                                    .get(0)
+                                    .getField(0);
+            assertThat(actualPlan).isEqualTo(readFromResource("/explain/testMultiInsert.out"));
+            // test execution
             tableEnv.executeSql("insert into table t3 values (1, 'test1', 18 ), (2, 'test2', 28 )")
                     .await();
-            tableEnv.executeSql(
-                            "from (select id, name, age from t3) t"
-                                    + " insert overwrite table t1 select id, name where age < 20"
-                                    + " insert overwrite table t2 select id, name where age > 20")
-                    .await();
+            tableEnv.executeSql(multiInsertSql).await();
             List<Row> result =
                     CollectionUtil.iteratorToList(
                             tableEnv.executeSql("select * from t1").collect());
