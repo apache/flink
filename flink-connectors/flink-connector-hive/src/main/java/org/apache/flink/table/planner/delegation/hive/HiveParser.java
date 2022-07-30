@@ -29,8 +29,10 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFGrouping;
 import org.apache.flink.table.operations.ExplainOperation;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
@@ -46,6 +48,7 @@ import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.tools.FrameworkConfig;
@@ -64,6 +67,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -210,10 +214,9 @@ public class HiveParser extends ParserImpl {
     private List<Operation> processCmd(
             String cmd, HiveConf hiveConf, HiveShim hiveShim, HiveCatalog hiveCatalog) {
         try {
-            final HiveParserContext context = new HiveParserContext(hiveConf);
+            HiveParserContext context = new HiveParserContext(hiveConf);
             // parse statement to get AST
-            final HiveParserASTNode node = HiveASTParseUtils.parse(cmd, context);
-            Operation operation;
+            HiveParserASTNode node = HiveASTParseUtils.parse(cmd, context);
             if (DDL_NODES.contains(node.getType())) {
                 HiveParserQueryState queryState = new HiveParserQueryState(hiveConf);
                 HiveParserDDLSemanticAnalyzer ddlAnalyzer =
@@ -228,19 +231,10 @@ public class HiveParser extends ParserImpl {
                                 frameworkConfig,
                                 plannerContext.getCluster(),
                                 plannerContext.getFlinkContext().getClassLoader());
-                operation = ddlAnalyzer.convertToOperation(node);
-                return Collections.singletonList(operation);
+                return Collections.singletonList(ddlAnalyzer.convertToOperation(node));
             } else {
-                final boolean explain = node.getType() == HiveASTParser.TOK_EXPLAIN;
-                // first child is the underlying explicandum
-                HiveParserASTNode input = explain ? (HiveParserASTNode) node.getChild(0) : node;
-                operation = analyzeSql(context, hiveConf, hiveShim, input);
-                // explain an nop is also considered nop
-                if (explain && !(operation instanceof NopOperation)) {
-                    operation = new ExplainOperation(operation);
-                }
+                return processQuery(context, hiveConf, hiveShim, node);
             }
-            return Collections.singletonList(operation);
         } catch (HiveASTParseException e) {
             // ParseException can happen for flink-specific statements, e.g. catalog DDLs
             try {
@@ -251,6 +245,77 @@ public class HiveParser extends ParserImpl {
         } catch (SemanticException e) {
             throw new ValidationException("HiveParser failed to parse " + cmd, e);
         }
+    }
+
+    private List<Operation> processQuery(
+            HiveParserContext context, HiveConf hiveConf, HiveShim hiveShim, HiveParserASTNode node)
+            throws SemanticException {
+        final boolean explain = node.getType() == HiveASTParser.TOK_EXPLAIN;
+        // first child is the underlying explicandum
+        HiveParserASTNode input = explain ? (HiveParserASTNode) node.getChild(0) : node;
+        if (explain) {
+            Operation operation = convertASTNodeToOperation(context, hiveConf, hiveShim, input);
+            // explain a nop is also considered nop
+            return Collections.singletonList(
+                    operation instanceof NopOperation
+                            ? operation
+                            : new ExplainOperation(operation));
+        }
+        return Collections.singletonList(
+                convertASTNodeToOperation(context, hiveConf, hiveShim, input));
+    }
+
+    private Operation convertASTNodeToOperation(
+            HiveParserContext context,
+            HiveConf hiveConf,
+            HiveShim hiveShim,
+            HiveParserASTNode input)
+            throws SemanticException {
+        if (isMultiDestQuery(input)) {
+            return processMultiDestQuery(context, hiveConf, hiveShim, input);
+        } else {
+            return analyzeSql(context, hiveConf, hiveShim, input);
+        }
+    }
+
+    private boolean isMultiDestQuery(HiveParserASTNode astNode) {
+        // Hive's multi dest insert will always be [FROM, INSERT+]
+        // so, if it's children count is more than 2, it should be a multi-dest query
+        return astNode.getChildCount() > 2;
+    }
+
+    private Operation processMultiDestQuery(
+            HiveParserContext context,
+            HiveConf hiveConf,
+            HiveShim hiveShim,
+            HiveParserASTNode astNode)
+            throws SemanticException {
+        List<Operation> operations = new ArrayList<>();
+        // multi-insert statement may contain multi insert nodes,
+        // the children nodes of the root AST will always be like [FROM, INSERT+]
+        // we pop each insert node and process one by one to construct a list of insert operations
+        List<HiveParserASTNode> insertASTNodes = new ArrayList<>();
+        // pop the insert node one by one
+        while (astNode.getChildCount() > 1) {
+            insertASTNodes.add((HiveParserASTNode) astNode.deleteChild(1));
+        }
+        for (HiveParserASTNode insertASTNode : insertASTNodes) {
+            // mount the insert node to the root AST, consider it as a normal AST and convert it to
+            // operation
+            astNode.addChild(insertASTNode);
+            operations.add(analyzeSql(context, hiveConf, hiveShim, astNode));
+            astNode.deleteChild(astNode.getChildCount() - 1);
+        }
+        // then we wrap them to StatementSetOperation
+        List<ModifyOperation> modifyOperations = new ArrayList<>();
+        for (Operation operation : operations) {
+            Preconditions.checkArgument(
+                    operation instanceof ModifyOperation,
+                    "Encounter an non-ModifyOperation, "
+                            + "only support insert when it contains multiple operations in one single SQL statement.");
+            modifyOperations.add((ModifyOperation) operation);
+        }
+        return new StatementSetOperation(modifyOperations);
     }
 
     public HiveParserCalcitePlanner createCalcitePlanner(

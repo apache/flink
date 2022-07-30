@@ -1,0 +1,32 @@
+== Abstract Syntax Tree ==
+LogicalSink(table=[test-catalog.default.t1], fields=[id, name])
++- LogicalProject(id=[$0], name=[$1])
+   +- LogicalFilter(condition=[<($2, 20)])
+      +- LogicalProject(id=[$0], name=[$1], age=[$2])
+         +- LogicalTableScan(table=[[test-catalog, default, t3]])
+
+LogicalSink(table=[test-catalog.default.t2], fields=[id, name])
++- LogicalProject(id=[$0], name=[$1])
+   +- LogicalFilter(condition=[>($2, 20)])
+      +- LogicalProject(id=[$0], name=[$1], age=[$2])
+         +- LogicalTableScan(table=[[test-catalog, default, t3]])
+
+== Optimized Physical Plan ==
+Sink(table=[test-catalog.default.t1], fields=[id, name])
++- Calc(select=[id, name], where=[<(age, 20)])
+   +- TableSourceScan(table=[[test-catalog, default, t3]], fields=[id, name, age])
+
+Sink(table=[test-catalog.default.t2], fields=[id, name])
++- Calc(select=[id, name], where=[>(age, 20)])
+   +- TableSourceScan(table=[[test-catalog, default, t3]], fields=[id, name, age])
+
+== Optimized Execution Plan ==
+TableSourceScan(table=[[test-catalog, default, t3]], fields=[id, name, age])(reuse_id=[1])
+
+Sink(table=[test-catalog.default.t1], fields=[id, name])
++- Calc(select=[id, name], where=[(age < 20)])
+   +- Reused(reference_id=[1])
+
+Sink(table=[test-catalog.default.t2], fields=[id, name])
++- Calc(select=[id, name], where=[(age > 20)])
+   +- Reused(reference_id=[1])
