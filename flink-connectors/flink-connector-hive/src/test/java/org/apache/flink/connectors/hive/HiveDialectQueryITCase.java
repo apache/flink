@@ -437,6 +437,84 @@ public class HiveDialectQueryITCase {
     }
 
     @Test
+    public void testScriptTransform() throws Exception {
+        tableEnv.executeSql("CREATE TABLE dest1(key INT, ten INT, one INT, value STRING)");
+        tableEnv.executeSql("CREATE TABLE destp1 (key string) partitioned by (p1 int,p2 string)");
+        try {
+            // test explain transform
+            String actualPlan =
+                    (String)
+                            CollectionUtil.iteratorToList(
+                                            tableEnv.executeSql(
+                                                            "explain select transform(key, value)"
+                                                                    + " ROW FORMAT SERDE 'MySerDe'"
+                                                                    + " WITH SERDEPROPERTIES ('p1'='v1','p2'='v2')"
+                                                                    + " RECORDWRITER 'MyRecordWriter' "
+                                                                    + " using 'cat' as (cola int, value string)"
+                                                                    + " ROW FORMAT DELIMITED FIELDS TERMINATED BY ','"
+                                                                    + " RECORDREADER 'MyRecordReader' from src")
+                                                    .collect())
+                                    .get(0)
+                                    .getField(0);
+            assertThat(actualPlan).isEqualTo(readFromResource("/explain/testScriptTransform.out"));
+
+            // transform using + specified schema
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select * from (\n"
+                                                    + " select transform(key, value) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\\003'"
+                                                    + " using 'cat'"
+                                                    + " as (cola int, value string) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\\003'"
+                                                    + " from src\n"
+                                                    + " union all\n"
+                                                    + " select transform(key, value) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\\003'"
+                                                    + " using 'cat' as (cola int, value string) from src) s")
+                                    .collect());
+            assertThat(result.toString())
+                    .isEqualTo(
+                            "[+I[1, val1], +I[2, val2], +I[3, val3], +I[1, val1], +I[2, val2], +I[3, val3]]");
+
+            // transform using + distributed by
+            tableEnv.executeSql(
+                            "from src insert overwrite table dest1 map src.key,"
+                                    + " CAST(src.key / 10 AS INT), CAST(src.key % 10 AS INT),"
+                                    + " src.value using 'cat' as (tkey, ten, one, tvalue)"
+                                    + " distribute by tvalue, tkey")
+                    .await();
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from dest1").collect());
+            assertThat(result.toString())
+                    .isEqualTo("[+I[1, 0, 1, val1], +I[2, 0, 2, val2], +I[3, 0, 3, val3]]");
+
+            // transform using with default output schema(key string, value string) + insert into
+            // partitioned table
+            // `value` after this script transform will be null, so that will fall into Hive's
+            // default partition
+            tableEnv.executeSql(
+                            "insert into destp1 partition (p1=0,p2) (SELECT TRANSFORM(key, upper(value))"
+                                    + " USING 'tr \t _' FROM ((select key, value from src) tmp))")
+                    .await();
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from destp1").collect());
+            String defaultPartitionName =
+                    hiveCatalog.getHiveConf().getVar(HiveConf.ConfVars.DEFAULTPARTITIONNAME);
+            assertThat(result.toString())
+                    .isEqualTo(
+                            String.format(
+                                    "[+I[1_VAL1, 0, %s], +I[2_VAL2, 0, %s], +I[3_VAL3, 0, %s]]",
+                                    defaultPartitionName,
+                                    defaultPartitionName,
+                                    defaultPartitionName));
+        } finally {
+            tableEnv.executeSql("drop table dest1");
+            tableEnv.executeSql("drop table destp1");
+        }
+    }
+
+    @Test
     public void testMultiInsert() throws Exception {
         tableEnv.executeSql("create table t1 (id bigint, name string)");
         tableEnv.executeSql("create table t2 (id bigint, name string)");

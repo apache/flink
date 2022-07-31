@@ -91,6 +91,8 @@ import org.apache.hadoop.hive.ql.plan.PlanUtils;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
 import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.DelimitedJSONSerDe;
+import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
@@ -120,6 +122,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.planner.delegation.hive.HiveParserUtils.removeASTChild;
+import static org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer.encodeRowFormat;
 
 /**
  * Counterpart of hive's org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer, and also contains
@@ -2408,7 +2411,10 @@ public class HiveParserBaseSemanticAnalyzer {
         }
 
         public void analyzeRowFormat(HiveParserASTNode child) throws SemanticException {
-            child = (HiveParserASTNode) child.getChild(0);
+            analyzeSerdeProps((HiveParserASTNode) child.getChild(0));
+        }
+
+        public void analyzeSerdeProps(HiveParserASTNode child) throws SemanticException {
             int numChildRowFormat = child.getChildCount();
             for (int numC = 0; numC < numChildRowFormat; numC++) {
                 HiveParserASTNode rowChild = (HiveParserASTNode) child.getChild(numC);
@@ -2559,6 +2565,104 @@ public class HiveParserBaseSemanticAnalyzer {
 
         public boolean isRely() {
             return rely;
+        }
+    }
+
+    /** including serde class name and the properties. */
+    public static class SerDeClassProps implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        private final String serdeClassName;
+        private final Map<String, String> properties;
+
+        public SerDeClassProps(String serdeClassName, Map<String, String> properties) {
+            this.serdeClassName = serdeClassName;
+            this.properties = properties;
+        }
+
+        public String getSerdeClassName() {
+            return serdeClassName;
+        }
+
+        public Map<String, String> getProperties() {
+            return properties;
+        }
+
+        public static SerDeClassProps analyzeSerDeInfo(
+                HiveParserASTNode astNode, String cols, String colTypes, boolean defaultCols)
+                throws SemanticException {
+            String serdeClassName = LazySimpleSerDe.class.getName();
+            Map<String, String> properties = new HashMap<>();
+            if (astNode.getType() == HiveASTParser.TOK_SERDENAME) {
+                serdeClassName = unescapeSQLString(astNode.getChild(0).getText());
+                properties.putAll(
+                        getDefaultSerDeProps(
+                                serdeClassName,
+                                String.valueOf(Utilities.tabCode),
+                                cols,
+                                colTypes,
+                                defaultCols,
+                                false));
+                // copy all the properties
+                if (astNode.getChildCount() == 2) {
+                    HiveParserASTNode propNode =
+                            (HiveParserASTNode) astNode.getChild(1).getChild(0);
+                    for (int propChild = 0; propChild < propNode.getChildCount(); propChild++) {
+                        String key =
+                                unescapeSQLString(
+                                        propNode.getChild(propChild).getChild(0).getText());
+                        String value =
+                                unescapeSQLString(
+                                        propNode.getChild(propChild).getChild(1).getText());
+                        properties.put(key, value);
+                    }
+                }
+            } else if (astNode.getType() == HiveASTParser.TOK_SERDEPROPS) {
+                properties.putAll(
+                        getDefaultSerDeProps(
+                                serdeClassName,
+                                String.valueOf(Utilities.ctrlaCode),
+                                cols,
+                                colTypes,
+                                defaultCols,
+                                false));
+                HiveParserRowFormatParams rowFormatParams = new HiveParserRowFormatParams();
+                rowFormatParams.analyzeSerdeProps(astNode);
+                encodeRowFormat(rowFormatParams, properties);
+            } else {
+                throw new SemanticException("Encounter an unexpected ASTNode: " + astNode);
+            }
+            return new SerDeClassProps(serdeClassName, properties);
+        }
+
+        public static Map<String, String> getDefaultSerDeProps(
+                String serdeClass,
+                String separatorCode,
+                String columns,
+                String columnTypes,
+                boolean lastColumnTakesRestOfTheLine,
+                boolean useDelimitedJSON) {
+            Map<String, String> props = new HashMap<>();
+            props.put(serdeConstants.SERIALIZATION_FORMAT, separatorCode);
+            props.put(serdeConstants.LIST_COLUMNS, columns);
+
+            if (!separatorCode.equals(Integer.toString(Utilities.ctrlaCode))) {
+                props.put(serdeConstants.FIELD_DELIM, separatorCode);
+            }
+
+            if (columnTypes != null) {
+                props.put(serdeConstants.LIST_COLUMN_TYPES, columnTypes);
+            }
+
+            if (lastColumnTakesRestOfTheLine) {
+                props.put(serdeConstants.SERIALIZATION_LAST_COLUMN_TAKES_REST, "true");
+            }
+            if (useDelimitedJSON) {
+                serdeClass = DelimitedJSONSerDe.class.getName();
+            }
+            props.put(serdeConstants.SERIALIZATION_LIB, serdeClass);
+            return props;
         }
     }
 }

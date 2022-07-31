@@ -1112,7 +1112,7 @@ public class HiveParserDDLSemanticAnalyzer {
         props.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
     }
 
-    private void encodeRowFormat(
+    public static void encodeRowFormat(
             HiveParserRowFormatParams rowFormatParams, Map<String, String> props) {
         if (rowFormatParams.getFieldDelim() != null) {
             props.put(FIELD_DELIM, rowFormatParams.getFieldDelim());
