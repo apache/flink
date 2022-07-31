@@ -31,10 +31,12 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.delegation.ExtendedOperationExecutor;
+import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.HiveSetOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveSetProcessor;
+import org.apache.flink.table.planner.delegation.hive.operation.HiveLoadDataOperation;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -65,6 +67,14 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
     public Optional<TableResultInternal> executeOperation(Operation operation) {
         if (operation instanceof HiveSetOperation) {
             return executeHiveSetOperation((HiveSetOperation) operation);
+        } else if (operation instanceof HiveLoadDataOperation) {
+            return executeHiveLoadDataOperation((HiveLoadDataOperation) operation);
+        } else if (operation instanceof ExplainOperation) {
+            ExplainOperation explainOperation = (ExplainOperation) operation;
+            if (explainOperation.getChild() instanceof HiveLoadDataOperation) {
+                return explainHiveLoadDataOperation(
+                        (HiveLoadDataOperation) explainOperation.getChild());
+            }
         }
         return Optional.empty();
     }
@@ -122,5 +132,65 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
                 .schema(ResolvedSchema.of(Column.physical("variables", DataTypes.STRING())))
                 .data(rows)
                 .build();
+    }
+
+    private Optional<TableResultInternal> executeHiveLoadDataOperation(
+            HiveLoadDataOperation hiveLoadDataOperation) {
+        Catalog currentCatalog =
+                catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
+        if (!(currentCatalog instanceof HiveCatalog)) {
+            throw new FlinkHiveException(
+                    "Only support 'LOAD DATA INPATH' when the current catalog is HiveCatalog ing Hive dialect.");
+        }
+        try {
+            // Hive's loadTable/loadPartition will call method
+            // SessionState.get().getCurrentDatabase(), so we have to start a session state
+            HiveSessionState.startSessionState(
+                    ((HiveCatalog) currentCatalog).getHiveConf(), catalogManager);
+            HiveCatalog hiveCatalog = (HiveCatalog) currentCatalog;
+            if (hiveLoadDataOperation.getPartitionSpec().size() > 0) {
+                hiveCatalog.loadPartition(
+                        hiveLoadDataOperation.getPath(),
+                        hiveLoadDataOperation.getTablePath(),
+                        hiveLoadDataOperation.getPartitionSpec(),
+                        hiveLoadDataOperation.isSrcLocal(),
+                        hiveLoadDataOperation.isOverwrite());
+            } else {
+                hiveCatalog.loadTable(
+                        hiveLoadDataOperation.getPath(),
+                        hiveLoadDataOperation.getTablePath(),
+                        hiveLoadDataOperation.isSrcLocal(),
+                        hiveLoadDataOperation.isOverwrite());
+            }
+            return Optional.of(TableResultImpl.TABLE_RESULT_OK);
+        } finally {
+            HiveSessionState.clearSessionState();
+        }
+    }
+
+    private Optional<TableResultInternal> explainHiveLoadDataOperation(
+            HiveLoadDataOperation hiveLoadDataOperation) {
+        String explanation =
+                "== Abstract Syntax Tree =="
+                        + System.lineSeparator()
+                        + hiveLoadDataOperation.asSummaryString()
+                        + System.lineSeparator()
+                        + System.lineSeparator()
+                        + "== Optimized Physical Plan =="
+                        + System.lineSeparator()
+                        + hiveLoadDataOperation.asSummaryString()
+                        + System.lineSeparator()
+                        + System.lineSeparator()
+                        + "== Optimized Execution Plan =="
+                        + System.lineSeparator()
+                        + hiveLoadDataOperation.asSummaryString()
+                        + System.lineSeparator();
+
+        return Optional.of(
+                TableResultImpl.builder()
+                        .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+                        .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
+                        .data(Collections.singletonList(Row.of(explanation)))
+                        .build());
     }
 }

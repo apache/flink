@@ -51,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
@@ -507,19 +508,14 @@ public class HiveDialectQueryITCase {
         try {
             // test explain transform
             String actualPlan =
-                    (String)
-                            CollectionUtil.iteratorToList(
-                                            tableEnv.executeSql(
-                                                            "explain select transform(key, value)"
-                                                                    + " ROW FORMAT SERDE 'MySerDe'"
-                                                                    + " WITH SERDEPROPERTIES ('p1'='v1','p2'='v2')"
-                                                                    + " RECORDWRITER 'MyRecordWriter' "
-                                                                    + " using 'cat' as (cola int, value string)"
-                                                                    + " ROW FORMAT DELIMITED FIELDS TERMINATED BY ','"
-                                                                    + " RECORDREADER 'MyRecordReader' from src")
-                                                    .collect())
-                                    .get(0)
-                                    .getField(0);
+                    explainSql(
+                            "select transform(key, value)"
+                                    + " ROW FORMAT SERDE 'MySerDe'"
+                                    + " WITH SERDEPROPERTIES ('p1'='v1','p2'='v2')"
+                                    + " RECORDWRITER 'MyRecordWriter' "
+                                    + " using 'cat' as (cola int, value string)"
+                                    + " ROW FORMAT DELIMITED FIELDS TERMINATED BY ','"
+                                    + " RECORDREADER 'MyRecordReader' from src");
             assertThat(actualPlan).isEqualTo(readFromResource("/explain/testScriptTransform.out"));
 
             // transform using + specified schema
@@ -589,13 +585,7 @@ public class HiveDialectQueryITCase {
                             + " insert overwrite table t1 select id, name where age < 20"
                             + "  insert overwrite table t2 select id, name where age > 20";
             // test explain
-            String actualPlan =
-                    (String)
-                            CollectionUtil.iteratorToList(
-                                            tableEnv.executeSql("explain " + multiInsertSql)
-                                                    .collect())
-                                    .get(0)
-                                    .getField(0);
+            String actualPlan = explainSql(multiInsertSql);
             assertThat(actualPlan).isEqualTo(readFromResource("/explain/testMultiInsert.out"));
             // test execution
             tableEnv.executeSql("insert into table t3 values (1, 'test1', 18 ), (2, 'test2', 28 )")
@@ -682,6 +672,19 @@ public class HiveDialectQueryITCase {
         tableEnv.executeSql(
                 "create table p_table(col1 int, col2 int) partitioned by (dateint int) row format delimited fields terminated by ','");
         try {
+            String testLoadCsvFilePath =
+                    Objects.requireNonNull(getClass().getResource("/csv/test.csv")).toString();
+            // test explain
+            String actualPlan =
+                    explainSql(
+                            String.format(
+                                    "load data local inpath '%s' overwrite into table p_table partition (dateint=2022) ",
+                                    testLoadCsvFilePath));
+            assertThat(actualPlan)
+                    .isEqualTo(
+                            readFromResource("/explain/testLoadData.out")
+                                    .replace("$filepath", testLoadCsvFilePath));
+
             // test load data into table
             tableEnv.executeSql("insert into tab1 values (1, 1), (1, 2), (2, 1), (2, 2)").await();
             tableEnv.executeSql(
@@ -690,9 +693,10 @@ public class HiveDialectQueryITCase {
             List<Row> result =
                     CollectionUtil.iteratorToList(
                             tableEnv.executeSql("select * from tab2").collect());
-            assertEquals("[+I[1, 1], +I[1, 2], +I[2, 1], +I[2, 2]]", result.toString());
+            assertThat(result.toString()).isEqualTo("[+I[1, 1], +I[1, 2], +I[2, 1], +I[2, 2]]");
 
             // test load data overwrite
+            tableEnv.executeSql("insert into tab1 values (2, 1), (2, 2)").await();
             tableEnv.executeSql(
                     String.format(
                             "load data local inpath '%s' overwrite into table tab2",
@@ -700,18 +704,20 @@ public class HiveDialectQueryITCase {
             result =
                     CollectionUtil.iteratorToList(
                             tableEnv.executeSql("select * from tab2").collect());
-            assertEquals("[+I[1, 1], +I[1, 2], +I[2, 1], +I[2, 2]]", result.toString());
+            assertThat(result.toString()).isEqualTo("[+I[2, 1], +I[2, 2]]");
 
-            // test load data with partitioned table
+            // test load data into partition
             tableEnv.executeSql(
                             String.format(
                                     "load data inpath '%s' into table p_table partition (dateint=2022) ",
-                                    getClass().getResource("/csv/test.csv")))
+                                    testLoadCsvFilePath))
                     .await();
             result =
                     CollectionUtil.iteratorToList(
-                            tableEnv.executeSql("select * from p_table").collect());
-            assertEquals("[+I[1, 1, 2022], +I[2, 2, 2022], +I[3, 3, 2022]]", result.toString());
+                            tableEnv.executeSql("select * from p_table where dateint=2022")
+                                    .collect());
+            assertThat(result.toString())
+                    .isEqualTo("[+I[1, 1, 2022], +I[2, 2, 2022], +I[3, 3, 2022]]");
         } finally {
             tableEnv.executeSql("drop table tab1");
             tableEnv.executeSql("drop table tab2");
@@ -815,6 +821,13 @@ public class HiveDialectQueryITCase {
             System.out.println("Failed to run " + query);
             throw e;
         }
+    }
+
+    private String explainSql(String sql) {
+        return (String)
+                CollectionUtil.iteratorToList(tableEnv.executeSql("explain " + sql).collect())
+                        .get(0)
+                        .getField(0);
     }
 
     private static TableEnvironment getTableEnvWithHiveCatalog() {
