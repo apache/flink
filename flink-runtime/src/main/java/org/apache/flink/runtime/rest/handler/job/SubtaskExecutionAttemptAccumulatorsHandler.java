@@ -99,25 +99,25 @@ public class SubtaskExecutionAttemptAccumulatorsHandler
         List<ArchivedJson> archive = new ArrayList<>(16);
         for (AccessExecutionJobVertex task : graph.getAllVertices().values()) {
             for (AccessExecutionVertex subtask : task.getTaskVertices()) {
-                ResponseBody curAttemptJson =
-                        createAccumulatorInfo(subtask.getCurrentExecutionAttempt());
-                String curAttemptPath =
-                        getMessageHeaders()
-                                .getTargetRestEndpointURL()
-                                .replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
-                                .replace(
-                                        ':' + JobVertexIdPathParameter.KEY,
-                                        task.getJobVertexId().toString())
-                                .replace(
-                                        ':' + SubtaskIndexPathParameter.KEY,
-                                        String.valueOf(subtask.getParallelSubtaskIndex()))
-                                .replace(
-                                        ':' + SubtaskAttemptPathParameter.KEY,
-                                        String.valueOf(
-                                                subtask.getCurrentExecutionAttempt()
-                                                        .getAttemptNumber()));
-
-                archive.add(new ArchivedJson(curAttemptPath, curAttemptJson));
+                for (AccessExecution attempt : subtask.getCurrentExecutions()) {
+                    ResponseBody curAttemptJson = createAccumulatorInfo(attempt);
+                    String curAttemptPath =
+                            getMessageHeaders()
+                                    .getTargetRestEndpointURL()
+                                    .replace(
+                                            ':' + JobIDPathParameter.KEY,
+                                            graph.getJobID().toString())
+                                    .replace(
+                                            ':' + JobVertexIdPathParameter.KEY,
+                                            task.getJobVertexId().toString())
+                                    .replace(
+                                            ':' + SubtaskIndexPathParameter.KEY,
+                                            String.valueOf(subtask.getParallelSubtaskIndex()))
+                                    .replace(
+                                            ':' + SubtaskAttemptPathParameter.KEY,
+                                            String.valueOf(attempt.getAttemptNumber()));
+                    archive.add(new ArchivedJson(curAttemptPath, curAttemptJson));
+                }
 
                 for (AccessExecution attempt :
                         subtask.getExecutionHistory().getHistoricalExecutions()) {

@@ -46,6 +46,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -141,6 +142,63 @@ class JobVertexBackPressureHandlerTest {
                         });
     }
 
+    private static Collection<MetricDump> getMultipleAttemptsMetricDumps() {
+        Collection<MetricDump> dumps = new ArrayList<>();
+        TaskQueryScopeInfo task0 =
+                new TaskQueryScopeInfo(
+                        TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
+                        TEST_JOB_VERTEX_ID.toString(),
+                        0,
+                        0);
+        dumps.add(new GaugeDump(task0, MetricNames.TASK_BACK_PRESSURED_TIME, "1000"));
+        dumps.add(new GaugeDump(task0, MetricNames.TASK_IDLE_TIME, "0"));
+        dumps.add(new GaugeDump(task0, MetricNames.TASK_BUSY_TIME, "0"));
+
+        TaskQueryScopeInfo speculativeTask0 =
+                new TaskQueryScopeInfo(
+                        TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
+                        TEST_JOB_VERTEX_ID.toString(),
+                        0,
+                        1);
+        dumps.add(new GaugeDump(speculativeTask0, MetricNames.TASK_BACK_PRESSURED_TIME, "200"));
+        dumps.add(new GaugeDump(speculativeTask0, MetricNames.TASK_IDLE_TIME, "100"));
+        dumps.add(new GaugeDump(speculativeTask0, MetricNames.TASK_BUSY_TIME, "800"));
+
+        TaskQueryScopeInfo task1 =
+                new TaskQueryScopeInfo(
+                        TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
+                        TEST_JOB_VERTEX_ID.toString(),
+                        1,
+                        0);
+        dumps.add(new GaugeDump(task1, MetricNames.TASK_BACK_PRESSURED_TIME, "500"));
+        dumps.add(new GaugeDump(task1, MetricNames.TASK_IDLE_TIME, "100"));
+        dumps.add(new GaugeDump(task1, MetricNames.TASK_BUSY_TIME, "900"));
+
+        TaskQueryScopeInfo speculativeTask1 =
+                new TaskQueryScopeInfo(
+                        TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
+                        TEST_JOB_VERTEX_ID.toString(),
+                        1,
+                        1);
+        dumps.add(new GaugeDump(speculativeTask1, MetricNames.TASK_BACK_PRESSURED_TIME, "900"));
+        dumps.add(new GaugeDump(speculativeTask1, MetricNames.TASK_IDLE_TIME, "0"));
+        dumps.add(new GaugeDump(speculativeTask1, MetricNames.TASK_BUSY_TIME, "100"));
+
+        // missing task2
+
+        TaskQueryScopeInfo task3 =
+                new TaskQueryScopeInfo(
+                        TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
+                        TEST_JOB_VERTEX_ID.toString(),
+                        3,
+                        0);
+        dumps.add(new GaugeDump(task3, MetricNames.TASK_BACK_PRESSURED_TIME, "100"));
+        dumps.add(new GaugeDump(task3, MetricNames.TASK_IDLE_TIME, "200"));
+        dumps.add(new GaugeDump(task3, MetricNames.TASK_BUSY_TIME, "700"));
+
+        return dumps;
+    }
+
     @Test
     void testGetBackPressure() throws Exception {
         final Map<String, String> pathParameters = new HashMap<>();
@@ -219,5 +277,154 @@ class JobVertexBackPressureHandlerTest {
 
         assertThat(jobVertexBackPressureInfo.getStatus())
                 .isEqualTo(VertexBackPressureStatus.DEPRECATED);
+    }
+
+    @Test
+    void testGetBackPressureFromMultipleCurrentAttempts() throws Exception {
+        MetricStore multipleAttemptsMetricStore = new MetricStore();
+        for (MetricDump metricDump : getMultipleAttemptsMetricDumps()) {
+            multipleAttemptsMetricStore.add(metricDump);
+        }
+        // Update currentExecutionAttempts directly without JobDetails.
+        Map<Integer, Integer> currentExecutionAttempts = new HashMap<>();
+        currentExecutionAttempts.put(0, 1);
+        currentExecutionAttempts.put(1, 0);
+        multipleAttemptsMetricStore
+                .getCurrentExecutionAttempts()
+                .put(
+                        TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
+                        Collections.singletonMap(
+                                TEST_JOB_VERTEX_ID.toString(), currentExecutionAttempts));
+
+        JobVertexBackPressureHandler jobVertexBackPressureHandler =
+                new JobVertexBackPressureHandler(
+                        () -> CompletableFuture.completedFuture(restfulGateway),
+                        Time.seconds(10),
+                        Collections.emptyMap(),
+                        JobVertexBackPressureHeaders.getInstance(),
+                        new MetricFetcher() {
+                            private long updateCount = 0;
+
+                            @Override
+                            public MetricStore getMetricStore() {
+                                return multipleAttemptsMetricStore;
+                            }
+
+                            @Override
+                            public void update() {
+                                updateCount++;
+                            }
+
+                            @Override
+                            public long getLastUpdateTime() {
+                                return updateCount;
+                            }
+                        });
+
+        final Map<String, String> pathParameters = new HashMap<>();
+        pathParameters.put(
+                JobIDPathParameter.KEY, TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString());
+        pathParameters.put(JobVertexIdPathParameter.KEY, TEST_JOB_VERTEX_ID.toString());
+
+        final HandlerRequest<EmptyRequestBody> request =
+                HandlerRequest.resolveParametersAndCreate(
+                        EmptyRequestBody.getInstance(),
+                        new JobVertexMessageParameters(),
+                        pathParameters,
+                        Collections.emptyMap(),
+                        Collections.emptyList());
+
+        final CompletableFuture<JobVertexBackPressureInfo>
+                jobVertexBackPressureInfoCompletableFuture =
+                        jobVertexBackPressureHandler.handleRequest(request, restfulGateway);
+        final JobVertexBackPressureInfo jobVertexBackPressureInfo =
+                jobVertexBackPressureInfoCompletableFuture.get();
+
+        assertThat(jobVertexBackPressureInfo.getStatus()).isEqualTo(VertexBackPressureStatus.OK);
+        assertThat(jobVertexBackPressureInfo.getBackpressureLevel()).isEqualTo(LOW);
+
+        assertThat(
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getAttemptNumber)
+                                .collect(Collectors.toList()))
+                .containsExactly(1, 0, null);
+        assertThat(
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getOtherConcurrentAttempts)
+                                .filter(Objects::nonNull)
+                                .flatMap(Collection::stream)
+                                .map(SubtaskBackPressureInfo::getAttemptNumber)
+                                .collect(Collectors.toList()))
+                .containsExactly(0, 1);
+
+        assertThat(
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getBackPressuredRatio)
+                                .collect(Collectors.toList()))
+                .containsExactly(0.2, 0.5, 0.1);
+        assertThat(
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getOtherConcurrentAttempts)
+                                .filter(Objects::nonNull)
+                                .flatMap(Collection::stream)
+                                .map(SubtaskBackPressureInfo::getBackPressuredRatio)
+                                .collect(Collectors.toList()))
+                .containsExactly(1.0, 0.9);
+
+        assertThat(
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getIdleRatio)
+                                .collect(Collectors.toList()))
+                .containsExactly(0.1, 0.1, 0.2);
+        assertThat(
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getOtherConcurrentAttempts)
+                                .filter(Objects::nonNull)
+                                .flatMap(Collection::stream)
+                                .map(SubtaskBackPressureInfo::getIdleRatio)
+                                .collect(Collectors.toList()))
+                .containsExactly(0.0, 0.0);
+
+        assertThat(
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getBusyRatio)
+                                .collect(Collectors.toList()))
+                .containsExactly(0.8, 0.9, 0.7);
+        assertThat(
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getOtherConcurrentAttempts)
+                                .filter(Objects::nonNull)
+                                .flatMap(Collection::stream)
+                                .map(SubtaskBackPressureInfo::getBusyRatio)
+                                .collect(Collectors.toList()))
+                .containsExactly(0.0, 0.1);
+
+        assertThat(
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getBackpressureLevel)
+                                .collect(Collectors.toList()))
+                .containsExactly(LOW, LOW, OK);
+        assertThat(
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getOtherConcurrentAttempts)
+                                .filter(Objects::nonNull)
+                                .flatMap(Collection::stream)
+                                .map(SubtaskBackPressureInfo::getBackpressureLevel)
+                                .collect(Collectors.toList()))
+                .containsExactly(HIGH, HIGH);
+
+        assertThat(
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getSubtask)
+                                .collect(Collectors.toList()))
+                .containsExactly(0, 1, 3);
+        assertThat(
+                        jobVertexBackPressureInfo.getSubtasks().stream()
+                                .map(SubtaskBackPressureInfo::getOtherConcurrentAttempts)
+                                .filter(Objects::nonNull)
+                                .flatMap(Collection::stream)
+                                .map(SubtaskBackPressureInfo::getSubtask)
+                                .collect(Collectors.toList()))
+                .containsExactly(0, 1);
     }
 }

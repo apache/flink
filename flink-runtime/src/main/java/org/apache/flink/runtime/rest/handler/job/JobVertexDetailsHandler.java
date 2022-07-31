@@ -120,9 +120,24 @@ public class JobVertexDetailsHandler
         for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
             final AccessExecution execution = vertex.getCurrentExecutionAttempt();
             final JobVertexID jobVertexID = jobVertex.getJobVertexId();
+
+            final Collection<AccessExecution> attempts = vertex.getCurrentExecutions();
+            List<SubtaskExecutionAttemptDetailsInfo> otherConcurrentAttempts = null;
+
+            if (attempts.size() > 1) {
+                otherConcurrentAttempts = new ArrayList<>();
+                for (AccessExecution attempt : attempts) {
+                    if (attempt.getAttemptNumber() != execution.getAttemptNumber()) {
+                        otherConcurrentAttempts.add(
+                                SubtaskExecutionAttemptDetailsInfo.create(
+                                        attempt, metricFetcher, jobID, jobVertexID, null));
+                    }
+                }
+            }
+
             subtasks.add(
                     SubtaskExecutionAttemptDetailsInfo.create(
-                            execution, metricFetcher, jobID, jobVertexID));
+                            execution, metricFetcher, jobID, jobVertexID, otherConcurrentAttempts));
         }
 
         return new JobVertexDetailsInfo(

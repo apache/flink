@@ -77,7 +77,8 @@ public class AggregatedTaskDetailsInfoTest
                                 Math.abs(random.nextLong()),
                                 ioMetricsInfo,
                                 "taskmanagerId",
-                                statusDuration)));
+                                statusDuration,
+                                null)));
     }
 
     @Test

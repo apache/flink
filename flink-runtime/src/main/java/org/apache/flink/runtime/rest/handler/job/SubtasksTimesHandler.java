@@ -101,7 +101,8 @@ public class SubtasksTimesHandler
 
         int num = 0;
         for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
-
+            // Use one of the current execution attempts to represent the subtask, rather than
+            // adding times info of all attempts.
             long[] timestamps = vertex.getCurrentExecutionAttempt().getStateTimestamps();
             ExecutionState status = vertex.getExecutionState();
 
