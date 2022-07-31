@@ -24,6 +24,7 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetails
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,11 +72,12 @@ public class JobVertexDetailsInfoTest
                         1L,
                         jobVertexMetrics,
                         "taskmanagerId1",
-                        statusDuration));
+                        statusDuration,
+                        null));
         vertexTaskDetailList.add(
                 new SubtaskExecutionAttemptDetailsInfo(
                         1,
-                        ExecutionState.FAILED,
+                        ExecutionState.RUNNING,
                         random.nextInt(),
                         "local2",
                         System.currentTimeMillis(),
@@ -83,7 +85,20 @@ public class JobVertexDetailsInfoTest
                         1L,
                         jobVertexMetrics,
                         "taskmanagerId2",
-                        statusDuration));
+                        statusDuration,
+                        Collections.singletonList(
+                                new SubtaskExecutionAttemptDetailsInfo(
+                                        1,
+                                        ExecutionState.FAILED,
+                                        random.nextInt(),
+                                        "local2",
+                                        System.currentTimeMillis(),
+                                        System.currentTimeMillis(),
+                                        1L,
+                                        jobVertexMetrics,
+                                        "taskmanagerId2",
+                                        statusDuration,
+                                        null))));
         vertexTaskDetailList.add(
                 new SubtaskExecutionAttemptDetailsInfo(
                         2,
@@ -95,7 +110,8 @@ public class JobVertexDetailsInfoTest
                         1L,
                         jobVertexMetrics,
                         "taskmanagerId3",
-                        statusDuration));
+                        statusDuration,
+                        null));
 
         int parallelism = 1 + (random.nextInt() / 3);
         return new JobVertexDetailsInfo(

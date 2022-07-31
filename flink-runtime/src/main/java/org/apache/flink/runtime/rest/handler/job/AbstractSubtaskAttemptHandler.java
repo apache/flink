@@ -38,6 +38,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
@@ -88,11 +89,17 @@ public abstract class AbstractSubtaskAttemptHandler<
             throws RestHandlerException {
         final Integer attemptNumber = request.getPathParameter(SubtaskAttemptPathParameter.class);
 
-        final AccessExecution currentAttempt = executionVertex.getCurrentExecutionAttempt();
+        final Collection<AccessExecution> currentExecutions =
+                executionVertex.getCurrentExecutions();
         final ExecutionHistory executionHistory = executionVertex.getExecutionHistory();
-        if (attemptNumber == currentAttempt.getAttemptNumber()) {
-            return handleRequest(request, currentAttempt);
-        } else if (executionHistory.isValidAttemptNumber(attemptNumber)) {
+
+        for (AccessExecution currentExecution : currentExecutions) {
+            if (attemptNumber == currentExecution.getAttemptNumber()) {
+                return handleRequest(request, currentExecution);
+            }
+        }
+
+        if (executionHistory.isValidAttemptNumber(attemptNumber)) {
             final Optional<? extends AccessExecution> execution =
                     executionHistory.getHistoricalExecution(attemptNumber);
 

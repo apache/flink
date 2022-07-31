@@ -70,6 +70,7 @@ public class SubtaskExecutionAttemptDetailsInfoTest
                 Math.abs(random.nextLong()),
                 ioMetricsInfo,
                 "taskmanagerId",
-                statusDuration);
+                statusDuration,
+                null);
     }
 }
