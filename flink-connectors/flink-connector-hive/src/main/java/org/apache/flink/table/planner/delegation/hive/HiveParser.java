@@ -35,7 +35,6 @@ import org.apache.flink.table.operations.HiveSetOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.delegation.ParserImpl;
@@ -208,9 +207,7 @@ public class HiveParser extends ParserImpl {
             return super.parse(statement);
         }
 
-        Optional<Operation> nonSqlOperation =
-                tryProcessHiveNonSqlStatement(
-                        ((HiveCatalog) currentCatalog).getHiveConf(), statement);
+        Optional<Operation> nonSqlOperation = tryProcessHiveNonSqlStatement(statement);
         if (nonSqlOperation.isPresent()) {
             return Collections.singletonList(nonSqlOperation.get());
         }
@@ -231,13 +228,14 @@ public class HiveParser extends ParserImpl {
         }
     }
 
-    private Optional<Operation> tryProcessHiveNonSqlStatement(HiveConf hiveConf, String statement) {
+    private Optional<Operation> tryProcessHiveNonSqlStatement(String statement) {
         String[] commandTokens = statement.split("\\s+");
         HiveCommand hiveCommand = HiveCommand.find(commandTokens);
         if (hiveCommand != null) {
             if (hiveCommand == HiveCommand.SET) {
                 return Optional.of(
-                        processSetCmd(statement.substring(commandTokens[0].length()).trim()));
+                        processSetCmd(
+                                statement, statement.substring(commandTokens[0].length()).trim()));
             } else if (hiveCommand == HiveCommand.RESET) {
                 return Optional.of(super.parse(statement).get(0));
             } else {
@@ -248,7 +246,7 @@ public class HiveParser extends ParserImpl {
         return Optional.empty();
     }
 
-    private Operation processSetCmd(String setCmdArgs) {
+    private Operation processSetCmd(String originCmd, String setCmdArgs) {
         String nwcmd = setCmdArgs.trim();
         // the set command may end with ";" since it won't be removed by Flink SQL CLI,
         // so, we need to remove ";"
@@ -285,7 +283,7 @@ public class HiveParser extends ParserImpl {
                             part[1],
                             part[0],
                             part[1]);
-                    return new SetOperation(part[0], part[1]);
+                    return super.parse(originCmd).get(0);
                 }
             }
             if (part[0].equals("silent")) {
