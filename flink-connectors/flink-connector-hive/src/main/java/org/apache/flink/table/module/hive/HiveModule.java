@@ -26,7 +26,7 @@ import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
-import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFArrayFieldAccess;
+import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFArrayAccessStructField;
 import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFGrouping;
 import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFInternalInterval;
 import org.apache.flink.util.StringUtils;
@@ -113,7 +113,7 @@ public class HiveModule implements Module {
             functionNames.removeAll(BUILT_IN_FUNC_BLACKLIST);
             functionNames.add("grouping");
             functionNames.add(GenericUDFLegacyGroupingID.NAME);
-            functionNames.add(HiveGenericUDFArrayFieldAccess.NAME);
+            functionNames.add(HiveGenericUDFArrayAccessStructField.NAME);
         }
         return functionNames;
     }
@@ -146,10 +146,10 @@ public class HiveModule implements Module {
         }
 
         // used to access the field of struct in array
-        if (name.equalsIgnoreCase(HiveGenericUDFArrayFieldAccess.NAME)) {
+        if (name.equalsIgnoreCase(HiveGenericUDFArrayAccessStructField.NAME)) {
             return Optional.of(
                     factory.createFunctionDefinitionFromHiveFunction(
-                            name, HiveGenericUDFArrayFieldAccess.class.getName(), context));
+                            name, HiveGenericUDFArrayAccessStructField.class.getName(), context));
         }
 
         Optional<FunctionInfo> info = hiveShim.getBuiltInFunctionInfo(name);

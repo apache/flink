@@ -36,7 +36,7 @@ import java.util.List;
 /**
  * A custom UDF for supporting to access the field of struct data in an array by ".".
  *
- * <p>For example, such sql in allowed in Hive:
+ * <p>For example, such sql is allowed in Hive:
  *
  * <pre>{@code
  * create table t(a1 array<struct<f1:string>>);
@@ -46,9 +46,9 @@ import java.util.List;
  * <p>The behavior for it in Hive is to collect the value of field 'f1' for the struct data
  * contained in 'a1' to a list.
  */
-public class HiveGenericUDFArrayFieldAccess extends GenericUDF {
+public class HiveGenericUDFArrayAccessStructField extends GenericUDF {
 
-    public static final String NAME = "flink_hive_array_field_access";
+    public static final String NAME = "flink_hive_array_access_struct_field";
 
     private transient ListObjectInspector listOI;
     private transient StructObjectInspector structOI;
@@ -59,19 +59,23 @@ public class HiveGenericUDFArrayFieldAccess extends GenericUDF {
     public ObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
         if (arguments.length != 2) {
             throw new UDFArgumentException(
-                    "The function flink_hive_array_field_access accepts exactly 2 arguments.");
+                    String.format("The function %s() accepts exactly 2 arguments.", NAME));
         }
 
         if (!(arguments[0] instanceof ListObjectInspector
                 && ((ListObjectInspector) (arguments[0])).getListElementObjectInspector()
                         instanceof StructObjectInspector)) {
             throw new UDFArgumentException(
-                    "flink_hive_array_field_access() takes an array of struct as first parameter. ");
+                    String.format(
+                            "The function %s() takes an array of struct as first parameter.",
+                            NAME));
         }
 
         if (!(arguments[1] instanceof ConstantObjectInspector)) {
             throw new UDFArgumentException(
-                    "flink_hive_array_field_access() takes a constant as second parameter. ");
+                    String.format(
+                            "The function %s() takes a constant as second parameter.",
+                            NAME));
         }
         listOI = (ListObjectInspector) arguments[0];
         structOI = (StructObjectInspector) listOI.getListElementObjectInspector();
@@ -96,6 +100,6 @@ public class HiveGenericUDFArrayFieldAccess extends GenericUDF {
 
     @Override
     public String getDisplayString(String[] children) {
-        return HiveParserUtils.getStandardDisplayString("flink_hive_array_field_access", children);
+        return HiveParserUtils.getStandardDisplayString(NAME, children);
     }
 }

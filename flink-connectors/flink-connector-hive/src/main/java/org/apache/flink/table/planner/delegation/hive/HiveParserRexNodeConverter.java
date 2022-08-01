@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
-import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFArrayFieldAccess;
+import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFArrayAccessStructField;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserExprNodeDescUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserExprNodeSubQueryDesc;
@@ -241,16 +241,16 @@ public class HiveParserRexNodeConverter {
         } else {
             if (fieldDesc.getIsList()) {
                 // it's for accessing the value of a field for the struct data contained in a list.
-                // to support such case, convert it to call 'array_field_access' function
-                // implemented in
+                // to support such case, convert it to call 'flink_hive_array_access_struct_field'
+                // function implemented in
                 // org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFArrayFieldAccess
 
-                // get the first parameter's data type for 'array_field_access'
+                // get the first parameter's data type for 'flink_hive_array_access_struct_field'
                 RelDataType arrayDataType =
                         HiveParserTypeConverter.convert(
                                 fieldDesc.getDesc().getTypeInfo(), cluster.getTypeFactory());
-                // get the second parameter for 'array_field_access', it's always a string literal
-                // valued the field's name
+                // get the second parameter for 'flink_hive_array_access_struct_field', it's always
+                // a string literal valued the field's name
                 RexNode accessedField =
                         cluster.getRexBuilder().makeLiteral(fieldDesc.getFieldName());
                 RelDataType accessFieldType =
@@ -261,7 +261,7 @@ public class HiveParserRexNodeConverter {
                                 fieldDesc.getTypeInfo(), cluster.getTypeFactory());
                 SqlOperator calciteOp =
                         HiveParserSqlFunctionConverter.getCalciteFn(
-                                HiveGenericUDFArrayFieldAccess.NAME,
+                                HiveGenericUDFArrayAccessStructField.NAME,
                                 Arrays.asList(arrayDataType, accessFieldType),
                                 retType,
                                 false);
