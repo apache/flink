@@ -53,7 +53,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 
-import static org.apache.flink.contrib.streaming.state.RocksDBIncrementalCheckpointUtils.deleteRange;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -283,7 +282,11 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
         try {
             final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
             byte[] upperBound = calculateUpperBound(keyPrefixBytes);
-            deleteRange(backend.db, Collections.singletonList(columnFamily), keyPrefixBytes, upperBound);
+            RocksDBIncrementalCheckpointUtils.deleteRange(
+                    backend.db,
+                    Collections.singletonList(columnFamily),
+                    keyPrefixBytes,
+                    upperBound);
         } catch (RocksDBException e) {
             throw new FlinkRuntimeException("Error while cleaning the state in RocksDB.", e);
         }

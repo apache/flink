@@ -226,6 +226,7 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
 
     /**
      * Similar to decimal addition, add 1 to the last digit to calculate the upper bound.
+     *
      * @param prefix the starting prefix for seek.
      * @return end prefix for seek.
      */
