@@ -27,12 +27,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Programmatic definition of a SQL job-submission. */
 public class SQLJobSubmission {
 
+    private final ClientMode clientMode;
     private final List<String> sqlLines;
     private final List<String> jars;
 
-    private SQLJobSubmission(List<String> sqlLines, List<String> jars) {
+    private SQLJobSubmission(ClientMode clientMode, List<String> sqlLines, List<String> jars) {
+        this.clientMode = clientMode;
         this.sqlLines = checkNotNull(sqlLines);
         this.jars = checkNotNull(jars);
+    }
+
+    public ClientMode getClientMode() {
+        return clientMode;
     }
 
     public List<String> getJars() {
@@ -45,11 +51,17 @@ public class SQLJobSubmission {
 
     /** Builder for the {@link SQLJobSubmission}. */
     public static class SQLJobSubmissionBuilder {
+        private ClientMode clientMode = ClientMode.SQL_CLIENT;
         private final List<String> sqlLines;
         private final List<String> jars = new ArrayList<>();
 
         public SQLJobSubmissionBuilder(List<String> sqlLines) {
             this.sqlLines = sqlLines;
+        }
+
+        public SQLJobSubmissionBuilder setClientMode(ClientMode clientMode) {
+            this.clientMode = clientMode;
+            return this;
         }
 
         public SQLJobSubmissionBuilder addJar(Path jarFile) {
@@ -70,7 +82,14 @@ public class SQLJobSubmission {
         }
 
         public SQLJobSubmission build() {
-            return new SQLJobSubmission(sqlLines, jars);
+            return new SQLJobSubmission(clientMode, sqlLines, jars);
         }
+    }
+
+    /** Use which client to submit job. */
+    public enum ClientMode {
+        SQL_CLIENT,
+
+        HIVE_JDBC
     }
 }

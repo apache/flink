@@ -17,33 +17,15 @@
 # limitations under the License.
 #
 
-# Start/stop a Flink SQL Gateway.
-
 function usage() {
-  echo "Usage: bin/sql-gateway.sh command"
+  echo "Usage: sql-gateway.sh [start|start-foreground|stop|stop-all] [args]"
   echo "  commands:"
-  echo "    start            - Run a SQL Gateway as a daemon"
-  echo "    start-foreground - Run a SQL Gateway as a console application"
-  echo "    stop             - Stop the SQL Gateway daemon"
-  echo "    stop-all         - Stop all the SQL Gateway daemons"
-  echo "    -h | --help      - Show this help message"
+  echo "    start               - Run a SQL Gateway as a daemon"
+  echo "    start-foreground    - Run a SQL Gateway as a console application"
+  echo "    stop                - Stop the SQL Gateway daemon"
+  echo "    stop-all            - Stop all the SQL Gateway daemons"
+  echo "    -h | --help         - Show this help message"
 }
-
-if [[ "$*" = *--help ]] || [[ "$*" = *-h ]]; then
-  usage
-  exit 0
-fi
-
-STARTSTOP=$1
-
-if [ -z "$STARTSTOP" ]; then
-  STARTSTOP="start"
-fi
-
-if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $STARTSTOP != "stop" ]] && [[ $STARTSTOP != "stop-all" ]]; then
-  usage
-  exit 1
-fi
 
 ################################################################################
 # Adopted from "flink" bash script
@@ -75,7 +57,35 @@ if [ "$FLINK_IDENT_STRING" = "" ]; then
         FLINK_IDENT_STRING="$USER"
 fi
 
-ENTRYPOINT=sqlgateway
+################################################################################
+# SQL gateway specific logic
+################################################################################
+
+ENTRYPOINT=sql-gateway
+
+if [[ "$1" = *--help ]] || [[ "$1" = *-h ]]; then
+  usage
+  exit 0
+fi
+
+STARTSTOP=$1
+
+if [ -z "$STARTSTOP" ]; then
+  STARTSTOP="start"
+fi
+
+if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $STARTSTOP != "stop" ]] && [[ $STARTSTOP != "stop-all" ]]; then
+  usage
+  exit 1
+fi
+
+# ./sql-gateway.sh start --help, print the message to the console
+if [[ "$STARTSTOP" = start* ]] && ( [[ "$*" = *--help ]] || [[ "$*" = *-h ]] ); then
+  FLINK_TM_CLASSPATH=`constructFlinkClassPath`
+  SQL_GATEWAY_CLASSPATH=`findSqlGatewayJar`
+  "$JAVA_RUN"  -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$SQL_GATEWAY_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.table.gateway.SqlGateway "${@:2}"
+  exit 0
+fi
 
 if [[ $STARTSTOP == "start-foreground" ]]; then
     exec "${FLINK_BIN_DIR}"/flink-console.sh $ENTRYPOINT "${@:2}"

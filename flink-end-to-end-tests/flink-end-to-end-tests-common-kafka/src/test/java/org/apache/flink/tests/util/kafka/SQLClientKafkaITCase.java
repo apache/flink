@@ -59,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.apache.flink.tests.util.TestUtils.readCsvResultFiles;
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.junit.Assert.assertThat;
 
@@ -174,7 +175,7 @@ public class SQLClientKafkaITCase extends TestLogger {
     }
 
     private void executeSqlStatements(ClusterController clusterController, List<String> sqlLines)
-            throws IOException {
+            throws Exception {
         LOG.info("Executing Kafka {} end-to-end SQL statements.", kafkaSQLVersion);
         clusterController.submitSQLJob(
                 new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
@@ -233,18 +234,5 @@ public class SQLClientKafkaITCase extends TestLogger {
             Thread.sleep(500);
         }
         Assert.assertTrue("Did not get expected results before timeout.", success);
-    }
-
-    private static List<String> readCsvResultFiles(Path path) throws IOException {
-        File filePath = path.toFile();
-        // list all the non-hidden files
-        File[] csvFiles = filePath.listFiles((dir, name) -> !name.startsWith("."));
-        List<String> result = new ArrayList<>();
-        if (csvFiles != null) {
-            for (File file : csvFiles) {
-                result.addAll(Files.readAllLines(file.toPath()));
-            }
-        }
-        return result;
     }
 }

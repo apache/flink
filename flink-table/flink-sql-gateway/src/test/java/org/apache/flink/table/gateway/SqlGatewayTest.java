@@ -38,6 +38,7 @@ import java.util.UUID;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 /** Tests for the {@link SqlGateway}. */
 public class SqlGatewayTest {
@@ -95,26 +96,36 @@ public class SqlGatewayTest {
                     "-Dsql-gateway.endpoint.mocked.host=localhost",
                     "-Dsql-gateway.endpoint.mocked.port=9999"
                 };
-        PrintStream stream = new PrintStream(output);
-        Thread thread =
-                new ExecutorThreadFactory(
-                                "SqlGateway-thread-pool",
-                                (t, exception) -> exception.printStackTrace(stream))
-                        .newThread(() -> SqlGateway.startSqlGateway(stream, args));
-        thread.start();
+        try (PrintStream stream = new PrintStream(output)) {
+            Thread thread =
+                    new ExecutorThreadFactory(
+                                    "SqlGateway-thread-pool",
+                                    (t, exception) -> exception.printStackTrace(stream))
+                            .newThread(() -> SqlGateway.startSqlGateway(stream, args));
+            thread.start();
 
-        CommonTestUtils.waitUtil(
-                () -> MockedSqlGatewayEndpoint.isRunning(id),
-                Duration.ofSeconds(10),
-                "Failed to get the endpoint starts.");
+            CommonTestUtils.waitUtil(
+                    () -> MockedSqlGatewayEndpoint.isRunning(id),
+                    Duration.ofSeconds(10),
+                    "Failed to get the endpoint starts.");
 
-        thread.interrupt();
-        CommonTestUtils.waitUtil(
-                () -> !thread.isAlive(),
-                Duration.ofSeconds(10),
-                "Failed to get the endpoint starts.");
-        assertThat(output.toString())
-                .doesNotContain(
-                        "Unexpected exception. This is a bug. Please consider filing an issue.");
+            thread.interrupt();
+            CommonTestUtils.waitUtil(
+                    () -> !thread.isAlive(),
+                    Duration.ofSeconds(10),
+                    "Failed to get the endpoint starts.");
+            assertThat(output.toString())
+                    .doesNotContain(
+                            "Unexpected exception. This is a bug. Please consider filing an issue.");
+        }
+    }
+
+    @Test
+    public void testFailedToStartSqlGateway() {
+        try (PrintStream stream = new PrintStream(output)) {
+            assertThatThrownBy(() -> SqlGateway.startSqlGateway(stream, new String[0]))
+                    .doesNotHaveToString(
+                            "Unexpected exception. This is a bug. Please consider filing an issue.");
+        }
     }
 }

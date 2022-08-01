@@ -67,18 +67,16 @@ public class SqlGateway {
         sessionManager.start();
         SqlGatewayService sqlGatewayService = new SqlGatewayServiceImpl(sessionManager);
 
-        endpoints.addAll(
-                SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint(
-                        sqlGatewayService, context.getFlinkConfig()));
-
-        for (SqlGatewayEndpoint endpoint : endpoints) {
-            try {
+        try {
+            endpoints.addAll(
+                    SqlGatewayEndpointFactoryUtils.createSqlGatewayEndpoint(
+                            sqlGatewayService, context.getFlinkConfig()));
+            for (SqlGatewayEndpoint endpoint : endpoints) {
                 endpoint.start();
-            } catch (Throwable t) {
-                LOG.error("Failed to start the endpoint.", t);
-                stop();
-                throw new SqlGatewayException("Failed to start the endpoint.", t);
             }
+        } catch (Throwable t) {
+            LOG.error("Failed to start the endpoints.", t);
+            throw new SqlGatewayException("Failed to start the endpoints.", t);
         }
     }
 
@@ -97,11 +95,6 @@ public class SqlGateway {
     }
 
     public static void main(String[] args) {
-        // startup checks and logging
-        EnvironmentInformation.logEnvironmentInfo(LOG, "SqlGateway", args);
-        SignalHandler.register(LOG);
-        JvmShutdownSafeguard.installAsShutdownHook(LOG);
-
         startSqlGateway(System.out, args);
     }
 
@@ -113,6 +106,11 @@ public class SqlGateway {
             SqlGatewayOptionsParser.printHelpSqlGateway(stream);
             return;
         }
+
+        // startup checks and logging
+        EnvironmentInformation.logEnvironmentInfo(LOG, "SqlGateway", args);
+        SignalHandler.register(LOG);
+        JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
         SqlGateway gateway = new SqlGateway(cliOptions.getDynamicConfigs());
         try {
@@ -128,11 +126,19 @@ public class SqlGateway {
             // make space in terminal
             stream.println();
             stream.println();
-            LOG.error(
-                    "SqlGateway must stop. Unexpected exception. This is a bug. Please consider filing an issue.",
-                    t);
-            throw new SqlGatewayException(
-                    "Unexpected exception. This is a bug. Please consider filing an issue.", t);
+
+            if (t instanceof SqlGatewayException) {
+                // Exception that the gateway can not handle.
+                throw (SqlGatewayException) t;
+            } else {
+                LOG.error(
+                        "SqlGateway must stop. Unexpected exception. This is a bug. Please consider filing an issue.",
+                        t);
+                throw new SqlGatewayException(
+                        "Unexpected exception. This is a bug. Please consider filing an issue.", t);
+            }
+        } finally {
+            gateway.stop();
         }
     }
 
