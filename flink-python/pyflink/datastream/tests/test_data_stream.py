@@ -370,6 +370,34 @@ class DataStreamTests(object):
         expected = ['4', '5', '6', '7', '8', '3', '5', '7', '9', '11', '3', '5', '7', '9', '11']
         self.assert_equals_sorted(expected, results)
 
+    def test_keyed_co_process(self):
+        self.env.set_parallelism(1)
+        ds1 = self.env.from_collection([("a", 1), ("b", 2), ("c", 3)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds2 = self.env.from_collection([("b", 2), ("c", 3), ("d", 4)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds1 = ds1.assign_timestamps_and_watermarks(
+            WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
+                SecondColumnTimestampAssigner()))
+        ds2 = ds2.assign_timestamps_and_watermarks(
+            WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
+                SecondColumnTimestampAssigner()))
+        ds1.connect(ds2) \
+            .key_by(lambda x: x[0], lambda x: x[0]) \
+            .process(MyKeyedCoProcessFunction()) \
+            .map(lambda x: Row(x[0], x[1] + 1)) \
+            .add_sink(self.test_sink)
+        self.env.execute('test_keyed_co_process_function')
+        results = self.test_sink.get_results(True)
+        expected = ["<Row('a', 2)>",
+                    "<Row('b', 2)>",
+                    "<Row('b', 3)>",
+                    "<Row('c', 2)>",
+                    "<Row('c', 3)>",
+                    "<Row('d', 2)>",
+                    "<Row('on_timer', 4)>"]
+        self.assert_equals_sorted(expected, results)
+
 
 class DataStreamStreamingTests(DataStreamTests):
 
@@ -436,34 +464,6 @@ class ProcessDataStreamTests(DataStreamTests):
         self.env.execute("test_basic_co_operations_with_output_type")
         results = self.test_sink.get_results()
         expected = ['4', '5', '6', '7', '8', '3', '5', '7', '9', '11', '3', '5', '7', '9', '11']
-        self.assert_equals_sorted(expected, results)
-
-    def test_keyed_co_process(self):
-        self.env.set_parallelism(1)
-        ds1 = self.env.from_collection([("a", 1), ("b", 2), ("c", 3)],
-                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds2 = self.env.from_collection([("b", 2), ("c", 3), ("d", 4)],
-                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds1 = ds1.assign_timestamps_and_watermarks(
-            WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
-                SecondColumnTimestampAssigner()))
-        ds2 = ds2.assign_timestamps_and_watermarks(
-            WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
-                SecondColumnTimestampAssigner()))
-        ds1.connect(ds2) \
-            .key_by(lambda x: x[0], lambda x: x[0]) \
-            .process(MyKeyedCoProcessFunction()) \
-            .map(lambda x: Row(x[0], x[1] + 1)) \
-            .add_sink(self.test_sink)
-        self.env.execute('test_keyed_co_process_function')
-        results = self.test_sink.get_results(True)
-        expected = ["<Row('a', 2)>",
-                    "<Row('b', 2)>",
-                    "<Row('b', 3)>",
-                    "<Row('c', 2)>",
-                    "<Row('c', 3)>",
-                    "<Row('d', 2)>",
-                    "<Row('on_timer', 4)>"]
         self.assert_equals_sorted(expected, results)
 
     def test_keyed_co_map(self):
@@ -1711,39 +1711,8 @@ class ProcessDataStreamBatchTests(DataStreamBatchTests, ProcessDataStreamTests,
         self.assert_equals_sorted(expected, results)
 
 
-class EmbeddedDataStreamTests(DataStreamTests):
-    def test_keyed_co_process(self):
-        self.env.set_parallelism(1)
-        ds1 = self.env.from_collection([("a", 1), ("b", 2), ("c", 3)],
-                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds2 = self.env.from_collection([("b", 2), ("c", 3), ("d", 4)],
-                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds1 = ds1.assign_timestamps_and_watermarks(
-            WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
-                SecondColumnTimestampAssigner()))
-        ds2 = ds2.assign_timestamps_and_watermarks(
-            WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
-                SecondColumnTimestampAssigner()))
-        ds1.connect(ds2) \
-            .key_by(lambda x: x[0], lambda x: x[0]) \
-            .process(MyKeyedCoProcessFunction()) \
-            .map(lambda x: Row(x[0], x[1] + 1)) \
-            .add_sink(self.test_sink)
-        self.env.execute('test_keyed_co_process_function')
-        results = self.test_sink.get_results(True)
-        expected = ["<Row('a', 2)>",
-                    "<Row('b', 2)>",
-                    "<Row('b', 3)>",
-                    "<Row('c', 2)>",
-                    "<Row('c', 3)>",
-                    "<Row('d', 2)>",
-                    "<Row('on_timer', 3)>"]
-        self.assert_equals_sorted(expected, results)
-
-
 @pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
-class EmbeddedDataStreamStreamTests(EmbeddedDataStreamTests, DataStreamStreamingTests,
-                                    PyFlinkStreamingTestCase):
+class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTestCase):
     def setUp(self):
         super(EmbeddedDataStreamStreamTests, self).setUp()
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
@@ -1751,8 +1720,7 @@ class EmbeddedDataStreamStreamTests(EmbeddedDataStreamTests, DataStreamStreaming
 
 
 @pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
-class EmbeddedDataStreamBatchTests(EmbeddedDataStreamTests, DataStreamBatchTests,
-                                   PyFlinkBatchTestCase):
+class EmbeddedDataStreamBatchTests(DataStreamBatchTests, PyFlinkBatchTestCase):
     def setUp(self):
         super(EmbeddedDataStreamBatchTests, self).setUp()
         config = get_j_env_configuration(self.env._j_stream_execution_environment)

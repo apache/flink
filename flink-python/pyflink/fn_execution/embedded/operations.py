@@ -37,16 +37,29 @@ class FunctionOperation(object):
             operation.close()
 
     def on_timer(self, timestamp):
-        for operation in self._operations:
-            results = operation.on_timer(timestamp)
-            if results:
-                for item in results:
-                    yield self._output_data_converter.to_external(item)
+        results = self._main_operation.on_timer(timestamp)
 
-    @classmethod
-    def _process_element(cls, op, elements):
-        for element in elements:
-            yield from op.process_element(element)
+        if results:
+            results = self._process_elements(results)
+
+        if results:
+            yield from self._output_elements(results)
+
+    def _process_elements(self, elements):
+        def _process_elements_on_operation(op, items):
+            if items:
+                for item in items:
+                    yield from op.process_element(item)
+
+        for operation in self._chained_operations:
+            elements = _process_elements_on_operation(operation, elements)
+
+        return elements
+
+    def _output_elements(self, elements):
+        if elements:
+            for item in elements:
+                yield self._output_data_converter.to_external(item)
 
 
 class OneInputFunctionOperation(FunctionOperation):
@@ -73,11 +86,11 @@ class OneInputFunctionOperation(FunctionOperation):
         results = self._main_operation.process_element(
             self._input_data_converter.to_internal(value))
 
-        for operation in self._chained_operations:
-            results = self._process_element(operation, results)
+        if results:
+            results = self._process_elements(results)
 
-        for item in results:
-            yield self._output_data_converter.to_external(item)
+        if results:
+            yield from self._output_elements(results)
 
 
 class TwoInputFunctionOperation(FunctionOperation):
@@ -108,18 +121,18 @@ class TwoInputFunctionOperation(FunctionOperation):
         results = self._main_operation.process_element1(
             self._input_data_converter1.to_internal(value))
 
-        for operation in self._chained_operations:
-            results = self._process_element(operation, results)
+        if results:
+            results = self._process_elements(results)
 
-        for item in results:
-            yield self._output_data_converter.to_external(item)
+        if results:
+            yield from self._output_elements(results)
 
     def process_element2(self, value):
         results = self._main_operation.process_element2(
             self._input_data_converter2.to_internal(value))
 
-        for operation in self._chained_operations:
-            results = self._process_element(operation, results)
+        if results:
+            results = self._process_elements(results)
 
-        for item in results:
-            yield self._output_data_converter.to_external(item)
+        if results:
+            yield from self._output_elements(results)
