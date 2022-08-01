@@ -28,6 +28,7 @@ import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.function.FutureTaskWithException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,14 +46,19 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -71,6 +77,7 @@ final class FlinkDistribution {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private static final Pattern ROOT_LOGGER_PATTERN = Pattern.compile("(rootLogger.level =).*");
+    private static final String HIVE_DRIVER = "org.apache.hive.jdbc.HiveDriver";
 
     private final Path opt;
     private final Path lib;
@@ -106,13 +113,15 @@ final class FlinkDistribution {
                 bin.resolve("taskmanager.sh").toAbsolutePath().toString(), "start");
     }
 
-    public void startSQLGateway(String arg) throws IOException {
+    public void startSqlGateway() throws IOException {
         LOG.info("Starting Flink SQL Gateway.");
-        AutoClosableProcess.runBlocking(
-                bin.resolve("sql-gateway.sh").toAbsolutePath().toString(), "start", arg);
+        AutoClosableProcess.create(
+                        bin.resolve("sql-gateway.sh").toAbsolutePath().toString(), "start")
+                .setStdoutProcessor(LOG::info)
+                .runBlocking();
     }
 
-    public void stopSQLGateway() throws IOException {
+    public void stopSqlGateway() throws IOException {
         LOG.info("Stopping Flink SQL Gateway.");
         AutoClosableProcess.runBlocking(
                 bin.resolve("sql-gateway.sh").toAbsolutePath().toString(), "stop");
@@ -221,18 +230,56 @@ final class FlinkDistribution {
         }
     }
 
-    public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws IOException {
+    public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws Exception {
         final List<String> commands = new ArrayList<>();
-        commands.add(bin.resolve("sql-client.sh").toAbsolutePath().toString());
-        for (String jar : job.getJars()) {
-            commands.add("--jar");
-            commands.add(jar);
-        }
 
-        AutoClosableProcess.create(commands.toArray(new String[0]))
-                .setStdInputs(job.getSqlLines().toArray(new String[0]))
-                .setStdoutProcessor(LOG::info) // logging the SQL statements and error message
-                .runBlocking(timeout);
+        if (job.getClientMode() == SQLJobSubmission.ClientMode.SQL_CLIENT) {
+            commands.add(bin.resolve("sql-client.sh").toAbsolutePath().toString());
+            for (String jar : job.getJars()) {
+                commands.add("--jar");
+                commands.add(jar);
+            }
+
+            AutoClosableProcess.create(commands.toArray(new String[0]))
+                    .setStdInputs(job.getSqlLines().toArray(new String[0]))
+                    .setStdoutProcessor(LOG::info) // logging the SQL statements and error message
+                    .runBlocking(timeout);
+        } else if (job.getClientMode() == SQLJobSubmission.ClientMode.HIVE_JDBC) {
+            FutureTaskWithException<Void> future =
+                    new FutureTaskWithException<>(
+                            () -> {
+                                // register HiveDriver to the DriverManager
+                                Class.forName(HIVE_DRIVER);
+                                Map<String, String> configMap =
+                                        GlobalConfiguration.loadConfiguration(
+                                                        conf.toAbsolutePath().toString())
+                                                .toMap();
+                                String host =
+                                        configMap.getOrDefault(
+                                                "sql-gateway.endpoint.hiveserver2.host",
+                                                InetAddress.getByName("localhost")
+                                                        .getHostAddress());
+                                String port =
+                                        configMap.getOrDefault(
+                                                "sql-gateway.endpoint.hiveserver2.thrift.port",
+                                                "10000");
+                                try (Connection connection =
+                                                DriverManager.getConnection(
+                                                        String.format(
+                                                                "jdbc:hive2://%s:%s/default;auth=noSasl;",
+                                                                host, port));
+                                        Statement statement = connection.createStatement()) {
+                                    for (String jar : job.getJars()) {
+                                        statement.execute(String.format("ADD JAR '%s'", jar));
+                                    }
+                                    for (String sql : job.getSqlLines()) {
+                                        statement.execute(sql);
+                                    }
+                                }
+                            });
+            new Thread(future).start();
+            future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        }
     }
 
     public void performJarAddition(JarAddition addition) throws IOException {

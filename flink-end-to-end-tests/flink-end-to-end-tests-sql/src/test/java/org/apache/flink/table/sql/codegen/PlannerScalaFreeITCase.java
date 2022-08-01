@@ -131,7 +131,7 @@ public class PlannerScalaFreeITCase extends TestLogger {
     }
 
     private void executeSqlStatements(ClusterController clusterController, List<String> sqlLines)
-            throws IOException {
+            throws Exception {
         LOG.info("Executing end-to-end SQL statements {}.", sqlLines);
         clusterController.submitSQLJob(
                 new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)

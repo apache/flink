@@ -18,7 +18,7 @@
 ################################################################################
 
 # Start/stop a Flink daemon.
-USAGE="Usage: flink-daemon.sh (start|stop|stop-all) (taskexecutor|zookeeper|historyserver|standalonesession|standalonejob|sqlgateway) [args]"
+USAGE="Usage: flink-daemon.sh (start|stop|stop-all) (taskexecutor|zookeeper|historyserver|standalonesession|standalonejob|sql-gateway) [args]"
 
 STARTSTOP=$1
 DAEMON=$2
@@ -50,7 +50,7 @@ case $DAEMON in
         CLASS_TO_RUN=org.apache.flink.container.entrypoint.StandaloneApplicationClusterEntryPoint
     ;;
 
-    (sqlgateway)
+    (sql-gateway)
         CLASS_TO_RUN=org.apache.flink.table.gateway.SqlGateway
         SQL_GATEWAY_CLASSPATH=`findSqlGatewayJar`
     ;;

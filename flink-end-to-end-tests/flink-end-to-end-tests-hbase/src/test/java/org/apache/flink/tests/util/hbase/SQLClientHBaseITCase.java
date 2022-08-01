@@ -228,7 +228,7 @@ public class SQLClientHBaseITCase extends TestLogger {
     }
 
     private void executeSqlStatements(ClusterController clusterController, List<String> sqlLines)
-            throws IOException {
+            throws Exception {
         LOG.info("Executing SQL: HBase source table -> HBase sink table");
         clusterController.submitSQLJob(
                 new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)

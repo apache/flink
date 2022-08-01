@@ -318,9 +318,9 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             resp.setServerProtocolVersion(sessionVersion.getVersion());
             resp.setSessionHandle(toTSessionHandle(sessionHandle));
             resp.setConfiguration(service.getSessionConfig(sessionHandle));
-        } catch (Exception e) {
-            LOG.error("Failed to OpenSession.", e);
-            resp.setStatus(toTStatus(e));
+        } catch (Throwable t) {
+            LOG.error("Failed to OpenSession.", t);
+            resp.setStatus(toTStatus(t));
         }
         return resp;
     }
