@@ -138,7 +138,7 @@ public class RocksDBIncrementalCheckpointUtils {
      * @param beginKeyBytes the begin key bytes
      * @param endKeyBytes the end key bytes
      */
-    private static void deleteRange(
+    public static void deleteRange(
             RocksDB db,
             List<ColumnFamilyHandle> columnFamilyHandles,
             byte[] beginKeyBytes,

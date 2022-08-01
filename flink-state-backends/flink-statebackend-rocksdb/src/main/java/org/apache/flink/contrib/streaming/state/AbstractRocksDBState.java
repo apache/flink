@@ -223,4 +223,26 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
         throw new UnsupportedOperationException(
                 "Global state entry iterator is unsupported for RocksDb backend");
     }
+
+    /**
+     * Similar to decimal addition, add 1 to the last digit to calculate the upper bound.
+     * @param prefix the starting prefix for seek.
+     * @return end prefix for seek.
+     */
+    protected final byte[] calculateUpperBound(byte[] prefix) {
+        byte[] upperBound = new byte[prefix.length];
+        System.arraycopy(prefix, 0, upperBound, 0, prefix.length);
+        boolean overFlow = true;
+        for (int i = prefix.length - 1; i >= 0; i--) {
+            int unsignedValue = prefix[i] & 0xff;
+            int result = unsignedValue + 1;
+            upperBound[i] = (byte) (result & 0xff);
+            if (result >> 8 == 0) {
+                overFlow = false;
+                break;
+            }
+        }
+        Preconditions.checkArgument(!overFlow, "The upper boundary overflows.");
+        return upperBound;
+    }
 }

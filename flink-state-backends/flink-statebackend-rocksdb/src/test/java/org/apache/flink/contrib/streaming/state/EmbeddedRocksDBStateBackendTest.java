@@ -637,7 +637,7 @@ public class EmbeddedRocksDBStateBackendTest
                             throw new RocksDBException("Artificial failure");
                         })
                 .when(keyedStateBackend.db)
-                .newIterator(any(ColumnFamilyHandle.class), any(ReadOptions.class));
+                .deleteRange(any(ColumnFamilyHandle.class), any(byte[].class), any(byte[].class));
 
         state.clear();
     }

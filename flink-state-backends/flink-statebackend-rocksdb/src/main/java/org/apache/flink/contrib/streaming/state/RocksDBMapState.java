@@ -49,9 +49,11 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 
+import static org.apache.flink.contrib.streaming.state.RocksDBIncrementalCheckpointUtils.deleteRange;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -278,27 +280,10 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
 
     @Override
     public void clear() {
-        try (RocksIteratorWrapper iterator =
-                        RocksDBOperationUtils.getRocksIterator(
-                                backend.db, columnFamily, backend.getReadOptions());
-                RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper =
-                        new RocksDBWriteBatchWrapper(
-                                backend.db,
-                                backend.getWriteOptions(),
-                                backend.getWriteBatchSize())) {
-
+        try {
             final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
-            iterator.seek(keyPrefixBytes);
-
-            while (iterator.isValid()) {
-                byte[] keyBytes = iterator.key();
-                if (startWithKeyPrefix(keyPrefixBytes, keyBytes)) {
-                    rocksDBWriteBatchWrapper.remove(columnFamily, keyBytes);
-                } else {
-                    break;
-                }
-                iterator.next();
-            }
+            byte[] upperBound = calculateUpperBound(keyPrefixBytes);
+            deleteRange(backend.db, Collections.singletonList(columnFamily), keyPrefixBytes, upperBound);
         } catch (RocksDBException e) {
             throw new FlinkRuntimeException("Error while cleaning the state in RocksDB.", e);
         }
