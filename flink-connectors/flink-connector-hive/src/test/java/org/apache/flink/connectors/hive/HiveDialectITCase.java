@@ -1024,15 +1024,40 @@ public class HiveDialectITCase {
         // test set system:
         tableEnv.executeSql("set system:xxx=5");
         assertThat(System.getProperty("xxx")).isEqualTo("5");
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select '${system:xxx}'").collect());
+        assertThat(result.toString()).isEqualTo("[+I[5]]");
 
         // test set hiveconf:
         tableEnv.executeSql("set hiveconf:yyy=${system:xxx}");
         assertThat(hiveCatalog.getHiveConf().get("yyy")).isEqualTo("5");
+        // disable variable substitute
+        tableEnv.executeSql("set hiveconf:hive.variable.substitute=false");
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select '${hiveconf:yyy}'").collect());
+        assertThat(result.toString()).isEqualTo("[+I[${hiveconf:yyy}]]");
+        // enable variable substitute again
+        tableEnv.executeSql("set hiveconf:hive.variable.substitute=true");
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select ${hiveconf:yyy}").collect());
+        assertThat(result.toString()).isEqualTo("[+I[5]]");
 
         // test set hivevar:
         tableEnv.executeSql("set hivevar:a=1");
         tableEnv.executeSql("set hiveconf:zzz=${hivevar:a}");
         assertThat(hiveCatalog.getHiveConf().get("zzz")).isEqualTo("1");
+
+        // test set nested variables
+        tableEnv.executeSql("set hiveconf:b=a");
+        tableEnv.executeSql("set system:c=${hivevar:${hiveconf:b}}");
+        assertThat(System.getProperty("c")).isEqualTo("1");
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select ${hivevar:${hiveconf:b}}").collect());
+        assertThat(result.toString()).isEqualTo("[+I[1]]");
 
         // test the hivevar still exists when we renew the sql parser
         tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
@@ -1040,6 +1065,10 @@ public class HiveDialectITCase {
         tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
         tableEnv.executeSql("set hiveconf:zzz1=${hivevar:a}");
         assertThat(hiveCatalog.getHiveConf().get("zzz1")).isEqualTo("1");
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select ${hiveconf:zzz1}").collect());
+        assertThat(result.toString()).isEqualTo("[+I[1]]");
 
         // test set metaconf:
         tableEnv.executeSql("set metaconf:hive.metastore.try.direct.sql=false");
@@ -1084,6 +1113,12 @@ public class HiveDialectITCase {
         assertThatThrownBy(() -> tableEnv.executeSql("set env:xxx=yyy"))
                 .isInstanceOf(UnsupportedOperationException.class)
                 .hasMessage("env:* variables can not be set.");
+        // test substitution for env variable in sql
+        String path = System.getenv("PATH");
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select '${env:PATH}'").collect());
+        assertThat(result.toString()).isEqualTo(String.format("[+I[%s]]", path));
     }
 
     @Test

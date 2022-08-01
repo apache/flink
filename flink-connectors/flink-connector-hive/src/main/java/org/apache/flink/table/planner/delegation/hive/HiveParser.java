@@ -57,6 +57,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.hadoop.hive.common.JavaUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.conf.VariableSubstitution;
 import org.apache.hadoop.hive.ql.lockmgr.LockException;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
@@ -218,6 +219,8 @@ public class HiveParser extends ParserImpl {
         HiveShim hiveShim =
                 HiveShimLoader.loadHiveShim(((HiveCatalog) currentCatalog).getHiveVersion());
         try {
+            // substitute variables for the statement
+            statement = substituteVariables(hiveConf, statement);
             // creates SessionState
             startSessionState(hiveConf, catalogManager);
             // We override Hive's grouping function. Refer to the implementation for more details.
@@ -292,6 +295,15 @@ public class HiveParser extends ParserImpl {
             return new HiveSetOperation(part[0], part[1]);
         }
         return new HiveSetOperation(nwcmd);
+    }
+
+    /**
+     * Substitute the variables in the statement. For statement 'select ${hiveconf:foo}', the
+     * variable '${hiveconf:foo}' will be replaced with the actual value with key 'foo' in hive
+     * conf.
+     */
+    private String substituteVariables(HiveConf conf, String statement) {
+        return new VariableSubstitution(() -> hiveVariables).substitute(conf, statement);
     }
 
     private List<Operation> processCmd(
