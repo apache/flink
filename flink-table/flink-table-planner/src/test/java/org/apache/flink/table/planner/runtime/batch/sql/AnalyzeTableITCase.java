@@ -120,6 +120,48 @@ public class AnalyzeTableITCase extends BatchTestBase {
         createPartition(catalog, "db", "PartitionTable", "e=2,a=5");
         createPartition(catalog, "db", "PartitionTable", "e=3,a=3");
         createPartition(catalog, "db", "PartitionTable", "e=3,a=5");
+
+        String dataId3 = TestValuesTableFactory.registerData(TestData.smallData5());
+        tEnv.executeSql(
+                String.format(
+                        "CREATE TABLE NonPartitionTable2 (\n"
+                                + "  `a` INT,\n"
+                                + "  `b` BIGINT,\n"
+                                + "  `c` INT,\n"
+                                + "  `d` VARCHAR METADATA VIRTUAL,\n"
+                                + "  `e` BIGINT METADATA,"
+                                + "  `f` as a + 1\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'data-id' = '%s',\n"
+                                + "  'disable-lookup' = 'true',\n"
+                                + "  'readable-metadata'='d:varchar,e:bigint',\n"
+                                + "  'bounded' = 'true'\n"
+                                + ")",
+                        dataId3));
+
+        String dataId4 = TestValuesTableFactory.registerData(TestData.smallData5());
+        tEnv.executeSql(
+                String.format(
+                        "CREATE TABLE PartitionTable2 (\n"
+                                + "  `a` INT,\n"
+                                + "  `b` BIGINT,\n"
+                                + "  `c` INT,\n"
+                                + "  `d` VARCHAR METADATA VIRTUAL,\n"
+                                + "  `e` BIGINT METADATA,"
+                                + "  `f` as a + 1\n"
+                                + ") partitioned by (a)\n"
+                                + " WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'partition-list' = 'a:1;a:2;',\n"
+                                + "  'data-id' = '%s',\n"
+                                + "  'disable-lookup' = 'true',\n"
+                                + "  'readable-metadata'='d:varchar,e:bigint',\n"
+                                + "  'bounded' = 'true'\n"
+                                + ")",
+                        dataId4));
+        createPartition(catalog, "db", "PartitionTable2", "a=1");
+        createPartition(catalog, "db", "PartitionTable2", "a=2");
     }
 
     private void createPartition(Catalog catalog, String db, String table, String partitionSpecs)
@@ -144,9 +186,10 @@ public class AnalyzeTableITCase extends BatchTestBase {
 
     @Test
     public void testNonPartitionTableWithoutTableNotExisted() throws Exception {
-        assertThatThrownBy(() -> tEnv.executeSql("analyze table MyTable compute statistics"))
+        assertThatThrownBy(
+                        () -> tEnv.executeSql("analyze table not_exist_table compute statistics"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Table `cat`.`db`.`MyTable` doesn't exist");
+                .hasMessageContaining("Table `cat`.`db`.`not_exist_table` doesn't exist");
     }
 
     @Test
@@ -171,6 +214,39 @@ public class AnalyzeTableITCase extends BatchTestBase {
     }
 
     @Test
+    public void testNonPartitionTableWithComputeColumn() {
+        assertThatThrownBy(
+                        () ->
+                                tEnv.executeSql(
+                                        "analyze table NonPartitionTable2 compute statistics for columns f"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Column: f is a computed column, ANALYZE TABLE does not support computed column");
+    }
+
+    @Test
+    public void testNonPartitionTableWithVirtualMetadataColumn() {
+        assertThatThrownBy(
+                        () ->
+                                tEnv.executeSql(
+                                        "analyze table NonPartitionTable2 compute statistics for columns d"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Column: d is a metadata column, ANALYZE TABLE does not support metadata column");
+    }
+
+    @Test
+    public void testNonPartitionTableWithMetadataColumn() {
+        assertThatThrownBy(
+                        () ->
+                                tEnv.executeSql(
+                                        "analyze table NonPartitionTable2 compute statistics for columns e"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Column: e is a metadata column, ANALYZE TABLE does not support metadata column");
+    }
+
+    @Test
     public void testNonPartitionTableWithPartition() {
         assertThatThrownBy(
                         () ->
@@ -184,77 +260,98 @@ public class AnalyzeTableITCase extends BatchTestBase {
     @Test
     public void testNonPartitionTableWithPartialColumns() throws Exception {
         tEnv.executeSql("analyze table NonPartitionTable compute statistics for columns f, a, d");
-        ObjectPath path = new ObjectPath(tEnv.getCurrentDatabase(), "NonPartitionTable");
-        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableStatistics(path))
+        ObjectPath path1 = new ObjectPath(tEnv.getCurrentDatabase(), "NonPartitionTable");
+        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableStatistics(path1))
                 .isEqualTo(new CatalogTableStatistics(5L, -1, -1L, -1L));
-        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData = new HashMap<>();
-        columnStatisticsData.put("a", new CatalogColumnStatisticsDataBoolean(2L, 2L, 1L));
-        columnStatisticsData.put("f", new CatalogColumnStatisticsDataDouble(-1.123d, 3.4d, 4L, 1L));
-        columnStatisticsData.put(
+        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData1 = new HashMap<>();
+        columnStatisticsData1.put("a", new CatalogColumnStatisticsDataBoolean(2L, 2L, 1L));
+        columnStatisticsData1.put(
+                "f", new CatalogColumnStatisticsDataDouble(-1.123d, 3.4d, 4L, 1L));
+        columnStatisticsData1.put(
                 "d",
                 new CatalogColumnStatisticsDataLong(
                         (long) Integer.MIN_VALUE, (long) Integer.MAX_VALUE, 4L, 1L));
-        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableColumnStatistics(path))
-                .isEqualTo(new CatalogColumnStatistics(columnStatisticsData));
+        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableColumnStatistics(path1))
+                .isEqualTo(new CatalogColumnStatistics(columnStatisticsData1));
+
+        tEnv.executeSql("analyze table NonPartitionTable2 compute statistics for columns a, b, c");
+        ObjectPath path2 = new ObjectPath(tEnv.getCurrentDatabase(), "NonPartitionTable2");
+        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData2 = new HashMap<>();
+        columnStatisticsData2.put("a", new CatalogColumnStatisticsDataLong(1L, 2L, 2L, 0L));
+        columnStatisticsData2.put("b", new CatalogColumnStatisticsDataLong(1L, 3L, 3L, 0L));
+        columnStatisticsData2.put("c", new CatalogColumnStatisticsDataLong(0L, 2L, 3L, 0L));
+        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableColumnStatistics(path2))
+                .isEqualTo(new CatalogColumnStatistics(columnStatisticsData2));
     }
 
     @Test
     public void testNonPartitionTableWithAllColumns() throws Exception {
         tEnv.executeSql("analyze table NonPartitionTable compute statistics for all columns");
-        ObjectPath path = new ObjectPath(tEnv.getCurrentDatabase(), "NonPartitionTable");
-        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableStatistics(path))
+        ObjectPath path1 = new ObjectPath(tEnv.getCurrentDatabase(), "NonPartitionTable");
+        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableStatistics(path1))
                 .isEqualTo(new CatalogTableStatistics(5L, -1, -1L, -1L));
-        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData = new HashMap<>();
+        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData1 = new HashMap<>();
         // boolean
-        columnStatisticsData.put("a", new CatalogColumnStatisticsDataBoolean(2L, 2L, 1L));
+        columnStatisticsData1.put("a", new CatalogColumnStatisticsDataBoolean(2L, 2L, 1L));
         // byte
-        columnStatisticsData.put(
+        columnStatisticsData1.put(
                 "b",
                 new CatalogColumnStatisticsDataLong(
                         (long) Byte.MIN_VALUE, (long) Byte.MAX_VALUE, 4L, 1L));
         // short
-        columnStatisticsData.put(
+        columnStatisticsData1.put(
                 "c",
                 new CatalogColumnStatisticsDataLong(
                         (long) Short.MIN_VALUE, (long) Short.MAX_VALUE, 4L, 1L));
         // int
-        columnStatisticsData.put(
+        columnStatisticsData1.put(
                 "d",
                 new CatalogColumnStatisticsDataLong(
                         (long) Integer.MIN_VALUE, (long) Integer.MAX_VALUE, 4L, 1L));
         // long
-        columnStatisticsData.put(
+        columnStatisticsData1.put(
                 "e", new CatalogColumnStatisticsDataLong(Long.MIN_VALUE, Long.MAX_VALUE, 4L, 1L));
         // float
-        columnStatisticsData.put("f", new CatalogColumnStatisticsDataDouble(-1.123d, 3.4d, 4L, 1L));
+        columnStatisticsData1.put(
+                "f", new CatalogColumnStatisticsDataDouble(-1.123d, 3.4d, 4L, 1L));
         // double
-        columnStatisticsData.put("g", new CatalogColumnStatisticsDataDouble(-1.123d, 3.4d, 4L, 1L));
+        columnStatisticsData1.put(
+                "g", new CatalogColumnStatisticsDataDouble(-1.123d, 3.4d, 4L, 1L));
         // DECIMAL(5, 2)
-        columnStatisticsData.put("h", new CatalogColumnStatisticsDataDouble(5.1d, 8.12d, 4L, 1L));
+        columnStatisticsData1.put("h", new CatalogColumnStatisticsDataDouble(5.1d, 8.12d, 4L, 1L));
         // DECIMAL(30, 10)
-        columnStatisticsData.put(
+        columnStatisticsData1.put(
                 "x",
                 new CatalogColumnStatisticsDataDouble(
                         1234567891012345.1d, 812345678910123451.0123456789d, 4L, 1L));
         // varchar
-        columnStatisticsData.put("i", new CatalogColumnStatisticsDataString(4L, 2.5d, 4L, 1L));
+        columnStatisticsData1.put("i", new CatalogColumnStatisticsDataString(4L, 2.5d, 4L, 1L));
         // char
-        columnStatisticsData.put("j", new CatalogColumnStatisticsDataString(4L, 2.5d, 4L, 1L));
+        columnStatisticsData1.put("j", new CatalogColumnStatisticsDataString(4L, 2.5d, 4L, 1L));
         // date
-        columnStatisticsData.put(
+        columnStatisticsData1.put(
                 "k", new CatalogColumnStatisticsDataDate(new Date(-365), new Date(18383), 4L, 1L));
         // time
-        columnStatisticsData.put(
+        columnStatisticsData1.put(
                 "l", new CatalogColumnStatisticsDataLong(123000000L, 84203000000000L, 4L, 1L));
         // timestamp
-        columnStatisticsData.put(
+        columnStatisticsData1.put(
                 "m", new CatalogColumnStatisticsDataLong(-31536000L, 1588375403L, 4L, 1L));
         // timestamp with local timezone
-        columnStatisticsData.put(
+        columnStatisticsData1.put(
                 "n", new CatalogColumnStatisticsDataLong(-31535999877L, 1588375403000L, 4L, 1L));
 
-        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableColumnStatistics(path))
-                .isEqualTo(new CatalogColumnStatistics(columnStatisticsData));
+        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableColumnStatistics(path1))
+                .isEqualTo(new CatalogColumnStatistics(columnStatisticsData1));
+
+        tEnv.executeSql("analyze table NonPartitionTable2 compute statistics for all columns");
+        ObjectPath path2 = new ObjectPath(tEnv.getCurrentDatabase(), "NonPartitionTable2");
+        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData2 = new HashMap<>();
+        columnStatisticsData2.put("a", new CatalogColumnStatisticsDataLong(1L, 2L, 2L, 0L));
+        columnStatisticsData2.put("b", new CatalogColumnStatisticsDataLong(1L, 3L, 3L, 0L));
+        columnStatisticsData2.put("c", new CatalogColumnStatisticsDataLong(0L, 2L, 3L, 0L));
+        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableColumnStatistics(path2))
+                .isEqualTo(new CatalogColumnStatistics(columnStatisticsData2));
     }
 
     @Test
@@ -317,6 +414,50 @@ public class AnalyzeTableITCase extends BatchTestBase {
     }
 
     @Test
+    public void testPartitionTableWithVirtualMetadataColumn() {
+        assertThatThrownBy(
+                        () ->
+                                tEnv.executeSql(
+                                        "analyze table PartitionTable2 PARTITION(a) compute statistics for columns d"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Column: d is a metadata column, ANALYZE TABLE does not support metadata column");
+    }
+
+    @Test
+    public void testPartitionTableWithMetadataColumn() {
+        assertThatThrownBy(
+                        () ->
+                                tEnv.executeSql(
+                                        "analyze table PartitionTable2 PARTITION(a) compute statistics for columns e"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Column: e is a metadata column, ANALYZE TABLE does not support metadata column");
+    }
+
+    @Test
+    public void testPartitionTableWithComputeColumn() {
+        assertThatThrownBy(
+                        () ->
+                                tEnv.executeSql(
+                                        "analyze table PartitionTable2 PARTITION(a) compute statistics for columns f"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Column: f is a computed column, ANALYZE TABLE does not support computed column");
+    }
+
+    @Test
+    public void testPartitionTableWithPartition() {
+        assertThatThrownBy(
+                        () ->
+                                tEnv.executeSql(
+                                        "analyze table NonPartitionTable PARTITION(a) compute statistics"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "cat`.`db`.`NonPartitionTable` is not a partition table, while partition values is given");
+    }
+
+    @Test
     public void testPartitionTableWithoutColumns() throws Exception {
         tEnv.executeSql("analyze table PartitionTable partition(e, a) compute statistics");
         ObjectPath path = new ObjectPath(tEnv.getCurrentDatabase(), "PartitionTable");
@@ -332,6 +473,23 @@ public class AnalyzeTableITCase extends BatchTestBase {
         assertPartitionStatistics(path, "e=2,a=5", 2L);
         assertPartitionStatistics(path, "e=3,a=3", 1L);
         assertPartitionStatistics(path, "e=3,a=5", 2L);
+
+        tEnv.executeSql(
+                "analyze table PartitionTable2 partition(a) compute statistics for all columns");
+        ObjectPath path2 = new ObjectPath(tEnv.getCurrentDatabase(), "PartitionTable2");
+        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData2 = new HashMap<>();
+        columnStatisticsData2.put("a", new CatalogColumnStatisticsDataLong(1L, 1L, 1L, 0L));
+        columnStatisticsData2.put("b", new CatalogColumnStatisticsDataLong(1L, 1L, 1L, 0L));
+        columnStatisticsData2.put("c", new CatalogColumnStatisticsDataLong(0L, 0L, 1L, 0L));
+        assertPartitionStatistics(
+                path2, "a=1", 1L, new CatalogColumnStatistics(columnStatisticsData2));
+
+        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData3 = new HashMap<>();
+        columnStatisticsData3.put("a", new CatalogColumnStatisticsDataLong(2L, 2L, 1L, 0L));
+        columnStatisticsData3.put("b", new CatalogColumnStatisticsDataLong(2L, 3L, 2L, 0L));
+        columnStatisticsData3.put("c", new CatalogColumnStatisticsDataLong(1L, 2L, 2L, 0L));
+        assertPartitionStatistics(
+                path2, "a=2", 2L, new CatalogColumnStatistics(columnStatisticsData3));
     }
 
     @Test

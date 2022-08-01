@@ -100,6 +100,7 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.CatalogViewImpl;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ManagedTableListener;
@@ -1281,7 +1282,7 @@ public class SqlToOperationConverter {
 
         CatalogBaseTable baseTable = optionalCatalogTable.get().getTable();
         if (baseTable instanceof CatalogView) {
-            throw new ValidationException("ANALYZE TABLE for a view is not allowed");
+            throw new ValidationException("ANALYZE TABLE for a view is not allowed.");
         }
         CatalogTable table = (CatalogTable) baseTable;
         ResolvedSchema schema =
@@ -1294,7 +1295,7 @@ public class SqlToOperationConverter {
                 throw new ValidationException(
                         String.format(
                                 "For partition table, all partition keys should be specified explicitly. "
-                                        + "The given partition keys: [%s] are not match the target partition keys: [%s]",
+                                        + "The given partition keys: [%s] are not match the target partition keys: [%s].",
                                 String.join(",", partitions.keySet()),
                                 String.join(",", table.getPartitionKeys())));
             }
@@ -1307,27 +1308,45 @@ public class SqlToOperationConverter {
         } else if (!partitions.isEmpty()) {
             throw new ValidationException(
                     String.format(
-                            "Table: %s is not a partition table, while partition values is given",
+                            "Table: %s is not a partition table, while partition values is given.",
                             tableIdentifier));
         }
 
-        List<String> origColumns =
-                ((RowType) schema.toPhysicalRowDataType().getLogicalType()).getFieldNames();
         String[] columns = analyzeTable.getColumnNames();
         List<String> targetColumns;
         if (analyzeTable.isAllColumns()) {
             Preconditions.checkArgument(columns.length == 0);
-            targetColumns = origColumns;
+            // computed column and metadata column will be ignored
+            targetColumns =
+                    ((RowType) schema.toPhysicalRowDataType().getLogicalType()).getFieldNames();
         } else if (columns.length > 0) {
             targetColumns =
                     Arrays.stream(columns)
                             .peek(
                                     c -> {
-                                        if (!origColumns.contains(c)) {
+                                        Optional<Column> colOpt = schema.getColumn(c);
+                                        if (!colOpt.isPresent()) {
                                             throw new ValidationException(
                                                     String.format(
-                                                            "Column: %s does not exist in the table: %s",
+                                                            "Column: %s does not exist in the table: %s.",
                                                             c, tableIdentifier));
+                                        }
+                                        Column col = colOpt.get();
+                                        if (col instanceof Column.ComputedColumn) {
+                                            throw new ValidationException(
+                                                    String.format(
+                                                            "Column: %s is a computed column, ANALYZE TABLE does not support computed column.",
+                                                            c));
+                                        } else if (col instanceof Column.MetadataColumn) {
+                                            throw new ValidationException(
+                                                    String.format(
+                                                            "Column: %s is a metadata column, ANALYZE TABLE does not support metadata column.",
+                                                            c));
+                                        } else if (col instanceof Column.PhysicalColumn) {
+                                            // ignored
+                                        } else {
+                                            throw new ValidationException(
+                                                    "This should not happen.");
                                         }
                                     })
                             .collect(Collectors.toList());
