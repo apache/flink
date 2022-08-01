@@ -59,31 +59,25 @@ public class SqlGatewayRestEndpointFactory implements SqlGatewayEndpointFactory 
     }
 
     public static Configuration rebuildRestEndpointOptions(Map<String, String> configMap) {
-        // Sql Gateway Rest Endpoint only supports following options
-        Map<String, String> rebuildMap = new HashMap<>();
-        // 1. ADDRESS(required option)
-        rebuildMap.put(RestOptions.ADDRESS.key(), configMap.get(ADDRESS.key()));
-        // 2. BIND ADDRESS
-        // If the user specifies BIND ADDRESS, use BIND ADDRESS, otherwise use the default value of
-        // ADDRESS
-        rebuildMap.put(
-                RestOptions.BIND_ADDRESS.key(),
-                configMap.getOrDefault(BIND_ADDRESS.key(), configMap.get(ADDRESS.key())));
-        // 3. BIND PORT
-        // If the user specifies BIND PORT, use the BIND PORT
+        Map<String, String> effectiveConfigMap = new HashMap<>(configMap);
+
+        effectiveConfigMap.put(RestOptions.ADDRESS.key(), configMap.get(ADDRESS.key()));
+
+        if (configMap.containsKey(BIND_ADDRESS.key())) {
+            effectiveConfigMap.put(
+                    RestOptions.BIND_ADDRESS.key(), configMap.get(BIND_ADDRESS.key()));
+        }
+
+        // we need to override RestOptions.PORT anyway, to use a different default value
+        effectiveConfigMap.put(
+                RestOptions.PORT.key(),
+                configMap.getOrDefault(PORT.key(), PORT.defaultValue().toString()));
+
         if (configMap.containsKey(BIND_PORT.key())) {
-            rebuildMap.put(RestOptions.BIND_PORT.key(), configMap.get(BIND_PORT.key()));
+            effectiveConfigMap.put(RestOptions.BIND_PORT.key(), configMap.get(BIND_PORT.key()));
         }
-        // 4. PORT
-        // If the user doesn't specify BIND PORT, use PORT or the default value of BIND PORT
-        else {
-            if (configMap.containsKey(PORT.key())) {
-                rebuildMap.put(RestOptions.BIND_PORT.key(), configMap.get(PORT.key()));
-            } else {
-                rebuildMap.put(RestOptions.BIND_PORT.key(), BIND_PORT.defaultValue());
-            }
-        }
-        return Configuration.fromMap(rebuildMap);
+
+        return Configuration.fromMap(effectiveConfigMap);
     }
 
     @Override
