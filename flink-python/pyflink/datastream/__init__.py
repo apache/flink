@@ -201,6 +201,9 @@ Classes to define formats used together with source & sink:
 
     - :class:`formats.CsvReaderFormat`:
       A :class:`connectors.StreamFormat` to read csv files into Row data.
+    - :class:`formats.GenericRecordAvroTypeInfo`:
+      A :class:`TypeInformation` to indicate vanilla Python records will be translated to
+      GenericRecordAvroTypeInfo on the Java side.
     - :class:`formats.AvroInputFormat`:
       A :class:`connector.filesystem.InputFormat` to read avro files in a streaming fashion.
     - :class:`formats.AvroWriters`:

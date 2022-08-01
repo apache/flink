@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from .avro import AvroSchema, AvroInputFormat, AvroWriters
+from .avro import AvroSchema, AvroInputFormat, AvroWriters, GenericRecordAvroTypeInfo
 from .csv import CsvSchema, CsvReaderFormat
 from .parquet import AvroParquetReaders, ParquetColumnarRowInputFormat
 
@@ -26,5 +26,6 @@ __all__ = [
     'AvroWriters',
     'CsvReaderFormat',
     'CsvSchema',
+    'GenericRecordAvroTypeInfo',
     'ParquetColumnarRowInputFormat'
 ]
