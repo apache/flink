@@ -40,6 +40,7 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.functions.hive.HiveGenericUDTFTest;
 import org.apache.flink.table.functions.hive.util.TestSplitUDTFInitializeWithStructObjectInspector;
 import org.apache.flink.table.operations.DescribeTableOperation;
+import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.command.ClearOperation;
 import org.apache.flink.table.operations.command.HelpOperation;
 import org.apache.flink.table.operations.command.QuitOperation;
@@ -65,6 +66,7 @@ import org.apache.hadoop.hive.ql.io.RCFileOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
+import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCount;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
@@ -159,7 +161,6 @@ public class HiveDialectITCase {
         assertThat(parser).isInstanceOf(HiveParser.class);
         assertThat(parser.parse("HELP").get(0)).isInstanceOf(HelpOperation.class);
         assertThat(parser.parse("clear").get(0)).isInstanceOf(ClearOperation.class);
-        assertThat(parser.parse("SET").get(0)).isInstanceOf(SetOperation.class);
         assertThat(parser.parse("ResET").get(0)).isInstanceOf(ResetOperation.class);
         assertThat(parser.parse("Exit").get(0)).isInstanceOf(QuitOperation.class);
     }
@@ -1016,6 +1017,73 @@ public class HiveDialectITCase {
                 .hasRootCauseMessage(
                         "DROP TEMPORARY MACRO doesn't allow \".\" character in the macro name, but the name is \"%s\".",
                         badMacroName);
+    }
+
+    @Test
+    public void testSetCommand() throws Exception {
+        // test set system:
+        tableEnv.executeSql("set system:xxx=5");
+        assertThat(System.getProperty("xxx")).isEqualTo("5");
+
+        // test set hiveconf:
+        tableEnv.executeSql("set hiveconf:yyy=${system:xxx}");
+        assertThat(hiveCatalog.getHiveConf().get("yyy")).isEqualTo("5");
+
+        // test set hivevar:
+        tableEnv.executeSql("set hivevar:a=1");
+        tableEnv.executeSql("set hiveconf:zzz=${hivevar:a}");
+        assertThat(hiveCatalog.getHiveConf().get("zzz")).isEqualTo("1");
+
+        // test the hivevar still exists when we renew the sql parser
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        tableEnv.executeSql("show tables");
+        tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+        tableEnv.executeSql("set hiveconf:zzz1=${hivevar:a}");
+        assertThat(hiveCatalog.getHiveConf().get("zzz1")).isEqualTo("1");
+
+        // test set metaconf:
+        tableEnv.executeSql("set metaconf:hive.metastore.try.direct.sql=false");
+        Hive hive = Hive.get(hiveCatalog.getHiveConf());
+        assertThat(hive.getMetaConf("hive.metastore.try.direct.sql")).isEqualTo("false");
+
+        // test 'set xxx = xxx' should be pared as Flink SetOperation
+        TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
+        Parser parser = tableEnvInternal.getParser();
+        Operation operation = parser.parse("set user.name=hive_test_user").get(0);
+        assertThat(operation).isInstanceOf(SetOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo("SET user.name=hive_test_user");
+
+        // test 'set xxx='
+        tableEnv.executeSql("set user.name=");
+        assertThat(hiveCatalog.getHiveConf().get("user.name")).isEmpty();
+
+        // test 'set xxx'
+        List<Row> rows =
+                CollectionUtil.iteratorToList(tableEnv.executeSql("set system:xxx").collect());
+        assertThat(rows.toString()).isEqualTo("[+I[system:xxx=5]]");
+
+        // test 'set'
+        rows = CollectionUtil.iteratorToList(tableEnv.executeSql("set").collect());
+        assertThat(rows.toString())
+                .contains("system:xxx=5")
+                .contains("env:PATH=" + System.getenv("PATH"))
+                .contains("flink:execution.runtime-mode=BATCH")
+                .contains("hivevar:a=1")
+                .contains("common-key=common-val");
+
+        // test 'set -v'
+        rows = CollectionUtil.iteratorToList(tableEnv.executeSql("set -v").collect());
+        assertThat(rows.toString())
+                .contains("system:xxx=5")
+                .contains("env:PATH=" + System.getenv("PATH"))
+                .contains("flink:execution.runtime-mode=BATCH")
+                .contains("hivevar:a=1")
+                .contains("fs.defaultFS=file:///");
+
+        // test set env isn't supported
+        assertThatThrownBy(() -> tableEnv.executeSql("set env:xxx=yyy"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage("env:* variables can not be set.");
     }
 
     @Test

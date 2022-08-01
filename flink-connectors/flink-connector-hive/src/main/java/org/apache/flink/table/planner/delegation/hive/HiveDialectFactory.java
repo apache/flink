@@ -56,6 +56,6 @@ public class HiveDialectFactory implements DialectFactory {
 
     @Override
     public ExtendedOperationExecutor createExtendedOperationExecutor(Context context) {
-        return new HiveOperationExecutor();
+        return new HiveOperationExecutor(context.getCatalogManager(), context.getPlannerContext());
     }
 }

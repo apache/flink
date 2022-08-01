@@ -19,7 +19,9 @@
 package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
+import org.apache.flink.connectors.hive.HiveInternalOptions;
 import org.apache.flink.table.api.SqlParserException;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -29,6 +31,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFGrouping;
 import org.apache.flink.table.operations.ExplainOperation;
+import org.apache.flink.table.operations.HiveSetOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
@@ -57,6 +60,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.lockmgr.LockException;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
+import org.apache.hadoop.hive.ql.processors.HiveCommand;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,8 +76,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
+
+import static org.apache.flink.table.planner.delegation.hive.copy.HiveSetProcessor.startWithHiveSpecialVariablePrefix;
 
 /** A Parser that uses Hive's planner to parse a statement. */
 public class HiveParser extends ParserImpl {
@@ -163,6 +171,8 @@ public class HiveParser extends ParserImpl {
     private final FrameworkConfig frameworkConfig;
     private final SqlFunctionConverter funcConverter;
     private final HiveParserDMLHelper dmlHelper;
+    private final TableConfig tableConfig;
+    private final Map<String, String> hiveVariables;
 
     HiveParser(
             CatalogManager catalogManager,
@@ -183,6 +193,8 @@ public class HiveParser extends ParserImpl {
                         frameworkConfig.getOperatorTable(),
                         catalogReader.nameMatcher());
         this.dmlHelper = new HiveParserDMLHelper(plannerContext, funcConverter, catalogManager);
+        this.tableConfig = plannerContext.getFlinkContext().getTableConfig();
+        this.hiveVariables = tableConfig.get(HiveInternalOptions.HIVE_VARIABLES);
     }
 
     @Override
@@ -193,6 +205,11 @@ public class HiveParser extends ParserImpl {
         if (!(currentCatalog instanceof HiveCatalog)) {
             LOG.warn("Current catalog is not HiveCatalog. Falling back to Flink's planner.");
             return super.parse(statement);
+        }
+
+        Optional<Operation> nonSqlOperation = tryProcessHiveNonSqlStatement(statement);
+        if (nonSqlOperation.isPresent()) {
+            return Collections.singletonList(nonSqlOperation.get());
         }
         HiveConf hiveConf = new HiveConf(((HiveCatalog) currentCatalog).getHiveConf());
         hiveConf.setVar(HiveConf.ConfVars.DYNAMICPARTITIONINGMODE, "nonstrict");
@@ -209,6 +226,72 @@ public class HiveParser extends ParserImpl {
         } finally {
             clearSessionState();
         }
+    }
+
+    private Optional<Operation> tryProcessHiveNonSqlStatement(String statement) {
+        String[] commandTokens = statement.split("\\s+");
+        HiveCommand hiveCommand = HiveCommand.find(commandTokens);
+        if (hiveCommand != null) {
+            if (hiveCommand == HiveCommand.SET) {
+                return Optional.of(
+                        processSetCmd(
+                                statement, statement.substring(commandTokens[0].length()).trim()));
+            } else if (hiveCommand == HiveCommand.RESET) {
+                return Optional.of(super.parse(statement).get(0));
+            } else {
+                throw new UnsupportedOperationException(
+                        String.format("The Hive command %s is not supported.", hiveCommand));
+            }
+        }
+        return Optional.empty();
+    }
+
+    private Operation processSetCmd(String originCmd, String setCmdArgs) {
+        String nwcmd = setCmdArgs.trim();
+        // the set command may end with ";" since it won't be removed by Flink SQL CLI,
+        // so, we need to remove ";"
+        if (nwcmd.endsWith(";")) {
+            nwcmd = nwcmd.substring(0, nwcmd.length() - 1);
+        }
+
+        if (nwcmd.equals("")) {
+            return new HiveSetOperation();
+        }
+        if (nwcmd.equals("-v")) {
+            return new HiveSetOperation(true);
+        }
+
+        String[] part = new String[2];
+        int eqIndex = nwcmd.indexOf('=');
+        if (nwcmd.contains("=")) {
+            if (eqIndex == nwcmd.length() - 1) { // x=
+                part[0] = nwcmd.substring(0, nwcmd.length() - 1);
+                part[1] = "";
+            } else { // x=y
+                part[0] = nwcmd.substring(0, eqIndex).trim();
+                part[1] = nwcmd.substring(eqIndex + 1).trim();
+                if (!startWithHiveSpecialVariablePrefix(part[0])) {
+                    // TODO:
+                    // currently, for the command set key=value, we will fall to
+                    // Flink's implementation, otherwise, user will have no way to switch dialect.
+                    // need to figure out whether we should also set the value in HiveConf which is
+                    // Hive's implementation
+                    LOG.warn(
+                            "The command 'set {}={}' will only set Flink's table config,"
+                                    + " and if you want to set the variable to Hive's conf, please use the command like 'set hiveconf:{}={}'.",
+                            part[0],
+                            part[1],
+                            part[0],
+                            part[1]);
+                    return super.parse(originCmd).get(0);
+                }
+            }
+            if (part[0].equals("silent")) {
+                throw new UnsupportedOperationException("Unsupported command 'set silent'.");
+            }
+            return new HiveSetOperation(part[0], part[1]);
+        }
+        return new HiveSetOperation(nwcmd);
     }
 
     private List<Operation> processCmd(
