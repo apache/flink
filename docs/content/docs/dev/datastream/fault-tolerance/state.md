@@ -474,9 +474,10 @@ ttl_config = StateTtlConfig \
 For more fine-grained control over some special cleanup in background, you can configure it separately as described below.
 Currently, heap state backend relies on incremental cleanup and RocksDB backend uses compaction filter for background cleanup.
 
-##### Cleanup in full snapshot
+##### Cleanup in full scan snapshot
 
-Additionally, you can activate the cleanup at the moment of taking the full state snapshot which 
+Additionally, you can activate the cleanup at the moment of taking the full scan state snapshot (means the 
+canonical savepoint of all state-backends, or the checkpoint/native-savepoint of hashmap state-backend.), which 
 will reduce its size. The local state is not cleaned up under the current implementation 
 but it will not include the removed expired state in case of restoration from the previous snapshot.
 It can be configured in `StateTtlConfig`:
@@ -489,7 +490,7 @@ import org.apache.flink.api.common.time.Time;
 
 StateTtlConfig ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
-    .cleanupFullSnapshot()
+    .cleanupOnFullScanSnapshot()
     .build();
 ```
 {{< /tab >}}
@@ -500,7 +501,7 @@ import org.apache.flink.api.common.time.Time
 
 val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
-    .cleanupFullSnapshot
+    .cleanupOnFullScanSnapshot
     .build
 ```
 {{< /tab >}}

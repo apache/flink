@@ -429,7 +429,8 @@ ttl_config = StateTtlConfig \
 
 #### 全量快照时进行清理
 
-另外，你可以启用全量快照时进行清理的策略，这可以减少整个快照的大小。当前实现中不会清理本地的状态，但从上次快照恢复时，不会恢复那些已经删除的过期数据。
+另外，你可以启用全量扫描类型的快照(仅包括所有state-backend的标准格式的savepoint，hashmap state-backend的checkpoint或原生格式savepoint)时进行清理的策略，
+这可以减少整个快照的大小。当前实现中不会清理本地的状态，但从上次快照恢复时，不会恢复那些已经删除的过期数据。
 该策略可以通过 `StateTtlConfig` 配置进行配置：
 
 {{< tabs "77959bcd-25cb-476a-893f-53424a723f0e" >}}
@@ -440,7 +441,7 @@ import org.apache.flink.api.common.time.Time;
 
 StateTtlConfig ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
-    .cleanupFullSnapshot()
+    .cleanupOnFullScanSnapshot()
     .build();
 ```
 {{< /tab >}}
@@ -451,7 +452,7 @@ import org.apache.flink.api.common.time.Time
 
 val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
-    .cleanupFullSnapshot
+    .cleanupOnFullScanSnapshot
     .build
 ```
 {{< /tab >}}

@@ -95,7 +95,7 @@ public abstract class TtlStateTestBase {
                 new TtlReducingStateTestContext());
     }
 
-    public boolean isSavepoint() {
+    public boolean isFullScanSnapshot() {
         return true;
     }
 
@@ -354,8 +354,8 @@ public abstract class TtlStateTestBase {
 
     @Test
     public void testMultipleKeysWithSnapshotCleanup() throws Exception {
-        assumeTrue("full snapshot strategy", isSavepoint());
-        initTest(getConfBuilder(TTL).cleanupFullSnapshot().build());
+        assumeTrue("full snapshot strategy", isFullScanSnapshot());
+        initTest(getConfBuilder(TTL).cleanupOnFullScanSnapshot().build());
         // set time back after restore to see entry unexpired if it was not cleaned up in snapshot
         // properly
         testMultipleStateIds(id -> sbetc.setCurrentKey(id), true);
@@ -369,8 +369,8 @@ public abstract class TtlStateTestBase {
 
     @Test
     public void testMultipleNamespacesWithSnapshotCleanup() throws Exception {
-        assumeTrue("full snapshot strategy", isSavepoint());
-        initTest(getConfBuilder(TTL).cleanupFullSnapshot().build());
+        assumeTrue("full snapshot strategy", isFullScanSnapshot());
+        initTest(getConfBuilder(TTL).cleanupOnFullScanSnapshot().build());
         // set time back after restore to see entry unexpired if it was not cleaned up in snapshot
         // properly
         testMultipleStateIds(id -> ctx().ttlState.setCurrentNamespace(id), true);

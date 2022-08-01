@@ -454,7 +454,7 @@ public enum ProtoUtils {
             if (strategyProto
                     == FlinkFnApi.StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies
                             .FULL_STATE_SCAN_SNAPSHOT) {
-                builder.cleanupFullSnapshot();
+                builder.cleanupOnFullScanSnapshot();
             } else if (strategyProto
                     == FlinkFnApi.StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies
                             .INCREMENTAL_CLEANUP) {

@@ -29,7 +29,7 @@ public class FullSnapshotRocksDbTtlStateTest extends RocksDBTtlStateTestBase {
     }
 
     @Override
-    public boolean isSavepoint() {
+    public boolean isFullScanSnapshot() {
         return false;
     }
 }

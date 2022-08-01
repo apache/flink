@@ -60,7 +60,7 @@ public class DataStreamStateTTLTestProgram {
 
         TtlTestConfig config = TtlTestConfig.fromArgs(pt);
         StateTtlConfig ttlConfig =
-                StateTtlConfig.newBuilder(config.ttl).cleanupFullSnapshot().build();
+                StateTtlConfig.newBuilder(config.ttl).cleanupOnFullScanSnapshot().build();
 
         env.addSource(
                         new TtlStateUpdateSource(

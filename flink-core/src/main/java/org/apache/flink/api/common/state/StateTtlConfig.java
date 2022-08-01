@@ -234,9 +234,21 @@ public class StateTtlConfig implements Serializable {
             return setTtlTimeCharacteristic(ProcessingTime);
         }
 
-        /** Cleanup expired state in full snapshot on checkpoint. */
+        /** @deprecated use {@link #cleanupOnFullScanSnapshot()} instead. */
         @Nonnull
+        @Deprecated
         public Builder cleanupFullSnapshot() {
+            return cleanupOnFullScanSnapshot();
+        }
+
+        /**
+         * Cleanup expired state in full scan snapshot on checkpoint/savepoint.
+         *
+         * <p>Note: "Full scan snapshot" means the canonical savepoint of all state-backends, or the
+         * checkpoint/native-savepoint of hashmap state-backend.
+         */
+        @Nonnull
+        public Builder cleanupOnFullScanSnapshot() {
             strategies.put(CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT, EMPTY_STRATEGY);
             return this;
         }
