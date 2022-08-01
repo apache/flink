@@ -80,7 +80,7 @@ if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $
 fi
 
 # ./sql-gateway.sh start --help, print the message to the console
-if [[ "$STARTSTOP" = start* ]] && ( [[ "$*" = *--help ]] || [[ "$*" = *-h ]] ); then
+if [[ "$STARTSTOP" = start* ]] && ( [[ "$*" = *--help* ]] || [[ "$*" = *-h* ]] ); then
   FLINK_TM_CLASSPATH=`constructFlinkClassPath`
   SQL_GATEWAY_CLASSPATH=`findSqlGatewayJar`
   "$JAVA_RUN"  -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$SQL_GATEWAY_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.table.gateway.SqlGateway "${@:2}"
