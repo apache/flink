@@ -18,8 +18,8 @@
 package org.apache.flink.table.planner.plan.rules
 
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.rules.logical.{RemoveUnreachableCoalesceArgumentsRule, _}
-import org.apache.flink.table.planner.plan.rules.physical.{batch, FlinkExpandConversionRule}
+import org.apache.flink.table.planner.plan.rules.logical._
+import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.batch._
 
 import org.apache.calcite.rel.core.RelFactories
@@ -430,13 +430,18 @@ object FlinkBatchRuleSets {
 
   /** RuleSet to optimize plans after batch exec execution. */
   val PHYSICAL_REWRITE: RuleSet = RuleSets.ofList(
-    EnforceLocalHashAggRule.INSTANCE,
-    EnforceLocalSortAggRule.INSTANCE,
-    PushLocalHashAggIntoScanRule.INSTANCE,
-    PushLocalHashAggWithCalcIntoScanRule.INSTANCE,
-    PushLocalSortAggIntoScanRule.INSTANCE,
-    PushLocalSortAggWithSortIntoScanRule.INSTANCE,
-    PushLocalSortAggWithCalcIntoScanRule.INSTANCE,
-    PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE
+    (RuleSets
+      .ofList(
+        EnforceLocalHashAggRule.INSTANCE,
+        EnforceLocalSortAggRule.INSTANCE,
+        PushLocalHashAggIntoScanRule.INSTANCE,
+        PushLocalHashAggWithCalcIntoScanRule.INSTANCE,
+        PushLocalSortAggIntoScanRule.INSTANCE,
+        PushLocalSortAggWithSortIntoScanRule.INSTANCE,
+        PushLocalSortAggWithCalcIntoScanRule.INSTANCE,
+        PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE
+      )
+      .asScala ++
+      DynamicPartitionPruningRule.DYNAMIC_PARTITION_PRUNING_RULES.asScala).asJava
   )
 }
