@@ -66,16 +66,19 @@ public class HiveServer2EndpointStatementITCase extends AbstractSqlGatewayStatem
             new HiveServer2EndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
 
     private Connection connection;
+    private Statement statement;
 
     @BeforeEach
     @Override
     public void before(@TempDir Path temporaryFolder) throws Exception {
         super.before(temporaryFolder);
         connection = ENDPOINT_EXTENSION.getConnection();
+        statement = connection.createStatement();
     }
 
     @AfterEach
     public void after() throws Exception {
+        statement.close();
         connection.close();
     }
 
@@ -91,7 +94,6 @@ public class HiveServer2EndpointStatementITCase extends AbstractSqlGatewayStatem
 
     @Override
     protected String runSingleStatement(String sql) throws Exception {
-        Statement statement = connection.createStatement();
         statement.execute(sql);
 
         ResultSet resultSet = statement.getResultSet();
