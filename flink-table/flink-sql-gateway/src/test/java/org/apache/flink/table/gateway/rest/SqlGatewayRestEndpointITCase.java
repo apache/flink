@@ -42,7 +42,6 @@ import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestOptions;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -53,11 +52,9 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.hamcrest.MatcherAssert;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -73,22 +70,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getEndpointConfig;
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getSqlGatewayOptionPrefix;
 import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointFactory.IDENTIFIER;
 import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointFactory.rebuildRestEndpointOptions;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** IT cases for {@link SqlGatewayRestEndpoint}. */
-public class SqlGatewayRestEndpointITCase extends TestLogger {
+class SqlGatewayRestEndpointITCase {
 
     private static final SqlGatewayService service = null;
 
@@ -142,7 +132,7 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
     }
 
     @BeforeEach
-    public void setup() throws Exception {
+    void setup() throws Exception {
         // Test version cases
         header1 = new TestVersionSelectionHeaders1();
         header2 = new TestVersionSelectionHeaders2();
@@ -172,7 +162,7 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
     }
 
     @AfterEach
-    public void stop() throws Exception {
+    void stop() throws Exception {
 
         if (restClient != null) {
             restClient.shutdown(timeout);
@@ -187,19 +177,19 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
 
     /** Test that {@link SqlGatewayMessageHeaders} can identify the version correctly. */
     @Test
-    public void testSqlGatewayMessageHeaders() throws Exception {
+    void testSqlGatewayMessageHeaders() throws Exception {
         // The header only support V1, but send request by V0
-        Assertions.assertThrows(
-                IllegalArgumentException.class,
-                () ->
-                        restClient.sendRequest(
-                                serverAddress.getHostName(),
-                                serverAddress.getPort(),
-                                header2,
-                                EmptyMessageParameters.getInstance(),
-                                EmptyRequestBody.getInstance(),
-                                Collections.emptyList(),
-                                SqlGatewayRestAPIVersion.V0));
+        assertThatThrownBy(
+                        () ->
+                                restClient.sendRequest(
+                                        serverAddress.getHostName(),
+                                        serverAddress.getPort(),
+                                        header2,
+                                        EmptyMessageParameters.getInstance(),
+                                        EmptyRequestBody.getInstance(),
+                                        Collections.emptyList(),
+                                        SqlGatewayRestAPIVersion.V0))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // The header only support V1, send request by V1
         CompletableFuture<TestResponse> specifiedVersionResponse =
@@ -213,7 +203,7 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
                         SqlGatewayRestAPIVersion.V1);
 
         TestResponse testResponse1 = specifiedVersionResponse.get(5, TimeUnit.SECONDS);
-        assertEquals("V1", testResponse1.getStatus());
+        assertThat(testResponse1.getStatus()).isEqualTo("V1");
 
         // The header only support V1, send request by latest version V1
         CompletableFuture<TestResponse> unspecifiedVersionResponse =
@@ -226,12 +216,12 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
                         Collections.emptyList());
 
         TestResponse testResponse2 = unspecifiedVersionResponse.get(5, TimeUnit.SECONDS);
-        assertEquals("V1", testResponse2.getStatus());
+        assertThat(testResponse2.getStatus()).isEqualTo("V1");
     }
 
     /** Test that requests of different version are routed to correct handlers. */
     @Test
-    public void testVersionSelection() throws Exception {
+    void testVersionSelection() throws Exception {
         CompletableFuture<TestResponse> version1Response =
                 restClient.sendRequest(
                         serverAddress.getHostName(),
@@ -243,7 +233,7 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
                         SqlGatewayRestAPIVersion.V0);
 
         TestResponse testResponse = version1Response.get(5, TimeUnit.SECONDS);
-        assertEquals("V0", testResponse.getStatus());
+        assertThat(testResponse.getStatus()).isEqualTo("V0");
 
         CompletableFuture<TestResponse> version2Response =
                 restClient.sendRequest(
@@ -255,7 +245,7 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
                         Collections.emptyList(),
                         SqlGatewayRestAPIVersion.V1);
         TestResponse testResponse2 = version2Response.get(5, TimeUnit.SECONDS);
-        assertEquals("V1", testResponse2.getStatus());
+        assertThat(testResponse2.getStatus()).isEqualTo("V1");
     }
 
     /**
@@ -263,10 +253,8 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
      * the url does not contain version.
      */
     @Test
-    public void testDefaultVersionRouting() throws Exception {
-        assertFalse(
-                config.getBoolean(SecurityOptions.SSL_REST_ENABLED),
-                "Ignoring SSL-enabled test to keep OkHttp usage simple.");
+    void testDefaultVersionRouting() throws Exception {
+        assertThat(config.getBoolean(SecurityOptions.SSL_REST_ENABLED)).isFalse();
 
         OkHttpClient client = new OkHttpClient();
         final Request request =
@@ -276,7 +264,7 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
 
         final Response response = client.newCall(request).execute();
         assert response.body() != null;
-        assertTrue(response.body().string().contains("V1"));
+        assertThat(response.body().string()).contains("V1");
     }
 
     /**
@@ -284,7 +272,7 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
      * This means that request responses can overtake each other.
      */
     @Test
-    public void testRequestInterleaving() throws Exception {
+    void testRequestInterleaving() throws Exception {
         final BlockerSync sync = new BlockerSync();
         testHandler.handlerBody =
                 id -> {
@@ -306,47 +294,43 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
         // send second request and verify response
         final CompletableFuture<TestResponse> response2 =
                 sendRequestToTestHandler(new TestRequest(2));
-        assertEquals("2", response2.get().status);
+        assertThat(response2.get().status).isEqualTo("2");
 
         // wake up blocked handler
         sync.releaseBlocker();
 
         // verify response to first request
-        assertEquals("1", response1.get().status);
+        assertThat(response1.get().status).isEqualTo("1");
     }
 
     @Test
-    public void testDuplicateHandlerRegistrationIsForbidden() {
-        assertThrows(
-                "Duplicate REST handler",
-                FlinkRuntimeException.class,
-                () -> {
-                    try (TestingSqlGatewayRestEndpoint restServerEndpoint =
-                            TestingSqlGatewayRestEndpoint.builder(config, service)
-                                    .withHandler(header1, testHandler)
-                                    .withHandler(badCaseHeader, testHandler)
-                                    .build()) {
-                        restServerEndpoint.start();
-                        return null;
-                    }
-                });
+    void testDuplicateHandlerRegistrationIsForbidden() {
+        assertThatThrownBy(
+                        () -> {
+                            try (TestingSqlGatewayRestEndpoint restServerEndpoint =
+                                    TestingSqlGatewayRestEndpoint.builder(config, service)
+                                            .withHandler(header1, testHandler)
+                                            .withHandler(badCaseHeader, testHandler)
+                                            .build()) {
+                                restServerEndpoint.start();
+                            }
+                        })
+                .isInstanceOf(FlinkRuntimeException.class);
     }
 
     @Test
-    public void testEndpointsMustBeUnique() {
-        assertThrows(
-                "REST handler registration",
-                FlinkRuntimeException.class,
-                () -> {
-                    try (TestingSqlGatewayRestEndpoint restServerEndpoint =
-                            TestingSqlGatewayRestEndpoint.builder(config, service)
-                                    .withHandler(badCaseHeader, testHandler)
-                                    .withHandler(badCaseHeader, testVersionHandler1)
-                                    .build()) {
-                        restServerEndpoint.start();
-                        return null;
-                    }
-                });
+    void testEndpointsMustBeUnique() {
+        assertThatThrownBy(
+                        () -> {
+                            try (TestingSqlGatewayRestEndpoint restServerEndpoint =
+                                    TestingSqlGatewayRestEndpoint.builder(config, service)
+                                            .withHandler(badCaseHeader, testHandler)
+                                            .withHandler(badCaseHeader, testVersionHandler1)
+                                            .build()) {
+                                restServerEndpoint.start();
+                            }
+                        })
+                .isInstanceOf(FlinkRuntimeException.class);
     }
 
     /**
@@ -355,7 +339,7 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
      * HTTP requests should be served.
      */
     @Test
-    public void testShouldWaitForHandlersWhenClosing() throws Exception {
+    void testShouldWaitForHandlersWhenClosing() throws Exception {
         testHandler.closeFuture = new CompletableFuture<>();
         final BlockerSync sync = new BlockerSync();
         testHandler.handlerBody =
@@ -375,7 +359,7 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
 
         // Initiate closing RestServerEndpoint but the test handler should block.
         final CompletableFuture<Void> closeRestServerEndpointFuture = serverEndpoint.closeAsync();
-        assertFalse(closeRestServerEndpointFuture.isDone());
+        assertThat(closeRestServerEndpointFuture.isDone()).isFalse();
 
         // create an in-flight request
         final CompletableFuture<TestResponse> request =
@@ -385,7 +369,7 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
         // Allow handler to close but there is still one in-flight request which should prevent
         // the RestServerEndpoint from closing.
         testHandler.closeFuture.complete(null);
-        assertFalse(closeRestServerEndpointFuture.isDone());
+        assertThat(closeRestServerEndpointFuture.isDone()).isFalse();
 
         // Finish the in-flight request.
         sync.releaseBlocker();
@@ -395,7 +379,7 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testRestServerBindPort() throws Exception {
+    void testRestServerBindPort() throws Exception {
         final int portRangeStart = 52300;
         final int portRangeEnd = 52400;
         final String address = InetAddress.getLoopbackAddress().getHostAddress();
@@ -413,28 +397,23 @@ public class SqlGatewayRestEndpointITCase extends TestLogger {
             serverEndpoint1.start();
             serverEndpoint2.start();
 
-            assertNotEquals(
-                    Objects.requireNonNull(serverEndpoint1.getServerAddress()).getPort(),
-                    Objects.requireNonNull(serverEndpoint2.getServerAddress()).getPort());
+            assertThat(Objects.requireNonNull(serverEndpoint1.getServerAddress()).getPort())
+                    .isNotEqualTo(
+                            Objects.requireNonNull(serverEndpoint2.getServerAddress()).getPort());
 
-            MatcherAssert.assertThat(
-                    serverEndpoint1.getServerAddress().getPort(),
-                    is(greaterThanOrEqualTo(portRangeStart)));
-            MatcherAssert.assertThat(
-                    serverEndpoint1.getServerAddress().getPort(),
-                    is(lessThanOrEqualTo(portRangeEnd)));
-
-            MatcherAssert.assertThat(
-                    serverEndpoint2.getServerAddress().getPort(),
-                    is(greaterThanOrEqualTo(portRangeStart)));
-            MatcherAssert.assertThat(
-                    serverEndpoint2.getServerAddress().getPort(),
-                    is(lessThanOrEqualTo(portRangeEnd)));
+            assertThat(serverEndpoint1.getServerAddress().getPort())
+                    .isGreaterThanOrEqualTo(portRangeStart);
+            assertThat(serverEndpoint1.getServerAddress().getPort())
+                    .isLessThanOrEqualTo(portRangeEnd);
+            assertThat(serverEndpoint2.getServerAddress().getPort())
+                    .isGreaterThanOrEqualTo(portRangeStart);
+            assertThat(serverEndpoint2.getServerAddress().getPort())
+                    .isLessThanOrEqualTo(portRangeEnd);
         }
     }
 
     @Test
-    public void testOnUnavailableRpcEndpointReturns503() {
+    void testOnUnavailableRpcEndpointReturns503() {
         CompletableFuture<TestResponse> response = sendRequestToTestHandler(new TestRequest(3));
 
         assertThatThrownBy(response::get)

@@ -26,7 +26,6 @@ import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtil
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointFactory;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestOptions;
 import org.apache.flink.util.ConfigurationException;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 
@@ -34,11 +33,11 @@ import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFact
 import static org.apache.flink.table.gateway.rest.SqlGatewayRestEndpointITCase.getBaseConfig;
 import static org.apache.flink.table.gateway.rest.SqlGatewayRestEndpointITCase.getSqlGatewayRestOptionFullName;
 import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointFactory.IDENTIFIER;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link SqlGatewayRestEndpoint}. */
-public class SqlGatewayRestEndpointTest extends TestLogger {
+class SqlGatewayRestEndpointTest {
 
     private static final String ADDRESS1 = "123.123.123.123";
     private static final String ADDRESS2 = "123.123.123.144";
@@ -62,7 +61,7 @@ public class SqlGatewayRestEndpointTest extends TestLogger {
      * and sql gateway options in the delegating configuration.
      */
     @Test
-    public void testIfSqlGatewayRestEndpointUseOverrideOptions() throws ConfigurationException {
+    void testIfSqlGatewayRestEndpointUseOverrideOptions() throws ConfigurationException {
         Configuration flinkConfig = new Configuration();
         flinkConfig.setString(RestOptions.ADDRESS.key(), ADDRESS1);
         flinkConfig.setString(RestOptions.BIND_ADDRESS.key(), BIND_ADDRESS1);
@@ -79,35 +78,35 @@ public class SqlGatewayRestEndpointTest extends TestLogger {
         final RestServerEndpointConfiguration result =
                 RestServerEndpointConfiguration.fromConfiguration(sqlGatewayRestEndpointConfig);
 
-        assertEquals(ADDRESS2, result.getRestAddress());
-        assertEquals(BIND_ADDRESS2, result.getRestBindAddress());
-        assertEquals(BIND_PORT2, result.getRestBindPortRange());
+        assertThat(result.getRestAddress()).isEqualTo(ADDRESS2);
+        assertThat(result.getRestBindAddress()).isEqualTo(BIND_ADDRESS2);
+        assertThat(result.getRestBindPortRange()).isEqualTo(BIND_PORT2);
     }
 
     /** Test {@link SqlGatewayRestEndpoint} uses fallback options correctly. */
     @Test
-    public void testFallbackOptions() throws ConfigurationException {
+    void testFallbackOptions() throws ConfigurationException {
         Configuration flinkConfig = new Configuration();
 
         // Test bind-address fallback to address
         flinkConfig.setString(SQL_GATEWAY_ADDRESS, ADDRESS2);
         RestServerEndpointConfiguration result1 =
                 RestServerEndpointConfiguration.fromConfiguration(getBaseConfig(flinkConfig));
-        assertEquals(ADDRESS2, result1.getRestAddress());
-        assertEquals(ADDRESS2, result1.getRestBindAddress());
+        assertThat(result1.getRestAddress()).isEqualTo(ADDRESS2);
+        assertThat(result1.getRestBindAddress()).isEqualTo(ADDRESS2);
 
         // Test bind-port get the default value
-        assertEquals("8083", result1.getRestBindPortRange());
+        assertThat(result1.getRestBindPortRange()).isEqualTo("8083");
 
         // Test bind-port fallback to port
         flinkConfig.setString(SQL_GATEWAY_PORT, PORT2);
         result1 = RestServerEndpointConfiguration.fromConfiguration(getBaseConfig(flinkConfig));
-        assertEquals(PORT2, result1.getRestBindPortRange());
+        assertThat(result1.getRestBindPortRange()).isEqualTo(PORT2);
     }
 
     /** Test {@link SqlGatewayRestEndpoint} uses required options correctly. */
     @Test
-    public void testRequiredOptions() throws ConfigurationException {
+    void testRequiredOptions() throws ConfigurationException {
         // Empty options
         Configuration flinkConfig1 = new Configuration();
         SqlGatewayEndpointFactoryUtils.DefaultEndpointFactoryContext context =
@@ -116,13 +115,13 @@ public class SqlGatewayRestEndpointTest extends TestLogger {
         SqlGatewayEndpointFactoryUtils.EndpointFactoryHelper endpointFactoryHelper =
                 SqlGatewayEndpointFactoryUtils.createEndpointFactoryHelper(
                         new SqlGatewayRestEndpointFactory(), context);
-        assertThrows(ValidationException.class, endpointFactoryHelper::validate);
+        assertThatThrownBy(endpointFactoryHelper::validate).isInstanceOf(ValidationException.class);
 
         // Only ADDRESS
         flinkConfig1.setString(SQL_GATEWAY_ADDRESS, ADDRESS2);
         RestServerEndpointConfiguration result =
                 RestServerEndpointConfiguration.fromConfiguration(getBaseConfig(flinkConfig1));
-        assertEquals(ADDRESS2, result.getRestAddress());
+        assertThat(result.getRestAddress()).isEqualTo(ADDRESS2);
 
         // Only BIND PORT
         Configuration flinkConfig2 = new Configuration();
@@ -133,7 +132,7 @@ public class SqlGatewayRestEndpointTest extends TestLogger {
         endpointFactoryHelper =
                 SqlGatewayEndpointFactoryUtils.createEndpointFactoryHelper(
                         new SqlGatewayRestEndpointFactory(), context);
-        assertThrows(ValidationException.class, endpointFactoryHelper::validate);
+        assertThatThrownBy(endpointFactoryHelper::validate).isInstanceOf(ValidationException.class);
 
         // Only PORT
         Configuration flinkConfig3 = new Configuration();
@@ -144,26 +143,26 @@ public class SqlGatewayRestEndpointTest extends TestLogger {
         endpointFactoryHelper =
                 SqlGatewayEndpointFactoryUtils.createEndpointFactoryHelper(
                         new SqlGatewayRestEndpointFactory(), context);
-        assertThrows(ValidationException.class, endpointFactoryHelper::validate);
+        assertThatThrownBy(endpointFactoryHelper::validate).isInstanceOf(ValidationException.class);
 
         // ADDRESS and PORT
         flinkConfig1.setString(SQL_GATEWAY_PORT, PORT2);
         result = RestServerEndpointConfiguration.fromConfiguration(getBaseConfig(flinkConfig1));
-        assertEquals(ADDRESS2, result.getRestAddress());
-        assertEquals(PORT2, result.getRestBindPortRange());
+        assertThat(result.getRestAddress()).isEqualTo(ADDRESS2);
+        assertThat(result.getRestBindPortRange()).isEqualTo(PORT2);
 
         // ADDRESS and PORT and BIND PORT
         flinkConfig1.setString(SQL_GATEWAY_BIND_PORT, BIND_PORT2);
         result = RestServerEndpointConfiguration.fromConfiguration(getBaseConfig(flinkConfig1));
-        assertEquals(ADDRESS2, result.getRestAddress());
-        assertEquals(BIND_PORT2, result.getRestBindPortRange());
+        assertThat(result.getRestAddress()).isEqualTo(ADDRESS2);
+        assertThat(result.getRestBindPortRange()).isEqualTo(BIND_PORT2);
 
         // ADDRESS and BIND PORT
         Configuration flinkConfig4 = new Configuration();
         flinkConfig4.setString(SQL_GATEWAY_ADDRESS, ADDRESS2);
         flinkConfig4.setString(SQL_GATEWAY_BIND_PORT, BIND_PORT2);
         result = RestServerEndpointConfiguration.fromConfiguration(getBaseConfig(flinkConfig1));
-        assertEquals(ADDRESS2, result.getRestAddress());
-        assertEquals(BIND_PORT2, result.getRestBindPortRange());
+        assertThat(result.getRestAddress()).isEqualTo(ADDRESS2);
+        assertThat(result.getRestBindPortRange()).isEqualTo(BIND_PORT2);
     }
 }

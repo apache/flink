@@ -20,7 +20,6 @@ package org.apache.flink.table.gateway.rest.versioning;
 
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 
@@ -29,28 +28,24 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SqlGatewayRestAPIVersion}. */
-public class SqlGatewayRestAPIVersionTest extends TestLogger {
+class SqlGatewayRestAPIVersionTest {
     @Test
-    public void testGetLatest() {
+    void testGetLatest() {
         Collection<SqlGatewayRestAPIVersion> candidates =
                 Arrays.asList(SqlGatewayRestAPIVersion.V0, SqlGatewayRestAPIVersion.V1);
-        assertEquals(SqlGatewayRestAPIVersion.V1, RestAPIVersion.getLatestVersion(candidates));
+        assertThat(SqlGatewayRestAPIVersion.V1)
+                .isEqualTo(RestAPIVersion.getLatestVersion(candidates));
     }
 
     @Test
-    public void testSingleDefaultVersion() {
+    void testSingleDefaultVersion() {
         final List<SqlGatewayRestAPIVersion> defaultVersions =
                 Arrays.stream(SqlGatewayRestAPIVersion.values())
                         .filter(SqlGatewayRestAPIVersion::isDefaultVersion)
                         .collect(Collectors.toList());
-
-        assertEquals(
-                1,
-                defaultVersions.size(),
-                "Only one SqlGatewayRestAPIVersion should be marked as the default. Defaults: "
-                        + defaultVersions);
+        assertThat(defaultVersions).hasSize(1);
     }
 }

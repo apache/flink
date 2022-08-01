@@ -35,10 +35,9 @@ import java.util.concurrent.CompletableFuture;
  * Utility for setting up a rest server based on {@link SqlGatewayRestEndpoint} with a given set of
  * handlers.
  */
-public class TestingSqlGatewayRestEndpoint extends SqlGatewayRestEndpoint {
+class TestingSqlGatewayRestEndpoint extends SqlGatewayRestEndpoint {
 
-    public static Builder builder(
-            Configuration configuration, SqlGatewayService sqlGatewayService) {
+    static Builder builder(Configuration configuration, SqlGatewayService sqlGatewayService) {
         return new Builder(configuration, sqlGatewayService);
     }
 
@@ -46,7 +45,7 @@ public class TestingSqlGatewayRestEndpoint extends SqlGatewayRestEndpoint {
      * TestSqlGatewayRestEndpoint.Builder is a utility class for instantiating a
      * TestSqlGatewayRestEndpoint.
      */
-    public static class Builder {
+    static class Builder {
 
         private final Configuration configuration;
         private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers =
@@ -58,17 +57,17 @@ public class TestingSqlGatewayRestEndpoint extends SqlGatewayRestEndpoint {
             this.sqlGatewayService = sqlGatewayService;
         }
 
-        public Builder withHandler(
+        Builder withHandler(
                 RestHandlerSpecification messageHeaders, ChannelInboundHandler handler) {
             this.handlers.add(Tuple2.of(messageHeaders, handler));
             return this;
         }
 
-        public TestingSqlGatewayRestEndpoint build() throws IOException, ConfigurationException {
+        TestingSqlGatewayRestEndpoint build() throws IOException, ConfigurationException {
             return new TestingSqlGatewayRestEndpoint(configuration, handlers, sqlGatewayService);
         }
 
-        public TestingSqlGatewayRestEndpoint buildAndStart() throws Exception {
+        TestingSqlGatewayRestEndpoint buildAndStart() throws Exception {
             TestingSqlGatewayRestEndpoint serverEndpoint = build();
             serverEndpoint.start();
 
