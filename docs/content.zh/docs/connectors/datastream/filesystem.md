@@ -394,6 +394,8 @@ Flink 内置了为 Avro Format 数据创建 Parquet 写入工厂的快捷方法�
 
 {{< artifact flink-parquet withScalaVersion >}}
 
+{{< py_download_link "parquet" >}}
+
 类似这样使用 `FileSink` 写入 Parquet Format 的 Avro 数据：
 
 {{< tabs "4ff7b496-3a80-46f4-9b7d-7a9222672927" >}}
@@ -430,6 +432,21 @@ val sink: FileSink[GenericRecord] = FileSink
 
 input.sinkTo(sink)
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+schema = AvroSchema.parse_string(JSON_SCHEMA)
+# data_stream 的数据类型可以为符合 schema 的原生 Python 数据结构，其类型为默认的 Types.PICKLED_BYTE_ARRAY()
+data_stream = ...
+
+avro_type_info = GenericRecordAvroTypeInfo(schema)
+sink = FileSink \
+    .for_bulk_format(OUTPUT_BASE_PATH, AvroParquetWriters.for_generic_record(schema)) \
+    .build()
+
+# 必须通过 map 操作来指定其 Avro 类型信息，用于数据的序列化
+data_stream.map(lambda e: e, output_type=avro_type_info).sink_to(sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
