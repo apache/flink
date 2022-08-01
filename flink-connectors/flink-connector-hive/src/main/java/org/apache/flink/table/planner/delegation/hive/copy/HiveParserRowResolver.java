@@ -136,11 +136,8 @@ public class HiveParserRowResolver implements Serializable {
     private void keepAmbiguousInfo(String colAlias, String tabAlias) {
         // we keep track of duplicate <tab alias, col alias> so that get can check
         // for ambiguity
-        LinkedHashMap<String, String> colAliases = ambiguousColumns.get(tabAlias);
-        if (colAliases == null) {
-            colAliases = new LinkedHashMap<>();
-            ambiguousColumns.put(tabAlias, colAliases);
-        }
+        LinkedHashMap<String, String> colAliases =
+                ambiguousColumns.computeIfAbsent(tabAlias, k -> new LinkedHashMap<>());
         colAliases.put(colAlias, colAlias);
     }
 
@@ -207,8 +204,8 @@ public class HiveParserRowResolver implements Serializable {
         ColumnInfo ret = null;
 
         if (!isExprResolver && isAmbiguousReference(tabAlias, colAlias)) {
-            String tableName = tabAlias != null ? tabAlias : "";
-            String fullQualifiedName = tableName + "." + colAlias;
+            String colNamePrefix = tabAlias != null ? tabAlias + "." : "";
+            String fullQualifiedName = colNamePrefix + colAlias;
             throw new SemanticException("Ambiguous column reference: " + fullQualifiedName);
         }
 
