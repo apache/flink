@@ -147,7 +147,7 @@ under the License.
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit4.version>4.13.2</junit4.version>
-		<junit5.version>5.8.1</junit5.version>
+		<junit5.version>5.9.1</junit5.version>
 		<archunit.version>0.22.0</archunit.version>
 		<mockito.version>3.4.6</mockito.version>
 		<powermock.version>2.0.9</powermock.version>

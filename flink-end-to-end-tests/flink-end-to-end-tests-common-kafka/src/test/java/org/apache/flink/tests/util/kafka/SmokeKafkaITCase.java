@@ -70,7 +70,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** smoke test for the kafka connectors. */
 @ExtendWith({TestLoggerExtension.class})
 @Testcontainers
-public class SmokeKafkaITCase {
+class SmokeKafkaITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(SmokeKafkaITCase.class);
     private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
@@ -107,7 +107,7 @@ public class SmokeKafkaITCase {
     }
 
     @BeforeAll
-    private static void setUp() {
+    static void setUp() {
         final Map<String, Object> adminProperties = new HashMap<>();
         adminProperties.put(
                 CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG,
@@ -122,7 +122,7 @@ public class SmokeKafkaITCase {
     }
 
     @AfterAll
-    private static void teardown() {
+    static void teardown() {
         admin.close();
         producer.close();
     }
