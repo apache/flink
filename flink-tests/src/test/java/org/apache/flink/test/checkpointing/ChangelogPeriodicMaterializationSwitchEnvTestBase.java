@@ -24,7 +24,6 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.InfiniteIntegerSource;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -132,14 +131,27 @@ public abstract class ChangelogPeriodicMaterializationSwitchEnvTestBase
                 jobID.get());
     }
 
-    // Infinite job for triggering checkpoint.
-    protected JobGraph buildJobGraph(StreamExecutionEnvironment env) {
-        env.addSource(new InfiniteIntegerSource())
-                .setParallelism(1)
-                .keyBy(element -> element)
-                .process(new CountFunction())
-                .addSink(new CollectionSink())
-                .setParallelism(1);
-        return env.getStreamGraph().getJobGraph();
+    protected JobGraph buildJobGraph(
+            StreamExecutionEnvironment env,
+            int waitingOnIndex,
+            int failIndex,
+            SharedReference<MiniCluster> miniCluster) {
+        SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
+        return buildJobGraph(
+                env,
+                new ControlledSource() {
+                    @Override
+                    protected void beforeElement(SourceContext<Integer> ctx) throws Exception {
+                        if (currentIndex == waitingOnIndex) {
+                            waitWhile(
+                                    () ->
+                                            getAllStateHandleId(jobID.get(), miniCluster.get())
+                                                    .isEmpty());
+                        } else if (currentIndex > failIndex) {
+                            throwArtificialFailure();
+                        }
+                    }
+                },
+                jobID.get());
     }
 }
