@@ -176,7 +176,7 @@ The following table lists the type mapping from Flink type to Protobuf type.
     </tr>
     <tr>
       <td><code>ARRAY</code></td>
-      <td><code>array</code></td>
+      <td><code>repeated</code></td>
       <td>Elements cannot be null, the string default value can be specified by <code>write-null-string-literal</code></td>
     </tr>
     <tr>
