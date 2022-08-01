@@ -20,6 +20,7 @@ package org.apache.calcite.sql2rel;
 
 import org.apache.flink.table.planner.alias.SubQueryAliasNodeClearShuttle;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSubQueryAlias;
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 
 import org.apache.calcite.avatica.util.Spaces;
 import org.apache.calcite.linq4j.Ord;
@@ -599,7 +600,7 @@ public class SqlToRelConverter {
             }
         }
         // propagate the hints.
-        result = RelOptUtil.propagateRelHints(result, false);
+        result = FlinkRelOptUtil.propagateRelHints(result, false);
 
         // clear node SubQueryAlias.
         result = result.accept(new SubQueryAliasNodeClearShuttle());
