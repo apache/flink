@@ -166,15 +166,17 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                 final RowDataToCsvConverter converter =
                         RowDataToCsvConverters.createRowConverter(rowType);
 
-                final CsvMapper mapper = new CsvMapper();
-                final ObjectNode container = mapper.createObjectNode();
+                return out -> {
+                    final CsvMapper mapper = new CsvMapper();
+                    final ObjectNode container = mapper.createObjectNode();
 
-                final RowDataToCsvConverter.RowDataToCsvFormatConverterContext converterContext =
-                        new RowDataToCsvConverter.RowDataToCsvFormatConverterContext(
-                                mapper, container);
-
-                return out ->
-                        CsvBulkWriter.forSchema(mapper, schema, converter, converterContext, out);
+                    final RowDataToCsvConverter.RowDataToCsvFormatConverterContext
+                            converterContext =
+                                    new RowDataToCsvConverter.RowDataToCsvFormatConverterContext(
+                                            mapper, container);
+                    return CsvBulkWriter.forSchema(
+                            mapper, schema, converter, converterContext, out);
+                };
             }
 
             @Override
