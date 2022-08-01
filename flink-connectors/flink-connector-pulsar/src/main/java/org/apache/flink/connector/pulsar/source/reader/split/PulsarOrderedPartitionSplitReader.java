@@ -26,7 +26,7 @@ import org.apache.flink.connector.pulsar.source.reader.source.PulsarOrderedSourc
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
@@ -75,12 +76,12 @@ public class PulsarOrderedPartitionSplitReader<OUT> extends PulsarPartitionSplit
     }
 
     @Override
-    protected void startConsumer(PulsarPartitionSplit split, Consumer<byte[]> consumer) {
+    protected void beforeCreatingConsumer(PulsarPartitionSplit split) {
         MessageId latestConsumedId = split.getLatestConsumedId();
 
         // Reset the start position for ordered pulsar consumer.
         if (latestConsumedId != null) {
-            LOG.debug("Start seeking from the checkpoint {}", latestConsumedId);
+            LOG.info("Reset subscription position by the checkpoint {}", latestConsumedId);
             try {
                 MessageId initialPosition;
                 if (latestConsumedId == MessageId.latest
@@ -91,8 +92,23 @@ public class PulsarOrderedPartitionSplitReader<OUT> extends PulsarPartitionSplit
                     initialPosition = nextMessageId(latestConsumedId);
                 }
 
-                consumer.seek(initialPosition);
-            } catch (PulsarClientException e) {
+                // Remove Consumer.seek() here for waiting for pulsar-client-all 2.12.0
+                // See https://github.com/apache/pulsar/issues/16757 for more details.
+
+                String topicName = split.getPartition().getFullTopicName();
+                List<String> subscriptions = pulsarAdmin.topics().getSubscriptions(topicName);
+                String subscriptionName = sourceConfiguration.getSubscriptionName();
+
+                if (!subscriptions.contains(subscriptionName)) {
+                    // If this subscription is not available. Just create it.
+                    pulsarAdmin
+                            .topics()
+                            .createSubscription(topicName, subscriptionName, initialPosition);
+                } else {
+                    // Reset the subscription if this is existed.
+                    pulsarAdmin.topics().resetCursor(topicName, subscriptionName, initialPosition);
+                }
+            } catch (PulsarAdminException e) {
                 if (sourceConfiguration.getVerifyInitialOffsets() == FAIL_ON_MISMATCH) {
                     throw new IllegalArgumentException(e);
                 } else {
