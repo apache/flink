@@ -101,6 +101,10 @@ public class HiveServer2EndpointExtension implements BeforeAllCallback, AfterAll
         return checkNotNull(port).getPort();
     }
 
+    public HiveServer2Endpoint getEndpoint() {
+        return endpoint;
+    }
+
     public Connection getConnection() throws Exception {
         // In hive3, if "hive.metastore.schema.verification" is true, the
         // "datanucleus.schema.autoCreateTables" is false during the creation of the HiveConf.

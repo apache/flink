@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.endpoint.hive;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.endpoint.hive.util.HiveServer2EndpointExtension;
 import org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions;
+import org.apache.flink.table.gateway.api.operation.OperationHandle;
+import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.service.session.SessionManager;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
@@ -30,10 +33,15 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.hive.common.auth.HiveAuthUtils;
 import org.apache.hive.service.rpc.thrift.TCLIService;
+import org.apache.hive.service.rpc.thrift.TCancelOperationReq;
+import org.apache.hive.service.rpc.thrift.TCancelOperationResp;
+import org.apache.hive.service.rpc.thrift.TCloseOperationReq;
+import org.apache.hive.service.rpc.thrift.TCloseOperationResp;
 import org.apache.hive.service.rpc.thrift.TCloseSessionReq;
 import org.apache.hive.service.rpc.thrift.TCloseSessionResp;
 import org.apache.hive.service.rpc.thrift.TOpenSessionReq;
 import org.apache.hive.service.rpc.thrift.TOpenSessionResp;
+import org.apache.hive.service.rpc.thrift.TOperationHandle;
 import org.apache.hive.service.rpc.thrift.TStatusCode;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.transport.TTransport;
@@ -44,6 +52,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import java.net.InetAddress;
 import java.sql.Connection;
 import java.util.AbstractMap;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -51,6 +60,7 @@ import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.api.config.TableConfigOptions.MAX_LENGTH_GENERATED_CODE;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
+import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTOperationHandle;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** ITCase for {@link HiveServer2Endpoint}. */
@@ -121,6 +131,56 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 error.contains(
                                         String.format(
                                                 "Session '%s' does not exist", sessionHandle)));
+    }
+
+    @Test
+    public void testCancelOperation() throws Exception {
+        TCLIService.Client client = createClient();
+        TOpenSessionReq openSessionReq = new TOpenSessionReq();
+        TOpenSessionResp openSessionResp = client.OpenSession(openSessionReq);
+        SessionHandle sessionHandle =
+                ThriftObjectConversions.toSessionHandle(openSessionResp.getSessionHandle());
+
+        OperationHandle operationHandle =
+                SQL_GATEWAY_SERVICE_EXTENSION
+                        .getService()
+                        .executeStatement(
+                                sessionHandle,
+                                "select 1",
+                                0,
+                                Configuration.fromMap(Collections.emptyMap()));
+        TOperationHandle tOperationHandle =
+                toTOperationHandle(sessionHandle, operationHandle, OperationType.EXECUTE_STATEMENT);
+        TCancelOperationReq tCancelOperationReq = new TCancelOperationReq(tOperationHandle);
+        TCancelOperationResp tCancelOperationResp =
+                ENDPOINT_EXTENSION.getEndpoint().CancelOperation(tCancelOperationReq);
+        assertThat(tCancelOperationResp.getStatus().getStatusCode())
+                .isEqualTo(TStatusCode.SUCCESS_STATUS);
+    }
+
+    @Test
+    public void testCloseOperation() throws Exception {
+        TCLIService.Client client = createClient();
+        TOpenSessionReq openSessionReq = new TOpenSessionReq();
+        TOpenSessionResp openSessionResp = client.OpenSession(openSessionReq);
+        SessionHandle sessionHandle =
+                ThriftObjectConversions.toSessionHandle(openSessionResp.getSessionHandle());
+
+        OperationHandle operationHandle =
+                SQL_GATEWAY_SERVICE_EXTENSION
+                        .getService()
+                        .executeStatement(
+                                sessionHandle,
+                                "select 1",
+                                0,
+                                Configuration.fromMap(Collections.emptyMap()));
+        TOperationHandle tOperationHandle =
+                toTOperationHandle(sessionHandle, operationHandle, OperationType.EXECUTE_STATEMENT);
+        TCloseOperationReq tCloseOperationReq = new TCloseOperationReq(tOperationHandle);
+        TCloseOperationResp tCloseOperationResp =
+                ENDPOINT_EXTENSION.getEndpoint().CloseOperation(tCloseOperationReq);
+        assertThat(tCloseOperationResp.getStatus().getStatusCode())
+                .isEqualTo(TStatusCode.SUCCESS_STATUS);
     }
 
     private TCLIService.Client createClient() throws Exception {
