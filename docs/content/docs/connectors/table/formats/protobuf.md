@@ -39,7 +39,7 @@ Dependencies
 How to create a table with Protobuf format
 ----------------
 
-Here is an example to create a table using Kafka connector and Avro format.
+Here is an example to create a table using Kafka connector and protobuf format.
 
 ```sql
 CREATE TABLE user_behavior (
@@ -128,8 +128,7 @@ Format Options
 Data Type Mapping
 ----------------
 
-Currently, the Avro schema is always derived from table schema. Explicitly defining an Avro schema is not supported yet.
-So the following table lists the type mapping from Flink type to Avro type.
+The following table lists the type mapping from Flink type to Protobuf type.
 
 <table class="table table-bordered">
     <thead>
