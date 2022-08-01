@@ -59,13 +59,13 @@ class DynamicParameterITCase {
     private FlinkDistribution dist;
 
     @BeforeEach
-    private void setup(@TempDir Path tmp) throws IOException {
+    void setup(@TempDir Path tmp) throws IOException {
         TestUtils.copyDirectory(originalDist, tmp);
         dist = new FlinkDistribution(tmp);
     }
 
     @AfterEach
-    private void cleanup() throws IOException {
+    void cleanup() throws IOException {
         if (dist != null) {
             dist.stopFlinkCluster();
         }

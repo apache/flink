@@ -124,7 +124,7 @@ abstract class JarHandlerParameterTest<
     }
 
     @BeforeEach
-    private void reset() {
+    void reset() {
         ParameterProgram.actualArguments = null;
     }
 
