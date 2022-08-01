@@ -31,6 +31,9 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.junit.SharedReference;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -39,7 +42,6 @@ import java.io.File;
 import java.time.Duration;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getLatestCompletedCheckpointPath;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 
 /**
  * This verifies that switching state backend works correctly for Changelog state backend with
@@ -93,40 +95,50 @@ public class ChangelogPeriodicMaterializationSwitchStateBackendITCase
         File firstCheckpointFolder = TEMPORARY_FOLDER.newFolder();
         MiniCluster miniCluster = cluster.getMiniCluster();
         StreamExecutionEnvironment env1 =
-                getEnv(delegatedStateBackend, firstCheckpointFolder, false, 100, 600000);
-        JobGraph firstJobGraph = buildJobGraph(env1);
+                getEnv(delegatedStateBackend, firstCheckpointFolder, false, 100, -1);
+        SharedReference<MiniCluster> miniClusterRef = sharedObjects.add(miniCluster);
 
-        miniCluster.submitJob(firstJobGraph).get();
-        waitForAllTaskRunning(miniCluster, firstJobGraph.getJobID(), true);
-        miniCluster.triggerCheckpoint(firstJobGraph.getJobID()).get();
-        miniCluster.cancelJob(firstJobGraph.getJobID()).get();
+        JobGraph firstJobGraph =
+                buildJobGraph(env1, TOTAL_ELEMENTS / 5, TOTAL_ELEMENTS / 4, miniClusterRef);
+
+        try {
+            miniCluster.submitJob(firstJobGraph).get();
+            miniCluster.requestJobResult(firstJobGraph.getJobID()).get();
+        } catch (Exception ex) {
+            Preconditions.checkState(
+                    ExceptionUtils.findThrowable(ex, ArtificialFailure.class).isPresent());
+        }
+
         String firstRestorePath =
                 getLatestCompletedCheckpointPath(firstJobGraph.getJobID(), miniCluster).get();
 
-        // 1st restore, switch from disable to enable
+        // 1st restore, switch from disable to enable.
         File secondCheckpointFolder = TEMPORARY_FOLDER.newFolder();
         StreamExecutionEnvironment env2 =
-                getEnv(delegatedStateBackend, secondCheckpointFolder, true, 100, 600000);
-        JobGraph secondJobGraph = buildJobGraph(env2);
+                getEnv(delegatedStateBackend, secondCheckpointFolder, true, 100, -1);
+        JobGraph secondJobGraph =
+                buildJobGraph(env2, TOTAL_ELEMENTS / 3, TOTAL_ELEMENTS / 2, miniClusterRef);
         setSavepointRestoreSettings(secondJobGraph, firstRestorePath);
+        try {
+            miniCluster.submitJob(secondJobGraph).get();
+            miniCluster.requestJobResult(secondJobGraph.getJobID()).get();
+        } catch (Exception ex) {
+            Preconditions.checkState(
+                    ExceptionUtils.findThrowable(ex, ArtificialFailure.class).isPresent());
+        }
 
-        miniCluster.submitJob(secondJobGraph).get();
-        waitForAllTaskRunning(miniCluster, secondJobGraph.getJobID(), true);
-        miniCluster.triggerCheckpoint(secondJobGraph.getJobID()).get();
-        miniCluster.cancelJob(secondJobGraph.getJobID()).get();
         String secondRestorePath =
                 getLatestCompletedCheckpointPath(secondJobGraph.getJobID(), miniCluster).get();
 
         // 2nd restore, private state of first restore checkpoint still exist.
         File thirdCheckpointFolder = TEMPORARY_FOLDER.newFolder();
         StreamExecutionEnvironment env3 =
-                getEnv(delegatedStateBackend, thirdCheckpointFolder, true, 100, 100);
-        JobGraph thirdJobGraph = buildJobGraph(env3);
+                getEnv(delegatedStateBackend, thirdCheckpointFolder, true, 100, 1000);
+        JobGraph thirdJobGraph =
+                buildJobGraph(env3, TOTAL_ELEMENTS, TOTAL_ELEMENTS * 2 / 3, miniClusterRef);
         setSavepointRestoreSettings(thirdJobGraph, secondRestorePath);
         miniCluster.submitJob(thirdJobGraph).get();
-        waitForAllTaskRunning(miniCluster, thirdJobGraph.getJobID(), true);
-        miniCluster.triggerCheckpoint(thirdJobGraph.getJobID()).get();
-        miniCluster.cancelJob(thirdJobGraph.getJobID()).get();
+        miniCluster.requestJobResult(thirdJobGraph.getJobID()).get();
     }
 
     private StreamExecutionEnvironment getEnv(boolean enableChangelog) {
@@ -161,9 +173,6 @@ public class ChangelogPeriodicMaterializationSwitchStateBackendITCase
         env.getCheckpointConfig()
                 .setExternalizedCheckpointCleanup(
                         CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
-        Configuration configuration = new Configuration();
-        configuration.setInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
-        env.configure(configuration);
         return env;
     }
 
