@@ -76,6 +76,7 @@ final class FlinkDistribution {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private static final Pattern ROOT_LOGGER_PATTERN = Pattern.compile("(rootLogger.level =).*");
+    private static final String HIVE_DRIVER = "org.apache.hive.jdbc.HiveDriver";
 
     private final Path opt;
     private final Path lib;
@@ -246,6 +247,8 @@ final class FlinkDistribution {
             FutureTaskWithException<Void> future =
                     new FutureTaskWithException<>(
                             () -> {
+                                // register HiveDriver to the DriverManager
+                                Class.forName(HIVE_DRIVER);
                                 Map<String, String> configMap =
                                         GlobalConfiguration.loadConfiguration(
                                                         conf.toAbsolutePath().toString())

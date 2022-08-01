@@ -17,6 +17,8 @@
 
 package org.apache.flink.table.gateway.containers;
 
+import org.apache.flink.util.DockerImageVersions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -28,12 +30,11 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveContainer.class);
 
-    public static final String DEFAULT_IMAGE = "prestodb/hdp2.6-hive:10";
     public static final String HOST_NAME = "hadoop-master";
     public static final int HIVE_METASTORE_PORT = 9083;
 
     public HiveContainer() {
-        super(DockerImageName.parse(DEFAULT_IMAGE));
+        super(DockerImageName.parse(DockerImageVersions.HIVE2));
         withExtraHost(HOST_NAME, "127.0.0.1");
         addExposedPort(HIVE_METASTORE_PORT);
     }

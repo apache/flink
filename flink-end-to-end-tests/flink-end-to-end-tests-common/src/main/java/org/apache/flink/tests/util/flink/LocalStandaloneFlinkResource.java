@@ -223,7 +223,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
             try {
                 closer.run();
             } catch (Exception e) {
-                // ignore
+                LOG.error("Failed to close the resource.", e);
             }
         }
     }
