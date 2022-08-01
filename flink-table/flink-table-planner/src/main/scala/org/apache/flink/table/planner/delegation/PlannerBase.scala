@@ -152,8 +152,10 @@ abstract class PlannerBase(
   def getDialectFactory: DialectFactory = {
     if (dialectFactory == null || getTableConfig.getSqlDialect != currentDialect) {
       val factoryIdentifier = getTableConfig.getSqlDialect.name().toLowerCase
-      dialectFactory =
-        FactoryUtil.discoverFactory(classLoader, classOf[DialectFactory], factoryIdentifier)
+      dialectFactory = FactoryUtil.discoverFactory(
+        getClass.getClassLoader,
+        classOf[DialectFactory],
+        factoryIdentifier)
       currentDialect = getTableConfig.getSqlDialect
       parser = null
       extendedOperationExecutor = null
