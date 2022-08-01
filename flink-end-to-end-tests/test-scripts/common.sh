@@ -397,6 +397,7 @@ function check_logs_for_errors {
       | grep -v "Error sending fetch request" \
       | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
       | grep -v "Options.*error_*" \
+      | grep -v "Failed to read shuffle data." \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files; printing first 500 lines; see full logs for details:"
@@ -438,6 +439,9 @@ function check_logs_for_exceptions {
    | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
    | grep -v "RecipientUnreachableException" \
    | grep -v "SerializedCheckpointException.unwrap" \
+   | grep -v "ExecutionGraphException: The execution attempt" \
+   | grep -v "Cannot find task to fail for execution" \
+   | grep -v "java.lang.IllegalStateException: Subpartition reader has been already released." \
    | grep -ic "exception" || true)
   if [[ ${exception_count} -gt 0 ]]; then
     echo "Found exception in log files; printing first 500 lines; see full logs for details:"
