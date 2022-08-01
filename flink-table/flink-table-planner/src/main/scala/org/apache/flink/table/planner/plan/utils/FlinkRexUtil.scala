@@ -49,7 +49,7 @@ object FlinkRexUtil {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  private[flink] val TABLE_OPTIMIZER_CNF_NODES_LIMIT: ConfigOption[Integer] =
+  val TABLE_OPTIMIZER_CNF_NODES_LIMIT: ConfigOption[Integer] =
     key("table.optimizer.cnf-nodes-limit")
       .intType()
       .defaultValue(Integer.valueOf(-1))

@@ -57,6 +57,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsDynamicFiltering;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
@@ -310,6 +311,9 @@ public final class TestValuesTableFactory
     private static final ConfigOption<List<String>> FILTERABLE_FIELDS =
             ConfigOptions.key("filterable-fields").stringType().asList().noDefaultValue();
 
+    private static final ConfigOption<List<String>> DYNAMIC_FILTERING_FIELDS =
+            ConfigOptions.key("dynamic-filtering-fields").stringType().asList().noDefaultValue();
+
     private static final ConfigOption<Boolean> ENABLE_WATERMARK_PUSH_DOWN =
             ConfigOptions.key("enable-watermark-push-down").booleanType().defaultValue(false);
 
@@ -391,6 +395,12 @@ public final class TestValuesTableFactory
         Set<String> filterableFieldsSet = new HashSet<>();
         filterableFields.ifPresent(filterableFieldsSet::addAll);
 
+        // Dynamic filtering fields using for tests
+        Optional<List<String>> dynamicFilteringFields =
+                helper.getOptions().getOptional(DYNAMIC_FILTERING_FIELDS);
+        Set<String> dynamicFilteringFieldsSet = new HashSet<>();
+        dynamicFilteringFields.ifPresent(dynamicFilteringFieldsSet::addAll);
+
         final Map<String, DataType> readableMetadata =
                 convertToMetadataMap(
                         helper.getOptions().get(READABLE_METADATA), context.getClassLoader());
@@ -428,6 +438,7 @@ public final class TestValuesTableFactory
                         null,
                         Collections.emptyList(),
                         filterableFieldsSet,
+                        dynamicFilteringFieldsSet,
                         numElementToSkip,
                         Long.MAX_VALUE,
                         partitions,
@@ -448,6 +459,7 @@ public final class TestValuesTableFactory
                             null,
                             Collections.emptyList(),
                             filterableFieldsSet,
+                            dynamicFilteringFieldsSet,
                             numElementToSkip,
                             Long.MAX_VALUE,
                             partitions,
@@ -465,6 +477,7 @@ public final class TestValuesTableFactory
                             null,
                             Collections.emptyList(),
                             filterableFieldsSet,
+                            dynamicFilteringFieldsSet,
                             numElementToSkip,
                             Long.MAX_VALUE,
                             partitions,
@@ -485,6 +498,7 @@ public final class TestValuesTableFactory
                         null,
                         Collections.emptyList(),
                         filterableFieldsSet,
+                        dynamicFilteringFieldsSet,
                         numElementToSkip,
                         Long.MAX_VALUE,
                         partitions,
@@ -581,6 +595,7 @@ public final class TestValuesTableFactory
                         ENABLE_PROJECTION_PUSH_DOWN,
                         NESTED_PROJECTION_SUPPORTED,
                         FILTERABLE_FIELDS,
+                        DYNAMIC_FILTERING_FIELDS,
                         PARTITION_LIST,
                         READABLE_METADATA,
                         SINK_PARALLELISM,
@@ -737,6 +752,7 @@ public final class TestValuesTableFactory
         protected @Nullable int[][] projectedPhysicalFields;
         protected List<ResolvedExpression> filterPredicates;
         protected final Set<String> filterableFields;
+        protected final Set<String> dynamicFilteringFields;
         protected long limit;
         protected int numElementToSkip;
         protected List<Map<String, String>> allPartitions;
@@ -757,6 +773,7 @@ public final class TestValuesTableFactory
                 @Nullable int[][] projectedPhysicalFields,
                 List<ResolvedExpression> filterPredicates,
                 Set<String> filterableFields,
+                Set<String> dynamicFilteringFields,
                 int numElementToSkip,
                 long limit,
                 List<Map<String, String>> allPartitions,
@@ -772,6 +789,7 @@ public final class TestValuesTableFactory
             this.projectedPhysicalFields = projectedPhysicalFields;
             this.filterPredicates = filterPredicates;
             this.filterableFields = filterableFields;
+            this.dynamicFilteringFields = dynamicFilteringFields;
             this.numElementToSkip = numElementToSkip;
             this.limit = limit;
             this.allPartitions = allPartitions;
@@ -890,6 +908,7 @@ public final class TestValuesTableFactory
                     projectedPhysicalFields,
                     filterPredicates,
                     filterableFields,
+                    dynamicFilteringFields,
                     numElementToSkip,
                     limit,
                     allPartitions,
@@ -1192,7 +1211,7 @@ public final class TestValuesTableFactory
     /** Values {@link ScanTableSource} for testing that supports projection push down. */
     private static class TestValuesScanTableSource
             extends TestValuesScanTableSourceWithoutProjectionPushDown
-            implements SupportsProjectionPushDown {
+            implements SupportsProjectionPushDown, SupportsDynamicFiltering {
 
         private TestValuesScanTableSource(
                 DataType producedDataType,
@@ -1205,6 +1224,7 @@ public final class TestValuesTableFactory
                 @Nullable int[][] projectedPhysicalFields,
                 List<ResolvedExpression> filterPredicates,
                 Set<String> filterableFields,
+                Set<String> dynamicFilteringFields,
                 int numElementToSkip,
                 long limit,
                 List<Map<String, String>> allPartitions,
@@ -1221,6 +1241,7 @@ public final class TestValuesTableFactory
                     projectedPhysicalFields,
                     filterPredicates,
                     filterableFields,
+                    dynamicFilteringFields,
                     numElementToSkip,
                     limit,
                     allPartitions,
@@ -1241,6 +1262,7 @@ public final class TestValuesTableFactory
                     projectedPhysicalFields,
                     filterPredicates,
                     filterableFields,
+                    dynamicFilteringFields,
                     numElementToSkip,
                     limit,
                     allPartitions,
@@ -1259,6 +1281,25 @@ public final class TestValuesTableFactory
             this.projectedPhysicalFields = projectedFields;
             // we can't immediately project the data here,
             // because ReadingMetadataSpec may bring new fields
+        }
+
+        @Override
+        public List<String> applyDynamicFiltering(List<String> candidateFilterFields) {
+            if (dynamicFilteringFields != null && dynamicFilteringFields.size() != 0) {
+                checkArgument(!candidateFilterFields.isEmpty());
+                List<String> acceptedPartitionFields = new ArrayList<>();
+                for (String field : candidateFilterFields) {
+                    if (dynamicFilteringFields.contains(field)) {
+                        acceptedPartitionFields.add(field);
+                    }
+                }
+
+                return acceptedPartitionFields;
+            } else {
+                throw new UnsupportedOperationException(
+                        "Should adding dynamic filtering fields by adding factor"
+                                + " in with like: 'dynamic-filtering-fields' = 'a;b'.");
+            }
         }
     }
 
@@ -1281,6 +1322,7 @@ public final class TestValuesTableFactory
                 @Nullable int[][] projectedPhysicalFields,
                 List<ResolvedExpression> filterPredicates,
                 Set<String> filterableFields,
+                Set<String> dynamicFilteringFields,
                 int numElementToSkip,
                 long limit,
                 List<Map<String, String>> allPartitions,
@@ -1297,6 +1339,7 @@ public final class TestValuesTableFactory
                     projectedPhysicalFields,
                     filterPredicates,
                     filterableFields,
+                    dynamicFilteringFields,
                     numElementToSkip,
                     limit,
                     allPartitions,
@@ -1349,6 +1392,7 @@ public final class TestValuesTableFactory
                             projectedPhysicalFields,
                             filterPredicates,
                             filterableFields,
+                            dynamicFilteringFields,
                             numElementToSkip,
                             limit,
                             allPartitions,
@@ -1366,7 +1410,7 @@ public final class TestValuesTableFactory
      * scan source without lookup ability, e.g. testing temporal join changelog source.
      */
     private static class TestValuesScanLookupTableSource extends TestValuesScanTableSource
-            implements LookupTableSource {
+            implements LookupTableSource, SupportsDynamicFiltering {
 
         private final @Nullable String lookupFunctionClass;
         private final boolean isAsync;
@@ -1384,6 +1428,7 @@ public final class TestValuesTableFactory
                 int[][] projectedFields,
                 List<ResolvedExpression> filterPredicates,
                 Set<String> filterableFields,
+                Set<String> dynamicFilteringFields,
                 int numElementToSkip,
                 long limit,
                 List<Map<String, String>> allPartitions,
@@ -1400,6 +1445,7 @@ public final class TestValuesTableFactory
                     projectedFields,
                     filterPredicates,
                     filterableFields,
+                    dynamicFilteringFields,
                     numElementToSkip,
                     limit,
                     allPartitions,
@@ -1486,11 +1532,31 @@ public final class TestValuesTableFactory
                     projectedPhysicalFields,
                     filterPredicates,
                     filterableFields,
+                    dynamicFilteringFields,
                     numElementToSkip,
                     limit,
                     allPartitions,
                     readableMetadata,
                     projectedMetadataFields);
+        }
+
+        @Override
+        public List<String> applyDynamicFiltering(List<String> candidateFilterFields) {
+            if (dynamicFilteringFields != null && dynamicFilteringFields.size() != 0) {
+                checkArgument(!candidateFilterFields.isEmpty());
+                List<String> acceptedPartitionFields = new ArrayList<>();
+                for (String field : candidateFilterFields) {
+                    if (dynamicFilteringFields.contains(field)) {
+                        acceptedPartitionFields.add(field);
+                    }
+                }
+
+                return acceptedPartitionFields;
+            } else {
+                throw new UnsupportedOperationException(
+                        "Should adding dynamic filtering fields by adding factor"
+                                + " in with like: 'dynamic-filtering-fields' = 'a;b'.");
+            }
         }
     }
 

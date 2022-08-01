@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalGro
 
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{Aggregate, Join, JoinRelType, Union}
+import org.apache.calcite.rel.core.{Aggregate, Join, JoinRelType, TableScan, Union}
 import org.apache.calcite.rel.metadata._
 import org.apache.calcite.util.{BuiltInMethod, Util}
 
@@ -97,7 +97,7 @@ class FlinkRelMdPercentageOriginalRows private
       // No generic formula available for multiple inputs.
       return null
     }
-    if (rel.getInputs.size == 0) {
+    if (rel.isInstanceOf[TableScan] || rel.getInputs.size == 0) {
       // Assume no filtering happening at leaf.
       return 1.0
     }
