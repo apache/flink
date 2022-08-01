@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.io.compression;
 
 /**
- * A {@code BufferDecompressionException} is thrown when the decompressed data cannot be
- * decompressed, such as data corruption, insufficient target buffer space for decompression, etc.
+ * A {@code BufferDecompressionException} is thrown when the target data cannot be decompressed,
+ * such as data corruption, insufficient target buffer space for decompression, etc.
  */
 public class BufferDecompressionException extends RuntimeException {
 

@@ -34,7 +34,7 @@ class BlockCompressionTest {
         return Stream.of(
                 BlockCompressionFactory.createBlockCompressionFactory("LZ4"),
                 BlockCompressionFactory.createBlockCompressionFactory("LZO"),
-                BlockCompressionFactory.createBlockCompressionFactory("Z_STD"));
+                BlockCompressionFactory.createBlockCompressionFactory("ZSTD"));
     }
 
     @ParameterizedTest

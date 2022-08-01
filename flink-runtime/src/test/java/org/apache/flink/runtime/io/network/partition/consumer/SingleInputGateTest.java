@@ -329,7 +329,7 @@ public class SingleInputGateTest extends InputGateTestBase {
      * SingleInputGate#getNext()}.
      */
     @ParameterizedTest
-    @ValueSource(strings = {"LZ4", "LZO", "Z_STD"})
+    @ValueSource(strings = {"LZ4", "LZO", "ZSTD"})
     void testGetCompressedBuffer(final String compressionCodec) throws Exception {
         int bufferSize = 1024;
         BufferCompressor compressor = new BufferCompressor(bufferSize, compressionCodec);

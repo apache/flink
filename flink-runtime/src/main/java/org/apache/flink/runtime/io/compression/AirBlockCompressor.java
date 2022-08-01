@@ -43,6 +43,10 @@ public class AirBlockCompressor implements BlockCompressor {
     public int compress(ByteBuffer src, int srcOff, int srcLen, ByteBuffer dst, int dstOff)
             throws BufferCompressionException {
         try {
+            if (dst.remaining() < dstOff + getMaxCompressedSize(srcLen)) {
+                throw new ArrayIndexOutOfBoundsException();
+            }
+
             final int prevSrcOff = src.position() + srcOff;
             final int prevDstOff = dst.position() + dstOff;
 
@@ -69,7 +73,7 @@ public class AirBlockCompressor implements BlockCompressor {
     public int compress(byte[] src, int srcOff, int srcLen, byte[] dst, int dstOff)
             throws BufferCompressionException {
         try {
-            if (dst.length < dstOff + getMaxCompressedSize(srcLen) - 1) {
+            if (dst.length < dstOff + getMaxCompressedSize(srcLen)) {
                 throw new ArrayIndexOutOfBoundsException();
             }
 

@@ -97,13 +97,13 @@ public class NettyShuffleEnvironmentOptions {
                     .defaultValue("LZ4")
                     .withDescription(
                             "The codec to be used when compressing shuffle data, only \"LZ4\", \"LZO\" "
-                                    + "and \"Z_STD\" are supported now. Through tpc-ds test of these "
+                                    + "and \"ZSTD\" are supported now. Through tpc-ds test of these "
                                     + "three algorithms, the results show that \"LZ4\" algorithm has "
                                     + "the highest compression and decompression speed, but the "
-                                    + "compression rate is the lowest. \"Z_STD\"has the highest "
-                                    + "compression rate, but the compression and decompression "
+                                    + "compression ratio is the lowest. \"ZSTD\" has the highest "
+                                    + "compression ratio, but the compression and decompression "
                                     + "speed is the slowest, and LZO is between the two. Also note "
-                                    + "that this option is experimental and might be changed future.");
+                                    + "that this option is experimental and might be changed in the future.");
 
     /**
      * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue

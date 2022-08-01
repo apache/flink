@@ -41,7 +41,7 @@ public interface BlockCompressionFactory {
     enum CompressionFactoryName {
         LZ4,
         LZO,
-        Z_STD
+        ZSTD
     }
 
     /**
@@ -71,7 +71,7 @@ public interface BlockCompressionFactory {
                     blockCompressionFactory =
                             new AirCompressorFactory(new LzoCompressor(), new LzoDecompressor());
                     break;
-                case Z_STD:
+                case ZSTD:
                     blockCompressionFactory =
                             new AirCompressorFactory(new ZstdCompressor(), new ZstdDecompressor());
                     break;

@@ -30,7 +30,7 @@ import static org.apache.flink.runtime.io.compression.CompressorUtils.validateLe
 
 /** Flink decompressor that wraps {@link Decompressor}. */
 public class AirBlockDecompressor implements BlockDecompressor {
-    Decompressor internalDecompressor;
+    private final Decompressor internalDecompressor;
 
     public AirBlockDecompressor(Decompressor internalDecompressor) {
         this.internalDecompressor = internalDecompressor;

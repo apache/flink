@@ -45,7 +45,7 @@ public class BufferDecompressor {
         checkNotNull(factoryName);
 
         // the decompressed data size should be never larger than the configured buffer size
-        internalBufferArray = new byte[bufferSize];
+        this.internalBufferArray = new byte[bufferSize];
         this.internalBuffer =
                 new NetworkBuffer(
                         MemorySegmentFactory.wrap(internalBufferArray),
@@ -108,12 +108,12 @@ public class BufferDecompressor {
 
         int length = buffer.getSize();
         MemorySegment memorySegment = buffer.getMemorySegment();
-        // If buffer is in-heap, manipulate the underlying array directly. There are two main
+        // If buffer is on-heap, manipulate the underlying array directly. There are two main
         // reasons why NIO buffer is not directly used here: One is that some compression
         // libraries will use the underlying array for heap buffer, but our input buffer may be
         // a read-only ByteBuffer, and it is illegal to access internal array. Another reason
-        // is that for the buffer in the heap directly operates the underlying array can reduce
-        // additional overhead compared to generating NIO buffer.
+        // is that for the on-heap buffer, directly operating the underlying array can reduce
+        // additional overhead compared to generating a NIO buffer.
         if (!memorySegment.isOffHeap()) {
             return blockDecompressor.decompress(
                     memorySegment.getArray(),

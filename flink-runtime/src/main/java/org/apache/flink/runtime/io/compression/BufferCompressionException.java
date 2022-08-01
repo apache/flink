@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.io.compression;
 
 /**
- * A {@code BufferCompressionException} is thrown when the compression data cannot be compressed,
- * such as insufficient target buffer space for compression, etc.
+ * A {@code BufferCompressionException} is thrown when the target data cannot be compressed, such as
+ * insufficient target buffer space for compression, etc.
  */
 public class BufferCompressionException extends RuntimeException {
 

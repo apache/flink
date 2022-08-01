@@ -51,7 +51,7 @@ public class CompressedHeaderlessChannelTest {
         return new BlockCompressionFactory[] {
             BlockCompressionFactory.createBlockCompressionFactory("LZ4"),
             BlockCompressionFactory.createBlockCompressionFactory("LZO"),
-            BlockCompressionFactory.createBlockCompressionFactory("Z_STD")
+            BlockCompressionFactory.createBlockCompressionFactory("ZSTD")
         };
     }
 
