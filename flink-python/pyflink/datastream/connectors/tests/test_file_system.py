@@ -57,6 +57,13 @@ class FileSourceCsvReaderFormatTests(PyFlinkStreamingTestCase):
         self.env.execute('test_csv_primitive_column')
         _check_csv_primitive_column_results(self, self.test_sink.get_results(True, False))
 
+    def test_csv_add_columns_from(self):
+        original_schema, lines = _create_csv_primitive_column_schema_and_lines()
+        schema = CsvSchema.builder().add_columns_from(original_schema).build()
+        self._build_csv_job(schema, lines)
+        self.env.execute('test_csv_schema_copy')
+        _check_csv_primitive_column_results(self, self.test_sink.get_results(True, False))
+
     def test_csv_array_column(self):
         schema, lines = _create_csv_array_column_schema_and_lines()
         self._build_csv_job(schema, lines)
