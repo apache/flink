@@ -41,12 +41,12 @@ class StreamPhysicalLocalGroupAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    val grouping: Array[Int],
-    val aggCalls: Seq[AggregateCall],
+    grouping: Array[Int],
+    aggCalls: Seq[AggregateCall],
     aggCallNeedRetractions: Array[Boolean],
     needRetraction: Boolean,
     val partialFinalType: PartialFinalType)
-  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel) {
+  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel, grouping, aggCalls) {
 
   private lazy val aggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
     unwrapTypeFactory(inputRel),

@@ -62,14 +62,19 @@ class StreamPhysicalIncrementalGroupAggregate(
     inputRel: RelNode,
     val partialAggGrouping: Array[Int],
     val partialAggCalls: Array[AggregateCall],
-    val finalAggGrouping: Array[Int],
-    val finalAggCalls: Array[AggregateCall],
+    finalAggGrouping: Array[Int],
+    finalAggCalls: Array[AggregateCall],
     partialOriginalAggCalls: Array[AggregateCall],
     partialAggCallNeedRetractions: Array[Boolean],
     partialAggNeedRetraction: Boolean,
     partialLocalAggInputRowType: RelDataType,
     partialGlobalAggRowType: RelDataType)
-  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel) {
+  extends StreamPhysicalGroupAggregateBase(
+    cluster,
+    traitSet,
+    inputRel,
+    finalAggGrouping,
+    finalAggCalls) {
 
   private lazy val incrementalAggInfo = AggregateUtil.createIncrementalAggInfoList(
     unwrapTypeFactory(inputRel),
