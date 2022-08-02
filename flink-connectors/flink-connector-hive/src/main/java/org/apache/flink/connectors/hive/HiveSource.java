@@ -62,6 +62,10 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
     private final int threadNum;
     private final JobConfWrapper jobConfWrapper;
     private final List<String> partitionKeys;
+
+    private final String hiveVersion;
+    private final List<String> dynamicFilterPartitionKeys;
+    private final List<HiveTablePartition> partitions;
     private final ContinuousPartitionFetcher<Partition, ?> fetcher;
     private final HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext;
     private final ObjectPath tablePath;
@@ -76,6 +80,9 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
             JobConf jobConf,
             ObjectPath tablePath,
             List<String> partitionKeys,
+            String hiveVersion,
+            @Nullable List<String> dynamicFilterPartitionKeys,
+            List<HiveTablePartition> partitions,
             @Nullable ContinuousPartitionFetcher<Partition, ?> fetcher,
             @Nullable HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext) {
         super(
@@ -92,6 +99,9 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
         this.jobConfWrapper = new JobConfWrapper(jobConf);
         this.tablePath = tablePath;
         this.partitionKeys = partitionKeys;
+        this.hiveVersion = hiveVersion;
+        this.dynamicFilterPartitionKeys = dynamicFilterPartitionKeys;
+        this.partitions = partitions;
         this.fetcher = fetcher;
         this.fetcherContext = fetcherContext;
     }
@@ -120,6 +130,8 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
                     fetcherContext.getConsumeStartOffset(),
                     Collections.emptyList(),
                     Collections.emptyList());
+        } else if (dynamicFilterPartitionKeys != null) {
+            return createDynamicSplitEnumerator(enumContext);
         } else {
             return super.createEnumerator(enumContext);
         }
@@ -168,5 +180,19 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
                 tablePath,
                 fetcher,
                 fetcherContext);
+    }
+
+    private SplitEnumerator<HiveSourceSplit, PendingSplitsCheckpoint<HiveSourceSplit>>
+            createDynamicSplitEnumerator(SplitEnumeratorContext<HiveSourceSplit> enumContext) {
+        return new DynamicHiveSplitEnumerator(
+                enumContext,
+                new HiveSourceDynamicFileEnumerator.Provider(
+                        tablePath.getFullName(),
+                        dynamicFilterPartitionKeys,
+                        partitions,
+                        threadNum,
+                        hiveVersion,
+                        jobConfWrapper),
+                getAssignerFactory());
     }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.connector.source;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -43,6 +44,7 @@ import java.util.stream.IntStream;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Data for dynamic filtering. */
+@PublicEvolving
 public class DynamicFilteringData implements Serializable {
 
     private final TypeInformation<RowData> typeInfo;

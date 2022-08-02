@@ -52,6 +52,7 @@ import org.apache.flink.table.connector.format.FileBasedStatisticsReportableInpu
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.abilities.SupportsDynamicFiltering;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
@@ -60,6 +61,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
@@ -72,7 +74,9 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -82,6 +86,8 @@ import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.P
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_ENABLE;
 import static org.apache.flink.connectors.hive.util.HivePartitionUtils.getAllPartitions;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** A TableSource implementation to read data from Hive tables. */
 public class HiveTableSource
@@ -89,7 +95,8 @@ public class HiveTableSource
                 SupportsPartitionPushDown,
                 SupportsProjectionPushDown,
                 SupportsLimitPushDown,
-                SupportsStatisticReport {
+                SupportsStatisticReport,
+                SupportsDynamicFiltering {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveTableSource.class);
     private static final String HIVE_TRANSFORMATION = "hive";
@@ -104,6 +111,7 @@ public class HiveTableSource
     // Remaining partition specs after partition pruning is performed. Null if pruning is not pushed
     // down.
     @Nullable private List<Map<String, String>> remainingPartitions = null;
+    @Nullable private List<String> dynamicFilterPartitionKeys = null;
     protected int[] projectedFields;
     private Long limit = null;
 
@@ -181,6 +189,7 @@ public class HiveTableSource
                             execEnv,
                             sourceBuilder
                                     .setPartitions(hivePartitionsToRead)
+                                    .setDynamicFilterPartitionKeys(dynamicFilterPartitionKeys)
                                     .buildWithDefaultBulkFormat())
                     .setParallelism(parallelism);
         }
@@ -248,6 +257,51 @@ public class HiveTableSource
     }
 
     @Override
+    public List<String> applyDynamicFiltering(List<String> candidateFilterFields) {
+        if (catalogTable.getPartitionKeys() != null
+                && catalogTable.getPartitionKeys().size() != 0) {
+            checkArgument(
+                    !candidateFilterFields.isEmpty(),
+                    "At least one field should be provided for dynamic filtering");
+
+            // only accept partition fields of supported types to do dynamic partition pruning
+            List<String> dynamicFilterPartitionKeys = new ArrayList<>();
+            for (String field : candidateFilterFields) {
+                if (catalogTable.getPartitionKeys().contains(field)
+                        && HiveSourceDynamicFileEnumerator.SUPPORTED_TYPES.contains(
+                                catalogTable
+                                        .getSchema()
+                                        .getFieldDataType(field)
+                                        .map(DataType::getLogicalType)
+                                        .map(LogicalType::getTypeRoot)
+                                        .orElse(null))) {
+                    dynamicFilterPartitionKeys.add(field);
+                }
+            }
+            if (dynamicFilterPartitionKeys.isEmpty()) {
+                LOG.warn(
+                        "No dynamic filter field is accepted,"
+                                + " only partition fields can use for dynamic filtering.");
+            }
+
+            // sort before check to ensure the lists have same elements in same order
+            dynamicFilterPartitionKeys.sort(String::compareTo);
+            checkState(
+                    this.dynamicFilterPartitionKeys == null
+                            || this.dynamicFilterPartitionKeys.equals(dynamicFilterPartitionKeys),
+                    "Dynamic filtering is applied twice but with different keys: %s != %s",
+                    this.dynamicFilterPartitionKeys,
+                    dynamicFilterPartitionKeys);
+
+            this.dynamicFilterPartitionKeys = dynamicFilterPartitionKeys;
+            return dynamicFilterPartitionKeys;
+        } else {
+            LOG.warn("No dynamic filter field is accepted since the table is non-partitioned.");
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
     public boolean supportsNestedProjection() {
         return false;
     }
@@ -273,6 +327,7 @@ public class HiveTableSource
         source.remainingPartitions = remainingPartitions;
         source.projectedFields = projectedFields;
         source.limit = limit;
+        source.dynamicFilterPartitionKeys = dynamicFilterPartitionKeys;
         return source;
     }
 
