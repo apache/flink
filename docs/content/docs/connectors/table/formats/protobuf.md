@@ -39,7 +39,7 @@ Dependencies
 How to create a table with Protobuf format
 ----------------
 
-Here is an example to create a table using Kafka connector and protobuf format.
+Here is an example to create a table using the Kafka connector and Protobuf format.
 
 ```sql
 CREATE TABLE user_behavior (
