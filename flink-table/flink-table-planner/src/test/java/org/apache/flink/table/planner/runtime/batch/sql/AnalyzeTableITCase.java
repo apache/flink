@@ -24,7 +24,6 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
@@ -52,7 +51,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for `ANALYZE TABLE`. */
 public class AnalyzeTableITCase extends BatchTestBase {
 
-    TableEnvironment tEnv;
+    private TableEnvironment tEnv;
 
     @BeforeEach
     @Override
@@ -185,7 +184,7 @@ public class AnalyzeTableITCase extends BatchTestBase {
     }
 
     @Test
-    public void testNonPartitionTableWithoutTableNotExisted() throws Exception {
+    public void testNonPartitionTableWithoutTableNotExisted() {
         assertThatThrownBy(
                         () -> tEnv.executeSql("analyze table not_exist_table compute statistics"))
                 .isInstanceOf(ValidationException.class)
@@ -392,7 +391,7 @@ public class AnalyzeTableITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPartitionTableWithPartitionValueNotExisted() throws TableNotExistException {
+    public void testPartitionTableWithPartitionValueNotExisted() throws Exception {
         tEnv.executeSql("analyze table PartitionTable partition(e=10,a) compute statistics");
         ObjectPath path = new ObjectPath(tEnv.getCurrentDatabase(), "PartitionTable");
         assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableStatistics(path))

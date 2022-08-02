@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for `ANALYZE TABLE`. */
 public class AnalyzeTableITCase extends StreamingTestBase {
 
-    TableEnvironment tEnv;
+    private TableEnvironment tEnv;
 
     @BeforeEach
     @Override
@@ -55,9 +55,9 @@ public class AnalyzeTableITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testAnalyzeTable() throws Exception {
+    public void testAnalyzeTable() {
         assertThatThrownBy(() -> tEnv.executeSql("analyze table MyTable compute statistics"))
                 .isInstanceOf(TableException.class)
-                .hasMessageContaining("AnalyzeTable is not supported for streaming mode now");
+                .hasMessageContaining("ANALYZE TABLE is not supported for streaming mode now");
     }
 }
