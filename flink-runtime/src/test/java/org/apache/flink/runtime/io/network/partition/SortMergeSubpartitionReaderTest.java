@@ -24,14 +24,11 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.CompositeBuffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -41,13 +38,13 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SortMergeSubpartitionReader}. */
-public class SortMergeSubpartitionReaderTest extends TestLogger {
+class SortMergeSubpartitionReaderTest {
 
     private static final int bufferSize = 1024;
 
@@ -63,17 +60,13 @@ public class SortMergeSubpartitionReaderTest extends TestLogger {
 
     private FileChannel indexFileChannel;
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    @Rule public Timeout timeout = new Timeout(60, TimeUnit.SECONDS);
-
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void before(@TempDir Path basePath) throws Exception {
         Random random = new Random();
         random.nextBytes(dataBytes);
         partitionedFile =
                 PartitionTestUtils.createPartitionedFile(
-                        temporaryFolder.newFile().getAbsolutePath(),
+                        basePath.toString(),
                         numSubpartitions,
                         numBuffersPerSubpartition,
                         bufferSize,
@@ -82,34 +75,34 @@ public class SortMergeSubpartitionReaderTest extends TestLogger {
         indexFileChannel = openFileChannel(partitionedFile.getIndexFilePath());
     }
 
-    @After
-    public void after() {
+    @AfterEach
+    void after() {
         IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
         partitionedFile.deleteQuietly();
     }
 
     @Test
-    public void testReadBuffers() throws Exception {
+    void testReadBuffers() throws Exception {
         CountingAvailabilityListener listener = new CountingAvailabilityListener();
         SortMergeSubpartitionReader subpartitionReader =
                 createSortMergeSubpartitionReader(listener);
 
-        assertThat(listener.numNotifications).isEqualTo(0);
-        assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(0);
+        assertThat(listener.numNotifications).isZero();
+        assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isZero();
 
         Queue<MemorySegment> segments = createsMemorySegments(2);
         subpartitionReader.readBuffers(segments, FreeingBufferRecycler.INSTANCE);
 
         assertThat(listener.numNotifications).isEqualTo(1);
         assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(1);
-        assertThat(segments.size()).isEqualTo(0);
+        assertThat(segments).isEmpty();
 
         segments = createsMemorySegments(2);
         subpartitionReader.readBuffers(segments, FreeingBufferRecycler.INSTANCE);
 
         assertThat(listener.numNotifications).isEqualTo(1);
         assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(2);
-        assertThat(segments.size()).isEqualTo(0);
+        assertThat(segments).isEmpty();
 
         while (subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers() > 0) {
             checkNotNull(subpartitionReader.getNextBuffer()).buffer().recycleBuffer();
@@ -119,13 +112,13 @@ public class SortMergeSubpartitionReaderTest extends TestLogger {
         subpartitionReader.readBuffers(segments, FreeingBufferRecycler.INSTANCE);
 
         assertThat(listener.numNotifications).isEqualTo(2);
-        assertThat(numBuffersPerSubpartition - 2)
-                .isEqualTo(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers());
+        assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers())
+                .isEqualTo(numBuffersPerSubpartition - 2);
         assertThat(segments.size()).isEqualTo(1);
     }
 
     @Test
-    public void testPollBuffers() throws Exception {
+    void testPollBuffers() throws Exception {
         SortMergeSubpartitionReader subpartitionReader =
                 createSortMergeSubpartitionReader(new CountingAvailabilityListener());
 
@@ -155,7 +148,7 @@ public class SortMergeSubpartitionReaderTest extends TestLogger {
     }
 
     @Test
-    public void testFail() throws Exception {
+    void testFail() throws Exception {
         int numSegments = 5;
         Queue<MemorySegment> segments = createsMemorySegments(numSegments);
 
@@ -169,20 +162,20 @@ public class SortMergeSubpartitionReaderTest extends TestLogger {
             assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(4);
 
             subpartitionReader.fail(new RuntimeException("Test exception."));
-            assertThat(subpartitionReader.getReleaseFuture().isDone()).isTrue();
-            assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(0);
+            assertThat(subpartitionReader.getReleaseFuture()).isDone();
+            assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isZero();
             assertThat(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable()).isTrue();
             assertThat(subpartitionReader.isReleased()).isTrue();
 
             assertThat(listener.numNotifications).isEqualTo(2);
             assertThat(subpartitionReader.getFailureCause()).isNotNull();
         } finally {
-            assertThat(numSegments).isEqualTo(segments.size());
+            assertThat(segments).hasSize(numSegments);
         }
     }
 
     @Test
-    public void testReleaseAllResources() throws Exception {
+    void testReleaseAllResources() throws Exception {
         int numSegments = 5;
         Queue<MemorySegment> segments = createsMemorySegments(numSegments);
 
@@ -196,20 +189,20 @@ public class SortMergeSubpartitionReaderTest extends TestLogger {
             assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(4);
 
             subpartitionReader.releaseAllResources();
-            assertThat(subpartitionReader.getReleaseFuture().isDone()).isTrue();
-            assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(0);
+            assertThat(subpartitionReader.getReleaseFuture()).isDone();
+            assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isZero();
             assertThat(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable()).isTrue();
             assertThat(subpartitionReader.isReleased()).isTrue();
 
             assertThat(listener.numNotifications).isEqualTo(1);
             assertThat(subpartitionReader.getFailureCause()).isNull();
         } finally {
-            assertThat(numSegments).isEqualTo(segments.size());
+            assertThat(segments).hasSize(numSegments);
         }
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testReadBuffersAfterReleased() throws Exception {
+    @Test
+    void testReadBuffersAfterReleased() throws Exception {
         int numSegments = 5;
         Queue<MemorySegment> segments = createsMemorySegments(numSegments);
 
@@ -219,14 +212,15 @@ public class SortMergeSubpartitionReaderTest extends TestLogger {
 
             subpartitionReader.readBuffers(segments, segments::add);
             subpartitionReader.releaseAllResources();
-            subpartitionReader.readBuffers(segments, segments::add);
+            assertThatThrownBy(() -> subpartitionReader.readBuffers(segments, segments::add))
+                    .isInstanceOf(IllegalStateException.class);
         } finally {
-            assertThat(numSegments).isEqualTo(segments.size());
+            assertThat(segments).hasSize(numSegments);
         }
     }
 
     @Test
-    public void testPollBuffersAfterReleased() throws Exception {
+    void testPollBuffersAfterReleased() throws Exception {
         SortMergeSubpartitionReader subpartitionReader =
                 createSortMergeSubpartitionReader(new CountingAvailabilityListener());
 

@@ -26,9 +26,8 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.util.IOUtils;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.channels.FileChannel;
@@ -44,17 +43,17 @@ import java.util.Random;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for writing and reading {@link PartitionedFile} with {@link PartitionedFileWriter} and
  * {@link PartitionedFileReader}.
  */
-public class PartitionedFileWriteReadTest {
-
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+class PartitionedFileWriteReadTest {
+    private @TempDir Path tempPath;
 
     @Test
-    public void testWriteAndReadPartitionedFile() throws Exception {
+    void testWriteAndReadPartitionedFile() throws Exception {
         int numSubpartitions = 10;
         int bufferSize = 1024;
         int numBuffers = 1000;
@@ -122,8 +121,7 @@ public class PartitionedFileWriteReadTest {
         IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
 
         for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
-            assertThat(buffersWritten[subpartition].size())
-                    .isEqualTo(buffersRead[subpartition].size());
+            assertThat(buffersWritten[subpartition]).hasSameSizeAs(buffersRead[subpartition]);
             for (int i = 0; i < buffersWritten[subpartition].size(); ++i) {
                 assertBufferEquals(
                         buffersWritten[subpartition].get(i), buffersRead[subpartition].get(i));
@@ -158,7 +156,7 @@ public class PartitionedFileWriteReadTest {
     }
 
     @Test
-    public void testWriteAndReadWithEmptySubpartition() throws Exception {
+    void testWriteAndReadWithEmptySubpartition() throws Exception {
         int numRegions = 10;
         int numSubpartitions = 5;
         int bufferSize = 1024;
@@ -220,39 +218,50 @@ public class PartitionedFileWriteReadTest {
         return new NetworkBuffer(MemorySegmentFactory.wrap(data), (buf) -> {}, dataType, dataSize);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testNotWriteDataOfTheSameSubpartitionTogether() throws Exception {
         PartitionedFileWriter partitionedFileWriter = createPartitionedFileWriter(2);
         try {
             MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
 
-            NetworkBuffer buffer1 = new NetworkBuffer(segment, (buf) -> {});
-            partitionedFileWriter.writeBuffers(getBufferWithChannels(buffer1, 1));
+            assertThatThrownBy(
+                            () -> {
+                                NetworkBuffer buffer1 = new NetworkBuffer(segment, (buf) -> {});
+                                partitionedFileWriter.writeBuffers(
+                                        getBufferWithChannels(buffer1, 1));
 
-            NetworkBuffer buffer2 = new NetworkBuffer(segment, (buf) -> {});
-            partitionedFileWriter.writeBuffers(getBufferWithChannels(buffer2, 0));
+                                NetworkBuffer buffer2 = new NetworkBuffer(segment, (buf) -> {});
+                                partitionedFileWriter.writeBuffers(
+                                        getBufferWithChannels(buffer2, 0));
 
-            NetworkBuffer buffer3 = new NetworkBuffer(segment, (buf) -> {});
-            partitionedFileWriter.writeBuffers(getBufferWithChannels(buffer3, 1));
+                                NetworkBuffer buffer3 = new NetworkBuffer(segment, (buf) -> {});
+                                partitionedFileWriter.writeBuffers(
+                                        getBufferWithChannels(buffer3, 1));
+                            })
+                    .isInstanceOf(IllegalStateException.class);
+
         } finally {
             partitionedFileWriter.finish();
         }
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testWriteFinishedPartitionedFile() throws Exception {
         PartitionedFileWriter partitionedFileWriter = createAndFinishPartitionedFileWriter();
 
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
         NetworkBuffer buffer = new NetworkBuffer(segment, (buf) -> {});
 
-        partitionedFileWriter.writeBuffers(getBufferWithChannels(buffer, 0));
+        assertThatThrownBy(
+                        () -> partitionedFileWriter.writeBuffers(getBufferWithChannels(buffer, 0)))
+                .isInstanceOf(IllegalStateException.class);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testFinishPartitionedFileWriterTwice() throws Exception {
         PartitionedFileWriter partitionedFileWriter = createAndFinishPartitionedFileWriter();
-        partitionedFileWriter.finish();
+        assertThatThrownBy(() -> partitionedFileWriter.finish())
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -296,8 +305,7 @@ public class PartitionedFileWriteReadTest {
 
     private PartitionedFileWriter createPartitionedFileWriter(int numSubpartitions)
             throws IOException {
-        String basePath = temporaryFolder.newFile().getPath();
-        return new PartitionedFileWriter(numSubpartitions, 640, basePath);
+        return new PartitionedFileWriter(numSubpartitions, 640, tempPath.toString());
     }
 
     private PartitionedFileWriter createAndFinishPartitionedFileWriter() throws IOException {
