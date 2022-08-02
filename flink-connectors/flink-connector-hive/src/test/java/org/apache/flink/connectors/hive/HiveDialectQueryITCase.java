@@ -77,7 +77,7 @@ public class HiveDialectQueryITCase {
 
         // create tables
         tableEnv.executeSql("create table foo (x int, y int)");
-        tableEnv.executeSql("create table bar(i int, s string)");
+        tableEnv.executeSql("create table bar(I int, s string)");
         tableEnv.executeSql("create table baz(ai array<int>, d double)");
         tableEnv.executeSql(
                 "create table employee(id int,name string,dep string,salary int,age int)");
