@@ -29,7 +29,7 @@ import org.apache.flink.table.runtime.groupwindow.{NamedWindowProperty, SliceEnd
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.util.Litmus
 
@@ -52,10 +52,10 @@ class StreamPhysicalLocalWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    val grouping: Array[Int],
-    val aggCalls: Seq[AggregateCall],
+    grouping: Array[Int],
+    aggCalls: Seq[AggregateCall],
     val windowing: WindowingStrategy)
-  extends SingleRel(cluster, traitSet, inputRel)
+  extends StreamPhysicalWindowAggregateBase(cluster, traitSet, inputRel, grouping, aggCalls)
   with StreamPhysicalRel {
 
   private lazy val aggInfoList = AggregateUtil.deriveStreamWindowAggregateInfoList(
