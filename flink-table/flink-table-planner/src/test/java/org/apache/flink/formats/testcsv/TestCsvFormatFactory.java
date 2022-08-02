@@ -41,6 +41,9 @@ import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
@@ -58,6 +61,8 @@ import java.util.Set;
  */
 public class TestCsvFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
+
+    private static final Logger LOG = LoggerFactory.getLogger(TestCsvFormatFactory.class);
 
     public static final String IDENTIFIER = "testcsv";
 
@@ -173,6 +178,7 @@ public class TestCsvFormatFactory
                 long estimatedRowCount = totalFileSize * realSampledLineCnt / sampledRowSize;
                 return new TableStats(estimatedRowCount);
             } catch (Exception e) {
+                LOG.info(String.format("Reporting statistics failed for Csv format: %s", e));
                 return TableStats.UNKNOWN;
             }
         }

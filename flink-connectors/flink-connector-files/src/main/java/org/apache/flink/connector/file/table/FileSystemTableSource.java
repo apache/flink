@@ -55,6 +55,9 @@ import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
@@ -85,6 +88,8 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                 SupportsFilterPushDown,
                 SupportsReadingMetadata,
                 SupportsStatisticReport {
+
+    private static final Logger LOG = LoggerFactory.getLogger(FileSystemTableSource.class);
 
     @Nullable private final DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat;
     @Nullable private final DecodingFormat<DeserializationSchema<RowData>> deserializationFormat;
@@ -362,6 +367,9 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                 TableStats tableStats =
                         ((FileBasedStatisticsReportableInputFormat) bulkReaderFormat)
                                 .reportStatistics(files, producedDataType);
+                if (tableStats.equals(TableStats.UNKNOWN)) {
+                    return tableStats;
+                }
                 return limit == null
                         ? tableStats
                         : new TableStats(Math.min(limit, tableStats.getRowCount()));
@@ -369,6 +377,9 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                 TableStats tableStats =
                         ((FileBasedStatisticsReportableInputFormat) deserializationFormat)
                                 .reportStatistics(files, producedDataType);
+                if (tableStats.equals(TableStats.UNKNOWN)) {
+                    return tableStats;
+                }
                 return limit == null
                         ? tableStats
                         : new TableStats(Math.min(limit, tableStats.getRowCount()));
@@ -376,6 +387,9 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                 return TableStats.UNKNOWN;
             }
         } catch (Exception e) {
+            LOG.info(
+                    String.format(
+                            "Reporting statistics failed for file system table source: %s", e));
             return TableStats.UNKNOWN;
         }
     }

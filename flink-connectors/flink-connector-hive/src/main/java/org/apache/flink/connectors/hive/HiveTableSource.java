@@ -66,6 +66,8 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.thrift.TException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -89,6 +91,7 @@ public class HiveTableSource
                 SupportsLimitPushDown,
                 SupportsStatisticReport {
 
+    private static final Logger LOG = LoggerFactory.getLogger(HiveTableSource.class);
     private static final String HIVE_TRANSFORMATION = "hive";
 
     protected final JobConf jobConf;
@@ -287,8 +290,7 @@ public class HiveTableSource
 
             HiveSourceBuilder sourceBuilder =
                     new HiveSourceBuilder(jobConf, flinkConf, tablePath, hiveVersion, catalogTable)
-                            .setProjectedFields(projectedFields)
-                            .setLimit(limit);
+                            .setProjectedFields(projectedFields);
             int threadNum =
                     flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM);
             List<HiveTablePartition> hivePartitionsToRead =
@@ -336,6 +338,7 @@ public class HiveTableSource
             }
 
         } catch (Exception e) {
+            LOG.info(String.format("Reporting statistics failed for hive table source: %s", e));
             return TableStats.UNKNOWN;
         }
     }
@@ -362,6 +365,8 @@ public class HiveTableSource
                     files, producedDataType, jobConf);
         } else {
             // Now, only support Orc and Parquet Formats.
+            LOG.info(
+                    "Now for hive table source, reporting statistics only support Orc and Parquet formats.");
             return TableStats.UNKNOWN;
         }
     }

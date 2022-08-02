@@ -50,7 +50,6 @@ public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
         String filePath1 =
                 createFileAndWriteData(
                         file, "00-00.tmp", Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world"));
-
         String ddl1 =
                 String.format(
                         "CREATE TABLE NonPartTable (\n"
@@ -112,6 +111,20 @@ public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
                                 + " 'path' = '%s')",
                         filePath2);
         tEnv.executeSql(ddl3);
+
+        String emptyPath = createFileAndWriteData(file, "00-02.tmp", Collections.emptyList());
+        String ddl4 =
+                String.format(
+                        "CREATE TABLE emptyTable (\n"
+                                + "  a bigint,\n"
+                                + "  b int,\n"
+                                + "  c varchar\n"
+                                + ") with (\n"
+                                + " 'connector' = 'filesystem',"
+                                + " 'format' = 'testcsv',"
+                                + " 'path' = '%s')",
+                        emptyPath);
+        tEnv.executeSql(ddl4);
     }
 
     @Override
@@ -286,5 +299,18 @@ public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
         FlinkStatistic statistic =
                 getStatisticsFromOptimizedPlan("select * from PartTable where a > 10 and b = 1");
         assertThat(statistic.getTableStats()).isEqualTo(TableStats.UNKNOWN);
+    }
+
+    @Test
+    public void testFileSystemSourceWithoutData() {
+        FlinkStatistic statistic = getStatisticsFromOptimizedPlan("select * from emptyTable");
+        assertThat(statistic.getTableStats()).isEqualTo(TableStats.UNKNOWN);
+    }
+
+    @Test
+    public void testFileSystemSourceWithoutDataWithLimitPushDown() {
+        FlinkStatistic statistic =
+                getStatisticsFromOptimizedPlan("select * from emptyTable limit 1");
+        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(1));
     }
 }

@@ -43,6 +43,8 @@ import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.Type;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -59,6 +61,10 @@ import java.util.stream.Collectors;
 
 /** Utils for Parquet format statistics report. */
 public class ParquetFormatStatisticsReportUtil {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(ParquetFormatStatisticsReportUtil.class);
+
     public static TableStats getTableStatistics(
             List<Path> files,
             DataType producedDataType,
@@ -75,6 +81,7 @@ public class ParquetFormatStatisticsReportUtil {
                     convertToColumnStats(columnStatisticsMap, producedRowType, isUtcTimestamp);
             return new TableStats(rowCount, columnStatsMap);
         } catch (Exception e) {
+            LOG.info(String.format("Reporting statistics failed for Parquet format: %s", e));
             return TableStats.UNKNOWN;
         }
     }

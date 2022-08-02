@@ -38,6 +38,8 @@ import org.apache.orc.StringColumnStatistics;
 import org.apache.orc.TimestampColumnStatistics;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.impl.ColumnStatisticsImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.Date;
@@ -47,6 +49,9 @@ import java.util.Map;
 
 /** Utils for Orc format statistics report. */
 public class OrcFormatStatisticsReportUtil {
+
+    private static final Logger LOG = LoggerFactory.getLogger(OrcFormatStatisticsReportUtil.class);
+
     public static TableStats getTableStatistics(
             List<Path> files, DataType producedDataType, Configuration hadoopConfig) {
         try {
@@ -63,6 +68,7 @@ public class OrcFormatStatisticsReportUtil {
 
             return new TableStats(rowCount, columnStatsMap);
         } catch (Exception e) {
+            LOG.info(String.format("Reporting statistics failed for Orc format: %s", e));
             return TableStats.UNKNOWN;
         }
     }

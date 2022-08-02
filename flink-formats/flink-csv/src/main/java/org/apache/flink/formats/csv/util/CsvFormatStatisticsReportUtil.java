@@ -23,6 +23,9 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.plan.stats.TableStats;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
@@ -32,6 +35,9 @@ import java.util.List;
 
 /** Utils for Csv format statistics report. */
 public class CsvFormatStatisticsReportUtil {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CsvFormatStatisticsReportUtil.class);
+
     public static TableStats getTableStatistics(List<Path> files) {
         // For Csv format, it's a heavy operation to obtain accurate statistics by scanning all
         // files. So, We obtain the estimated statistics by sampling, the specific way is to
@@ -76,6 +82,7 @@ public class CsvFormatStatisticsReportUtil {
             long estimatedRowCount = totalFileSize * realSampledLineCnt / sampledRowSize;
             return new TableStats(estimatedRowCount);
         } catch (Exception e) {
+            LOG.info(String.format("Reporting statistics failed for Csv format: %s", e));
             return TableStats.UNKNOWN;
         }
     }

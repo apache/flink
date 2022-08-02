@@ -189,6 +189,31 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
         assertThat(statistic.getTableStats()).isEqualTo(new TableStats(1));
     }
 
+    @Test
+    public void testHiveTableSourceWithoutData() {
+        tEnv.executeSql(
+                String.format(
+                        "create table hive.db1.orcTable ( %s ) stored as orc",
+                        String.join(", ", ddlTypesMapToStringList(ddlTypesMap()))));
+        FlinkStatistic statistic =
+                getStatisticsFromOptimizedPlan(
+                        String.format("select * from %s.%s.%s", catalogName, dbName, "orcTable"));
+        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(0));
+    }
+
+    @Test
+    public void testHiveTableSourceWithoutDataWithLimitPushDown() {
+        tEnv.executeSql(
+                String.format(
+                        "create table hive.db1.orcTable ( %s ) stored as orc",
+                        String.join(", ", ddlTypesMapToStringList(ddlTypesMap()))));
+        FlinkStatistic statistic =
+                getStatisticsFromOptimizedPlan(
+                        String.format(
+                                "select * from %s.%s.%s limit 1", catalogName, dbName, "orcTable"));
+        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(0));
+    }
+
     @Override
     protected Map<String, String> ddlTypesMap() {
         // hive table ddl now don't support type: TIMESTAMP(3), TIMESTAMP(9), TIMESTAMP WITHOUT TIME
