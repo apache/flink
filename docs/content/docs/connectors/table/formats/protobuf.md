@@ -107,9 +107,9 @@ Format Options
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>
-          The option only works if then generated class's version is proto2. If the config is set to true, the format will read empty values as default values defined in proto file.
-          If the config is set to false, the format will generate null value if the data point does not exist in binary protobuf message.
-          If proto syntax is proto3, this value will be set true forcibly because proto3's standard is to use default values.
+          This option only works if the generated class's version is proto2. If this value is set to true, the format will read empty values as the default values defined in the proto file.
+          If the value is set to false, the format will generate null values if the data element does not exist in the binary protobuf message.
+          If the proto syntax is proto3, this value will forcibly be set to true, because proto3's standard is to use default values.
       </td>
     </tr>
     <tr>
