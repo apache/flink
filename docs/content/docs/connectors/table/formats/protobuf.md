@@ -238,7 +238,7 @@ As protobuf does not permit null values in maps and array, we need to auto-gener
 
 OneOf field
 ----------------
-In serialization process, there's no guarantee that the flink fields of the same one-of group only contain at most one valid value.
-When serialization, we set each field in the order of flink schema, so the field in higher position will override then field of lower position in the same one-of group.
+In the serialization process, there's no guarantee that the Flink fields of the same one-of group only contain at most one valid value.
+When serializing, each field is set in the order of Flink schema, so the field in the higher position will override the field in lower position in the same one-of group.
 
 You can refer to [Language Guide (proto2)](https://developers.google.com/protocol-buffers/docs/proto) or [Language Guide (proto3)](https://developers.google.com/protocol-buffers/docs/proto3) for more information about Protobuf types.
