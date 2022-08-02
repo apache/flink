@@ -49,11 +49,10 @@ import java.util.List;
 public class HiveGenericUDFArrayAccessStructField extends GenericUDF {
 
     public static final String NAME = "flink_hive_array_access_struct_field";
-
+    private final transient ArrayList<Object> ret = new ArrayList<>();
     private transient ListObjectInspector listOI;
     private transient StructObjectInspector structOI;
     private transient StructField structField;
-    private final transient ArrayList<Object> ret = new ArrayList<>();
 
     @Override
     public ObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
@@ -73,9 +72,7 @@ public class HiveGenericUDFArrayAccessStructField extends GenericUDF {
 
         if (!(arguments[1] instanceof ConstantObjectInspector)) {
             throw new UDFArgumentException(
-                    String.format(
-                            "The function %s() takes a constant as second parameter.",
-                            NAME));
+                    String.format("The function %s() takes a constant as second parameter.", NAME));
         }
         listOI = (ListObjectInspector) arguments[0];
         structOI = (StructObjectInspector) listOI.getListElementObjectInspector();
