@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
@@ -32,6 +33,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -58,19 +61,26 @@ class HsMemoryDataSpillerTest {
     private static final long BUFFER_WITH_HEADER_SIZE =
             BUFFER_SIZE + BufferReaderWriterUtil.HEADER_LENGTH;
 
-    private FileChannel readChannel;
-
     private HsMemoryDataSpiller memoryDataSpiller;
 
+    private @TempDir Path tempDir;
+
+    private Path dataFilePath;
+
     @BeforeEach
-    void before(@TempDir Path tempDir) throws Exception {
-        Path dataFilePath = tempDir.resolve(".data");
-        this.memoryDataSpiller = new HsMemoryDataSpiller(dataFilePath);
-        this.readChannel = FileChannel.open(dataFilePath, StandardOpenOption.READ);
+    void before() {
+        this.dataFilePath = tempDir.resolve(".data");
     }
 
-    @Test
-    void testSpillSuccessfully() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"LZ4", "LZO", "ZSTD", "NULL"})
+    void testSpillSuccessfully(String compressionFactoryName) throws Exception {
+        memoryDataSpiller =
+                createMemoryDataSpiller(
+                        dataFilePath,
+                        compressionFactoryName.equals("NULL")
+                                ? null
+                                : new BufferCompressor(BUFFER_SIZE, compressionFactoryName));
         List<BufferWithIdentity> bufferWithIdentityList = new ArrayList<>();
         bufferWithIdentityList.addAll(
                 createBufferWithIdentityList(
@@ -114,7 +124,8 @@ class HsMemoryDataSpillerTest {
     }
 
     @Test
-    void testClose() {
+    void testClose() throws Exception {
+        memoryDataSpiller = createMemoryDataSpiller(dataFilePath);
         List<BufferWithIdentity> bufferWithIdentityList = new ArrayList<>();
         bufferWithIdentityList.addAll(
                 createBufferWithIdentityList(
@@ -126,6 +137,7 @@ class HsMemoryDataSpillerTest {
 
     @Test
     void testRelease() throws Exception {
+        memoryDataSpiller = createMemoryDataSpiller(dataFilePath);
         List<BufferWithIdentity> bufferWithIdentityList =
                 new ArrayList<>(
                         createBufferWithIdentityList(
@@ -180,6 +192,7 @@ class HsMemoryDataSpillerTest {
     }
 
     private void checkData(List<Tuple2<Integer, Integer>> dataAndIndexes) throws Exception {
+        FileChannel readChannel = FileChannel.open(dataFilePath, StandardOpenOption.READ);
         ByteBuffer headerBuf = BufferReaderWriterUtil.allocatedHeaderBuffer();
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
         for (Tuple2<Integer, Integer> dataAndIndex : dataAndIndexes) {
@@ -192,5 +205,14 @@ class HsMemoryDataSpillerTest {
                     .isEqualTo(dataAndIndex.f0);
             assertThat(buffer.getDataType().isEvent()).isEqualTo(dataAndIndex.f1 % 2 == 0);
         }
+    }
+
+    private static HsMemoryDataSpiller createMemoryDataSpiller(Path dataFilePath) throws Exception {
+        return new HsMemoryDataSpiller(dataFilePath, null);
+    }
+
+    private static HsMemoryDataSpiller createMemoryDataSpiller(
+            Path dataFilePath, BufferCompressor bufferCompressor) throws Exception {
+        return new HsMemoryDataSpiller(dataFilePath, bufferCompressor);
     }
 }

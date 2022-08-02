@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategy.Decision;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -76,11 +77,12 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
             BufferPool bufferPool,
             HsSpillingStrategy spillStrategy,
             HsFileDataIndex fileDataIndex,
-            Path dataFilePath)
+            Path dataFilePath,
+            BufferCompressor bufferCompressor)
             throws IOException {
         this.numSubpartitions = numSubpartitions;
         this.bufferPool = bufferPool;
-        this.spiller = new HsMemoryDataSpiller(dataFilePath);
+        this.spiller = new HsMemoryDataSpiller(dataFilePath, bufferCompressor);
         this.spillStrategy = spillStrategy;
         this.fileDataIndex = fileDataIndex;
         this.subpartitionMemoryDataManagers = new HsSubpartitionMemoryDataManager[numSubpartitions];

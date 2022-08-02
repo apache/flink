@@ -139,8 +139,7 @@ public class ResultPartitionFactory {
             int maxParallelism,
             SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
         BufferCompressor bufferCompressor = null;
-        if (type.isBlockingOrBlockingPersistentResultPartition()
-                && batchShuffleCompressionEnabled) {
+        if (type.supportCompression() && batchShuffleCompressionEnabled) {
             bufferCompressor = new BufferCompressor(networkBufferSize, compressionCodec);
         }
 
