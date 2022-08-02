@@ -256,7 +256,8 @@ final class FlinkDistribution {
                                 String host =
                                         configMap.getOrDefault(
                                                 "sql-gateway.endpoint.hiveserver2.host",
-                                                InetAddress.getLocalHost().getHostAddress());
+                                                InetAddress.getByName("localhost")
+                                                        .getHostAddress());
                                 String port =
                                         configMap.getOrDefault(
                                                 "sql-gateway.endpoint.hiveserver2.thrift.port",
