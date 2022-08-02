@@ -48,7 +48,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Default implementation of {@link LookupCache}. */
 @PublicEvolving
 public class DefaultLookupCache implements LookupCache {
-    private static final long serialVersionUID = 6839408984141411172L;
+    private static final long serialVersionUID = 1L;
 
     // Configurations of the cache
     private final Duration expireAfterAccessDuration;
@@ -63,8 +63,8 @@ public class DefaultLookupCache implements LookupCache {
     private transient Ticker ticker;
 
     // For tracking cache metrics
-    private transient Counter hitCounter;
-    private transient Counter missCounter;
+    private final transient Counter hitCounter;
+    private final transient Counter missCounter;
 
     private DefaultLookupCache(
             Duration expireAfterAccessDuration,
@@ -75,6 +75,9 @@ public class DefaultLookupCache implements LookupCache {
         this.expireAfterWriteDuration = expireAfterWriteDuration;
         this.maximumSize = maximumSize;
         this.cacheMissingKey = cacheMissingKey;
+        sanityCheck();
+        hitCounter = new ThreadSafeSimpleCounter();
+        missCounter = new ThreadSafeSimpleCounter();
     }
 
     /** Creates a builder for the cache. */
@@ -98,35 +101,30 @@ public class DefaultLookupCache implements LookupCache {
     @Override
     public void open(CacheMetricGroup metricGroup) {
         synchronized (this) {
-            // The cache should already been opened if guava cache is not null
-            if (guavaCache != null) {
-                return;
+            if (guavaCache == null) {
+                // Initialize Guava cache
+                CacheBuilder<Object, Object> guavaCacheBuilder = CacheBuilder.newBuilder();
+                if (expireAfterAccessDuration != null) {
+                    guavaCacheBuilder.expireAfterAccess(expireAfterAccessDuration);
+                }
+                if (expireAfterWriteDuration != null) {
+                    guavaCacheBuilder.expireAfterWrite(expireAfterWriteDuration);
+                }
+                if (maximumSize != null) {
+                    guavaCacheBuilder.maximumSize(maximumSize);
+                }
+                if (ticker != null) {
+                    guavaCacheBuilder.ticker(ticker);
+                }
+                guavaCache = guavaCacheBuilder.build();
             }
-            // Initialize Guava cache
-            CacheBuilder<Object, Object> guavaCacheBuilder = CacheBuilder.newBuilder();
-            if (expireAfterAccessDuration != null) {
-                guavaCacheBuilder.expireAfterAccess(expireAfterAccessDuration);
-            }
-            if (expireAfterWriteDuration != null) {
-                guavaCacheBuilder.expireAfterWrite(expireAfterWriteDuration);
-            }
-            if (maximumSize != null) {
-                guavaCacheBuilder.maximumSize(maximumSize);
-            }
-            if (ticker != null) {
-                guavaCacheBuilder.ticker(ticker);
-            }
-            guavaCache = guavaCacheBuilder.build();
-
-            // Initialize and register metrics
-            // Here we can't reuse Guava cache statistics because guavaCache#getIfPresent is not
-            // counted in the stat
-            hitCounter = new ThreadSafeSimpleCounter();
-            missCounter = new ThreadSafeSimpleCounter();
-            metricGroup.hitCounter(hitCounter);
-            metricGroup.missCounter(missCounter);
-            metricGroup.numCachedRecordsGauge(() -> guavaCache.size());
         }
+        // Register metrics
+        // Here we can't reuse Guava cache statistics because guavaCache#getIfPresent is not
+        // counted in the stat
+        metricGroup.hitCounter(hitCounter);
+        metricGroup.missCounter(missCounter);
+        metricGroup.numCachedRecordsGauge(guavaCache::size);
     }
 
     @Nullable
@@ -145,12 +143,8 @@ public class DefaultLookupCache implements LookupCache {
     public Collection<RowData> put(RowData key, Collection<RowData> value) {
         checkNotNull(key, "Cannot put an entry with null key into the cache");
         checkNotNull(value, "Cannot put an entry with null value into the cache");
-        if (!value.isEmpty()) {
+        if (!value.isEmpty() || cacheMissingKey) {
             guavaCache.put(key, value);
-        } else {
-            if (cacheMissingKey) {
-                guavaCache.put(key, value);
-            }
         }
         return value;
     }
@@ -204,6 +198,17 @@ public class DefaultLookupCache implements LookupCache {
         return cacheMissingKey;
     }
 
+    private void sanityCheck() {
+        if (expireAfterWriteDuration == null
+                && expireAfterAccessDuration == null
+                && maximumSize == null) {
+            throw new IllegalArgumentException(
+                    "Expiration duration and maximum size are not set for the cache. "
+                            + "This could lead to potential memory issues as the cache size "
+                            + "may grow infinitely.");
+        }
+    }
+
     /** Builder for {@link DefaultLookupCache}. */
     @PublicEvolving
     public static class Builder {
@@ -248,23 +253,11 @@ public class DefaultLookupCache implements LookupCache {
 
         /** Creates the cache. */
         public DefaultLookupCache build() {
-            sanityCheck();
             return new DefaultLookupCache(
                     expireAfterAccessDuration,
                     expireAfterWriteDuration,
                     maximumSize,
                     cacheMissingKey);
-        }
-
-        private void sanityCheck() {
-            if (expireAfterWriteDuration == null
-                    && expireAfterAccessDuration == null
-                    && maximumSize == null) {
-                throw new IllegalArgumentException(
-                        "Expiration duration and maximum size are not set for the cache. "
-                                + "This could lead to potential memory issues as the cache size "
-                                + "may grow infinitely.");
-            }
         }
     }
 }

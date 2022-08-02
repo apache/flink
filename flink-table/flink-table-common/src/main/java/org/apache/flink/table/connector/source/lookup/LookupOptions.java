@@ -26,7 +26,7 @@ import java.time.Duration;
 
 import static org.apache.flink.configuration.description.TextElement.code;
 
-/** Predefined options for lookup cache. */
+/** Predefined options for lookup table. */
 public class LookupOptions {
     public static final ConfigOption<LookupCacheType> CACHE_TYPE =
             ConfigOptions.key("lookup.cache")
@@ -44,7 +44,7 @@ public class LookupOptions {
     public static final ConfigOption<Integer> MAX_RETRIES =
             ConfigOptions.key("lookup.max-retries")
                     .intType()
-                    .defaultValue(0)
+                    .defaultValue(3)
                     .withDescription("The maximum allowed retries if a lookup operation fails");
 
     public static final ConfigOption<Duration> PARTIAL_CACHE_EXPIRE_AFTER_ACCESS =
