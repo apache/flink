@@ -304,6 +304,18 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 task -> assertThat(task.get()).isEqualTo(getDefaultResultSet().getResultSchema()));
     }
 
+    @Test
+    public void testListCatalogs() {
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
+                        .registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
+                        .build();
+        SessionHandle sessionHandle = service.openSession(environment);
+        assertThat(service.listCatalogs(sessionHandle)).contains("cat1", "cat2");
+    }
+
     // --------------------------------------------------------------------------------------------
     // Concurrent tests
     // --------------------------------------------------------------------------------------------

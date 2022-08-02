@@ -33,6 +33,7 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 /** A service of SQL gateway is responsible for handling requests from the endpoints. */
@@ -135,7 +136,7 @@ public interface SqlGatewayService {
             throws SqlGatewayException;
 
     // -------------------------------------------------------------------------------------------
-    // Statements
+    // Statements API
     // -------------------------------------------------------------------------------------------
 
     /**
@@ -185,4 +186,16 @@ public interface SqlGatewayService {
             OperationHandle operationHandle,
             FetchOrientation orientation,
             int maxRows);
+
+    // -------------------------------------------------------------------------------------------
+    // Catalog API
+    // -------------------------------------------------------------------------------------------
+
+    /**
+     * Return all available catalogs in the current session.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @return names of the registered catalogs.
+     */
+    Set<String> listCatalogs(SessionHandle sessionHandle) throws SqlGatewayException;
 }

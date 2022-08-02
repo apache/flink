@@ -46,6 +46,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
 import static org.apache.flink.table.gateway.service.utils.Constants.SET_KEY;
@@ -98,6 +99,12 @@ public class OperationExecutor {
                     handle, result.getResolvedSchema(), collect(result.collectInternal()));
         }
     }
+
+    public Set<String> listCatalogs() {
+        return getTableEnvironment().getCatalogManager().listCatalogs();
+    }
+
+    // --------------------------------------------------------------------------------------------
 
     @VisibleForTesting
     public TableEnvironmentInternal getTableEnvironment() {
