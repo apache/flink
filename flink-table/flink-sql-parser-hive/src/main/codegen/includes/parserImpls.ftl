@@ -525,17 +525,20 @@ void TableColumnWithConstraint(HiveTableCreationContext context) :
             context.notNullTraits.add(constraintTrait);
             context.notNullCols.add(name);
         }
+    }
+    [ <COMMENT> <QUOTED_STRING> {
+        comment = createStringLiteral(token.image, getPos());
+    }]
+    {
         SqlTableColumn tableColumn = new SqlTableColumn.SqlRegularColumn(
             getPos(),
             name,
             comment,
             type,
             null);
+
         context.columnList.add(tableColumn);
     }
-    [ <COMMENT> <QUOTED_STRING> {
-        comment = createStringLiteral(token.image, getPos());
-    }]
 }
 
 SqlHiveConstraintTrait ConstraintTrait() :
