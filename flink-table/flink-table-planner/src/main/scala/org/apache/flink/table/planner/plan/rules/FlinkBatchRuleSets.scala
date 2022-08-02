@@ -442,6 +442,6 @@ object FlinkBatchRuleSets {
         PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE
       )
       .asScala ++
-      DynamicFilteringRule.DYNAMIC_FILTERING_RULES.asScala).asJava
+      DynamicPartitionPruningRule.DYNAMIC_PARTITION_PRUNING_RULES.asScala).asJava
   )
 }

@@ -31,10 +31,10 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Test for rules that extend {@link DynamicFilteringRule} to create {@link
+ * Test for rules that extend {@link DynamicPartitionPruningRule} to create {@link
  * org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalDynamicFilteringTableSourceScan}.
  */
-public class DynamicFilteringRuleTest extends TableTestBase {
+public class DynamicPartitionPruningRuleTest extends TableTestBase {
     protected BatchTableTestUtil util = batchTestUtil(TableConfig.getDefault());
     TestValuesCatalog catalog = new TestValuesCatalog("testCatalog", "test_database", true);
 
@@ -47,7 +47,7 @@ public class DynamicFilteringRuleTest extends TableTestBase {
         tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED, true);
 
         // partition fact table.
-        String ddl3 =
+        String ddl1 =
                 "CREATE TABLE test_database.fact_part (\n"
                         + "  id BIGINT,\n"
                         + "  name STRING,\n"
@@ -61,13 +61,13 @@ public class DynamicFilteringRuleTest extends TableTestBase {
                         + " 'dynamic-filtering-fields' = 'fact_date_sk;amount',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
-        util.tableEnv().executeSql(ddl3);
+        util.tableEnv().executeSql(ddl1);
 
         // dim table.
         String ddl2 =
                 "CREATE TABLE test_database.dim (\n"
                         + "  id BIGINT,\n"
-                        + "  name STRING,\n"
+                        + "  male BOOLEAN,\n"
                         + "  amount BIGINT,\n"
                         + "  price BIGINT,\n"
                         + "  dim_date_sk BIGINT\n"
@@ -80,9 +80,68 @@ public class DynamicFilteringRuleTest extends TableTestBase {
 
     @Test
     public void testDimTableFilteringFieldsNotInJoinKey() {
-        // fact_part.id not in dynamic-filtering-fields, so dynamic filtering will not succeed.
+        // fact_part.id not in dynamic-filtering-fields, so dynamic partition pruning will not
+        // succeed.
         String query =
                 "Select * from dim, fact_part where fact_part.id = dim.id and dim.price < 500";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testDimTableWithoutFilter() {
+        // If dim side without filters, dynamic partition pruning will not succeed.
+        String query =
+                "Select * from dim, fact_part where fact_part.fact_date_sk = dim.dim_date_sk"
+                        + " and fact_part.price > 100";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testDimTableWithUnsuitableFilter() {
+        // For filters in dim table side, they need to filter enough partitions. Like NOT NULL or IS
+        // TRUE will
+        // not succeed for dynamic partition pruning.
+        String query =
+                "Select * from dim, fact_part where fact_part.fact_date_sk = dim.dim_date_sk and male = true";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testFactTableIsNotPartitionTable() {
+        // non-partition fact table. Dynamic partition pruning will not succeed if fact side is not
+        // partition table.
+        String ddl1 =
+                "CREATE TABLE test_database.none_part_fact (\n"
+                        + "  id BIGINT,\n"
+                        + "  name STRING,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT,\n"
+                        + "  fact_date_sk BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'dynamic-filtering-fields' = 'fact_date_sk;amount',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl1);
+
+        String query =
+                "Select * from dim, none_part_fact where none_part_fact.fact_date_sk = dim.dim_date_sk"
+                        + " and dim.price < 500";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testDimTableWithFilterPushDown() {
+        String query =
+                "Select * from fact_part join (Select * from dim) t1"
+                        + " on fact_part.fact_date_sk = dim_date_sk where t1.price < 500";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testJoinKeyIsDynamicFilterFieldNotPartitionKey() {
+        String query =
+                "Select * from dim, fact_part where fact_part.amount = dim.amount and dim.price < 500";
         util.verifyRelPlan(query);
     }
 
@@ -159,7 +218,24 @@ public class DynamicFilteringRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testDynamicFilteringRuleWithDynamicFilteringFieldInFactSide()
+    public void testComplexCalcInFactSide() {
+        String query =
+                "Select * from dim join (select fact_date_sk as fact_date_sk1, price + 1 as price1 from fact_part) t1"
+                        + " on t1.fact_date_sk1 = dim_date_sk and t1.price1 > 200 and dim.price < 500";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testPartitionKeysIsComputeColumnsInFactSide() {
+        // Dynamic filtering will not succeed for this query.
+        String query =
+                "Select * from dim join (select fact_date_sk + 1 as fact_date_sk1, price + 1 as price1 from fact_part) t1"
+                        + " on t1.fact_date_sk1 = dim_date_sk and t1.price1 > 200 and dim.price < 500";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testDynamicFilteringFieldIsComputeColumnsInFactSide()
             throws TableNotExistException {
         CatalogTableStatistics tableStatistics = new CatalogTableStatistics(1, 1, 1, 1);
         catalog.alterTableStatistics(
@@ -193,8 +269,27 @@ public class DynamicFilteringRuleTest extends TableTestBase {
 
     @Test
     public void testSemiJoin() {
+        // Now dynamic partition pruning support semi join.
         String query =
                 "Select * from fact_part where fact_part.fact_date_sk in"
+                        + " (select dim_date_sk from dim where dim.price < 500)";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testFullOuterJoin() {
+        // Now dynamic partition pruning don't support full outer join.
+        String query =
+                "Select * from fact_part full outer join"
+                        + " (select *  from dim where dim.price < 500) on fact_date_sk = dim_date_sk";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testAntiJoin() {
+        // Now dynamic partition prune don't support anti join.
+        String query =
+                "Select * from fact_part where not exists"
                         + " (select dim_date_sk from dim where dim.price < 500)";
         util.verifyRelPlan(query);
     }
