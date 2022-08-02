@@ -90,7 +90,7 @@ Format Options
       <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The full name of a protobuf generated class. The name must match the message name in proto definition file. <code>$</code> is supported for inner class name like 'com.exmample.OuterClass$MessageClass'</td>
+      <td>The full name of a Protobuf generated class. The name must match the message name in the proto definition file. <code>$</code> is supported for inner class names, like 'com.exmample.OuterClass$MessageClass'</td>
     </tr>
     <tr>
       <td><h5>protobuf.ignore-parse-errors</h5></td>
