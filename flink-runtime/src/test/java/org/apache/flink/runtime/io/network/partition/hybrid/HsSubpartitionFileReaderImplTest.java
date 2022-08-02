@@ -24,6 +24,8 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
+import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
@@ -37,6 +39,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -125,6 +129,27 @@ class HsSubpartitionFileReaderImplTest {
         fileReader2.readBuffers(memorySegments, FreeingBufferRecycler.INSTANCE);
         assertThat(memorySegments).isEmpty();
         checkData(fileReader2, 25);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"LZ4", "LZO", "ZSTD"})
+    void testReadBufferCompressed(String compressionFactoryName) throws Exception {
+        BufferCompressor bufferCompressor =
+                new BufferCompressor(bufferSize, compressionFactoryName);
+        BufferDecompressor bufferDecompressor =
+                new BufferDecompressor(bufferSize, compressionFactoryName);
+
+        diskIndex = new HsFileDataIndexImpl(1);
+        TestingSubpartitionViewInternalOperation viewNotifier =
+                new TestingSubpartitionViewInternalOperation();
+        HsSubpartitionFileReaderImpl fileReader1 = createSubpartitionFileReader(0, viewNotifier);
+
+        writeDataToFile(0, 0, 1, 3, bufferCompressor);
+
+        Queue<MemorySegment> memorySegments = createsMemorySegments(3);
+
+        fileReader1.readBuffers(memorySegments, FreeingBufferRecycler.INSTANCE);
+        checkData(fileReader1, bufferDecompressor, 1, 2, 3);
     }
 
     @Test
@@ -441,20 +466,27 @@ class HsSubpartitionFileReaderImplTest {
                 .isEqualTo(DataType.DATA_BUFFER);
     }
 
-    private static void checkData(HsSubpartitionFileReaderImpl fileReader, int... expectedData) {
+    private static void checkData(
+            HsSubpartitionFileReaderImpl fileReader,
+            BufferDecompressor bufferDecompressor,
+            int... expectedData) {
         assertThat(fileReader.getLoadedBuffers()).hasSameSizeAs(expectedData);
         for (int data : expectedData) {
             BufferIndexOrError bufferIndexOrError = fileReader.getLoadedBuffers().poll();
             assertThat(bufferIndexOrError).isNotNull();
-            assertThat(bufferIndexOrError.getBuffer())
-                    .hasValueSatisfying(
-                            buffer ->
-                                    assertThat(
-                                                    buffer.getNioBufferReadable()
-                                                            .order(ByteOrder.nativeOrder())
-                                                            .getInt())
-                                            .isEqualTo(data));
+            assertThat(bufferIndexOrError.getBuffer()).isPresent();
+            Buffer buffer = bufferIndexOrError.getBuffer().get();
+            buffer =
+                    buffer.isCompressed() && bufferDecompressor != null
+                            ? bufferDecompressor.decompressToIntermediateBuffer(buffer)
+                            : buffer;
+            assertThat(buffer.getNioBufferReadable().order(ByteOrder.nativeOrder()).getInt())
+                    .isEqualTo(data);
         }
+    }
+
+    private static void checkData(HsSubpartitionFileReaderImpl fileReader, int... expectedData) {
+        checkData(fileReader, null, expectedData);
     }
 
     private HsSubpartitionFileReaderImpl createSubpartitionFileReader() {
@@ -485,7 +517,11 @@ class HsSubpartitionFileReaderImplTest {
     }
 
     private void writeDataToFile(
-            int subpartitionId, int firstBufferIndex, int firstBufferData, int numBuffers)
+            int subpartitionId,
+            int firstBufferIndex,
+            int firstBufferData,
+            int numBuffers,
+            BufferCompressor bufferCompressor)
             throws Exception {
         List<SpilledBuffer> spilledBuffers = new ArrayList<>(numBuffers);
         ByteBuffer[] bufferWithHeaders = new ByteBuffer[2 * numBuffers];
@@ -502,11 +538,14 @@ class HsSubpartitionFileReaderImplTest {
             Buffer buffer =
                     new NetworkBuffer(
                             segment, FreeingBufferRecycler.INSTANCE, dataType, bufferSize);
+            if (bufferCompressor != null && buffer.isBuffer()) {
+                buffer = bufferCompressor.compressToOriginalBuffer(buffer);
+            }
             setBufferWithHeader(buffer, bufferWithHeaders, 2 * i);
             spilledBuffers.add(
                     new SpilledBuffer(
                             subpartitionId, firstBufferIndex + i, currentFileOffset + totalBytes));
-            totalBytes += bufferSize + BufferReaderWriterUtil.HEADER_LENGTH;
+            totalBytes += buffer.getSize() + BufferReaderWriterUtil.HEADER_LENGTH;
         }
 
         BufferReaderWriterUtil.writeBuffers(dataFileChannel, totalBytes, bufferWithHeaders);
@@ -517,6 +556,12 @@ class HsSubpartitionFileReaderImplTest {
         spilledBuffers.forEach(
                 spilledBuffer ->
                         diskIndex.markBufferReadable(subpartitionId, spilledBuffer.bufferIndex));
+    }
+
+    private void writeDataToFile(
+            int subpartitionId, int firstBufferIndex, int firstBufferData, int numBuffers)
+            throws Exception {
+        writeDataToFile(subpartitionId, firstBufferIndex, firstBufferData, numBuffers, null);
     }
 
     private void writeDataToFile(int subpartitionId, int firstBufferIndex, int numBuffers)

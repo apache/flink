@@ -196,4 +196,8 @@ public enum ResultPartitionType {
     public boolean isPersistent() {
         return isPersistent;
     }
+
+    public boolean supportCompression() {
+        return isBlockingOrBlockingPersistentResultPartition() || this == HYBRID;
+    }
 }

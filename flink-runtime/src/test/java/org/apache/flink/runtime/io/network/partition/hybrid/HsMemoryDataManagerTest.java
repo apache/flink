@@ -201,7 +201,8 @@ class HsMemoryDataManagerTest {
                 bufferPool,
                 spillStrategy,
                 new HsFileDataIndexImpl(NUM_SUBPARTITIONS),
-                dataFilePath);
+                dataFilePath,
+                null);
     }
 
     private HsMemoryDataManager createMemoryDataManager(
@@ -214,7 +215,8 @@ class HsMemoryDataManagerTest {
                 bufferPool,
                 spillStrategy,
                 fileDataIndex,
-                dataFilePath);
+                dataFilePath,
+                null);
     }
 
     private static ByteBuffer createRecord(int value) {

@@ -121,7 +121,7 @@ public class SingleInputGateFactory {
                 createBufferPoolFactory(networkBufferPool, floatingNetworkBuffersPerGate);
 
         BufferDecompressor bufferDecompressor = null;
-        if (igdd.getConsumedPartitionType().isBlockingOrBlockingPersistentResultPartition()
+        if (igdd.getConsumedPartitionType().supportCompression()
                 && batchShuffleCompressionEnabled) {
             bufferDecompressor = new BufferDecompressor(networkBufferSize, compressionCodec);
         }

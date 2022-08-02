@@ -123,7 +123,8 @@ public class HsResultPartition extends ResultPartition {
                         bufferPool,
                         getSpillingStrategy(hybridShuffleConfiguration),
                         dataIndex,
-                        dataFilePath);
+                        dataFilePath,
+                        bufferCompressor);
     }
 
     @Override
