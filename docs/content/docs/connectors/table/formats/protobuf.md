@@ -199,7 +199,7 @@ The following table lists the type mapping from Flink type to Protobuf type.
 
 Null Values
 ----------------
-As protobuf does not permit null value in map and array. We need to auto generate default value for them when converting from flink row to protobuf.
+As protobuf does not permit null values in maps and array, we need to auto-generate default values when converting from Flink Rows to Protobuf.
 
 <table class="table table-bordered">
     <thead>
