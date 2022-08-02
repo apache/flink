@@ -116,7 +116,7 @@ final class FlinkDistribution {
         LOG.info("Starting Flink SQL Gateway.");
         AutoClosableProcess.create(
                         bin.resolve("sql-gateway.sh").toAbsolutePath().toString(), "start")
-                .setStdoutProcessor(System.out::println)
+                .setStdoutProcessor(LOG::info)
                 .runBlocking();
     }
 
