@@ -82,7 +82,7 @@ public class CsvFormatStatisticsReportUtil {
             long estimatedRowCount = totalFileSize * realSampledLineCnt / sampledRowSize;
             return new TableStats(estimatedRowCount);
         } catch (Exception e) {
-            LOG.info(String.format("Reporting statistics failed for Csv format: %s", e));
+            LOG.warn("Reporting statistics failed for Csv format: {}", e.getMessage());
             return TableStats.UNKNOWN;
         }
     }

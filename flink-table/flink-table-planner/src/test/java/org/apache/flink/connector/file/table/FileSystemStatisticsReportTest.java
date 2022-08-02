@@ -309,6 +309,9 @@ public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
 
     @Test
     public void testFileSystemSourceWithoutDataWithLimitPushDown() {
+        // TODO for source support limit push down and query have limit condition, In
+        // PushLimitIntoTableSourceScanRule will give stats a new rowCount value even if this table
+        // have no data.
         FlinkStatistic statistic =
                 getStatisticsFromOptimizedPlan("select * from emptyTable limit 1");
         assertThat(statistic.getTableStats()).isEqualTo(new TableStats(1));

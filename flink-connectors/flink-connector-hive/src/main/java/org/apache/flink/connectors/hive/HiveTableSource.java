@@ -338,7 +338,7 @@ public class HiveTableSource
             }
 
         } catch (Exception e) {
-            LOG.info(String.format("Reporting statistics failed for hive table source: %s", e));
+            LOG.warn("Reporting statistics failed for hive table source: {}", e.getMessage());
             return TableStats.UNKNOWN;
         }
     }

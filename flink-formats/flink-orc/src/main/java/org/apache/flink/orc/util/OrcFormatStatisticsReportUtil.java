@@ -68,7 +68,7 @@ public class OrcFormatStatisticsReportUtil {
 
             return new TableStats(rowCount, columnStatsMap);
         } catch (Exception e) {
-            LOG.info(String.format("Reporting statistics failed for Orc format: %s", e));
+            LOG.warn("Reporting statistics failed for Orc format: {}", e.getMessage());
             return TableStats.UNKNOWN;
         }
     }

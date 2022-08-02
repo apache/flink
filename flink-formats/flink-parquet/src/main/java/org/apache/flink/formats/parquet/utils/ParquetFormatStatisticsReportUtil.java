@@ -81,7 +81,7 @@ public class ParquetFormatStatisticsReportUtil {
                     convertToColumnStats(columnStatisticsMap, producedRowType, isUtcTimestamp);
             return new TableStats(rowCount, columnStatsMap);
         } catch (Exception e) {
-            LOG.info(String.format("Reporting statistics failed for Parquet format: %s", e));
+            LOG.warn("Reporting statistics failed for Parquet format: {}", e.getMessage());
             return TableStats.UNKNOWN;
         }
     }

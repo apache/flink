@@ -387,9 +387,8 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                 return TableStats.UNKNOWN;
             }
         } catch (Exception e) {
-            LOG.info(
-                    String.format(
-                            "Reporting statistics failed for file system table source: %s", e));
+            LOG.warn(
+                    "Reporting statistics failed for file system table source: {}", e.getMessage());
             return TableStats.UNKNOWN;
         }
     }
