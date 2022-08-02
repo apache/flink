@@ -98,7 +98,7 @@ Format Options
       <td>yes</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Optional read flag to skip rows with parse errors instead of failing.</td>
+      <td>Optional flag to skip rows with parse errors instead of failing.</td>
     </tr>
     <tr>
       <td><h5>protobuf.read-default-values</h5></td>
