@@ -26,6 +26,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.sql.SqlCollation;
 import org.apache.calcite.sql.SqlIntervalQualifier;
@@ -102,7 +103,7 @@ public class HiveParserTypeConverter {
                 convertedType = convert((UnionTypeInfo) type, dtFactory);
                 break;
         }
-        return convertedType;
+        return dtFactory.createTypeWithNullability(convertedType, true);
     }
 
     public static RelDataType convert(PrimitiveTypeInfo type, RelDataTypeFactory dtFactory) {
@@ -216,7 +217,8 @@ public class HiveParserTypeConverter {
         for (TypeInfo ti : structType.getAllStructFieldTypeInfos()) {
             fTypes.add(convert(ti, dtFactory));
         }
-        return dtFactory.createStructType(fTypes, structType.getAllStructFieldNames());
+        return dtFactory.createStructType(
+                StructKind.PEEK_FIELDS_NO_EXPAND, fTypes, structType.getAllStructFieldNames());
     }
 
     private static RelDataType convert(UnionTypeInfo unionType, RelDataTypeFactory dtFactory)

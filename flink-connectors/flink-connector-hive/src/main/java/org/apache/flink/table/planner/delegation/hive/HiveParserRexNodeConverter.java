@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
+import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFArrayAccessStructField;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserExprNodeDescUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserExprNodeSubQueryDesc;
@@ -90,6 +91,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
 import java.math.BigDecimal;
@@ -97,6 +99,7 @@ import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -233,16 +236,43 @@ public class HiveParserRexNodeConverter {
         RexNode rexNode = convert(fieldDesc.getDesc());
         if (rexNode.getType().isStruct()) {
             // regular case of accessing nested field in a column
-            return cluster.getRexBuilder().makeFieldAccess(rexNode, fieldDesc.getFieldName(), true);
+            return cluster.getRexBuilder()
+                    .makeFieldAccess(rexNode, fieldDesc.getFieldName(), false);
         } else {
             if (fieldDesc.getIsList()) {
-                // TODO: support this, need to create a func to create an array with fields within
-                // the origin array?
+                // it's for accessing the value of a field for the struct data contained in a list.
+                // to support such case, convert it to call 'flink_hive_array_access_struct_field'
+                // function implemented in
+                // org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFArrayFieldAccess
+
+                // get the first parameter's data type for 'flink_hive_array_access_struct_field'
+                RelDataType arrayDataType =
+                        HiveParserTypeConverter.convert(
+                                fieldDesc.getDesc().getTypeInfo(), cluster.getTypeFactory());
+                // get the second parameter for 'flink_hive_array_access_struct_field', it's always
+                // a string literal valued the field's name
+                RexNode accessedField =
+                        cluster.getRexBuilder().makeLiteral(fieldDesc.getFieldName());
+                RelDataType accessFieldType =
+                        HiveParserTypeConverter.convert(
+                                TypeInfoFactory.stringTypeInfo, cluster.getTypeFactory());
+                RelDataType retType =
+                        HiveParserTypeConverter.convert(
+                                fieldDesc.getTypeInfo(), cluster.getTypeFactory());
+                SqlOperator calciteOp =
+                        HiveParserSqlFunctionConverter.getCalciteFn(
+                                HiveGenericUDFArrayAccessStructField.NAME,
+                                Arrays.asList(arrayDataType, accessFieldType),
+                                retType,
+                                false);
+
+                return cluster.getRexBuilder().makeCall(calciteOp, rexNode, accessedField);
+            } else {
+                // This may happen for schema-less tables, where columns are dynamically
+                // supplied by serdes.
+                throw new SemanticException(
+                        "Unexpected rexnode : " + rexNode.getClass().getCanonicalName());
             }
-            // This may happen for schema-less tables, where columns are dynamically
-            // supplied by serdes.
-            throw new SemanticException(
-                    "Unexpected rexnode : " + rexNode.getClass().getCanonicalName());
         }
     }
 
