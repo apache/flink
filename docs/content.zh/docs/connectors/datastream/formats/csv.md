@@ -138,7 +138,9 @@ The corresponding CSV file:
 
 Similarly to the `TextLineInputFormat`, `CsvReaderFormat` can be used in both continues and batch modes (see [TextLineInputFormat]({{< ref "docs/connectors/datastream/formats/text_files" >}})  for examples).
 
-For PyFlink users, `CsvBulkWriter` is for creating `BulkWriterFactory` to write `Row` records to files in CSV format. Notice that if predecessor of sink is a source stream producing `RowData` records, e.g. CSV source, an identity map is required to make this work.
+For PyFlink users, `CsvBulkWriter` is for creating `BulkWriterFactory` to write `Row` records to files in CSV format.
+Notice that if predecessor of sink is a source stream producing `RowData` records, e.g. CSV source, an identity map is required to make this work,
+because `CsvBulkWriter` in PyFlink assumes the input to be `Row`, the identity map helps to translate Java `RowData` to Python `Row`.
 ```python
 schema = CsvSchema.builder() \
     .add_number_column('id', number_type=DataTypes.BIGINT()) \
