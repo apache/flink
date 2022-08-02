@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.join
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -595,12 +594,12 @@ object LookupJoinTest {
   }
 }
 
-class TestTemporalTable(bounded: Boolean = false)
+class TestTemporalTable(bounded: Boolean = false, val keys: Array[String] = Array())
   extends LookupableTableSource[RowData]
   with StreamTableSource[RowData] {
 
-  val fieldNames: Array[String] = Array("id", "name", "age")
-  val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.STRING, Types.INT)
+  val fieldNames = Array("id", "name", "age")
+  val fieldTypes = Array(DataTypes.INT(), DataTypes.STRING(), DataTypes.INT())
 
   override def getLookupFunction(lookupKeys: Array[String]): TableFunction[RowData] = {
     new TableFunctionWithRowDataVarArg()
@@ -620,18 +619,31 @@ class TestTemporalTable(bounded: Boolean = false)
 
   override def isBounded: Boolean = this.bounded
 
-  override def getProducedDataType: DataType = TestTemporalTable.tableSchema.toRowDataType
+  override def getProducedDataType: DataType = buildTableSchema.toRowDataType
 
-  override def getTableSchema: TableSchema = TestTemporalTable.tableSchema
+  override def getTableSchema: TableSchema = buildTableSchema
+
+  private def buildTableSchema(): TableSchema = {
+    val pkSet = keys.toSet
+    val builder = TableSchema.builder
+    assert(fieldNames.length == fieldTypes.length)
+    fieldNames.zipWithIndex.foreach {
+      case (name, index) =>
+        if (pkSet.contains(name)) {
+          // pk field requires not null
+          builder.field(name, fieldTypes(index).notNull())
+        } else {
+          builder.field(name, fieldTypes(index))
+        }
+    }
+    if (keys.nonEmpty) {
+      builder.primaryKey(keys: _*)
+    }
+    builder.build()
+  }
 }
 
 object TestTemporalTable {
-  lazy val tableSchema = TableSchema
-    .builder()
-    .field("id", DataTypes.INT())
-    .field("name", DataTypes.STRING())
-    .field("age", DataTypes.INT())
-    .build()
 
   def createTemporaryTable(
       tEnv: TableEnvironment,
