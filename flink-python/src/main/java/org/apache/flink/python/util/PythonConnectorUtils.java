@@ -102,13 +102,13 @@ public class PythonConnectorUtils {
     }
 
     /** A {@link ProcessFunction} that convert {@link Row} to {@link RowData}. */
-    public static class RowToRowDataProcessFunction extends ProcessFunction<Row, RowData> {
+    public static class RowRowMapper extends ProcessFunction<Row, RowData> {
 
         private static final long serialVersionUID = 1L;
         private final DataType dataType;
         private transient RowRowConverter converter;
 
-        public RowToRowDataProcessFunction(DataType dataType) {
+        public RowRowMapper(DataType dataType) {
             this.dataType = dataType;
         }
 
@@ -116,7 +116,7 @@ public class PythonConnectorUtils {
         public void open(Configuration parameters) throws Exception {
             super.open(parameters);
             converter = RowRowConverter.create(dataType);
-            converter.open(RowToRowDataProcessFunction.class.getClassLoader());
+            converter.open(getRuntimeContext().getUserCodeClassLoader());
         }
 
         @Override

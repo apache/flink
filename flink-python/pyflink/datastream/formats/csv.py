@@ -334,15 +334,6 @@ class CsvBulkWriter(object):
     .. versionadded:: 1.16.0
     """
 
-    class Factory(RowDataBulkWriterFactory):
-
-        def __init__(self, j_bulk_writer_factory, row_type: RowType):
-            super().__init__(j_bulk_writer_factory)
-            self._row_type = row_type  # type: RowType
-
-        def get_row_type(self) -> RowType:
-            return self._row_type
-
     @staticmethod
     def for_schema(schema: 'CsvSchema') -> 'BulkWriterFactory':
         """
@@ -362,4 +353,4 @@ class CsvBulkWriter(object):
         j_factory = csv.PythonCsvUtils.createCsvBulkWriterFactory(
             j_mapper, schema._j_schema, j_converter, j_context
         )
-        return CsvBulkWriter.Factory(j_factory, schema._row_type)
+        return RowDataBulkWriterFactory(j_factory, schema._row_type)
