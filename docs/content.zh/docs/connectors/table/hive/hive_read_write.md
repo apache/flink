@@ -482,6 +482,12 @@ SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
   </tbody>
 </table>
 
+### 动态分区写入的配置
+默认情况下, 如果是动态分区的写入, 在实际写入目标表之前，Flink 将额外对数据按照动态分区列进行排序。
+
+为了避免额外的排序，你可以将作业的配置项 `table.exec.hive.dynamic-grouping.enabled`（默认是 `true`）设置为 `false`。 但是这种配置下，如果动态分区数过多的话，则有可能会出现内存溢出的异常。
+
+注意：该配置项只在批模式下生效。
 
 ## 格式
 

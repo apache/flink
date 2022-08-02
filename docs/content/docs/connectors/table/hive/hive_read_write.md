@@ -507,6 +507,14 @@ This configuration is set in the `TableConfig` and will affect all sinks of the 
   </tbody>
 </table>
 
+### Configuration for Dynamic Partition Inserting 
+By default, if it's for dynamic partition inserting, Flink will sort the data additionally by dynamic partition columns before writing into sink table.
+
+To avoid the extra sorting, you can set job configuration `table.exec.hive.dynamic-grouping.enabled` (`true` by default) to `false`.
+But with such configuration, it'll throw OOM exception if there are too may dynamic partitions.
+
+NOTE: the configuration only works in batch mode.
+
 
 ## Formats
 

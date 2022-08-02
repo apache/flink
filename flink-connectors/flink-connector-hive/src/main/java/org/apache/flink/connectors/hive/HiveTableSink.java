@@ -122,6 +122,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     private final TableSchema tableSchema;
     private final String hiveVersion;
     private final HiveShim hiveShim;
+    private final boolean dynamicGroupingEnabled;
 
     private LinkedHashMap<String, String> staticPartitionSpec = new LinkedHashMap<>();
     private boolean overwrite = false;
@@ -138,6 +139,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         this(
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER),
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER),
+                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_DYNAMIC_GROUPING_ENABLED),
                 jobConf,
                 identifier,
                 table,
@@ -147,12 +149,14 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     private HiveTableSink(
             boolean fallbackMappedReader,
             boolean fallbackMappedWriter,
+            boolean dynamicGroupingEnabled,
             JobConf jobConf,
             ObjectIdentifier identifier,
             CatalogTable table,
             @Nullable Integer configuredParallelism) {
         this.fallbackMappedReader = fallbackMappedReader;
         this.fallbackMappedWriter = fallbackMappedWriter;
+        this.dynamicGroupingEnabled = dynamicGroupingEnabled;
         this.jobConf = jobConf;
         this.identifier = identifier;
         this.catalogTable = table;
@@ -526,8 +530,12 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
     @Override
     public boolean requiresPartitionGrouping(boolean supportsGrouping) {
-        this.dynamicGrouping = supportsGrouping;
-        return supportsGrouping;
+        if (supportsGrouping && dynamicGroupingEnabled) {
+            this.dynamicGrouping = true;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     // get a staging dir
@@ -580,6 +588,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 new HiveTableSink(
                         fallbackMappedReader,
                         fallbackMappedWriter,
+                        dynamicGroupingEnabled,
                         jobConf,
                         identifier,
                         catalogTable,

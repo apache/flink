@@ -496,6 +496,32 @@ public class HiveTableSinkITCase {
         assertBatch("target_table", Arrays.asList());
     }
 
+    @Test
+    public void testDynamicGroupingEnableConfigurationInBatchMode() {
+        final TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode();
+        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tEnv.useCatalog(hiveCatalog.getName());
+        try {
+            // dynamic grouping is enabled by default
+            tEnv.executeSql(
+                    String.format(
+                            "create table dynamic_grouping_t(a int, b int, d string)"
+                                    + " partitioned by (d) with ('connector' = 'hive', '%s' = 'metastore')",
+                            SINK_PARTITION_COMMIT_POLICY_KIND.key()));
+            String actual = tEnv.explainSql("insert into dynamic_grouping_t select 1, 1, 'd'");
+            assertThat(actual)
+                    .isEqualTo(readFromResource("/explain/testDynamicGroupingEnabled.out"));
+
+            // disable dynamic grouping
+            tEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_DYNAMIC_GROUPING_ENABLED, false);
+            actual = tEnv.explainSql("insert into dynamic_grouping_t select 1, 1, 'd'");
+            assertThat(actual)
+                    .isEqualTo(readFromResource("/explain/testDynamicGroupingDisabled.out"));
+        } finally {
+            tEnv.executeSql("drop table dynamic_grouping_t");
+        }
+    }
+
     private static List<String> fetchRows(Iterator<Row> iter, int size) {
         List<String> strings = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {

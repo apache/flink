@@ -95,6 +95,19 @@ public class HiveOptions {
                                     + " When the value is over estimated, Flink will tend to pack Hive's data into less splits, which will be helpful when Hive's table contains many small files."
                                     + " And vice versa. It only works for the Hive table stored as ORC format.");
 
+    public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_DYNAMIC_GROUPING_ENABLED =
+            key("table.exec.hive.dynamic-grouping.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether to enable dynamic grouping or not when it's for dynamic partition inserting."
+                                    + " The default is to enable dynamic grouping."
+                                    + " If dynamic grouping is enabled,"
+                                    + " the date will be sorted additionally by the dynamic partition columns before writing into sink table."
+                                    + " If dynamic grouping is disabled, there won't be extra sorting,"
+                                    + " but it may throw OOM exception if there are too many dynamic partitions."
+                                    + " Note: it only works in batch mode.");
+
     public static final ConfigOption<Boolean> STREAMING_SOURCE_ENABLE =
             key("streaming-source.enable")
                     .booleanType()
