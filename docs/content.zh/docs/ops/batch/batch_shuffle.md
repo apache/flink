@@ -1,10 +1,12 @@
 ---
-title: "Blocking Shuffle"
+title: "Batch Shuffle"
 weight: 4
 type: docs
 aliases:
-- /zh/ops/batch/blocking_shuffle.html
-- /zh/ops/batch/blocking_shuffle
+- zh/docs/ops/batch/batch_shuffle.html
+- zh/docs/ops/batch/batch_shuffle
+- zh/docs/ops/batch/blocking_shuffle
+- zh/docs/ops/batch/blocking_shuffle.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -25,17 +27,22 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Blocking Shuffle
+# Batch Shuffle
 
 ## 总览
 
-Flink [DataStream API]({{< ref "docs/dev/datastream/execution_mode" >}}) 和 [Table / SQL]({{< ref "/docs/dev/table/overview" >}}) 都支持通过批处理执行模式处理有界输入。此模式是通过 blocking shuffle 进行网络传输。与流式应用使用管道 shuffle 阻塞交换的数据并存储，然后下游任务通过网络获取这些值的方式不同。这种交换减少了执行作业所需的资源，因为它不需要同时运行上游和下游任务。
+Flink [DataStream API]({{< ref "docs/dev/datastream/execution_mode" >}}) 和 [Table / SQL]({{< ref "/docs/dev/table/overview" >}}) 都支持通过批处理执行模式处理有界输入。 在批处理模式下，Flink 提供了两种网络交换模式: `Blocking Shuffle` 和 `Hybrid Shuffle`.
+
+- `Blocking Shuffle` 是批处理的默认数据交换模式。它会持久化所有的中间数据，只有当数据产出完全后才能被消费。
+- `Hybrid Shuffle` 是下一代的批处理数据交换模式. 他会更加智能地持久化数据, 并且允许在数据生产的同时进行消费. 该特性目前仍处于实验阶段并且存在一些已知的 [限制](#limitations).
+
+## Blocking Shuffle
+
+与流式应用使用管道 shuffle 交换数据的方式不同，blocking 交换持久化数据到存储中，然后下游任务通过网络获取这些值。这种交换减少了执行作业所需的资源，因为它不需要同时运行上游和下游任务。
 
 总的来说，Flink 提供了两种不同类型的 blocking shuffles：`Hash shuffle` 和 `Sort shuffle`。
 
-在下面章节会详细说明它们。
-
-## Hash Shuffle
+### Hash Shuffle
 
 对于 1.14 以及更低的版本，`Hash Shuffle` 是 blocking shuffle 的默认实现，它为每个下游任务将每个上游任务的结果以单独文件的方式保存在 TaskManager 本地磁盘上。当下游任务运行时会向上游的 TaskManager 请求分片，TaskManager 读取文件之后通过网络传输（给下游任务）。
 
@@ -64,7 +71,7 @@ Flink [DataStream API]({{< ref "docs/dev/datastream/execution_mode" >}}) 和 [Ta
 1. 如果任务的规模庞大将会创建很多文件，并且要求同时对这些文件进行大量的写操作。
 2. 在机械硬盘情况下，当大量的下游任务同时读取数据，可能会导致随机读写问题。
 
-## Sort Shuffle
+### Sort Shuffle
 
 `Sort Shuffle` 是 1.13 版中引入的另一种 blocking shuffle 实现，它在 1.15 版本成为默认。不同于 `Hash Shuffle`，`Sort Shuffle` 将每个分区结果写入到一个文件。当多个下游任务同时读取结果分片，数据文件只会被打开一次并共享给所有的读请求。因此，集群使用更少的资源。例如：节点和文件描述符以提升稳定性。此外，通过写更少的文件和尽可能线性的读取文件，尤其是在使用机械硬盘情况下 `Sort Shuffle` 可以获得比 `Hash Shuffle` 更好的性能。另外，`Sort Shuffle` 使用额外管理的内存作为读数据缓存并不依赖 `sendfile` 或 `mmap` 机制，因此也适用于 [SSL]({{< ref "docs/deployment/security/security-ssl" >}})。关于 `Sort Shuffle` 的更多细节请参考 [FLINK-19582](https://issues.apache.org/jira/browse/FLINK-19582) 和 [FLINK-19614](https://issues.apache.org/jira/browse/FLINK-19614)。
 
@@ -76,7 +83,7 @@ Flink [DataStream API]({{< ref "docs/dev/datastream/execution_mode" >}}) 和 [Ta
 目前 `Sort Shuffle` 只通过分区索引来排序而不是记录本身，也就是说 `sort` 只是被当成数据聚类算法使用。
 {{< /hint >}}
 
-## 如何选择 Blocking Shuffle
+### 如何选择 Blocking Shuffle
 
 总的来说，
 
@@ -85,20 +92,64 @@ Flink [DataStream API]({{< ref "docs/dev/datastream/execution_mode" >}}) 和 [Ta
 
 要在 `Sort Shuffle` 和 `Hash Shuffle` 间切换，你需要配置这个参数：[taskmanager.network.sort-shuffle.min-parallelism]({{< ref "docs/deployment/config" >}}#taskmanager-network-sort-shuffle-min-parallelism)。这个参数根据消费者Task的并发选择当前Task使用`Hash Shuffle` 或 `Sort Shuffle`，如果并发小于配置值则使用 `Hash Shuffle`，否则使用 `Sort Shuffle`。对于 1.15 以下版本，它的默认值是 `Integer.MAX_VALUE`，这意味着 `Hash Shuffle` 是默认实现。从 1.15 起，它的默认值是 1，这意味着 `Sort Shuffle` 是默认实现。
 
+## Hybrid Shuffle
+
+{{< hint warning >}}
+This feature is still experimental and has some known [limitations](#limitations).
+{{< /hint >}}
+
+Hybrid shuffle is the next generation of batch data exchanges. It combines the advantages of blocking shuffle and pipelined shuffle (in streaming mode).
+- Like blocking shuffle, it does not require upstream and downstream tasks to run simultaneously, which allows executing a job with little resources.
+- Like pipelined shuffle, it does not require downstream tasks to be executed after upstream tasks finish, which reduces the overall execution time of the job when given sufficient resources.
+- It adapts to custom preferences between persisting less data and restarting less tasks on failures, by providing different spilling strategies.
+
+### Spilling Strategy
+
+Hybrid shuffle provides two spilling strategies:
+
+- **Selective Spilling Strategy** persists data only if they are not consumed by downstream tasks timely. This reduces the amount of data to persist, at the price that in case of failures upstream tasks need to be restarted to reproduce the complete intermediate results.
+- **Full Spilling Strategy** persists all data, no matter they are consumed by downstream tasks or not. In case of failures, the persisted complete intermediate result can be re-consumed, without having to restart upstream tasks.
+
+### Usage
+
+To use hybrid shuffle mode, you need to configure the [execution.batch-shuffle-mode]({{< ref "docs/deployment/config" >}}#execution.batch-shuffle-mode) to `ALL_EXCHANGES_HYBRID_FULL` (full spilling strategy) or `ALL_EXCHANGES_HYBRID_SELECTIVE` (selective spilling strategy).
+
+### Limitations
+
+Hybrid shuffle mode is still experimental and has some known limitations, which the Flink community is still working on eliminating.
+
+- **No support for Slot Sharing.** In hybrid shuffle mode, Flink currently forces each task to be executed in a dedicated slot exclusively. If slot sharing is explicitly specified, an error will occur.
+- **No support for Adaptive Batch Scheduler and Speculative Execution.** If adaptive batch scheduler is used in hybrid shuffle mode, an error will occur.
+
 ## 性能调优
 
 下面这些建议可以帮助你实现更好的性能，这些对于大规模批作业尤其重要：
 
+{{< tabs "Performance Tuning" >}}
+
+{{< tab "Blocking Shuffle" >}}
 1. 如果你使用机械硬盘作为存储设备，请总是使用 `Sort Shuffle`，因为这可以极大的提升稳定性和性能。从 1.15 开始，`Sort Shuffle` 已经成为默认实现，对于 1.14 以及更低版本，你需要通过将 [taskmanager.network.sort-shuffle.min-parallelism]({{< ref "docs/deployment/config" >}}#taskmanager-network-sort-shuffle-min-parallelism) 配置为 1 以手动开启 `Sort Shuffle`。
 2. 对于 `Sort Shuffle` 和 `Hash Shuffle` 两种实现，你都可以考虑开启 [数据压缩]({{< ref "docs/deployment/config">}}#taskmanager-network-blocking-shuffle-compression-enabled) 除非数据本身无法压缩。从 1.15 开启，数据压缩是默认开启的，对于 1.14 以及更低版本你需要手动开启。
 3. 当使用 `Sort Shuffle` 时，减少 [独占网络缓冲区]({{< ref "docs/deployment/config" >}}#taskmanager-network-memory-buffers-per-channel) 并增加 [流动网络缓冲区]({{< ref "docs/deployment/config" >}}#taskmanager-network-memory-floating-buffers-per-gate) 有利于性能提升。对于 1.14 以及更高版本，建议将 [taskmanager.network.memory.buffers-per-channel]({{< ref "docs/deployment/config" >}}#taskmanager-network-memory-buffers-per-channel) 设为 0 并且将 [taskmanager.network.memory.floating-buffers-per-gate]({{< ref "docs/deployment/config" >}}#taskmanager-network-memory-floating-buffers-per-gate) 设为一个较大的值 (比如，4096)。这有两个主要的好处：1) 首先这解耦了并发与网络内存使用量，对于大规模作业，这降低了遇到 "Insufficient number of network buffers" 错误的可能性；2) 网络缓冲区可以根据需求在不同的数据通道间共享流动，这可以提高了网络缓冲区的利用率，进而可以提高性能。
 4. 增大总的网络内存。目前网络内存的大小是比较保守的。对于大规模作业，为了实现更好的性能，建议将 [网络内存比例]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-fraction) 增加至至少 0.2。为了使调整生效，你可能需要同时调整 [网络内存大小下界]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-min) 以及 [网络内存大小上界]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-max)。要获取更多信息，你可以参考这个 [内存配置文档]({{< ref "docs/deployment/memory/mem_setup_tm" >}})。
 5. 增大数据写出内存。像上面提到的那样，对于大规模作业，如果有充足的空闲内存，建议增大 [数据写出内存]({{< ref "docs/deployment/config" >}}#taskmanager-network-sort-shuffle-min-buffers) 大小到至少 (2 * 并发数)。注意：在你增大这个配置后，为避免出现 "Insufficient number of network buffers" 错误，你可能还需要增大总的网络内存大小。
 6. 增大数据读取内存。像上面提到的那样，对于大规模作业，建议增大 [数据读取内存]({{< ref "docs/deployment/config" >}}#taskmanager-memory-framework-off-heap-batch-shuffle-size) 到一个较大的值 (比如，256M 或 512M)。因为这个内存是从框架的堆外内存切分出来的，因此你必须增加相同的内存大小到 [taskmanager.memory.framework.off-heap.size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-framework-off-heap-size) 以避免出现直接内存溢出错误。
+{{< /tab >}}
+
+{{< tab "Hybrid Shuffle" >}}
+1. 增大总的网络内存。目前网络内存的大小是比较保守的。对于大规模作业，为了实现更好的性能，建议将 [网络内存比例]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-fraction) 增加至至少 0.2。为了使调整生效，你可能需要同时调整 [网络内存大小下界]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-min) 以及 [网络内存大小上界]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-max)。要获取更多信息，你可以参考这个 [内存配置文档]({{< ref "docs/deployment/memory/mem_setup_tm" >}})。
+2. 增大数据写出内存。对于大规模作业, 建议增大总内存大小，用于数据写入的内存越大, 下游越有机会直接从内存读取数据. 你需要保证每个 `Result Partition` 至少能够分配到 `numSubpartition + 1` 个buffer, 否则可能会遇到 "Insufficient number of network buffers" 错误。
+3. 增大数据读取内存。对于大规模作业，建议增大 [数据读取内存]({{< ref "docs/deployment/config" >}}#taskmanager-memory-framework-off-heap-batch-shuffle-size) 到一个较大的值 (比如，256M 或 512M)。因为这个内存是从框架的堆外内存切分出来的，因此你必须增加相同的内存大小到 [taskmanager.memory.framework.off-heap.size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-framework-off-heap-size) 以避免出现直接内存溢出错误。
+{{< /tab >}}
+
+{{< /tabs >}}
 
 ## Trouble Shooting
 
 尽管十分罕见，下面列举了一些你可能会碰到的异常情况以及对应的处理策略：
+
+{{< tabs "Trouble Shooting" >}}
+{{< tab "Blocking Shuffle" >}}
 
 | 异常情况 | 处理策略 |
 | :--------- | :------------------ |
@@ -112,3 +163,19 @@ Flink [DataStream API]({{< ref "docs/dev/datastream/execution_mode" >}}) 和 [Ta
 | Out of memory error | 如果你使用的是 `Hash Shuffle`，请切换到 `Sort Shuffle`。如果你已经在使用 `Sort Shuffle` 并且遵循了上面章节的建议，你可以考虑增大相应的内存大小。对于堆上内存，你可以增大 [taskmanager.memory.task.heap.size]({{< ref "docs/deployment/config" >}}#ttaskmanager-memory-task-heap-size)，对于直接内存，你可以增大 [taskmanager.memory.task.off-heap.size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-task-off-heap-size)。|
 | Container killed by external resource manger | 多种原因可能会导致容器被杀，比如，杀掉一个低优先级容器以释放资源启动高优先级容器，或者容器占用了过多的资源，比如内存、磁盘空间等。像上面章节所提到的那样，`Hash Shuffle` 可能会使用过多的内存而被 YARN 杀掉。所以，如果你使用的是 `Hash Shuffle`，请切换到 `Sort Shuffle`。如果你已经在使用 `Sort Shuffle`，你可能需要同时检查 Flink 日志以及资源管理框架的日志以找出容器被杀的根因，并且做出相应的修复。|
 
+{{< /tab >}}
+
+{{< tab "Hybrid Shuffle" >}}
+
+| 异常情况                                      | 处理策略                                                                                                                                                                                                                                                                                                        |
+|:------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Insufficient number of network buffers    | 这意味着网络内存量不足以支撑作业运行，你需要增加总的内存大小。                                                                                                                                                                                                                                                                                            |                                                                                                                                                                                                                                                                               |
+| Connection reset by peer                  | 这通常意味着网络不太稳定或者压力较大。其他一些原因，如SSL握手超时等也可能会导致这一问题。 增大 [网络连接 backlog]({{< ref "docs/deployment/config" >}}#taskmanager-network-netty-server-backlog) 可能会有所帮助。                                                                                                                                                                   |
+| Network connection timeout                | 这通常意味着网络不太稳定或者压力较大。增大 [网络连接超时时间]({{< ref "docs/deployment/config" >}}#taskmanager-network-netty-client-connectTimeoutSec) 或者开启 [网络连接重试]({{< ref "docs/deployment/config" >}}#taskmanager-network-retries) 可能会有所帮助。                                                                                                         |
+| Socket read/write timeout                 | 这通常意味着网络传输速度较慢或者压力较大。增大 [网络收发缓冲区]({{< ref "docs/deployment/config" >}}#taskmanager-network-netty-sendReceiveBufferSize) 大小可能会有所帮助。如果作业运行在 Kubernetes 环境，使用 [host network]({{< ref "docs/deployment/config" >}}#kubernetes-hostnetwork-enabled) 可能会有所帮助。                                                                    |
+| Read buffer request timeout               | 这意味着对数据读取缓冲区的激烈竞争。要解决这一问题，你可以增大 [taskmanager.memory.framework.off-heap.batch-shuffle.size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-framework-off-heap-batch-shuffle-size) 和 [taskmanager.memory.framework.off-heap.size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-framework-off-heap-size)。 |
+| No space left on device                   | 这通常意味着磁盘存储空间或者 inodes 被耗尽。你可以考虑扩展磁盘存储空间或者做一些数据清理。                                                                                                                                                                                                                                                                          |
+
+{{< /tab >}}
+
+{{< /tabs >}}
