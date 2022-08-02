@@ -22,6 +22,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.IOUtils;
 
@@ -32,6 +33,7 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -92,6 +94,8 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
     private final HsSubpartitionFileReader.Factory fileReaderFactory;
 
     private final HybridShuffleConfiguration hybridShuffleConfiguration;
+
+    private final ByteBuffer headerBuf = BufferReaderWriterUtil.allocatedHeaderBuffer();
 
     /** All readers waiting to read data of different subpartitions. */
     @GuardedBy("lock")
@@ -160,7 +164,8 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
                             operation,
                             dataIndex,
                             hybridShuffleConfiguration.getMaxBuffersReadAhead(),
-                            this::releaseSubpartitionReader);
+                            this::releaseSubpartitionReader,
+                            headerBuf);
 
             allReaders.add(subpartitionReader);
 
