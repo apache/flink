@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.connector.source.lookup.cache;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.CacheMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.table.connector.source.lookup.LookupOptions;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.clock.Clock;
@@ -213,7 +215,7 @@ class DefaultLookupCacheTest {
         ExecutorService executor = Executors.newFixedThreadPool(concurrency * 2);
         InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
         try (DefaultLookupCache cache =
-                DefaultLookupCache.newBuilder().maximumSize(Long.MAX_VALUE).build()) {
+                createCache(DefaultLookupCache.newBuilder().maximumSize(Long.MAX_VALUE))) {
             List<CompletableFuture<?>> futures = new ArrayList<>();
 
             // Concurrently put entries into the cache
@@ -271,28 +273,93 @@ class DefaultLookupCacheTest {
         }
     }
 
+    @Test
+    void testBuildFromConfig() {
+        // Happy path
+        Configuration config = new Configuration();
+        config.set(LookupOptions.CACHE_TYPE, LookupOptions.LookupCacheType.PARTIAL);
+        config.set(LookupOptions.PARTIAL_CACHE_MAX_ROWS, 15213L);
+        config.set(LookupOptions.PARTIAL_CACHE_EXPIRE_AFTER_WRITE, Duration.ofMillis(18213L));
+        config.set(LookupOptions.PARTIAL_CACHE_EXPIRE_AFTER_ACCESS, Duration.ofMillis(15513L));
+        config.set(LookupOptions.PARTIAL_CACHE_CACHE_MISSING_KEY, false);
+        DefaultLookupCache cache = DefaultLookupCache.fromConfig(config);
+        assertThat(cache.getMaximumSize()).isEqualTo(15213L);
+        assertThat(cache.getExpireAfterWriteDuration()).isEqualTo(Duration.ofMillis(18213L));
+        assertThat(cache.getExpireAfterAccessDuration()).isEqualTo(Duration.ofMillis(15513L));
+        assertThat(cache.isCacheMissingKey()).isFalse();
+
+        // Illegal configurations
+        Configuration configWithIllegalCacheType = new Configuration();
+        configWithIllegalCacheType.set(
+                LookupOptions.CACHE_TYPE, LookupOptions.LookupCacheType.NONE);
+        assertThatThrownBy(() -> DefaultLookupCache.fromConfig(configWithIllegalCacheType))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "'lookup.cache' should be 'PARTIAL' in order to build a default lookup cache");
+
+        Configuration configWithoutEviction = new Configuration();
+        configWithoutEviction.set(LookupOptions.CACHE_TYPE, LookupOptions.LookupCacheType.PARTIAL);
+        assertThatThrownBy(() -> DefaultLookupCache.fromConfig(configWithoutEviction))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "Missing 'lookup.partial-cache.expire-after-access', "
+                                + "'lookup.partial-cache.expire-after-write' "
+                                + "or 'lookup.partial-cache.max-rows' in the configuration. "
+                                + "The cache will not have evictions under this configuration "
+                                + "and could lead to potential memory issues "
+                                + "as the cache size may grow indefinitely.");
+    }
+
+    @Test
+    void testBuilder() {
+        // Happy path
+        DefaultLookupCache cache =
+                DefaultLookupCache.newBuilder()
+                        .cacheMissingKey(true)
+                        .maximumSize(15213L)
+                        .expireAfterWrite(Duration.ofMillis(18213L))
+                        .expireAfterAccess(Duration.ofMillis(15513L))
+                        .build();
+        assertThat(cache.isCacheMissingKey()).isEqualTo(true);
+        assertThat(cache.getMaximumSize()).isEqualTo(15213L);
+        assertThat(cache.getExpireAfterWriteDuration()).isEqualTo(Duration.ofMillis(18213L));
+        assertThat(cache.getExpireAfterAccessDuration()).isEqualTo(Duration.ofMillis(15513L));
+
+        // Test illegal usage without eviction policy
+        assertThatThrownBy(() -> DefaultLookupCache.newBuilder().build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "Expiration duration and maximum size are not set for the cache. "
+                                + "The cache will not have any eviction and could lead to "
+                                + "potential memory issues as the cache size may grow infinitely.");
+    }
+
     // ----------------------- Helper functions ----------------------
 
-    private DefaultLookupCache createCache(DefaultLookupCache.Builder builder) {
+    private DefaultLookupCache createCache(DefaultLookupCache.Builder builder) throws Exception {
         return createCache(builder, null, null);
     }
 
-    private DefaultLookupCache createCache(DefaultLookupCache.Builder builder, Clock clock) {
+    private DefaultLookupCache createCache(DefaultLookupCache.Builder builder, Clock clock)
+            throws Exception {
         return createCache(builder, clock, null);
     }
 
     private DefaultLookupCache createCache(
-            DefaultLookupCache.Builder builder, Clock clock, CacheMetricGroup metricGroup) {
-        DefaultLookupCache cache = builder.build();
+            DefaultLookupCache.Builder builder, Clock clock, CacheMetricGroup metricGroup)
+            throws Exception {
+        // We use a serializable copy here to make sure that all functionalities work as expected
+        // after the cache being serialized and deserialized.
+        DefaultLookupCache copiedCache = CommonTestUtils.createCopySerializable(builder.build());
         if (clock != null) {
-            cache.withClock(clock);
+            copiedCache.withClock(clock);
         }
         if (metricGroup == null) {
-            cache.open(UnregisteredMetricsGroup.createCacheMetricGroup());
+            copiedCache.open(UnregisteredMetricsGroup.createCacheMetricGroup());
         } else {
-            cache.open(metricGroup);
+            copiedCache.open(metricGroup);
         }
-        return cache;
+        return copiedCache;
     }
 
     private CompletableFuture<Void> runAsync(Runnable runnable, ExecutorService executor) {

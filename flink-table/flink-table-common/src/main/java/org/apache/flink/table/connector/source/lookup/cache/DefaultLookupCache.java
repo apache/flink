@@ -63,8 +63,8 @@ public class DefaultLookupCache implements LookupCache {
     private transient Ticker ticker;
 
     // For tracking cache metrics
-    private final transient Counter hitCounter;
-    private final transient Counter missCounter;
+    private transient Counter hitCounter;
+    private transient Counter missCounter;
 
     private DefaultLookupCache(
             Duration expireAfterAccessDuration,
@@ -76,8 +76,6 @@ public class DefaultLookupCache implements LookupCache {
         this.maximumSize = maximumSize;
         this.cacheMissingKey = cacheMissingKey;
         sanityCheck();
-        hitCounter = new ThreadSafeSimpleCounter();
-        missCounter = new ThreadSafeSimpleCounter();
     }
 
     /** Creates a builder for the cache. */
@@ -86,11 +84,24 @@ public class DefaultLookupCache implements LookupCache {
     }
 
     public static DefaultLookupCache fromConfig(ReadableConfig config) {
+        // We only support partial caching scenario here
         checkArgument(
                 config.get(CACHE_TYPE).equals(PARTIAL),
                 "'%s' should be '%s' in order to build a default lookup cache",
                 CACHE_TYPE.key(),
                 PARTIAL);
+        // Check if the eviction policy is configured
+        checkArgument(
+                config.getOptional(PARTIAL_CACHE_EXPIRE_AFTER_ACCESS).isPresent()
+                        || config.getOptional(PARTIAL_CACHE_EXPIRE_AFTER_WRITE).isPresent()
+                        || config.getOptional(PARTIAL_CACHE_MAX_ROWS).isPresent(),
+                "Missing '%s', '%s' or '%s' in the configuration. "
+                        + "The cache will not have evictions under this configuration "
+                        + "and could lead to potential memory issues "
+                        + "as the cache size may grow indefinitely.",
+                PARTIAL_CACHE_EXPIRE_AFTER_ACCESS.key(),
+                PARTIAL_CACHE_EXPIRE_AFTER_WRITE.key(),
+                PARTIAL_CACHE_MAX_ROWS.key());
         return new DefaultLookupCache(
                 config.get(PARTIAL_CACHE_EXPIRE_AFTER_ACCESS),
                 config.get(PARTIAL_CACHE_EXPIRE_AFTER_WRITE),
@@ -117,6 +128,12 @@ public class DefaultLookupCache implements LookupCache {
                     guavaCacheBuilder.ticker(ticker);
                 }
                 guavaCache = guavaCacheBuilder.build();
+            }
+            if (hitCounter == null) {
+                hitCounter = new ThreadSafeSimpleCounter();
+            }
+            if (missCounter == null) {
+                missCounter = new ThreadSafeSimpleCounter();
             }
         }
         // Register metrics
@@ -204,8 +221,8 @@ public class DefaultLookupCache implements LookupCache {
                 && maximumSize == null) {
             throw new IllegalArgumentException(
                     "Expiration duration and maximum size are not set for the cache. "
-                            + "This could lead to potential memory issues as the cache size "
-                            + "may grow infinitely.");
+                            + "The cache will not have any eviction and could lead to "
+                            + "potential memory issues as the cache size may grow infinitely.");
         }
     }
 
