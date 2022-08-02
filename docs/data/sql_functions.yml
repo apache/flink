@@ -463,7 +463,7 @@ temporal:
   - sql: DAYOFYEAR(date)
     description:  Returns the day of a year (an integer between 1 and 366) from SQL date date. Equivalent to EXTRACT(DOY FROM date). E.g., DAYOFYEAR(DATE '1994-09-27') returns 270.
   - sql: DAYOFMONTH
-    description: Returns the day of a month (an integer between 1 and 31) from SQL date date. Equivalent to EXTRACT(DAY FROM date). E.g., DAYOFWEEK(DATE '1994-09-27') returns 3.
+    description: Returns the day of a month (an integer between 1 and 31) from SQL date date. Equivalent to EXTRACT(DAY FROM date). E.g., DAYOFMONTH(DATE '1994-09-27') returns 27.
   - sql: HOUR(timestamp)
     description: Returns the hour of a day (an integer between 0 and 23) from SQL timestamp timestamp. Equivalent to EXTRACT(HOUR FROM timestamp). E.g., MINUTE(TIMESTAMP '1994-09-27 13:14:15') returns 14.
   - sql: MINUTE(timestamp)
