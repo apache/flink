@@ -29,7 +29,7 @@ under the License.
 {{< label "Format: Serialization Schema" >}}
 {{< label "Format: Deserialization Schema" >}}
 
-The [Protobuf](https://developers.google.com/protocol-buffers) format allows to read and write protobuf data based on protobuf generated class.
+The Protocol Buffers [Protobuf](https://developers.google.com/protocol-buffers) format allows you to read and write Protobuf data, based on Protobuf generated classes.
 
 Dependencies
 ------------
