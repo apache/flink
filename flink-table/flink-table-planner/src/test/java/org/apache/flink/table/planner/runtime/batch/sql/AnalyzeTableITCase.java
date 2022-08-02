@@ -254,7 +254,7 @@ public class AnalyzeTableITCase extends BatchTestBase {
                                         "analyze table NonPartitionTable PARTITION(a) compute statistics"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "cat`.`db`.`NonPartitionTable` is not a partition table, while partition values is given");
+                        "Invalid ANALYZE TABLE statement. Table: `cat`.`db`.`NonPartitionTable` is not a partition table, while partition values are given");
     }
 
     @Test
@@ -359,7 +359,7 @@ public class AnalyzeTableITCase extends BatchTestBase {
         assertThatThrownBy(() -> tEnv.executeSql("analyze table PartitionTable compute statistics"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "For partition table, all partition keys should be specified explicitly. "
+                        "Invalid ANALYZE TABLE statement. For partition table, all partition keys should be specified explicitly. "
                                 + "The given partition keys: [] are not match the target partition keys: [e,a]");
     }
 
@@ -371,7 +371,7 @@ public class AnalyzeTableITCase extends BatchTestBase {
                                         "analyze table PartitionTable PARTITION(d) compute statistics"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "For partition table, all partition keys should be specified explicitly. "
+                        "Invalid ANALYZE TABLE statement. For partition table, all partition keys should be specified explicitly. "
                                 + "The given partition keys: [d] are not match the target partition keys: [e,a]");
         assertThatThrownBy(
                         () ->
@@ -379,7 +379,7 @@ public class AnalyzeTableITCase extends BatchTestBase {
                                         "analyze table PartitionTable PARTITION(e=1) compute statistics"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "For partition table, all partition keys should be specified explicitly. "
+                        "Invalid ANALYZE TABLE statement. For partition table, all partition keys should be specified explicitly. "
                                 + "The given partition keys: [e] are not match the target partition keys: [e,a]");
         assertThatThrownBy(
                         () ->
@@ -387,7 +387,7 @@ public class AnalyzeTableITCase extends BatchTestBase {
                                         "analyze table PartitionTable PARTITION(e=1,d) compute statistics"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "For partition table, all partition keys should be specified explicitly. "
+                        "Invalid ANALYZE TABLE statement. For partition table, all partition keys should be specified explicitly. "
                                 + "The given partition keys: [e,d] are not match the target partition keys: [e,a]");
     }
 
@@ -454,12 +454,13 @@ public class AnalyzeTableITCase extends BatchTestBase {
                                         "analyze table NonPartitionTable PARTITION(a) compute statistics"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "cat`.`db`.`NonPartitionTable` is not a partition table, while partition values is given");
+                        "Invalid ANALYZE TABLE statement. Table: `cat`.`db`.`NonPartitionTable` is not a partition table, while partition values are given");
     }
 
     @Test
     public void testPartitionTableWithoutColumns() throws Exception {
-        tEnv.executeSql("analyze table PartitionTable partition(e, a) compute statistics");
+        // Strict order is not required
+        tEnv.executeSql("analyze table PartitionTable partition(a, e) compute statistics");
         ObjectPath path = new ObjectPath(tEnv.getCurrentDatabase(), "PartitionTable");
         assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableStatistics(path))
                 .isEqualTo(new CatalogTableStatistics(-1L, -1, -1L, -1L));

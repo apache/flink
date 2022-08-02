@@ -1355,17 +1355,17 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             true,
                             compileAndExecutePlanOperation.getOperation());
             return (TableResultInternal) compiledPlan.execute();
-        } else if (operation instanceof NopOperation) {
-            return TableResultImpl.TABLE_RESULT_OK;
         } else if (operation instanceof AnalyzeTableOperation) {
             if (isStreamingMode) {
-                throw new TableException("AnalyzeTable is not supported for streaming mode now");
+                throw new TableException("ANALYZE TABLE is not supported for streaming mode now");
             }
             try {
                 return AnalyzeTableUtil.analyzeTable(this, (AnalyzeTableOperation) operation);
             } catch (Exception e) {
-                throw new TableException("Failed to execute AnalyzeTable command", e);
+                throw new TableException("Failed to execute ANALYZE TABLE command", e);
             }
+        } else if (operation instanceof NopOperation) {
+            return TableResultImpl.TABLE_RESULT_OK;
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
         }

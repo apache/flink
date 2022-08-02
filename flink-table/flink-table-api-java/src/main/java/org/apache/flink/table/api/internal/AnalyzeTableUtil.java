@@ -19,19 +19,16 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
-import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
-import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
@@ -60,7 +57,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** ANALYZE TABLE statement Util. */
@@ -71,71 +67,63 @@ public class AnalyzeTableUtil {
 
     public static TableResultInternal analyzeTable(
             TableEnvironmentImpl tableEnv, AnalyzeTableOperation operation)
-            throws TableNotPartitionedException, TableNotExistException, PartitionNotExistException,
-                    TablePartitionedException {
-        CatalogManager catalogManager = tableEnv.getCatalogManager();
-        CatalogTable table =
-                catalogManager.getTable(operation.getTableIdentifier()).get().getTable();
-        ResolvedSchema schema =
-                table.getUnresolvedSchema().resolve(catalogManager.getSchemaResolver());
-        List<Column> columns =
-                operation.getColumns().stream()
-                        .map(c -> schema.getColumn(c).get())
-                        .collect(Collectors.toList());
+            throws TableNotExistException, PartitionNotExistException, TablePartitionedException {
+        List<Column> columns = operation.getColumns();
+        // the TableIdentifier has be validated before
         Catalog catalog =
-                catalogManager.getCatalog(operation.getTableIdentifier().getCatalogName()).get();
+                tableEnv.getCatalogManager()
+                        .getCatalog(operation.getTableIdentifier().getCatalogName())
+                        .orElseThrow(() -> new TableException("This should not happen."));
         ObjectPath objectPath = operation.getTableIdentifier().toObjectPath();
 
-        if (table.isPartitioned()) {
-            List<CatalogPartitionSpec> targetPartitions =
-                    operation.getPartitionSpecs().orElse(catalog.listPartitions(objectPath));
+        if (operation.getPartitionSpecs().isPresent()) {
+            List<CatalogPartitionSpec> targetPartitions = operation.getPartitionSpecs().get();
             for (CatalogPartitionSpec partitionSpec : targetPartitions) {
                 String statSql =
-                        generateAnalyzeSql(
-                                catalogManager,
-                                operation.getTableIdentifier(),
-                                partitionSpec,
-                                columns);
-                TableResult tableResult = tableEnv.executeSql(statSql);
-                List<Row> result = CollectionUtil.iteratorToList(tableResult.collect());
-                Preconditions.checkArgument(result.size() == 1);
-                Row row = result.get(0);
-                CatalogTableStatistics tableStat = convertToTableStatistics(row);
+                        generateAnalyzeSql(operation.getTableIdentifier(), partitionSpec, columns);
+                Tuple2<CatalogTableStatistics, CatalogColumnStatistics> result =
+                        executeSqlAndGenerateStatistics(tableEnv, columns, statSql);
+                CatalogTableStatistics tableStat = result.f0;
                 catalog.alterPartitionStatistics(objectPath, partitionSpec, tableStat, false);
-                if (!columns.isEmpty()) {
-                    CatalogColumnStatistics columnStat = convertToColumnStatistics(row, columns);
+                CatalogColumnStatistics columnStat = result.f1;
+                if (columnStat != null) {
                     catalog.alterPartitionColumnStatistics(
                             objectPath, partitionSpec, columnStat, false);
                 }
             }
         } else {
-            String statSql =
-                    generateAnalyzeSql(
-                            catalogManager, operation.getTableIdentifier(), null, columns);
-            TableResult tableResult = tableEnv.executeSql(statSql);
-            List<Row> result = CollectionUtil.iteratorToList(tableResult.collect());
-            Preconditions.checkArgument(result.size() == 1);
-            Row row = result.get(0);
-            CatalogTableStatistics tableStat = convertToTableStatistics(row);
+            String statSql = generateAnalyzeSql(operation.getTableIdentifier(), null, columns);
+            Tuple2<CatalogTableStatistics, CatalogColumnStatistics> result =
+                    executeSqlAndGenerateStatistics(tableEnv, columns, statSql);
+            CatalogTableStatistics tableStat = result.f0;
             catalog.alterTableStatistics(objectPath, tableStat, false);
-            if (!columns.isEmpty()) {
-                CatalogColumnStatistics columnStat = convertToColumnStatistics(row, columns);
+            CatalogColumnStatistics columnStat = result.f1;
+            if (columnStat != null) {
                 catalog.alterTableColumnStatistics(objectPath, columnStat, false);
             }
         }
         return TableResultImpl.TABLE_RESULT_OK;
     }
 
+    private static Tuple2<CatalogTableStatistics, CatalogColumnStatistics>
+            executeSqlAndGenerateStatistics(
+                    TableEnvironmentImpl tableEnv, List<Column> columns, String statSql) {
+        TableResult tableResult = tableEnv.executeSql(statSql);
+        List<Row> result = CollectionUtil.iteratorToList(tableResult.collect());
+        Preconditions.checkArgument(result.size() == 1);
+        Row row = result.get(0);
+        CatalogTableStatistics tableStat = convertToTableStatistics(row);
+        CatalogColumnStatistics columnStat = null;
+        if (!columns.isEmpty()) {
+            columnStat = convertToColumnStatistics(row, columns);
+        }
+        return new Tuple2<>(tableStat, columnStat);
+    }
+
     private static String generateAnalyzeSql(
-            CatalogManager catalogManager,
             ObjectIdentifier tableIdentifier,
             @Nullable CatalogPartitionSpec partitionSpec,
             List<Column> columns) {
-        Optional<ContextResolvedTable> optionalCatalogTable =
-                catalogManager.getTable(tableIdentifier);
-        Preconditions.checkArgument(
-                optionalCatalogTable.isPresent(), tableIdentifier + " does not exist");
-
         String partitionFilter;
         if (partitionSpec != null) {
             partitionFilter =
@@ -224,42 +212,6 @@ public class AnalyzeTableUtil {
                 .collect(Collectors.joining(", "));
     }
 
-    private static String getRowCountColumn() {
-        return "rowCount";
-    }
-
-    private static String getNullCountColumn(String column) {
-        return String.format("%s_nullCount", column);
-    }
-
-    private static String getNdvColumn(String column) {
-        return String.format("%s_ndv", column);
-    }
-
-    private static String getTrueCountColumn(String column) {
-        return String.format("%s_trueCount", column);
-    }
-
-    private static String getFalseCountColumn(String column) {
-        return String.format("%s_falseCount", column);
-    }
-
-    private static String getMaxColumn(String column) {
-        return String.format("%s_max", column);
-    }
-
-    private static String getMinColumn(String column) {
-        return String.format("%s_min", column);
-    }
-
-    private static String getAvgLenColumn(String column) {
-        return String.format("%s_avgLen", column);
-    }
-
-    private static String getMaxLenColumn(String column) {
-        return String.format("%s_maxLen", column);
-    }
-
     private static CatalogTableStatistics convertToTableStatistics(Row row) {
         Long rowCount = row.getFieldAs(getRowCountColumn());
         return new CatalogTableStatistics(rowCount, -1, -1, -1);
@@ -323,7 +275,6 @@ public class AnalyzeTableUtil {
                 Long ndvTs = row.getFieldAs(getNdvColumn(c));
                 LocalDateTime maxTs = row.getFieldAs(getMaxColumn(c));
                 LocalDateTime minTs = row.getFieldAs(getMinColumn(c));
-
                 return new CatalogColumnStatisticsDataLong(
                         minTs != null ? minTs.toEpochSecond(ZoneOffset.UTC) : null,
                         maxTs != null ? maxTs.toEpochSecond(ZoneOffset.UTC) : null,
@@ -388,10 +339,45 @@ public class AnalyzeTableUtil {
                 return new CatalogColumnStatisticsDataString(maxLen, avgLen, ndvString, nullCount);
             case BINARY:
             case VARBINARY:
-                Long ndvBinary = row.getFieldAs(getNdvColumn(c));
-                return new CatalogColumnStatisticsDataBinary(null, null, ndvBinary);
+                return new CatalogColumnStatisticsDataBinary(null, null, nullCount);
             default:
                 return null;
         }
+    }
+
+    private static String getRowCountColumn() {
+        return "rowCount";
+    }
+
+    private static String getNullCountColumn(String column) {
+        return String.format("%s_nullCount", column);
+    }
+
+    private static String getNdvColumn(String column) {
+        return String.format("%s_ndv", column);
+    }
+
+    private static String getTrueCountColumn(String column) {
+        return String.format("%s_trueCount", column);
+    }
+
+    private static String getFalseCountColumn(String column) {
+        return String.format("%s_falseCount", column);
+    }
+
+    private static String getMaxColumn(String column) {
+        return String.format("%s_max", column);
+    }
+
+    private static String getMinColumn(String column) {
+        return String.format("%s_min", column);
+    }
+
+    private static String getAvgLenColumn(String column) {
+        return String.format("%s_avgLen", column);
+    }
+
+    private static String getMaxLenColumn(String column) {
+        return String.format("%s_maxLen", column);
     }
 }

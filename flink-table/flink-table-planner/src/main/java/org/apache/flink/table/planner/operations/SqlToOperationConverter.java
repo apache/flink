@@ -185,7 +185,6 @@ import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -1275,11 +1274,11 @@ public class SqlToOperationConverter {
         ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
         Optional<ContextResolvedTable> optionalCatalogTable =
                 catalogManager.getTable(tableIdentifier);
-        if (!optionalCatalogTable.isPresent()) {
+        if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
             throw new ValidationException(
-                    String.format("Table %s doesn't exist.", tableIdentifier));
+                    String.format(
+                            "Table %s doesn't exist or is a temporary table.", tableIdentifier));
         }
-
         CatalogBaseTable baseTable = optionalCatalogTable.get().getTable();
         if (baseTable instanceof CatalogView) {
             throw new ValidationException("ANALYZE TABLE for a view is not allowed.");
@@ -1291,10 +1290,10 @@ public class SqlToOperationConverter {
         LinkedHashMap<String, String> partitions = analyzeTable.getPartitions();
         List<CatalogPartitionSpec> targetPartitionSpecs = null;
         if (table.isPartitioned()) {
-            if (!new ArrayList<>(partitions.keySet()).equals(table.getPartitionKeys())) {
+            if (!partitions.keySet().equals(new HashSet<>(table.getPartitionKeys()))) {
                 throw new ValidationException(
                         String.format(
-                                "For partition table, all partition keys should be specified explicitly. "
+                                "Invalid ANALYZE TABLE statement. For partition table, all partition keys should be specified explicitly. "
                                         + "The given partition keys: [%s] are not match the target partition keys: [%s].",
                                 String.join(",", partitions.keySet()),
                                 String.join(",", table.getPartitionKeys())));
@@ -1308,21 +1307,23 @@ public class SqlToOperationConverter {
         } else if (!partitions.isEmpty()) {
             throw new ValidationException(
                     String.format(
-                            "Table: %s is not a partition table, while partition values is given.",
+                            "Invalid ANALYZE TABLE statement. Table: %s is not a partition table, while partition values are given.",
                             tableIdentifier));
         }
 
         String[] columns = analyzeTable.getColumnNames();
-        List<String> targetColumns;
+        List<Column> targetColumns;
         if (analyzeTable.isAllColumns()) {
             Preconditions.checkArgument(columns.length == 0);
             // computed column and metadata column will be ignored
             targetColumns =
-                    ((RowType) schema.toPhysicalRowDataType().getLogicalType()).getFieldNames();
+                    schema.getColumns().stream()
+                            .filter(Column::isPhysical)
+                            .collect(Collectors.toList());
         } else if (columns.length > 0) {
             targetColumns =
                     Arrays.stream(columns)
-                            .peek(
+                            .map(
                                     c -> {
                                         Optional<Column> colOpt = schema.getColumn(c);
                                         if (!colOpt.isPresent()) {
@@ -1343,15 +1344,16 @@ public class SqlToOperationConverter {
                                                             "Column: %s is a metadata column, ANALYZE TABLE does not support metadata column.",
                                                             c));
                                         } else if (col instanceof Column.PhysicalColumn) {
-                                            // ignored
+                                            return col;
                                         } else {
                                             throw new ValidationException(
-                                                    "This should not happen.");
+                                                    "Unknown column class: "
+                                                            + col.getClass().getSimpleName());
                                         }
                                     })
                             .collect(Collectors.toList());
         } else {
-            targetColumns = new ArrayList<>();
+            targetColumns = Collections.emptyList();
         }
 
         return new AnalyzeTableOperation(tableIdentifier, targetPartitionSpecs, targetColumns);

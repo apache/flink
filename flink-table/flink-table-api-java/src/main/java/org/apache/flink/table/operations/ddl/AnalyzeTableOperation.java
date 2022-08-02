@@ -19,6 +19,7 @@
 package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.Operation;
 
@@ -27,17 +28,18 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** Operation to describe an {@code ANALYZE TABLE} statement. */
 public class AnalyzeTableOperation implements Operation {
     private final ObjectIdentifier tableIdentifier;
     private final @Nullable List<CatalogPartitionSpec> partitionSpecs;
-    private final List<String> columns;
+    private final List<Column> columns;
 
     public AnalyzeTableOperation(
             ObjectIdentifier tableIdentifier,
             @Nullable List<CatalogPartitionSpec> partitionSpecs,
-            List<String> columns) {
+            List<Column> columns) {
         this.tableIdentifier = tableIdentifier;
         this.partitionSpecs = partitionSpecs;
         this.columns = Objects.requireNonNull(columns, "columns is null");
@@ -55,12 +57,28 @@ public class AnalyzeTableOperation implements Operation {
         return Optional.ofNullable(partitionSpecs);
     }
 
-    public List<String> getColumns() {
+    public List<Column> getColumns() {
         return columns;
     }
 
     @Override
     public String asSummaryString() {
-        return "ANALYZE TABLE";
+        StringBuilder sb = new StringBuilder();
+        sb.append("ANALYZE TABLE ").append(tableIdentifier.toString());
+        if (partitionSpecs != null) {
+            sb.append(" PARTITION(")
+                    .append(
+                            partitionSpecs.stream()
+                                    .map(p -> p.getPartitionSpec().toString())
+                                    .collect(Collectors.joining(",")))
+                    .append(")");
+        }
+        sb.append(" COMPUTE STATISTICS");
+        if (!columns.isEmpty()) {
+            sb.append(" FOR COLUMNS ")
+                    .append(columns.stream().map(Column::getName).collect(Collectors.joining(",")));
+        }
+
+        return sb.toString();
     }
 }
