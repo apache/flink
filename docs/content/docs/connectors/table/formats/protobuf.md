@@ -41,22 +41,62 @@ How to create a table with Protobuf format
 
 Here is an example to create a table using the Kafka connector and Protobuf format.
 
+Below is the proto definition file.
+
+```
+syntax = "proto2";
+package com.example;
+option java_package = "com.example";
+option java_multiple_files = true;
+
+message SimpleTest {
+    optional int64 uid = 1;
+    optional string name = 2;
+    optional int32 category_type = 3;
+    optional bytes content = 4;
+    optional double price = 5;
+    map<int64, InnerMessageTest> value_map = 6;
+    repeated  InnerMessageTest value_arr = 7;
+    optional Corpus corpus_int = 8; 
+    optional Corpus corpus_str = 9; 
+    
+    message InnerMessageTest{
+          optional int64 v1 =1;
+          optional int32 v2 =2;
+    }
+    
+    enum Corpus {
+        UNIVERSAL = 0;
+        WEB = 1;
+        IMAGES = 2;
+        LOCAL = 3;
+        NEWS = 4;
+        PRODUCTS = 5;
+        VIDEO = 7;
+      }
+}
+```
+
+Use `protoc` command to generate protobuf java sources and put the sources in your runtime classpath.
+
 ```sql
-CREATE TABLE user_behavior (
+CREATE TABLE simple_test (
   uid BIGINT,
   name STRING,
   category_type INT,
-  bytes BINARY,
+  content BINARY,
   price DOUBLE,
   value_map map<BIGINT, row<v1 BIGINT, v2 INT>>,
-  value_arr array<row<v1 BIGINT, v2 INT>>
+  value_arr array<row<v1 BIGINT, v2 INT>>,
+  corpus_int INT,
+  corpus_str STRING
 ) WITH (
  'connector' = 'kafka',
  'topic' = 'user_behavior',
  'properties.bootstrap.servers' = 'localhost:9092',
  'properties.group.id' = 'testGroup',
  'format' = 'protobuf',
- 'protobuf.message-class-name' = 'com.example.UserObject',
+ 'protobuf.message-class-name' = 'com.example.SimpleTest',
  'protobuf.ignore-parse-errors' = 'true'
 )
 ```
