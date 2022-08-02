@@ -65,22 +65,6 @@ class FileSystemCommitter implements Serializable {
             TableMetaStoreFactory metaStoreFactory,
             boolean overwrite,
             Path tmpPath,
-            int partitionColumnSize) {
-        this(
-                factory,
-                metaStoreFactory,
-                overwrite,
-                tmpPath,
-                partitionColumnSize,
-                false,
-                new LinkedHashMap<String, String>());
-    }
-
-    FileSystemCommitter(
-            FileSystemFactory factory,
-            TableMetaStoreFactory metaStoreFactory,
-            boolean overwrite,
-            Path tmpPath,
             int partitionColumnSize,
             boolean isToLocal,
             LinkedHashMap<String, String> staticPartitions) {
