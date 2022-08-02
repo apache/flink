@@ -184,7 +184,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
             } catch (Throwable throwable) {
                 failSubpartitionReaders(Collections.singletonList(subpartitionReader), throwable);
                 subpartitionReader = null;
-                LOG.error("Failed to read shuffle data.", throwable);
+                LOG.debug("Failed to read shuffle data.", throwable);
             }
             subpartitionReader =
                     addPreviousAndGetNextReader(subpartitionReader, !buffers.isEmpty());
