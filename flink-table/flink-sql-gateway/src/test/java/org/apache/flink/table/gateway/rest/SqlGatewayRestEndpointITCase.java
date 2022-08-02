@@ -359,7 +359,7 @@ class SqlGatewayRestEndpointITCase {
 
         // Initiate closing RestServerEndpoint but the test handler should block.
         final CompletableFuture<Void> closeRestServerEndpointFuture = serverEndpoint.closeAsync();
-        assertThat(closeRestServerEndpointFuture.isDone()).isFalse();
+        assertThat(closeRestServerEndpointFuture).isNotDone();
 
         // create an in-flight request
         final CompletableFuture<TestResponse> request =
@@ -369,7 +369,7 @@ class SqlGatewayRestEndpointITCase {
         // Allow handler to close but there is still one in-flight request which should prevent
         // the RestServerEndpoint from closing.
         testHandler.closeFuture.complete(null);
-        assertThat(closeRestServerEndpointFuture.isDone()).isFalse();
+        assertThat(closeRestServerEndpointFuture).isNotDone();
 
         // Finish the in-flight request.
         sync.releaseBlocker();

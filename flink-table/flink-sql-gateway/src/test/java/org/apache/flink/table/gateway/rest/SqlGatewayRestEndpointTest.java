@@ -87,13 +87,9 @@ class SqlGatewayRestEndpointTest {
     @Test
     void testFallbackOptions() throws ConfigurationException {
         Configuration flinkConfig = new Configuration();
-
-        // Test bind-address fallback to address
         flinkConfig.setString(SQL_GATEWAY_ADDRESS, ADDRESS2);
         RestServerEndpointConfiguration result1 =
                 RestServerEndpointConfiguration.fromConfiguration(getBaseConfig(flinkConfig));
-        assertThat(result1.getRestAddress()).isEqualTo(ADDRESS2);
-        assertThat(result1.getRestBindAddress()).isEqualTo(ADDRESS2);
 
         // Test bind-port get the default value
         assertThat(result1.getRestBindPortRange()).isEqualTo("8083");
