@@ -18,14 +18,18 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch;
 
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsDynamicFiltering;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
+import org.apache.flink.table.planner.connectors.TransformationScanProvider;
 import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalCalc;
@@ -37,6 +41,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRel
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalTableSourceScan;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -65,6 +70,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED;
@@ -177,7 +183,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
             return false;
         }
 
-        if (!DynamicSourceUtils.isNewSource((ScanTableSource) tableSource)) {
+        if (!isNewSource((ScanTableSource) tableSource)) {
             return false;
         }
 
@@ -187,6 +193,31 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                 getAcceptedFieldIndices(factJoinKeys, factCalc, factScan, tableSource);
 
         return !acceptedFieldIndices.isEmpty();
+    }
+
+    /** Returns true if the source is FLIP-27 source, else false. */
+    private static boolean isNewSource(ScanTableSource scanTableSource) {
+        ScanTableSource.ScanRuntimeProvider provider =
+                scanTableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+        if (provider instanceof SourceProvider) {
+            return true;
+        } else if (provider instanceof TransformationScanProvider) {
+            Transformation<?> transformation =
+                    ((TransformationScanProvider) provider)
+                            .createTransformation(name -> Optional.empty());
+            return transformation instanceof SourceTransformation;
+        } else if (provider instanceof DataStreamScanProvider) {
+            // Suppose DataStreamScanProvider of sources that support dynamic filtering will use new
+            // Source. It's not reliable and should be checked.
+            // TODO FLINK-28864 check if the source used by the DataStreamScanProvider is actually a
+            //  new source.
+            // This situation will not generate wrong result because it's handled when translating
+            // BatchTableSourceScan. The only effect is the physical plan and the exec node plan
+            // have DPP nodes, but they do not work in runtime.
+            return true;
+        }
+        // TODO supports more
+        return false;
     }
 
     private static List<Integer> getAcceptedFieldIndices(

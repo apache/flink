@@ -91,6 +91,7 @@ public class HiveSourceBuilder {
     private int[] projectedFields;
     private Long limit;
     private List<HiveTablePartition> partitions;
+    private List<String> dynamicFilterPartitionKeys;
 
     /**
      * Creates a builder to read a hive table.
@@ -246,6 +247,9 @@ public class HiveSourceBuilder {
                 jobConf,
                 tablePath,
                 partitionKeys,
+                hiveVersion,
+                dynamicFilterPartitionKeys,
+                partitions,
                 fetcher,
                 fetcherContext);
     }
@@ -256,6 +260,12 @@ public class HiveSourceBuilder {
      */
     public HiveSourceBuilder setPartitions(List<HiveTablePartition> partitions) {
         this.partitions = partitions;
+        return this;
+    }
+
+    public HiveSourceBuilder setDynamicFilterPartitionKeys(
+            List<String> dynamicFilterPartitionKeys) {
+        this.dynamicFilterPartitionKeys = dynamicFilterPartitionKeys;
         return this;
     }
 
