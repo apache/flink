@@ -126,4 +126,33 @@ class TableSinkITCase extends BatchTestBase {
     val result = TableTestUtil.readFromFile(resultPath)
     Assertions.assertThat(result.sorted).isEqualTo(expected.sorted)
   }
+
+  @Test
+  def testCreateTableAsSelectWithoutOptions(): Unit = {
+    // TODO CTAS supports ManagedTable
+    val dataId = TestValuesTableFactory.registerData(smallData3)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE MyTable (
+                       |  `a` INT,
+                       |  `b` BIGINT,
+                       |  `c` STRING
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'true',
+                       |  'data-id' = '$dataId'
+                       |)
+       """.stripMargin)
+
+    Assertions
+      .assertThatThrownBy(
+        () =>
+          tEnv
+            .executeSql("""
+                          |CREATE TABLE MyCtasTable
+                          | AS
+                          | SELECT * FROM MyTable
+                          |""".stripMargin)
+            .await())
+      .hasRootCauseMessage("\nExpecting actual not to be null")
+  }
 }

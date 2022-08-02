@@ -219,4 +219,15 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     )
     Assertions.assertThat(actual.sorted).isEqualTo(expected.sorted)
   }
+
+  @Test
+  def testCreateTableAsSelectWithoutOptions(): Unit = {
+    // TODO CTAS supports ManagedTable
+    Assertions
+      .assertThatThrownBy(
+        () => tEnv.executeSql("CREATE TABLE MyCtasTable AS SELECT `person`, `votes` FROM src"))
+      .hasMessage("You should enable the checkpointing for sinking to managed table " +
+        "'default_catalog.default_database.MyCtasTable'," +
+        " managed table relies on checkpoint to commit and the data is visible only after commit.")
+  }
 }

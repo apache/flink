@@ -88,54 +88,38 @@ class SqlCreateTableConverter {
     }
 
     /** Convert the {@link SqlCreateTableAs} node. */
-    Operation convertCreateTableAS(FlinkPlannerImpl flinkPlanner, SqlCreateTableAs sqlCreateTable) {
-        sqlCreateTable.getTableConstraints().forEach(validateTableConstraint);
-
+    Operation convertCreateTableAS(
+            FlinkPlannerImpl flinkPlanner, SqlCreateTableAs sqlCreateTableAs) {
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlCreateTable.fullTableName());
+                UnresolvedIdentifier.of(sqlCreateTableAs.fullTableName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
                         SqlToOperationConverter.convert(
-                                        flinkPlanner, catalogManager, sqlCreateTable.getAsQuery())
+                                        flinkPlanner, catalogManager, sqlCreateTableAs.getAsQuery())
                                 .orElseThrow(
                                         () ->
                                                 new TableException(
-                                                        "CTAS Unsupported node type "
-                                                                + sqlCreateTable
+                                                        "CTAS unsupported node type "
+                                                                + sqlCreateTableAs
                                                                         .getAsQuery()
                                                                         .getClass()
                                                                         .getSimpleName()));
-        Map<String, String> properties = new HashMap<>();
-        sqlCreateTable
-                .getPropertyList()
-                .getList()
-                .forEach(
-                        p ->
-                                properties.put(
-                                        ((SqlTableOption) p).getKeyString(),
-                                        ((SqlTableOption) p).getValueString()));
-
-        String tableComment =
-                sqlCreateTable
-                        .getComment()
-                        .map(comment -> comment.getNlsString().getValue())
-                        .orElse(null);
-
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(query.getResolvedSchema()).build(),
-                        tableComment,
-                        Collections.emptyList(),
-                        properties);
+        CatalogTable catalogTable = createCatalogTable(sqlCreateTableAs);
 
         CreateTableOperation createTableOperation =
                 new CreateTableOperation(
                         identifier,
-                        catalogTable,
-                        sqlCreateTable.isIfNotExists(),
-                        sqlCreateTable.isTemporary());
+                        CatalogTable.of(
+                                Schema.newBuilder()
+                                        .fromResolvedSchema(query.getResolvedSchema())
+                                        .build(),
+                                catalogTable.getComment(),
+                                catalogTable.getPartitionKeys(),
+                                catalogTable.getOptions()),
+                        sqlCreateTableAs.isIfNotExists(),
+                        sqlCreateTableAs.isTemporary());
 
         return new CreateTableASOperation(
                 createTableOperation, Collections.emptyMap(), query, false);
