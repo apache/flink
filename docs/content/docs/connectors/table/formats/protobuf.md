@@ -119,7 +119,7 @@ Format Options
       <td style="word-wrap: break-word;">""</td>
       <td>String</td>
       <td>
-          When serializing to protobuf data, this is the optional config to specify the string literal in protobuf's array/map in case of null values.
+          When serializing to protobuf data, this is the optional config to specify the string literal in Protobuf's array/map in case of null values.
       </td>
     </tr>
     </tbody>
