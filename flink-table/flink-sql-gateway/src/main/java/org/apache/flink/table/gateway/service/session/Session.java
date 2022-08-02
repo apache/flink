@@ -66,6 +66,10 @@ public class Session implements Closeable {
         return sessionContext.getOperationManager();
     }
 
+    public OperationExecutor createExecutor() {
+        return sessionContext.createOperationExecutor(new Configuration());
+    }
+
     public OperationExecutor createExecutor(Configuration executionConfig) {
         return sessionContext.createOperationExecutor(executionConfig);
     }

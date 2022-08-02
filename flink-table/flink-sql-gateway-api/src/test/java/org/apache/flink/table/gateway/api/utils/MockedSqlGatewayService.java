@@ -31,6 +31,7 @@ import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 /** Mocked {@link SqlGatewayService}. */
@@ -112,6 +113,11 @@ public class MockedSqlGatewayService implements SqlGatewayService {
     public ResolvedSchema getOperationResultSchema(
             SessionHandle sessionHandle, OperationHandle operationHandle)
             throws SqlGatewayException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Set<String> listCatalogs(SessionHandle sessionHandle) throws SqlGatewayException {
         throw new UnsupportedOperationException();
     }
 }

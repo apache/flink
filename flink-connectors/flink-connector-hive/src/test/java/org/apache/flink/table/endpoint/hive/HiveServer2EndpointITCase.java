@@ -19,8 +19,12 @@
 package org.apache.flink.table.endpoint.hive;
 
 import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.endpoint.hive.util.HiveServer2EndpointExtension;
 import org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
@@ -38,6 +42,7 @@ import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.hadoop.hive.common.auth.HiveAuthUtils;
+import org.apache.hive.jdbc.JdbcColumn;
 import org.apache.hive.service.rpc.thrift.TCLIService;
 import org.apache.hive.service.rpc.thrift.TCancelOperationReq;
 import org.apache.hive.service.rpc.thrift.TCancelOperationResp;
@@ -57,8 +62,11 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.net.InetAddress;
 import java.sql.Connection;
+import java.sql.ResultSetMetaData;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
@@ -186,6 +194,23 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                                         operationHandle)))));
     }
 
+    @Test
+    public void testGetCatalogs() throws Exception {
+        try (Connection connection = ENDPOINT_EXTENSION.getConnection()) {
+            java.sql.ResultSet result = connection.getMetaData().getCatalogs();
+            assertSchemaEquals(
+                    ResolvedSchema.of(Column.physical("TABLE_CAT", DataTypes.STRING())),
+                    result.getMetaData());
+
+            List<String> actual = new ArrayList<>();
+            while (result.next()) {
+                actual.add(result.getString(1));
+            }
+
+            assertThat(actual).contains("hive", "default_catalog");
+        }
+    }
+
     private void runOperationRequest(
             ThrowingConsumer<TOperationHandle, Exception> manipulateOp,
             BiConsumerWithException<SessionHandle, OperationHandle, Exception> operationValidator)
@@ -224,5 +249,20 @@ public class HiveServer2EndpointITCase extends TestLogger {
                         0);
         transport.open();
         return new TCLIService.Client(new TBinaryProtocol(transport));
+    }
+
+    private void assertSchemaEquals(ResolvedSchema expected, ResultSetMetaData metaData)
+            throws Exception {
+        assertThat(metaData.getColumnCount()).isEqualTo(expected.getColumnCount());
+        for (int i = 1; i <= metaData.getColumnCount(); i++) {
+            Column column =
+                    expected.getColumn(i - 1)
+                            .orElseThrow(() -> new RuntimeException("Can not get column."));
+            assertThat(metaData.getColumnName(i)).isEqualTo(column.getName());
+            int jdbcType =
+                    JdbcColumn.hiveTypeToSqlType(
+                            HiveTypeUtil.toHiveTypeInfo(column.getDataType(), false).getTypeName());
+            assertThat(metaData.getColumnType(i)).isEqualTo(jdbcType);
+        }
     }
 }

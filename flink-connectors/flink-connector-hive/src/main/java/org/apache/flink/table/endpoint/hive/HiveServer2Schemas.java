@@ -16,19 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.api.operation;
+package org.apache.flink.table.endpoint.hive;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 
-/** The Operation Type. */
-@PublicEvolving
-public enum OperationType {
-    /** The type indicates the operation executes statements. */
-    EXECUTE_STATEMENT,
+import java.util.Collections;
 
-    /** The type indicates the operation list catalogs. */
-    LIST_CATALOGS,
+/** Schemas for the HiveServer2 Endpoint result. */
+public class HiveServer2Schemas {
 
-    /** The type indicates the operation is unknown. */
-    UNKNOWN;
+    /** Schema for {@link HiveServer2Endpoint#GetCatalogs}. */
+    public static final ResolvedSchema GET_CATALOGS_SCHEMA =
+            new ResolvedSchema(
+                    Collections.singletonList(
+                            Column.physical("TABLE_CAT", DataTypes.STRING())
+                                    .withComment("Catalog name. NULL if not applicable.")),
+                    Collections.emptyList(),
+                    null);
 }

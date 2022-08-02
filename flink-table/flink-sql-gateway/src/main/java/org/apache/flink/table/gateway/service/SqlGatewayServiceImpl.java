@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 /** The implementation of the {@link SqlGatewayService} interface. */
@@ -207,6 +208,16 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         } catch (Throwable t) {
             LOG.error("Failed to fetchResults.", t);
             throw new SqlGatewayException("Failed to fetchResults.", t);
+        }
+    }
+
+    @Override
+    public Set<String> listCatalogs(SessionHandle sessionHandle) throws SqlGatewayException {
+        try {
+            return getSession(sessionHandle).createExecutor().listCatalogs();
+        } catch (Throwable t) {
+            LOG.error("Failed to listCatalogs.", t);
+            throw new SqlGatewayException("Failed to listCatalogs.", t);
         }
     }
 

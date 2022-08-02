@@ -16,19 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.api.operation;
+package org.apache.flink.table.endpoint.hive.util;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 
-/** The Operation Type. */
-@PublicEvolving
-public enum OperationType {
-    /** The type indicates the operation executes statements. */
-    EXECUTE_STATEMENT,
+import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 
-    /** The type indicates the operation list catalogs. */
-    LIST_CATALOGS,
+/** Convert the {@link String} to {@link RowData}. */
+public class StringRowDataUtils {
 
-    /** The type indicates the operation is unknown. */
-    UNKNOWN;
+    public static List<RowData> toRowData(Collection<String> external) {
+        return external.stream()
+                .map(val -> GenericRowData.of(StringData.fromString(val)))
+                .collect(Collectors.toList());
+    }
 }
