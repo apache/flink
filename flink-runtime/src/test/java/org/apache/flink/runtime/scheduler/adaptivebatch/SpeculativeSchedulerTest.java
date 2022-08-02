@@ -132,11 +132,17 @@ class SpeculativeSchedulerTest {
 
         assertThat(testExecutionOperations.getDeployedExecutions()).hasSize(1);
 
+        final long timestamp = System.currentTimeMillis();
         notifySlowTask(scheduler, attempt1);
 
         assertThat(testExecutionOperations.getDeployedExecutions()).hasSize(2);
         assertThat(testBlocklistOperations.getAllBlockedNodeIds())
                 .containsExactly(attempt1.getAssignedResourceLocation().getNodeId());
+
+        final Execution attempt2 = getExecution(ev, 1);
+        assertThat(attempt2.getState()).isEqualTo(ExecutionState.DEPLOYING);
+        assertThat(attempt2.getStateTimestamp(ExecutionState.CREATED))
+                .isGreaterThanOrEqualTo(timestamp);
     }
 
     @Test

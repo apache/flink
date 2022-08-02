@@ -313,10 +313,11 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
 
     @Override
     public void notifySlowTasks(Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks) {
+        final long currentTimestamp = System.currentTimeMillis();
         numSlowExecutionVertices = slowTasks.size();
 
         // add slow nodes to blocklist before scheduling new speculative executions
-        blockSlowNodes(slowTasks);
+        blockSlowNodes(slowTasks, currentTimestamp);
 
         final List<Execution> newSpeculativeExecutions = new ArrayList<>();
         final Set<ExecutionVertexID> verticesToDeploy = new HashSet<>();
@@ -340,7 +341,10 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
 
                 final Collection<Execution> attempts =
                         IntStream.range(0, newSpeculativeExecutionsToDeploy)
-                                .mapToObj(executionVertex::createNewSpeculativeExecution)
+                                .mapToObj(
+                                        i ->
+                                                executionVertex.createNewSpeculativeExecution(
+                                                        currentTimestamp))
                                 .collect(Collectors.toList());
 
                 setupSubtaskGatewayForAttempts(executionVertex, attempts);
@@ -354,10 +358,11 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                 executionVertexVersioner.getExecutionVertexVersions(verticesToDeploy));
     }
 
-    private void blockSlowNodes(Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks) {
+    private void blockSlowNodes(
+            Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks,
+            long currentTimestamp) {
         if (!blockSlowNodeDuration.isZero()) {
-            final long blockedEndTimestamp =
-                    System.currentTimeMillis() + blockSlowNodeDuration.toMillis();
+            final long blockedEndTimestamp = currentTimestamp + blockSlowNodeDuration.toMillis();
             final Collection<BlockedNode> nodesToBlock =
                     getSlowNodeIds(slowTasks).stream()
                             .map(
