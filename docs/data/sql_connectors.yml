@@ -110,13 +110,6 @@ json:
     category: format
     builtin: true
 
-protobuf:
-  name: Protobuf
-  maven: flink-protobuf
-  category: format
-  sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-protobuf/$version/flink-sql-protobuf-$version.jar
-
-
 raw:
     name: RAW
     maven: flink-raw
