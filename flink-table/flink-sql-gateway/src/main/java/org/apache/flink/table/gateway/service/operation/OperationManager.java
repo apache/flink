@@ -157,7 +157,8 @@ public class OperationManager {
      *
      * @param operationHandle identifies the {@link Operation}.
      */
-    public ResolvedSchema getOperationResultSchema(OperationHandle operationHandle) {
+    public ResolvedSchema getOperationResultSchema(OperationHandle operationHandle)
+            throws Exception {
         return getOperation(operationHandle).getResultSchema();
     }
 
@@ -210,7 +211,6 @@ public class OperationManager {
         private final OperationHandle operationHandle;
 
         private final OperationType operationType;
-        private final boolean hasResults;
         private final AtomicReference<OperationStatus> status;
 
         private final Callable<ResultFetcher> resultSupplier;
@@ -226,7 +226,6 @@ public class OperationManager {
             this.operationHandle = operationHandle;
             this.status = new AtomicReference<>(OperationStatus.INITIALIZED);
             this.operationType = operationType;
-            this.hasResults = true;
             this.resultSupplier = resultSupplier;
         }
 
@@ -313,13 +312,19 @@ public class OperationManager {
             return fetchResultsInternal(() -> resultFetcher.fetchResults(orientation, maxRows));
         }
 
-        public ResolvedSchema getResultSchema() {
-            OperationStatus current = status.get();
-            if (current != OperationStatus.FINISHED || !hasResults) {
-                throw new IllegalStateException(
-                        "The result schema is available when the Operation is in FINISHED state and the Operation indicates it has data.");
+        public ResolvedSchema getResultSchema() throws Exception {
+            synchronized (status) {
+                while (!status.get().isTerminalStatus()) {
+                    status.wait();
+                }
             }
-
+            OperationStatus current = status.get();
+            if (current != OperationStatus.FINISHED) {
+                throw new IllegalStateException(
+                        String.format(
+                                "The result schema is available when the Operation is in FINISHED state but the current status is %s.",
+                                status));
+            }
             return resultFetcher.getResultSchema();
         }
 
@@ -360,6 +365,10 @@ public class OperationManager {
                     throw new SqlGatewayException(message);
                 }
             } while (!status.compareAndSet(currentStatus, toStatus));
+
+            synchronized (status) {
+                status.notifyAll();
+            }
 
             LOG.debug(
                     String.format(

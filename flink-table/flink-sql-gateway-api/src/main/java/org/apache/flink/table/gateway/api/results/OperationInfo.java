@@ -21,6 +21,7 @@ package org.apache.flink.table.gateway.api.results;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.operation.OperationType;
+import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nullable;
 
@@ -67,11 +68,25 @@ public class OperationInfo {
             return false;
         }
         OperationInfo that = (OperationInfo) o;
-        return status == that.status && type == that.type && exception == that.exception;
+        return status == that.status
+                && type == that.type
+                && Objects.equals(exception, that.exception);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(status, type, exception);
+    }
+
+    @Override
+    public String toString() {
+        return "OperationInfo{"
+                + "status="
+                + status
+                + ", type="
+                + type
+                + ", exception="
+                + (exception == null ? "null" : ExceptionUtils.stringifyException(exception))
+                + '}';
     }
 }
