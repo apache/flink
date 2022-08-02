@@ -27,7 +27,6 @@ import org.apache.flink.connector.testframe.container.TestcontainersSettings;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.test.util.JobSubmission;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
@@ -70,7 +69,6 @@ import static org.apache.flink.util.DockerImageVersions.KAFKA;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** smoke test for the kafka connectors. */
-@Category(value = {FailsOnJava11.class})
 @ExtendWith({TestLoggerExtension.class})
 @Testcontainers
 public class SmokeKafkaITCase {
