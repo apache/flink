@@ -39,6 +39,7 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.Random;
 
+import static org.apache.flink.runtime.io.network.partition.PartitionedFileWriteReadTest.createAndConfigIndexEntryBuffer;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -236,7 +237,13 @@ class SortMergeSubpartitionReaderTest {
     private SortMergeSubpartitionReader createSortMergeSubpartitionReader(
             BufferAvailabilityListener listener) throws Exception {
         PartitionedFileReader fileReader =
-                new PartitionedFileReader(partitionedFile, 0, dataFileChannel, indexFileChannel);
+                new PartitionedFileReader(
+                        partitionedFile,
+                        0,
+                        dataFileChannel,
+                        indexFileChannel,
+                        BufferReaderWriterUtil.allocatedHeaderBuffer(),
+                        createAndConfigIndexEntryBuffer());
         assertThat(fileReader.hasRemaining()).isTrue();
         return new SortMergeSubpartitionReader(listener, fileReader);
     }
