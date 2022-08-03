@@ -83,7 +83,7 @@ public class HsSubpartitionView
                     bufferToConsume = memoryDataView.consumeBuffer(lastConsumedBufferIndex + 1);
                 }
                 updateConsumingStatus(bufferToConsume);
-                return bufferToConsume.orElse(null);
+                return bufferToConsume.map(this::handleBacklog).orElse(null);
             } catch (Throwable cause) {
                 releaseInternal(cause);
                 return null;
@@ -118,7 +118,7 @@ public class HsSubpartitionView
                     && cachedNextDataType == Buffer.DataType.EVENT_BUFFER) {
                 availability = true;
             }
-            return new AvailabilityWithBacklog(availability, diskDataView.getBacklog());
+            return new AvailabilityWithBacklog(availability, getSubpartitionBacklog());
         }
     }
 
@@ -182,16 +182,16 @@ public class HsSubpartitionView
         // the ack, as there are no checkpoints
     }
 
-    @SuppressWarnings("FieldAccessNotGuarded")
     @Override
     public int unsynchronizedGetNumberOfQueuedBuffers() {
-        return diskDataView.getBacklog();
+        return getSubpartitionBacklog();
     }
 
-    @SuppressWarnings("FieldAccessNotGuarded")
     @Override
     public int getNumberOfQueuedBuffers() {
-        return diskDataView.getBacklog();
+        synchronized (lock) {
+            return getSubpartitionBacklog();
+        }
     }
 
     @Override
@@ -202,6 +202,24 @@ public class HsSubpartitionView
     // -------------------------------
     //       Internal Methods
     // -------------------------------
+
+    @SuppressWarnings("FieldAccessNotGuarded")
+    private int getSubpartitionBacklog() {
+        if (memoryDataView == null || diskDataView == null) {
+            return 0;
+        }
+        return Math.max(memoryDataView.getBacklog(), diskDataView.getBacklog());
+    }
+
+    private BufferAndBacklog handleBacklog(BufferAndBacklog bufferToConsume) {
+        return bufferToConsume.buffersInBacklog() == 0
+                ? new BufferAndBacklog(
+                        bufferToConsume.buffer(),
+                        getSubpartitionBacklog(),
+                        bufferToConsume.getNextDataType(),
+                        bufferToConsume.getSequenceNumber())
+                : bufferToConsume;
+    }
 
     @GuardedBy("lock")
     private Optional<BufferAndBacklog> tryReadFromDisk() throws Throwable {
