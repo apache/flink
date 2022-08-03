@@ -84,7 +84,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
     private final BoundedBlockingSubpartitionType blockingSubpartitionType;
 
-    private final boolean blockingShuffleCompressionEnabled;
+    private final boolean batchShuffleCompressionEnabled;
 
     private final String compressionCodec;
 
@@ -111,7 +111,7 @@ public class NettyShuffleEnvironmentConfiguration {
             @Nullable NettyConfig nettyConfig,
             String[] tempDirs,
             BoundedBlockingSubpartitionType blockingSubpartitionType,
-            boolean blockingShuffleCompressionEnabled,
+            boolean batchShuffleCompressionEnabled,
             String compressionCodec,
             int maxBuffersPerChannel,
             long batchShuffleReadMemoryBytes,
@@ -133,7 +133,7 @@ public class NettyShuffleEnvironmentConfiguration {
         this.nettyConfig = nettyConfig;
         this.tempDirs = Preconditions.checkNotNull(tempDirs);
         this.blockingSubpartitionType = Preconditions.checkNotNull(blockingSubpartitionType);
-        this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
+        this.batchShuffleCompressionEnabled = batchShuffleCompressionEnabled;
         this.compressionCodec = Preconditions.checkNotNull(compressionCodec);
         this.maxBuffersPerChannel = maxBuffersPerChannel;
         this.batchShuffleReadMemoryBytes = batchShuffleReadMemoryBytes;
@@ -207,8 +207,8 @@ public class NettyShuffleEnvironmentConfiguration {
         return blockingSubpartitionType;
     }
 
-    public boolean isBlockingShuffleCompressionEnabled() {
-        return blockingShuffleCompressionEnabled;
+    public boolean isBatchShuffleCompressionEnabled() {
+        return batchShuffleCompressionEnabled;
     }
 
     public BufferDebloatConfiguration getDebloatConfiguration() {
@@ -318,9 +318,8 @@ public class NettyShuffleEnvironmentConfiguration {
         BoundedBlockingSubpartitionType blockingSubpartitionType =
                 getBlockingSubpartitionType(configuration);
 
-        boolean blockingShuffleCompressionEnabled =
-                configuration.get(
-                        NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED);
+        boolean batchShuffleCompressionEnabled =
+                configuration.get(NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED);
         String compressionCodec =
                 configuration.getString(NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC);
 
@@ -346,7 +345,7 @@ public class NettyShuffleEnvironmentConfiguration {
                 nettyConfig,
                 shuffleDirs.toArray(tempDirs),
                 blockingSubpartitionType,
-                blockingShuffleCompressionEnabled,
+                batchShuffleCompressionEnabled,
                 compressionCodec,
                 maxBuffersPerChannel,
                 batchShuffleReadMemoryBytes,
@@ -486,7 +485,7 @@ public class NettyShuffleEnvironmentConfiguration {
         result = 31 * result + requestSegmentsTimeout.hashCode();
         result = 31 * result + (nettyConfig != null ? nettyConfig.hashCode() : 0);
         result = 31 * result + Arrays.hashCode(tempDirs);
-        result = 31 * result + (blockingShuffleCompressionEnabled ? 1 : 0);
+        result = 31 * result + (batchShuffleCompressionEnabled ? 1 : 0);
         result = 31 * result + Objects.hashCode(compressionCodec);
         result = 31 * result + maxBuffersPerChannel;
         result = 31 * result + Objects.hashCode(batchShuffleReadMemoryBytes);
@@ -522,8 +521,7 @@ public class NettyShuffleEnvironmentConfiguration {
                             ? nettyConfig.equals(that.nettyConfig)
                             : that.nettyConfig == null)
                     && Arrays.equals(this.tempDirs, that.tempDirs)
-                    && this.blockingShuffleCompressionEnabled
-                            == that.blockingShuffleCompressionEnabled
+                    && this.batchShuffleCompressionEnabled == that.batchShuffleCompressionEnabled
                     && this.maxBuffersPerChannel == that.maxBuffersPerChannel
                     && Objects.equals(this.compressionCodec, that.compressionCodec)
                     && this.maxNumberOfConnections == that.maxNumberOfConnections
@@ -554,7 +552,7 @@ public class NettyShuffleEnvironmentConfiguration {
                 + ", tempDirs="
                 + Arrays.toString(tempDirs)
                 + ", blockingShuffleCompressionEnabled="
-                + blockingShuffleCompressionEnabled
+                + batchShuffleCompressionEnabled
                 + ", compressionCodec="
                 + compressionCodec
                 + ", maxBuffersPerChannel="

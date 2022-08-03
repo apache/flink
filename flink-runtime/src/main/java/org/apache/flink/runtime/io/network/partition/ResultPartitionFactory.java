@@ -65,7 +65,7 @@ public class ResultPartitionFactory {
 
     private final int networkBufferSize;
 
-    private final boolean blockingShuffleCompressionEnabled;
+    private final boolean batchShuffleCompressionEnabled;
 
     private final String compressionCodec;
 
@@ -89,7 +89,7 @@ public class ResultPartitionFactory {
             int configuredNetworkBuffersPerChannel,
             int floatingNetworkBuffersPerGate,
             int networkBufferSize,
-            boolean blockingShuffleCompressionEnabled,
+            boolean batchShuffleCompressionEnabled,
             String compressionCodec,
             int maxBuffersPerChannel,
             int sortShuffleMinBuffers,
@@ -106,7 +106,7 @@ public class ResultPartitionFactory {
         this.batchShuffleReadIOExecutor = batchShuffleReadIOExecutor;
         this.blockingSubpartitionType = blockingSubpartitionType;
         this.networkBufferSize = networkBufferSize;
-        this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
+        this.batchShuffleCompressionEnabled = batchShuffleCompressionEnabled;
         this.compressionCodec = compressionCodec;
         this.maxBuffersPerChannel = maxBuffersPerChannel;
         this.sortShuffleMinBuffers = sortShuffleMinBuffers;
@@ -140,7 +140,7 @@ public class ResultPartitionFactory {
             SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
         BufferCompressor bufferCompressor = null;
         if (type.isBlockingOrBlockingPersistentResultPartition()
-                && blockingShuffleCompressionEnabled) {
+                && batchShuffleCompressionEnabled) {
             bufferCompressor = new BufferCompressor(networkBufferSize, compressionCodec);
         }
 
