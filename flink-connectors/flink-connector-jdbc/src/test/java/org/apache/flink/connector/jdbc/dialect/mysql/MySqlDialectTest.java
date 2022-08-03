@@ -25,11 +25,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MySqlDialectTest {
 
     @Test
-    void testAppendUrlSuffix() {
+    void testAppendDefaultUrlProperties() {
         MySqlDialect dialect = new MySqlDialect();
-        assertThat(dialect.appendUrlSuffix("jdbc:mysql://localhost:3306/foo"))
+        assertThat(dialect.appendDefaultUrlProperties("jdbc:mysql://localhost:3306/foo"))
                 .isEqualTo("jdbc:mysql://localhost:3306/foo?rewriteBatchedStatements=true");
-        assertThat(dialect.appendUrlSuffix("jdbc:mysql://localhost:3306/foo?foo=bar"))
+        assertThat(dialect.appendDefaultUrlProperties("jdbc:mysql://localhost:3306/foo?foo=bar"))
                 .isEqualTo("jdbc:mysql://localhost:3306/foo?foo=bar&rewriteBatchedStatements=true");
+        assertThat(dialect.appendDefaultUrlProperties("jdbc:mysql://localhost:3306/foo?foo=bar&rewriteBatchedStatements=false"))
+                .isEqualTo("jdbc:mysql://localhost:3306/foo?foo=bar&rewriteBatchedStatements=false");
     }
 }

@@ -149,7 +149,7 @@ public interface JdbcDialect extends Serializable {
      *
      * @return A JDBC url.
      */
-    default String appendUrlSuffix(String url) {
+    default String appendDefaultUrlProperties(String url) {
         return url;
     }
 }

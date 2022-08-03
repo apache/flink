@@ -47,6 +47,10 @@ public class MySqlDialect extends AbstractDialect {
     private static final int MAX_DECIMAL_PRECISION = 65;
     private static final int MIN_DECIMAL_PRECISION = 1;
 
+    // Set true will enable MySQL batch write mode.
+    // https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-connp-props-performance-extensions.html#cj-conn-prop_rewriteBatchedStatements
+    private static final String BATCH_WRITE_OPTION = "rewriteBatchedStatements";
+
     @Override
     public JdbcRowConverter getRowConverter(RowType rowType) {
         return new MySQLRowConverter(rowType);
@@ -128,12 +132,16 @@ public class MySqlDialect extends AbstractDialect {
     }
 
     @Override
-    public String appendUrlSuffix(String url) {
-        String suffix = "rewriteBatchedStatements=true";
-        if (url.contains("?")) {
-            return url + "&" + suffix;
+    public String appendDefaultUrlProperties(String url) {
+        if (!url.contains(BATCH_WRITE_OPTION)) {
+            String defaultUrlProperties = BATCH_WRITE_OPTION + "=true";
+            if (url.contains("?")) {
+                return url + "&" + defaultUrlProperties;
+            } else {
+                return url + "?" + defaultUrlProperties;
+            }
         } else {
-            return url + "?" + suffix;
+            return url;
         }
     }
 }
