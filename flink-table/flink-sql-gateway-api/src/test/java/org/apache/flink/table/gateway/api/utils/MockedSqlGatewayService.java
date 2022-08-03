@@ -94,6 +94,11 @@ public class MockedSqlGatewayService implements SqlGatewayService {
     }
 
     @Override
+    public Map<String, String> getGatewayInfo() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public OperationInfo getOperationInfo(
             SessionHandle sessionHandle, OperationHandle operationHandle) {
         throw new UnsupportedOperationException();

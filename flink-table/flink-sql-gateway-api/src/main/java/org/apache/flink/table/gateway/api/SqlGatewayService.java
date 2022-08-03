@@ -187,6 +187,13 @@ public interface SqlGatewayService {
             int maxRows)
             throws SqlGatewayException;
 
+    /**
+     * Describe the cluster info.
+     *
+     * @return Returns gateway info.
+     */
+    Map<String, String> getGatewayInfo();
+
     // -------------------------------------------------------------------------------------------
     // Catalog API
     // -------------------------------------------------------------------------------------------
