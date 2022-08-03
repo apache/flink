@@ -213,27 +213,9 @@ def construct_hadoop_classpath(env):
 
 def construct_test_classpath():
     test_jar_patterns = [
-        "flink-runtime/target/flink-runtime*tests.jar",
-        "flink-streaming-java/target/flink-streaming-java*tests.jar",
-        "flink-formats/flink-sql-avro/target/flink-sql-avro*.jar",
-        "flink-formats/flink-sql-parquet/target/flink-sql-parquet*.jar",
-        "flink-formats/flink-json/target/flink-json*.jar",
-        "flink-connectors/flink-sql-connector-kafka/target/flink-sql-connector-kafka*.jar",
-        "flink-connectors/flink-sql-connector-elasticsearch7/target/flink-sql-connector-*.jar",
-        "flink-connectors/flink-sql-connector-pulsar/target/flink-sql-connector-*.jar",
-        "flink-connectors/flink-sql-connector-rabbitmq/target/flink-sql-connector-*.jar",
-        "flink-connectors/flink-sql-connector-kinesis/target/flink-sql-connector-*.jar",
-        "flink-connectors/flink-sql-connector-aws-kinesis-firehose/target/flink-sql-connector*.jar",
-        "flink-connectors/flink-connector-jdbc/target/flink-connector-*.jar",
-        "flink-connectors/flink-connector-files/target/flink-connector-*.jar",
-        "flink-connectors/flink-connector-sink-common/target/flink-connector-*.jar",
-        "flink-connectors/flink-connector-cassandra/target/flink-connector-*.jar",
+        "flink-python/target/test-dependencies/*",
         "flink-python/target/artifacts/testDataStream.jar",
         "flink-python/target/flink-python*-tests.jar",
-        ("flink-test-utils-parent/flink-connector-test-utils/target/"
-         "flink-connector-test-utils-*.jar"),
-        ("flink-state-backends/flink-statebackend-rocksdb/target/"
-         "flink-statebackend-rocksdb*tests.jar"),
     ]
     test_jars = []
     flink_source_root = _find_flink_source_root()
