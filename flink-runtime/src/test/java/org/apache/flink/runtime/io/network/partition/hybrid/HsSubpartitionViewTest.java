@@ -40,7 +40,7 @@ class HsSubpartitionViewTest {
     void testGetNextBufferFromDisk() {
         HsSubpartitionView subpartitionView = createSubpartitionView();
 
-        BufferAndBacklog bufferAndBacklog = createBufferAndBacklog(0, DataType.DATA_BUFFER, 0);
+        BufferAndBacklog bufferAndBacklog = createBufferAndBacklog(1, DataType.DATA_BUFFER, 0);
         CompletableFuture<Void> consumeBufferFromMemoryFuture = new CompletableFuture<>();
         TestingHsDataView diskDataView =
                 TestingHsDataView.builder()
@@ -97,7 +97,7 @@ class HsSubpartitionViewTest {
     void testGetNextBufferFromMemory() {
         HsSubpartitionView subpartitionView = createSubpartitionView();
 
-        BufferAndBacklog bufferAndBacklog = createBufferAndBacklog(0, DataType.DATA_BUFFER, 0);
+        BufferAndBacklog bufferAndBacklog = createBufferAndBacklog(1, DataType.DATA_BUFFER, 0);
         TestingHsDataView memoryDataView =
                 TestingHsDataView.builder()
                         .setConsumeBufferFunction(
@@ -133,6 +133,41 @@ class HsSubpartitionViewTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("expected exception.");
         assertThat(subpartitionView.isReleased()).isTrue();
+    }
+
+    @Test
+    void testGetNextBufferZeroBacklog() {
+        HsSubpartitionView subpartitionView = createSubpartitionView();
+
+        final int diskBacklog = 0;
+        final int memoryBacklog = 10;
+        BufferAndBacklog targetBufferAndBacklog =
+                createBufferAndBacklog(diskBacklog, DataType.DATA_BUFFER, 0);
+
+        TestingHsDataView diskDataView =
+                TestingHsDataView.builder()
+                        .setConsumeBufferFunction(
+                                (bufferToConsume) -> Optional.of(targetBufferAndBacklog))
+                        .build();
+        TestingHsDataView memoryDataView =
+                TestingHsDataView.builder().setGetBacklogSupplier(() -> memoryBacklog).build();
+        subpartitionView.setDiskDataView(diskDataView);
+        subpartitionView.setMemoryDataView(memoryDataView);
+
+        assertThat(subpartitionView.getNextBuffer())
+                .satisfies(
+                        (bufferAndBacklog -> {
+                            // backlog is reset to maximum backlog of memory and disk.
+                            assertThat(bufferAndBacklog.buffersInBacklog())
+                                    .isEqualTo(memoryBacklog);
+                            // other field is not changed.
+                            assertThat(bufferAndBacklog.buffer())
+                                    .isEqualTo(targetBufferAndBacklog.buffer());
+                            assertThat(bufferAndBacklog.getNextDataType())
+                                    .isEqualTo(targetBufferAndBacklog.getNextDataType());
+                            assertThat(bufferAndBacklog.getSequenceNumber())
+                                    .isEqualTo(targetBufferAndBacklog.getSequenceNumber());
+                        }));
     }
 
     @Test
