@@ -31,7 +31,10 @@ class MySqlDialectTest {
                 .isEqualTo("jdbc:mysql://localhost:3306/foo?rewriteBatchedStatements=true");
         assertThat(dialect.appendDefaultUrlProperties("jdbc:mysql://localhost:3306/foo?foo=bar"))
                 .isEqualTo("jdbc:mysql://localhost:3306/foo?foo=bar&rewriteBatchedStatements=true");
-        assertThat(dialect.appendDefaultUrlProperties("jdbc:mysql://localhost:3306/foo?foo=bar&rewriteBatchedStatements=false"))
-                .isEqualTo("jdbc:mysql://localhost:3306/foo?foo=bar&rewriteBatchedStatements=false");
+        assertThat(
+                        dialect.appendDefaultUrlProperties(
+                                "jdbc:mysql://localhost:3306/foo?foo=bar&rewriteBatchedStatements=false"))
+                .isEqualTo(
+                        "jdbc:mysql://localhost:3306/foo?foo=bar&rewriteBatchedStatements=false");
     }
 }
