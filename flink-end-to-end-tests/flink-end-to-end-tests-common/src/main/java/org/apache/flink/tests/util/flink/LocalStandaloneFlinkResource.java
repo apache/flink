@@ -31,7 +31,6 @@ import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
-import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
@@ -188,7 +187,6 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
     @Override
     public GatewayController startSqlGateway() throws IOException {
         distribution.startSqlGateway();
-        distribution.startFlinkCluster();
 
         return new GatewayClusterControllerImpl(distribution);
     }
@@ -209,22 +207,17 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
         @Override
         public CompletableFuture<Void> closeAsync() {
-            closeSilently(distribution::stopSqlGateway);
-            closeSilently(distribution::stopFlinkCluster);
-            return CompletableFuture.completedFuture(null);
+            try {
+                distribution.stopSqlGateway();
+                return CompletableFuture.completedFuture(null);
+            } catch (IOException e) {
+                return FutureUtils.completedExceptionally(e);
+            }
         }
 
         @Override
         public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws Exception {
             distribution.submitSQLJob(job, timeout);
-        }
-
-        private void closeSilently(RunnableWithException closer) {
-            try {
-                closer.run();
-            } catch (Exception e) {
-                LOG.error("Failed to close the resource.", e);
-            }
         }
     }
 

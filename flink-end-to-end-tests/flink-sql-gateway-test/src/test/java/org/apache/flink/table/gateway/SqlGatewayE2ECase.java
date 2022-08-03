@@ -25,6 +25,7 @@ import org.apache.flink.table.endpoint.hive.HiveServer2Endpoint;
 import org.apache.flink.table.gateway.containers.HiveContainer;
 import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.TestUtils;
+import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.GatewayController;
@@ -110,8 +111,9 @@ public class SqlGatewayE2ECase extends TestLogger {
                         .map(line -> line.replace(RESULT_KEY, result.getAbsolutePath()))
                         .collect(Collectors.toList());
 
-        try (GatewayController controller = flinkResource.startSqlGateway()) {
-            controller.submitSQLJob(
+        try (GatewayController gateway = flinkResource.startSqlGateway();
+                ClusterController ignore = flinkResource.startCluster(1)) {
+            gateway.submitSQLJob(
                     new SQLJobSubmission.SQLJobSubmissionBuilder(lines)
                             .setClientMode(SQLJobSubmission.ClientMode.HIVE_JDBC)
                             .build(),
