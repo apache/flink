@@ -30,20 +30,28 @@ public class HeapArrayVector extends AbstractHeapVector
 
     public long[] offsets;
     public long[] lengths;
-    public int childCount;
+    public int size;
     public ColumnVector child;
 
     public HeapArrayVector(int len) {
         super(len);
-        offsets = new long[len];
-        lengths = new long[len];
+        this.offsets = new long[len];
+        this.lengths = new long[len];
     }
 
     public HeapArrayVector(int len, ColumnVector vector) {
         super(len);
-        offsets = new long[len];
-        lengths = new long[len];
+        this.offsets = new long[len];
+        this.lengths = new long[len];
         this.child = vector;
+    }
+
+    public int getSize() {
+        return size;
+    }
+
+    public void setSize(int size) {
+        this.size = size;
     }
 
     @Override

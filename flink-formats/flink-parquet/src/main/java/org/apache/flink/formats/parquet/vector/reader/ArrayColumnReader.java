@@ -72,36 +72,36 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
         // the actual size will be assigned in setChildrenInfo() after reading complete.
         lcv.offsets = new long[VectorizedColumnBatch.DEFAULT_SIZE];
         lcv.lengths = new long[VectorizedColumnBatch.DEFAULT_SIZE];
-        // Because the length of ListColumnVector.child can't be known now,
-        // the valueList will save all data for ListColumnVector temporary.
-        List<Object> valueList = new ArrayList<>();
 
-        LogicalType category = ((ArrayType) logicalType).getElementType();
+        LogicalType elementType = ((ArrayType) logicalType).getElementType();
 
         // read the first row in parquet data page, this will be only happened once for this
         // instance
         if (isFirstRow) {
-            if (!fetchNextValue(category)) {
+            if (!fetchNextValue(elementType)) {
                 return;
             }
             isFirstRow = false;
         }
 
-        int index = collectDataFromParquetPage(readNumber, lcv, valueList, category);
+        // Because the length of ListColumnVector.child can't be known now,
+        // the valueList will save all data for ListColumnVector temporary.
+        List<Object> valueList = new ArrayList<>();
 
+        int index = collectDataFromParquetPage(readNumber, lcv, valueList, elementType);
         // Convert valueList to array for the ListColumnVector.child
-        fillColumnVector(category, lcv, valueList, index);
+        fillColumnVector(elementType, lcv, valueList, index);
     }
 
     /**
      * Reads a single value from parquet page, puts it into lastValue. Returns a boolean indicating
      * if there is more values to read (true).
      *
-     * @param category
+     * @param type the element type of array
      * @return boolean
      * @throws IOException
      */
-    private boolean fetchNextValue(LogicalType category) throws IOException {
+    private boolean fetchNextValue(LogicalType type) throws IOException {
         int left = readPageIfNeed();
         if (left > 0) {
             // get the values of repetition and definitionLevel
@@ -111,7 +111,7 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
                 if (isCurrentPageDictionaryEncoded) {
                     lastValue = dataColumn.readValueDictionaryId();
                 } else {
-                    lastValue = readPrimitiveTypedRow(category);
+                    lastValue = readPrimitiveTypedRow(type);
                 }
             } else {
                 lastValue = null;
@@ -136,8 +136,8 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
 
     // Need to be in consistent with that VectorizedPrimitiveColumnReader#readBatchHelper
     // TODO Reduce the duplicated code
-    private Object readPrimitiveTypedRow(LogicalType category) {
-        switch (category.getTypeRoot()) {
+    private Object readPrimitiveTypedRow(LogicalType type) {
+        switch (type.getTypeRoot()) {
             case CHAR:
             case VARCHAR:
             case BINARY:
@@ -177,12 +177,12 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
         }
     }
 
-    private Object dictionaryDecodeValue(LogicalType category, Integer dictionaryValue) {
+    private Object dictionaryDecodeValue(LogicalType type, Integer dictionaryValue) {
         if (dictionaryValue == null) {
             return null;
         }
 
-        switch (category.getTypeRoot()) {
+        switch (type.getTypeRoot()) {
             case CHAR:
             case VARCHAR:
             case BINARY:
@@ -229,12 +229,12 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
      * @param total maximum number of rows to collect
      * @param lcv column vector to do initial setup in data collection time
      * @param valueList collection of values that will be fed into the vector later
-     * @param category
+     * @param type the element type in array
      * @return int
      * @throws IOException
      */
     private int collectDataFromParquetPage(
-            int total, HeapArrayVector lcv, List<Object> valueList, LogicalType category)
+            int total, HeapArrayVector lcv, List<Object> valueList, LogicalType type)
             throws IOException {
         int index = 0;
         /*
@@ -269,9 +269,9 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
                 }
                 valueList.add(
                         isCurrentPageDictionaryEncoded
-                                ? dictionaryDecodeValue(category, (Integer) lastValue)
+                                ? dictionaryDecodeValue(type, (Integer) lastValue)
                                 : lastValue);
-            } while (fetchNextValue(category) && (repetitionLevel != 0));
+            } while (fetchNextValue(type) && (repetitionLevel != 0));
 
             lcv.lengths[index] = valueList.size() - lcv.offsets[index];
             index++;
@@ -284,7 +284,7 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
      * actual size according to the element number.
      */
     private void setChildrenInfo(HeapArrayVector lcv, int itemNum, int elementNum) {
-        lcv.childCount = itemNum;
+        lcv.setSize(itemNum);
         long[] lcvLength = new long[elementNum];
         long[] lcvOffset = new long[elementNum];
         System.arraycopy(lcv.lengths, 0, lcvLength, 0, elementNum);
@@ -294,10 +294,10 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
     }
 
     private void fillColumnVector(
-            LogicalType category, HeapArrayVector lcv, List valueList, int elementNum) {
+            LogicalType type, HeapArrayVector lcv, List valueList, int elementNum) {
         int total = valueList.size();
         setChildrenInfo(lcv, total, elementNum);
-        switch (category.getTypeRoot()) {
+        switch (type.getTypeRoot()) {
             case CHAR:
             case VARCHAR:
             case BINARY:

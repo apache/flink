@@ -25,21 +25,44 @@ import org.apache.flink.table.data.columnar.vector.MapColumnVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
 
 /** This class represents a nullable heap map column vector. */
-public class HeapMapColumnVector extends AbstractHeapVector
+public class HeapMapVector extends AbstractHeapVector
         implements WritableColumnVector, MapColumnVector {
 
-    public long[] offsets;
-    public long[] lengths;
-    public int childCount;
-    public ColumnVector keys;
-    public ColumnVector values;
+    private long[] offsets;
+    private long[] lengths;
+    private int size;
+    private ColumnVector keys;
+    private ColumnVector values;
 
-    public HeapMapColumnVector(int len, ColumnVector keys, ColumnVector values) {
+    public HeapMapVector(int len, ColumnVector keys, ColumnVector values) {
         super(len);
-        childCount = 0;
-        offsets = new long[len];
-        lengths = new long[len];
+        this.offsets = new long[len];
+        this.lengths = new long[len];
         this.keys = keys;
+        this.values = values;
+    }
+
+    public void setOffsets(long[] offsets) {
+        this.offsets = offsets;
+    }
+
+    public void setLengths(long[] lengths) {
+        this.lengths = lengths;
+    }
+
+    public int getSize() {
+        return size;
+    }
+
+    public void setSize(int size) {
+        this.size = size;
+    }
+
+    public void setKeys(ColumnVector keys) {
+        this.keys = keys;
+    }
+
+    public void setValues(ColumnVector values) {
         this.values = values;
     }
 

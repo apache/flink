@@ -25,9 +25,13 @@ import org.apache.parquet.column.values.ValuesReader;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.schema.PrimitiveType;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Parquet file has self-describing schema which may differ from the user required schema (e.g.
@@ -40,19 +44,21 @@ public final class ParquetDataColumnReaderFactory {
 
     /** default reader for {@link ParquetDataColumnReader}. */
     public static class DefaultParquetDataColumnReader implements ParquetDataColumnReader {
-        protected ValuesReader valuesReader;
-        protected Dictionary dict;
+        protected final @Nullable ValuesReader valuesReader;
+        protected final @Nullable Dictionary dict;
 
         // After the data is read in the parquet type, isValid will be set to true if the data can
-        // be returned in the type defined in HMS.  Otherwise isValid is set to false.
+        // be returned is the type defined in HMS. Otherwise, isValid is set to false.
         boolean isValid = true;
 
         public DefaultParquetDataColumnReader(ValuesReader valuesReader) {
-            this.valuesReader = valuesReader;
+            this.valuesReader = checkNotNull(valuesReader);
+            this.dict = null;
         }
 
         public DefaultParquetDataColumnReader(Dictionary dict) {
-            this.dict = dict;
+            this.valuesReader = null;
+            this.dict = checkNotNull(dict);
         }
 
         @Override
@@ -211,9 +217,9 @@ public final class ParquetDataColumnReaderFactory {
         }
     }
 
-    /** The reader who reads from the underlying Timestamp value value. */
+    /** The reader who reads from the underlying Timestamp value. */
     public static class TypesFromInt96PageReader extends DefaultParquetDataColumnReader {
-        private boolean isUtcTimestamp;
+        private final boolean isUtcTimestamp;
 
         public TypesFromInt96PageReader(ValuesReader realReader, boolean isUtcTimestamp) {
             super(realReader);
@@ -248,8 +254,8 @@ public final class ParquetDataColumnReaderFactory {
     private static ParquetDataColumnReader getDataColumnReaderByTypeHelper(
             boolean isDictionary,
             PrimitiveType parquetType,
-            Dictionary dictionary,
-            ValuesReader valuesReader,
+            @Nullable Dictionary dictionary,
+            @Nullable ValuesReader valuesReader,
             boolean isUtcTimestamp) {
         if (parquetType.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.INT96) {
             return isDictionary

@@ -17,7 +17,7 @@
 
 package org.apache.flink.formats.parquet.vector.reader;
 
-import org.apache.flink.table.data.columnar.vector.heap.HeapRowColumnVector;
+import org.apache.flink.table.data.columnar.vector.heap.HeapRowVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
 
 import java.io.IOException;
@@ -34,8 +34,8 @@ public class RowColumnReader implements ColumnReader<WritableColumnVector> {
 
     @Override
     public void readToVector(int readNumber, WritableColumnVector vector) throws IOException {
-        HeapRowColumnVector rowColumnVector = (HeapRowColumnVector) vector;
-        WritableColumnVector[] vectors = rowColumnVector.fields;
+        HeapRowVector rowVector = (HeapRowVector) vector;
+        WritableColumnVector[] vectors = rowVector.fields;
         for (int i = 0; i < vectors.length; i++) {
             fieldReaders.get(i).readToVector(readNumber, vectors[i]);
 
@@ -43,9 +43,9 @@ public class RowColumnReader implements ColumnReader<WritableColumnVector> {
                 boolean isNull =
                         (i == 0)
                                 ? vectors[i].isNullAt(j)
-                                : rowColumnVector.isNullAt(j) && vectors[i].isNullAt(j);
+                                : rowVector.isNullAt(j) && vectors[i].isNullAt(j);
                 if (isNull) {
-                    rowColumnVector.setNullAt(j);
+                    rowVector.setNullAt(j);
                 }
             }
         }

@@ -19,30 +19,24 @@ package org.apache.flink.formats.parquet.vector.reader;
 
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapArrayVector;
-import org.apache.flink.table.data.columnar.vector.heap.HeapMapColumnVector;
+import org.apache.flink.table.data.columnar.vector.heap.HeapMapVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.MapType;
 
 import java.io.IOException;
 
 /** Map {@link ColumnReader}. */
 public class MapColumnReader implements ColumnReader<WritableColumnVector> {
 
-    private LogicalType logicalType;
-    private ArrayColumnReader keyReader;
-    private ArrayColumnReader valueReader;
+    private final ArrayColumnReader keyReader;
+    private final ArrayColumnReader valueReader;
 
-    public MapColumnReader(
-            ArrayColumnReader keyReader, ArrayColumnReader valueReader, LogicalType logicalType) {
+    public MapColumnReader(ArrayColumnReader keyReader, ArrayColumnReader valueReader) {
         this.keyReader = keyReader;
         this.valueReader = valueReader;
-        this.logicalType = logicalType;
     }
 
     public void readBatch(int total, ColumnVector column) throws IOException {
-        HeapMapColumnVector mapColumnVector = (HeapMapColumnVector) column;
-        MapType mapType = (MapType) logicalType;
+        HeapMapVector mapVector = (HeapMapVector) column;
         // initialize 2 ListColumnVector for keys and values
         HeapArrayVector keyArrayColumnVector = new HeapArrayVector(total);
         HeapArrayVector valueArrayColumnVector = new HeapArrayVector(total);
@@ -51,14 +45,14 @@ public class MapColumnReader implements ColumnReader<WritableColumnVector> {
         valueReader.readToVector(total, valueArrayColumnVector);
 
         // set the related attributes according to the keys and values
-        mapColumnVector.keys = keyArrayColumnVector.child;
-        mapColumnVector.values = valueArrayColumnVector.child;
-        mapColumnVector.offsets = keyArrayColumnVector.offsets;
-        mapColumnVector.lengths = keyArrayColumnVector.lengths;
-        mapColumnVector.childCount = keyArrayColumnVector.childCount;
+        mapVector.setKeys(keyArrayColumnVector.child);
+        mapVector.setValues(valueArrayColumnVector.child);
+        mapVector.setOffsets(keyArrayColumnVector.offsets);
+        mapVector.setLengths(keyArrayColumnVector.lengths);
+        mapVector.setSize(keyArrayColumnVector.getSize());
         for (int i = 0; i < keyArrayColumnVector.getLen(); i++) {
             if (keyArrayColumnVector.isNullAt(i)) {
-                mapColumnVector.setNullAt(i);
+                mapVector.setNullAt(i);
             }
         }
     }

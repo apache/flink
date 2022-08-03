@@ -114,7 +114,8 @@ public abstract class BaseVectorizedColumnReader implements ColumnReader<Writabl
                                 isUtcTimestamp);
                 this.isCurrentPageDictionaryEncoded = true;
             } catch (IOException e) {
-                throw new IOException("could not decode the dictionary for " + descriptor, e);
+                throw new IOException(
+                        String.format("Could not decode the dictionary for %s", descriptor), e);
             }
         } else {
             this.dictionary = null;
@@ -128,7 +129,7 @@ public abstract class BaseVectorizedColumnReader implements ColumnReader<Writabl
         valuesRead++;
     }
 
-    protected void readPage() throws IOException {
+    protected void readPage() {
         DataPage page = pageReader.readPage();
 
         if (page == null) {
@@ -159,10 +160,9 @@ public abstract class BaseVectorizedColumnReader implements ColumnReader<Writabl
             this.dataColumn = null;
             if (dictionary == null) {
                 throw new IOException(
-                        "could not read page in col "
-                                + descriptor
-                                + " as the dictionary was missing for encoding "
-                                + dataEncoding);
+                        String.format(
+                                "Could not read page in col %s because the dictionary was missing for encoding %s.",
+                                descriptor, dataEncoding));
             }
             dataColumn =
                     ParquetDataColumnReaderFactory.getDataColumnReaderByType(
@@ -183,7 +183,7 @@ public abstract class BaseVectorizedColumnReader implements ColumnReader<Writabl
         try {
             dataColumn.initFromPage(pageValueCount, in);
         } catch (IOException e) {
-            throw new IOException("could not read page in col " + descriptor, e);
+            throw new IOException(String.format("Could not read page in col %s.", descriptor), e);
         }
     }
 
@@ -194,17 +194,17 @@ public abstract class BaseVectorizedColumnReader implements ColumnReader<Writabl
         this.definitionLevelColumn = new ValuesReaderIntIterator(dlReader);
         try {
             BytesInput bytes = page.getBytes();
-            LOG.debug("page size " + bytes.size() + " bytes and " + pageValueCount + " records");
+            LOG.debug("Page size {}  bytes and {} records.", bytes.size(), pageValueCount);
             ByteBufferInputStream in = bytes.toInputStream();
-            LOG.debug("reading repetition levels at " + in.position());
+            LOG.debug("Reading repetition levels at {}.", in.position());
             rlReader.initFromPage(pageValueCount, in);
-            LOG.debug("reading definition levels at " + in.position());
+            LOG.debug("Reading definition levels at {}.", in.position());
             dlReader.initFromPage(pageValueCount, in);
-            LOG.debug("reading data at " + in.position());
+            LOG.debug("Reading data at {}.", in.position());
             initDataReader(page.getValueEncoding(), in, page.getValueCount());
         } catch (IOException e) {
             throw new ParquetDecodingException(
-                    "could not read page " + page + " in col " + descriptor, e);
+                    String.format("Could not read page %s in col %s.", page, descriptor), e);
         }
     }
 
@@ -216,16 +216,14 @@ public abstract class BaseVectorizedColumnReader implements ColumnReader<Writabl
                 newRLEIterator(descriptor.getMaxDefinitionLevel(), page.getDefinitionLevels());
         try {
             LOG.debug(
-                    "page data size "
-                            + page.getData().size()
-                            + " bytes and "
-                            + pageValueCount
-                            + " records");
+                    "Page data size {} bytes and {} records.",
+                    page.getData().size(),
+                    pageValueCount);
             initDataReader(
                     page.getDataEncoding(), page.getData().toInputStream(), page.getValueCount());
         } catch (IOException e) {
             throw new ParquetDecodingException(
-                    "could not read page " + page + " in col " + descriptor, e);
+                    String.format("Could not read page %s in col %s.", page, descriptor), e);
         }
     }
 
@@ -240,17 +238,17 @@ public abstract class BaseVectorizedColumnReader implements ColumnReader<Writabl
                             new ByteArrayInputStream(bytes.toByteArray())));
         } catch (IOException e) {
             throw new ParquetDecodingException(
-                    "could not read levels in page for col " + descriptor, e);
+                    String.format("Could not read levels in page for col %s.", descriptor), e);
         }
     }
 
-    /** Utility classes to abstract over different way to read ints with different encodings. */
-    abstract static class IntIterator {
-        abstract int nextInt();
+    /** Utility interface to abstract over different way to read ints with different encodings. */
+    interface IntIterator {
+        int nextInt();
     }
 
-    /** read ints from {@link ValuesReader}. */
-    protected static final class ValuesReaderIntIterator extends IntIterator {
+    /** Reading int from {@link ValuesReader}. */
+    protected static final class ValuesReaderIntIterator implements IntIterator {
         ValuesReader delegate;
 
         public ValuesReaderIntIterator(ValuesReader delegate) {
@@ -258,13 +256,13 @@ public abstract class BaseVectorizedColumnReader implements ColumnReader<Writabl
         }
 
         @Override
-        int nextInt() {
+        public int nextInt() {
             return delegate.readInteger();
         }
     }
 
-    /** read ints from {@link RunLengthBitPackingHybridDecoder}. */
-    protected static final class RLEIntIterator extends IntIterator {
+    /** Reading int from {@link RunLengthBitPackingHybridDecoder}. */
+    protected static final class RLEIntIterator implements IntIterator {
         RunLengthBitPackingHybridDecoder delegate;
 
         public RLEIntIterator(RunLengthBitPackingHybridDecoder delegate) {
@@ -272,7 +270,7 @@ public abstract class BaseVectorizedColumnReader implements ColumnReader<Writabl
         }
 
         @Override
-        int nextInt() {
+        public int nextInt() {
             try {
                 return delegate.readInt();
             } catch (IOException e) {
@@ -281,10 +279,10 @@ public abstract class BaseVectorizedColumnReader implements ColumnReader<Writabl
         }
     }
 
-    /** return zero. */
-    protected static final class NullIntIterator extends IntIterator {
+    /** Reading zero always. */
+    protected static final class NullIntIterator implements IntIterator {
         @Override
-        int nextInt() {
+        public int nextInt() {
             return 0;
         }
     }

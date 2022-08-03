@@ -46,8 +46,8 @@ import org.apache.flink.table.data.columnar.vector.heap.HeapDoubleVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapFloatVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapIntVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapLongVector;
-import org.apache.flink.table.data.columnar.vector.heap.HeapMapColumnVector;
-import org.apache.flink.table.data.columnar.vector.heap.HeapRowColumnVector;
+import org.apache.flink.table.data.columnar.vector.heap.HeapMapVector;
+import org.apache.flink.table.data.columnar.vector.heap.HeapRowVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapShortVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapTimestampVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
@@ -371,7 +371,7 @@ public class ParquetSplitReaderUtil {
                                 isUtcTimestamp,
                                 descriptors.get(1).getPrimitiveType(),
                                 new ArrayType(mapType.getValueType()));
-                return new MapColumnReader(keyReader, valueReader, fieldType);
+                return new MapColumnReader(keyReader, valueReader);
             case ROW:
                 RowType rowType = (RowType) fieldType;
                 GroupType groupType = type.asGroupType();
@@ -503,7 +503,7 @@ public class ParquetSplitReaderUtil {
             case MAP:
                 MapType mapType = (MapType) fieldType;
                 GroupType repeatedType = type.asGroupType().getType(0).asGroupType();
-                return new HeapMapColumnVector(
+                return new HeapMapVector(
                         batchSize,
                         createWritableColumnVector(
                                 batchSize,
@@ -531,7 +531,7 @@ public class ParquetSplitReaderUtil {
                                     descriptors,
                                     depth + 1);
                 }
-                return new HeapRowColumnVector(batchSize, columnVectors);
+                return new HeapRowVector(batchSize, columnVectors);
             default:
                 throw new UnsupportedOperationException(fieldType + " is not supported now.");
         }
