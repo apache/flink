@@ -62,7 +62,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * ConfigOption<Double> threshold = ConfigOptions
  *     .key("cpu.utilization.threshold")
  *     .doubleType()
- *     .defaultValue(0.9).
+ *     .defaultValue(0.9)
  *     .withDeprecatedKeys("cpu.threshold");
  * }</pre>
  */
