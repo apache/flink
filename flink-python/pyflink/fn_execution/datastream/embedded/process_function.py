@@ -90,3 +90,19 @@ class InternalKeyedProcessFunctionOnTimerContext(KeyedProcessFunction.OnTimerCon
 
     def get_current_key(self):
         return self._key_converter.to_internal(self._context.getCurrentKey())
+
+
+class InternalWindowTimerContext(object):
+    def __init__(self, context, key_type_info, window_converter):
+        self._context = context
+        self._key_converter = from_type_info(key_type_info)
+        self._window_converter = window_converter
+
+    def timestamp(self) -> int:
+        return self._context.timestamp()
+
+    def window(self):
+        return self._window_converter.to_internal(self._context.getWindow())
+
+    def get_current_key(self):
+        return self._key_converter.to_internal(self._context.getCurrentKey())

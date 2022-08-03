@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonCo
 import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonKeyedCoProcessOperator;
 import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonProcessOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonWindowOperator;
 import org.apache.flink.streaming.api.operators.python.process.AbstractExternalDataStreamPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.process.ExternalPythonCoProcessOperator;
 import org.apache.flink.streaming.api.operators.python.process.ExternalPythonKeyedCoProcessOperator;
@@ -429,7 +430,8 @@ public class PythonOperatorChainingOptimizer {
                         && (upOperator instanceof EmbeddedPythonKeyedProcessOperator
                                 || upOperator instanceof EmbeddedPythonKeyedCoProcessOperator
                                 || upOperator instanceof EmbeddedPythonProcessOperator
-                                || upOperator instanceof EmbeddedPythonCoProcessOperator));
+                                || upOperator instanceof EmbeddedPythonCoProcessOperator
+                                || upOperator instanceof EmbeddedPythonWindowOperator));
     }
 
     private static boolean arePythonOperatorsInSameExecutionEnvironment(

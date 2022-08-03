@@ -15,7 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import sys
 from typing import Iterable, Tuple, Dict
+
+import pytest
 
 from pyflink.common import Configuration
 from pyflink.common.time import Time
@@ -36,7 +39,7 @@ from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
 from pyflink.util.java_utils import get_j_env_configuration
 
 
-class WindowTests(PyFlinkStreamingTestCase):
+class WindowTests(object):
 
     def setUp(self) -> None:
         super(WindowTests, self).setUp()
@@ -371,41 +374,6 @@ class WindowTests(PyFlinkStreamingTestCase):
         expected = ['(hi,1,7,4)', '(hi,8,12,2)', '(hi,15,18,1)']
         self.assert_equals_sorted(expected, results)
 
-    def test_side_output_late_data(self):
-        self.env.set_parallelism(1)
-        config = Configuration(
-            j_configuration=get_j_env_configuration(self.env._j_stream_execution_environment)
-        )
-        config.set_integer('python.fn-execution.bundle.size', 1)
-        jvm = get_gateway().jvm
-        watermark_strategy = WatermarkStrategy(
-            jvm.org.apache.flink.api.common.eventtime.WatermarkStrategy.forGenerator(
-                jvm.org.apache.flink.streaming.api.functions.python.eventtime.
-                PerElementWatermarkGenerator.getSupplier()
-            )
-        ).with_timestamp_assigner(SecondColumnTimestampAssigner())
-
-        tag = OutputTag('late-data', type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds1 = self.env.from_collection([('a', 0), ('a', 8), ('a', 4), ('a', 6)],
-                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds2 = ds1.assign_timestamps_and_watermarks(watermark_strategy) \
-            .key_by(lambda e: e[0]) \
-            .window(TumblingEventTimeWindows.of(Time.milliseconds(5))) \
-            .allowed_lateness(0) \
-            .side_output_late_data(tag) \
-            .process(CountWindowProcessFunction(),
-                     Types.TUPLE([Types.STRING(), Types.LONG(), Types.LONG(), Types.INT()]))
-        main_sink = DataStreamTestSinkFunction()
-        ds2.add_sink(main_sink)
-        side_sink = DataStreamTestSinkFunction()
-        ds2.get_side_output(tag).add_sink(side_sink)
-
-        self.env.execute('test_side_output_late_data')
-        main_expected = ['(a,0,5,1)', '(a,5,10,2)']
-        self.assert_equals_sorted(main_expected, main_sink.get_results())
-        side_expected = ['+I[a, 4]']
-        self.assert_equals_sorted(side_expected, side_sink.get_results())
-
     def test_global_window_with_purging_trigger(self):
         self.env.set_parallelism(1)
         data_stream = self.env.from_collection([
@@ -588,6 +556,56 @@ class WindowTests(PyFlinkStreamingTestCase):
                     'key b timestamp sum 23',
                     'key a timestamp sum 15']
         self.assert_equals_sorted(expected, results)
+
+
+class ProcessWindowTests(WindowTests, PyFlinkStreamingTestCase):
+    def setUp(self) -> None:
+        super(ProcessWindowTests, self).setUp()
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
+        config.setString("python.execution-mode", "process")
+
+    def test_side_output_late_data(self):
+        self.env.set_parallelism(1)
+        config = Configuration(
+            j_configuration=get_j_env_configuration(self.env._j_stream_execution_environment)
+        )
+        config.set_integer('python.fn-execution.bundle.size', 1)
+        jvm = get_gateway().jvm
+        watermark_strategy = WatermarkStrategy(
+            jvm.org.apache.flink.api.common.eventtime.WatermarkStrategy.forGenerator(
+                jvm.org.apache.flink.streaming.api.functions.python.eventtime.
+                PerElementWatermarkGenerator.getSupplier()
+            )
+        ).with_timestamp_assigner(SecondColumnTimestampAssigner())
+
+        tag = OutputTag('late-data', type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds1 = self.env.from_collection([('a', 0), ('a', 8), ('a', 4), ('a', 6)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds2 = ds1.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda e: e[0]) \
+            .window(TumblingEventTimeWindows.of(Time.milliseconds(5))) \
+            .allowed_lateness(0) \
+            .side_output_late_data(tag) \
+            .process(CountWindowProcessFunction(),
+                     Types.TUPLE([Types.STRING(), Types.LONG(), Types.LONG(), Types.INT()]))
+        main_sink = DataStreamTestSinkFunction()
+        ds2.add_sink(main_sink)
+        side_sink = DataStreamTestSinkFunction()
+        ds2.get_side_output(tag).add_sink(side_sink)
+
+        self.env.execute('test_side_output_late_data')
+        main_expected = ['(a,0,5,1)', '(a,5,10,2)']
+        self.assert_equals_sorted(main_expected, main_sink.get_results())
+        side_expected = ['+I[a, 4]']
+        self.assert_equals_sorted(side_expected, side_sink.get_results())
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
+class EmbeddedWindowTests(WindowTests, PyFlinkStreamingTestCase):
+    def setUp(self) -> None:
+        super(EmbeddedWindowTests, self).setUp()
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
+        config.setString("python.execution-mode", "thread")
 
 
 class SecondColumnTimestampAssigner(TimestampAssigner):

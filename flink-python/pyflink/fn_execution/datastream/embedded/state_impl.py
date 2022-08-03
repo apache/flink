@@ -15,27 +15,42 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import List, Iterable, Tuple, Dict
+from abc import ABC
+from typing import List, Iterable, Tuple, Dict, Collection
 
 from pyflink.datastream import ReduceFunction, AggregateFunction
-from pyflink.datastream.state import (ValueState, T, State, ListState, IN, OUT, ReducingState,
-                                      AggregatingState, MapState, V, K)
+from pyflink.datastream.state import (T, IN, OUT, V, K)
 from pyflink.fn_execution.embedded.converters import (DataConverter, DictDataConverter,
                                                       ListDataConverter)
+from pyflink.fn_execution.internal_state import (InternalValueState, InternalKvState,
+                                                 InternalListState, InternalReducingState,
+                                                 InternalAggregatingState, InternalMapState,
+                                                 N)
 
 
-class StateImpl(State):
-    def __init__(self, state, value_converter: DataConverter):
+class StateImpl(InternalKvState, ABC):
+    def __init__(self,
+                 state,
+                 value_converter: DataConverter,
+                 window_converter: DataConverter = None):
         self._state = state
         self._value_converter = value_converter
+        self._window_converter = window_converter
 
     def clear(self):
         self._state.clear()
 
+    def set_current_namespace(self, namespace) -> None:
+        j_window = self._window_converter.to_external(namespace)
+        self._state.setCurrentNamespace(j_window)
 
-class ValueStateImpl(StateImpl, ValueState):
-    def __init__(self, value_state, value_converter: DataConverter):
-        super(ValueStateImpl, self).__init__(value_state, value_converter)
+
+class ValueStateImpl(StateImpl, InternalValueState):
+    def __init__(self,
+                 value_state,
+                 value_converter: DataConverter,
+                 window_converter: DataConverter = None):
+        super(ValueStateImpl, self).__init__(value_state, value_converter, window_converter)
 
     def value(self) -> T:
         return self._value_converter.to_internal(self._state.value())
@@ -44,10 +59,13 @@ class ValueStateImpl(StateImpl, ValueState):
         self._state.update(self._value_converter.to_external(value))
 
 
-class ListStateImpl(StateImpl, ListState):
+class ListStateImpl(StateImpl, InternalListState):
 
-    def __init__(self, list_state, value_converter: ListDataConverter):
-        super(ListStateImpl, self).__init__(list_state, value_converter)
+    def __init__(self,
+                 list_state,
+                 value_converter: ListDataConverter,
+                 window_converter: DataConverter = None):
+        super(ListStateImpl, self).__init__(list_state, value_converter, window_converter)
         self._element_converter = value_converter._field_converter
 
     def update(self, values: List[T]) -> None:
@@ -62,14 +80,20 @@ class ListStateImpl(StateImpl, ListState):
     def add(self, value: IN) -> None:
         self._state.add(self._element_converter.to_external(value))
 
+    def merge_namespaces(self, target: N, sources: Collection[N]) -> None:
+        j_target = self._window_converter.to_external(target)
+        j_sources = [self._window_converter.to_external(window) for window in sources]
+        self._state.mergeNamespaces(j_target, j_sources)
 
-class ReducingStateImpl(StateImpl, ReducingState):
+
+class ReducingStateImpl(StateImpl, InternalReducingState):
 
     def __init__(self,
                  value_state,
                  value_converter: DataConverter,
-                 reduce_function: ReduceFunction):
-        super(ReducingStateImpl, self).__init__(value_state, value_converter)
+                 reduce_function: ReduceFunction,
+                 window_converter: DataConverter = None):
+        super(ReducingStateImpl, self).__init__(value_state, value_converter, window_converter)
         self._reduce_function = reduce_function
 
     def get(self) -> OUT:
@@ -88,13 +112,32 @@ class ReducingStateImpl(StateImpl, ReducingState):
 
             self._state.update(self._value_converter.to_external(reduce_value))
 
+    def merge_namespaces(self, target: N, sources: Collection[N]) -> None:
+        merged = None
+        for source in sources:
+            self.set_current_namespace(source)
+            source_state = self.get()
+            self.clear()
+            if merged and source_state:
+                if merged:
+                    merged = self._reduce_function.reduce(merged, source_state)
+                else:
+                    merged = source_state
+            elif merged is None:
+                merged = source_state
 
-class AggregatingStateImpl(StateImpl, AggregatingState):
+        if merged:
+            self.set_current_namespace(target)
+            self._state.update(self._value_converter.to_external(merged))
+
+
+class AggregatingStateImpl(StateImpl, InternalAggregatingState):
     def __init__(self,
                  value_state,
                  value_converter,
-                 agg_function: AggregateFunction):
-        super(AggregatingStateImpl, self).__init__(value_state, value_converter)
+                 agg_function: AggregateFunction,
+                 window_converter: DataConverter = None):
+        super(AggregatingStateImpl, self).__init__(value_state, value_converter, window_converter)
         self._agg_function = agg_function
 
     def get(self) -> OUT:
@@ -117,10 +160,28 @@ class AggregatingStateImpl(StateImpl, AggregatingState):
             accumulator = self._agg_function.add(value, accumulator)
             self._state.update(self._value_converter.to_external(accumulator))
 
+    def merge_namespaces(self, target: N, sources: Collection[N]) -> None:
+        merged = None
+        for source in sources:
+            self.set_current_namespace(source)
+            source_state = self.get()
+            self.clear()
+            if merged and source_state:
+                merged = self._agg_function.merge(merged, source_state)
+            elif merged is None:
+                merged = source_state
 
-class MapStateImpl(StateImpl, MapState):
-    def __init__(self, map_state, map_converter: DictDataConverter):
-        super(MapStateImpl, self).__init__(map_state, map_converter)
+        if merged:
+            self.set_current_namespace(target)
+            self._state.update(self._value_converter.to_external(merged))
+
+
+class MapStateImpl(StateImpl, InternalMapState):
+    def __init__(self,
+                 map_state,
+                 map_converter: DictDataConverter,
+                 window_converter: DataConverter = None):
+        super(MapStateImpl, self).__init__(map_state, map_converter, window_converter)
         self._k_converter = map_converter._key_converter
         self._v_converter = map_converter._value_converter
 
