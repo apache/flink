@@ -295,9 +295,9 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                 return isSuitableFilter(conjunctions.get(0))
                         || isSuitableFilter(conjunctions.get(1));
             case OR:
-                conjunctions = RelOptUtil.conjunctions(filterCondition);
-                return isSuitableFilter(conjunctions.get(0))
-                        && isSuitableFilter(conjunctions.get(1));
+                List<RexNode> disjunctions = RelOptUtil.disjunctions(filterCondition);
+                return isSuitableFilter(disjunctions.get(0))
+                        && isSuitableFilter(disjunctions.get(1));
             case NOT:
                 return isSuitableFilter(((RexCall) filterCondition).operands.get(0));
             case EQUALS:
