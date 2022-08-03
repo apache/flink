@@ -176,7 +176,7 @@ class HsSubpartitionFileReaderImplTest {
 
         subpartitionOperation.advanceConsumptionProgress();
         subpartitionOperation.advanceConsumptionProgress();
-        assertThat(subpartitionOperation.getConsumingOffset()).isEqualTo(1);
+        assertThat(subpartitionOperation.getConsumingOffset(true)).isEqualTo(1);
         // update consumptionProgress
         subpartitionFileReader.prepareForScheduling();
         // read buffer, expected buffer with index: 2
