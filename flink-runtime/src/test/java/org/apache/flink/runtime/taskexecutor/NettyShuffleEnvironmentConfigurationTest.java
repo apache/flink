@@ -95,8 +95,7 @@ public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
         configKey = getConfigKey(TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY);
         assertTrue(description.contains(configKey));
 
-        assertTrue(
-                NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED.defaultValue());
+        assertTrue(NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED.defaultValue());
     }
 
     private static String getConfigKey(ConfigOption<?> configOption) {

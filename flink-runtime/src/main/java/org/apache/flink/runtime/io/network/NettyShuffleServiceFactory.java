@@ -204,7 +204,7 @@ public class NettyShuffleServiceFactory
                         config.networkBuffersPerChannel(),
                         config.floatingNetworkBuffersPerGate(),
                         config.networkBufferSize(),
-                        config.isBlockingShuffleCompressionEnabled(),
+                        config.isBatchShuffleCompressionEnabled(),
                         config.getCompressionCodec(),
                         config.getMaxBuffersPerChannel(),
                         config.sortShuffleMinBuffers(),

@@ -79,7 +79,7 @@ public class SingleInputGateFactory {
 
     private final int floatingNetworkBuffersPerGate;
 
-    private final boolean blockingShuffleCompressionEnabled;
+    private final boolean batchShuffleCompressionEnabled;
 
     private final String compressionCodec;
 
@@ -101,8 +101,7 @@ public class SingleInputGateFactory {
                 NettyShuffleUtils.getNetworkBuffersPerInputChannel(
                         networkConfig.networkBuffersPerChannel());
         this.floatingNetworkBuffersPerGate = networkConfig.floatingNetworkBuffersPerGate();
-        this.blockingShuffleCompressionEnabled =
-                networkConfig.isBlockingShuffleCompressionEnabled();
+        this.batchShuffleCompressionEnabled = networkConfig.isBatchShuffleCompressionEnabled();
         this.compressionCodec = networkConfig.getCompressionCodec();
         this.networkBufferSize = networkConfig.networkBufferSize();
         this.connectionManager = connectionManager;
@@ -123,7 +122,7 @@ public class SingleInputGateFactory {
 
         BufferDecompressor bufferDecompressor = null;
         if (igdd.getConsumedPartitionType().isBlockingOrBlockingPersistentResultPartition()
-                && blockingShuffleCompressionEnabled) {
+                && batchShuffleCompressionEnabled) {
             bufferDecompressor = new BufferDecompressor(networkBufferSize, compressionCodec);
         }
 
