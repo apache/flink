@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.batch.sql.join.joinhint;
+package org.apache.flink.table.planner.plan.batch.sql.join.hints;
 
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.SqlParserException;

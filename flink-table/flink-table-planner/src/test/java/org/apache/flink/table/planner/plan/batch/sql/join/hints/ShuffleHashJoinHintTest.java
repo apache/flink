@@ -16,20 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.batch.sql.join.joinhint;
+package org.apache.flink.table.planner.plan.batch.sql.join.hints;
 
 import org.apache.flink.table.planner.hint.JoinStrategy;
 
-/** Test for Shuffle Merge join hint. */
-public class ShuffleMergeJoinHintTest extends JoinHintTestBase {
+/** Test for Shuffle Hash join hint. */
+public class ShuffleHashJoinHintTest extends JoinHintTestBase {
 
     @Override
     protected String getTestSingleJoinHint() {
-        return JoinStrategy.SHUFFLE_MERGE.getJoinHintName();
+        return JoinStrategy.SHUFFLE_HASH.getJoinHintName();
     }
 
     @Override
     protected String getDisabledOperatorName() {
-        return "SortMergeJoin";
+        return "HashJoin";
     }
 }

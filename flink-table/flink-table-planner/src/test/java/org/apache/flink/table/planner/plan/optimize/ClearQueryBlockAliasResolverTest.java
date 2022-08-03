@@ -22,7 +22,7 @@ import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.internal.StatementSetImpl;
 import org.apache.flink.table.planner.hint.JoinStrategy;
-import org.apache.flink.table.planner.plan.batch.sql.join.joinhint.JoinHintTestBase;
+import org.apache.flink.table.planner.plan.batch.sql.join.hints.JoinHintTestBase;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
