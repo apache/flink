@@ -258,6 +258,15 @@ public class SessionContext {
         }
     }
 
+    public void addFile(String filePath) {
+        try {
+            sessionState.resourceManager.registerFileResources(
+                    Collections.singletonList(new ResourceUri(ResourceType.FILE, filePath)));
+        } catch (Exception e) {
+            LOG.warn(String.format("Could not register the specified file [%s].", filePath), e);
+        }
+    }
+
     public void removeJar(String jarPath) {
         // if is relative path, convert to absolute path
         URL jarURL = checkJarPath(jarPath, "SQL Client only supports to remove local jars.");

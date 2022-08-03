@@ -20,6 +20,7 @@ package org.apache.flink.table.resource;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -133,6 +134,17 @@ public class ResourceManager implements Closeable {
                 });
     }
 
+    public void registerFileResources(List<ResourceUri> resourceUris) throws IOException {
+        resourceUris.forEach(
+                f -> {
+                    try {
+                        resourceInfos.put(f, getURLFromPath(new Path(f.getUri())));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+    }
+
     public URLClassLoader getUserClassLoader() {
         return userClassLoader;
     }
@@ -149,6 +161,13 @@ public class ResourceManager implements Closeable {
         return resourceInfos.entrySet().stream()
                 .filter(entry -> ResourceType.JAR.equals(entry.getKey().getResourceType()))
                 .map(Map.Entry::getValue)
+                .collect(Collectors.toSet());
+    }
+
+    public Set<Tuple2<String, URL>> getFileResources() {
+        return resourceInfos.entrySet().stream()
+                .filter(entry -> ResourceType.FILE.equals(entry.getKey().getResourceType()))
+                .map(e -> Tuple2.of("t.py", e.getValue()))
                 .collect(Collectors.toSet());
     }
 

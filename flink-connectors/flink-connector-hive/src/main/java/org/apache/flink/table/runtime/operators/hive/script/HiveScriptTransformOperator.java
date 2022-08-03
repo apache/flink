@@ -31,6 +31,7 @@ import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.script.ScriptTransformIOInfo;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.util.FileUtils;
 
 import org.apache.hadoop.hive.ql.exec.RecordReader;
 import org.apache.hadoop.hive.ql.exec.RecordWriter;
@@ -135,6 +136,7 @@ public class HiveScriptTransformOperator extends TableStreamOperator<RowData>
 
     @Override
     public void endInput() throws Exception {
+        FileUtils.getCurrentWorkingDirectory();
         // close the script process to make the output of script available
         closeScriptProc();
     }
@@ -147,7 +149,12 @@ public class HiveScriptTransformOperator extends TableStreamOperator<RowData>
 
     private void initScriptProc() throws IOException {
         scriptProcess =
-                new ScriptProcessBuilder(script, jobConfWrapper.conf(), getOperatorID()).build();
+                new ScriptProcessBuilder(
+                                script,
+                                jobConfWrapper.conf(),
+                                getOperatorID(),
+                                getRuntimeContext().getDistributedCache())
+                        .build();
         inputStream = scriptProcess.getInputStream();
         outputStream = scriptProcess.getOutputStream();
         InputStream errorStream = scriptProcess.getErrorStream();

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
@@ -117,6 +118,7 @@ import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
+import org.apache.flink.table.operations.command.AddFileOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
@@ -149,6 +151,8 @@ import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.table.resource.ResourceType;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
@@ -807,6 +811,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         // Merge user jars to table configuration
         mergePipelineJarsToConfig(
                 resourceManager.getLocalJarResources(), tableConfig.getConfiguration());
+        // Merge user files to table configuration
+        mergePipelineFilesToConfig(
+                resourceManager.getFileResources(), tableConfig.getConfiguration());
 
         // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
@@ -843,6 +850,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         // Merge user jars to table configuration
         mergePipelineJarsToConfig(
                 resourceManager.getLocalJarResources(), tableConfig.getConfiguration());
+        // Merge user files to table configuration
+        mergePipelineFilesToConfig(
+                resourceManager.getFileResources(), tableConfig.getConfiguration());
 
         // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
@@ -1018,6 +1028,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             } catch (Exception e) {
                 throw new TableException(exMsg, e);
             }
+        } else if (operation instanceof AddFileOperation) {
+            AddFileOperation addFileOperation = (AddFileOperation) operation;
+            try {
+                resourceManager.registerFileResources(
+                        Collections.singletonList(
+                                new ResourceUri(ResourceType.FILE, addFileOperation.getPath())));
+            } catch (Exception e) {
+                throw new TableException("xxx", e);
+            }
+            return TableResultImpl.TABLE_RESULT_OK;
         } else if (operation instanceof CreateViewOperation) {
             CreateViewOperation createViewOperation = (CreateViewOperation) operation;
             if (createViewOperation.isTemporary()) {
@@ -1891,6 +1911,20 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 configuration,
                 PipelineOptions.JARS,
                 jarUrls.stream().map(URL::toString).collect(Collectors.toSet()),
+                String::toString,
+                String::toString);
+    }
+
+    private void mergePipelineFilesToConfig(
+            Set<Tuple2<String, URL>> fileUrls, Configuration configuration) {
+        List<String> cachedFiles = new ArrayList<>();
+        for (Tuple2<String, URL> fileUrl : fileUrls) {
+            cachedFiles.add(String.format("name:%s,path:'%s'", fileUrl.f0, fileUrl.f1));
+        }
+        ConfigUtils.mergeCollectionsToConfig(
+                configuration,
+                PipelineOptions.CACHED_FILES,
+                cachedFiles,
                 String::toString,
                 String::toString);
     }

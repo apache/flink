@@ -36,6 +36,7 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.StatementSetOperation;
+import org.apache.flink.table.operations.command.AddFileOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
@@ -238,12 +239,19 @@ public class HiveParser extends ParserImpl {
                                 statement, statement.substring(commandTokens[0].length()).trim()));
             } else if (hiveCommand == HiveCommand.RESET) {
                 return Optional.of(super.parse(statement).get(0));
+            } else if (hiveCommand == HiveCommand.ADD) {
+                return Optional.of(processAddCmd(statement));
             } else {
                 throw new UnsupportedOperationException(
                         String.format("The Hive command %s is not supported.", hiveCommand));
             }
         }
         return Optional.empty();
+    }
+
+    private Operation processAddCmd(String addCmdArgs) {
+        String[] tokens = addCmdArgs.split("\\s+");
+        return new AddFileOperation(tokens[2]);
     }
 
     private Operation processSetCmd(String originCmd, String setCmdArgs) {

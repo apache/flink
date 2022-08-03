@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.hive.script;
 
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 
 import org.apache.hadoop.conf.Configuration;
@@ -47,14 +48,20 @@ public class ScriptProcessBuilder {
     private final String script;
     private final JobConf jobConf;
     private final OperatorID operatorID;
+    private final DistributedCache distributedCache;
 
     // List of conf entries not to turn into env vars
     transient Set<String> blackListedConfEntries = null;
 
-    public ScriptProcessBuilder(String script, JobConf hiveConf, OperatorID operatorID) {
+    public ScriptProcessBuilder(
+            String script,
+            JobConf hiveConf,
+            OperatorID operatorID,
+            DistributedCache distributedCache) {
         this.script = script;
         this.jobConf = hiveConf;
         this.operatorID = operatorID;
+        this.distributedCache = distributedCache;
     }
 
     public Process build() throws IOException {
@@ -68,6 +75,8 @@ public class ScriptProcessBuilder {
             // TODO: also should prepend the path contains files added
             // by user to support run user customize script after finishing supporting 'add file
             // xxx' in FLINK-27850
+            //    File file = distributedCache.getFile(prog);
+            //    finder.prependPathComponent(file.getParent());
             File f = finder.getAbsolutePath(prog);
             if (f != null) {
                 cmdArgs[0] = f.getAbsolutePath();
@@ -76,6 +85,7 @@ public class ScriptProcessBuilder {
         String[] wrappedCmdArgs = addWrapper(cmdArgs);
         LOG.info("Executing " + Arrays.asList(wrappedCmdArgs));
         ProcessBuilder pb = new ProcessBuilder(wrappedCmdArgs);
+
         Map<String, String> env = pb.environment();
         addJobConfToEnvironment(jobConf, env);
 

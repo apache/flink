@@ -1020,6 +1020,15 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void testAddFile() {
+        tableEnv.executeSql("add file t.py");
+        tableEnv.executeSql("create table src (key string, value string)");
+        CollectionUtil.iteratorToList(
+                tableEnv.executeSql("select transform(key, value) using 'python t.py' from src")
+                        .collect());
+    }
+
+    @Test
     public void testSetCommand() throws Exception {
         // test set system:
         tableEnv.executeSql("set system:xxx=5");
