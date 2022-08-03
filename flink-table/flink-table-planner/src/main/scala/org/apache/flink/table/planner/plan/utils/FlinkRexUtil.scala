@@ -39,6 +39,7 @@ import org.apache.calcite.util._
 import java.lang.{Iterable => JIterable}
 import java.math.BigDecimal
 import java.util
+import java.util.Optional
 import java.util.function.Predicate
 
 import scala.collection.JavaConversions._
@@ -590,21 +591,31 @@ object FlinkRexUtil {
    * Returns whether a given expression is deterministic in streaming scenario, differs from
    * calcite's [[RexUtil]], it considers both non-deterministic and dynamic functions.
    */
-  def isDeterministicInStreaming(e: RexNode): Boolean = try {
+  def isDeterministicInStreaming(e: RexNode): Boolean = {
+    !getNonDeterministicCallNameInStreaming(e).isPresent
+  }
+
+  /**
+   * Returns the non-deterministic call name for a given expression in streaming scenario, differs
+   * from calcite's [[RexUtil]], it considers both non-deterministic and dynamic functions. Use java
+   * [[Optional]] for scala-free goal.
+   */
+  def getNonDeterministicCallNameInStreaming(e: RexNode): Optional[String] = try {
     val visitor = new RexVisitorImpl[Void](true) {
       override def visitCall(call: RexCall): Void = {
         // dynamic function call is also non-deterministic to streaming
-        if (!call.getOperator.isDeterministic || call.getOperator.isDynamicFunction)
-          throw Util.FoundOne.NULL
+        if (!call.getOperator.isDeterministic || call.getOperator.isDynamicFunction) {
+          throw new Util.FoundOne(call.getOperator.getName)
+        }
         super.visitCall(call)
       }
     }
     e.accept(visitor)
-    true
+    Optional.empty[String]
   } catch {
     case ex: Util.FoundOne =>
       Util.swallow(ex, null)
-      false
+      Optional.ofNullable(ex.getNode.toString)
   }
 
   /**
@@ -621,13 +632,7 @@ object FlinkRexUtil {
       }
     }
     val projects = rexProgram.getProjectList.map(rexProgram.expandLocalRef)
-    projects.forall {
-      expr =>
-        expr match {
-          case rexNode: RexNode => isDeterministicInStreaming(rexNode)
-          case _ => true // ignore
-        }
-    }
+    projects.forall(isDeterministicInStreaming)
   }
 }
 

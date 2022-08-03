@@ -333,11 +333,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   def getRelModifiedMonotonicity(
       rel: StreamPhysicalIncrementalGroupAggregate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
-    getRelModifiedMonotonicityOnAggregate(
-      rel.getInput,
-      mq,
-      rel.finalAggCalls.toList,
-      rel.finalAggGrouping)
+    getRelModifiedMonotonicityOnAggregate(rel.getInput, mq, rel.aggCalls.toList, rel.grouping)
   }
 
   def getRelModifiedMonotonicity(

@@ -24,7 +24,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectRea
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.{ExplainDetail, PlanReference, TableConfig, TableException}
 import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.{Executor, InternalPlan}
 import org.apache.flink.table.module.ModuleManager
@@ -33,7 +32,7 @@ import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.ExecNodeGraphInternalPlan
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.processor.ExecNodeGraphProcessor
-import org.apache.flink.table.planner.plan.nodes.exec.serde.{JsonSerdeUtil, SerdeContext}
+import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
