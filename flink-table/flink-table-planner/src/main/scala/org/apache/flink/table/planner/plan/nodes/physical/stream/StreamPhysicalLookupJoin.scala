@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rex.RexProgram
 
@@ -39,15 +39,16 @@ import scala.collection.JavaConverters._
 class StreamPhysicalLookupJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    input: RelNode,
+    inputRel: RelNode,
     temporalTable: RelOptTable,
     tableCalcProgram: Option[RexProgram],
     joinInfo: JoinInfo,
-    joinType: JoinRelType)
+    joinType: JoinRelType,
+    val upsertMaterialize: Boolean = false)
   extends CommonPhysicalLookupJoin(
     cluster,
     traitSet,
-    input,
+    inputRel,
     temporalTable,
     tableCalcProgram,
     joinInfo,
@@ -64,7 +65,20 @@ class StreamPhysicalLookupJoin(
       temporalTable,
       tableCalcProgram,
       joinInfo,
-      joinType)
+      joinType,
+      upsertMaterialize)
+  }
+
+  def copy(upsertMaterialize: Boolean): StreamPhysicalLookupJoin = {
+    new StreamPhysicalLookupJoin(
+      cluster,
+      traitSet,
+      getInput,
+      temporalTable,
+      tableCalcProgram,
+      joinInfo,
+      joinType,
+      upsertMaterialize)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
@@ -75,6 +89,9 @@ class StreamPhysicalLookupJoin(
       case _ =>
         (null, null)
     }
+    val inputChangelogMode =
+      ChangelogPlanUtils.getChangelogMode(getInput.asInstanceOf[StreamPhysicalRel]).get
+
     new StreamExecLookupJoin(
       unwrapTableConfig(this),
       JoinTypeUtil.getFlinkJoinType(joinType),
@@ -83,10 +100,17 @@ class StreamPhysicalLookupJoin(
       allLookupKeys.map(item => (Int.box(item._1), item._2)).asJava,
       projectionOnTemporalTable,
       filterOnTemporalTable,
-      ChangelogPlanUtils.inputInsertOnly(this),
+      inputChangelogMode,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
+      lookupKeyContainsPrimaryKey(),
+      upsertMaterialize,
       getRelDetailedDescription)
   }
 
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    super
+      .explainTerms(pw)
+      .itemIf("upsertMaterialize", "true", upsertMaterialize)
+  }
 }

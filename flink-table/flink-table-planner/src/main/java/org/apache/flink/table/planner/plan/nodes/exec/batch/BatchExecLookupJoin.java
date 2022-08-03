@@ -18,8 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLookupJoin;
@@ -59,9 +63,18 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchEx
                 lookupKeys,
                 projectionOnTemporalTable,
                 filterOnTemporalTable,
-                true,
+                ChangelogMode.insertOnly(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
+        // There's no optimization when lookupKeyContainsPrimaryKey is true for batch, so set it to
+        // false for now. We can add it to CommonExecLookupJoin when needed.
+        return createJoinTransformation(planner, config, false, false);
     }
 }

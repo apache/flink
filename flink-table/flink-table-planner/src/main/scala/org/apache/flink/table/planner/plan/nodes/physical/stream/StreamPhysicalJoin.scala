@@ -18,7 +18,6 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
@@ -109,18 +108,6 @@ class StreamPhysicalJoin(
           getUniqueKeys(right, joinSpec.getRightKeys)
         )
       )
-  }
-
-  private def getUniqueKeys(input: RelNode, keys: Array[Int]): List[Array[Int]] = {
-    val upsertKeys = FlinkRelMetadataQuery
-      .reuseOrCreate(cluster.getMetadataQuery)
-      .getUpsertKeysInKeyGroupRange(input, keys)
-    if (upsertKeys == null || upsertKeys.isEmpty) {
-      List.empty
-    } else {
-      upsertKeys.map(_.asList.map(_.intValue).toArray).toList
-    }
-
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
