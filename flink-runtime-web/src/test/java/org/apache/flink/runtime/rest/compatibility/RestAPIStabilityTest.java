@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rest.compatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
-import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.util.ConfigurationException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
@@ -63,15 +63,15 @@ final class RestAPIStabilityTest {
         @Override
         public Stream<? extends Arguments> provideArguments(ExtensionContext context)
                 throws Exception {
-            return Arrays.stream(RestAPIVersion.values())
-                    .filter(RestAPIVersion::isStableVersion)
+            return Arrays.stream(RuntimeRestAPIVersion.values())
+                    .filter(RuntimeRestAPIVersion::isStableVersion)
                     .map(Arguments::of);
         }
     }
 
     @ParameterizedTest
     @ArgumentsSource(StableRestApiVersionProvider.class)
-    void testDispatcherRestAPIStability(RestAPIVersion apiVersion)
+    void testDispatcherRestAPIStability(RuntimeRestAPIVersion apiVersion)
             throws IOException, ConfigurationException {
         final String versionedSnapshotFileName =
                 String.format(SNAPSHOT_RESOURCE_PATTERN, apiVersion.getURLVersionPrefix());
@@ -113,7 +113,7 @@ final class RestAPIStabilityTest {
     }
 
     private RestAPISnapshot createSnapshot(
-            final DocumentingRestEndpoint restEndpoint, RestAPIVersion apiVersion) {
+            final DocumentingRestEndpoint restEndpoint, RuntimeRestAPIVersion apiVersion) {
         final List<JsonNode> calls =
                 restEndpoint.getSpecs().stream()
                         // we only compare compatibility within the given version

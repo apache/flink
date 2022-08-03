@@ -156,7 +156,7 @@ public class SessionManager {
                         operationExecutorService);
 
         environment.getRegisteredCatalogs().forEach(sessionContext::registerCatalog);
-        environment.getRegisteredModules().forEach(sessionContext::registerModule);
+        environment.getRegisteredModules().forEach(sessionContext::registerModuleAtHead);
         environment.getDefaultCatalog().ifPresent(sessionContext::setCurrentCatalog);
         environment.getDefaultDatabase().ifPresent(sessionContext::setCurrentDatabase);
 

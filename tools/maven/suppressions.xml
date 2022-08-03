@@ -89,4 +89,5 @@ under the License.
 			checks=".*"/>
 		<!-- suppress check for copied hive code -->
 		<suppress files="org[\\/]apache[\\/]hadoop[\\/]hive[\\/].*.java" checks=".*"/>
+		<suppress files="org[\\/]apache[\\/]hive[\\/]service[\\/]rpc[\\/]thrift[\\/].*.java" checks=".*"/>
 </suppressions>

@@ -63,9 +63,18 @@
   </thead>
   <tbody>
     <ng-template nz-virtual-scroll let-data>
-      <ng-container *ngIf="narrowLogData(data) as subtask">
+      <ng-container *ngIf="narrowType(data) as subtask">
         <tr>
-          <td>{{ subtask['subtask'] }}</td>
+          <td
+            [nzShowExpand]="subtask['other-concurrent-attempts']?.length > 0"
+            [nzExpand]="expandSet.has(subtask['subtask'])"
+            (nzExpandChange)="onExpandChange(subtask, $event)"
+          >
+            {{ subtask['subtask'] }}
+            <span class="left-margin" *ngIf="subtask['attempt-number'] !== undefined">
+              [attempt-{{ subtask['attempt-number'] + 1 }}]
+            </span>
+          </td>
           <td>
             {{ this.prettyPrint(subtask['ratio']) }} /
             {{ this.prettyPrint(subtask['idleRatio']) }} /
@@ -78,6 +87,34 @@
             ></flink-dynamic-host>
           </td>
         </tr>
+        <ng-container *ngIf="expandSet.has(subtask['subtask'])">
+          <ng-container
+            *ngFor="
+              let attempt of subtask['other-concurrent-attempts'];
+              trackBy: trackBySubtaskAttempt
+            "
+          >
+            <tr>
+              <td [nzIndentSize]="1">
+                {{ attempt['subtask'] }}
+                <ng-container *ngIf="attempt['attempt-number'] !== undefined">
+                  &nbsp;[attempt-{{ attempt['attempt-number'] + 1 }}]
+                </ng-container>
+              </td>
+              <td>
+                {{ this.prettyPrint(attempt['ratio']) }} /
+                {{ this.prettyPrint(attempt['idleRatio']) }} /
+                {{ this.prettyPrint(attempt['busyRatio']) }}
+              </td>
+              <td>
+                <flink-dynamic-host
+                  [data]="{ state: attempt['backpressure-level'] }"
+                  [component]="stateBadgeComponent"
+                ></flink-dynamic-host>
+              </td>
+            </tr>
+          </ng-container>
+        </ng-container>
       </ng-container>
     </ng-template>
   </tbody>

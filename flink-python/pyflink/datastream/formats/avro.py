@@ -18,9 +18,10 @@
 from py4j.java_gateway import get_java_class, JavaObject
 from pyflink.common.typeinfo import TypeInformation
 
-from pyflink.datastream.formats.base import InputFormat
+from pyflink.datastream.connectors.file_system import InputFormat, BulkWriterFactory
 from pyflink.datastream.utils import ResultTypeQueryable
 from pyflink.java_gateway import get_gateway
+from pyflink.util.java_utils import get_field_value
 
 
 class AvroSchema(object):
@@ -32,6 +33,12 @@ class AvroSchema(object):
 
     def __init__(self, j_schema):
         self._j_schema = j_schema
+        self._schema_string = None
+
+    def __str__(self):
+        if self._schema_string is None:
+            self._schema_string = get_field_value(self._j_schema, 'schema').toString()
+        return self._schema_string
 
     @staticmethod
     def parse_string(json_schema: str) -> 'AvroSchema':
@@ -62,6 +69,9 @@ class GenericRecordAvroTypeInfo(TypeInformation):
     """
     A :class:`TypeInformation` of Avro's GenericRecord, including the schema. This is a wrapper of
     Java org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo.
+
+    Note that this type cannot be used as the type_info of data in
+    :meth:`StreamExecutionEnvironment.from_collection`.
 
     .. versionadded::1.16.0
     """
@@ -106,3 +116,48 @@ class AvroInputFormat(InputFormat, ResultTypeQueryable):
 
     def get_produced_type(self) -> GenericRecordAvroTypeInfo:
         return self._type_info
+
+
+class AvroWriters(object):
+    """
+    Convenience builder to create AvroWriterFactory instances.
+
+    .. versionadded:: 1.16.0
+    """
+
+    @staticmethod
+    def for_generic_record(schema: 'AvroSchema') -> 'BulkWriterFactory':
+        """
+        Creates an AvroWriterFactory that accepts and writes Avro generic types. The Avro writers
+        will use the given schema to build and write the records.
+
+        Note that to make this works in PyFlink, you need to declare the output type of the
+        predecessor before FileSink to be :class:`GenericRecordAvroTypeInfo`, and the predecessor
+        cannot be :meth:`StreamExecutionEnvironment.from_collection`, you can add a pass-through map
+        function before the sink, as the example shown below.
+
+        The Python data records should match the Avro schema, and have the same behavior with
+        vanilla Python data structure, e.g. an object for Avro array should behave like Python list,
+        an object for Avro map should behave like Python dict.
+
+        Example:
+        ::
+
+            >>> env = StreamExecutionEnvironment.get_execution_environment()
+            >>> schema = AvroSchema(JSON_SCHEMA)
+            >>> avro_type_info = GenericRecordAvroTypeInfo(schema)
+            >>> ds = env.from_collection([{'array': [1, 2]}], type_info=Types.PICKLED_BYTE_ARRAY())
+            >>> sink = FileSink.for_bulk_format(
+            ...     OUTPUT_DIR, AvroWriters.for_generic_record(schema)).build()
+            >>> # A map to indicate its Avro type info is necessary for serialization
+            >>> ds.map(lambda e: e, output_type=GenericRecordAvroTypeInfo(schema)) \\
+            ...     .sink_to(sink)
+
+        :param schema: The avro schema.
+        :return: The BulkWriterFactory to write generic records into avro files.
+        """
+        jvm = get_gateway().jvm
+        j_bulk_writer_factory = jvm.org.apache.flink.formats.avro.AvroWriters.forGenericRecord(
+            schema._j_schema
+        )
+        return BulkWriterFactory(j_bulk_writer_factory)

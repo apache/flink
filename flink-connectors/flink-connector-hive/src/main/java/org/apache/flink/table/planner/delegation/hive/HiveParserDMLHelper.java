@@ -19,19 +19,30 @@
 package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogPropertiesUtil;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.planner.delegation.PlannerContext;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserDirectoryDesc;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQB;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeConverter;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
+import org.apache.flink.table.planner.plan.nodes.hive.LogicalScriptTransform;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rel.RelCollation;
@@ -45,6 +56,7 @@ import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
@@ -59,16 +71,23 @@ import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.udf.SettableUDF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IS_INSERT_DIRECTORY;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IS_TO_LOCAL_DIRECTORY;
 
 /** A helper class to handle DMLs in hive dialect. */
 public class HiveParserDMLHelper {
@@ -98,14 +117,18 @@ public class HiveParserDMLHelper {
         Preconditions.checkArgument(
                 queryRelNode instanceof Project
                         || queryRelNode instanceof Sort
-                        || queryRelNode instanceof LogicalDistribution,
-                "Expect top RelNode to be Project, Sort, or LogicalDistribution, actually got "
+                        || queryRelNode instanceof LogicalDistribution
+                        || queryRelNode instanceof LogicalScriptTransform,
+                "Expect top RelNode to be Project, Sort, LogicalDistribution, or LogicalScriptTransform, actually got "
                         + queryRelNode);
-        if (!(queryRelNode instanceof Project)) {
+        if (!(queryRelNode instanceof Project)
+                && !(queryRelNode instanceof LogicalScriptTransform)) {
             RelNode parent = ((SingleRel) queryRelNode).getInput();
             // SEL + SORT or SEL + DIST + LIMIT
             Preconditions.checkArgument(
-                    parent instanceof Project || parent instanceof LogicalDistribution,
+                    parent instanceof Project
+                            || parent instanceof LogicalDistribution
+                            || parent instanceof LogicalScriptTransform,
                     "Expect input to be a Project or LogicalDistribution, actually got " + parent);
             if (parent instanceof LogicalDistribution) {
                 RelNode grandParent = ((LogicalDistribution) parent).getInput();
@@ -156,11 +179,8 @@ public class HiveParserDMLHelper {
                                     targetColToCalcType);
                 } else {
                     newInput =
-                            replaceProjectForStaticPart(
-                                    (Project) oldInput,
-                                    staticPartSpec,
-                                    destTable,
-                                    targetColToCalcType);
+                            replaceOrAddProjectForStaticPart(
+                                    oldInput, staticPartSpec, destTable, targetColToCalcType);
                     // we may need to shift the field collations
                     final int numDynmPart =
                             destTable.getTTable().getPartitionKeys().size() - staticPartSpec.size();
@@ -180,12 +200,19 @@ public class HiveParserDMLHelper {
                 }
                 sort.replaceInput(0, newInput);
                 queryRelNode = sort;
-            } else {
+            } else if (queryRelNode instanceof LogicalDistribution) {
                 queryRelNode =
                         replaceDistForStaticParts(
                                 (LogicalDistribution) queryRelNode,
                                 destTable,
                                 staticPartSpec,
+                                targetColToCalcType);
+            } else {
+                queryRelNode =
+                        addProjectForStaticPart(
+                                (LogicalScriptTransform) queryRelNode,
+                                staticPartSpec,
+                                destTable,
                                 targetColToCalcType);
             }
         }
@@ -216,7 +243,7 @@ public class HiveParserDMLHelper {
         // decide the dest table
         Map<String, Table> nameToDestTable = qbMetaData.getNameToDestTable();
         Map<String, Partition> nameToDestPart = qbMetaData.getNameToDestPartition();
-        // for now we only support inserting to a single table
+        // for now we only support inserting to a single table in one queryRelNode
         Preconditions.checkState(
                 nameToDestTable.size() <= 1 && nameToDestPart.size() <= 1,
                 "Only support inserting to 1 table");
@@ -230,7 +257,7 @@ public class HiveParserDMLHelper {
             destTable = nameToDestPart.values().iterator().next().getTable();
         } else {
             // happens for INSERT DIRECTORY
-            throw new SemanticException("INSERT DIRECTORY is not supported");
+            return createInsertIntoDirectoryOperation(topQB, qbMetaData, queryRelNode);
         }
 
         // decide static partition specs
@@ -285,28 +312,103 @@ public class HiveParserDMLHelper {
                 Collections.emptyMap());
     }
 
+    private SinkModifyOperation createInsertIntoDirectoryOperation(
+            HiveParserQB topQB, QBMetaData qbMetaData, RelNode queryRelNode) {
+        String dest = topQB.getParseInfo().getClauseNamesForDest().iterator().next();
+        // get the location for insert into directory
+        String location = qbMetaData.getDestFileForAlias(dest);
+        // get whether it's for insert local directory
+        boolean isToLocal = qbMetaData.getDestTypeForAlias(dest) == QBMetaData.DEST_LOCAL_FILE;
+        HiveParserDirectoryDesc directoryDesc = topQB.getDirectoryDesc();
+
+        // set row format / stored as / location
+        Map<String, String> props = new HashMap<>();
+        HiveParserDDLSemanticAnalyzer.encodeRowFormat(directoryDesc.getRowFormatParams(), props);
+        HiveParserDDLSemanticAnalyzer.encodeStorageFormat(directoryDesc.getStorageFormat(), props);
+        props.put(TABLE_LOCATION_URI, location);
+
+        props.put(FactoryUtil.CONNECTOR.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        // mark it's for insert into directory
+        props.put(CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX + IS_INSERT_DIRECTORY, "true");
+        // mark it's for insert into local directory or not
+        props.put(
+                CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX + IS_TO_LOCAL_DIRECTORY,
+                String.valueOf(isToLocal));
+
+        List<RelDataTypeField> fieldList = queryRelNode.getRowType().getFieldList();
+        String[] colNameArr = new String[fieldList.size()];
+        String[] colTypeArr = new String[fieldList.size()];
+        for (int i = 0; i < fieldList.size(); i++) {
+            colNameArr[i] = fieldList.get(i).getName();
+            TypeInfo typeInfo = HiveParserTypeConverter.convert(fieldList.get(i).getType());
+            if (typeInfo.equals(TypeInfoFactory.voidTypeInfo)) {
+                colTypeArr[i] = TypeInfoFactory.stringTypeInfo.getTypeName();
+            } else {
+                colTypeArr[i] = typeInfo.getTypeName();
+            }
+        }
+
+        // extra information needed for insert into directory
+        String colNames = String.join(",", colNameArr);
+        String colTypes = String.join(":", colTypeArr);
+        props.put("columns", colNames);
+        props.put("columns.types", colTypes);
+
+        PlannerQueryOperation plannerQueryOperation = new PlannerQueryOperation(queryRelNode);
+        return new SinkModifyOperation(
+                createDummyTableForInsertDirectory(
+                        plannerQueryOperation.getResolvedSchema(), props),
+                plannerQueryOperation,
+                Collections.emptyMap(),
+                true, // insert into directory is always for overwrite
+                Collections.emptyMap());
+    }
+
+    private ContextResolvedTable createDummyTableForInsertDirectory(
+            ResolvedSchema resolvedSchema, Map<String, String> props) {
+        Schema schema = Schema.newBuilder().fromResolvedSchema(resolvedSchema).build();
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        schema,
+                        "a dummy table for the case of insert overwrite directory ",
+                        Collections.emptyList(),
+                        props);
+        ResolvedCatalogTable resolvedCatalogTable =
+                new ResolvedCatalogTable(catalogTable, resolvedSchema);
+        String currentCatalog = catalogManager.getCurrentCatalog();
+        // the object name means nothing, it's just for placeholder and won't be used actually
+        String objectName = "insert_directory_tbl";
+        return ContextResolvedTable.permanent(
+                ObjectIdentifier.of(
+                        currentCatalog, catalogManager.getCurrentDatabase(), objectName),
+                catalogManager.getCatalog(currentCatalog).get(),
+                resolvedCatalogTable);
+    }
+
     private RelNode replaceDistForStaticParts(
             LogicalDistribution hiveDist,
             Table destTable,
             Map<String, String> staticPartSpec,
-            Map<String, RelDataType> targetColToType) {
-        Project project = (Project) hiveDist.getInput();
+            Map<String, RelDataType> targetColToType)
+            throws SemanticException {
+        RelNode originInput = hiveDist.getInput();
         RelNode expandedProject =
-                replaceProjectForStaticPart(project, staticPartSpec, destTable, targetColToType);
+                replaceOrAddProjectForStaticPart(
+                        hiveDist.getInput(), staticPartSpec, destTable, targetColToType);
         hiveDist.replaceInput(0, null);
         final int toShift = staticPartSpec.size();
         final int numDynmPart = destTable.getTTable().getPartitionKeys().size() - toShift;
         return LogicalDistribution.create(
                 expandedProject,
-                shiftRelCollation(hiveDist.getCollation(), project, toShift, numDynmPart),
-                shiftDistKeys(hiveDist.getDistKeys(), project, toShift, numDynmPart));
+                shiftRelCollation(hiveDist.getCollation(), originInput, toShift, numDynmPart),
+                shiftDistKeys(hiveDist.getDistKeys(), originInput, toShift, numDynmPart));
     }
 
     private static List<Integer> shiftDistKeys(
-            List<Integer> distKeys, Project origProject, int toShift, int numDynmPart) {
+            List<Integer> distKeys, RelNode originRelNode, int toShift, int numDynmPart) {
         List<Integer> shiftedDistKeys = new ArrayList<>(distKeys.size());
         // starting index of dynamic parts, static parts needs to be inserted before them
-        final int insertIndex = origProject.getProjects().size() - numDynmPart;
+        final int insertIndex = originRelNode.getRowType().getFieldCount() - numDynmPart;
         for (Integer key : distKeys) {
             if (key >= insertIndex) {
                 key += toShift;
@@ -317,10 +419,10 @@ public class HiveParserDMLHelper {
     }
 
     private RelCollation shiftRelCollation(
-            RelCollation collation, Project origProject, int toShift, int numDynmPart) {
+            RelCollation collation, RelNode originRelNode, int toShift, int numDynmPart) {
         List<RelFieldCollation> fieldCollations = collation.getFieldCollations();
         // starting index of dynamic parts, static parts needs to be inserted before them
-        final int insertIndex = origProject.getProjects().size() - numDynmPart;
+        final int insertIndex = originRelNode.getRowType().getFieldCount() - numDynmPart;
         List<RelFieldCollation> shiftedCollations = new ArrayList<>(fieldCollations.size());
         for (RelFieldCollation fieldCollation : fieldCollations) {
             if (fieldCollation.getFieldIndex() >= insertIndex) {
@@ -342,7 +444,14 @@ public class HiveParserDMLHelper {
             List<TypeInfo> targetHiveTypes,
             SqlFunctionConverter funcConverter)
             throws SemanticException {
-        if (queryRelNode instanceof Project) {
+        if (queryRelNode instanceof LogicalScriptTransform) {
+            return addProjectForTypeConversion(
+                    rexBuilder,
+                    (LogicalScriptTransform) queryRelNode,
+                    targetCalcTypes,
+                    targetHiveTypes,
+                    funcConverter);
+        } else if (queryRelNode instanceof Project) {
             return replaceProjectForTypeConversion(
                     rexBuilder,
                     (Project) queryRelNode,
@@ -451,6 +560,44 @@ public class HiveParserDMLHelper {
         }
     }
 
+    private static RelNode addProjectForTypeConversion(
+            RexBuilder rexBuilder,
+            LogicalScriptTransform scriptTransform,
+            List<RelDataType> targetCalcTypes,
+            List<TypeInfo> targetHiveTypes,
+            SqlFunctionConverter funcConverter)
+            throws SemanticException {
+        List<RelDataTypeField> outPutDataTypes = scriptTransform.getRowType().getFieldList();
+        Preconditions.checkState(
+                outPutDataTypes.size() == targetCalcTypes.size(),
+                "Output types of Script transform and target types size mismatch");
+        List<RexNode> updatedExprs = new ArrayList<>(outPutDataTypes.size());
+        boolean updated = false;
+        for (int i = 0; i < outPutDataTypes.size(); i++) {
+            RelDataTypeField outputDataType = outPutDataTypes.get(i);
+            RexNode expr = rexBuilder.makeInputRef(scriptTransform, i);
+            if (outputDataType.getType().getSqlTypeName()
+                    != targetCalcTypes.get(i).getSqlTypeName()) {
+                TypeInfo hiveType = targetHiveTypes.get(i);
+                RelDataType calcType = targetCalcTypes.get(i);
+                // only support converting primitive types
+                if (hiveType.getCategory() == ObjectInspector.Category.PRIMITIVE) {
+                    expr =
+                            createConversionCast(
+                                    rexBuilder, expr, hiveType, calcType, funcConverter);
+                    updated = true;
+                }
+            }
+            updatedExprs.add(expr);
+        }
+        if (updated) {
+            return LogicalProject.create(
+                    scriptTransform, Collections.emptyList(), updatedExprs, (List<String>) null);
+        } else {
+            return scriptTransform;
+        }
+    }
+
     private RelNode handleDestSchema(
             SingleRel queryRelNode,
             Table destTable,
@@ -489,7 +636,7 @@ public class HiveParserDMLHelper {
             }
         }
         if (queryRelNode instanceof Project) {
-            return addProjectForDestSchema((Project) queryRelNode, updatedIndices);
+            return addProjectForDestSchema(queryRelNode, updatedIndices);
         } else if (queryRelNode instanceof Sort) {
             Sort sort = (Sort) queryRelNode;
             RelNode sortInput = sort.getInput();
@@ -500,8 +647,8 @@ public class HiveParserDMLHelper {
                 sort.replaceInput(0, newDist);
                 return sort;
             }
-            // PROJECT + SORT
-            RelNode addedProject = addProjectForDestSchema((Project) sortInput, updatedIndices);
+            // PROJECT + SORT or SCRIPT_TRANSFORM + SORT
+            RelNode addedProject = addProjectForDestSchema(sortInput, updatedIndices);
             // we may need to update the field collations
             List<RelFieldCollation> fieldCollations = sort.getCollation().getFieldCollations();
             if (!fieldCollations.isEmpty()) {
@@ -515,22 +662,31 @@ public class HiveParserDMLHelper {
             }
             sort.replaceInput(0, addedProject);
             return sort;
-        } else {
-            // PROJECT + DIST
+        } else if (queryRelNode instanceof LogicalDistribution) {
             return handleDestSchemaForDist((LogicalDistribution) queryRelNode, updatedIndices);
+        } else {
+            // SCRIPT_TRANSFORM
+            return handleDestSchemaForScriptTransform(
+                    (LogicalScriptTransform) queryRelNode, updatedIndices);
         }
     }
 
     private RelNode handleDestSchemaForDist(
             LogicalDistribution hiveDist, List<Object> updatedIndices) throws SemanticException {
-        Project project = (Project) hiveDist.getInput();
-        RelNode addedProject = addProjectForDestSchema(project, updatedIndices);
+        RelNode addedProject = addProjectForDestSchema(hiveDist.getInput(), updatedIndices);
         // disconnect the original LogicalDistribution
         hiveDist.replaceInput(0, null);
         return LogicalDistribution.create(
                 addedProject,
                 updateRelCollation(hiveDist.getCollation(), updatedIndices),
                 updateDistKeys(hiveDist.getDistKeys(), updatedIndices));
+    }
+
+    private RelNode handleDestSchemaForScriptTransform(
+            LogicalScriptTransform hiveScripTfm, List<Object> updatedIndices)
+            throws SemanticException {
+        return addProjectForDestSchema(
+                hiveScripTfm, hiveScripTfm.getRowType().getFieldCount(), updatedIndices);
     }
 
     private RelCollation updateRelCollation(RelCollation collation, List<Object> updatedIndices) {
@@ -562,23 +718,35 @@ public class HiveParserDMLHelper {
         return updatedDistKeys;
     }
 
+    private RelNode replaceOrAddProjectForStaticPart(
+            RelNode relNode,
+            Map<String, String> staticPartSpec,
+            Table destTable,
+            Map<String, RelDataType> targetColToType)
+            throws SemanticException {
+        if (relNode instanceof Project) {
+            // replace Project
+            return replaceProjectForStaticPart(
+                    (Project) relNode, staticPartSpec, destTable, targetColToType);
+        } else if (relNode instanceof LogicalScriptTransform) {
+            //  add Project
+            return addProjectForStaticPart(
+                    (LogicalScriptTransform) relNode, staticPartSpec, destTable, targetColToType);
+        } else {
+            throw new SemanticException(
+                    "Expect input to be a Project or LogicalScriptTransform, actually got "
+                            + relNode);
+        }
+    }
+
     private RelNode replaceProjectForStaticPart(
             Project project,
             Map<String, String> staticPartSpec,
             Table destTable,
             Map<String, RelDataType> targetColToType) {
-        List<RexNode> exprs = project.getProjects();
-        List<RexNode> extendedExprs = new ArrayList<>(exprs);
-        int numDynmPart = destTable.getTTable().getPartitionKeys().size() - staticPartSpec.size();
-        int insertIndex = extendedExprs.size() - numDynmPart;
-        RexBuilder rexBuilder = plannerContext.getCluster().getRexBuilder();
-        for (Map.Entry<String, String> spec : staticPartSpec.entrySet()) {
-            RexNode toAdd =
-                    rexBuilder.makeCharLiteral(HiveParserUtils.asUnicodeString(spec.getValue()));
-            toAdd = rexBuilder.makeAbstractCast(targetColToType.get(spec.getKey()), toAdd);
-            extendedExprs.add(insertIndex++, toAdd);
-        }
-
+        List<RexNode> extendedExprs =
+                addExtraRexNodeForStaticPart(
+                        project.getProjects(), staticPartSpec, destTable, targetColToType);
         RelNode res =
                 LogicalProject.create(
                         project.getInput(),
@@ -589,19 +757,72 @@ public class HiveParserDMLHelper {
         return res;
     }
 
+    private Project addProjectForStaticPart(
+            LogicalScriptTransform logicalScriptTransform,
+            Map<String, String> staticPartSpec,
+            Table destTable,
+            Map<String, RelDataType> targetColToType) {
+        RexBuilder rexBuilder = plannerContext.getCluster().getRexBuilder();
+        List<RexNode> originRexNodes =
+                IntStream.range(0, logicalScriptTransform.getRowType().getFieldCount())
+                        .mapToObj(i -> rexBuilder.makeInputRef(logicalScriptTransform, i))
+                        .collect(Collectors.toList());
+        List<RexNode> finalRexNodes =
+                addExtraRexNodeForStaticPart(
+                        originRexNodes, staticPartSpec, destTable, targetColToType);
+        return LogicalProject.create(
+                logicalScriptTransform,
+                Collections.emptyList(),
+                finalRexNodes,
+                (List<String>) null);
+    }
+
+    private List<RexNode> addExtraRexNodeForStaticPart(
+            List<RexNode> originRexNodes,
+            Map<String, String> staticPartSpec,
+            Table destTable,
+            Map<String, RelDataType> targetColToType) {
+        List<RexNode> extendedRexNodes = new ArrayList<>(originRexNodes);
+        RexBuilder rexBuilder = plannerContext.getCluster().getRexBuilder();
+        int numDynmPart = destTable.getTTable().getPartitionKeys().size() - staticPartSpec.size();
+        int insertIndex = originRexNodes.size() - numDynmPart;
+        for (Map.Entry<String, String> spec : staticPartSpec.entrySet()) {
+            RexNode toAdd =
+                    rexBuilder.makeCharLiteral(HiveParserUtils.asUnicodeString(spec.getValue()));
+            toAdd = rexBuilder.makeAbstractCast(targetColToType.get(spec.getKey()), toAdd);
+            extendedRexNodes.add(insertIndex++, toAdd);
+        }
+        return extendedRexNodes;
+    }
+
     private static List<String> getProjectNames(Project project) {
         return project.getNamedProjects().stream().map(p -> p.right).collect(Collectors.toList());
     }
 
-    private RelNode addProjectForDestSchema(Project input, List<Object> updatedIndices)
+    private RelNode addProjectForDestSchema(RelNode input, List<Object> updatedIndices)
             throws SemanticException {
+        if (input instanceof Project) {
+            return addProjectForDestSchema(
+                    input, ((Project) input).getProjects().size(), updatedIndices);
+        } else if (input instanceof LogicalScriptTransform) {
+            return addProjectForDestSchema(
+                    input, input.getRowType().getFieldCount(), updatedIndices);
+        } else {
+            throw new SemanticException(
+                    "Expect top RelNode to be Project, or LogicalScriptTransform when add Project for dest schema, but actually got "
+                            + input);
+        }
+    }
+
+    private RelNode addProjectForDestSchema(
+            RelNode input, int selectSize, List<Object> updatedIndices) throws SemanticException {
         int destSchemaSize =
                 (int) updatedIndices.stream().filter(o -> o instanceof Integer).count();
-        if (destSchemaSize != input.getProjects().size()) {
+        if (destSchemaSize != selectSize) {
             throw new SemanticException(
                     String.format(
                             "Expected %d columns, but SEL produces %d columns",
-                            destSchemaSize, input.getProjects().size()));
+                            destSchemaSize, selectSize));
         }
         List<RexNode> exprs = new ArrayList<>(updatedIndices.size());
         RexBuilder rexBuilder = plannerContext.getCluster().getRexBuilder();

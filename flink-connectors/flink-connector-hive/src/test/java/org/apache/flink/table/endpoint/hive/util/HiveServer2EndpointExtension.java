@@ -28,6 +28,9 @@ import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
+import java.net.InetAddress;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.CATALOG_DEFAULT_DATABASE;
@@ -67,6 +70,7 @@ public class HiveServer2EndpointExtension implements BeforeAllCallback, AfterAll
         endpoint =
                 new HiveServer2Endpoint(
                         serviceSupplier.get(),
+                        InetAddress.getLocalHost(),
                         port.getPort(),
                         checkNotNull(endpointConfig.get(THRIFT_MAX_MESSAGE_SIZE)),
                         (int) endpointConfig.get(THRIFT_LOGIN_TIMEOUT).toMillis(),
@@ -78,7 +82,8 @@ public class HiveServer2EndpointExtension implements BeforeAllCallback, AfterAll
                         HiveTestUtils.createHiveSite().getParent(),
                         endpointConfig.get(CATALOG_DEFAULT_DATABASE),
                         endpointConfig.get(MODULE_NAME),
-                        true);
+                        true,
+                        false);
         endpoint.start();
     }
 
@@ -94,5 +99,20 @@ public class HiveServer2EndpointExtension implements BeforeAllCallback, AfterAll
 
     public int getPort() {
         return checkNotNull(port).getPort();
+    }
+
+    public HiveServer2Endpoint getEndpoint() {
+        return endpoint;
+    }
+
+    public Connection getConnection() throws Exception {
+        // In hive3, if "hive.metastore.schema.verification" is true, the
+        // "datanucleus.schema.autoCreateTables" is false during the creation of the HiveConf.
+        // So we need to manually enable datanucleus.schema.autoCreateAll
+        // Please cc FLINK-27999 for more details
+        return DriverManager.getConnection(
+                String.format(
+                        "jdbc:hive2://%s:%s/default;auth=noSasl?datanucleus.schema.autoCreateAll=true",
+                        InetAddress.getLocalHost().getHostAddress(), getPort()));
     }
 }

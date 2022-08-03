@@ -158,8 +158,12 @@ public abstract class ResultPartition implements ResultPartitionWriter {
                 "Bug in result partition setup logic: Already registered buffer pool.");
 
         this.bufferPool = checkNotNull(bufferPoolFactory.get());
+        setupInternal();
         partitionManager.registerResultPartition(this);
     }
+
+    /** Do the subclass's own setup operation. */
+    protected abstract void setupInternal() throws IOException;
 
     public String getOwningTaskName() {
         return owningTaskName;

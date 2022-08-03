@@ -195,7 +195,8 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
                         -1L,
                         ioMetricsInfo,
                         "(unassigned)",
-                        statusDuration);
+                        statusDuration,
+                        null);
 
         assertEquals(expectedDetailsInfo, detailsInfo);
     }

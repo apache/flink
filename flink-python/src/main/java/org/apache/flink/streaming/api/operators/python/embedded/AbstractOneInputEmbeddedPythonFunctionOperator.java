@@ -26,7 +26,6 @@ import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
@@ -53,19 +52,14 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
 
     private transient PythonTypeUtils.DataConverter<IN, Object> inputDataConverter;
 
-    private transient PythonTypeUtils.DataConverter<OUT, Object> outputDataConverter;
-
-    private transient TimestampedCollector<OUT> collector;
-
     protected transient long timestamp;
 
     public AbstractOneInputEmbeddedPythonFunctionOperator(
-            String functionUrn,
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
             TypeInformation<IN> inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo) {
-        super(functionUrn, config, pythonFunctionInfo, outputTypeInfo);
+        super(config, pythonFunctionInfo, outputTypeInfo);
         this.inputTypeInfo = Preconditions.checkNotNull(inputTypeInfo);
     }
 
@@ -75,16 +69,10 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
 
         inputDataConverter =
                 PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(inputTypeInfo);
-
-        outputDataConverter =
-                PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(outputTypeInfo);
-
-        collector = new TimestampedCollector<>(output);
     }
 
     @Override
     public void openPythonInterpreter() {
-        // function_urn = ...
         // function_protos = ...
         // input_coder_info = ...
         // output_coder_info = ...
@@ -95,12 +83,10 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
         // from pyflink.fn_execution.embedded.operation_utils import
         // create_one_input_user_defined_data_stream_function_from_protos
         //
-        // operation = create_one_input_user_defined_data_stream_function_from_protos(function_urn,
+        // operation = create_one_input_user_defined_data_stream_function_from_protos(
         //     function_protos, input_coder_info, output_coder_info, runtime_context,
         //     function_context, job_parameters)
         // operation.open()
-
-        interpreter.set("function_urn", functionUrn);
 
         interpreter.set(
                 "function_protos",
@@ -127,6 +113,7 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
 
         interpreter.set("runtime_context", getRuntimeContext());
         interpreter.set("function_context", getFunctionContext());
+        interpreter.set("timer_context", getTimerContext());
         interpreter.set("job_parameters", getJobParameters());
 
         interpreter.exec(
@@ -134,12 +121,12 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
 
         interpreter.exec(
                 "operation = create_one_input_user_defined_data_stream_function_from_protos("
-                        + "function_urn,"
                         + "function_protos,"
                         + "input_coder_info,"
                         + "output_coder_info,"
                         + "runtime_context,"
                         + "function_context,"
+                        + "timer_context,"
                         + "job_parameters)");
 
         interpreter.invokeMethod("operation", "open");
@@ -153,7 +140,7 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
     }
 
     @Override
-    public void processElement(StreamRecord<IN> element) {
+    public void processElement(StreamRecord<IN> element) throws Exception {
         collector.setTimestamp(element);
         timestamp = element.getTimestamp();
 
@@ -169,6 +156,7 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
             OUT result = outputDataConverter.toInternal(results.next());
             collector.collect(result);
         }
+        results.close();
     }
 
     TypeInformation<IN> getInputTypeInfo() {
@@ -181,4 +169,7 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
 
     /** Gets The function context. */
     public abstract Object getFunctionContext();
+
+    /** Gets The Timer context. */
+    public abstract Object getTimerContext();
 }

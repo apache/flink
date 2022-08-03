@@ -184,15 +184,12 @@ public class HiveParserUtils {
 
     // Overrides CalcitePlanner::canHandleQbForCbo to support SORT BY, CLUSTER BY, etc.
     public static String canHandleQbForCbo(QueryProperties queryProperties) {
-        if (!queryProperties.hasPTF() && !queryProperties.usesScript()) {
+        if (!queryProperties.hasPTF()) {
             return null;
         }
         String msg = "";
         if (queryProperties.hasPTF()) {
             msg += "has PTF; ";
-        }
-        if (queryProperties.usesScript()) {
-            msg += "uses scripts; ";
         }
         return msg;
     }

@@ -51,15 +51,7 @@ public class AvroParquetReaders {
     public static <T extends SpecificRecordBase> StreamFormat<T> forSpecificRecord(
             final Class<T> typeClass) {
         return new AvroParquetRecordFormat<>(
-                new AvroTypeInfo<>(typeClass),
-                // Must override the lambda representation because of a bug in shading lambda
-                // serialization, see FLINK-28043 for more details.
-                new SerializableSupplier<GenericData>() {
-                    @Override
-                    public GenericData get() {
-                        return SpecificData.get();
-                    }
-                });
+                new AvroTypeInfo<>(typeClass), () -> SpecificData.get());
     }
 
     /**
@@ -92,15 +84,7 @@ public class AvroParquetReaders {
         // this is a PoJo that Avo will reader via reflect de-serialization
         // for Flink, this is just a plain PoJo type
         return new AvroParquetRecordFormat<>(
-                TypeExtractor.createTypeInfo(typeClass),
-                // Must override the lambda representation because of a bug in shading lambda
-                // serialization, see FLINK-28043 for more details.
-                new SerializableSupplier<GenericData>() {
-                    @Override
-                    public GenericData get() {
-                        return ReflectData.get();
-                    }
-                });
+                TypeExtractor.createTypeInfo(typeClass), () -> ReflectData.get());
     }
 
     /**

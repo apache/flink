@@ -24,6 +24,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
@@ -70,10 +71,11 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
                     .RowDataToCsvFormatConverterContext
             converterContext;
 
-    private CsvRowDataSerializationSchema(RowType rowType, CsvSchema csvSchema) {
+    private CsvRowDataSerializationSchema(
+            RowType rowType, CsvSchema csvSchema, CsvMapper csvMapper) {
         this.rowType = rowType;
         this.runtimeConverter = RowDataToCsvConverters.createRowConverter(rowType);
-        this.csvMapper = new CsvMapper();
+        this.csvMapper = csvMapper;
         this.csvSchema = csvSchema.withLineSeparator("");
         this.objectWriter = csvMapper.writer(this.csvSchema);
     }
@@ -84,6 +86,7 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
 
         private final RowType rowType;
         private CsvSchema csvSchema;
+        private CsvMapper csvMapper;
 
         /**
          * Creates a {@link CsvRowDataSerializationSchema} expecting the given {@link RowType}.
@@ -95,6 +98,7 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
 
             this.rowType = rowType;
             this.csvSchema = CsvRowSchemaConverter.convert(rowType);
+            this.csvMapper = new CsvMapper();
         }
 
         public Builder setFieldDelimiter(char c) {
@@ -128,8 +132,13 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
             return this;
         }
 
+        public void setWriteBigDecimalInScientificNotation(boolean isScientificNotation) {
+            this.csvMapper.configure(
+                    JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN, !isScientificNotation);
+        }
+
         public CsvRowDataSerializationSchema build() {
-            return new CsvRowDataSerializationSchema(rowType, csvSchema);
+            return new CsvRowDataSerializationSchema(rowType, csvSchema, csvMapper);
         }
     }
 

@@ -391,6 +391,8 @@ To use the Parquet bulk encoder in your application you need to add the followin
 
 {{< artifact flink-parquet withScalaVersion >}}
 
+{{< py_download_link "parquet" >}}
+
 A `FileSink` that writes Avro data to Parquet format can be created like this:
 
 {{< tabs "4ff7b496-3a80-46f4-9b7d-7a9222672927" >}}
@@ -427,6 +429,22 @@ val sink: FileSink[GenericRecord] = FileSink
 
 input.sinkTo(sink)
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+schema = AvroSchema.parse_string(JSON_SCHEMA)
+# The element could be vanilla Python data structure matching the schema,
+# which is annotated with default Types.PICKLED_BYTE_ARRAY()
+data_stream = ...
+
+avro_type_info = GenericRecordAvroTypeInfo(schema)
+sink = FileSink \
+    .for_bulk_format(OUTPUT_BASE_PATH, AvroParquetWriters.for_generic_record(schema)) \
+    .build()
+
+# A map to indicate its Avro type info is necessary for serialization
+data_stream.map(lambda e: e, output_type=avro_type_info).sink_to(sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -478,6 +496,8 @@ To use the Avro writers in your application you need to add the following depend
 
 {{< artifact flink-avro >}}
 
+{{< py_download_link "avro" >}}
+
 A `FileSink` that writes data to Avro files can be created like this:
 
 {{< tabs "ee5f25e0-180e-43b1-ae91-277bf73d3a6c" >}}
@@ -514,6 +534,22 @@ val sink: FileSink[GenericRecord] = FileSink
 
 input.sinkTo(sink)
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+schema = AvroSchema.parse_string(JSON_SCHEMA)
+# The element could be vanilla Python data structure matching the schema,
+# which is annotated with default Types.PICKLED_BYTE_ARRAY()
+data_stream = ...
+
+avro_type_info = GenericRecordAvroTypeInfo(schema)
+sink = FileSink \
+    .for_bulk_format(OUTPUT_BASE_PATH, AvroWriters.for_generic_record(schema)) \
+    .build()
+
+# A map to indicate its Avro type info is necessary for serialization
+data_stream.map(lambda e: e, output_type=avro_type_info).sink_to(sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}

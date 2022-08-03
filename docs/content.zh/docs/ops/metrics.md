@@ -87,6 +87,23 @@ class MyMapper extends RichMapFunction[String,String] {
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+class MyMapper(MapFunction):
+    def __init__(self):
+        self.counter = None
+
+    def open(self, runtime_context: RuntimeContext):
+        self.counter = runtime_context \
+            .get_metrics_group() \
+            .counter("my_counter")
+
+    def map(self, value: str):
+        self.counter.inc()
+        return value
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Alternatively you can also use your own `Counter` implementation:
@@ -133,6 +150,11 @@ class MyMapper extends RichMapFunction[String,String] {
   }
 }
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -191,6 +213,24 @@ new class MyMapper extends RichMapFunction[String,String] {
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+class MyMapper(MapFunction):
+    def __init__(self):
+        self.value_to_expose = 0
+
+    def open(self, runtime_context: RuntimeContext):
+        runtime_context \
+            .get_metrics_group() \
+            .gauge("my_gauge", lambda: self.value_to_expose)
+
+    def map(self, value: str):
+        self.value_to_expose += 1
+        return value
+
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Note that reporters will turn the exposed object into a `String`, which means that a meaningful `toString()` implementation is required.
@@ -239,6 +279,11 @@ class MyMapper extends RichMapFunction[Long,Long] {
   }
 }
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -302,6 +347,11 @@ class MyMapper extends RichMapFunction[Long, Long] {
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 #### Meter
@@ -347,6 +397,25 @@ class MyMapper extends RichMapFunction[Long,Long] {
     value
   }
 }
+
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+class MyMapperMeter(MapFunction):
+    def __init__(self):
+        self.meter = None
+
+    def open(self, runtime_context: RuntimeContext):
+        # an average rate of events per second over 120s, default is 60s.
+        self.meter = runtime_context \
+            .get_metrics_group() \
+            .meter("my_meter", time_span_in_seconds=120)
+
+    def map(self, value: str):
+        self.meter.markEvent()
+        return value
 
 ```
 {{< /tab >}}
@@ -409,6 +478,11 @@ class MyMapper extends RichMapFunction[Long,Long] {
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ## Scope
@@ -453,6 +527,21 @@ counter = getRuntimeContext()
   .getMetricGroup()
   .addGroup("MyMetricsKey", "MyMetricsValue")
   .counter("myCounter")
+
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+counter = runtime_context \
+    .get_metric_group() \
+    .add_group("my_metrics") \
+    .counter("my_counter")
+
+counter = runtime_context \
+    .get_metric_group() \
+    .add_group("my_metrics_key", "my_metrics_value") \
+    .counter("my_counter")
 
 ```
 {{< /tab >}}
@@ -534,6 +623,14 @@ counter = getRuntimeContext()
   .addGroup("MyMetricsKey", "MyMetricsValue")
   .counter("myCounter")
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+counter = runtime_context
+    .get_metric_group() \
+    .add_group("my_metrics_key", "my_metrics_value") \
+    .counter("my_counter")
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1259,6 +1356,157 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
   </tbody>
 </table>
 
+### State Access Latency
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="27"><strong>Task/Operator</strong></th>
+      <td>stateClearLatency</td>
+      <td>The latency of clear operation for state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>valueStateGetLatency</td>
+      <td>The latency of Get operation for value state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>valueStateUpdateLatency</td>
+      <td>The latency of update operation for value state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateGetLatency</td>
+      <td>The latency of get operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateAddLatency</td>
+      <td>The latency of add operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateAddAllLatency</td>
+      <td>The latency of addAll operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateUpdateLatency</td>
+      <td>The latency of update operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateMergeNamespacesLatency</td>
+      <td>The latency of merge namespace operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateGetLatency</td>
+      <td>The latency of get operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStatePutLatency</td>
+      <td>The latency of put operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStatePutAllLatency</td>
+      <td>The latency of putAll operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateRemoveLatency</td>
+      <td>The latency of remove operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateContainsLatency</td>
+      <td>The latency of contains operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateEntriesInitLatency</td>
+      <td>The init latency of entries operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateKeysInitLatency</td>
+      <td>The init latency of keys operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateValuesInitLatency</td>
+      <td>The init latency of values operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIteratorInitLatency</td>
+      <td>The init latency of iterator operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIsEmptyLatency</td>
+      <td>The latency of isEmpty operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIteratorHasNextLatency</td>
+      <td>The latency of iterator#hasNext operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIteratorNextLatency</td>
+      <td>The latency of iterator#next operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIteratorRemoveLatency</td>
+      <td>The latency of iterator#remove operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>aggregatingStateGetLatency</td>
+      <td>The latency of get operation for aggregating state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>aggregatingStateAddLatency</td>
+      <td>The latency of add operation for aggregating state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>aggregatingStateMergeNamespacesLatency</td>
+      <td>The latency of merge namespace operation for aggregating state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>reducingStateGetLatency</td>
+      <td>The latency of get operation for reducing state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>reducingStateAddLatency</td>
+      <td>The latency of add operation for reducing state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>reducingStateMergeNamespacesLatency</td>
+      <td>The latency of merge namespace operation for reducing state</td>
+      <td>Histogram</td>
+    </tr>
+  </tbody>
+</table>
+
 ### RocksDB
 Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{< ref "docs/deployment/config" >}}#rocksdb-native-metrics)
 
@@ -1618,15 +1866,15 @@ Note that the metrics are only available via reporters.
   </tbody>
 </table>
 
-#### Kinesis Connectors
+#### Kinesis 源
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 15%">Scope</th>
-      <th class="text-left" style="width: 18%">Metrics</th>
-      <th class="text-left" style="width: 18%">User Variables</th>
-      <th class="text-left" style="width: 39%">Description</th>
-      <th class="text-left" style="width: 10%">Type</th>
+      <th class="text-left" style="width: 15%">范围</th>
+      <th class="text-left" style="width: 18%">指标</th>
+      <th class="text-left" style="width: 18%">用户变量</th>
+      <th class="text-left" style="width: 39%">描述</th>
+      <th class="text-left" style="width: 10%">类型</th>
     </tr>
   </thead>
   <tbody>
@@ -1634,11 +1882,11 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>millisBehindLatest</td>
       <td>stream, shardId</td>
-      <td>The number of milliseconds the consumer is behind the head of the stream,
-      indicating how far behind current time the consumer is, for each Kinesis shard.
-      A particular shard's metric can be specified by stream name and shard id.
-      A value of 0 indicates record processing is caught up, and there are no new records
-      to process at this moment. A value of -1 indicates that there is no reported value for the metric, yet.
+      <td>消费者落后于流头部的毫秒数，
+	  对每个Kinesis分片，表示费者落后当前时间多久。
+	  可以通过流名称和分片id指定一个特定分片的指标值。
+	  值为0表示记录处理已完成，并且没有新记录在此时处理。
+	  值为-1表示尚未报告指标值。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1646,8 +1894,8 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>sleepTimeMillis</td>
       <td>stream, shardId</td>
-      <td>The number of milliseconds the consumer spends sleeping before fetching records from Kinesis.
-      A particular shard's metric can be specified by stream name and shard id.
+      <td>消费者在从Kinesis获取记录之前睡眠的毫秒数。
+      可以通过流名称和分片id指定特定分片的指标值。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1655,8 +1903,8 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>maxNumberOfRecordsPerFetch</td>
       <td>stream, shardId</td>
-      <td>The maximum number of records requested by the consumer in a single getRecords call to Kinesis. If ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS
-      is set to true, this value is adaptively calculated to maximize the 2 Mbps read limits from Kinesis.
+      <td>消费者在对Kinesis的单个getRecords调用中请求的最大记录数。如果ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS
+	  设置为true，自适应计算该值，以最大化来自Kinesis的2Mbps读取限制。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1664,7 +1912,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>numberOfAggregatedRecordsPerFetch</td>
       <td>stream, shardId</td>
-      <td>The number of aggregated Kinesis records fetched by the consumer in a single getRecords call to Kinesis.
+      <td>消费者在对Kinesis的单个getRecords调用中获取的聚合的Kinesis记录数。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1672,7 +1920,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>numberOfDeggregatedRecordsPerFetch</td>
       <td>stream, shardId</td>
-      <td>The number of deaggregated Kinesis records fetched by the consumer in a single getRecords call to Kinesis.
+      <td>消费者在对Kinesis的单个getRecords调用中获取的非聚合的Kinesis记录数。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1680,7 +1928,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>averageRecordSizeBytes</td>
       <td>stream, shardId</td>
-      <td>The average size of a Kinesis record in bytes, fetched by the consumer in a single getRecords call.
+      <td>以字节为单位的Kinesis记录的平均大小，由消费者在单个getRecords调用中获取。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1688,7 +1936,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>runLoopTimeNanos</td>
       <td>stream, shardId</td>
-      <td>The actual time taken, in nanoseconds, by the consumer in the run loop.
+      <td>消费者在运行循环中花费的实际时间（纳秒）。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1696,7 +1944,7 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>loopFrequencyHz</td>
       <td>stream, shardId</td>
-      <td>The number of calls to getRecords in one second. 
+      <td>一秒钟内调用getRecords的次数。 
       </td>
       <td>Gauge</td>
     </tr>
@@ -1704,8 +1952,44 @@ Note that the metrics are only available via reporters.
       <th rowspan="1">Operator</th>
       <td>bytesRequestedPerFetch</td>
       <td>stream, shardId</td>
-      <td>The bytes requested (2 Mbps / loopFrequencyHz) in a single call to getRecords.
+      <td>在对getRecords的单个调用中请求的字节数（2 Mbps / loopFrequencyHz）。
       </td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
+#### Kinesis 接收器
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">范围</th>
+      <th class="text-left" style="width: 18%">指标</th>
+      <th class="text-left" style="width: 39%">描述</th>
+      <th class="text-left" style="width: 10%">类型</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>numRecordsOutErrors (已弃用, 请使用numRecordsSendErrors)</td>
+      <td>被拒绝的记录写入数。</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>numRecordsSendErrors</td>
+      <td>被拒绝的记录写入数。</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>CurrentSendTime</td>
+      <td>最后一批请求的1次往返所用的毫秒数。</td>
       <td>Gauge</td>
     </tr>
   </tbody>
@@ -1916,6 +2200,9 @@ This configuration has a default value of 100. A smaller value will get more acc
 
 As the type of this latency metrics is histogram, `state.backend.latency-track.history-size` will control the maximum number of recorded values in history, which has the default value of 128.
 A larger value of this configuration will require more memory, but will provide a more accurate result.
+
+<span class="label label-danger">Warning</span> Enabling state-access-latency metrics may impact the performance.
+It is recommended to only use them for debugging purposes.
 
 ## REST API integration
 

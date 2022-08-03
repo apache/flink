@@ -30,7 +30,7 @@ import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
-import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.util.ConfigurationException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
@@ -114,8 +114,8 @@ public class RestAPIDocGenerator {
     public static void main(String[] args) throws IOException, ConfigurationException {
         String outputDirectory = args[0];
 
-        for (final RestAPIVersion apiVersion : RestAPIVersion.values()) {
-            if (apiVersion == RestAPIVersion.V0) {
+        for (final RuntimeRestAPIVersion apiVersion : RuntimeRestAPIVersion.values()) {
+            if (apiVersion == RuntimeRestAPIVersion.V0) {
                 // this version exists only for testing purposes
                 continue;
             }
@@ -130,7 +130,7 @@ public class RestAPIDocGenerator {
 
     @VisibleForTesting
     static void createHtmlFile(
-            DocumentingRestEndpoint restEndpoint, RestAPIVersion apiVersion, Path outputFile)
+            DocumentingRestEndpoint restEndpoint, RuntimeRestAPIVersion apiVersion, Path outputFile)
             throws IOException {
         StringBuilder html = new StringBuilder();
 

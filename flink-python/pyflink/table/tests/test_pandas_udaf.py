@@ -742,7 +742,6 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
                             "+I[3, 2.0, 4]"])
         os.remove(source_path)
 
-    @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_over_aggregate_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir
@@ -806,7 +805,7 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
             from source_table
         """)
         from py4j.java_gateway import get_method
-        get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
+        get_method(json_plan.execute(), "await")()
 
         import glob
         lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]

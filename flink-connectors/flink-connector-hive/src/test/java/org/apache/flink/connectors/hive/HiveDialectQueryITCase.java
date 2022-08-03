@@ -28,6 +28,7 @@ import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.table.planner.delegation.hive.HiveParserUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.FileUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
@@ -44,12 +45,15 @@ import org.junit.Test;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -73,7 +77,7 @@ public class HiveDialectQueryITCase {
 
         // create tables
         tableEnv.executeSql("create table foo (x int, y int)");
-        tableEnv.executeSql("create table bar(i int, s string)");
+        tableEnv.executeSql("create table bar(I int, s string)");
         tableEnv.executeSql("create table baz(ai array<int>, d double)");
         tableEnv.executeSql(
                 "create table employee(id int,name string,dep string,salary int,age int)");
@@ -433,6 +437,207 @@ public class HiveDialectQueryITCase {
                 .rootCause()
                 .isInstanceOf(expectedExceptionClz)
                 .hasMessage(expectedMessage);
+    }
+
+    @Test
+    public void testInsertDirectory() throws Exception {
+        String warehouse = hiveCatalog.getHiveConf().getVar(HiveConf.ConfVars.METASTOREWAREHOUSE);
+
+        // test insert overwrite directory with row format parameters
+        tableEnv.executeSql("create table map_table (foo STRING , bar MAP<STRING, INT>)");
+        tableEnv.executeSql(
+                "insert into map_table select 'A', map('math',100,'english',90,'history',85)");
+
+        String dataDir = warehouse + "/map_table_dir";
+        tableEnv.executeSql(
+                        String.format(
+                                "INSERT OVERWRITE LOCAL DIRECTORY '%s'"
+                                        + "ROW FORMAT DELIMITED \n"
+                                        + "FIELDS TERMINATED BY ':'\n"
+                                        + "COLLECTION ITEMS TERMINATED BY '#' \n"
+                                        + "MAP KEYS TERMINATED BY '=' select * from map_table",
+                                dataDir))
+                .await();
+        java.nio.file.Path[] files =
+                FileUtils.listFilesInDirectory(
+                                Paths.get(dataDir), (path) -> !path.toFile().isHidden())
+                        .toArray(new Path[0]);
+        assertThat(files.length).isEqualTo(1);
+        String actualString = FileUtils.readFileUtf8(files[0].toFile());
+        assertThat(actualString.trim()).isEqualTo("A:english=90#math=100#history=85");
+
+        // test insert overwrite directory store as other format
+        tableEnv.executeSql("create table d_table(x int) PARTITIONED BY (ds STRING, hr STRING)");
+        tableEnv.executeSql("INSERT OVERWRITE TABLE d_table PARTITION (ds='1', hr='1') select 1")
+                .await();
+        tableEnv.executeSql("INSERT OVERWRITE TABLE d_table PARTITION (ds='1', hr='2') select 2")
+                .await();
+
+        String tableAggDir = warehouse + "/d_table_agg";
+        // create an external referring to the directory to be inserted
+        tableEnv.executeSql(
+                String.format(
+                        "create external table d_table_agg(x int, ds STRING) STORED AS RCFILE location '%s' ",
+                        tableAggDir));
+        // insert into directory stored as RCFILE
+        tableEnv.executeSql(
+                        String.format(
+                                "INSERT OVERWRITE DIRECTORY '%s' STORED AS RCFILE select count(x), ds from d_table group by ds ",
+                                tableAggDir))
+                .await();
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select * from d_table_agg").collect());
+        // verify the data read from the external table
+        assertThat(result.toString()).isEqualTo("[+I[2, 1]]");
+    }
+
+    @Test
+    public void testScriptTransform() throws Exception {
+        tableEnv.executeSql("CREATE TABLE dest1(key INT, ten INT, one INT, value STRING)");
+        tableEnv.executeSql("CREATE TABLE destp1 (key string) partitioned by (p1 int,p2 string)");
+        try {
+            // test explain transform
+            String actualPlan =
+                    (String)
+                            CollectionUtil.iteratorToList(
+                                            tableEnv.executeSql(
+                                                            "explain select transform(key, value)"
+                                                                    + " ROW FORMAT SERDE 'MySerDe'"
+                                                                    + " WITH SERDEPROPERTIES ('p1'='v1','p2'='v2')"
+                                                                    + " RECORDWRITER 'MyRecordWriter' "
+                                                                    + " using 'cat' as (cola int, value string)"
+                                                                    + " ROW FORMAT DELIMITED FIELDS TERMINATED BY ','"
+                                                                    + " RECORDREADER 'MyRecordReader' from src")
+                                                    .collect())
+                                    .get(0)
+                                    .getField(0);
+            assertThat(actualPlan).isEqualTo(readFromResource("/explain/testScriptTransform.out"));
+
+            // transform using + specified schema
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select * from (\n"
+                                                    + " select transform(key, value) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\\003'"
+                                                    + " using 'cat'"
+                                                    + " as (cola int, value string) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\\003'"
+                                                    + " from src\n"
+                                                    + " union all\n"
+                                                    + " select transform(key, value) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\\003'"
+                                                    + " using 'cat' as (cola int, value string) from src) s")
+                                    .collect());
+            assertThat(result.toString())
+                    .isEqualTo(
+                            "[+I[1, val1], +I[2, val2], +I[3, val3], +I[1, val1], +I[2, val2], +I[3, val3]]");
+
+            // transform using + distributed by
+            tableEnv.executeSql(
+                            "from src insert overwrite table dest1 map src.key,"
+                                    + " CAST(src.key / 10 AS INT), CAST(src.key % 10 AS INT),"
+                                    + " src.value using 'cat' as (tkey, ten, one, tvalue)"
+                                    + " distribute by tvalue, tkey")
+                    .await();
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from dest1").collect());
+            assertThat(result.toString())
+                    .isEqualTo("[+I[1, 0, 1, val1], +I[2, 0, 2, val2], +I[3, 0, 3, val3]]");
+
+            // transform using with default output schema(key string, value string) + insert into
+            // partitioned table
+            // `value` after this script transform will be null, so that will fall into Hive's
+            // default partition
+            tableEnv.executeSql(
+                            "insert into destp1 partition (p1=0,p2) (SELECT TRANSFORM(key, upper(value))"
+                                    + " USING 'tr \t _' FROM ((select key, value from src) tmp))")
+                    .await();
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from destp1").collect());
+            String defaultPartitionName =
+                    hiveCatalog.getHiveConf().getVar(HiveConf.ConfVars.DEFAULTPARTITIONNAME);
+            assertThat(result.toString())
+                    .isEqualTo(
+                            String.format(
+                                    "[+I[1_VAL1, 0, %s], +I[2_VAL2, 0, %s], +I[3_VAL3, 0, %s]]",
+                                    defaultPartitionName,
+                                    defaultPartitionName,
+                                    defaultPartitionName));
+        } finally {
+            tableEnv.executeSql("drop table dest1");
+            tableEnv.executeSql("drop table destp1");
+        }
+    }
+
+    @Test
+    public void testMultiInsert() throws Exception {
+        tableEnv.executeSql("create table t1 (id bigint, name string)");
+        tableEnv.executeSql("create table t2 (id bigint, name string)");
+        tableEnv.executeSql("create table t3 (id bigint, name string, age int)");
+        try {
+            String multiInsertSql =
+                    "from (select id, name, age from t3) t"
+                            + " insert overwrite table t1 select id, name where age < 20"
+                            + "  insert overwrite table t2 select id, name where age > 20";
+            // test explain
+            String actualPlan =
+                    (String)
+                            CollectionUtil.iteratorToList(
+                                            tableEnv.executeSql("explain " + multiInsertSql)
+                                                    .collect())
+                                    .get(0)
+                                    .getField(0);
+            assertThat(actualPlan).isEqualTo(readFromResource("/explain/testMultiInsert.out"));
+            // test execution
+            tableEnv.executeSql("insert into table t3 values (1, 'test1', 18 ), (2, 'test2', 28 )")
+                    .await();
+            tableEnv.executeSql(multiInsertSql).await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from t1").collect());
+            assertThat(result.toString()).isEqualTo("[+I[1, test1]]");
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from t2").collect());
+            assertThat(result.toString()).isEqualTo("[+I[2, test2]]");
+        } finally {
+            tableEnv.executeSql("drop table t1");
+            tableEnv.executeSql("drop table t2");
+            tableEnv.executeSql("drop table t3");
+        }
+    }
+
+    @Test
+    public void testNestType() throws Exception {
+        tableEnv.executeSql("CREATE TABLE dummy (i int)");
+        tableEnv.executeSql("INSERT INTO TABLE dummy VALUES (42)").await();
+        tableEnv.executeSql(
+                        "INSERT INTO TABLE nested SELECT\n"
+                                + "  1, named_struct('f1', false, 'f2', 'foo', 'f3', named_struct('f4', 4, 'f5', cast(5.0 as double)), 'f6', 4),\n"
+                                + "  named_struct('f7', 'f7', 'f8', named_struct('f9', true, 'f10', array(10, 11), 'f11', map('key1', true, 'key2', false))),\n"
+                                + "  named_struct('f12', array(named_struct('f13', 'foo', 'f14', 14), named_struct('f13', 'bar', 'f14', 28))),\n"
+                                + "  map('key1', named_struct('f15', 1), 'key2', named_struct('f15', 2)),\n"
+                                + "  named_struct('f16', array(named_struct('f17', 'foo', 'f18', named_struct('f19', 14)), named_struct('f17', 'bar', 'f18', named_struct('f19', 28)))),\n"
+                                + "  map('key1', named_struct('f20', array(named_struct('f21', named_struct('f22', 1)))),\n"
+                                + "      'key2', named_struct('f20', array(named_struct('f21', named_struct('f22', 2)))))\n"
+                                + "FROM dummy")
+                .await();
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select s3.f12[0].f14 FROM nested").collect());
+        assertThat(result.toString()).isEqualTo("[+I[14]]");
+
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("SELECT s6['key1'].f20.f21.f22 FROM nested").collect());
+        assertThat(result.toString()).isEqualTo("[+I[[1]]]");
+
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("SELECT s5.f16.f18.f19 FROM nested").collect());
+        assertThat(result.toString()).isEqualTo("[+I[[14, 28]]]");
     }
 
     private void runQFile(File qfile) throws Exception {

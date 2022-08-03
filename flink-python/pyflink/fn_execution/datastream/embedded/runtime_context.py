@@ -16,9 +16,15 @@
 # limitations under the License.
 ################################################################################
 from pyflink.datastream import RuntimeContext
-from pyflink.datastream.state import AggregatingStateDescriptor, AggregatingState, \
-    ReducingStateDescriptor, ReducingState, MapStateDescriptor, MapState, ListStateDescriptor, \
-    ListState, ValueStateDescriptor, ValueState
+from pyflink.datastream.state import (AggregatingStateDescriptor, AggregatingState,
+                                      ReducingStateDescriptor, ReducingState, MapStateDescriptor,
+                                      MapState, ListStateDescriptor, ListState,
+                                      ValueStateDescriptor, ValueState)
+from pyflink.fn_execution.datastream.embedded.state_impl import (ValueStateImpl, ListStateImpl,
+                                                                 MapStateImpl, ReducingStateImpl,
+                                                                 AggregatingStateImpl)
+from pyflink.fn_execution.embedded.converters import from_type_info
+from pyflink.fn_execution.embedded.java_utils import to_java_state_descriptor
 
 
 class StreamingRuntimeContext(RuntimeContext):
@@ -76,20 +82,32 @@ class StreamingRuntimeContext(RuntimeContext):
         return self._runtime_context.getMetricGroup()
 
     def get_state(self, state_descriptor: ValueStateDescriptor) -> ValueState:
-        pass
+        return ValueStateImpl(
+            self._runtime_context.getState(to_java_state_descriptor(state_descriptor)),
+            from_type_info(state_descriptor.type_info))
 
     def get_list_state(self, state_descriptor: ListStateDescriptor) -> ListState:
-        pass
+        return ListStateImpl(
+            self._runtime_context.getListState(to_java_state_descriptor(state_descriptor)),
+            from_type_info(state_descriptor.type_info))
 
     def get_map_state(self, state_descriptor: MapStateDescriptor) -> MapState:
-        pass
+        return MapStateImpl(
+            self._runtime_context.getMapState(to_java_state_descriptor(state_descriptor)),
+            from_type_info(state_descriptor.type_info))
 
     def get_reducing_state(self, state_descriptor: ReducingStateDescriptor) -> ReducingState:
-        pass
+        return ReducingStateImpl(
+            self._runtime_context.getState(to_java_state_descriptor(state_descriptor)),
+            from_type_info(state_descriptor.type_info),
+            state_descriptor.get_reduce_function())
 
     def get_aggregating_state(self,
                               state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
-        pass
+        return AggregatingStateImpl(
+            self._runtime_context.getState(to_java_state_descriptor(state_descriptor)),
+            from_type_info(state_descriptor.type_info),
+            state_descriptor.get_agg_function())
 
     @staticmethod
     def of(runtime_context, job_parameters):

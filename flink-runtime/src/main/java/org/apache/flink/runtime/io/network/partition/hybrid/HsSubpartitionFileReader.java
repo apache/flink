@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.Queue;
+import java.util.function.Consumer;
 
 /**
  * This component is responsible for reading data from disk for a specific subpartition.
@@ -31,7 +32,7 @@ import java.util.Queue;
  * <p>In order to access the disk as sequentially as possible {@link HsSubpartitionFileReader} need
  * to be able to compare priorities.
  */
-public interface HsSubpartitionFileReader extends Comparable<HsSubpartitionFileReader> {
+public interface HsSubpartitionFileReader extends Comparable<HsSubpartitionFileReader>, HsDataView {
     /** Do prep work before this {@link HsSubpartitionFileReader} is scheduled to read data. */
     void prepareForScheduling();
 
@@ -58,6 +59,7 @@ public interface HsSubpartitionFileReader extends Comparable<HsSubpartitionFileR
                 FileChannel dataFileChannel,
                 HsSubpartitionViewInternalOperations operation,
                 HsFileDataIndex dataIndex,
-                int maxBuffersReadAhead);
+                int maxBuffersReadAhead,
+                Consumer<HsSubpartitionFileReader> fileReaderReleaser);
     }
 }

@@ -32,15 +32,19 @@ public class TestingSpillingStrategy implements HsSpillingStrategy {
 
     private final Function<HsSpillingInfoProvider, Decision> decideActionWithGlobalInfoFunction;
 
+    private final Function<HsSpillingInfoProvider, Decision> onResultPartitionClosedFunction;
+
     private TestingSpillingStrategy(
             BiFunction<Integer, Integer, Optional<Decision>> onMemoryUsageChangedFunction,
             Function<Integer, Optional<Decision>> onBufferFinishedFunction,
             Function<BufferIndexAndChannel, Optional<Decision>> onBufferConsumedFunction,
-            Function<HsSpillingInfoProvider, Decision> decideActionWithGlobalInfoFunction) {
+            Function<HsSpillingInfoProvider, Decision> decideActionWithGlobalInfoFunction,
+            Function<HsSpillingInfoProvider, Decision> onResultPartitionClosedFunction) {
         this.onMemoryUsageChangedFunction = onMemoryUsageChangedFunction;
         this.onBufferFinishedFunction = onBufferFinishedFunction;
         this.onBufferConsumedFunction = onBufferConsumedFunction;
         this.decideActionWithGlobalInfoFunction = decideActionWithGlobalInfoFunction;
+        this.onResultPartitionClosedFunction = onResultPartitionClosedFunction;
     }
 
     @Override
@@ -64,6 +68,11 @@ public class TestingSpillingStrategy implements HsSpillingStrategy {
         return decideActionWithGlobalInfoFunction.apply(spillingInfoProvider);
     }
 
+    @Override
+    public Decision onResultPartitionClosed(HsSpillingInfoProvider spillingInfoProvider) {
+        return onResultPartitionClosedFunction.apply(spillingInfoProvider);
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -80,6 +89,9 @@ public class TestingSpillingStrategy implements HsSpillingStrategy {
                 (ignore) -> Optional.of(Decision.NO_ACTION);
 
         private Function<HsSpillingInfoProvider, Decision> decideActionWithGlobalInfoFunction =
+                (ignore) -> Decision.NO_ACTION;
+
+        private Function<HsSpillingInfoProvider, Decision> onResultPartitionClosedFunction =
                 (ignore) -> Decision.NO_ACTION;
 
         private Builder() {}
@@ -108,12 +120,19 @@ public class TestingSpillingStrategy implements HsSpillingStrategy {
             return this;
         }
 
+        public Builder setOnResultPartitionClosedFunction(
+                Function<HsSpillingInfoProvider, Decision> onResultPartitionClosedFunction) {
+            this.onResultPartitionClosedFunction = onResultPartitionClosedFunction;
+            return this;
+        }
+
         public TestingSpillingStrategy build() {
             return new TestingSpillingStrategy(
                     onMemoryUsageChangedFunction,
                     onBufferFinishedFunction,
                     onBufferConsumedFunction,
-                    decideActionWithGlobalInfoFunction);
+                    decideActionWithGlobalInfoFunction,
+                    onResultPartitionClosedFunction);
         }
     }
 }

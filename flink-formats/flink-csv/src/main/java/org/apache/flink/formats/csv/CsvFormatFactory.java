@@ -52,6 +52,7 @@ import static org.apache.flink.formats.csv.CsvFormatOptions.FIELD_DELIMITER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.csv.CsvFormatOptions.NULL_LITERAL;
 import static org.apache.flink.formats.csv.CsvFormatOptions.QUOTE_CHARACTER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.WRITE_BIGDECIMAL_IN_SCIENTIFIC_NOTATION;
 
 /**
  * Format factory for providing configured instances of CSV to RowData {@link SerializationSchema}
@@ -206,5 +207,9 @@ public final class CsvFormatFactory
                 .ifPresent(schemaBuilder::setEscapeCharacter);
 
         formatOptions.getOptional(NULL_LITERAL).ifPresent(schemaBuilder::setNullLiteral);
+
+        formatOptions
+                .getOptional(WRITE_BIGDECIMAL_IN_SCIENTIFIC_NOTATION)
+                .ifPresent(schemaBuilder::setWriteBigDecimalInScientificNotation);
     }
 }

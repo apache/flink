@@ -20,8 +20,12 @@ package org.apache.flink.table.gateway.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
+import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.operation.OperationType;
+import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
@@ -61,6 +65,15 @@ public interface SqlGatewayService {
      * @return Returns configuration of the session.
      */
     Map<String, String> getSessionConfig(SessionHandle sessionHandle) throws SqlGatewayException;
+
+    /**
+     * Get endpoint version that is negotiated in the openSession.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @return Returns the version.
+     */
+    EndpointVersion getSessionEndpointVersion(SessionHandle sessionHandle)
+            throws SqlGatewayException;
 
     // -------------------------------------------------------------------------------------------
     // Operation Management
@@ -108,6 +121,19 @@ public interface SqlGatewayService {
     OperationInfo getOperationInfo(SessionHandle sessionHandle, OperationHandle operationHandle)
             throws SqlGatewayException;
 
+    /**
+     * Get the result schema for the specified Operation.
+     *
+     * <p>Note: The result schema is available when the Operation is in the {@link
+     * OperationStatus#FINISHED}.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param operationHandle handle to identify the operation.
+     */
+    ResolvedSchema getOperationResultSchema(
+            SessionHandle sessionHandle, OperationHandle operationHandle)
+            throws SqlGatewayException;
+
     // -------------------------------------------------------------------------------------------
     // Statements
     // -------------------------------------------------------------------------------------------
@@ -142,4 +168,21 @@ public interface SqlGatewayService {
     ResultSet fetchResults(
             SessionHandle sessionHandle, OperationHandle operationHandle, long token, int maxRows)
             throws SqlGatewayException;
+
+    /**
+     * Fetch the results from the operation. When maxRows is Integer.MAX_VALUE, it means to fetch
+     * all available data. It promises to return at least one rows if the results is not
+     * end-of-stream.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param operationHandle handle to identify the operation.
+     * @param orientation orientation to fetch the results.
+     * @param maxRows max number of rows to fetch.
+     * @return Returns the results.
+     */
+    ResultSet fetchResults(
+            SessionHandle sessionHandle,
+            OperationHandle operationHandle,
+            FetchOrientation orientation,
+            int maxRows);
 }

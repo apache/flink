@@ -138,6 +138,11 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecWindowJoin.class);
                     add(StreamExecWindowRank.class);
                     add(StreamExecWindowTableFunction.class);
+                    add(StreamExecPythonCalc.class);
+                    add(StreamExecPythonCorrelate.class);
+                    add(StreamExecPythonGroupAggregate.class);
+                    add(StreamExecPythonGroupWindowAggregate.class);
+                    add(StreamExecPythonOverAggregate.class);
                 }
             };
 
@@ -158,11 +163,6 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecLegacyTableSourceScan.class);
                     add(StreamExecLegacySink.class);
                     add(StreamExecGroupTableAggregate.class);
-                    add(StreamExecPythonCalc.class);
-                    add(StreamExecPythonCorrelate.class);
-                    add(StreamExecPythonGroupAggregate.class);
-                    add(StreamExecPythonGroupWindowAggregate.class);
-                    add(StreamExecPythonOverAggregate.class);
                     add(StreamExecPythonGroupTableAggregate.class);
                     add(StreamExecSort.class);
                     add(StreamExecMultipleInput.class);

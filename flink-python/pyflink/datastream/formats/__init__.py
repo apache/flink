@@ -15,17 +15,18 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from .avro import AvroSchema, AvroInputFormat
-from .base import InputFormat
+from .avro import AvroSchema, AvroInputFormat, AvroWriters, GenericRecordAvroTypeInfo
 from .csv import CsvSchema, CsvReaderFormat
-from .parquet import AvroParquetReaders, ParquetColumnarRowInputFormat
+from .parquet import AvroParquetReaders, AvroParquetWriters, ParquetColumnarRowInputFormat
 
 __all__ = [
-    'InputFormat',
     'AvroInputFormat',
     'AvroParquetReaders',
+    'AvroParquetWriters',
     'AvroSchema',
+    'AvroWriters',
     'CsvReaderFormat',
     'CsvSchema',
+    'GenericRecordAvroTypeInfo',
     'ParquetColumnarRowInputFormat'
 ]

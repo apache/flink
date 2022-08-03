@@ -20,9 +20,12 @@ package org.apache.flink.table.gateway.service;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
+import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationType;
+import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
@@ -80,6 +83,17 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     }
 
     @Override
+    public EndpointVersion getSessionEndpointVersion(SessionHandle sessionHandle)
+            throws SqlGatewayException {
+        try {
+            return getSession(sessionHandle).getEndpointVersion();
+        } catch (Throwable e) {
+            LOG.error("Failed to getSessionConfig.", e);
+            throw new SqlGatewayException("Failed to getSessionEndpointVersion.", e);
+        }
+    }
+
+    @Override
     public OperationHandle submitOperation(
             SessionHandle sessionHandle, OperationType type, Callable<ResultSet> executor)
             throws SqlGatewayException {
@@ -125,6 +139,20 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     }
 
     @Override
+    public ResolvedSchema getOperationResultSchema(
+            SessionHandle sessionHandle, OperationHandle operationHandle)
+            throws SqlGatewayException {
+        try {
+            return getSession(sessionHandle)
+                    .getOperationManager()
+                    .getOperationResultSchema(operationHandle);
+        } catch (Throwable t) {
+            LOG.error("Failed to getOperationResultSchema.", t);
+            throw new SqlGatewayException("Failed to getOperationResultSchema.", t);
+        }
+    }
+
+    @Override
     public OperationHandle executeStatement(
             SessionHandle sessionHandle,
             String statement,
@@ -160,6 +188,22 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
             return getSession(sessionHandle)
                     .getOperationManager()
                     .fetchResults(operationHandle, token, maxRows);
+        } catch (Throwable t) {
+            LOG.error("Failed to fetchResults.", t);
+            throw new SqlGatewayException("Failed to fetchResults.", t);
+        }
+    }
+
+    @Override
+    public ResultSet fetchResults(
+            SessionHandle sessionHandle,
+            OperationHandle operationHandle,
+            FetchOrientation orientation,
+            int maxRows) {
+        try {
+            return getSession(sessionHandle)
+                    .getOperationManager()
+                    .fetchResults(operationHandle, orientation, maxRows);
         } catch (Throwable t) {
             LOG.error("Failed to fetchResults.", t);
             throw new SqlGatewayException("Failed to fetchResults.", t);

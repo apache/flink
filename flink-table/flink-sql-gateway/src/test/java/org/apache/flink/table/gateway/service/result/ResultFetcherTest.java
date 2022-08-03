@@ -26,9 +26,10 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
+import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.ResultSet;
-import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
+import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
@@ -44,11 +45,17 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -158,7 +165,9 @@ public class ResultFetcherTest extends TestLogger {
         ResultFetcher fetcher =
                 buildResultFetcher(Collections.singletonList(data.iterator()), bufferSize);
 
-        runFetchMultipleTimes(fetcher, bufferSize, data.size());
+        int fetchSize = data.size();
+        runFetchMultipleTimes(
+                bufferSize, fetchSize, token -> fetcher.fetchResults(token, fetchSize));
     }
 
     @Test
@@ -167,7 +176,35 @@ public class ResultFetcherTest extends TestLogger {
         ResultFetcher fetcher =
                 buildResultFetcher(Collections.singletonList(data.iterator()), bufferSize);
 
-        runFetchMultipleTimes(fetcher, bufferSize, data.size() / 2);
+        int fetchSize = data.size() / 2;
+        runFetchMultipleTimes(
+                bufferSize, fetchSize, token -> fetcher.fetchResults(token, fetchSize));
+    }
+
+    @Test
+    public void testFetchResultsInWithLimitedBufferSizeInOrientation() {
+        int bufferSize = data.size() / 2;
+        ResultFetcher fetcher =
+                buildResultFetcher(Collections.singletonList(data.iterator()), bufferSize);
+
+        int fetchSize = data.size();
+        runFetchMultipleTimes(
+                bufferSize,
+                fetchSize,
+                token -> fetcher.fetchResults(FetchOrientation.FETCH_NEXT, fetchSize));
+    }
+
+    @Test
+    public void testFetchResultsMultipleTimesWithLimitedFetchSizeInOrientation() {
+        int bufferSize = data.size();
+        ResultFetcher fetcher =
+                buildResultFetcher(Collections.singletonList(data.iterator()), bufferSize);
+
+        int fetchSize = data.size() / 2;
+        runFetchMultipleTimes(
+                bufferSize,
+                fetchSize,
+                token -> fetcher.fetchResults(FetchOrientation.FETCH_NEXT, fetchSize));
     }
 
     @Test
@@ -179,6 +216,54 @@ public class ResultFetcherTest extends TestLogger {
                 Duration.ofSeconds(10),
                 "Failed to wait the buffer has data.");
         checkFetchResultInParallel(fetcher);
+    }
+
+    @Test
+    public void testFetchResultInOrientationInParallel() throws Exception {
+        List<Iterator<RowData>> dataSuppliers =
+                data.stream()
+                        .map(
+                                row ->
+                                        new TestIterator(
+                                                () -> {
+                                                    try {
+                                                        Thread.sleep(1);
+                                                        return row;
+                                                    } catch (Exception e) {
+                                                        throw new SqlExecutionException(
+                                                                "Failed to return the row.", e);
+                                                    }
+                                                }))
+                        .collect(Collectors.toList());
+
+        int fetchThreadNum = 100;
+        CountDownLatch latch = new CountDownLatch(fetchThreadNum);
+        ResultFetcher fetcher = buildResultFetcher(dataSuppliers, 1);
+        Map<Long, List<RowData>> rows = new ConcurrentHashMap<>();
+
+        AtomicReference<Boolean> payloadHasData = new AtomicReference<>(true);
+        for (int i = 0; i < fetchThreadNum; i++) {
+            threadFactory
+                    .newThread(
+                            () -> {
+                                ResultSet resultSet =
+                                        fetcher.fetchResults(FetchOrientation.FETCH_NEXT, 1);
+                                if (resultSet.getResultType().equals(ResultSet.ResultType.PAYLOAD)
+                                        && resultSet.getData().isEmpty()) {
+                                    payloadHasData.set(false);
+                                }
+
+                                rows.put(Thread.currentThread().getId(), resultSet.getData());
+                                latch.countDown();
+                            })
+                    .start();
+        }
+
+        latch.await();
+        assertEquals(true, payloadHasData.get());
+        assertEquals(
+                new HashSet<>(data),
+                rows.values().stream().flatMap(List::stream).collect(Collectors.toSet()));
     }
 
     @Test
@@ -255,12 +340,17 @@ public class ResultFetcherTest extends TestLogger {
         assertEquals(data, actual);
     }
 
+    // --------------------------------------------------------------------------------------------
+    // Negative cases
+    // --------------------------------------------------------------------------------------------
+
     @Test
     public void testFetchFailedResult() {
         String message = "Artificial Exception";
         ResultFetcher fetcher =
                 buildResultFetcher(
-                        Arrays.asList(new ErrorIterator(message), data.iterator()), data.size());
+                        Arrays.asList(TestIterator.createErrorIterator(message), data.iterator()),
+                        data.size());
 
         assertThatThrownBy(
                         () -> {
@@ -315,19 +405,20 @@ public class ResultFetcherTest extends TestLogger {
                 bufferSize);
     }
 
-    private void runFetchMultipleTimes(ResultFetcher fetcher, int bufferSize, int fetchSize) {
+    private void runFetchMultipleTimes(
+            int bufferSize, int fetchSize, Function<Long, ResultSet> fetchResults) {
         List<RowData> fetchedRows = new ArrayList<>();
-        ResultSet currentResult = null;
+        ResultSet currentResult;
         Long token = 0L;
 
-        while (token != null) {
-            currentResult = fetcher.fetchResults(token, fetchSize);
+        do {
+            currentResult = fetchResults.apply(token);
             assertTrue(
                     checkNotNull(currentResult.getData()).size()
                             <= Math.min(bufferSize, fetchSize));
             token = currentResult.getNextToken();
             fetchedRows.addAll(currentResult.getData());
-        }
+        } while (currentResult.getResultType() != ResultSet.ResultType.EOS);
 
         assertEquals(ResultSet.ResultType.EOS, checkNotNull(currentResult).getResultType());
         assertEquals(data, fetchedRows);
@@ -359,22 +450,32 @@ public class ResultFetcherTest extends TestLogger {
 
     // --------------------------------------------------------------------------------------------
 
-    private static class ErrorIterator implements Iterator<RowData> {
+    private static class TestIterator implements Iterator<RowData> {
 
-        private final String errorMsg;
+        public static TestIterator createErrorIterator(String msg) {
+            return new TestIterator(
+                    () -> {
+                        throw new SqlExecutionException(msg);
+                    });
+        }
 
-        public ErrorIterator(String errorMsg) {
-            this.errorMsg = errorMsg;
+        private final Supplier<RowData> dataSupplier;
+        private boolean hasMoreData;
+
+        public TestIterator(Supplier<RowData> dataSupplier) {
+            this.dataSupplier = dataSupplier;
+            this.hasMoreData = true;
         }
 
         @Override
         public boolean hasNext() {
-            return true;
+            return hasMoreData;
         }
 
         @Override
         public RowData next() {
-            throw new SqlGatewayException(errorMsg);
+            hasMoreData = false;
+            return dataSupplier.get();
         }
     }
 }

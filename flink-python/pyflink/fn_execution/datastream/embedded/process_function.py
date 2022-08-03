@@ -15,10 +15,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.datastream import ProcessFunction, TimerService
+from pyflink.datastream import (ProcessFunction, KeyedProcessFunction, CoProcessFunction,
+                                KeyedCoProcessFunction, TimerService, TimeDomain)
+from pyflink.fn_execution.datastream.embedded.timerservice_impl import TimerServiceImpl
+from pyflink.fn_execution.embedded.converters import from_type_info
 
 
-class InternalProcessFunctionContext(ProcessFunction.Context, TimerService):
+class InternalProcessFunctionContext(ProcessFunction.Context, CoProcessFunction.Context,
+                                     TimerService):
     def __init__(self, context):
         self._context = context
 
@@ -45,3 +49,44 @@ class InternalProcessFunctionContext(ProcessFunction.Context, TimerService):
 
     def delete_event_time_timer(self, t: int):
         raise Exception("Deleting timers is only supported on a keyed streams.")
+
+
+class InternalKeyedProcessFunctionContext(KeyedProcessFunction.Context,
+                                          KeyedCoProcessFunction.Context):
+
+    def __init__(self, context, key_type_info):
+        self._context = context
+        self._timer_service = TimerServiceImpl(self._context.timerService())
+        self._key_converter = from_type_info(key_type_info)
+
+    def get_current_key(self):
+        return self._key_converter.to_internal(self._context.getCurrentKey())
+
+    def timer_service(self) -> TimerService:
+        return self._timer_service
+
+    def timestamp(self) -> int:
+        return self._context.timestamp()
+
+
+class InternalKeyedProcessFunctionOnTimerContext(KeyedProcessFunction.OnTimerContext,
+                                                 KeyedProcessFunction.Context,
+                                                 KeyedCoProcessFunction.OnTimerContext,
+                                                 KeyedCoProcessFunction.Context):
+
+    def __init__(self, context, key_type_info):
+        self._context = context
+        self._timer_service = TimerServiceImpl(self._context.timerService())
+        self._key_converter = from_type_info(key_type_info)
+
+    def timer_service(self) -> TimerService:
+        return self._timer_service
+
+    def timestamp(self) -> int:
+        return self._context.timestamp()
+
+    def time_domain(self) -> TimeDomain:
+        return TimeDomain(self._context.timeDomain())
+
+    def get_current_key(self):
+        return self._key_converter.to_internal(self._context.getCurrentKey())

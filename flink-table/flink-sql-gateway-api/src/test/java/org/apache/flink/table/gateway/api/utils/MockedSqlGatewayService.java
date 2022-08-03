@@ -19,9 +19,12 @@
 package org.apache.flink.table.gateway.api.utils;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
+import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationType;
+import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
@@ -50,6 +53,12 @@ public class MockedSqlGatewayService implements SqlGatewayService {
     }
 
     @Override
+    public EndpointVersion getSessionEndpointVersion(SessionHandle sessionHandle)
+            throws SqlGatewayException {
+        return MockedEndpointVersion.V1;
+    }
+
+    @Override
     public OperationHandle submitOperation(
             SessionHandle sessionHandle, OperationType type, Callable<ResultSet> executor)
             throws SqlGatewayException {
@@ -75,6 +84,15 @@ public class MockedSqlGatewayService implements SqlGatewayService {
     }
 
     @Override
+    public ResultSet fetchResults(
+            SessionHandle sessionHandle,
+            OperationHandle operationHandle,
+            FetchOrientation orientation,
+            int maxRows) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public OperationInfo getOperationInfo(
             SessionHandle sessionHandle, OperationHandle operationHandle) {
         throw new UnsupportedOperationException();
@@ -86,6 +104,13 @@ public class MockedSqlGatewayService implements SqlGatewayService {
             String statement,
             long executionTimeoutMs,
             Configuration executionConfig)
+            throws SqlGatewayException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ResolvedSchema getOperationResultSchema(
+            SessionHandle sessionHandle, OperationHandle operationHandle)
             throws SqlGatewayException {
         throw new UnsupportedOperationException();
     }

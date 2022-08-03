@@ -23,12 +23,21 @@
   border-bottom: 1px solid @border-color-split;
   background: @component-background;
 
-  .name {
-    h3 {
-      display: block;
+  .title-wrapper {
+    display: flex;
+    align-items: center;
+    margin-bottom: @margin-sm;
+
+    .title {
       overflow: hidden;
+      font-weight: 500;
+      font-size: 18px;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+  }
+
+  flink-blocked-badge {
+    margin-left: @margin-xss;
   }
 }

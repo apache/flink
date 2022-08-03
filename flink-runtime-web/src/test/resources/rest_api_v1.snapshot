@@ -2403,6 +2403,13 @@
                   "type" : "integer"
                 }
               },
+              "other-concurrent-attempts" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "object",
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptDetailsInfo"
+                }
+              },
               "start_time" : {
                 "type" : "integer"
               }
@@ -2522,6 +2529,9 @@
               "subtask" : {
                 "type" : "integer"
               },
+              "attempt-number" : {
+                "type" : "integer"
+              },
               "backpressure-level" : {
                 "type" : "string",
                 "enum" : [ "ok", "low", "high" ]
@@ -2534,6 +2544,13 @@
               },
               "busyRatio" : {
                 "type" : "number"
+              },
+              "other-concurrent-attempts" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "object",
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexBackPressureInfo:SubtaskBackPressureInfo"
+                }
               }
             }
           }
@@ -2803,6 +2820,13 @@
             "type" : "integer"
           }
         },
+        "other-concurrent-attempts" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptDetailsInfo"
+          }
+        },
         "start_time" : {
           "type" : "integer"
         }
@@ -2902,6 +2926,13 @@
           "type" : "object",
           "additionalProperties" : {
             "type" : "integer"
+          }
+        },
+        "other-concurrent-attempts" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptDetailsInfo"
           }
         },
         "start_time" : {
@@ -3225,6 +3256,12 @@
         "slots-available" : {
           "type" : "integer"
         },
+        "taskmanagers-blocked" : {
+          "type" : "integer"
+        },
+        "slots-free-and-blocked" : {
+          "type" : "integer"
+        },
         "jobs-running" : {
           "type" : "integer"
         },
@@ -3439,6 +3476,9 @@
                     "type" : "integer"
                   }
                 }
+              },
+              "blocked" : {
+                "type" : "boolean"
               }
             }
           }
@@ -3596,6 +3636,9 @@
               "type" : "integer"
             }
           }
+        },
+        "blocked" : {
+          "type" : "boolean"
         },
         "allocatedSlots" : {
           "type" : "array",

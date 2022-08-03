@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 from pyflink.common import Configuration
-from pyflink.datastream.connectors.file_system import StreamFormat, BulkFormat
+from pyflink.datastream.connectors.file_system import StreamFormat, BulkFormat, BulkWriterFactory
 from pyflink.datastream.formats.avro import AvroSchema
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import RowType, _to_java_data_type
@@ -104,3 +104,47 @@ class ParquetColumnarRowInputFormat(BulkFormat):
         for k, v in config.to_dict().items():
             hadoop_config.set(k, v)
         return hadoop_config
+
+
+class AvroParquetWriters(object):
+    """
+    Convenience builder to create ParquetWriterFactory instances for Avro types. Only GenericRecord
+    is supported in PyFlink.
+
+    .. versionadded:: 1.16.0
+    """
+
+    @staticmethod
+    def for_generic_record(schema: 'AvroSchema') -> 'BulkWriterFactory':
+        """
+        Creates a ParquetWriterFactory that accepts and writes Avro generic types. The Parquet
+        writers will use the given schema to build and write the columnar data.
+
+        Note that to make this works in PyFlink, you need to declare the output type of the
+        predecessor before FileSink to be :class:`GenericRecordAvroTypeInfo`, and the predecessor
+        cannot be :meth:`StreamExecutionEnvironment.from_collection`, you can add a pass-through map
+        function before the sink, as the example shown below.
+
+        The Python data records should match the Avro schema, and have the same behavior with
+        vanilla Python data structure, e.g. an object for Avro array should behave like Python list,
+        an object for Avro map should behave like Python dict.
+
+        Example:
+        ::
+
+            >>> env = StreamExecutionEnvironment.get_execution_environment()
+            >>> schema = AvroSchema(JSON_SCHEMA)
+            >>> avro_type_info = GenericRecordAvroTypeInfo(schema)
+            >>> ds = env.from_collection([{'array': [1, 2]}], type_info=Types.PICKLED_BYTE_ARRAY())
+            >>> sink = FileSink.for_bulk_format(
+            ...     OUTPUT_DIR, AvroParquetWriters.for_generic_record(schema)).build()
+            >>> # A map to indicate its Avro type info is necessary for serialization
+            >>> ds.map(lambda e: e, output_type=GenericRecordAvroTypeInfo(schema)) \\
+            ...     .sink_to(sink)
+
+        :param schema: The avro schema.
+        :return: The BulkWriterFactory to write generic records into parquet files.
+        """
+        jvm = get_gateway().jvm
+        JAvroParquetWriters = jvm.org.apache.flink.formats.parquet.avro.AvroParquetWriters
+        return BulkWriterFactory(JAvroParquetWriters.forGenericRecord(schema._j_schema))

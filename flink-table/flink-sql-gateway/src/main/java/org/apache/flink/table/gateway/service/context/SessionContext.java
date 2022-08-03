@@ -57,7 +57,9 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -114,6 +116,10 @@ public class SessionContext {
         return operationManager;
     }
 
+    public EndpointVersion getEndpointVersion() {
+        return endpointVersion;
+    }
+
     public void set(String key, String value) {
         try {
             // Test whether the key value will influence the creation of the Executor.
@@ -153,8 +159,12 @@ public class SessionContext {
         sessionState.catalogManager.registerCatalog(catalogName, catalog);
     }
 
-    public void registerModule(String moduleName, Module module) {
+    public void registerModuleAtHead(String moduleName, Module module) {
+        Deque<String> moduleNames = new ArrayDeque<>(sessionState.moduleManager.listModules());
+        moduleNames.addFirst(moduleName);
+
         sessionState.moduleManager.loadModule(moduleName, module);
+        sessionState.moduleManager.useModules(moduleNames.toArray(new String[0]));
     }
 
     public void setCurrentCatalog(String catalog) {

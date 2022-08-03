@@ -23,7 +23,7 @@ import org.apache.flink.docs.rest.data.TestEmptyMessageHeaders;
 import org.apache.flink.docs.rest.data.TestExcludeMessageHeaders;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
-import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.util.FileUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
@@ -45,7 +45,7 @@ class OpenApiSpecGeneratorTest {
     void testExcludeFromDocumentation() throws Exception {
         File file = File.createTempFile("rest_v0_", ".html");
         OpenApiSpecGenerator.createDocumentationFile(
-                new TestExcludeDocumentingRestEndpoint(), RestAPIVersion.V0, file.toPath());
+                new TestExcludeDocumentingRestEndpoint(), RuntimeRestAPIVersion.V0, file.toPath());
         String actual = FileUtils.readFile(file, "UTF-8");
 
         assertThat(actual).contains("/test/empty1");
@@ -95,7 +95,7 @@ class OpenApiSpecGeneratorTest {
                         () ->
                                 OpenApiSpecGenerator.createDocumentationFile(
                                         new TestDuplicateOperationIdDocumentingRestEndpoint(),
-                                        RestAPIVersion.V0,
+                                        RuntimeRestAPIVersion.V0,
                                         file.toPath()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Duplicate OperationId");

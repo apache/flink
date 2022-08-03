@@ -43,10 +43,11 @@ import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rest.util.TestRestHandler;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
-import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.exceptions.EndpointNotStartedException;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -481,7 +482,7 @@ public class RestServerEndpointITCase extends TestLogger {
                         EmptyMessageParameters.getInstance(),
                         EmptyRequestBody.getInstance(),
                         Collections.emptyList(),
-                        RestAPIVersion.V1);
+                        RuntimeRestAPIVersion.V1);
 
         specifiedVersionResponse.get(5, TimeUnit.SECONDS);
     }
@@ -496,7 +497,7 @@ public class RestServerEndpointITCase extends TestLogger {
                         EmptyMessageParameters.getInstance(),
                         EmptyRequestBody.getInstance(),
                         Collections.emptyList(),
-                        RestAPIVersion.V0);
+                        RuntimeRestAPIVersion.V0);
 
         try {
             version1Response.get(5, TimeUnit.SECONDS);
@@ -514,7 +515,7 @@ public class RestServerEndpointITCase extends TestLogger {
                         EmptyMessageParameters.getInstance(),
                         EmptyRequestBody.getInstance(),
                         Collections.emptyList(),
-                        RestAPIVersion.V1);
+                        RuntimeRestAPIVersion.V1);
 
         try {
             version2Response.get(5, TimeUnit.SECONDS);
@@ -840,7 +841,7 @@ public class RestServerEndpointITCase extends TestLogger {
     }
 
     private static class TestHeaders
-            implements MessageHeaders<TestRequest, TestResponse, TestParameters> {
+            implements RuntimeMessageHeaders<TestRequest, TestResponse, TestParameters> {
 
         @Override
         public HttpMethodWrapper getHttpMethod() {
@@ -1037,7 +1038,9 @@ public class RestServerEndpointITCase extends TestLogger {
     }
 
     enum TestVersionHeaders
-            implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+            implements
+                    RuntimeMessageHeaders<
+                            EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
         INSTANCE;
 
         @Override
@@ -1076,8 +1079,8 @@ public class RestServerEndpointITCase extends TestLogger {
         }
 
         @Override
-        public Collection<RestAPIVersion> getSupportedAPIVersions() {
-            return Collections.singleton(RestAPIVersion.V1);
+        public Collection<RuntimeRestAPIVersion> getSupportedAPIVersions() {
+            return Collections.singleton(RuntimeRestAPIVersion.V1);
         }
     }
 
@@ -1124,8 +1127,8 @@ public class RestServerEndpointITCase extends TestLogger {
         INSTANCE;
 
         @Override
-        public Collection<RestAPIVersion> getSupportedAPIVersions() {
-            return Collections.singleton(RestAPIVersion.V0);
+        public Collection<RuntimeRestAPIVersion> getSupportedAPIVersions() {
+            return Collections.singleton(RuntimeRestAPIVersion.V0);
         }
     }
 
@@ -1133,13 +1136,15 @@ public class RestServerEndpointITCase extends TestLogger {
         INSTANCE;
 
         @Override
-        public Collection<RestAPIVersion> getSupportedAPIVersions() {
-            return Collections.singleton(RestAPIVersion.V1);
+        public Collection<RuntimeRestAPIVersion> getSupportedAPIVersions() {
+            return Collections.singleton(RuntimeRestAPIVersion.V1);
         }
     }
 
     private enum TestUploadHeaders
-            implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+            implements
+                    RuntimeMessageHeaders<
+                            EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
         INSTANCE;
 
         @Override
@@ -1184,7 +1189,9 @@ public class RestServerEndpointITCase extends TestLogger {
     }
 
     private enum TestUnavailableHeaders
-            implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+            implements
+                    RuntimeMessageHeaders<
+                            EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
         INSTANCE;
 
         @Override
