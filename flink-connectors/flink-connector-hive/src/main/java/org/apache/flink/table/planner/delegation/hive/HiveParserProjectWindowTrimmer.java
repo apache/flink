@@ -69,11 +69,15 @@ import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBase
  * org.apache.calcite.rel.rules.ProjectWindowTransposeRule}, and adjust the index referred in {@link
  * RexInputRef} for it remove some nodes. But it hasn't adjusted the index of lowerBound/upperBound,
  * which then cause problem when try to access the lowerBound/upperBound.
+ *
+ * <p>The class's behavior is quite same to {@link
+ * org.apache.calcite.rel.rules.ProjectWindowTransposeRule}, but also adjusts the index of
+ * lowerBound/upperBound.
  */
 public class HiveParserProjectWindowTrimmer {
 
     /**
-     * Remove the redundant nodes contained in the project node which contains window.
+     * Remove the redundant nodes from the project node which contains over window node.
      *
      * @param selectProject the project node contains selected fields in top of the project node
      *     with window
