@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.endpoint.hive;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
@@ -63,6 +64,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.net.InetAddress;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
 import java.util.AbstractMap;
@@ -440,6 +442,16 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                                 "VARCHAR",
                                                 "INTERVAL_YEAR_MONTH",
                                                 "INTERVAL_DAY_TIME")));
+    }
+
+    @Test
+    public void testGetInfo() throws Exception {
+        try (Connection connection = ENDPOINT_EXTENSION.getConnection()) {
+            DatabaseMetaData metaData = connection.getMetaData();
+            assertThat(metaData.getDatabaseProductName()).isEqualTo("Apache Flink");
+            assertThat(metaData.getDatabaseProductVersion())
+                    .isEqualTo(FlinkVersion.current().toString());
+        }
     }
 
     // --------------------------------------------------------------------------------------------

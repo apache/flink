@@ -32,6 +32,7 @@ import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
+import org.apache.flink.table.gateway.api.results.GatewayInfo;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
@@ -68,6 +69,7 @@ import org.apache.hive.service.rpc.thrift.TGetFunctionsReq;
 import org.apache.hive.service.rpc.thrift.TGetFunctionsResp;
 import org.apache.hive.service.rpc.thrift.TGetInfoReq;
 import org.apache.hive.service.rpc.thrift.TGetInfoResp;
+import org.apache.hive.service.rpc.thrift.TGetInfoValue;
 import org.apache.hive.service.rpc.thrift.TGetOperationStatusReq;
 import org.apache.hive.service.rpc.thrift.TGetOperationStatusResp;
 import org.apache.hive.service.rpc.thrift.TGetPrimaryKeysReq;
@@ -349,7 +351,31 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     @Override
     public TGetInfoResp GetInfo(TGetInfoReq tGetInfoReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetInfoResp resp = new TGetInfoResp();
+        try {
+            GatewayInfo info = service.getGatewayInfo();
+            TGetInfoValue tInfoValue;
+            switch (tGetInfoReq.getInfoType()) {
+                case CLI_SERVER_NAME:
+                case CLI_DBMS_NAME:
+                    tInfoValue = TGetInfoValue.stringValue(info.getProductName());
+                    break;
+                case CLI_DBMS_VER:
+                    tInfoValue = TGetInfoValue.stringValue(info.getVersion().toString());
+                    break;
+                default:
+                    throw new UnsupportedOperationException(
+                            String.format(
+                                    "Unrecognized TGetInfoType value: %s.",
+                                    tGetInfoReq.getInfoType()));
+            }
+            resp.setStatus(OK_STATUS);
+            resp.setInfoValue(tInfoValue);
+        } catch (Throwable t) {
+            LOG.error("Failed to GetInfo.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
@@ -658,7 +684,6 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     }
 
     // CHECKSTYLE.OFF: MethodName
-
     /** To be compatible with Hive3, add a default implementation. */
     public TGetQueryIdResp GetQueryId(TGetQueryIdReq tGetQueryIdReq) throws TException {
         throw new UnsupportedOperationException(ERROR_MESSAGE);

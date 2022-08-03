@@ -26,6 +26,7 @@ import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
+import org.apache.flink.table.gateway.api.results.GatewayInfo;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.TableInfo;
@@ -249,6 +250,11 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
             LOG.error("Failed to listTables.", t);
             throw new SqlGatewayException("Failed to listTables.", t);
         }
+    }
+
+    @Override
+    public GatewayInfo getGatewayInfo() {
+        return GatewayInfo.INSTANCE;
     }
 
     @VisibleForTesting
