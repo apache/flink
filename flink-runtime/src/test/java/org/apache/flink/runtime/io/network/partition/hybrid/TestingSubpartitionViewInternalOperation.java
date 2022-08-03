@@ -32,7 +32,7 @@ public class TestingSubpartitionViewInternalOperation
     }
 
     @Override
-    public int getConsumingOffset() {
+    public int getConsumingOffset(boolean withLock) {
         return consumingOffset;
     }
 

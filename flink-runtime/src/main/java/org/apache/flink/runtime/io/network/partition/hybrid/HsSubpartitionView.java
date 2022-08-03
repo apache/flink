@@ -134,8 +134,12 @@ public class HsSubpartitionView
         }
     }
 
+    @SuppressWarnings("FieldAccessNotGuarded")
     @Override
-    public int getConsumingOffset() {
+    public int getConsumingOffset(boolean withLock) {
+        if (!withLock) {
+            return lastConsumedBufferIndex;
+        }
         synchronized (lock) {
             return lastConsumedBufferIndex;
         }

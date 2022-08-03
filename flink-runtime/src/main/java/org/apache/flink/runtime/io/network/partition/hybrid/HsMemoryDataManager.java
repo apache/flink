@@ -190,7 +190,11 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
         for (int channel = 0; channel < numSubpartitions; channel++) {
             HsSubpartitionViewInternalOperations viewOperation =
                     subpartitionViewOperationsMap.get(channel);
-            consumeIndexes.add(viewOperation == null ? -1 : viewOperation.getConsumingOffset() + 1);
+            // Access consuming offset without lock to prevent deadlock.
+            // A consuming thread may being blocked on the memory data manager lock, while holding
+            // the viewOperation lock.
+            consumeIndexes.add(
+                    viewOperation == null ? -1 : viewOperation.getConsumingOffset(false) + 1);
         }
         return consumeIndexes;
     }

@@ -184,7 +184,9 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
     /** Refresh downstream consumption progress for another round scheduling of reading. */
     @Override
     public void prepareForScheduling() {
-        bufferIndexManager.updateLastConsumed(operations.getConsumingOffset());
+        // Access the consuming offset with lock, to prevent loading any buffer released from the
+        // memory data manager that is already consumed.
+        bufferIndexManager.updateLastConsumed(operations.getConsumingOffset(true));
     }
 
     /** Provides priority calculation logic for io scheduler. */
