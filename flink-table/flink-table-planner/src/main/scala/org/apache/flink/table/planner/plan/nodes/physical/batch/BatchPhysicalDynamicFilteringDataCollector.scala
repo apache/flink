@@ -54,6 +54,6 @@ class BatchPhysicalDynamicFilteringDataCollector(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    null
+    throw new UnsupportedOperationException()
   }
 }

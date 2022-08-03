@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch;
 
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -72,7 +73,7 @@ import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPT
  * whose source is a partition source. The {@link
  * OptimizerConfigOptions#TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED} need to be true.
  *
- * <p>Support we have the original physical plan:
+ * <p>Suppose we have the original physical plan:
  *
  * <pre>{@Code
  * LogicalProject(...)
@@ -204,11 +205,10 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                                             origProgram.expandLocalRef(
                                                     origProgram.getProjectList().get(i)))
                             .collect(Collectors.toList());
-            List<RexNode> exprList = origProgram.getExprList();
-            for (RexNode rex : projectInJoinKeyList) {
-                if (exprList.contains(rex)
-                        && exprList.get(exprList.indexOf(rex)) instanceof RexInputRef) {
-                    joinKeysIndexInFactTable.add(exprList.indexOf(rex));
+
+            for (RexNode node : projectInJoinKeyList) {
+                if (node instanceof RexInputRef) {
+                    joinKeysIndexInFactTable.add(((RexInputRef) node).getIndex());
                 }
             }
 
@@ -224,6 +224,15 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
         List<String> acceptedFields =
                 ((SupportsDynamicFiltering) tableSource).applyDynamicFiltering(candidateFields);
+
+        for (String field : acceptedFields) {
+            if (!candidateFields.contains(field)) {
+                throw new TableException(
+                        String.format(
+                                "Field %s not in join key, please verify the applyDynamicFiltering method In %s",
+                                field, tableSource.asSummaryString()));
+            }
+        }
 
         return acceptedFields.stream()
                 .map(f -> factScan.getRowType().getFieldNames().indexOf(f))
@@ -241,13 +250,17 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
      * table scan is non partitioned scan.
      */
     private static void visitDimSide(RelNode rel, DppDimSideFactors dimSideFactors) {
+        // TODO Let visitDimSide more efficient and more accurate. Like a filter on dim table or a
+        // filter for the partition field on fact table.
         if (rel instanceof TableScan) {
             TableScan scan = (TableScan) rel;
             TableSourceTable table = scan.getTable().unwrap(TableSourceTable.class);
             if (table == null) {
                 return;
             }
-            if (table.abilitySpecs() != null && table.abilitySpecs().length != 0) {
+            if (!dimSideFactors.hasFilter
+                    && table.abilitySpecs() != null
+                    && table.abilitySpecs().length != 0) {
                 for (SourceAbilitySpec spec : table.abilitySpecs()) {
                     if (spec instanceof FilterPushDownSpec) {
                         List<RexNode> predicates = ((FilterPushDownSpec) spec).getPredicates();
@@ -278,8 +291,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                 dimSideFactors.hasFilter = true;
             }
             visitDimSide(rel.getInput(0), dimSideFactors);
-        } else {
-            rel.getInputs().forEach(n -> visitDimSide(n, dimSideFactors));
         }
     }
 
@@ -309,6 +320,11 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
             case IN:
             case LIKE:
             case CONTAINS:
+            case SEARCH:
+            case IS_FALSE:
+            case IS_NOT_FALSE:
+            case IS_NOT_TRUE:
+            case IS_TRUE:
                 // TODO adding more suitable filters which can filter enough partitions after using
                 // this filter in dynamic partition pruning.
                 return true;
@@ -407,7 +423,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                                                                                     BatchPhysicalTableSourceScan
                                                                                             .class)
                                                                             .noInputs()))
-                            .withDescription("DynamicPartitionPruning:factInRight")
                             .as(DynamicPartitionPruningFactInRightRule.Config.class);
 
             @Override
@@ -467,7 +482,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                                                                                     BatchPhysicalRel
                                                                                             .class)
                                                                             .anyInputs()))
-                            .withDescription("DynamicPartitionPruning:factInLeft")
                             .as(DynamicPartitionPruningFactInLeftRule.Config.class);
         }
 
@@ -527,7 +541,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                                                                                                             BatchPhysicalTableSourceScan
                                                                                                                     .class)
                                                                                                     .noInputs())))
-                            .withDescription("DynamicPartitionPruning:factInRightWithExchangeRule")
                             .as(DynamicPartitionPruningFactInRightWithExchangeRule.Config.class);
         }
 
@@ -592,7 +605,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                                                                                     BatchPhysicalRel
                                                                                             .class)
                                                                             .anyInputs()))
-                            .withDescription("DynamicPartitionPruning:factInLeftWithExchangeRule")
                             .as(DynamicPartitionPruningFactInLeftWithExchangeRule.Config.class);
         }
 
@@ -657,7 +669,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                                                                                                             BatchPhysicalTableSourceScan
                                                                                                                     .class)
                                                                                                     .noInputs())))
-                            .withDescription("DynamicPartitionPruning:factInRightWithCalcRule")
                             .as(DynamicPartitionPruningFactInRightWithCalcRule.Config.class);
         }
 
@@ -723,7 +734,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                                                                                     BatchPhysicalRel
                                                                                             .class)
                                                                             .anyInputs()))
-                            .withDescription("DynamicPartitionPruning:factInLeftWithCalcRule")
                             .as(DynamicPartitionPruningFactInLeftWithCalcRule.Config.class);
         }
 
@@ -797,8 +807,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                                                                                                                                     BatchPhysicalTableSourceScan
                                                                                                                                             .class)
                                                                                                                             .noInputs()))))
-                            .withDescription(
-                                    "DynamicPartitionPruning:factInRightWithExchangeAndCalcRule")
                             .as(
                                     DynamicPartitionPruningFactInRightWithExchangeAndCalcRule.Config
                                             .class);
@@ -879,8 +887,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                                                                                     BatchPhysicalRel
                                                                                             .class)
                                                                             .anyInputs()))
-                            .withDescription(
-                                    "DynamicPartitionPruning:factInLeftWithExchangeAndCalcRule")
                             .as(
                                     DynamicPartitionPruningFactInLeftWithExchangeAndCalcRule.Config
                                             .class);

@@ -74,7 +74,7 @@ HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk1, dim_date_sk)], select=[id
   </TestCase>
   <TestCase name="testComplexDimSideWithAggInDimSide">
     <Resource name="sql">
-      <![CDATA[Select * from fact_part join (select dim_date_sk, sum(sales.price) from dim, sales where dim.id = sales.id and dim.price < 500 group by dim_date_sk) dimSide on fact_part.fact_date_sk = dimSide.dim_date_sk]]>
+      <![CDATA[Select * from fact_part join (select dim_date_sk, sum(dim.price) from dim where  dim.price < 500 group by dim_date_sk) dimSide on fact_part.fact_date_sk = dimSide.dim_date_sk]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -82,39 +82,21 @@ LogicalProject(id=[$0], name=[$1], amount=[$2], price=[$3], fact_date_sk=[$4], d
 +- LogicalJoin(condition=[=($4, $5)], joinType=[inner])
    :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
    +- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
-      +- LogicalProject(dim_date_sk=[$4], price0=[$7])
-         +- LogicalFilter(condition=[AND(=($0, $5), <($3, 500))])
-            +- LogicalJoin(condition=[true], joinType=[inner])
-               :- LogicalTableScan(table=[[testCatalog, test_database, dim]])
-               +- LogicalTableScan(table=[[testCatalog, test_database, sales]])
+      +- LogicalProject(dim_date_sk=[$4], price=[$3])
+         +- LogicalFilter(condition=[<($3, 500)])
+            +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
 HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id, name, amount, price, fact_date_sk, dim_date_sk, EXPR$1], build=[right])
 :- Exchange(distribution=[hash[fact_date_sk]])
-:  +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])
-:     +- DynamicFilteringDataCollector(fields=[dim_date_sk])
-:        +- HashAggregate(isMerge=[true], groupBy=[dim_date_sk], select=[dim_date_sk, Final_SUM(sum$0) AS EXPR$1])
-:           +- Exchange(distribution=[hash[dim_date_sk]])
-:              +- LocalHashAggregate(groupBy=[dim_date_sk], select=[dim_date_sk, Partial_SUM(price0) AS sum$0])
-:                 +- Calc(select=[dim_date_sk, price AS price0])
-:                    +- HashJoin(joinType=[InnerJoin], where=[=(id, id0)], select=[id, dim_date_sk, id0, price], build=[left])
-:                       :- Exchange(distribution=[hash[id]])
-:                       :  +- Calc(select=[id, dim_date_sk], where=[<(price, 500)])
-:                       :     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[], project=[id, price, dim_date_sk], metadata=[]]], fields=[id, price, dim_date_sk])
-:                       +- Exchange(distribution=[hash[id]])
-:                          +- TableSourceScan(table=[[testCatalog, test_database, sales, project=[id, price], metadata=[]]], fields=[id, price])
+:  +- TableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])
 +- HashAggregate(isMerge=[true], groupBy=[dim_date_sk], select=[dim_date_sk, Final_SUM(sum$0) AS EXPR$1])
    +- Exchange(distribution=[hash[dim_date_sk]])
-      +- LocalHashAggregate(groupBy=[dim_date_sk], select=[dim_date_sk, Partial_SUM(price0) AS sum$0])
-         +- Calc(select=[dim_date_sk, price AS price0])
-            +- HashJoin(joinType=[InnerJoin], where=[=(id, id0)], select=[id, dim_date_sk, id0, price], build=[left])
-               :- Exchange(distribution=[hash[id]])
-               :  +- Calc(select=[id, dim_date_sk], where=[<(price, 500)])
-               :     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[], project=[id, price, dim_date_sk], metadata=[]]], fields=[id, price, dim_date_sk])
-               +- Exchange(distribution=[hash[id]])
-                  +- TableSourceScan(table=[[testCatalog, test_database, sales, project=[id, price], metadata=[]]], fields=[id, price])
+      +- LocalHashAggregate(groupBy=[dim_date_sk], select=[dim_date_sk, Partial_SUM(price) AS sum$0])
+         +- Calc(select=[price, dim_date_sk], where=[<(price, 500)])
+            +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[], project=[price, dim_date_sk], metadata=[]]], fields=[price, dim_date_sk])
 ]]>
     </Resource>
   </TestCase>
@@ -140,18 +122,7 @@ LogicalProject(id=[$0], name=[$1], amount=[$2], price=[$3], fact_date_sk=[$4], i
       <![CDATA[
 HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id, name, amount, price, fact_date_sk, id0, male, amount0, price0, dim_date_sk, id00, amount00, price00, id1, amount1, price1], build=[right])
 :- Exchange(distribution=[hash[fact_date_sk]])
-:  +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])
-:     +- DynamicFilteringDataCollector(fields=[dim_date_sk])
-:        +- HashJoin(joinType=[InnerJoin], where=[=(id0, id1)], select=[id, male, amount, price, dim_date_sk, id0, amount0, price0, id1, amount1, price1], build=[left])
-:           :- HashJoin(joinType=[InnerJoin], where=[=(id, id0)], select=[id, male, amount, price, dim_date_sk, id0, amount0, price0], build=[right])
-:           :  :- Exchange(distribution=[hash[id]])
-:           :  :  +- Calc(select=[id, male, amount, price, dim_date_sk], where=[<(price, 500)])
-:           :  :     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
-:           :  +- Exchange(distribution=[hash[id]])
-:           :     +- Calc(select=[id, amount, price], where=[>(price, 300)])
-:           :        +- TableSourceScan(table=[[testCatalog, test_database, sales, filter=[]]], fields=[id, amount, price])
-:           +- Exchange(distribution=[hash[id]])
-:              +- TableSourceScan(table=[[testCatalog, test_database, item]], fields=[id, amount, price])
+:  +- TableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])
 +- Exchange(distribution=[hash[dim_date_sk]])
    +- HashJoin(joinType=[InnerJoin], where=[=(id0, id1)], select=[id, male, amount, price, dim_date_sk, id0, amount0, price0, id1, amount1, price1], build=[left])
       :- HashJoin(joinType=[InnerJoin], where=[=(id, id0)], select=[id, male, amount, price, dim_date_sk, id0, amount0, price0], build=[right])
@@ -244,13 +215,13 @@ HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id,
   </TestCase>
   <TestCase name="testDimTableWithUnsuitableFilter">
     <Resource name="sql">
-      <![CDATA[Select * from dim, fact_part where fact_part.fact_date_sk = dim.dim_date_sk and male = true]]>
+      <![CDATA[Select * from dim join fact_part on fact_part.fact_date_sk = dim.dim_date_sk where dim.id is not null]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], male=[$1], amount=[$2], price=[$3], dim_date_sk=[$4], id0=[$5], name=[$6], amount0=[$7], price0=[$8], fact_date_sk=[$9])
-+- LogicalFilter(condition=[AND(=($9, $4), =($1, true))])
-   +- LogicalJoin(condition=[true], joinType=[inner])
++- LogicalFilter(condition=[IS NOT NULL($0)])
+   +- LogicalJoin(condition=[=($9, $4)], joinType=[inner])
       :- LogicalTableScan(table=[[testCatalog, test_database, dim]])
       +- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
 ]]>
@@ -259,7 +230,7 @@ LogicalProject(id=[$0], male=[$1], amount=[$2], price=[$3], dim_date_sk=[$4], id
       <![CDATA[
 HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id, male, amount, price, dim_date_sk, id0, name, amount0, price0, fact_date_sk], build=[left])
 :- Exchange(distribution=[hash[dim_date_sk]])
-:  +- Calc(select=[id, male, amount, price, dim_date_sk], where=[male])
+:  +- Calc(select=[id, male, amount, price, dim_date_sk], where=[IS NOT NULL(id)])
 :     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
 +- Exchange(distribution=[hash[fact_date_sk]])
    +- TableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])

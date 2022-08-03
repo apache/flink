@@ -98,11 +98,10 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testDimTableWithUnsuitableFilter() {
-        // For filters in dim table side, they need to filter enough partitions. Like NOT NULL or IS
-        // TRUE will
+        // For filters in dim table side, they need to filter enough partitions. Like NOT NULL will
         // not succeed for dynamic partition pruning.
         String query =
-                "Select * from dim, fact_part where fact_part.fact_date_sk = dim.dim_date_sk and male = true";
+                "Select * from dim join fact_part on fact_part.fact_date_sk = dim.dim_date_sk where dim.id is not null";
         util.verifyRelPlan(query);
     }
 
@@ -132,6 +131,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testDimTableWithFilterPushDown() {
+        // Even though have filter push down, dynamic partition pruning will succeed.
         String query =
                 "Select * from fact_part join (Select * from dim) t1"
                         + " on fact_part.fact_date_sk = dim_date_sk where t1.price < 500";
@@ -140,6 +140,8 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testJoinKeyIsDynamicFilterFieldNotPartitionKey() {
+        // Not only partition key, but also dynamic filtering field in join key will succeed in
+        // dynamic partition pruning.
         String query =
                 "Select * from dim, fact_part where fact_part.amount = dim.amount and dim.price < 500";
         util.verifyRelPlan(query);
@@ -147,6 +149,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testDynamicFilteringFactInRightRule() throws TableNotExistException {
+        // Base rule.
         CatalogTableStatistics tableStatistics = new CatalogTableStatistics(1, 1, 1, 1);
         catalog.alterTableStatistics(
                 new ObjectPath("test_database", "dim"), tableStatistics, false);
@@ -157,6 +160,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testDynamicFilteringFactInLeftRule() throws TableNotExistException {
+        // Base rule.
         CatalogTableStatistics tableStatistics = new CatalogTableStatistics(1, 1, 1, 1);
         catalog.alterTableStatistics(
                 new ObjectPath("test_database", "dim"), tableStatistics, false);
@@ -167,6 +171,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testDynamicFilteringFactInRightWithExchangeRule() {
+        // Base rule.
         String query =
                 "Select * from dim, fact_part where fact_part.fact_date_sk = dim.dim_date_sk and dim.price < 500";
         util.verifyRelPlan(query);
@@ -174,6 +179,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testDynamicFilteringFactInLeftWithExchangeRule() {
+        // Base rule.
         String query =
                 "Select * from fact_part, dim where fact_part.fact_date_sk = dim.dim_date_sk and dim.price < 500";
         util.verifyRelPlan(query);
@@ -181,6 +187,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testDynamicFilteringFactInRightWithCalcRule() throws TableNotExistException {
+        // Base rule.
         CatalogTableStatistics tableStatistics = new CatalogTableStatistics(1, 1, 1, 1);
         catalog.alterTableStatistics(
                 new ObjectPath("test_database", "dim"), tableStatistics, false);
@@ -192,6 +199,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testDynamicFilteringFactInLeftWithCalcRule() throws TableNotExistException {
+        // Base rule.
         CatalogTableStatistics tableStatistics = new CatalogTableStatistics(1, 1, 1, 1);
         catalog.alterTableStatistics(
                 new ObjectPath("test_database", "dim"), tableStatistics, false);
@@ -203,6 +211,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testDynamicFilteringFactInRightWithExchangeAndCalcRule() {
+        // Base rule.
         String query =
                 "Select * from dim, fact_part where fact_part.fact_date_sk = dim.dim_date_sk"
                         + " and fact_part.price > 200 and dim.price < 500";
@@ -211,6 +220,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testDynamicFilteringFactInLeftWithExchangeAndCalcRule() {
+        // Base rule.
         String query =
                 "Select * from fact_part, dim where fact_part.fact_date_sk = dim.dim_date_sk"
                         + " and fact_part.price > 200 and dim.price < 500";
@@ -219,6 +229,8 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testComplexCalcInFactSide() {
+        // Although the partition key is converted, Dynamic Partition pruning can be successfully
+        // applied.
         String query =
                 "Select * from dim join (select fact_date_sk as fact_date_sk1, price + 1 as price1 from fact_part) t1"
                         + " on t1.fact_date_sk1 = dim_date_sk and t1.price1 > 200 and dim.price < 500";
@@ -240,8 +252,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
         CatalogTableStatistics tableStatistics = new CatalogTableStatistics(1, 1, 1, 1);
         catalog.alterTableStatistics(
                 new ObjectPath("test_database", "dim"), tableStatistics, false);
-        // in this case. amount + 1 as amount will cause dynamic filtering produce wrong results. So
-        // dynamic filtering will not succeed.
+        // in this case. amount + 1 as amount is not a partition key, will succeed.
         String query =
                 "Select * from dim join (select fact_date_sk, amount + 1 as amount from fact_part) t1 on"
                         + " fact_date_sk = dim_date_sk and t1.amount = dim.amount where dim.price < 500";
@@ -269,7 +280,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testSemiJoin() {
-        // Now dynamic partition pruning support semi join.
+        // Now dynamic partition pruning support semi join, this query will succeed.
         String query =
                 "Select * from fact_part where fact_part.fact_date_sk in"
                         + " (select dim_date_sk from dim where dim.price < 500)";
@@ -316,7 +327,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testComplexDimSideWithJoinInDimSide() {
-        // Another table.
+        // Dim side contains join will not succeed in this version, it will improve later.
         String ddl1 =
                 "CREATE TABLE test_database.sales (\n"
                         + "  id BIGINT,\n"
@@ -349,7 +360,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
     @Test
     public void testComplexDimSideWithAggInDimSide() {
-        // Another table.
+        // Dim side contains agg will not succeed in this version, it will improve later.
         String ddl =
                 "CREATE TABLE test_database.sales (\n"
                         + "  id BIGINT,\n"
@@ -363,8 +374,8 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
 
         String query =
                 "Select * from fact_part join"
-                        + " (select dim_date_sk, sum(sales.price) from dim, sales where"
-                        + " dim.id = sales.id and dim.price < 500 group by dim_date_sk) dimSide"
+                        + " (select dim_date_sk, sum(dim.price) from dim where"
+                        + "  dim.price < 500 group by dim_date_sk) dimSide"
                         + " on fact_part.fact_date_sk = dimSide.dim_date_sk";
         util.verifyRelPlan(query);
     }
