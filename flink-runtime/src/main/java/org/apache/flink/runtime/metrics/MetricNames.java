@@ -114,4 +114,13 @@ public class MetricNames {
     public static final String NUM_SLOW_EXECUTION_VERTICES = "numSlowExecutionVertices";
     public static final String NUM_EFFECTIVE_SPECULATIVE_EXECUTIONS =
             "numEffectiveSpeculativeExecutions";
+
+    // FLIP-221 for caches
+    public static final String HIT_COUNT = "hitCount";
+    public static final String MISS_COUNT = "missCount";
+    public static final String LOAD_COUNT = "loadCount";
+    public static final String NUM_LOAD_FAILURES = "numLoadFailures";
+    public static final String LATEST_LOAD_TIME = "latestLoadTime";
+    public static final String NUM_CACHED_RECORDS = "numCachedRecords";
+    public static final String NUM_CACHED_BYTES = "numCachedBytes";
 }
