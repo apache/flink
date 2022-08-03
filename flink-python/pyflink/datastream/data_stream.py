@@ -2738,7 +2738,12 @@ def _get_one_input_stream_operator(data_stream: DataStream,
         else:
             j_namespace_serializer = \
                 gateway.jvm.org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer()
-        j_python_function_operator = gateway.jvm.ExternalPythonKeyedProcessOperator(
+        if python_execution_mode == 'thread':
+            JDataStreamPythonWindowFunctionOperator = gateway.jvm.EmbeddedPythonWindowOperator
+        else:
+            JDataStreamPythonWindowFunctionOperator = gateway.jvm.ExternalPythonKeyedProcessOperator
+
+        j_python_function_operator = JDataStreamPythonWindowFunctionOperator(
             j_conf,
             j_data_stream_python_function_info,
             j_input_types,

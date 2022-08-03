@@ -66,14 +66,16 @@ class OneInputFunctionOperation(FunctionOperation):
                  runtime_context,
                  function_context,
                  timer_context,
-                 job_parameters):
+                 job_parameters,
+                 keyed_state_backend):
         operations = (
             [extract_process_function(
                 serialized_fn,
                 runtime_context,
                 function_context,
                 timer_context,
-                job_parameters)
+                job_parameters,
+                keyed_state_backend)
                 for serialized_fn in serialized_fns])
         super(OneInputFunctionOperation, self).__init__(operations, output_data_converter)
         self._input_data_converter = input_data_converter
@@ -96,14 +98,16 @@ class TwoInputFunctionOperation(FunctionOperation):
                  runtime_context,
                  function_context,
                  timer_context,
-                 job_parameters):
+                 job_parameters,
+                 keyed_state_backend):
         operations = (
             [extract_process_function(
                 serialized_fn,
                 runtime_context,
                 function_context,
                 timer_context,
-                job_parameters)
+                job_parameters,
+                keyed_state_backend)
                 for serialized_fn in serialized_fns])
         super(TwoInputFunctionOperation, self).__init__(operations, output_data_converter)
         self._input_data_converter1 = input_data_converter1

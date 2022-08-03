@@ -135,6 +135,7 @@ public abstract class AbstractTwoInputEmbeddedPythonFunctionOperator<IN1, IN2, O
         interpreter.set("runtime_context", getRuntimeContext());
         interpreter.set("function_context", getFunctionContext());
         interpreter.set("timer_context", getTimerContext());
+        interpreter.set("keyed_state_backend", getKeyedStateBackend());
         interpreter.set("job_parameters", getJobParameters());
 
         interpreter.exec(
@@ -149,7 +150,8 @@ public abstract class AbstractTwoInputEmbeddedPythonFunctionOperator<IN1, IN2, O
                         + "runtime_context,"
                         + "function_context,"
                         + "timer_context,"
-                        + "job_parameters)");
+                        + "job_parameters,"
+                        + "keyed_state_backend)");
 
         interpreter.invokeMethod("operation", "open");
     }

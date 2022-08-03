@@ -19,6 +19,7 @@ import typing
 from typing import TypeVar, Iterable, Collection, Optional
 
 from pyflink.common.constants import MAX_LONG_VALUE
+from pyflink.common.typeinfo import PickledBytesTypeInfo
 from pyflink.datastream import WindowAssigner, Trigger, MergingWindowAssigner, TriggerResult
 from pyflink.datastream.functions import KeyedStateStore, RuntimeContext, InternalWindowFunction
 from pyflink.datastream.output_tag import OutputTag
@@ -322,9 +323,16 @@ class WindowOperator(object):
             if isinstance(self.window_state, InternalMergingState):
                 self.window_merging_state = self.window_state
 
-            window_coder = self.keyed_state_backend.namespace_coder
-            self.merging_sets_state = self.keyed_state_backend.get_map_state(
-                "merging-window-set", window_coder, window_coder)
+            if hasattr(self.keyed_state_backend, 'namespace_coder'):
+                window_coder = self.keyed_state_backend.namespace_coder
+                self.merging_sets_state = self.keyed_state_backend.get_map_state(
+                    "merging-window-set", window_coder, window_coder)
+            else:
+                state_descriptor = MapStateDescriptor(
+                    "merging-window-set",
+                    PickledBytesTypeInfo(),
+                    PickledBytesTypeInfo())
+                self.merging_sets_state = self.keyed_state_backend.get_map_state(state_descriptor)
 
         self.merge_function = WindowMergeFunction(self)
 

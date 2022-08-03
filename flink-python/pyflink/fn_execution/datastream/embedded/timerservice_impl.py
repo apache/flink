@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 from pyflink.datastream import TimerService
+from pyflink.fn_execution.datastream.timerservice import InternalTimerService, N
 
 
 class TimerServiceImpl(TimerService):
@@ -39,3 +40,31 @@ class TimerServiceImpl(TimerService):
 
     def delete_event_time_timer(self, timestamp: int):
         self._timer_service.deleteEventTimeTimer(timestamp)
+
+
+class InternalTimerServiceImpl(InternalTimerService[N]):
+    def __init__(self, timer_service, window_converter):
+        self._timer_service = timer_service
+        self._window_converter = window_converter
+
+    def current_processing_time(self):
+        return self._timer_service.currentProcessingTime()
+
+    def current_watermark(self):
+        return self._timer_service.currentWatermark()
+
+    def register_processing_time_timer(self, namespace: N, timestamp: int):
+        window = self._window_converter.to_external(namespace)
+        self._timer_service.registerProcessingTimeTimer(window, timestamp)
+
+    def register_event_time_timer(self, namespace: N, timestamp: int):
+        window = self._window_converter.to_external(namespace)
+        self._timer_service.registerEventTimeTimer(window, timestamp)
+
+    def delete_event_time_timer(self, namespace: N, timestamp: int):
+        window = self._window_converter.to_external(namespace)
+        self._timer_service.deleteEventTimeTimer(window, timestamp)
+
+    def delete_processing_time_timer(self, namespace: N, timestamp: int):
+        window = self._window_converter.to_external(namespace)
+        self._timer_service.deleteProcessingTimeTimer(window, timestamp)
