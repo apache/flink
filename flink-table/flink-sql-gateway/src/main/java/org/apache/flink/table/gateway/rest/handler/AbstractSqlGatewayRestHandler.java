@@ -59,12 +59,13 @@ public abstract class AbstractSqlGatewayRestHandler<
 
     protected AbstractSqlGatewayRestHandler(
             SqlGatewayService service,
-            Time timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<R, P, M> messageHeaders) {
         super(
                 () -> CompletableFuture.completedFuture(NonLeaderRetrievalRestfulGateway.INSTANCE),
-                timeout,
+                // SqlGatewayRestHandler doesn't support RPC timeout option, this property is used
+                // for placeholder
+                Time.seconds(1),
                 responseHeaders,
                 messageHeaders);
         this.service = service;
