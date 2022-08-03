@@ -77,7 +77,9 @@ message SimpleTest {
 }
 ```
 
-Use `protoc` command to generate protobuf java sources and put the sources in your runtime classpath.
+1. Use [`protoc`](https://developers.google.com/protocol-buffers/docs/javatutorial#compiling-your-protocol-buffers) command to compile the `.proto` file to java classes
+2. Then compile and package the classes (there is no need to package proto-java into the jar)
+3. Finally you should provide the `jar` in your classpath, e.g. pass it using `-j` in <a href="{{< ref "docs/dev/table/sqlClient" >}}">sql-client</a>
 
 ```sql
 CREATE TABLE simple_test (
