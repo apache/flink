@@ -24,7 +24,7 @@ import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializer;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializers;
-import org.apache.flink.runtime.checkpoint.metadata.MetadataV3Serializer;
+import org.apache.flink.runtime.checkpoint.metadata.MetadataV4Serializer;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -85,12 +85,20 @@ public class Checkpoints {
 
     public static void storeCheckpointMetadata(
             CheckpointMetadata checkpointMetadata, DataOutputStream out) throws IOException {
+        storeCheckpointMetadata(checkpointMetadata, out, MetadataV4Serializer.INSTANCE);
+    }
+
+    public static void storeCheckpointMetadata(
+            CheckpointMetadata checkpointMetadata,
+            DataOutputStream out,
+            MetadataSerializer serializer)
+            throws IOException {
 
         // write generic header
         out.writeInt(HEADER_MAGIC_NUMBER);
 
-        out.writeInt(MetadataV3Serializer.VERSION);
-        MetadataV3Serializer.serialize(checkpointMetadata, out);
+        out.writeInt(serializer.getVersion());
+        serializer.serialize(checkpointMetadata, out);
     }
 
     // ------------------------------------------------------------------------
@@ -216,7 +224,8 @@ public class Checkpoints {
                 restoreMode == RestoreMode.CLAIM
                         ? new ClaimModeCompletedStorageLocation(location)
                         : location,
-                null);
+                null,
+                checkpointMetadata.getCheckpointProperties());
     }
 
     private static void throwNonRestoredStateException(

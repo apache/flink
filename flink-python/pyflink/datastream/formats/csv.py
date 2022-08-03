@@ -15,9 +15,11 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import Optional, cast
+from typing import Optional
 
+from pyflink.common.typeinfo import _from_java_type
 from pyflink.datastream.connectors import StreamFormat
+from pyflink.datastream.connectors.file_system import BulkWriterFactory, RowDataBulkWriterFactory
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, DataTypes, _to_java_data_type, RowType, NumericType
 
@@ -30,9 +32,10 @@ class CsvSchema(object):
     .. versionadded:: 1.16.0
     """
 
-    def __init__(self, j_schema, data_type: DataType):
+    def __init__(self, j_schema, row_type: RowType):
         self._j_schema = j_schema
-        self._data_type = data_type
+        self._row_type = row_type  # type: RowType
+        self._type_info = None
 
     @staticmethod
     def builder() -> 'CsvSchemaBuilder':
@@ -40,6 +43,14 @@ class CsvSchema(object):
         Returns a :class:`CsvSchemaBuilder`.
         """
         return CsvSchemaBuilder()
+
+    def get_type_info(self):
+        if self._type_info is None:
+            jvm = get_gateway().jvm
+            j_type_info = jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter \
+                .toLegacyTypeInfo(_to_java_data_type(self._row_type))
+            self._type_info = _from_java_type(j_type_info)
+        return self._type_info
 
     def size(self):
         return self._j_schema.size()
@@ -131,7 +142,7 @@ class CsvSchemaBuilder(object):
         :param schema: Another :class:`CsvSchema`.
         """
         self._j_schema_builder.addColumnsFrom(schema._j_schema)
-        for field in cast(RowType, schema._data_type):
+        for field in schema._row_type:
             self._fields.append(field)
         return self
 
@@ -293,9 +304,53 @@ class CsvReaderFormat(StreamFormat):
         Builds a :class:`CsvReaderFormat` using `CsvSchema`.
         """
         jvm = get_gateway().jvm
-        j_csv_format = jvm.org.apache.flink.formats.csv.CsvReaderFormatFactory \
+        j_csv_format = jvm.org.apache.flink.formats.csv.PythonCsvUtils \
             .createCsvReaderFormat(
                 schema._j_schema,
-                _to_java_data_type(schema._data_type)
+                _to_java_data_type(schema._row_type)
             )
         return CsvReaderFormat(j_csv_format)
+
+
+class CsvBulkWriter(object):
+    """
+    CsvBulkWriter is for building :class:`BulkWriterFactory` to write Rows with a predefined CSV
+    schema to partitioned files in a bulk fashion.
+
+    Example:
+    ::
+
+        >>> schema = CsvSchema.builder() \\
+        ...     .add_number_column('id', number_type=DataTypes.INT()) \\
+        ...     .add_string_column('name') \\
+        ...     .add_array_column('list', ',', element_type=DataTypes.STRING()) \\
+        ...     .set_column_separator('|') \\
+        ...     .build()
+        >>> sink = FileSink.for_bulk_format(
+        ...     OUTPUT_DIR, CsvBulkWriter.for_schema(schema)).build()
+        >>> # If ds is a source stream, an identity map before sink is required
+        >>> ds.map(lambda e: e, output_type=schema.get_type_info()).sink_to(sink)
+
+    .. versionadded:: 1.16.0
+    """
+
+    @staticmethod
+    def for_schema(schema: 'CsvSchema') -> 'BulkWriterFactory':
+        """
+        Builds a :class:`BulkWriterFactory` for writing records to files in CSV format.
+        """
+        jvm = get_gateway().jvm
+        jackson = jvm.org.apache.flink.shaded.jackson2.com.fasterxml.jackson
+        csv = jvm.org.apache.flink.formats.csv
+
+        j_converter = csv.RowDataToCsvConverters.createRowConverter(
+            _to_java_data_type(schema._row_type).getLogicalType())
+        j_mapper = jackson.dataformat.csv.CsvMapper()
+        j_container = j_mapper.createObjectNode()
+        j_context = csv.PythonCsvUtils.createRowDataToCsvFormatConverterContext(
+            j_mapper, j_container)
+
+        j_factory = csv.PythonCsvUtils.createCsvBulkWriterFactory(
+            j_mapper, schema._j_schema, j_converter, j_context
+        )
+        return RowDataBulkWriterFactory(j_factory, schema._row_type)

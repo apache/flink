@@ -315,7 +315,7 @@ public class HiveSourceBuilder {
         return (RowType) producedSchema.toRowDataType().bridgedTo(RowData.class).getLogicalType();
     }
 
-    private BulkFormat<RowData, HiveSourceSplit> createDefaultBulkFormat() {
+    protected BulkFormat<RowData, HiveSourceSplit> createDefaultBulkFormat() {
         return LimitableBulkFormat.create(
                 new HiveInputFormat(
                         new JobConfWrapper(jobConf),

@@ -18,11 +18,20 @@
 from pyflink.datastream.connectors.base import Sink, Source, DeliveryGuarantee
 from pyflink.datastream.connectors.elasticsearch import (Elasticsearch6SinkBuilder,
                                                          Elasticsearch7SinkBuilder)
-from pyflink.datastream.connectors.file_system import (FileEnumeratorProvider, FileSink, FileSource,
-                                                       BucketAssigner, FileSourceBuilder,
-                                                       FileSplitAssignerProvider, OutputFileConfig,
-                                                       RollingPolicy,
-                                                       StreamFormat, StreamingFileSink, BulkFormat)
+from pyflink.datastream.connectors.file_system import (
+    BucketAssigner,
+    BulkFormat,
+    BulkWriterFactory,
+    FileEnumeratorProvider,
+    FileSink,
+    FileSplitAssignerProvider,
+    FileSource,
+    FileSourceBuilder,
+    OutputFileConfig,
+    RollingPolicy,
+    StreamFormat,
+    StreamingFileSink,
+)
 from pyflink.datastream.connectors.jdbc import JdbcSink, JdbcConnectionOptions, JdbcExecutionOptions
 from pyflink.datastream.connectors.kafka import (
     FlinkKafkaConsumer,
@@ -94,6 +103,7 @@ __all__ = [
     'StopCursor',
     'BulkFormat',
     'StreamFormat',
+    'BulkWriterFactory',
     'StreamingFileSink',
     'FlinkKinesisConsumer',
     'KinesisStreamsSink',

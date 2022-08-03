@@ -17,9 +17,15 @@
 ################################################################################
 import warnings
 
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from pyflink.table.types import RowType
+
 from pyflink.common import Duration, Encoder
-from pyflink.datastream.functions import SinkFunction
 from pyflink.datastream.connectors import Source, Sink
+from pyflink.datastream.connectors.base import SupportsPreprocessing, StreamTransformer
+from pyflink.datastream.functions import SinkFunction
 from pyflink.datastream.utils import JavaObjectWrapper
 from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import to_jarray
@@ -159,6 +165,20 @@ class BulkWriterFactory(JavaObjectWrapper):
 
     def __init__(self, j_bulk_writer_factory):
         super().__init__(j_bulk_writer_factory)
+
+
+class RowDataBulkWriterFactory(BulkWriterFactory):
+    """
+    A :class:`BulkWriterFactory` that receives records with RowData type. This is for indicating
+    that Row record from Python must be first converted to RowData.
+    """
+
+    def __init__(self, j_bulk_writer_factory, row_type: 'RowType'):
+        super().__init__(j_bulk_writer_factory)
+        self._row_type = row_type
+
+    def get_row_type(self) -> 'RowType':
+        return self._row_type
 
 
 class FileSourceBuilder(object):
@@ -479,7 +499,7 @@ class OutputFileConfig(object):
             return OutputFileConfig(self.part_prefix, self.part_suffix)
 
 
-class FileSink(Sink):
+class FileSink(Sink, SupportsPreprocessing):
     """
     A unified sink that emits its input elements to FileSystem files within buckets. This
     sink achieves exactly-once semantics for both BATCH and STREAMING.
@@ -526,8 +546,12 @@ class FileSink(Sink):
     the checkpoint from which we restore.
     """
 
-    def __init__(self, j_file_sink):
+    def __init__(self, j_file_sink, transformer: Optional[StreamTransformer] = None):
         super(FileSink, self).__init__(sink=j_file_sink)
+        self._transformer = transformer
+
+    def get_transformer(self) -> Optional[StreamTransformer]:
+        return self._transformer
 
     class RowFormatBuilder(object):
         """
@@ -575,6 +599,7 @@ class FileSink(Sink):
 
         def __init__(self, j_bulk_format_builder):
             self._j_bulk_format_builder = j_bulk_format_builder
+            self._transformer = None
 
         def with_bucket_check_interval(self, interval: int) -> 'FileSink.BulkFormatBuilder':
             """
@@ -599,8 +624,23 @@ class FileSink(Sink):
                 output_file_config._j_output_file_config)
             return self
 
+        def _with_row_type(self, row_type: 'RowType') -> 'FileSink.BulkFormatBuilder':
+            from pyflink.datastream.data_stream import DataStream
+            from pyflink.table.types import _to_java_data_type
+
+            class RowRowTransformer(StreamTransformer):
+
+                def apply(self, ds):
+                    jvm = get_gateway().jvm
+                    j_map_function = jvm.org.apache.flink.python.util.PythonConnectorUtils \
+                        .RowRowMapper(_to_java_data_type(row_type))
+                    return DataStream(ds._j_data_stream.process(j_map_function))
+
+            self._transformer = RowRowTransformer()
+            return self
+
         def build(self) -> 'FileSink':
-            return FileSink(self._j_bulk_format_builder.build())
+            return FileSink(self._j_bulk_format_builder.build(), self._transformer)
 
     @staticmethod
     def for_bulk_format(base_path: str, writer_factory: BulkWriterFactory) \
@@ -609,9 +649,13 @@ class FileSink(Sink):
         j_path = jvm.org.apache.flink.core.fs.Path(base_path)
         JFileSink = jvm.org.apache.flink.connector.file.sink.FileSink
 
-        return FileSink.BulkFormatBuilder(
+        builder = FileSink.BulkFormatBuilder(
             JFileSink.forBulkFormat(j_path, writer_factory.get_java_object())
         )
+        if isinstance(writer_factory, RowDataBulkWriterFactory):
+            return builder._with_row_type(writer_factory.get_row_type())
+        else:
+            return builder
 
 
 # ---- StreamingFileSink ----
