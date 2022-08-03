@@ -31,6 +31,7 @@ from pyflink.datastream.connectors import FlinkKafkaConsumer, FlinkKafkaProducer
     SubscriptionType, PulsarSink, PulsarSerializationSchema, DeliveryGuarantee, TopicRoutingMode, \
     MessageDelayer, FlinkKinesisConsumer, KinesisStreamsSink, KinesisFirehoseSink
 from pyflink.datastream.connectors.cassandra import CassandraSink, MapperOptions, ConsistencyLevel
+from pyflink.datastream.connectors.file_system import FileCompactStrategy, FileCompactor
 from pyflink.datastream.connectors.kinesis import PartitionKeyGenerator
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
@@ -534,6 +535,12 @@ class ConnectorTests(PyFlinkStreamingTestCase):
             .with_rolling_policy(RollingPolicy.on_checkpoint_rolling_policy()) \
             .with_output_file_config(
                 OutputFileConfig.builder().with_part_prefix("pre").with_part_suffix("suf").build())\
+            .enable_compact(FileCompactStrategy.builder()
+                            .enable_compaction_on_checkpoint(3)
+                            .set_size_threshold(1024)
+                            .set_num_compact_threads(2)
+                            .build(),
+                            FileCompactor.concat_file_compactor(b'\n')) \
             .build()
 
         buckets_builder_field = \
@@ -570,6 +577,25 @@ class ConnectorTests(PyFlinkStreamingTestCase):
         output_file_config = output_file_config_field.get(buckets_builder)
         self.assertEqual("pre", output_file_config.getPartPrefix())
         self.assertEqual("suf", output_file_config.getPartSuffix())
+
+        compact_strategy_field = row_format_builder_clz.getDeclaredField("compactStrategy")
+        compact_strategy_field.setAccessible(True)
+        compact_strategy = compact_strategy_field.get(buckets_builder)
+        self.assertEqual(3, compact_strategy.getNumCheckpointsBeforeCompaction())
+        self.assertEqual(1024, compact_strategy.getSizeThreshold())
+        self.assertEqual(2, compact_strategy.getNumCompactThreads())
+
+        file_compactor_field = row_format_builder_clz.getDeclaredField("fileCompactor")
+        file_compactor_field.setAccessible(True)
+        file_compactor = file_compactor_field.get(buckets_builder)
+        self.assertEqual("ConcatFileCompactor", file_compactor.getClass().getSimpleName())
+        concat_file_compactor_clz = load_java_class(
+            "org.apache.flink.connector.file.sink.compactor.ConcatFileCompactor"
+        )
+        file_delimiter_field = concat_file_compactor_clz.getDeclaredField("fileDelimiter")
+        file_delimiter_field.setAccessible(True)
+        file_delimiter = file_delimiter_field.get(file_compactor)
+        self.assertEqual(b'\n', file_delimiter)
 
     def test_seq_source(self):
         seq_source = NumberSequenceSource(1, 10)
