@@ -594,16 +594,14 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
 
     @Test
     public void testGetOperationSchemaWhenOperationGetError() throws Exception {
+        String msg = "Artificial Exception.";
         runGetOperationSchemaUntilOperationIsReadyOrError(
                 () -> {
-                    throw new SqlGatewayException("Artificial Exception.");
+                    throw new SqlGatewayException(msg);
                 },
                 task ->
                         assertThatThrownBy(task::get)
-                                .satisfies(
-                                        anyCauseMatches(
-                                                IllegalStateException.class,
-                                                "The result schema is available when the Operation is in FINISHED state but the current status is ERROR.")));
+                                .satisfies(anyCauseMatches(SqlGatewayException.class, msg)));
     }
 
     // --------------------------------------------------------------------------------------------

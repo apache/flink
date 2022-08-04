@@ -26,8 +26,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.data.GenericRowData;
-import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.endpoint.hive.util.StringRowDataUtils;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
@@ -117,7 +116,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
@@ -399,23 +397,18 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         TGetCatalogsResp resp = new TGetCatalogsResp();
         try {
             SessionHandle sessionHandle = toSessionHandle(tGetCatalogsReq.getSessionHandle());
-            Set<String> catalogNames = service.listCatalogs(sessionHandle);
             OperationHandle operationHandle =
                     service.submitOperation(
                             sessionHandle,
                             OperationType.LIST_CATALOGS,
-                            () ->
-                                    new ResultSet(
-                                            EOS,
-                                            null,
-                                            GET_CATALOGS_SCHEMA,
-                                            catalogNames.stream()
-                                                    .map(
-                                                            name ->
-                                                                    GenericRowData.of(
-                                                                            StringData.fromString(
-                                                                                    name)))
-                                                    .collect(Collectors.toList())));
+                            () -> {
+                                Set<String> catalogNames = service.listCatalogs(sessionHandle);
+                                return new ResultSet(
+                                        EOS,
+                                        null,
+                                        GET_CATALOGS_SCHEMA,
+                                        StringRowDataUtils.toRowData(catalogNames));
+                            });
             resp.setStatus(OK_STATUS);
             resp.setOperationHandle(
                     toTOperationHandle(

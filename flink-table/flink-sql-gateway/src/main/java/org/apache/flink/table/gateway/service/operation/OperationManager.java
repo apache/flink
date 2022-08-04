@@ -319,7 +319,9 @@ public class OperationManager {
                 }
             }
             OperationStatus current = status.get();
-            if (current != OperationStatus.FINISHED) {
+            if (current == OperationStatus.ERROR) {
+                throw operationError;
+            } else if (current != OperationStatus.FINISHED) {
                 throw new IllegalStateException(
                         String.format(
                                 "The result schema is available when the Operation is in FINISHED state but the current status is %s.",
