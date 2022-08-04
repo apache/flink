@@ -29,6 +29,9 @@ public enum OperationType {
     /** The type indicates the operation list catalogs. */
     LIST_CATALOGS,
 
+    /** The type indicates the operation list schemas. */
+    LIST_SCHEMAS,
+
     /** The type indicates the operation is unknown. */
     UNKNOWN;
 }

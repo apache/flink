@@ -120,4 +120,15 @@ public class MockedSqlGatewayService implements SqlGatewayService {
     public Set<String> listCatalogs(SessionHandle sessionHandle) throws SqlGatewayException {
         throw new UnsupportedOperationException();
     }
+
+    @Override
+    public Set<String> listDatabases(SessionHandle sessionHandle, String catalogName)
+            throws SqlGatewayException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String getCurrentCatalog(SessionHandle sessionHandle) throws SqlGatewayException {
+        throw new UnsupportedOperationException();
+    }
 }

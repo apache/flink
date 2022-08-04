@@ -221,6 +221,21 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         }
     }
 
+    @Override
+    public Set<String> listDatabases(SessionHandle sessionHandle, String catalogName) {
+        try {
+            return getSession(sessionHandle).createExecutor().listDatabases(catalogName);
+        } catch (Throwable t) {
+            LOG.error("Failed to listDatabases.", t);
+            throw new SqlGatewayException("Failed to listDatabases.", t);
+        }
+    }
+
+    @Override
+    public String getCurrentCatalog(SessionHandle sessionHandle) {
+        return getSession(sessionHandle).createExecutor().getCurrentCatalog();
+    }
+
     @VisibleForTesting
     Session getSession(SessionHandle sessionHandle) {
         return sessionManager.getSession(sessionHandle);

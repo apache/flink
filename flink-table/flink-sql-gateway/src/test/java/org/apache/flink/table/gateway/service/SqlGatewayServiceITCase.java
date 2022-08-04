@@ -304,6 +304,10 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 task -> assertThat(task.get()).isEqualTo(getDefaultResultSet().getResultSchema()));
     }
 
+    // --------------------------------------------------------------------------------------------
+    // Catalog API tests
+    // --------------------------------------------------------------------------------------------
+
     @Test
     public void testListCatalogs() {
         SessionEnvironment environment =
@@ -314,6 +318,46 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                         .build();
         SessionHandle sessionHandle = service.openSession(environment);
         assertThat(service.listCatalogs(sessionHandle)).contains("cat1", "cat2");
+    }
+
+    @Test
+    public void testListDatabases() throws Exception {
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .registerCatalog("cat", new GenericInMemoryCatalog("cat"))
+                        .setDefaultCatalog("cat")
+                        .build();
+        SessionHandle sessionHandle = service.openSession(environment);
+        Configuration configuration =
+                Configuration.fromMap(service.getSessionConfig(sessionHandle));
+
+        service.executeStatement(sessionHandle, "CREATE DATABASE db1", -1, configuration);
+        OperationHandle operationHandle =
+                service.executeStatement(sessionHandle, "CREATE DATABASE db2", -1, configuration);
+
+        CommonTestUtils.waitUtil(
+                () ->
+                        service.getOperationInfo(sessionHandle, operationHandle)
+                                .getStatus()
+                                .isTerminalStatus(),
+                Duration.ofSeconds(100),
+                "Failed to wait operation finish.");
+        assertThat(service.listDatabases(sessionHandle, "cat")).contains("db1", "db2");
+    }
+
+    @Test
+    public void testGetCurrentCatalog() {
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
+                        .registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
+                        .setDefaultCatalog("cat2")
+                        .build();
+        SessionHandle sessionHandle = service.openSession(environment);
+
+        assertThat(service.getCurrentCatalog(sessionHandle)).isEqualTo("cat2");
     }
 
     // --------------------------------------------------------------------------------------------

@@ -22,6 +22,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 
+import java.util.Arrays;
 import java.util.Collections;
 
 /** Schemas for the HiveServer2 Endpoint result. */
@@ -33,6 +34,17 @@ public class HiveServer2Schemas {
                     Collections.singletonList(
                             Column.physical("TABLE_CAT", DataTypes.STRING())
                                     .withComment("Catalog name. NULL if not applicable.")),
+                    Collections.emptyList(),
+                    null);
+
+    /** Schema for {@link HiveServer2Endpoint#GetSchemas}. */
+    public static final ResolvedSchema GET_SCHEMAS_SCHEMA =
+            new ResolvedSchema(
+                    Arrays.asList(
+                            Column.physical("TABLE_SCHEMA", DataTypes.STRING())
+                                    .withComment("Schema name. NULL if not applicable."),
+                            Column.physical("TABLE_CAT", DataTypes.STRING())
+                                    .withComment("Catalog name. NULL if not applicable")),
                     Collections.emptyList(),
                     null);
 }
