@@ -35,8 +35,9 @@ import org.junit.Test;
  * org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalDynamicFilteringTableSourceScan}.
  */
 public class DynamicPartitionPruningRuleTest extends TableTestBase {
-    protected BatchTableTestUtil util = batchTestUtil(TableConfig.getDefault());
-    TestValuesCatalog catalog = new TestValuesCatalog("testCatalog", "test_database", true);
+    private final BatchTableTestUtil util = batchTestUtil(TableConfig.getDefault());
+    private final TestValuesCatalog catalog =
+            new TestValuesCatalog("testCatalog", "test_database", true);
 
     @Before
     public void setup() {
@@ -47,35 +48,36 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
         tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED, true);
 
         // partition fact table.
-        String ddl1 =
-                "CREATE TABLE test_database.fact_part (\n"
-                        + "  id BIGINT,\n"
-                        + "  name STRING,\n"
-                        + "  amount BIGINT,\n"
-                        + "  price BIGINT,\n"
-                        + "  fact_date_sk BIGINT\n"
-                        + ") PARTITIONED BY (fact_date_sk)\n"
-                        + "WITH (\n"
-                        + " 'connector' = 'values',\n"
-                        + " 'partition-list' = 'fact_date_sk:1990;fact_date_sk:1991;fact_date_sk:1992',\n"
-                        + " 'dynamic-filtering-fields' = 'fact_date_sk;amount',\n"
-                        + " 'bounded' = 'true'\n"
-                        + ")";
-        util.tableEnv().executeSql(ddl1);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE fact_part (\n"
+                                + "  id BIGINT,\n"
+                                + "  name STRING,\n"
+                                + "  amount BIGINT,\n"
+                                + "  price BIGINT,\n"
+                                + "  fact_date_sk BIGINT\n"
+                                + ") PARTITIONED BY (fact_date_sk)\n"
+                                + "WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'runtime-source' = 'NewSource',\n"
+                                + " 'partition-list' = 'fact_date_sk:1990;fact_date_sk:1991;fact_date_sk:1992',\n"
+                                + " 'dynamic-filtering-fields' = 'fact_date_sk;amount',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
 
         // dim table.
-        String ddl2 =
-                "CREATE TABLE test_database.dim (\n"
-                        + "  id BIGINT,\n"
-                        + "  male BOOLEAN,\n"
-                        + "  amount BIGINT,\n"
-                        + "  price BIGINT,\n"
-                        + "  dim_date_sk BIGINT\n"
-                        + ") WITH (\n"
-                        + " 'connector' = 'values',\n"
-                        + " 'bounded' = 'true'\n"
-                        + ")";
-        util.tableEnv().executeSql(ddl2);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE dim (\n"
+                                + "  id BIGINT,\n"
+                                + "  male BOOLEAN,\n"
+                                + "  amount BIGINT,\n"
+                                + "  price BIGINT,\n"
+                                + "  dim_date_sk BIGINT\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
     }
 
     @Test
@@ -109,22 +111,47 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
     public void testFactTableIsNotPartitionTable() {
         // non-partition fact table. Dynamic partition pruning will not succeed if fact side is not
         // partition table.
-        String ddl1 =
-                "CREATE TABLE test_database.none_part_fact (\n"
-                        + "  id BIGINT,\n"
-                        + "  name STRING,\n"
-                        + "  amount BIGINT,\n"
-                        + "  price BIGINT,\n"
-                        + "  fact_date_sk BIGINT\n"
-                        + ") WITH (\n"
-                        + " 'connector' = 'values',\n"
-                        + " 'dynamic-filtering-fields' = 'fact_date_sk;amount',\n"
-                        + " 'bounded' = 'true'\n"
-                        + ")";
-        util.tableEnv().executeSql(ddl1);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE none_part_fact (\n"
+                                + "  id BIGINT,\n"
+                                + "  name STRING,\n"
+                                + "  amount BIGINT,\n"
+                                + "  price BIGINT,\n"
+                                + "  fact_date_sk BIGINT\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'runtime-source' = 'NewSource',\n"
+                                + " 'dynamic-filtering-fields' = 'fact_date_sk;amount',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
 
         String query =
                 "Select * from dim, none_part_fact where none_part_fact.fact_date_sk = dim.dim_date_sk"
+                        + " and dim.price < 500";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testFactTableIsLegacySource() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE legacy_source (\n"
+                                + "  id BIGINT,\n"
+                                + "  name STRING,\n"
+                                + "  amount BIGINT,\n"
+                                + "  price BIGINT,\n"
+                                + "  fact_date_sk BIGINT\n"
+                                + ") PARTITIONED BY (fact_date_sk)\n"
+                                + "WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'runtime-source' = 'SourceFunction',\n"
+                                + " 'partition-list' = 'fact_date_sk:1990;fact_date_sk:1991;fact_date_sk:1992',\n"
+                                + " 'dynamic-filtering-fields' = 'fact_date_sk;amount',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
+        String query =
+                "Select * from dim, legacy_source where legacy_source.fact_date_sk = dim.dim_date_sk"
                         + " and dim.price < 500";
         util.verifyRelPlan(query);
     }
@@ -308,16 +335,16 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
     @Test
     public void testMultiJoin() {
         // Another table.
-        String ddl =
-                "CREATE TABLE test_database.sales (\n"
-                        + "  id BIGINT,\n"
-                        + "  amount BIGINT,\n"
-                        + "  price BIGINT\n"
-                        + ") WITH (\n"
-                        + " 'connector' = 'values',\n"
-                        + " 'bounded' = 'true'\n"
-                        + ")";
-        util.tableEnv().executeSql(ddl);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sales (\n"
+                                + "  id BIGINT,\n"
+                                + "  amount BIGINT,\n"
+                                + "  price BIGINT\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
 
         String query =
                 "Select * from fact_part, dim, sales where fact_part.id = sales.id and"
@@ -328,27 +355,27 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
     @Test
     public void testComplexDimSideWithJoinInDimSide() {
         // Dim side contains join will not succeed in this version, it will improve later.
-        String ddl1 =
-                "CREATE TABLE test_database.sales (\n"
-                        + "  id BIGINT,\n"
-                        + "  amount BIGINT,\n"
-                        + "  price BIGINT\n"
-                        + ") WITH (\n"
-                        + " 'connector' = 'values',\n"
-                        + " 'bounded' = 'true'\n"
-                        + ")";
-        util.tableEnv().executeSql(ddl1);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sales (\n"
+                                + "  id BIGINT,\n"
+                                + "  amount BIGINT,\n"
+                                + "  price BIGINT\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
 
-        String ddl2 =
-                "CREATE TABLE test_database.item (\n"
-                        + "  id BIGINT,\n"
-                        + "  amount BIGINT,\n"
-                        + "  price BIGINT\n"
-                        + ") WITH (\n"
-                        + " 'connector' = 'values',\n"
-                        + " 'bounded' = 'true'\n"
-                        + ")";
-        util.tableEnv().executeSql(ddl2);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE item (\n"
+                                + "  id BIGINT,\n"
+                                + "  amount BIGINT,\n"
+                                + "  price BIGINT\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
 
         String query =
                 "Select * from fact_part join"
@@ -361,16 +388,16 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
     @Test
     public void testComplexDimSideWithAggInDimSide() {
         // Dim side contains agg will not succeed in this version, it will improve later.
-        String ddl =
-                "CREATE TABLE test_database.sales (\n"
-                        + "  id BIGINT,\n"
-                        + "  amount BIGINT,\n"
-                        + "  price BIGINT\n"
-                        + ") WITH (\n"
-                        + " 'connector' = 'values',\n"
-                        + " 'bounded' = 'true'\n"
-                        + ")";
-        util.tableEnv().executeSql(ddl);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sales (\n"
+                                + "  id BIGINT,\n"
+                                + "  amount BIGINT,\n"
+                                + "  price BIGINT\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
 
         String query =
                 "Select * from fact_part join"

@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.connector.source.ValuesSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -55,6 +56,7 @@ import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
+import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsDynamicFiltering;
@@ -267,7 +269,9 @@ public final class TestValuesTableFactory
     private static final ConfigOption<String> RUNTIME_SOURCE =
             ConfigOptions.key("runtime-source")
                     .stringType()
-                    .defaultValue("SourceFunction"); // another is "InputFormat"
+                    .defaultValue("SourceFunction")
+                    .withDescription(
+                            "Accepted values are: SourceFunction, InputFormat, DataStream, NewSource");
 
     private static final ConfigOption<Boolean> FAILING_SOURCE =
             ConfigOptions.key("failing-source").booleanType().defaultValue(false);
@@ -534,7 +538,7 @@ public final class TestValuesTableFactory
                         helper.getOptions().get(WRITABLE_METADATA), context.getClassLoader());
         final ChangelogMode changelogMode =
                 Optional.ofNullable(helper.getOptions().get(SINK_CHANGELOG_MODE_ENFORCED))
-                        .map(m -> parseChangelogMode(m))
+                        .map(this::parseChangelogMode)
                         .orElse(null);
 
         final DataType consumedType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
@@ -863,6 +867,10 @@ public final class TestValuesTableFactory
                     } catch (IOException e) {
                         throw new TableException("Fail to init data stream source", e);
                     }
+                case "NewSource":
+                    checkArgument(
+                            !failingSource, "Values Source doesn't support as failing new source.");
+                    return SourceProvider.of(new ValuesSource(values, serializer));
                 default:
                     throw new IllegalArgumentException(
                             "Unsupported runtime source class: " + runtimeSource);
