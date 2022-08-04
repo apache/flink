@@ -50,12 +50,15 @@ import java.util.Map;
  * Flink Planner rule to flatten a tree of {@link LogicalJoin}s into a single {@link MultiJoin} with
  * N inputs.
  *
- * <p>An input is not flattened if the input is a null generating input in an outer join, i.e.,
- * either input in a full outer join, the right hand side of a left outer join, or the left hand
- * side of a right outer join.
+ * <p>This rule is copied from {@link org.apache.calcite.rel.rules.JoinToMultiJoinRule}. In this
+ * rule, we support richer join type to convert to one multi join set, like left outer join and
+ * right outer join, by rewrite $canCombine() method.
  *
- * <p>Join conditions are also pulled up from the inputs into the topmost {@link MultiJoin}, unless
- * the input corresponds to a null generating input in an outer join,
+ * <p>An input is not flattened if the input is a null generating input in an outer join, i.e.,
+ * either input in a full outer join, semi join, anti join, the right side of a left outer join, or
+ * the lef side of a right outer join.
+ *
+ * <p>Join conditions are also pulled up from the inputs into the topmost {@link MultiJoin}.
  *
  * <p>Outer join information is also stored in the {@link MultiJoin}. A boolean flag indicates if
  * the join is a full outer join, and in the case of left and right outer joins, the join type and
@@ -69,19 +72,19 @@ import java.util.Map;
  * <ul>
  *   <li>A JOIN B &rarr; MJ(A, B)
  *   <li>A JOIN B JOIN C &rarr; MJ(A, B, C)
- *   <li>A LEFT JOIN B &rarr; MJ(A, B), left outer join on input#1
- *   <li>A RIGHT JOIN B &rarr; MJ(A, B), right outer join on input#0
+ *   <li>A LEFT JOIN B &rarr; MJ(A, B)
+ *   <li>A RIGHT JOIN B &rarr; MJ(A, B)
  *   <li>A FULL JOIN B &rarr; MJ[full](A, B)
- *   <li>A LEFT JOIN (B JOIN C) &rarr; MJ(A, MJ(B, C))), left outer join on input#1 in the outermost
- *       MultiJoin
- *   <li>(A JOIN B) LEFT JOIN C &rarr; MJ(A, B, C), left outer join on input#2
- *   <li>(A LEFT JOIN B) JOIN C &rarr; MJ(MJ(A, B), C), left outer join on input#1 of the inner
- *       MultiJoin TODO
- *   <li>A LEFT JOIN (B FULL JOIN C) &rarr; MJ(A, MJ[full](B, C)), left outer join on input#1 in the
- *       outermost MultiJoin
- *   <li>(A LEFT JOIN B) FULL JOIN (C RIGHT JOIN D) &rarr; MJ[full](MJ(A, B), MJ(C, D)), left outer
- *       join on input #1 in the first inner MultiJoin and right outer join on input#0 in the second
- *       inner MultiJoin
+ *   <li>A LEFT JOIN (B JOIN C) &rarr; MJ(A, B, C)
+ *   <li>(A JOIN B) LEFT JOIN C &rarr; MJ(A, B, C)
+ *   <li>(A LEFT JOIN B) JOIN C &rarr; MJ(A, B, C)
+ *   <li>(A LEFT JOIN B) LEFT JOIN C &rarr; MJ(A, B, C)
+ *   <li>(A RIGHT JOIN B) RIGHT JOIN C &rarr; MJ(MJ(A, B), C)
+ *   <li>(A LEFT JOIN B) RIGHT JOIN C &rarr; MJ(MJ(A, B), C)
+ *   <li>(A RIGHT JOIN B) LEFT JOIN C &rarr; MJ(MJ(A, B), C)
+ *   <li>A LEFT JOIN (B FULL JOIN C) &rarr; MJ(A, MJ[full](B, C))
+ *   <li>(A LEFT JOIN B) FULL JOIN (C RIGHT JOIN D) &rarr; MJ[full](MJ(A, B), MJ(C, D))
+ *   <li>SEMI JOIN and ANTI JOIN not support now.
  * </ul>
  *
  * <p>The constructor is parameterized to allow any sub-class of {@link Join}, not just {@link

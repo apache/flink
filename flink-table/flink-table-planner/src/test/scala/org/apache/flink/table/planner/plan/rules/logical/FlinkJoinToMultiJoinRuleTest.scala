@@ -50,14 +50,27 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
   }
 
   @Test
-  def testInnerJoinToMultiJoin(): Unit = {
+  def testInnerJoinInnerJoin(): Unit = {
     // Can translate join to multi join.
     val sqlQuery = "SELECT * FROM T1, T2, T3 WHERE a = c AND a = e"
     util.verifyRelPlan(sqlQuery)
   }
 
   @Test
-  def testLeftOuterJoinLeftOuterJoinToMultiJoin(): Unit = {
+  def testInnerJoinLeftOuterJoin(): Unit = {
+    val sqlQuery = "SELECT * FROM T1 JOIN T2 ON a =c LEFT OUTER JOIN T3 ON a = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testInnerJoinRightOuterJoin(): Unit = {
+    // Cannot translate to one multi join set because right outer join left will generate null.
+    val sqlQuery = "SELECT * FROM T1 JOIN T2 ON a =c RIGHT OUTER JOIN T3 ON a = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testLeftOuterJoinLeftOuterJoin(): Unit = {
     // Can translate join to multi join.
     val sqlQuery =
       "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c LEFT OUTER JOIN (SELECT * FROM T3) ON a = e"
@@ -65,34 +78,186 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
   }
 
   @Test
-  def testDoesNotMatchLeftOuterJoinRightOuterJoin(): Unit = {
+  def testLeftOuterJoinRightOuterJoin(): Unit = {
     // Cannot translate join to multi join.
+    val sqlQuery =
+      "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c RIGHT OUTER JOIN (SELECT * FROM T3) ON a = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testLeftOuterJoinInnerJoin(): Unit = {
+    val sqlQuery =
+      "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c JOIN (SELECT * FROM T3) ON a = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testRightOuterJoinRightOuterJoin(): Unit = {
+    val sqlQuery =
+      "SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c RIGHT OUTER JOIN (SELECT * FROM T3) ON a = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testRightOuterJoinLeftOuterJoin(): Unit = {
+    // Cannot not translate join to multi join because right outer join in join left.
     val sqlQuery =
       "SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c LEFT OUTER JOIN (SELECT * FROM T3) ON a = e"
     util.verifyRelPlan(sqlQuery)
   }
 
   @Test
-  def testDoesNotMatchFullOuterJoin(): Unit = {
+  def testRightOuterJoinInnerJoin(): Unit = {
+    val sqlQuery =
+      "SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c JOIN (SELECT * FROM T3) ON a = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testFullOuterJoin(): Unit = {
     // Cannot translate join to multi join.
     val sqlQuery = "SELECT * FROM T1 FULL OUTER JOIN T2 ON a = c, T3 WHERE a = e"
     util.verifyRelPlan(sqlQuery)
   }
 
   @Test
-  def testDoesNotMatchSemiJoin(): Unit = {
+  def testFullOuterJoinInnerJoin(): Unit = {
+    val sqlQuery =
+      "SELECT * FROM T1 FULL OUTER JOIN T2 ON a = c JOIN (SELECT * FROM T3) ON a = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testFullOuterJoinLeftOuterJoin(): Unit = {
+    val sqlQuery =
+      "SELECT * FROM T1 FULL OUTER JOIN T2 ON a = c LEFT OUTER JOIN (SELECT * FROM T3) ON a = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testFullOuterJoinRightOuterJoin(): Unit = {
+    val sqlQuery =
+      "SELECT * FROM T1 FULL OUTER JOIN T2 ON a = c RIGHT OUTER JOIN (SELECT * FROM T3) ON a = e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testFullOuterJoinSemiJoin(): Unit = {
+    val sqlQuery =
+      "SELECT * FROM T1 FULL OUTER JOIN T2 ON a = c WHERE a IN (SELECT e FROM T3)"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testInnerJoinSemiJoin(): Unit = {
     val sqlQuery =
       "SELECT * FROM (SELECT * FROM T1 JOIN T2 ON a = c) t WHERE a IN (SELECT e FROM T3)"
     util.verifyRelPlan(sqlQuery)
   }
 
   @Test
-  def testDoesNotMatchAntiJoin(): Unit = {
+  def testLeftOuterJoinSemiJoin(): Unit = {
+    val sqlQuery =
+      "SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c WHERE a IN (SELECT e FROM T3)"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testRightOuterJoinSemiJoin(): Unit = {
+    val sqlQuery =
+      "SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c WHERE a IN (SELECT e FROM T3)"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testInnerJoinAntiJoin(): Unit = {
     val sqlQuery =
       """
         |SELECT * FROM (SELECT * FROM T1 JOIN T2 ON a = c) t
         |WHERE NOT EXISTS (SELECT e FROM T3  WHERE a = e)
       """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testLeftOuterJoinAntiJoin(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT * FROM (SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c) t
+        |WHERE NOT EXISTS (SELECT e FROM T3  WHERE a = e)
+      """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testRightOuterJoinAntiJoin(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT * FROM (SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c) t
+        |WHERE NOT EXISTS (SELECT e FROM T3  WHERE a = e)
+      """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testInnerJoinLeftOuterJoinInnerJoinLeftOuterJoin(): Unit = {
+    util.addTableSource[(Int, Long)]("T4", 'g, 'h)
+    util.addTableSource[(Int, Long)]("T5", 'i, 'j)
+
+    val sqlQuery =
+      """
+        |SELECT * FROM T1 JOIN T2 ON a = c LEFT OUTER JOIN 
+        |(SELECT * FROM T3) ON a = e JOIN
+        |(SELECT * FROM T4) ON a = g LEFT OUTER JOIN
+        |(SELECT * FROM T5) ON a = i
+        """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+
+  }
+
+  @Test
+  def testLeftOuterJoinInnerJoinLeftOuterJoinInnerJoin(): Unit = {
+    util.addTableSource[(Int, Long)]("T4", 'g, 'h)
+    util.addTableSource[(Int, Long)]("T5", 'i, 'j)
+
+    val sqlQuery =
+      """
+        |SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c JOIN 
+        |(SELECT * FROM T3) ON a = e LEFT OUTER JOIN
+        |(SELECT * FROM T4) ON a = g JOIN
+        |(SELECT * FROM T5) ON a = i
+        """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testInnerJoinRightOuterJoinInnerJoinRightOuterJoin(): Unit = {
+    util.addTableSource[(Int, Long)]("T4", 'g, 'h)
+    util.addTableSource[(Int, Long)]("T5", 'i, 'j)
+
+    val sqlQuery =
+      """
+        |SELECT * FROM T1 JOIN T2 ON a = c RIGHT OUTER JOIN 
+        |(SELECT * FROM T3) ON a = e JOIN
+        |(SELECT * FROM T4) ON a = g RIGHT OUTER JOIN
+        |(SELECT * FROM T5) ON a = i
+        """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testRightOuterJoinInnerJoinRightOuterJoinInnerJoin(): Unit = {
+    util.addTableSource[(Int, Long)]("T4", 'g, 'h)
+    util.addTableSource[(Int, Long)]("T5", 'i, 'j)
+
+    val sqlQuery =
+      """
+        |SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c JOIN
+        |(SELECT * FROM T3) ON a = e RIGHT OUTER JOIN
+        |(SELECT * FROM T4) ON a = g JOIN
+        |(SELECT * FROM T5) ON a = i
+        """.stripMargin
     util.verifyRelPlan(sqlQuery)
   }
 }
