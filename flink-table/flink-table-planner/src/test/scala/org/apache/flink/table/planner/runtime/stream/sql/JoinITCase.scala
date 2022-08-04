@@ -23,8 +23,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils._
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.types.Row
 
@@ -33,7 +33,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-import scala.collection.{Seq, mutable}
+import scala.collection.{mutable, Seq}
 
 @RunWith(classOf[Parameterized])
 class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(state) {
@@ -70,29 +70,27 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     tEnv.registerTable("B", tableB)
 
     val dataId1 = TestValuesTableFactory.registerData(TestData.data2_1)
-    tEnv.executeSql(
-      s"""
-         |create table l (
-         |  a int,
-         |  b double
-         |) with (
-         |  'connector' = 'values',
-         |  'data-id' = '$dataId1',
-         |  'bounded' = 'true'
-         |)
-         |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |create table l (
+                       |  a int,
+                       |  b double
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId1',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
     val dataId2 = TestValuesTableFactory.registerData(TestData.data2_2)
-    tEnv.executeSql(
-      s"""
-         |create table r (
-         |  c int,
-         |  d double
-         |) with (
-         |  'connector' = 'values',
-         |  'data-id' = '$dataId2',
-         |  'bounded' = 'true'
-         |)
-         |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |create table r (
+                       |  c int,
+                       |  d double
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId2',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
   }
 
   // Tests for inner join.
@@ -1453,7 +1451,8 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 where a >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1)))
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
 
     checkResult(
       """
@@ -1463,7 +1462,8 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 where a >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1)))
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
 
     checkResult(
       """
@@ -1473,7 +1473,8 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 where c >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1)))
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
 
     checkResult(
       """
@@ -1483,7 +1484,8 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 where a >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1)))
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
 
     checkResult(
       """
@@ -1493,8 +1495,12 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 where c >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1),
-        row(null, null, null, 4, 1.0, 1)))
+      Seq(
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, null, null, 4, 1.0, 1))
+    )
   }
 
   @Test
@@ -1507,7 +1513,8 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 and a >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1)))
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
 
     checkResult(
       """
@@ -1517,8 +1524,13 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 and a >= 2
         |""".stripMargin,
-      Seq(row(1, 2.0, 2, null, null, null), row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1),
-        row(6, null, 1, 6, null, 1), row(null, 5.0, 2, null, null, null)))
+      Seq(
+        row(1, 2.0, 2, null, null, null),
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, 5.0, 2, null, null, null))
+    )
 
     checkResult(
       """
@@ -1528,8 +1540,13 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 and c >= 2
         |""".stripMargin,
-      Seq(row(1, 2.0, 2, null, null, null), row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1),
-        row(6, null, 1, 6, null, 1), row(null, 5.0, 2, null, null, null)))
+      Seq(
+        row(1, 2.0, 2, null, null, null),
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, 5.0, 2, null, null, null))
+    )
 
     checkResult(
       """
@@ -1539,8 +1556,13 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 and a >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1),
-        row(null, null, null, 4, 1.0, 1), row(null, null, null, null, 5.0, 2)))
+      Seq(
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, null, null, 4, 1.0, 1),
+        row(null, null, null, null, 5.0, 2))
+    )
 
     checkResult(
       """
@@ -1550,8 +1572,13 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 and c >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1),
-        row(null, null, null, 4, 1.0, 1), row(null, null, null, null, 5.0, 2)))
+      Seq(
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, null, null, 4, 1.0, 1),
+        row(null, null, null, null, 5.0, 2))
+    )
   }
 
   private def checkResult(sql: String, expected: Seq[Row]): Unit = {
@@ -1559,9 +1586,12 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    val expectedResult = expected.map(r => {
-      (0 until r.getArity).map(i => r.getField(i)).mkString(",")
-    }).sorted
+    val expectedResult = expected
+      .map(
+        r => {
+          (0 until r.getArity).map(i => r.getField(i)).mkString(",")
+        })
+      .sorted
     assertEquals(expectedResult, sink.getRetractResults.sorted)
   }
 }

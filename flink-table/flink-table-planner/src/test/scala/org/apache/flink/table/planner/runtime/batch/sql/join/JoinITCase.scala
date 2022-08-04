@@ -1304,7 +1304,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 where a >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1)))
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
 
     checkResult(
       """
@@ -1314,7 +1315,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 where a >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1)))
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
 
     checkResult(
       """
@@ -1324,7 +1326,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 where c >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1)))
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
 
     checkResult(
       """
@@ -1334,7 +1337,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 where a >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1)))
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
 
     checkResult(
       """
@@ -1344,8 +1348,12 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 where c >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1),
-        row(null, null, null, 4, 1.0, 1)))
+      Seq(
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, null, null, 4, 1.0, 1))
+    )
   }
 
   @Test
@@ -1358,7 +1366,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 and a >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1)))
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
 
     checkResult(
       """
@@ -1368,8 +1377,13 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 and a >= 2
         |""".stripMargin,
-      Seq(row(1, 2.0, 2, null, null, null), row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1),
-        row(6, null, 1, 6, null, 1), row(null, 5.0, 2, null, null, null)))
+      Seq(
+        row(1, 2.0, 2, null, null, null),
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, 5.0, 2, null, null, null))
+    )
 
     checkResult(
       """
@@ -1379,8 +1393,13 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 and c >= 2
         |""".stripMargin,
-      Seq(row(1, 2.0, 2, null, null, null), row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1),
-        row(6, null, 1, 6, null, 1), row(null, 5.0, 2, null, null, null)))
+      Seq(
+        row(1, 2.0, 2, null, null, null),
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, 5.0, 2, null, null, null))
+    )
 
     checkResult(
       """
@@ -1390,8 +1409,13 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 and a >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1),
-        row(null, null, null, 4, 1.0, 1), row(null, null, null, null, 5.0, 2)))
+      Seq(
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, null, null, 4, 1.0, 1),
+        row(null, null, null, null, 5.0, 2))
+    )
 
     checkResult(
       """
@@ -1401,8 +1425,13 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         |  (select c, max(d) d, count(*) c2 from r group by c)
         |  on a = c and c1 = c2 and c >= 2
         |""".stripMargin,
-      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1),
-        row(null, null, null, 4, 1.0, 1), row(null, null, null, null, 5.0, 2)))
+      Seq(
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, null, null, 4, 1.0, 1),
+        row(null, null, null, null, 5.0, 2))
+    )
   }
 }
 
