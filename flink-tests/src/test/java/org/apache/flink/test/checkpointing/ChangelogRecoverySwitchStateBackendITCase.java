@@ -47,11 +47,9 @@ import static org.apache.flink.runtime.testutils.CommonTestUtils.getLatestComple
  * This verifies that switching state backend works correctly for Changelog state backend with
  * materialized state / non-materialized state.
  */
-public class ChangelogPeriodicMaterializationSwitchStateBackendITCase
-        extends ChangelogPeriodicMaterializationSwitchEnvTestBase {
+public class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecoverySwitchEnvTestBase {
 
-    public ChangelogPeriodicMaterializationSwitchStateBackendITCase(
-            AbstractStateBackend delegatedStateBackend) {
+    public ChangelogRecoverySwitchStateBackendITCase(AbstractStateBackend delegatedStateBackend) {
         super(delegatedStateBackend);
     }
 

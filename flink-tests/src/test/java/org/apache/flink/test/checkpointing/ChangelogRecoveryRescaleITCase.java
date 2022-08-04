@@ -27,11 +27,9 @@ import org.junit.Test;
  * This verifies that rescale works correctly for Changelog state backend with materialized state /
  * non-materialized state.
  */
-public class ChangelogPeriodicMaterializationRescaleITCase
-        extends ChangelogPeriodicMaterializationSwitchEnvTestBase {
+public class ChangelogRecoveryRescaleITCase extends ChangelogRecoverySwitchEnvTestBase {
 
-    public ChangelogPeriodicMaterializationRescaleITCase(
-            AbstractStateBackend delegatedStateBackend) {
+    public ChangelogRecoveryRescaleITCase(AbstractStateBackend delegatedStateBackend) {
         super(delegatedStateBackend);
     }
 

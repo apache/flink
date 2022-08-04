@@ -39,10 +39,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * This verifies that checkpointing works correctly for Changelog state backend with materialized
  * state / non-materialized state.
  */
-public class ChangelogPeriodicMaterializationITCase
-        extends ChangelogPeriodicMaterializationTestBase {
+public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
 
-    public ChangelogPeriodicMaterializationITCase(AbstractStateBackend delegatedStateBackend) {
+    public ChangelogRecoveryITCase(AbstractStateBackend delegatedStateBackend) {
         super(delegatedStateBackend);
     }
 
