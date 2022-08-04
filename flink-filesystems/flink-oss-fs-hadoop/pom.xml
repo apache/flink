@@ -29,7 +29,7 @@ under the License.
 	<name>Flink : FileSystems : OSS FS</name>
 
 	<properties>
-		<fs.oss.sdk.version>3.4.1</fs.oss.sdk.version>
+		<fs.oss.sdk.version>3.13.2</fs.oss.sdk.version>
 	</properties>
 
 	<dependencies>
