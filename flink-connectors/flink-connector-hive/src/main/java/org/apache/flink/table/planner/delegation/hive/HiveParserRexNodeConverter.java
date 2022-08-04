@@ -60,6 +60,8 @@ import org.apache.calcite.util.TimestampString;
 import org.apache.hadoop.hive.common.type.Decimal128;
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
+import org.apache.hadoop.hive.common.type.HiveIntervalDayTime;
+import org.apache.hadoop.hive.common.type.HiveIntervalYearMonth;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
 import org.apache.hadoop.hive.ql.ErrorMsg;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
@@ -456,9 +458,21 @@ public class HiveParserRexNodeConverter {
             default:
                 if (hiveShim.isIntervalYearMonthType(hiveTypeCategory)) {
                     // Calcite year-month literal value is months as BigDecimal
-                    BigDecimal totalMonths =
-                            BigDecimal.valueOf(
-                                    ((HiveParserIntervalYearMonth) value).getTotalMonths());
+                    BigDecimal totalMonths;
+                    if (value instanceof HiveParserIntervalYearMonth) {
+                        totalMonths =
+                                BigDecimal.valueOf(
+                                        ((HiveParserIntervalYearMonth) value).getTotalMonths());
+                    } else if (value instanceof HiveIntervalYearMonth) {
+                        totalMonths =
+                                BigDecimal.valueOf(
+                                        ((HiveIntervalYearMonth) value).getTotalMonths());
+                    } else {
+                        throw new SemanticException(
+                                String.format(
+                                        "Unexpected class %s for Hive's interval day time type",
+                                        value.getClass().getName()));
+                    }
                     calciteLiteral =
                             rexBuilder.makeIntervalLiteral(
                                     totalMonths,
@@ -467,12 +481,30 @@ public class HiveParserRexNodeConverter {
                 } else if (hiveShim.isIntervalDayTimeType(hiveTypeCategory)) {
                     // Calcite day-time interval is millis value as BigDecimal
                     // Seconds converted to millis
-                    BigDecimal secsValueBd =
-                            BigDecimal.valueOf(
-                                    ((HiveParserIntervalDayTime) value).getTotalSeconds() * 1000);
+                    BigDecimal secsValueBd;
                     // Nanos converted to millis
-                    BigDecimal nanosValueBd =
-                            BigDecimal.valueOf(((HiveParserIntervalDayTime) value).getNanos(), 6);
+                    BigDecimal nanosValueBd;
+                    if (value instanceof HiveParserIntervalDayTime) {
+                        secsValueBd =
+                                BigDecimal.valueOf(
+                                        ((HiveParserIntervalDayTime) value).getTotalSeconds()
+                                                * 1000);
+                        nanosValueBd =
+                                BigDecimal.valueOf(
+                                        ((HiveParserIntervalDayTime) value).getNanos(), 6);
+                    } else if (value instanceof HiveIntervalDayTime) {
+                        secsValueBd =
+                                BigDecimal.valueOf(
+                                        ((HiveIntervalDayTime) value).getTotalSeconds() * 1000);
+                        nanosValueBd =
+                                BigDecimal.valueOf(((HiveIntervalDayTime) value).getNanos(), 6);
+                    } else {
+                        throw new SemanticException(
+                                String.format(
+                                        "Unexpected class %s for Hive's interval day time type.",
+                                        value.getClass().getName()));
+                    }
+                    // Nanos converted to millis
                     calciteLiteral =
                             rexBuilder.makeIntervalLiteral(
                                     secsValueBd.add(nanosValueBd),
