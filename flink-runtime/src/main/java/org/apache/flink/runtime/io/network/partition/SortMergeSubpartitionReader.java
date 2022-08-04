@@ -164,6 +164,13 @@ class SortMergeSubpartitionReader
 
     @Override
     public int compareTo(SortMergeSubpartitionReader that) {
+        int thisQueuedBuffers = unsynchronizedGetNumberOfQueuedBuffers();
+        int thatQueuedBuffers = that.unsynchronizedGetNumberOfQueuedBuffers();
+        if (thisQueuedBuffers != thatQueuedBuffers
+                && (thisQueuedBuffers == 0 || thatQueuedBuffers == 0)) {
+            return thisQueuedBuffers > thatQueuedBuffers ? 1 : -1;
+        }
+
         long thisPriority = fileReader.getPriority();
         long thatPriority = that.fileReader.getPriority();
 
