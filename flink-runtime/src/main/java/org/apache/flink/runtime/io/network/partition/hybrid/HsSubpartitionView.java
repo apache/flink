@@ -211,7 +211,6 @@ public class HsSubpartitionView
         return Math.max(memoryDataView.getBacklog(), diskDataView.getBacklog());
     }
 
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private BufferAndBacklog handleBacklog(BufferAndBacklog bufferToConsume) {
         return bufferToConsume.buffersInBacklog() == 0
                 ? new BufferAndBacklog(
