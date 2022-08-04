@@ -22,8 +22,10 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsDynamicFiltering;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalCalc;
@@ -75,7 +77,7 @@ import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPT
  *
  * <p>Suppose we have the original physical plan:
  *
- * <pre>{@Code
+ * <pre>{@code
  * LogicalProject(...)
  * HashJoin(joinType=[InnerJoin], where=[=(fact_partition_key, dim_key)], select=[xxx])
  *  * :- TableSourceScan(table=[[fact]], fields=[xxx, fact_partition_key],) # Is a partition table.
@@ -86,7 +88,7 @@ import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPT
  *
  * <p>This physical plan will be rewritten to:
  *
- * <pre>{@Code
+ * <pre>{@code
  * HashJoin(joinType=[InnerJoin], where=[=(fact_partition_key, dim_key)], select=[xxx])
  * :- DynamicFilteringTableSourceScan(table=[[fact]], fields=[xxx, fact_partition_key]) # Is a partition table.
  * :  +- DynamicFilteringDataCollector(fields=[dim_key])
@@ -170,7 +172,12 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
             return false;
         }
         DynamicTableSource tableSource = tableSourceTable.tableSource();
-        if (!(tableSource instanceof SupportsDynamicFiltering)) {
+        if (!(tableSource instanceof SupportsDynamicFiltering)
+                || !(tableSource instanceof ScanTableSource)) {
+            return false;
+        }
+
+        if (!DynamicSourceUtils.isNewSource((ScanTableSource) tableSource)) {
             return false;
         }
 
@@ -196,17 +203,10 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         } else {
             // Changing the fact key index in fact table calc output to fact key index in fact
             // table, and filtering these fields that computing in calc node.
-            RexProgram origProgram = factCalc.getProgram();
+            RexProgram program = factCalc.getProgram();
             List<Integer> joinKeysIndexInFactTable = new ArrayList<>();
-            List<RexNode> projectInJoinKeyList =
-                    factJoinKeys.stream()
-                            .map(
-                                    i ->
-                                            origProgram.expandLocalRef(
-                                                    origProgram.getProjectList().get(i)))
-                            .collect(Collectors.toList());
-
-            for (RexNode node : projectInJoinKeyList) {
+            for (int joinKeyIdx : factJoinKeys) {
+                RexNode node = program.expandLocalRef(program.getProjectList().get(joinKeyIdx));
                 if (node instanceof RexInputRef) {
                     joinKeysIndexInFactTable.add(((RexInputRef) node).getIndex());
                 }
@@ -229,8 +229,9 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
             if (!candidateFields.contains(field)) {
                 throw new TableException(
                         String.format(
-                                "Field %s not in join key, please verify the applyDynamicFiltering method In %s",
-                                field, tableSource.asSummaryString()));
+                                "Field: %s does not exist in the given fields: %s, "
+                                        + "please verify the applyDynamicFiltering method in connector: %s",
+                                field, candidateFields, tableSource.asSummaryString()));
             }
         }
 
