@@ -34,7 +34,6 @@ under the License.
 
 	<properties>
 		<hbase.version>2.2.3</hbase.version>
-		<hbase.guava.version>28.1-jre</hbase.guava.version>
 	</properties>
 
 	<dependencies>
