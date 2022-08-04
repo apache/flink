@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 
+import org.assertj.core.api.Assertions
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -191,5 +192,45 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       "+I[jason, 1, null, null, null, null]"
     )
     assertEquals(expected.sorted, result.sorted)
+  }
+
+  @Test
+  def testCreateTableAsSelect(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'true'
+                    |) AS
+                    |  SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResults("MyCtasTable")
+    val expected = List(
+      "+I[jason, 1]",
+      "+I[jason, 1]",
+      "+I[jason, 1]",
+      "+I[jason, 1]"
+    )
+    Assertions.assertThat(actual.sorted).isEqualTo(expected.sorted)
+  }
+
+  @Test
+  def testCreateTableAsSelectWithoutOptions(): Unit = {
+    // TODO: CTAS supports ManagedTable
+    // If the connector option is not specified, Flink will creates a Managed table.
+    // Managed table requires two layers of log storage and file storage
+    // and depends on the flink table store, CTAS will support Managed Table in the future.
+    Assertions
+      .assertThatThrownBy(
+        () => tEnv.executeSql("CREATE TABLE MyCtasTable AS SELECT `person`, `votes` FROM src"))
+      .hasMessage("You should enable the checkpointing for sinking to managed table " +
+        "'default_catalog.default_database.MyCtasTable'," +
+        " managed table relies on checkpoint to commit and the data is visible only after commit.")
   }
 }

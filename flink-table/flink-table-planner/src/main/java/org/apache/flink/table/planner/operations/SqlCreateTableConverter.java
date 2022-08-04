@@ -19,10 +19,13 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
 import org.apache.flink.sql.parser.ddl.SqlCreateTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -32,8 +35,10 @@ import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ddl.CreateTableASOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
+import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
@@ -80,6 +85,44 @@ class SqlCreateTableConverter {
                 catalogTable,
                 sqlCreateTable.isIfNotExists(),
                 sqlCreateTable.isTemporary());
+    }
+
+    /** Convert the {@link SqlCreateTableAs} node. */
+    Operation convertCreateTableAS(
+            FlinkPlannerImpl flinkPlanner, SqlCreateTableAs sqlCreateTableAs) {
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(sqlCreateTableAs.fullTableName());
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+        PlannerQueryOperation query =
+                (PlannerQueryOperation)
+                        SqlToOperationConverter.convert(
+                                        flinkPlanner, catalogManager, sqlCreateTableAs.getAsQuery())
+                                .orElseThrow(
+                                        () ->
+                                                new TableException(
+                                                        "CTAS unsupported node type "
+                                                                + sqlCreateTableAs
+                                                                        .getAsQuery()
+                                                                        .getClass()
+                                                                        .getSimpleName()));
+        CatalogTable catalogTable = createCatalogTable(sqlCreateTableAs);
+
+        CreateTableOperation createTableOperation =
+                new CreateTableOperation(
+                        identifier,
+                        CatalogTable.of(
+                                Schema.newBuilder()
+                                        .fromResolvedSchema(query.getResolvedSchema())
+                                        .build(),
+                                catalogTable.getComment(),
+                                catalogTable.getPartitionKeys(),
+                                catalogTable.getOptions()),
+                        sqlCreateTableAs.isIfNotExists(),
+                        sqlCreateTableAs.isTemporary());
+
+        return new CreateTableASOperation(
+                createTableOperation, Collections.emptyMap(), query, false);
     }
 
     private CatalogTable createCatalogTable(SqlCreateTable sqlCreateTable) {
