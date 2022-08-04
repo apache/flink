@@ -141,7 +141,7 @@ under the License.
 		<!-- keep FlinkContainersBuilder#buildZookeeperContainer() in sync -->
 		<zookeeper.version>3.5.9</zookeeper.version>
 		<curator.version>5.2.0</curator.version>
-		<avro.version>1.10.0</avro.version>
+		<avro.version>1.11.1</avro.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit4.version>4.13.2</junit4.version>
@@ -593,7 +593,7 @@ under the License.
 				<scope>import</scope>
 				<version>2.13.2.20220328</version>
 			</dependency>
-			
+
 			<dependency>
 				<groupId>com.squareup.okhttp3</groupId>
 				<artifactId>okhttp</artifactId>
