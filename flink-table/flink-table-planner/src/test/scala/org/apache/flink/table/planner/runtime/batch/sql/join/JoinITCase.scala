@@ -24,9 +24,12 @@ import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
 import org.apache.flink.streaming.api.transformations.{LegacySinkTransformation, OneInputTransformation, TwoInputTransformation}
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.internal.{StatementSetImpl, TableEnvironmentInternal}
+import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -766,6 +769,179 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         row(null, "IJK"),
         row(null, "JKL"),
         row(null, "KLM")
+      )
+    )
+  }
+
+  @Test
+  def testLeftOuterJoinReorder(): Unit = {
+    // This test is used to test the result after join to multi join and join reorder.
+    tEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED,
+      Boolean.box(true))
+    // Register table with stats to support join reorder,
+    // join order LJ(LJ(LJ(T5, T3), T2), T1) will reorder to RJ(T1, LJ(T2, LJ(T5, T3)))
+    registerCollection(
+      "T5",
+      data5,
+      type5,
+      "d, e, f, g, h",
+      nullablesOfData5,
+      new FlinkStatistic(new TableStats(1000L)))
+    registerCollection(
+      "T3",
+      smallData3,
+      type3,
+      "a, b, c",
+      nullablesOfSmallData3,
+      new FlinkStatistic(new TableStats(100L)))
+    registerCollection(
+      "T2",
+      data2,
+      type2,
+      "d, e, f, g, h",
+      nullablesOfData2,
+      new FlinkStatistic(new TableStats(10L)))
+    registerCollection(
+      "T1",
+      data2,
+      type2,
+      "d, e, f, g, h",
+      nullablesOfData2,
+      new FlinkStatistic(new TableStats(100000L)))
+
+    checkResult(
+      """
+        |SELECT T5.g, T3b.c, T2b.g FROM T5 LEFT OUTER JOIN 
+        |(SELECT * FROM T3 WHERE a > 0 ) T3b ON T3b.b = T5.e LEFT OUTER JOIN 
+        |(SELECT * FROM T2 WHERE d > 0) T2b ON T3b.b = T2b.e LEFT OUTER JOIN
+        |(SELECT * FROM T1) T1b ON T3b.b = T1b.e
+        |""".stripMargin,
+      Seq(
+        row("Hallo", "Hi", "Hallo"),
+        row("Hallo Welt", "Hello world", "Hallo Welt"),
+        row("Hallo Welt", "Hello", "Hallo Welt"),
+        row("Hallo Welt wie gehts?", null, null),
+        row("Hallo Welt wie", null, null),
+        row("ABC", null, null),
+        row("BCD", null, null),
+        row("CDE", null, null),
+        row("DEF", null, null),
+        row("EFG", null, null),
+        row("FGH", null, null),
+        row("GHI", null, null),
+        row("HIJ", null, null),
+        row("IJK", null, null),
+        row("JKL", null, null),
+        row("KLM", null, null)
+      )
+    )
+  }
+
+  @Test
+  def testRightOuterJoinReorder(): Unit = {
+    // This test is used to test the result after join to multi join and join reorder.
+    tEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED,
+      Boolean.box(true))
+    // Register table with stats to support join reorder,
+    // join order RJ(J(RJ(t5, t3), T2), T1) will reorder to LJ(RJ(T5, J(T3, T2)), T1)
+    registerCollection(
+      "T5",
+      data5,
+      type5,
+      "d, e, f, g, h",
+      nullablesOfData5,
+      new FlinkStatistic(new TableStats(1000L)))
+    registerCollection(
+      "T3",
+      smallData3,
+      type3,
+      "a, b, c",
+      nullablesOfSmallData3,
+      new FlinkStatistic(new TableStats(100L)))
+    registerCollection(
+      "T2",
+      data2,
+      type2,
+      "d, e, f, g, h",
+      nullablesOfData2,
+      new FlinkStatistic(new TableStats(10L)))
+    registerCollection(
+      "T1",
+      data2,
+      type2,
+      "d, e, f, g, h",
+      nullablesOfData2,
+      new FlinkStatistic(new TableStats(100000L)))
+
+    checkResult(
+      """
+        |SELECT T5.g, T3b.c, T2b.g FROM T5 RIGHT OUTER JOIN 
+        |(SELECT * FROM T3 WHERE T3.a > 0) T3b ON T3b.b = T5.e JOIN
+        |(SELECT * FROM T2 WHERE T2.d > 0) T2b ON T3b.b = T2b.e RIGHT OUTER JOIN
+        |(SELECT * FROM T1) T1b ON T3b.b = T1b.e
+        |""".stripMargin,
+      Seq(
+        row("Hallo Welt", "Hello world", "Hallo Welt"),
+        row("Hallo Welt", "Hello", "Hallo Welt"),
+        row("Hallo", "Hi", "Hallo"),
+        row(null, null, null),
+        row(null, null, null),
+        row(null, null, null),
+        row(null, null, null),
+        row(null, null, null),
+        row(null, null, null),
+        row(null, null, null),
+        row(null, null, null),
+        row(null, null, null),
+        row(null, null, null),
+        row(null, null, null),
+        row(null, null, null),
+        row(null, null, null)
+      )
+    )
+  }
+
+  @Test
+  def testInnerJoinReorder(): Unit = {
+    // This test is used to test the result after join to multi join and join reorder.
+    tEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED,
+      Boolean.box(true))
+    // Register table with stats to support join reorder,
+    // join order J(J(t5, t3), T2) will reorder to J(T5, J(T3, T2))
+    registerCollection(
+      "T5",
+      data5,
+      type5,
+      "d, e, f, g, h",
+      nullablesOfData5,
+      new FlinkStatistic(new TableStats(1000L)))
+    registerCollection(
+      "T3",
+      smallData3,
+      type3,
+      "a, b, c",
+      nullablesOfSmallData3,
+      new FlinkStatistic(new TableStats(100L)))
+    registerCollection(
+      "T2",
+      data2,
+      type2,
+      "d, e, f, g, h",
+      nullablesOfData2,
+      new FlinkStatistic(new TableStats(10L)))
+
+    checkResult(
+      """
+        |SELECT T5.g, c, T2.g FROM T5 JOIN T3 ON b = T5.e
+        |JOIN T2 ON b = T2.e WHERE T2.d > 0 AND T5.d > 0
+        |""".stripMargin,
+      Seq(
+        row("Hallo", "Hi", "Hallo"),
+        row("Hallo Welt", "Hello", "Hallo Welt"),
+        row("Hallo Welt", "Hello world", "Hallo Welt")
       )
     )
   }
