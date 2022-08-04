@@ -26,6 +26,8 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.endpoint.hive.util.StringRowDataUtils;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
@@ -116,12 +118,14 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointVersion.HIVE_CLI_SERVICE_PROTOCOL_V10;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_CATALOGS_SCHEMA;
+import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_SCHEMAS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.getUsedDefaultDatabase;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.validateAndNormalize;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFetchOrientation;
@@ -422,7 +426,76 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     @Override
     public TGetSchemasResp GetSchemas(TGetSchemasReq tGetSchemasReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetSchemasResp resp = new TGetSchemasResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetSchemasReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(
+                            sessionHandle,
+                            OperationType.LIST_SCHEMAS,
+                            () -> {
+                                Set<String> schemaNames =
+                                        service
+                                                .listDatabases(
+                                                        sessionHandle,
+                                                        tGetSchemasReq.getCatalogName())
+                                                .stream()
+                                                .filter(
+                                                        name ->
+                                                                name.matches(
+                                                                        convertNamePattern(
+                                                                                tGetSchemasReq
+                                                                                        .getSchemaName())))
+                                                .collect(Collectors.toSet());
+
+                                return new ResultSet(
+                                        EOS,
+                                        null,
+                                        GET_SCHEMAS_SCHEMA,
+                                        schemaNames.stream()
+                                                .map(
+                                                        name ->
+                                                                GenericRowData.of(
+                                                                        StringData.fromString(name),
+                                                                        StringData.fromString(
+                                                                                tGetSchemasReq
+                                                                                        .getCatalogName())))
+                                                .collect(Collectors.toList()));
+                            });
+
+            // TODO: Remove this
+            while (!service.getOperationInfo(sessionHandle, operationHandle)
+                    .getStatus()
+                    .isTerminalStatus()) {
+                Thread.sleep(1000);
+            }
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(sessionHandle, operationHandle, OperationType.LIST_SCHEMAS));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetSchemas.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
+    }
+
+    /**
+     * Convert wildchars and escape sequence of schema pattern from JDBC format to
+     * datanucleous/regex. The schema pattern treats empty string also as wildchar. implementation
+     * refers to hive's convertSchemaPattern.
+     */
+    private String convertNamePattern(String schemaName) {
+        if ((schemaName == null) || schemaName.isEmpty()) {
+            schemaName = "%";
+        }
+        String wStr = ".*";
+        return schemaName
+                .replaceAll("([^\\\\])%", "$1" + wStr)
+                .replaceAll("\\\\%", "%")
+                .replaceAll("^%", wStr)
+                .replaceAll("([^\\\\])_", "$1.")
+                .replaceAll("\\\\_", "_")
+                .replaceAll("^_", ".");
     }
 
     @Override

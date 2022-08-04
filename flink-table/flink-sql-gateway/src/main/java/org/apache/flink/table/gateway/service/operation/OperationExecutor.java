@@ -43,6 +43,7 @@ import org.apache.flink.table.operations.command.SetOperation;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -104,7 +105,14 @@ public class OperationExecutor {
         return getTableEnvironment().getCatalogManager().listCatalogs();
     }
 
+
+    public Set<String> listDatabases(String catalogName) {
+        return Collections.unmodifiableSet(
+                new HashSet<>(getTableEnvironment().getCatalogManager().listSchemas(catalogName)));
+    }
+
     // --------------------------------------------------------------------------------------------
+
 
     @VisibleForTesting
     public TableEnvironmentInternal getTableEnvironment() {

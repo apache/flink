@@ -65,7 +65,9 @@ import java.sql.Connection;
 import java.sql.ResultSetMetaData;
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -208,6 +210,49 @@ public class HiveServer2EndpointITCase extends TestLogger {
             }
 
             assertThat(actual).contains("hive", "default_catalog");
+        }
+    }
+
+    @Test
+    public void testGetSchemas() throws Exception {
+        try (Connection connection = ENDPOINT_EXTENSION.getConnection()) {
+            connection.createStatement().execute("CREATE SCHEMA schema1");
+            connection.createStatement().execute("CREATE SCHEMA schema2");
+            connection.createStatement().execute("CREATE SCHEMA different");
+
+            // test all
+            java.sql.ResultSet resultAll = connection.getMetaData().getSchemas("hive", null);
+            assertSchemaEquals(
+                    ResolvedSchema.of(
+                            Column.physical("TABLE_SCHEMA", DataTypes.STRING()),
+                            Column.physical("TABLE_CAT", DataTypes.STRING())),
+                    resultAll.getMetaData());
+
+            List<List<String>> actual = new ArrayList<>();
+            while (resultAll.next()) {
+                actual.add(Arrays.asList(resultAll.getString(1), resultAll.getString(2)));
+            }
+            assertThat(new HashSet<>(actual))
+                    .isEqualTo(
+                            new HashSet<>(
+                                    Arrays.asList(
+                                            Arrays.asList("default", "hive"),
+                                            Arrays.asList("schema1", "hive"),
+                                            Arrays.asList("schema2", "hive"),
+                                            Arrays.asList("different", "hive"))));
+
+            // test schema pattern parameter
+            java.sql.ResultSet result = connection.getMetaData().getSchemas("hive", "schema%");
+            actual.clear();
+            while (result.next()) {
+                actual.add(Arrays.asList(result.getString(1), result.getString(2)));
+            }
+            assertThat(new HashSet<>(actual))
+                    .isEqualTo(
+                            new HashSet<>(
+                                    Arrays.asList(
+                                            Arrays.asList("schema1", "hive"),
+                                            Arrays.asList("schema2", "hive"))));
         }
     }
 

@@ -68,6 +68,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.lang.Thread.sleep;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
@@ -316,6 +317,32 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         assertThat(service.listCatalogs(sessionHandle)).contains("cat1", "cat2");
     }
 
+    @Test
+    public void testListDatabases() throws Exception {
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .registerCatalog("cat", new GenericInMemoryCatalog("cat"))
+                        .build();
+        SessionHandle sessionHandle = service.openSession(environment);
+        Configuration configuration =
+                Configuration.fromMap(service.getSessionConfig(sessionHandle));
+
+        service.executeStatement(sessionHandle, "USE CATALOG cat", -1, configuration);
+        service.executeStatement(sessionHandle, "CREATE DATABASE db1", -1, configuration);
+        OperationHandle operationHandle =
+                service.executeStatement(sessionHandle, "CREATE DATABASE db2", -1, configuration);
+
+        CommonTestUtils.waitUtil(
+                () ->
+                        service.getOperationInfo(sessionHandle, operationHandle)
+                                .getStatus()
+                                .isTerminalStatus(),
+                Duration.ofSeconds(100),
+                "Failed to wait operation finish.");
+        assertThat(service.listDatabases(sessionHandle, "cat")).contains("db1", "db2");
+    }
+
     // --------------------------------------------------------------------------------------------
     // Concurrent tests
     // --------------------------------------------------------------------------------------------
@@ -348,7 +375,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                         sessionHandle,
                         () -> {
                             // allow close before execution finish.
-                            Thread.sleep(1);
+                            sleep(1);
                         });
         runCancelOrCloseOperationWhenFetchResults(
                 sessionHandle,
@@ -381,7 +408,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                             sessionHandle,
                             () -> {
                                 // allow cancel/close before execution finish.
-                                Thread.sleep(100);
+                                sleep(100);
                                 if (throwError) {
                                     throw new SqlGatewayException("Artificial Exception.");
                                 }

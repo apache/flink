@@ -198,4 +198,15 @@ public interface SqlGatewayService {
      * @return names of the registered catalogs.
      */
     Set<String> listCatalogs(SessionHandle sessionHandle) throws SqlGatewayException;
+
+    /**
+     * Return all available schemas' name matching {@param databaseNamePattern} in the given
+     * catalog.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param catalogName name string of the given catalog.
+     * @return names of the registered schemas.
+     */
+    Set<String> listDatabases(SessionHandle sessionHandle, String catalogName)
+            throws SqlGatewayException;
 }
