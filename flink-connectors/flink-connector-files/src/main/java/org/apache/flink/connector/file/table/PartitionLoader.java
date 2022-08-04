@@ -88,7 +88,7 @@ public class PartitionLoader implements Closeable {
 
     /**
      * The flink job does not write data to the partition, but the corresponding partition needs to
-     * be created.
+     * be created or updated.
      *
      * <p>The partition does not exist, create it.
      *

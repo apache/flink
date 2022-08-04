@@ -442,7 +442,7 @@ public class HiveTableSinkITCase {
     }
 
     @Test
-    public void testAddEmptyPartition() throws Exception {
+    public void testWritingNoDataToPartition() throws Exception {
         TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tEnv.useCatalog(hiveCatalog.getName());
