@@ -266,7 +266,7 @@ class WebFrontendITCase {
     void getConfiguration(@InjectClusterRESTAddress URI restAddress) throws Exception {
         String config =
                 getFromHTTP("http://localhost:" + restAddress.getPort() + "/jobmanager/config");
-        Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
+        Map<String, String> conf = fromKeyValueJsonArray(config);
 
         MemorySize expected = CLUSTER_CONFIGURATION.get(TaskManagerOptions.MANAGED_MEMORY_SIZE);
         MemorySize actual =
