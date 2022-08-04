@@ -35,7 +35,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<postgres.version>42.3.3</postgres.version>
+		<postgres.version>42.4.1</postgres.version>
 		<oracle.version>19.3.0.0</oracle.version>
 	</properties>
 
