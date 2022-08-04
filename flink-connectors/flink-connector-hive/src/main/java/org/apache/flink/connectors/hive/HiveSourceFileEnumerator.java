@@ -30,8 +30,6 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -43,8 +41,6 @@ import java.util.List;
  * HiveTablePartition}s.
  */
 public class HiveSourceFileEnumerator implements FileEnumerator {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(HiveSourceFileEnumerator.class);
 
     // For non-partition hive table, partitions only contains one partition which partitionValues is
     // empty.
@@ -103,8 +99,6 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
                 }
             }
         }
-        LOGGER.info(
-                "Create total input splits: {}. minNumSplits: {}", hiveSplits.size(), minNumSplits);
         return hiveSplits;
     }
 
@@ -117,7 +111,6 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
         long maxSplitBytes =
                 calculateMaxSplitBytes(
                         totalByteWithOpenCost, minNumSplits, defaultMaxSplitBytes, openCost);
-        LOGGER.info("The max split bytes is {}", maxSplitBytes);
         jobConf.set("mapreduce.input.fileinputformat.split.maxsize", String.valueOf(maxSplitBytes));
     }
 
@@ -126,17 +119,14 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
             int minNumSplits,
             long defaultMaxSplitBytes,
             long openCostInBytes) {
-        long bytesPerCore = totalBytesWithWeight / minNumSplits;
-        return Math.min(defaultMaxSplitBytes, Math.max(openCostInBytes, bytesPerCore));
+        long bytesPerSplit = totalBytesWithWeight / minNumSplits;
+        return Math.min(defaultMaxSplitBytes, Math.max(openCostInBytes, bytesPerSplit));
     }
 
     private static long calculateFilesSizeWithOpenCost(
             List<HiveTablePartition> partitions, JobConf jobConf, long openCost)
             throws IOException {
-        long currentTimeMillis = System.currentTimeMillis();
-        LOGGER.info("Start to calculate total fileSize");
         long totalBytesWithWeight = 0;
-        long totalBytes = 0;
         for (HiveTablePartition partition : partitions) {
             StorageDescriptor sd = partition.getStorageDescriptor();
             org.apache.hadoop.fs.Path inputPath = new org.apache.hadoop.fs.Path(sd.getLocation());
@@ -147,15 +137,9 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
             }
             for (FileStatus fileStatus : fs.listStatus(inputPath)) {
                 long fileByte = fileStatus.getLen();
-                totalBytes += fileByte;
                 totalBytesWithWeight += (fileByte + openCost);
             }
         }
-        LOGGER.info(
-                "Cost {} ms to calculate total fileSize, the totalBytes is {}, the totalBytes with weights is {}.",
-                System.currentTimeMillis() - currentTimeMillis,
-                totalBytes,
-                totalBytesWithWeight);
         return totalBytesWithWeight;
     }
 
