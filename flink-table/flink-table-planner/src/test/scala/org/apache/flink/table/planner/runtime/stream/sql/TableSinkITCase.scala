@@ -222,7 +222,10 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testCreateTableAsSelectWithoutOptions(): Unit = {
-    // TODO CTAS supports ManagedTable
+    // TODO: CTAS supports ManagedTable
+    // If the connector option is not specified, Flink will creates a Managed table.
+    // Managed table requires two layers of log storage and file storage
+    // and depends on the flink table store, CTAS will support Managed Table in the future.
     Assertions
       .assertThatThrownBy(
         () => tEnv.executeSql("CREATE TABLE MyCtasTable AS SELECT `person`, `votes` FROM src"))
