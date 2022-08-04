@@ -154,10 +154,7 @@ public class HiveDialectQueryITCase {
     public void testQueries() throws Exception {
         File[] qfiles = new File(QTEST_DIR).listFiles();
         for (File qfile : qfiles) {
-            if (qfile.getName().equals("sub_query.q")) {
-                System.out.println("SD");
-                runQFile(qfile);
-            }
+            runQFile(qfile);
         }
     }
 
