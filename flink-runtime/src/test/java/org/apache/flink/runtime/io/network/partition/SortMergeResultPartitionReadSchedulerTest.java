@@ -22,7 +22,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.CompositeBuffer;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.assertj.core.api.Assertions;
@@ -49,7 +49,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link SortMergeResultPartitionReadScheduler}. */
 public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
@@ -58,7 +62,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
 
     private static final byte[] dataBytes = new byte[bufferSize];
 
-    private static final int totalBytes = bufferSize * 2;
+    private static final int totalBytes = bufferSize;
 
     private static final int numThreads = 4;
 
@@ -103,7 +107,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
         executor = Executors.newFixedThreadPool(numThreads);
         readScheduler =
                 new SortMergeResultPartitionReadScheduler(
-                        numSubpartitions, bufferPool, executor, new Object());
+                        numSubpartitions, bufferPool, executor, this);
     }
 
     @After
@@ -121,21 +125,18 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
                 readScheduler.createSubpartitionReader(
                         new NoOpBufferAvailablityListener(), 0, partitionedFile);
 
-        assertThat(readScheduler.isRunning()).isTrue();
-        assertThat(readScheduler.getDataFileChannel().isOpen()).isTrue();
-        assertThat(readScheduler.getIndexFileChannel().isOpen()).isTrue();
+        assertTrue(readScheduler.isRunning());
+        assertTrue(readScheduler.getDataFileChannel().isOpen());
+        assertTrue(readScheduler.getIndexFileChannel().isOpen());
 
         int numBuffersRead = 0;
         while (numBuffersRead < numBuffersPerSubpartition) {
             ResultSubpartition.BufferAndBacklog bufferAndBacklog =
                     subpartitionReader.getNextBuffer();
             if (bufferAndBacklog != null) {
-                int numBytes = bufferAndBacklog.buffer().readableBytes();
-                MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(numBytes);
-                Buffer fullBuffer =
-                        ((CompositeBuffer) bufferAndBacklog.buffer()).getFullBufferData(segment);
-                assertThat(ByteBuffer.wrap(dataBytes)).isEqualTo(fullBuffer.getNioBufferReadable());
-                fullBuffer.recycleBuffer();
+                Buffer buffer = bufferAndBacklog.buffer();
+                assertEquals(ByteBuffer.wrap(dataBytes), buffer.getNioBufferReadable());
+                buffer.recycleBuffer();
                 ++numBuffersRead;
             }
         }
@@ -161,10 +162,10 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
         Thread.sleep(1000);
         readScheduler.release();
 
-        assertThat(subpartitionReader.getFailureCause()).isNotNull();
-        assertThat(subpartitionReader.isReleased()).isTrue();
-        assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(0);
-        assertThat(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable()).isTrue();
+        assertNotNull(subpartitionReader.getFailureCause());
+        assertTrue(subpartitionReader.isReleased());
+        assertEquals(0, subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers());
+        assertTrue(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable());
 
         readScheduler.getReleaseFuture().get();
         assertAllResourcesReleased();
@@ -200,8 +201,8 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
         }
 
         waitUntilReadFinish();
-        assertThat(subpartitionReader.getFailureCause()).isNotNull();
-        assertThat(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable()).isTrue();
+        assertNotNull(subpartitionReader.getFailureCause());
+        assertTrue(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable());
         assertAllResourcesReleased();
     }
 
@@ -214,15 +215,14 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
         bufferPool.destroy();
         waitUntilReadFinish();
 
-        assertThat(subpartitionReader.isReleased()).isTrue();
-        assertThat(subpartitionReader.getFailureCause()).isNotNull();
-        assertThat(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable()).isTrue();
+        assertTrue(subpartitionReader.isReleased());
+        assertNotNull(subpartitionReader.getFailureCause());
+        assertTrue(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable());
         assertAllResourcesReleased();
     }
 
     @Test(timeout = 60000)
     public void testNoDeadlockWhenReadAndReleaseBuffers() throws Exception {
-        bufferPool.initialize();
         SortMergeSubpartitionReader subpartitionReader =
                 new SortMergeSubpartitionReader(new NoOpBufferAvailablityListener(), fileReader);
         Thread readAndReleaseThread =
@@ -231,7 +231,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
                             Queue<MemorySegment> segments = new ArrayDeque<>();
                             segments.add(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
                             try {
-                                assertThat(fileReader.hasRemaining()).isTrue();
+                                assertTrue(fileReader.hasRemaining());
                                 subpartitionReader.readBuffers(segments, readScheduler);
                                 subpartitionReader.releaseAllResources();
                                 subpartitionReader.readBuffers(segments, readScheduler);
@@ -260,7 +260,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
         Assertions.assertThatThrownBy(readScheduler::allocateBuffers)
                 .isInstanceOf(TimeoutException.class);
         long requestDuration = System.nanoTime() - startTimestamp;
-        assertThat(requestDuration > bufferRequestTimeout.toNanos()).isTrue();
+        Assertions.assertThat(requestDuration > bufferRequestTimeout.toNanos()).isTrue();
 
         bufferPool.recycle(buffers);
         readScheduler.release();
@@ -281,9 +281,9 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
         Queue<MemorySegment> allocatedBuffers = readScheduler.allocateBuffers();
         long requestDuration = System.nanoTime() - startTimestamp;
 
-        assertThat(allocatedBuffers.size()).isEqualTo(3);
-        assertThat(requestDuration > bufferRequestTimeout.toNanos() * 2).isTrue();
-        assertThat(subpartitionReader.getFailureCause()).isNull();
+        assertEquals(3, allocatedBuffers.size());
+        assertTrue(requestDuration > bufferRequestTimeout.toNanos() * 2);
+        assertNull(subpartitionReader.getFailureCause());
 
         bufferPool.recycle(allocatedBuffers);
         bufferPool.destroy();
@@ -316,14 +316,21 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
         return FileChannel.open(path, StandardOpenOption.READ);
     }
 
+    private static void assertExpectedTimeoutException(Throwable throwable) {
+        assertNotNull(throwable);
+        assertTrue(
+                ExceptionUtils.findThrowableWithMessage(throwable, "Buffer request timeout")
+                        .isPresent());
+    }
+
     private void assertAllResourcesReleased() {
-        assertThat(readScheduler.getDataFileChannel()).isNull();
-        assertThat(readScheduler.getIndexFileChannel()).isNull();
-        assertThat(readScheduler.isRunning()).isFalse();
-        assertThat(readScheduler.getNumPendingReaders()).isEqualTo(0);
+        assertNull(readScheduler.getDataFileChannel());
+        assertNull(readScheduler.getIndexFileChannel());
+        assertFalse(readScheduler.isRunning());
+        assertEquals(0, readScheduler.getNumPendingReaders());
 
         if (!bufferPool.isDestroyed()) {
-            assertThat(bufferPool.getNumTotalBuffers()).isEqualTo(bufferPool.getAvailableBuffers());
+            assertEquals(bufferPool.getNumTotalBuffers(), bufferPool.getAvailableBuffers());
         }
     }
 

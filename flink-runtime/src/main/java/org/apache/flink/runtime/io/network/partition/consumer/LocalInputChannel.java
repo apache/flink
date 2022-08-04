@@ -27,7 +27,6 @@ import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.CompositeBuffer;
 import org.apache.flink.runtime.io.network.buffer.FileRegionBuffer;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
@@ -242,11 +241,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
             buffer = ((FileRegionBuffer) buffer).readInto(inputGate.getUnpooledSegment());
         }
 
-        if (buffer instanceof CompositeBuffer) {
-            buffer = ((CompositeBuffer) buffer).getFullBufferData(inputGate.getUnpooledSegment());
-        }
-
-        numBytesIn.inc(buffer.readableBytes());
+        numBytesIn.inc(buffer.getSize());
         numBuffersIn.inc();
         channelStatePersister.checkForBarrier(buffer);
         channelStatePersister.maybePersist(buffer);

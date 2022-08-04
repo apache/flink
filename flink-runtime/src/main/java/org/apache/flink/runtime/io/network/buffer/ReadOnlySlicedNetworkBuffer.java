@@ -44,8 +44,6 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 
     private boolean isCompressed = false;
 
-    private DataType dataType;
-
     /**
      * Creates a buffer which shares the memory segment of the given buffer and exposed the given
      * sub-region only.
@@ -60,7 +58,6 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
     ReadOnlySlicedNetworkBuffer(NetworkBuffer buffer, int index, int length) {
         super(new SlicedByteBuf(buffer, index, length));
         this.memorySegmentOffset = buffer.getMemorySegmentOffset() + index;
-        this.dataType = buffer.getDataType();
     }
 
     /**
@@ -82,7 +79,6 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
         super(new SlicedByteBuf(buffer, index, length));
         this.memorySegmentOffset = memorySegmentOffset + index;
         this.isCompressed = isCompressed;
-        this.dataType = getBuffer().getDataType();
     }
 
     @Override
@@ -92,7 +88,7 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 
     @Override
     public boolean isBuffer() {
-        return dataType.isBuffer();
+        return getBuffer().isBuffer();
     }
 
     /**
@@ -227,12 +223,12 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 
     @Override
     public DataType getDataType() {
-        return dataType;
+        return getBuffer().getDataType();
     }
 
     @Override
     public void setDataType(DataType dataType) {
-        this.dataType = dataType;
+        throw new ReadOnlyBufferException();
     }
 
     private Buffer getBuffer() {

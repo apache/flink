@@ -127,7 +127,22 @@ class SortMergeSubpartitionReader
 
     /** This method is called by the IO thread of {@link SortMergeResultPartitionReadScheduler}. */
     boolean readBuffers(Queue<MemorySegment> buffers, BufferRecycler recycler) throws IOException {
-        return fileReader.readCurrentRegion(buffers, recycler, this::addBuffer);
+        while (!buffers.isEmpty()) {
+            MemorySegment segment = buffers.poll();
+
+            Buffer buffer;
+            try {
+                if ((buffer = fileReader.readCurrentRegion(segment, recycler)) == null) {
+                    buffers.add(segment);
+                    break;
+                }
+            } catch (Throwable throwable) {
+                buffers.add(segment);
+                throw throwable;
+            }
+            addBuffer(buffer);
+        }
+        return fileReader.hasRemaining();
     }
 
     CompletableFuture<?> getReleaseFuture() {
