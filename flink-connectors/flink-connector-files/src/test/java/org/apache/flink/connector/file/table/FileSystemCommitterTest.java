@@ -61,7 +61,13 @@ class FileSystemCommitterTest {
     void testPartition() throws Exception {
         FileSystemCommitter committer =
                 new FileSystemCommitter(
-                        fileSystemFactory, metaStoreFactory, true, new Path(path.toString()), 2);
+                        fileSystemFactory,
+                        metaStoreFactory,
+                        true,
+                        new Path(path.toString()),
+                        2,
+                        false,
+                        new LinkedHashMap<String, String>());
 
         createFile(path, "task-1/p1=0/p2=0/", "f1", "f2");
         createFile(path, "task-2/p1=0/p2=0/", "f3");
@@ -81,7 +87,13 @@ class FileSystemCommitterTest {
 
         committer =
                 new FileSystemCommitter(
-                        fileSystemFactory, metaStoreFactory, false, new Path(path.toString()), 2);
+                        fileSystemFactory,
+                        metaStoreFactory,
+                        false,
+                        new Path(path.toString()),
+                        2,
+                        false,
+                        new LinkedHashMap<String, String>());
         createFile(path, "task-2/p1=0/p2=1/", "f6");
         committer.commitPartitions();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=1/f5")).exists();
@@ -92,7 +104,13 @@ class FileSystemCommitterTest {
     void testNotPartition() throws Exception {
         FileSystemCommitter committer =
                 new FileSystemCommitter(
-                        fileSystemFactory, metaStoreFactory, true, new Path(path.toString()), 0);
+                        fileSystemFactory,
+                        metaStoreFactory,
+                        true,
+                        new Path(path.toString()),
+                        0,
+                        false,
+                        new LinkedHashMap<String, String>());
 
         createFile(path, "task-1/", "f1", "f2");
         createFile(path, "task-2/", "f3");
@@ -107,11 +125,77 @@ class FileSystemCommitterTest {
 
         committer =
                 new FileSystemCommitter(
-                        fileSystemFactory, metaStoreFactory, false, new Path(path.toString()), 0);
+                        fileSystemFactory,
+                        metaStoreFactory,
+                        false,
+                        new Path(path.toString()),
+                        0,
+                        false,
+                        new LinkedHashMap<String, String>());
         createFile(path, "task-2/", "f5");
         committer.commitPartitions();
         assertThat(new File(outputPath.toFile(), "f4")).exists();
         assertThat(new File(outputPath.toFile(), "f5")).exists();
+    }
+
+    @Test
+    void testEmptyPartition() throws Exception {
+        LinkedHashMap<String, String> staticPartitions = new LinkedHashMap<String, String>();
+        // add new empty partition
+        staticPartitions.put("dt", "2022-08-02");
+        FileSystemCommitter committer =
+                new FileSystemCommitter(
+                        fileSystemFactory,
+                        metaStoreFactory,
+                        true,
+                        new Path(path.toString()),
+                        1,
+                        false,
+                        staticPartitions);
+
+        createFile(path, "task-1/dt=2022-08-02/");
+        createFile(path, "task-2/dt=2022-08-02/");
+
+        committer.commitPartitions();
+
+        File emptyPartitionFile = new File(outputPath.toFile(), "dt=2022-08-02");
+        assertThat(emptyPartitionFile).exists();
+        assertThat(emptyPartitionFile).isDirectory();
+        assertThat(emptyPartitionFile).isEmptyDirectory();
+
+        // Add new empty partition to overwrite the old one with data
+        createFile(outputPath, "dt=2022-08-02/f1");
+        assertThat(new File(emptyPartitionFile, "f1")).exists();
+
+        createFile(path, "task-1/dt=2022-08-02/");
+        createFile(path, "task-2/dt=2022-08-02/");
+        committer.commitPartitions();
+
+        assertThat(emptyPartitionFile).exists();
+        assertThat(emptyPartitionFile).isDirectory();
+        assertThat(emptyPartitionFile).isEmptyDirectory();
+
+        // Add empty partition to the old one with data
+        createFile(outputPath, "dt=2022-08-02/f1");
+        assertThat(new File(emptyPartitionFile, "f1")).exists();
+
+        createFile(path, "task-1/dt=2022-08-02/");
+        createFile(path, "task-2/dt=2022-08-02/");
+        committer =
+                new FileSystemCommitter(
+                        fileSystemFactory,
+                        metaStoreFactory,
+                        false,
+                        new Path(path.toString()),
+                        1,
+                        false,
+                        staticPartitions);
+        committer.commitPartitions();
+
+        assertThat(emptyPartitionFile).exists();
+        assertThat(emptyPartitionFile).isDirectory();
+        assertThat(emptyPartitionFile).isNotEmptyDirectory();
+        assertThat(new File(emptyPartitionFile, "f1")).exists();
     }
 
     static class TestMetaStoreFactory implements TableMetaStoreFactory {

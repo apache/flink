@@ -441,6 +441,61 @@ public class HiveTableSinkITCase {
         testStreamingWriteWithCustomPartitionCommitPolicy(TestCustomCommitPolicy.class.getName());
     }
 
+    @Test
+    public void testWritingNoDataToPartition() throws Exception {
+        TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
+        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tEnv.useCatalog(hiveCatalog.getName());
+        tEnv.executeSql("CREATE TABLE src_table (name string) PARTITIONED BY (`dt` string)");
+        tEnv.executeSql("CREATE TABLE target_table (name string) PARTITIONED BY (`dt` string)");
+
+        // insert into partition
+        tEnv.executeSql(
+                        "INSERT INTO target_table partition (dt='2022-07-27') SELECT name FROM src_table where dt = '2022-07-27'")
+                .await();
+        List<Row> partitions =
+                CollectionUtil.iteratorToList(
+                        tEnv.executeSql("show partitions target_table").collect());
+        assertThat(partitions).hasSize(1);
+        assertThat(partitions.toString()).contains("dt=2022-07-27");
+
+        // insert overwrite partition
+        tEnv.executeSql(
+                        "INSERT OVERWRITE target_table partition (dt='2022-07-28') SELECT name FROM src_table where dt = '2022-07-28'")
+                .await();
+        partitions =
+                CollectionUtil.iteratorToList(
+                        tEnv.executeSql("show partitions target_table").collect());
+        assertThat(partitions).hasSize(2);
+        assertThat(partitions.toString()).contains("dt=2022-07-28");
+
+        // insert into a partition with data
+        tEnv.executeSql("INSERT INTO target_table partition (dt='2022-07-29') VALUES ('zm')")
+                .await();
+
+        assertBatch("target_table", Arrays.asList("+I[zm, 2022-07-29]"));
+        tEnv.executeSql(
+                        "INSERT INTO target_table partition (dt='2022-07-29') SELECT name FROM src_table where dt = '2022-07-29'")
+                .await();
+        partitions =
+                CollectionUtil.iteratorToList(
+                        tEnv.executeSql("show partitions target_table").collect());
+        assertThat(partitions).hasSize(3);
+        assertThat(partitions.toString()).contains("dt=2022-07-29");
+        assertBatch("target_table", Arrays.asList("+I[zm, 2022-07-29]"));
+
+        // insert overwrite a partition with data
+        tEnv.executeSql(
+                        "INSERT OVERWRITE target_table partition (dt='2022-07-29') SELECT name FROM src_table where dt = '2022-07-29'")
+                .await();
+        partitions =
+                CollectionUtil.iteratorToList(
+                        tEnv.executeSql("show partitions target_table").collect());
+        assertThat(partitions).hasSize(3);
+        assertThat(partitions.toString()).contains("dt=2022-07-29");
+        assertBatch("target_table", Arrays.asList());
+    }
+
     private static List<String> fetchRows(Iterator<Row> iter, int size) {
         List<String> strings = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {

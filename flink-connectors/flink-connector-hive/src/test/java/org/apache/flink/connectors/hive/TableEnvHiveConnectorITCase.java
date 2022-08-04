@@ -104,12 +104,14 @@ public class TableEnvHiveConnectorITCase {
                             tableEnv.executeSql("select * from destp order by x").collect());
             assertThat(results.toString()).isEqualTo("[+I[1, 1], +I[2, 2]]");
             // static partitioned table
+            // The semantics of overwrite is to overwrite the original data, so the
+            // p=1 partition is overwritten with an empty partition.
             tableEnv.executeSql("insert overwrite table destp partition(p=1) select x from src")
                     .await();
             results =
                     CollectionUtil.iteratorToList(
                             tableEnv.executeSql("select * from destp order by x").collect());
-            assertThat(results.toString()).isEqualTo("[+I[1, 1], +I[2, 2]]");
+            assertThat(results.toString()).isEqualTo("[+I[2, 2]]");
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
         }
