@@ -17,6 +17,14 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.httpcomponents:httpcore:4.4.14
 - org.codehaus.jettison:jettison:1.1
 - stax:stax-api:1.0.1
+- com.google.code.gson:gson:2.8.6
+- org.ini4j:ini4j:0.5.4
+- io.opentracing:opentracing-api:0.33.0
+- io.opentracing:opentracing-util:0.33.0
+- io.opentracing:opentracing-noop:0.33.0
+
+The binary distribution of this product bundles these dependencies under the Eclipse Public License - v 2.0 (https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.txt)
+- org.jacoco:org.jacoco.agent:runtime:0.8.5
 
 This project bundles the following dependencies under the JDOM license.
 See bundled license files for details.
