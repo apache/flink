@@ -36,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A trigger that reloads cache entries periodically with specified interval and {@link
- * ScheduleMode}. If {@code reloadInterval} is zero, cache loading will happen just one time.
+ * ScheduleMode}.
  */
 public class PeriodicCacheReloadTrigger implements CacheReloadTrigger {
     private static final long serialVersionUID = 1L;

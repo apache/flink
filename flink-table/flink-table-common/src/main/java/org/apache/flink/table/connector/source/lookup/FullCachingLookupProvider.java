@@ -31,6 +31,11 @@ import org.apache.flink.table.functions.LookupFunction;
  */
 @PublicEvolving
 public interface FullCachingLookupProvider extends LookupFunctionProvider {
+
+    /**
+     * Build a {@link FullCachingLookupProvider} from the specified {@link
+     * ScanTableSource.ScanRuntimeProvider} and {@link CacheReloadTrigger}.
+     */
     static FullCachingLookupProvider of(
             ScanTableSource.ScanRuntimeProvider scanRuntimeProvider,
             CacheReloadTrigger cacheReloadTrigger) {
