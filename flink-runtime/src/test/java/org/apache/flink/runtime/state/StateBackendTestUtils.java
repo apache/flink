@@ -139,14 +139,14 @@ public class StateBackendTestUtils {
 
                 @Nonnull
                 @Override
-                public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+                public <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(
                         @Nonnull TypeSerializer<N> namespaceSerializer,
                         @Nonnull StateDescriptor<S, SV> stateDesc,
                         @Nonnull
                                 StateSnapshotTransformer.StateSnapshotTransformFactory<SEV>
                                         snapshotTransformFactory)
                         throws Exception {
-                    return delegatedKeyedStateBackend.createInternalState(
+                    return delegatedKeyedStateBackend.createOrUpdateInternalState(
                             namespaceSerializer, stateDesc, snapshotTransformFactory);
                 }
 

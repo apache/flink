@@ -70,7 +70,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
                 ? new TtlStateFactory<K, N, SV, TTLSV, S, IS>(
                                 namespaceSerializer, stateDesc, stateBackend, timeProvider)
                         .createState()
-                : stateBackend.createInternalState(namespaceSerializer, stateDesc);
+                : stateBackend.createOrUpdateInternalState(namespaceSerializer, stateDesc);
     }
 
     private final Map<StateDescriptor.Type, SupplierWithException<IS, Exception>> stateFactories;
@@ -222,7 +222,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
         // config
         OIS originalState =
                 (OIS)
-                        stateBackend.createInternalState(
+                        stateBackend.createOrUpdateInternalState(
                                 namespaceSerializer, ttlDescriptor, getSnapshotTransformFactory());
         return new TtlStateContext<>(
                 originalState,

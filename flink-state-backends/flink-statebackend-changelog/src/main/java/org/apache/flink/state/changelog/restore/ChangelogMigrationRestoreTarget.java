@@ -81,7 +81,7 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
             TypeSerializer<N> namespaceSerializer, StateDescriptor<S, V> stateDescriptor)
             throws Exception {
         InternalKvState<K, N, V> kvState =
-                keyedStateBackend.createInternalState(
+                keyedStateBackend.createOrUpdateInternalState(
                         namespaceSerializer, stateDescriptor, noTransform(), true);
         ChangelogState changelogState =
                 changelogStateFactory.getExistingState(
@@ -232,14 +232,14 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
 
             @Nonnull
             @Override
-            public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+            public <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(
                     @Nonnull TypeSerializer<N> namespaceSerializer,
                     @Nonnull StateDescriptor<S, SV> stateDesc,
                     @Nonnull
                             StateSnapshotTransformer.StateSnapshotTransformFactory<SEV>
                                     snapshotTransformFactory)
                     throws Exception {
-                return keyedStateBackend.createInternalState(
+                return keyedStateBackend.createOrUpdateInternalState(
                         namespaceSerializer, stateDesc, snapshotTransformFactory);
             }
 

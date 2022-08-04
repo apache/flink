@@ -597,7 +597,7 @@ public class ChangelogKeyedStateBackend<K>
     @Nonnull
     @Override
     @SuppressWarnings("unchecked")
-    public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+    public <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<S, SV> stateDesc,
             @Nonnull
@@ -605,7 +605,7 @@ public class ChangelogKeyedStateBackend<K>
                             snapshotTransformFactory)
             throws Exception {
         InternalKvState<K, N, SV> state =
-                keyedStateBackend.createInternalState(
+                keyedStateBackend.createOrUpdateInternalState(
                         namespaceSerializer, stateDesc, snapshotTransformFactory);
         ChangelogState changelogState =
                 changelogStateFactory.getExistingState(
@@ -852,7 +852,7 @@ public class ChangelogKeyedStateBackend<K>
                     TypeSerializer<N> namespaceSerializer, StateDescriptor<S, V> stateDescriptor)
                     throws Exception {
                 InternalKvState<K, N, V> kvState =
-                        keyedStateBackend.createInternalState(
+                        keyedStateBackend.createOrUpdateInternalState(
                                 namespaceSerializer, stateDescriptor, noTransform(), true);
                 ChangelogState changelogState =
                         changelogStateFactory.getExistingState(

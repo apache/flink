@@ -30,7 +30,7 @@ import javax.annotation.Nonnull;
 public interface KeyedStateFactory {
 
     /**
-     * Creates and returns a new {@link InternalKvState}.
+     * Creates or updates internal state and returns a new {@link InternalKvState}.
      *
      * @param namespaceSerializer TypeSerializer for the state namespace.
      * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
@@ -40,16 +40,16 @@ public interface KeyedStateFactory {
      * @param <IS> The type of internal state.
      */
     @Nonnull
-    default <N, SV, S extends State, IS extends S> IS createInternalState(
+    default <N, SV, S extends State, IS extends S> IS createOrUpdateInternalState(
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<S, SV> stateDesc)
             throws Exception {
-        return createInternalState(
+        return createOrUpdateInternalState(
                 namespaceSerializer, stateDesc, StateSnapshotTransformFactory.noTransform());
     }
 
     /**
-     * Creates and returns a new {@link InternalKvState}.
+     * Creates or updates internal state and returns a new {@link InternalKvState}.
      *
      * @param namespaceSerializer TypeSerializer for the state namespace.
      * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
@@ -61,7 +61,7 @@ public interface KeyedStateFactory {
      * @param <IS> The type of internal state.
      */
     @Nonnull
-    <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+    <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<S, SV> stateDesc,
             @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory)
@@ -81,7 +81,7 @@ public interface KeyedStateFactory {
      * @param <IS> The type of internal state.
      */
     @Nonnull
-    default <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+    default <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<S, SV> stateDesc,
             @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory,
@@ -91,7 +91,8 @@ public interface KeyedStateFactory {
             throw new UnsupportedOperationException(
                     this.getClass().getName() + "doesn't support to allow future metadata update");
         } else {
-            return createInternalState(namespaceSerializer, stateDesc, snapshotTransformFactory);
+            return createOrUpdateInternalState(
+                    namespaceSerializer, stateDesc, snapshotTransformFactory);
         }
     }
 }
