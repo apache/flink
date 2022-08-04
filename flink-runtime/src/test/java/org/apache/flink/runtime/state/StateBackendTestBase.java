@@ -4647,7 +4647,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
             // insert some data to the backend.
             InternalValueState<Integer, VoidNamespace, Integer> valueState =
-                    backend.createInternalState(
+                    backend.createOrUpdateInternalState(
                             VoidNamespaceSerializer.INSTANCE,
                             new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
@@ -4734,7 +4734,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         try {
             backend = createKeyedBackend(IntSerializer.INSTANCE);
             InternalValueState<Integer, VoidNamespace, Integer> valueState =
-                    backend.createInternalState(
+                    backend.createOrUpdateInternalState(
                             VoidNamespaceSerializer.INSTANCE,
                             new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
@@ -4786,7 +4786,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, stateHandle);
 
             InternalValueState<Integer, VoidNamespace, Integer> valueState =
-                    backend.createInternalState(
+                    backend.createOrUpdateInternalState(
                             VoidNamespaceSerializer.INSTANCE,
                             new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
@@ -4958,7 +4958,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             }
 
             InternalValueState<Integer, VoidNamespace, Integer> valueState =
-                    backend.createInternalState(
+                    backend.createOrUpdateInternalState(
                             VoidNamespaceSerializer.INSTANCE,
                             new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
@@ -5082,7 +5082,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 createKeyedBackend(IntSerializer.INSTANCE);
         try {
             InternalMapState<Integer, String, String, Integer> internalState =
-                    backend.createInternalState(
+                    backend.createOrUpdateInternalState(
                             StringSerializer.INSTANCE,
                             new MapStateDescriptor<>(
                                     fieldName, StringSerializer.INSTANCE, IntSerializer.INSTANCE));

@@ -862,17 +862,18 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @Override
     @Nonnull
-    public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+    public <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<S, SV> stateDesc,
             @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory)
             throws Exception {
-        return createInternalState(namespaceSerializer, stateDesc, snapshotTransformFactory, false);
+        return createOrUpdateInternalState(
+                namespaceSerializer, stateDesc, snapshotTransformFactory, false);
     }
 
     @Nonnull
     @Override
-    public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+    public <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<S, SV> stateDesc,
             @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory,

@@ -331,10 +331,10 @@ public class EmbeddedRocksDBStateBackendTest
 
             ValueStateDescriptor<String> stubState1 =
                     new ValueStateDescriptor<>("StubState-1", StringSerializer.INSTANCE);
-            test.createInternalState(StringSerializer.INSTANCE, stubState1);
+            test.createOrUpdateInternalState(StringSerializer.INSTANCE, stubState1);
             ValueStateDescriptor<String> stubState2 =
                     new ValueStateDescriptor<>("StubState-2", StringSerializer.INSTANCE);
-            test.createInternalState(StringSerializer.INSTANCE, stubState2);
+            test.createOrUpdateInternalState(StringSerializer.INSTANCE, stubState2);
 
             // The default CF is pre-created so sum up to 2 times (once for each stub state)
             verify(columnFamilyOptions, Mockito.times(2))
