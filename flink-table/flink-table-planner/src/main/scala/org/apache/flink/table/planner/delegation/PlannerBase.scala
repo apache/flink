@@ -31,6 +31,7 @@ import org.apache.flink.table.factories.{DynamicTableSinkFactory, FactoryUtil, T
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations._
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
+import org.apache.flink.table.operations.ddl.CreateTableOperation
 import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.calcite._
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
@@ -40,12 +41,14 @@ import org.apache.flink.table.planner.delegation.DialectFactory.DefaultParserCon
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalLegacySink, LogicalSink}
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
 import org.apache.flink.table.planner.plan.nodes.exec.processor.{ExecNodeGraphProcessor, ProcessorContext}
 import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
+import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateTableSink}
 import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_CURRENT_DATABASE, TABLE_QUERY_START_EPOCH_TIME, TABLE_QUERY_START_LOCAL_TIME}
@@ -61,12 +64,16 @@ import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableModify
+import org.json4s.NoTypeHints
+import org.json4s.jackson.Serialization
 
 import java.lang.{Long => JLong}
 import java.util
 import java.util.{Collections, TimeZone}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 /**
  * Implementation of a [[Planner]]. It supports only streaming use cases. (The new
@@ -523,5 +530,55 @@ abstract class PlannerBase(
       .asInstanceOf[StreamGraph]
 
     (sinkRelNodes, optimizedRelNodes, execGraph, streamGraph)
+  }
+  override def explainLineage(operations: util.List[Operation]): String = {
+    require(operations.nonEmpty, "operations should not be empty")
+    val relationList = ListBuffer[Map[String, String]]()
+    val tableList = ListBuffer[Map[String, Object]]()
+    operations.foreach(
+      operation => {
+        operation match {
+          case operation: CreateTableOperation =>
+            val tableName = operation.getTableIdentifier.toString
+            val options = operation.getCatalogTable.getOptions.asScala.toMap
+            val fieldList = ListBuffer[Map[String, String]]()
+            operation.getCatalogTable
+              .asInstanceOf[CatalogTableImpl]
+              .getSchema
+              .getTableColumns
+              .foreach(
+                col => fieldList += Map("name" -> col.getName, "type" -> col.getType.toString))
+            tableList += Map("name" -> tableName, "columns" -> fieldList, "options" -> options)
+          case operation: ModifyOperation =>
+            val sinkRelNode = translateToRel(operation)
+            val tableName = sinkRelNode.asInstanceOf[LogicalLegacySink].sinkName
+            val queryRelNode = createRelBuilder.queryOperation(operation.getChild).build()
+            val mq = FlinkRelMetadataQuery.reuseOrCreate(queryRelNode.getCluster.getMetadataQuery)
+            val fieldList = queryRelNode.getRowType.getFieldList
+            for (i <- 0 until fieldList.size()) {
+              val colOrigins = mq.getColumnOrigins(queryRelNode, i)
+              if (colOrigins != null) {
+                colOrigins.foreach(
+                  colOrigin => {
+                    val originColOrdinal = colOrigin.getOriginColumnOrdinal
+                    val originTable =
+                      colOrigin.getOriginTable.asInstanceOf[LegacyTableSourceTable[_]]
+                    val originTableName = originTable.tableIdentifier.toString
+                    val originField = originTable.getRowType.getFieldList.get(originColOrdinal)
+                    relationList += Map(
+                      "srcTable" -> originTableName,
+                      "tgtTable" -> tableName,
+                      "srcTableColName" -> originField.getName,
+                      "tgtTableColName" -> fieldList.get(i).getName)
+                  })
+              }
+            }
+          case _ =>
+
+        }
+
+      })
+    implicit val formats = Serialization.formats(NoTypeHints)
+    Serialization.write(Map("tables" -> tableList, "relations" -> relationList))
   }
 }

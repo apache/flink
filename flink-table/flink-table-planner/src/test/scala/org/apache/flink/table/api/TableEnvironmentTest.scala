@@ -47,6 +47,8 @@ import org.junit.{Rule, Test}
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.ExpectedException
 
+import scala.collection.mutable.ListBuffer
+
 class TableEnvironmentTest {
 
   // used for accurate exception information checking.
@@ -112,6 +114,27 @@ class TableEnvironmentTest {
     val expected = TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExplain.out")
     val actual = tEnv.explainSql("insert into MySink select first from MyTable")
     assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
+  def testStreamTableEnvironmentExplainLineage(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+    val list = new util.ArrayList[String]()
+    val createSrcStmt =
+      "create table src (a String,b String, c String) with ( 'connector' = 'COLLECTION')"
+    tEnv.executeSql(createSrcStmt)
+    list.add(createSrcStmt)
+    val createDesStmt =
+      "create table des (a String,b String, c String) with ( 'connector' = 'COLLECTION')"
+    tEnv.executeSql(createDesStmt)
+    list.add(createDesStmt)
+    val insertStmt = "insert into des select * from src"
+    list.add(insertStmt)
+    val actual = tEnv.explainLineage(list).trim
+    val expected = TableTestUtil.readFromResource("/explain/testExplainLineage.out").trim
+    assertEquals(actual, expected)
   }
 
   @Test

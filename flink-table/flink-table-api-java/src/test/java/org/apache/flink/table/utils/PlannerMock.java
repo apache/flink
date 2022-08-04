@@ -56,6 +56,11 @@ public class PlannerMock implements Planner {
     }
 
     @Override
+    public String explainLineage(List<Operation> operations) {
+        return null;
+    }
+
+    @Override
     public InternalPlan loadPlan(PlanReference planReference) throws IOException {
         return null;
     }

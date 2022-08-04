@@ -260,6 +260,12 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.json4s</groupId>
+			<artifactId>json4s-jackson_${scala.binary.version}</artifactId>
+			<version>3.7.0-M2</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>

@@ -96,6 +96,13 @@ public interface Planner {
      */
     String explain(List<Operation> operations, ExplainDetail... extraDetails);
 
+    /**
+     * Returns the field-level lineage of the given collection.
+     *
+     * @param operations The collection of Table operations for which the lineage will be returned.
+     */
+    String explainLineage(List<Operation> operations);
+
     // --- Plan compilation and restore
 
     @Experimental

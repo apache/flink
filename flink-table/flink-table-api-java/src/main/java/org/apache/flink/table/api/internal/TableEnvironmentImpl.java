@@ -657,6 +657,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
+    public String explainLineage(List<String> stmts) {
+        List<Operation> operations = new ArrayList<>();
+        for (String stmt : stmts) {
+            operations.addAll(getParser().parse(stmt));
+        }
+        return planner.explainLineage(operations);
+    }
+
+    @Override
     public String explainInternal(List<Operation> operations, ExplainDetail... extraDetails) {
         operations =
                 operations.stream()
