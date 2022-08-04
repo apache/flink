@@ -99,7 +99,7 @@ import static org.junit.Assert.assertSame;
 
 /** Base class for tests related to period materialization of ChangelogStateBackend. */
 @RunWith(Parameterized.class)
-public abstract class ChangelogPeriodicMaterializationTestBase extends TestLogger {
+public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
 
     private static final int NUM_TASK_MANAGERS = 1;
     private static final int NUM_TASK_SLOTS = 4;
@@ -122,7 +122,7 @@ public abstract class ChangelogPeriodicMaterializationTestBase extends TestLogge
                 new EmbeddedRocksDBStateBackend(false));
     }
 
-    public ChangelogPeriodicMaterializationTestBase(AbstractStateBackend delegatedStateBackend) {
+    public ChangelogRecoveryITCaseBase(AbstractStateBackend delegatedStateBackend) {
         this.delegatedStateBackend = delegatedStateBackend;
     }
 

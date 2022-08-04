@@ -35,11 +35,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import static org.apache.flink.test.util.TestUtils.getMostRecentCompletedCheckpoint;
 
 /** Base class for tests related to switching environment for Changelog state backend. */
-public abstract class ChangelogPeriodicMaterializationSwitchEnvTestBase
-        extends ChangelogPeriodicMaterializationTestBase {
+public abstract class ChangelogRecoverySwitchEnvTestBase extends ChangelogRecoveryITCaseBase {
 
-    public ChangelogPeriodicMaterializationSwitchEnvTestBase(
-            AbstractStateBackend delegatedStateBackend) {
+    public ChangelogRecoverySwitchEnvTestBase(AbstractStateBackend delegatedStateBackend) {
         super(delegatedStateBackend);
     }
 
